@@ -1,0 +1,12 @@
+w1:
+  crossfile: w1.crossfile
+  jlink_gdb_chip: EFR32MG24BXXXF1536
+  bootloader_required: true
+  bootloader_image: loader
+  partitions: w1a
+  deprecated_hw_revisions:
+    - w1a-proto
+    - w1a-proto-0
+    - w1a-dev-board-rev-0
+    - w1a-dev-board-rev-1
+

@@ -1,0 +1,28 @@
+-- This migration updates all the incorrect "XTB" currency codes to "BTC" in the database.
+--
+-- Before this migration, we used "XTB" as the currency code for Bitcoin, which was a typo
+-- for "XBT". While "XBT" does adhere to ISO 4217, it is still not an official currency code.
+-- Our backend uses "BTC" as the currency code for Bitcoin, which is not ISO 4217 compliant either.
+-- Nonetheless we use "BTC".
+
+UPDATE exchangeRateEntity
+SET fromCurrency = 'BTC'
+WHERE fromCurrency = 'XTB';
+
+UPDATE exchangeRateEntity
+SET toCurrency = 'BTC'
+WHERE toCurrency = 'XTB';
+
+UPDATE historicalExchangeRateEntity
+SET fromCurrency = 'BTC'
+WHERE fromCurrency = 'XTB';
+
+UPDATE historicalExchangeRateEntity
+SET toCurrency = 'BTC'
+WHERE toCurrency = 'XTB';
+
+UPDATE spendingLimitEntity
+SET limitAmountCurrencyAlphaCode = 'BTC'
+WHERE limitAmountCurrencyAlphaCode = 'XTB';
+
+PRAGMA foreign_key_check;

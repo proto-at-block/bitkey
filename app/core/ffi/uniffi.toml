@@ -1,0 +1,8 @@
+[bindings.kotlin]
+package_name = "build.wallet.core"
+cdylib_name = "core"
+
+[bindings.python]
+cdylib_name = "core"
+
+[bindings.swift]

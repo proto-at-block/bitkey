@@ -1,0 +1,15 @@
+import kotlin.Boolean;
+
+CREATE TABLE networkingDebugConfigEntity(
+    rowId             INTEGER NOT NULL PRIMARY KEY,
+    failF8eRequests   INTEGER AS Boolean NOT NULL
+);
+
+setConfig:
+INSERT OR REPLACE INTO networkingDebugConfigEntity(rowId, failF8eRequests)
+-- Use stable row ID to ensure we only ever have a single config in table.
+VALUES(0, ?);
+
+getConfig:
+SELECT * FROM networkingDebugConfigEntity
+WHERE rowId = 0;

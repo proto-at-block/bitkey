@@ -1,0 +1,18 @@
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+
+CREATE TABLE onboardingKeyboxHwAuthPublicKey(
+    rowId           INTEGER NOT NULL PRIMARY KEY,
+    hwAuthPublicKey TEXT AS HwAuthPublicKey
+);
+
+set:
+INSERT OR REPLACE INTO onboardingKeyboxHwAuthPublicKey(rowId, hwAuthPublicKey)
+-- Use stable row ID to ensure we only ever have a single hwAuthPublicKey.
+VALUES(0, ?);
+
+get:
+SELECT * FROM onboardingKeyboxHwAuthPublicKey
+WHERE rowid = 0;
+
+clear:
+DELETE FROM onboardingKeyboxHwAuthPublicKey;

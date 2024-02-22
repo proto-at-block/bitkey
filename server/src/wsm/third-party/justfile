@@ -1,0 +1,25 @@
+SOCAT_VERSION := "1.7.4.4"
+SOCAT_FILENAME := "socat-" + SOCAT_VERSION + ".tar.gz"
+SOCAT_URL := "http://www.dest-unreach.org/socat/download/socat-" + SOCAT_VERSION + ".tar.gz"
+SOCAT_HASH := "0f8f4b9d5c60b8c53d17b60d79ababc4a0f51b3bb6d2bd3ae8a6a4b9d68f195e"
+
+download:
+    mkdir -p socat
+    curl -L -o socat/{{SOCAT_FILENAME}} {{SOCAT_URL}}
+
+check-hash:
+    if [ "$(openssl sha256 -r socat/{{SOCAT_FILENAME}} | awk '{print $1}')" != "{{SOCAT_HASH}}" ]; then \
+        echo "Hash check failed"; \
+        exit 1; \
+    else \
+        echo "Hash check succeeded"; \
+    fi
+
+build-socat: download check-hash
+    tar xf socat/socat-{{SOCAT_VERSION}}.tar.gz -C socat/
+    docker build -f Dockerfile.socat -t socat-builder:latest .
+    docker run -v$(pwd)/socat/socat-{{SOCAT_VERSION}}:/app socat-builder:latest
+    cp socat/socat-{{SOCAT_VERSION}}/socat ./socat/socat
+
+clean:
+    rm -f socat

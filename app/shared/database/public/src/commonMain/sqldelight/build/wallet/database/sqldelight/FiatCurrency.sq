@@ -1,0 +1,23 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+
+CREATE TABLE fiatCurrencyEntity(
+    textCode            TEXT AS IsoCurrencyTextCode NOT NULL PRIMARY KEY,
+    fractionalDigits    INTEGER NOT NULL,
+    displayUnitSymbol   TEXT,
+    displayName         TEXT NOT NULL,
+    displayCountryCode  TEXT NOT NULL   --  Country code to use to display an emoji flag
+);
+
+allFiatCurrencies:
+SELECT * FROM fiatCurrencyEntity;
+
+insertOrUpdateFiatCurrency:
+INSERT OR REPLACE INTO fiatCurrencyEntity(textCode, fractionalDigits, displayUnitSymbol, displayName, displayCountryCode)
+VALUES(?, ?, ?, ?, ?);
+
+getFiatCurrencyByTextCode:
+SELECT * FROM fiatCurrencyEntity
+WHERE textCode = ?;
+
+clear:
+DELETE FROM fiatCurrencyEntity;

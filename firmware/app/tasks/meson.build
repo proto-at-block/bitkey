@@ -1,0 +1,8 @@
+subdir('nfc')
+subdir('shell')
+subdir('key_manager')
+subdir('auth')
+subdir('mfgtest')
+subdir('sysinfo')
+subdir('fwup')
+subdir('led')

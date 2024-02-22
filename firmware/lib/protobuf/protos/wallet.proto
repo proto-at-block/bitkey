@@ -1,0 +1,716 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+import "mfgtest.proto";
+import "secure-channel.proto";
+import "ops-keybundle.proto";
+import "ops-keys.proto";
+import "ops-seal.proto";
+
+// IMPORTANT: Must match secure_boot_config_t.
+enum secure_boot_config {
+  SECURE_BOOT_CONFIG_UNSPECIFIED = 0;
+  SECURE_BOOT_CONFIG_DEV = 1;
+  SECURE_BOOT_CONFIG_PROD = 2;
+}
+
+message se_info {
+  uint32 version = 1;
+  uint32 otp_version = 2;
+  bytes serial = 3 [(nanopb).max_size = 16];
+
+  // From sl_se_otp_init_t
+  bool enable_secure_boot = 4;
+  bool verify_secure_boot_certificate = 5;
+  bool enable_anti_rollback = 6;
+  bool secure_boot_page_lock_narrow = 7;
+  bool secure_boot_page_lock_full = 8;
+  bytes tamper_levels = 9 [(nanopb).max_size = 32];
+  uint32 tamper_filter_period = 10;
+  uint32 tamper_filter_threshold = 11;
+  uint32 tamper_flags = 12;
+  uint32 tamper_reset_threshold = 13;
+
+  // sl_se_status_t
+  uint32 boot_status = 14;
+  uint32 se_fw_version = 15;
+  uint32 host_fw_version = 16;
+  // nested from sl_se_debug_status_t
+  bool device_erase_enabled = 17;
+  bool secure_debug_enabled = 18;
+  bool debug_port_lock_applied = 19;
+  bool debug_port_lock_state = 20;
+  bytes debug_options_config = 21 [(nanopb).max_size = 4];
+  bytes debug_options_state = 22 [(nanopb).max_size = 4];
+  // end
+  bool secure_boot_enabled = 23;
+  uint32 tamper_status = 24;
+  uint32 tamper_status_raw = 25;
+}
+
+message coredump_fragment {
+  bytes data = 1 [(nanopb).max_size = 452];
+  int32 offset = 2;
+  bool complete = 3;  // Done processing a single coredump
+  int32 coredumps_remaining = 4;
+}
+
+message event_fragment {
+  bytes data = 1 [(nanopb).max_size = 451]; // max 41 events per fragment
+  int32 remaining_size = 2; // Size of events still remaining
+}
+
+message meta_cmd {
+}
+
+message semver {
+  uint32 major = 1;
+  uint32 minor = 2;
+  uint32 patch = 3;
+}
+
+message firmware_metadata {
+  // All string sizes must match lib/metadata.c structs, and have +1
+  // to account for null terminator.
+  bool valid = 1; // True if there was an error trying to get this metadata.
+  string git_id = 2 [(nanopb).max_size = 65];
+  string git_branch = 3 [(nanopb).max_size = 65];
+  semver version = 4;
+  string build = 5 [(nanopb).max_size = 8];
+  uint64 timestamp = 6;
+  bytes hash = 7 [(nanopb).max_size = 32];
+  string hw_revision = 8 [(nanopb).max_size = 33];
+}
+
+enum firmware_slot {
+  SLOT_UNSPECIFIED = 0;
+  SLOT_A = 1;
+  SLOT_B = 2;
+}
+
+message meta_rsp {
+  enum meta_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  meta_rsp_status rsp_status = 1;
+  firmware_metadata meta_bl = 2;
+  firmware_metadata meta_slot_a = 3;
+  firmware_metadata meta_slot_b = 4;
+  firmware_slot active_slot = 5;
+}
+
+// A command used by the mobile client to ask the hw device to start the fingerprint enrollment process.
+message start_fingerprint_enrollment_cmd {}
+
+// The response for `start_fingerprint_enrollment_cmd `
+message start_fingerprint_enrollment_rsp {
+  enum start_fingerprint_enrollment_rsp_status {
+    // Common error codes
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    reserved 4 to 9;
+  }
+
+  start_fingerprint_enrollment_rsp_status rsp_status = 1;
+}
+
+// A command used by the mobile client to ask the hw device if fingerprints have been successfully enrolled.
+message get_fingerprint_enrollment_status_cmd {}
+
+// The response for `get_fingerprint_enrollment_status_cmd `
+message get_fingerprint_enrollment_status_rsp {
+ enum get_fingerprint_enrollment_status_rsp_status {
+    // Common error codes
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  enum fingerprint_enrollment_status {
+    STATUS_UNSPECIFIED = 0; // Needs a different name to not conflict with `UNSPECIFIED` above.
+    INCOMPLETE = 1;
+    COMPLETE = 2;
+    NOT_IN_PROGRESS = 3;
+  }
+
+  get_fingerprint_enrollment_status_rsp_status rsp_status = 1;
+  fingerprint_enrollment_status fingerprint_status = 2;
+  uint32 pass_count = 3;
+  uint32 fail_count = 4;
+}
+
+// A command used by the mobile client to ask the hw device the authentication status.
+message query_authentication_cmd {}
+
+// The response for `verify_authentication_cmd `
+message query_authentication_rsp {
+  enum query_authentication_rsp_status {
+    UNSPECIFIED = 0;
+    AUTHENTICATED = 1;
+    UNAUTHENTICATED = 2;
+    reserved 3 to 9;
+  }
+
+  query_authentication_rsp_status rsp_status = 1;
+}
+
+// A command used by the mobile client to ask the hw device to wipe its state.
+// Should only be used in debug environments.
+message wipe_state_cmd {}
+
+// The response for `wipe_state_cmd `
+message wipe_state_rsp {
+  enum wipe_state_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    reserved 4 to 9;
+  }
+
+  wipe_state_rsp_status rsp_status = 1;
+}
+
+// A command used by the mobile client to ask the hw device for its metadata.
+message device_id_cmd {}
+
+// The response for `device_id_cmd `
+message device_id_rsp {
+  // all strings are +1 for null terminator
+  string mlb_serial = 1 [(nanopb).max_size = 17];
+  bool mlb_serial_valid = 2;
+  string assy_serial = 3 [(nanopb).max_size = 17];
+  bool assy_serial_valid = 4;
+}
+
+enum fwup_mode {
+  FWUP_MODE_NORMAL = 0;  // Default mode if not explicitly set.
+  FWUP_MODE_DELTA_INLINE = 1;
+  FWUP_MODE_DELTA_ONESHOT = 2;
+}
+
+// A command used to initiate an NFC transfer of a device firmware update
+message fwup_start_cmd {
+  fwup_mode mode = 1;
+  uint32 patch_size = 2;  // Only used if doing a delta update
+}
+
+// The response for `fwup_start_cmd`
+message fwup_start_rsp {
+  enum fwup_start_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    reserved 4 to 9;
+  }
+
+  fwup_start_rsp_status rsp_status = 1;
+}
+
+// TODO Consider changing this API; possible attack since these offsets can be controlled?
+message fwup_finish_cmd {
+  uint32 app_properties_offset = 1;
+  uint32 signature_offset = 2;
+  bool bl_upgrade = 3;
+  fwup_mode mode = 4;
+}
+
+message fwup_finish_rsp {
+  enum fwup_finish_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    SIGNATURE_INVALID = 2;
+    VERSION_INVALID = 3;
+    ERROR = 4;  // Generic error, shouldn't happen.
+    WILL_APPLY_PATCH = 5;
+    UNAUTHENTICATED = 6;
+    reserved 7 to 9;
+  }
+
+  fwup_finish_rsp_status rsp_status = 1;
+}
+
+
+// A command used to send chunked firmware update binary data
+message fwup_transfer_cmd {
+  uint32 sequence_id = 1;
+  bytes fwup_data = 2 [(nanopb).max_size = 452];  // Must be divisible by 4 for flash write alignment
+  uint32 offset = 3;
+  fwup_mode mode = 4;
+}
+
+// The response for `fwup_transfer_cmd`
+message fwup_transfer_rsp {
+  enum fwup_transfer_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 4;
+    reserved 5 to 9;
+  }
+
+  fwup_transfer_rsp_status rsp_status = 1;
+}
+
+// Resets the MCU.
+message reset_cmd {}
+
+// Does nothing, only exists for consistency in the top-level proto.
+message reset_rsp {}
+
+message fuel_cmd {}
+
+message fuel_rsp {
+  uint32 repsoc = 1;
+  uint32 vcell = 2;
+  bool valid = 3;
+}
+
+message coredump_get_cmd {
+  enum coredump_get_type {
+    UNSPECIFIED = 0;
+    COUNT = 1;  // How many coredumps are there?
+    COREDUMP = 2; // Get an actual coredump
+  }
+
+  coredump_get_type type = 1;
+  uint32 offset = 2;
+}
+
+message coredump_get_rsp {
+  enum coredump_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  coredump_get_rsp_status rsp_status = 1;
+  coredump_fragment coredump_fragment = 2;
+  uint32 coredump_count = 3;
+}
+
+message events_get_cmd {
+}
+
+message events_get_rsp {
+  enum events_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  events_get_rsp_status rsp_status = 1;
+  uint32 version = 2;
+  event_fragment fragment = 3;
+}
+
+enum feature_flag {
+  FEATURE_FLAG_TELEMETRY = 0;
+  FEATURE_FLAG_DEVICE_INFO_FLAG = 1; // Must have the _FLAG at the end of its name
+                                     // because of `Enum variant names must not shadow type names:` when building core
+  FEATURE_FLAG_RATE_LIMIT_TEMPLATE_UPDATE = 2;
+  FEATURE_FLAG_UNLOCK = 3;
+  // Add new feature flags here; do not remove any!
+}
+
+message feature_flag_cfg {
+  feature_flag flag = 1;
+  bool enabled = 2;
+}
+
+message feature_flags_get_cmd {
+}
+
+message feature_flags_get_rsp {
+  enum feature_flags_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  feature_flags_get_rsp_status rsp_status = 1;
+
+  // List of supported feature flags and if they are enabled/disabled.
+  // Must be large enough to fit all feature flags.
+  repeated feature_flag_cfg flags = 2 [(nanopb).max_count = 32];
+}
+
+message feature_flags_set_cmd {
+  // Must be large enough to fit all feature flags.
+  repeated feature_flag_cfg flags = 1 [(nanopb).max_count = 32];
+}
+
+message feature_flags_set_rsp {
+  enum feature_flags_set_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  feature_flags_set_rsp_status rsp_status = 1;
+}
+
+message telemetry_id_get_cmd {
+}
+
+message telemetry_id_get_rsp {
+  enum telemetry_id_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  telemetry_id_get_rsp_status rsp_status = 1;
+
+  string serial = 2 [(nanopb).max_size = 17];
+  semver version = 3;
+  string sw_type = 4 [(nanopb).max_size = 33];  // e.g. app-a-dev
+  string hw_revision = 5 [(nanopb).max_size = 33]; // e.g. evt
+}
+
+message secinfo_get_cmd {
+}
+
+message secinfo_get_rsp {
+  enum secinfo_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    OTP_READ_FAIL = 2;
+    UNIMPLEMENTED = 3;
+    reserved 4 to 9;
+  }
+
+  secinfo_rsp_status rsp_status = 1;
+  se_info se_info = 2;
+}
+
+message cert_get_cmd {
+  enum cert_type {
+    UNSPECIFIED = 0;
+    BATCH_CERT = 1;
+    DEVICE_SE_CERT = 2;
+    DEVICE_HOST_CERT = 3;
+  }
+
+  cert_type kind = 1;
+}
+
+message cert_get_rsp {
+  enum cert_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    CERT_READ_FAIL = 2;
+    UNIMPLEMENTED = 3;
+    reserved 4 to 9;
+  }
+
+  cert_get_rsp_status rsp_status = 1;
+  bytes cert = 2 [(nanopb).max_size = 512];
+}
+
+message pubkeys_get_cmd {
+}
+
+message pubkeys_get_rsp {
+  enum pubkeys_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    PUBKEYS_READ_FAIL = 2;
+    UNIMPLEMENTED = 3;
+    reserved 4 to 9;
+  }
+
+  pubkeys_get_rsp_status rsp_status = 1;
+  bytes boot_pubkey = 2 [(nanopb).max_size = 64];
+  bytes auth_pubkey = 3 [(nanopb).max_size = 64];
+  bytes attesation_pubkey = 4 [(nanopb).max_size = 64];
+  bytes se_attestation_pubkey = 5 [(nanopb).max_size = 64];
+}
+
+message pubkey_get_cmd {
+  enum pubkey_type {
+    UNSPECIFIED = 0;
+    BOOT_PUBKEY = 1;
+    AUTH_PUBKEY = 2;
+    ATTESTATION_PUBKEY = 3;
+    SE_ATTESTATION_PUBKEY = 4;
+  }
+
+  pubkey_type kind = 1;
+}
+
+message pubkey_get_rsp {
+  enum pubkey_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    PUBKEY_READ_FAIL = 2;
+    UNIMPLEMENTED = 3;
+    reserved 4 to 9;
+  }
+
+  pubkey_get_rsp_status rsp_status = 1;
+  bytes pubkey = 2 [(nanopb).max_size = 64];
+}
+
+message fingerprint_settings_get_cmd {
+}
+
+message fingerprint_settings_get_rsp {
+  enum fingerprint_settings_get_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    FINGERPRINT_SETTINGS_READ_FAIL = 2;
+    UNIMPLEMENTED = 3;
+    reserved 4 to 9;
+  }
+
+  fingerprint_settings_get_rsp_status status = 1;
+  bool security_enabled = 2;
+  bool otp_locked = 3;
+}
+
+message cap_touch_cal_cmd {}
+
+message cap_touch_cal_rsp {
+  enum cap_touch_cal_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNSUPPORTED = 3;
+    reserved 4 to 9;
+  }
+
+  cap_touch_cal_status status = 1;
+}
+
+message empty_cmd {}
+message empty_rsp {}
+
+// This command is sent on each NFC interaction from the mobile apps,
+// and the response must be kept as small as possible.
+message device_info_cmd {
+}
+
+message device_info_rsp {
+  enum device_info_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    METADATA_ERROR = 3;
+    SERIAL_ERROR = 4;
+    BATTERY_ERROR = 5;
+    reserved 6 to 9;
+  }
+
+  device_info_rsp_status rsp_status = 1;
+
+  semver version = 2;
+
+  string serial = 3 [(nanopb).max_size = 17];  // Top-level (assy) serial
+  string sw_type = 4 [(nanopb).max_size = 33];  // e.g. app-a-dev
+  string hw_revision = 5 [(nanopb).max_size = 33]; // e.g. evt
+  firmware_slot active_slot = 6;
+
+  // Frequently changing hardware information
+  uint32 battery_charge = 7;
+  uint32 vcell = 8;
+  int32 avg_current_ma = 9;
+  uint32 battery_cycles = 10;
+
+  secure_boot_config secure_boot_config = 11;
+}
+
+message lock_device_cmd {}
+message lock_device_rsp {}
+
+message hardware_attestation_cmd {
+  bytes nonce = 1 [(nanopb).max_size = 16];
+}
+
+message hardware_attestation_rsp {
+  bytes signature = 1 [(nanopb).max_size = 64];
+}
+
+message send_unlock_secret_cmd {
+  secure_channel_message secret = 1;
+}
+
+message send_unlock_secret_rsp {
+  uint32 remaining_delay_ms = 1;
+  uint32 retry_counter = 2;
+}
+
+message provision_unlock_secret_cmd {
+  secure_channel_message secret = 1;
+}
+
+message provision_unlock_secret_rsp {
+}
+
+message configure_unlock_limit_response_cmd {
+  // Should match unlock_limit_response_t in unlock.h
+  enum response_cfg {
+    UNLOCK_LIMIT_RESPONSE_DELAY = 0;
+    UNLOCK_LIMIT_RESPONSE_WIPE_STATE = 1;
+  }
+  response_cfg unlock_limit_response = 1;
+}
+
+message configure_unlock_limit_response_rsp {
+}
+
+enum status {
+  UNSPECIFIED = 0;
+  SUCCESS = 1;
+  ERROR = 2;
+  UNAUTHENTICATED = 3;
+  UNKNOWN_MESSAGE = 4;
+
+  NO_SECURE_CHANNEL = 5;
+  KEY_DERIVATION_FAILED = 6;
+  SIGNING_FAILED = 7;
+  SECURE_CHANNEL_ERROR = 8;
+
+  WRONG_SECRET = 9;
+  STORAGE_ERR = 10;
+  NO_SECRET_PROVISIONED = 11;
+  WAITING_ON_DELAY = 12;
+
+  FEATURE_NOT_SUPPORTED = 13;
+}
+
+message wallet_cmd {
+  oneof msg {
+    // IMPORTANT: Each variable name must exactly match the message type.
+    //
+    // Rationale:
+    // The IPC code generator relies on this fact, since it allows us to more easily
+    // generate code. Nanopb generates the tags for these fields based on the variable
+    // name, but the IPC code generator only ever looks at protobuf type names.
+    // We could loosen this restriction, but that would require the IPC code generator
+    // to inspect wallet.pb.h for the tag names.
+    meta_cmd meta_cmd = 1;
+    seal_csek_cmd seal_csek_cmd = 3;
+    unseal_csek_cmd unseal_csek_cmd = 4;
+    start_fingerprint_enrollment_cmd start_fingerprint_enrollment_cmd = 6;
+    get_fingerprint_enrollment_status_cmd get_fingerprint_enrollment_status_cmd = 7;
+    sign_txn_cmd sign_txn_cmd = 8;
+    query_authentication_cmd query_authentication_cmd = 9;
+    wipe_state_cmd wipe_state_cmd = 10;
+    mfgtest_fingerprint_cmd mfgtest_fingerprint_cmd = 11;
+    mfgtest_serial_write_cmd mfgtest_serial_write_cmd = 12;
+    device_id_cmd device_id_cmd = 13;
+    fwup_start_cmd fwup_start_cmd = 15;
+    fwup_transfer_cmd fwup_transfer_cmd = 16;
+    fwup_finish_cmd fwup_finish_cmd = 17;
+    reset_cmd reset_cmd = 18;
+    fuel_cmd fuel_cmd = 19;
+    mfgtest_gpio_cmd mfgtest_gpio_cmd = 20;
+    coredump_get_cmd coredump_get_cmd = 25;
+    events_get_cmd events_get_cmd = 26;
+    feature_flags_get_cmd feature_flags_get_cmd = 27;
+    feature_flags_set_cmd feature_flags_set_cmd = 28;
+    telemetry_id_get_cmd telemetry_id_get_cmd = 29 [deprecated = true];
+    derive_key_descriptor_cmd derive_key_descriptor_cmd = 32;
+    derive_key_descriptor_and_sign_cmd derive_key_descriptor_and_sign_cmd = 33;
+    secinfo_get_cmd secinfo_get_cmd = 35;
+    cert_get_cmd cert_get_cmd = 36;
+    pubkeys_get_cmd pubkeys_get_cmd = 37;
+    fingerprint_settings_get_cmd fingerprint_settings_get_cmd = 38;
+    mfgtest_battery_variant_cmd mfgtest_battery_variant_cmd = 39;
+    cap_touch_cal_cmd cap_touch_cal_cmd = 40;
+    empty_cmd empty_cmd = 41;
+    device_info_cmd device_info_cmd = 42;
+    lock_device_cmd lock_device_cmd = 43;
+    pubkey_get_cmd pubkey_get_cmd = 44;
+    hardware_attestation_cmd hardware_attestation_cmd = 45;
+    secure_channel_establish_cmd secure_channel_establish_cmd = 46;
+    send_unlock_secret_cmd send_unlock_secret_cmd = 47;
+    derive_public_key_cmd derive_public_key_cmd = 48;
+    derive_public_key_and_sign_cmd derive_public_key_and_sign_cmd = 49;
+    provision_unlock_secret_cmd provision_unlock_secret_cmd = 50;
+    configure_unlock_limit_response_cmd configure_unlock_limit_response_cmd = 51;
+  }
+  reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
+  reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
+
+  uint32 timestamp = 9999;
+}
+
+message wallet_rsp {
+  oneof msg {
+    // IMPORTANT: Each variable name must exactly match the message type.
+    //
+    // Rationale:
+    // The IPC code generator relies on this fact, since it allows us to more easily
+    // generate code. Nanopb generates the tags for these fields based on the variable
+    // name, but the IPC code generator only ever looks at protobuf type names.
+    // We could loosen this restriction, but that would require the IPC code generator
+    // to inspect wallet.pb.h for the tag names.
+    meta_rsp meta_rsp = 1;
+    seal_csek_rsp seal_csek_rsp = 3;
+    unseal_csek_rsp unseal_csek_rsp = 4;
+    start_fingerprint_enrollment_rsp start_fingerprint_enrollment_rsp = 6;
+    get_fingerprint_enrollment_status_rsp get_fingerprint_enrollment_status_rsp = 7;
+    sign_txn_rsp sign_txn_rsp = 8;
+    query_authentication_rsp query_authentication_rsp = 9;
+    wipe_state_rsp wipe_state_rsp = 10;
+    mfgtest_fingerprint_rsp mfgtest_fingerprint_rsp = 11;
+    mfgtest_serial_write_rsp mfgtest_serial_write_rsp = 12;
+    device_id_rsp device_id_rsp = 13;
+    fwup_start_rsp fwup_start_rsp = 15;
+    fwup_transfer_rsp fwup_transfer_rsp = 16;
+    fwup_finish_rsp fwup_finish_rsp = 17;
+    reset_rsp reset_rsp = 18;
+    fuel_rsp fuel_rsp = 19;
+    mfgtest_gpio_rsp mfgtest_gpio_rsp = 20;
+    coredump_get_rsp coredump_get_rsp = 25;
+    events_get_rsp events_get_rsp = 26;
+    feature_flags_get_rsp feature_flags_get_rsp = 27;
+    feature_flags_set_rsp feature_flags_set_rsp = 28;
+    telemetry_id_get_rsp telemetry_id_get_rsp = 29 [deprecated = true];
+    derive_rsp derive_rsp = 32;
+    derive_and_sign_rsp derive_and_sign_rsp = 33;
+    secinfo_get_rsp secinfo_get_rsp = 35;
+    cert_get_rsp cert_get_rsp = 36;
+    pubkeys_get_rsp pubkeys_get_rsp = 37;
+    fingerprint_settings_get_rsp fingerprint_settings_get_rsp = 38;
+    mfgtest_battery_variant_rsp mfgtest_battery_variant_rsp = 39;
+    cap_touch_cal_rsp cap_touch_cal_rsp = 40;
+    device_info_rsp device_info_rsp = 41;
+    empty_rsp empty_rsp = 42;
+    lock_device_rsp lock_device_rsp = 43;
+    pubkey_get_rsp pubkey_get_rsp = 44;
+    hardware_attestation_rsp hardware_attestation_rsp = 45;
+    secure_channel_establish_rsp secure_channel_establish_rsp = 46;
+    send_unlock_secret_rsp send_unlock_secret_rsp = 47;
+    derive_public_key_rsp derive_public_key_rsp = 48;
+    derive_public_key_and_sign_rsp derive_public_key_and_sign_rsp = 49;
+    provision_unlock_secret_rsp provision_unlock_secret_rsp = 50;
+    configure_unlock_limit_response_rsp configure_unlock_limit_response_rsp = 51;
+  }
+  reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
+  reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
+
+  // Global status code.
+  status status = 9998;
+
+  // Set by firmware if the command was not recognized.
+  // Deprecated. Prefer setting UNKNOWN_MESSAGE on the `status` variable instead.
+  bool unknown_msg = 9999 [deprecated = true];
+}

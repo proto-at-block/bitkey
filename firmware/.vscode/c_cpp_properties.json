@@ -1,0 +1,25 @@
+{
+    "configurations": [
+        {
+            "name": "arm-none-eabi-gcc",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "macFrameworkPath": [],
+            "compilerPath": "${workspaceFolder}/bin/arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "macos-gcc-arm",
+            "compilerArgs": [
+                "-mcpu=cortex-m33",
+                "-mthumb",
+                "-mfloat-abi=hard",
+                "-DEMBEDDED_BUILD=1",
+                "-DI2C_COUNT=2"
+            ],
+            "compileCommands": "${workspaceFolder}/build/firmware/compile_commands.json"
+        }
+    ],
+    "version": 4
+}

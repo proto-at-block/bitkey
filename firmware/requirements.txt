@@ -1,0 +1,38 @@
+# Invoke tasks/ deps
+invoke==2.2.0
+distro==1.9.0
+click==8.1.7
+msgpack==1.0.7
+requests==2.31.0
+tqdm==4.66.2
+PyYAML==6.0.1
+semver==3.0.2
+pyserial==3.5
+build==1.0.3
+poetry==1.7.1
+nanopb==0.4.8
+poetry-dynamic-versioning==1.2.0
+plotly==5.18.0
+pandas==2.2.0
+prettytable==3.9.0
+memfault-cli==1.0.7
+
+# Bitkey python modules
+-e ./python
+-e ./python/bitkey/fwa
+-e ./lib/protobuf
+
+# Bitkey firmware-signer
+-e ../firmware-signer/src/lib
+
+# VSCode Support
+autopep8==2.0.4
+
+# CI deps
+codespell==2.2.6
+
+# Automation
+freertos-gdb==1.0.2
+
+# Python deps
+pip==24.0

@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1.4
+FROM scratch as source
+COPY --link Cargo.lock .
+COPY --link Cargo.toml .
+COPY --link src src
+COPY --link vendor vendor
+
+FROM rust:alpine as toolchain
+COPY --link rust-toolchain.toml .
+RUN cargo version
+RUN apk add --no-cache \
+  musl-dev
+
+FROM toolchain as builder
+WORKDIR /usr/src
+COPY --from=source . .
+RUN \
+  --mount=type=cache,sharing=private,id=target-alpine,target=/usr/src/target \
+  --mount=type=cache,sharing=private,id=registry,target=/usr/local/cargo/registry \
+  cargo --locked install --bin wsm-api --path src/wsm/wsm-api
+
+# Version managed by dependabot
+FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as deployable
+COPY --from=builder /usr/local/cargo/bin/wsm-api .
+CMD ["./wsm-api"]

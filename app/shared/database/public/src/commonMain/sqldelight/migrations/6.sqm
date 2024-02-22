@@ -1,0 +1,84 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.f8e.Account;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+import kotlin.String;
+import kotlin.collections.Set;
+import kotlin.time.Duration;
+
+-- SQLDelight gets unhappy about the keyboxEntity getting dropped when it has a view on it.
+
+DROP VIEW keyboxView;
+
+-- BEGIN Adding isTestAccount and delayNotifyDuration to keyboxEntity
+CREATE TABLE keybox_entity_tmp(
+  id                      TEXT NOT NULL PRIMARY KEY,
+  account                 TEXT AS Account NOT NULL,
+  activeSpendingKeysetId  TEXT NOT NULL UNIQUE,
+  activeKeyBundleId       TEXT NOT NULL UNIQUE,
+  inactiveKeysetIds       TEXT AS Set<String> NOT NULL,
+  networkType             TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware            INTEGER AS Boolean NOT NULL,
+  f8eEnvironment          TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount           INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration     TEXT AS Duration,
+  FOREIGN KEY (activeSpendingKeysetId) REFERENCES spendingKeysetEntity(id),
+  FOREIGN KEY (activeKeyBundleId) REFERENCES appKeyBundleEntity(id)
+);
+
+INSERT INTO keybox_entity_tmp
+SELECT id, account, activeSpendingKeysetId, activeKeyBundleId, inactiveKeysetIds, networkType, fakeHardware, f8eEnvironment, 0, NULL
+FROM keyboxEntity;
+
+DROP TABLE keyboxEntity;
+
+ALTER TABLE keybox_entity_tmp RENAME TO keyboxEntity;
+-- END Adding isTestAccount and delayNotifyDuration to keyboxEntity
+
+-- BEGIN Adding isTestAccount and delayNotifyDuration to templateKeyboxConfigEntity
+CREATE TABLE templateKeyboxConfigEntity_tmp(
+  rowId           INTEGER NOT NULL PRIMARY KEY,
+  networkType     TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware    INTEGER AS Boolean NOT NULL,
+  f8eEnvironment  TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount   INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration TEXT AS Duration
+);
+
+INSERT INTO templateKeyboxConfigEntity_tmp
+SELECT rowId, networkType, fakeHardware, f8eEnvironment, FALSE, NULL
+FROM templateKeyboxConfigEntity;
+
+DROP TABLE templateKeyboxConfigEntity;
+ALTER TABLE templateKeyboxConfigEntity_tmp RENAME TO templateKeyboxConfigEntity;
+-- END Adding isTestAccount and delayNotifyDuration to templateKeyboxConfigEntity
+
+-- Restore the view we deleted
+CREATE VIEW keyboxView AS
+SELECT
+  keyboxEntity.account AS account,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.inactiveKeysetIds,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.delayNotifyDuration,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.authKey
+FROM keyboxEntity
+-- spending public keyset
+INNER JOIN
+spendingKeysetEntity
+ON keyboxEntity.activeSpendingKeysetId = spendingKeysetEntity.id
+-- bundle
+INNER JOIN
+appKeyBundleEntity
+ON keyboxEntity.activeKeyBundleId = appKeyBundleEntity.id;
+
+PRAGMA foreign_key_check;

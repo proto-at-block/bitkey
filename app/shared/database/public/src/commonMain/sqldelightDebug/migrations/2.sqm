@@ -1,0 +1,8 @@
+import kotlin.Boolean;
+
+CREATE TABLE networkingDebugConfigEntity(
+    rowId             INTEGER NOT NULL PRIMARY KEY,
+    failF8eRequests   INTEGER AS Boolean NOT NULL
+);
+
+PRAGMA foreign_key_check;

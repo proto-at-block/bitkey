@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+
+import argparse
+import datetime
+import re
+import subprocess
+import json
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass
+class Version:
+    year: int
+    version: int
+    patch: int
+    build: int
+    sq_build: int   # Special build number for SQ iOS infra
+
+    def increment(
+        self,
+        number_type_to_increment,
+        **kwargs
+    ):
+        sq_build = self.sq_build + 1
+
+        if number_type_to_increment == "build":
+            build = self.build + 1
+            return Version(self.year, self.version, self.patch, build, sq_build)
+
+        elif number_type_to_increment == "patch":
+            patch = self.patch + 1
+            return Version(self.year, self.version, patch, 1, sq_build)
+
+        elif number_type_to_increment == "version":
+            today = datetime.date.today()
+            year = today.year
+
+            version = 0
+            if self.year == year:
+                version = self.version + 1
+
+            return Version(year, version, 0, 1, sq_build)
+
+        else:
+            raise Exception("Unsupported number type to increment: " + number_type_to_increment)
+
+@dataclass
+class Pattern:
+    matcher: str
+    field_name: str
+    formatter: Callable[[Version], str]
+
+
+PART_PATTERNS = {
+    "YYYY": Pattern(r"[1-9][0-9]{3}", "year", lambda v: f"{v.year}"),
+    "VERSION0": Pattern(r"[0-9]+", "version", lambda v: f"{v.version}"),
+    "PATCH": Pattern(r"[0-9]+", "patch", lambda v: f"{v.patch}"),
+    "BUILD": Pattern(r"[0-9]+", "build", lambda v: f"{v.build}"),
+    "SQB": Pattern(r"[0-9]+", "sq_build", lambda v: f"{v.sq_build:04}"),
+}
+
+
+def main(args):
+    config = load_config(args.config)
+    current_version = matches(
+        config["version_pattern"], config["current_version"]
+    )
+
+    if args.env:
+        return env(**config)
+
+    new_version = current_version.increment(args.number_type, **config)
+    changed_files = list(
+        replace_patterns(config["file_patterns"], new_version)
+    )
+
+    config = load_config(args.config)  # Reload to get the new version
+    git_actions(changed_files, **config)
+
+
+def load_config(filename):
+    with open(filename, 'rb') as f:
+        return json.load(f)
+
+def matches(pattern, text):
+    pattern = matcher(pattern)
+    m = re.match(pattern, text)
+    v = {
+        part_pattern.field_name: int(m[part])
+        for part, part_pattern in PART_PATTERNS.items()
+    }
+    return Version(**v)
+
+
+def matcher(pattern):
+    for part, part_pattern in PART_PATTERNS.items():
+        repl = f"(?P<{part}>{part_pattern.matcher})"
+        pattern = re.sub(part, repl, pattern)
+
+    return pattern
+
+
+def replace_patterns(file_patterns, version):
+    for filename, patterns in file_patterns.items():
+        with open(filename, "r+") as f:
+            changed = False
+            text = f.read()
+
+            for pattern in patterns:
+                (text, sub_count) = re.subn(
+                    matcher(pattern),
+                    replacer(pattern, version),
+                    text,
+                    flags=re.MULTILINE,
+                )
+                changed = changed or sub_count
+
+            if changed:
+                f.seek(0)
+                f.write(text)
+                yield filename
+            else:
+                raise Exception(f"Could not find pattern '{pattern}' to replace in {filename}")
+
+
+def replacer(pattern, version):
+    for part, part_pattern in PART_PATTERNS.items():
+        repl = part_pattern.formatter(version)
+        pattern = pattern.replace(part, repl)
+
+    return pattern
+
+
+def git_actions(
+    changed_files,
+    remote="origin",
+    current_version=None,
+    commit_message=None,
+    commit=False,
+    tag=False,
+    push=False,
+    **kwargs,
+):
+    assert current_version
+    assert commit_message
+
+    if commit:
+        for filename in changed_files:
+            subprocess.run(["git", "add", filename], check=True)
+
+        message = commit_message.replace("{new_version}", current_version)
+        subprocess.run(["git", "commit", "--message", message], check=True)
+
+        if tag:
+            subprocess.run(
+                [
+                    "git",
+                    "tag",
+                    "--annotate",
+                    current_version,
+                    "--message",
+                    current_version,
+                ],
+                check=True,
+            )
+
+            if push:
+                subprocess.run(
+                    ["git", "push", "--follow-tags", remote, current_version, "HEAD"],
+                    check=True,
+                )
+
+
+def env(current_version=None, **kwargs):
+    assert current_version
+    print(f"BUMPVER_CURRENT_VERSION={current_version}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="""
+        Bump the version of packages in this repository.
+        When run without arguments, bumps the version number.
+        Use 'patch' or 'build' as the number_type argument to instead bump those numbers.
+        """
+    )
+    parser.add_argument("number_type", help="The type of number to bump. Options are 'version', 'patch' or 'build'. Defaults to 'version'", default="version")
+    parser.add_argument("--config", default="bumpver.json")
+    parser.add_argument("--env", action="store_true")
+    main(parser.parse_args())

@@ -1,0 +1,40 @@
+[package]
+edition = { workspace = true }
+name = "types"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+base32 = "0.4.0"
+derive_builder = { workspace = true }
+once_cell = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = "0.10.8"
+strum = { workspace = true }
+strum_macros = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+ulid = { workspace = true }
+urn = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+external_identifier = { workspace = true }
+
+[features]
+account = []
+all = [
+  "account",
+  "consent",
+  "exchange_rate",
+  "notification",
+  "recovery",
+  "serde",
+]
+consent = []
+exchange_rate = []
+notification = []
+recovery = []
+serde = []

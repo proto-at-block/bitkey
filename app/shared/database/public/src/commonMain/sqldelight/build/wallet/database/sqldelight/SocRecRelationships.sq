@@ -1,0 +1,107 @@
+import build.wallet.bitkey.socrec.ProtectedCustomerAlias;
+import build.wallet.bitkey.socrec.TrustedContactAlias;
+import build.wallet.bitkey.socrec.TrustedContactEnrollmentKey;
+import build.wallet.bitkey.socrec.TrustedContactIdentityKey;
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE socRecTrustedContactEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  publicKey               TEXT AS TrustedContactIdentityKey NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL
+);
+
+CREATE TABLE socRecProtectedCustomerEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  alias                   TEXT AS ProtectedCustomerAlias NOT NULL
+);
+
+CREATE TABLE socRecTrustedContactInvitationEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  token                   TEXT NOT NULL,
+  expiresAt               INTEGER AS Instant NOT NULL
+);
+
+CREATE TABLE socRecUnendorsedTrustedContactEntity(
+  rowId                     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId    TEXT UNIQUE NOT NULL,
+  publicKey                 TEXT AS TrustedContactIdentityKey NOT NULL,
+  trustedContactAlias       TEXT AS TrustedContactAlias NOT NULL,
+  identityPublicKeyMac      TEXT NOT NULL,
+  enrollmentKey             TEXT AS TrustedContactEnrollmentKey NOT NULL,
+  enrollmentKeyConfirmation TEXT NOT NULL,
+  authenticationState       TEXT AS TrustedContactAuthenticationState NOT NULL
+);
+
+insertSocRecTrustedContactInvitation:
+INSERT OR REPLACE INTO socRecTrustedContactInvitationEntity(recoveryRelationshipId, trustedContactAlias, token, expiresAt)
+VALUES(?, ?, ?, ?);
+
+getSocRecTrustedContactInvitations:
+SELECT * FROM socRecTrustedContactInvitationEntity
+-- Arbitrary but stable sort
+ORDER BY recoveryRelationshipId;
+
+insertSocRecTrustedContact:
+  INSERT OR REPLACE INTO socRecTrustedContactEntity(recoveryRelationshipId, publicKey, trustedContactAlias)
+    VALUES(:recoveryRelationshipId, :publicKey, :trustedContactAlias);
+
+getSocRecTrustedContacts:
+SELECT * FROM socRecTrustedContactEntity
+-- Arbitrary but stable sort
+ORDER BY recoveryRelationshipId;
+
+insertSocRecProtectedCustomer:
+INSERT OR REPLACE INTO socRecProtectedCustomerEntity(recoveryRelationshipId, alias)
+VALUES(?, ?);
+
+getSocRecProtectedCustomers:
+SELECT * FROM socRecProtectedCustomerEntity
+-- Arbitrary but stable sort
+ORDER BY recoveryRelationshipId;
+
+insertSocRecUnendorsedTrustedContact:
+INSERT OR REPLACE INTO socRecUnendorsedTrustedContactEntity(
+    recoveryRelationshipId,
+    publicKey,
+    trustedContactAlias,
+    identityPublicKeyMac,
+    enrollmentKey,
+    enrollmentKeyConfirmation,
+    authenticationState
+)
+VALUES(?, ?, ?, ?, ?, ?, ?);
+
+getSocRecUnendorsedTrustedContacts:
+SELECT * FROM socRecUnendorsedTrustedContactEntity
+-- Arbitrary but stable sort
+ORDER BY recoveryRelationshipId;
+
+setSocRecUnendorsedTrustedContactAuthenticationState:
+UPDATE socRecUnendorsedTrustedContactEntity
+SET authenticationState = ?
+WHERE recoveryRelationshipId = ?;
+
+clearSocRecTrustedContactInvitations:
+DELETE FROM socRecTrustedContactInvitationEntity;
+
+clearSocRecTrustedContacts:
+DELETE FROM socRecTrustedContactEntity;
+
+clearSocRecProtectedCustomers:
+DELETE FROM socRecProtectedCustomerEntity;
+
+clearSocRecUnendorsedTrustedContacts:
+DELETE FROM socRecUnendorsedTrustedContactEntity;
+
+clear {
+  DELETE FROM socRecTrustedContactEntity;
+  DELETE FROM socRecProtectedCustomerEntity;
+  DELETE FROM socRecTrustedContactInvitationEntity;
+  DELETE FROM socRecUnendorsedTrustedContactEntity;
+}
+

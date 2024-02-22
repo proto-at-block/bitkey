@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+
+message secure_channel_establish_cmd {
+  bytes pk_host = 1 [(nanopb).max_size = 64];  // 32-byte raw x25519 pubkey. Sized as 64 bytes for possible future pubkey formats.
+  uint32 protocol_version = 2;  // Highest supported protocol version
+}
+
+message secure_channel_establish_rsp {
+  bytes pk_device = 1 [(nanopb).max_size = 64];  // 32-byte raw x25519 pubkey. Sized as 64 bytes for possible future pubkey formats.
+  uint32 protocol_version = 2;  // Highest supported protocol version
+  bytes exchange_sig = 3 [(nanopb).max_size = 64];  // Signed by hardware attestation key.
+  bytes key_confirmation_tag = 4 [(nanopb).max_size = 16];
+}
+
+message secure_channel_message {
+  bytes ciphertext = 1 [(nanopb).max_size = 452];
+  bytes nonce = 2 [(nanopb).max_size = 12];
+  bytes mac = 3 [(nanopb).max_size = 16];
+}

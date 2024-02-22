@@ -1,0 +1,20 @@
+[package]
+edition = { workspace = true }
+name = "http_server"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+axum = { workspace = true }
+figment = { version = "0.10.14", features = ["env", "toml"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+ulid = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+
+# path dependencies
+feature_flags = { workspace = true }
+wallet-telemetry = { workspace = true }
+wsm-rust-client = { workspace = true }

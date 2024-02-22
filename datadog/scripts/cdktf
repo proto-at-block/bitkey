@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+key_file=.datadog-keys.json
+
+if [ "$CI" == "" ]; then
+  export AWS_PROFILE=w1-development--admin
+  export AWS_REGION=us-west-2
+
+  if [ -f $key_file ] && [ `stat -L -f %m $key_file` -ge $(( `date +%s` - (24*60*60) )) ]; then
+    export DD_API_KEY=$(jq -r '.apiKey' $key_file)
+    export DD_APP_KEY=$(jq -r '.appKey' $key_file)
+  else
+    update_cache=1
+  fi
+fi
+
+if [ -z "$DD_API_KEY" ]; then
+  export DD_API_KEY=$(aws --region us-west-2 secretsmanager get-secret-value --secret-id DatadogApiKey --query SecretString --output text)
+  export DD_APP_KEY=$(aws --region us-west-2 secretsmanager get-secret-value --secret-id datadog-terraform-app-key --query SecretString --output text)
+fi
+
+if [ "$update_cache" == "1" ]; then
+  cat <<EOF >$key_file
+{
+  "apiKey": "$DD_API_KEY",
+  "appKey": "$DD_APP_KEY",
+  "/**/": "cached datadog api keys, updated if older than 24 hours"
+}
+EOF
+fi
+
+npx cdktf "$@"

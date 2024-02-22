@@ -1,0 +1,70 @@
+[private]
+default:
+	just -l
+	
+app_dir := "../.."
+gradle-profiler := app_dir / "bin/gradle-profiler --benchmark --project-dir " + app_dir + " --scenario-file profiler.scenarios --output-dir _build/profile-out --gradle-user-home _build/gradle-user-home"
+
+studio_version := "2023.2.1.15"
+studio_download_url := "https://redirector.gvt1.com/edgedl/android/studio/ide-zips/" + studio_version + "/android-studio-" + studio_version + "-" + if os() == "macos" {
+	if arch() == "aarch64" {
+		"mac_arm.zip"
+	} else if arch() == "x86_64" {
+		"mac.zip"
+	} else {
+		error("Unsupported macOS architecture: " + arch())
+	}
+} else if os() == "linux" {
+	if arch() == "x86_64" {
+		"linux.tar.gz"
+	} else {
+		error("Unsupported Linux architecture: " + arch())
+	}
+} else {
+	error("Unsupported OS: " + os())
+}
+studio_install_path := "_build" + if os() == "macos" {
+	"/Android Studio Preview.app"
+} else if os() == "linux" {
+	"/android-studio"
+} else {
+	error("Unsupported OS: " + os())
+}
+
+[macos]
+ios linkTaskName +scenarios="ios_app_clean_build ios_app_incremental_build_abi_change ios_app_incremental_build_nonabi_change": && (append_scenario_names scenarios)
+	{{gradle-profiler}} -Dios.linkTaskName={{linkTaskName}} {{scenarios}}
+
+android +scenarios="android_app_clean_build android_app_incremental_build_abi_change android_app_incremental_build_nonabi_change": && (append_scenario_names scenarios)
+	{{gradle-profiler}} {{scenarios}}
+
+ide-sync +scenarios="sync_android_studio": && (append_scenario_names scenarios)
+	# For some reason headless doesn't work on my machine, so we'll try later
+	GRADLE_PROFILER_OPTS=-Dstudio.tests.headless=true {{gradle-profiler}} --studio-install-dir "{{studio_install_path}}" {{scenarios}}
+
+upload-results testName commitSha csvFile="_build/profile-out/benchmark.csv":
+	../../bin/node upload-profiler-results.mjs {{testName}} {{commitSha}} "{{csvFile}}" os:{{os()}} arch:{{arch()}} num_cpus:{{num_cpus()}}
+
+[private]
+append_scenario_names +scenarios:
+	printf "name,{{replace(scenarios, ' ', ',')}}" >> _build/profile-out/benchmark.csv
+
+[macos]
+download-studio url=studio_download_url:
+	#!/usr/bin/env bash
+	set -euxo pipefail
+	mkdir -p _build
+	if [ ! -f _build/android-studio.zip ]; then
+		curl -o _build/android-studio.zip -L {{url}}
+	fi
+	unzip -q _build/android-studio.zip -d _build
+
+[linux]
+download-studio url=studio_download_url:
+	#!/usr/bin/env bash
+	set -euxo pipefail
+	mkdir -p _build
+	if [ ! -f _build/android-studio.tar.gz ]; then
+		curl -o _build/android-studio.tar.gz -L {{url}}
+	fi
+	tar -xzf _build/android-studio.tar.gz -C _build

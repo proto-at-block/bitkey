@@ -1,0 +1,3 @@
+api: just _run-api
+wsm-api: just _run-wsm-api
+wsm-enclave: just _run-wsm-enclave

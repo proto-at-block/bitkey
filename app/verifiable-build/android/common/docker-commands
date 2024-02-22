@@ -1,0 +1,21 @@
+#!/bin/bash
+
+buildAabUsingDockerContainer() {
+  local docker_name="$1"
+  local android_flavor="$2"
+  local output_directory="$3"
+
+  docker run --detach --name "$docker_name" -e ANDROID_FLAVOR="$android_flavor" "$docker_name" 'sleep infinity' || exit $?
+
+  docker exec "$docker_name" bash -c 'source bin/activate-hermit; cd app; gradle :android:app:bundle$ANDROID_FLAVOR;' || exit $?
+
+  docker cp "$docker_name":/build/app/android/app/_build/outputs "$output_directory" || exit $?
+}
+
+cleanUpDockerResources() {
+  local docker_name="$1"
+
+  docker stop "$docker_name"
+  docker container rm "$docker_name"
+  docker image rm "$docker_name"
+}

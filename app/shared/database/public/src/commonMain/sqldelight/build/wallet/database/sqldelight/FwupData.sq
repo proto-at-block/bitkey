@@ -1,0 +1,25 @@
+import build.wallet.fwup.FwupMode;
+
+CREATE TABLE fwupDataEntity(
+  rowId                INTEGER NOT NULL PRIMARY KEY,
+  version              TEXT NOT NULL,
+  chunkSize            INTEGER NOT NULL,
+  signatureOffset      INTEGER NOT NULL,
+  appPropertiesOffset  INTEGER NOT NULL,
+  firmware             BLOB NOT NULL,
+  signature            BLOB NOT NULL,
+  fwupMode             TEXT AS FwupMode NOT NULL
+);
+
+setFwupData:
+INSERT OR REPLACE INTO fwupDataEntity(rowId, version, chunkSize, signatureOffset,
+appPropertiesOffset, firmware, signature, fwupMode)
+-- Use stable row ID to ensure we only ever have a single [FwupData] stored.
+VALUES(0, ?, ?, ?, ?, ?, ?, ?);
+
+getFwupData:
+SELECT * FROM fwupDataEntity
+WHERE rowid = 0;
+
+clear:
+DELETE FROM fwupDataEntity;

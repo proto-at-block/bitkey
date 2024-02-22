@@ -1,0 +1,15 @@
+[Unit]
+Description=WSM Enclave Proxy Service
+After=wsm-enclave.service
+
+[Service]
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wsm-proxy
+WorkingDirectory=/opt/wsm
+ExecStart=/bin/bash /opt/wsm/wsm-proxy.sh
+User=ec2-user
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

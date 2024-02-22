@@ -1,0 +1,4 @@
+FROM docker.io/amazonlinux:2
+RUN yum install -y gcc autoconf tcp_wrappers-devel readline-devel openssl-devel make
+WORKDIR /app
+CMD autoconf && ./configure && make progs

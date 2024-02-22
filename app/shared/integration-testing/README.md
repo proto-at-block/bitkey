@@ -1,0 +1,1 @@
+This module contains components for setting up and writing domain specific or end to end integration tests.

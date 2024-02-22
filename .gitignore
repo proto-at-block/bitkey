@@ -1,0 +1,49 @@
+**/.DS_Store
+__pycache__/
+*.py[cod]
+
+# Visual Studio Code
+**/.vscode/*
+!**/.vscode/c_cpp_properties.json
+!**/.vscode/extensions.json
+!**/.vscode/launch.json
+!**/.vscode/settings.json
+!**/.vscode/tasks.json
+
+#Factory Test
+factory-test/venv
+factory-test/VERSION.TXT
+factory-test/**/*.log
+factory-test/**/*_debug.log
+*_debug.log
+libusb-*.dylib
+
+# Fastlane
+Fastlane/.env
+Fastlane/Preview.html
+Fastlane/README.md
+Fastlane/report.xml
+Fastlane/bin
+
+server/cdk.out
+server/**/target
+server/resources/lambda/bootstrap
+
+valid-dependencies/**/target
+
+.*.swp
+
+.ninja_log
+
+.hermit
+
+# JetBrains
+.idea/*
+
+# Java Manifest
+META-INF/*
+
+build/*
+
+# Node
+node_modules

@@ -1,0 +1,59 @@
+syntax = "proto3";
+package build.wallet.emergencyaccesskit.v1;
+
+message Payload {
+    oneof backup {
+        BackupV1 backup_v1 = 1;
+    }
+}
+
+message BackupV1 {
+    optional bytes hw_encryption_key_ciphertext = 1;
+    optional SealedData sealed_active_spending_keyset = 2;
+}
+
+message SealedData {
+    optional bytes ciphertext = 1;
+    optional bytes nonce = 2;
+    optional bytes tag = 3;
+}
+
+enum BitcoinNetworkType {
+    BITCOIN_NETWORK_TYPE_UNSPECIFIED = 0;
+    BITCOIN_NETWORK_TYPE_BITCOIN = 1;
+    BITCOIN_NETWORK_TYPE_SIGNET = 2;
+    BITCOIN_NETWORK_TYPE_TESTNET = 3;
+    BITCOIN_NETWORK_TYPE_REGTEST = 4;
+}
+
+message ActiveSpendingKeysetV1 {
+    optional string local_id = 1;
+    BitcoinNetworkType bitcoin_network_type = 2;
+    optional AppSpendingKey app_key = 3;
+    optional SpendingPublicKey hardware_key = 4;
+    optional SpendingPublicKey f8e_key = 5;
+}
+
+message AppSpendingKey {
+    optional SpendingPublicKey key = 1;
+    optional string xprv = 2;
+}
+
+message SpendingPublicKey {
+    optional Origin origin = 1;
+    optional string xpub = 2;
+    optional string derivation_path = 3;
+    Wildcard wildcard = 4;
+}
+
+message Origin {
+    optional string fingerprint = 1;
+    optional string derivation_path = 2;
+}
+
+enum Wildcard {
+    WILDCARD_UNSPECIFIED = 0;
+    WILDCARD_NONE = 1;
+    WILDCARD_UNHARDENED = 2;
+    WILDCARD_HARDENED = 3;
+}

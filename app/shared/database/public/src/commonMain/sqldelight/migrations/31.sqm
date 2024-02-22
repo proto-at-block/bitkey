@@ -1,0 +1,51 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+
+-- Migration from LiteAccounts only having an "active" account to also having an "onboarding" account.
+-- "activeLiteAccountEntity" used to contain all of the Lite account data, so we need to create a
+-- new "liteAccountEntity" and change "activeLiteAccountEntity" to just reference "liteAccountEntity"
+-- by an account ID
+
+-- 1. Create new "liteAccountEntity" table and new "onboardingLiteAccountEntity" table
+CREATE TABLE liteAccountEntity(
+  accountId           TEXT AS LiteAccountId NOT NULL PRIMARY KEY,
+  appRecoveryAuthKey  TEXT AS AppRecoveryAuthPublicKey NOT NULL,
+  bitcoinNetworkType  TEXT AS BitcoinNetworkType NOT NULL,
+  f8eEnvironment      TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount       INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes  INTEGER AS Boolean NOT NULL
+);
+
+CREATE TABLE onboardingLiteAccountEntity(
+  rowId     INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS LiteAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES liteAccountEntity(accountId)
+);
+
+-- 2. Copy rows to new "liteAccountEntity" table from "activeLiteAccountEntity"
+INSERT INTO liteAccountEntity
+SELECT accountId, appRecoveryAuthKey, bitcoinNetworkType, f8eEnvironment, isTestAccount, isUsingSocRecFakes
+FROM activeLiteAccountEntity;
+
+-- 3. Create temp table for the new activeLiteAccountEntity
+CREATE TABLE activeLiteAccountEntity_tmp(
+  rowId      INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS LiteAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES liteAccountEntity(accountId)
+);
+
+-- 4. Copy rows to temp table
+INSERT INTO activeLiteAccountEntity_tmp
+SELECT 0, accountId
+FROM activeLiteAccountEntity;
+
+-- 5. Drop old table
+DROP TABLE activeLiteAccountEntity;
+
+-- 6. Rename temp table
+ALTER TABLE activeLiteAccountEntity_tmp RENAME TO activeLiteAccountEntity;
+
+-- 7. Make sure the foreign keys still work
+PRAGMA foreign_key_check;

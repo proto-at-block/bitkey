@@ -1,0 +1,5 @@
+# Local signed builds
+internal/app-internal.apk
+internal/output-metadata.json
+release/app-release.apk
+release/output-metadata.json

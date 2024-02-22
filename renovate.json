@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "packageRules": [
+    {
+      "matchManagers": ["hermit"],
+      "matchPackageNames": ["python3"],
+      "allowedVersions": "<= 3.10"
+    }
+  ],
+  "extends": [
+    "config:base",
+    ":preserveSemverRanges",
+    ":disableRateLimiting",
+    ":disableDependencyDashboard",
+    "github>Turbo87/renovate-config//rust/updateToolchain"
+  ],
+  "enabledManagers": [
+    "cocoapods",
+    "hermit",
+    "regex",
+    "swift"
+  ],
+  "labels": ["dependencies"],
+  "platformCommit": true
+}

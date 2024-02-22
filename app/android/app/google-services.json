@@ -1,0 +1,113 @@
+{
+  "project_info": {
+    "project_number": "496981653612",
+    "project_id": "sq-bitkey-prod",
+    "storage_bucket": "sq-bitkey-prod.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496981653612:android:cca8c62b1cc0b8bf75c049",
+        "android_client_info": {
+          "package_name": "world.bitkey"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "496981653612-kmbg304k1lkf4u3ojd1n3uq6206jo0rg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "world.bitkey",
+            "certificate_hash": "66e54950a49babb9ad692026ce1a750ed8bd77dd"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496981653612:android:c676cea4fe475e0a75c049",
+        "android_client_info": {
+          "package_name": "world.bitkey.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496981653612:android:080d23a8910e71fe75c049",
+        "android_client_info": {
+          "package_name": "world.bitkey.debug"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "496981653612-apnig49ac7ohn69adppdlkp4mosk2n6a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "world.bitkey.debug",
+            "certificate_hash": "10de705f16e27003f86fd30e456ac32cefd404bb"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:496981653612:android:9918b2d3693b978275c049",
+        "android_client_info": {
+          "package_name": "world.bitkey.team"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "496981653612-tbibbojlcjbae32cafhbk1rsgvv8d0vu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "world.bitkey.team",
+            "certificate_hash": "c6dbaa43698dd1a0810c1b40d244cbb97f3a86ff"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

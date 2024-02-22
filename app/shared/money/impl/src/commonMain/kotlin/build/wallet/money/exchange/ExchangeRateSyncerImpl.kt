@@ -1,0 +1,85 @@
+package build.wallet.money.exchange
+
+import build.wallet.f8e.ActiveF8eEnvironmentRepository
+import build.wallet.logging.LogLevel.Debug
+import build.wallet.logging.log
+import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
+import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
+import kotlin.time.Duration
+
+class ExchangeRateSyncerImpl(
+  private val exchangeRateDao: ExchangeRateDao,
+  private val bitstampExchangeRateService: BitstampExchangeRateService,
+  private val f8eExchangeRateService: F8eExchangeRateService,
+  private val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag,
+  private val activeF8eEnvironmentRepository: ActiveF8eEnvironmentRepository,
+) : ExchangeRateSyncer {
+  private val internalFlow = MutableStateFlow<List<ExchangeRate>>(emptyList())
+
+  override val exchangeRates: StateFlow<List<ExchangeRate>>
+    get() = internalFlow.asStateFlow()
+
+  /**
+   * Launches non blocking coroutine and keeps syncing exchange rates as long as [CoroutineScope] is
+   * alive.
+   */
+  @OptIn(ExperimentalCoroutinesApi::class)
+  override fun launchSync(
+    scope: CoroutineScope,
+    syncFrequency: Duration,
+  ) {
+    scope.launch {
+      syncTicker(delay = syncFrequency)
+        .flatMapLatest {
+          updateExchangeRates()
+          exchangeRateDao.allExchangeRates()
+        }.collect(internalFlow)
+    }
+  }
+
+  /**
+   * [Flow] that emits [Unit] every [delay].
+   */
+  private fun syncTicker(delay: Duration) =
+    flow {
+      while (true) {
+        emit(Unit)
+        delay(delay)
+      }
+    }
+
+  private suspend fun updateExchangeRates() {
+    if (this.multipleFiatCurrencyEnabledFeatureFlag.flagValue().value.value) {
+      activeF8eEnvironmentRepository.activeF8eEnvironment().first()
+        .onSuccess { f8eEnvironment ->
+          f8eEnvironment?.let {
+            // Get exchange rates from F8e and store them all
+            // Ignore any failures
+            f8eExchangeRateService.getExchangeRates(f8eEnvironment)
+              .onSuccess { rates ->
+                log(Debug) { "Fetched exchange rates: $rates" }
+                rates.forEach { exchangeRateDao.storeExchangeRate(it) }
+              }
+          }
+        }
+    } else {
+      // Get exchange rates from www.bitstamp.net and store them all
+      // Ignore any failures
+      bitstampExchangeRateService.getExchangeRates()
+        .onSuccess { rates ->
+          log(Debug) { "Fetched exchange rates: $rates" }
+          rates.forEach { exchangeRateDao.storeExchangeRate(it) }
+        }
+    }
+  }
+}

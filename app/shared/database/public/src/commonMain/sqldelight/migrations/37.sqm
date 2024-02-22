@@ -1,0 +1,8 @@
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+
+CREATE TABLE onboardingKeyboxHwAuthPublicKey(
+    rowId           INTEGER NOT NULL PRIMARY KEY,
+    hwAuthPublicKey TEXT AS HwAuthPublicKey
+);
+
+PRAGMA foreign_key_check;

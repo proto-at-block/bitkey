@@ -1,0 +1,15 @@
+import kotlin.Boolean;
+
+CREATE TABLE recoveryIncompleteEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    incomplete INTEGER AS Boolean NOT NULL
+);
+
+setRecoveryIncomplete:
+INSERT OR REPLACE INTO recoveryIncompleteEntity(rowId, incomplete)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getRecoveryIncomplete:
+SELECT * FROM recoveryIncompleteEntity
+WHERE rowId = 0;

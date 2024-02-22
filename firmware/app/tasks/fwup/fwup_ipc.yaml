@@ -1,0 +1,10 @@
+port_name: fwup_port
+
+messages:
+  protos:
+    - name: fwpb_fwup_start_cmd
+      auth: after_onboarding
+    - name: fwpb_fwup_transfer_cmd
+      auth: after_onboarding
+    - name: fwpb_fwup_finish_cmd
+      auth: after_onboarding

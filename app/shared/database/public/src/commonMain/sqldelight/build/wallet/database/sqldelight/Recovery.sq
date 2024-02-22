@@ -1,0 +1,111 @@
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey;
+import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
+import build.wallet.bitkey.f8e.FullAccountId;
+import build.wallet.bitkey.factor.PhysicalFactor;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import build.wallet.cloud.backup.csek.SealedCsek;
+import kotlin.Boolean;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE activeServerRecoveryEntity(
+  rowId                         INTEGER NOT NULL PRIMARY KEY,
+  account                       TEXT AS FullAccountId NOT NULL,
+  startTime                     INTEGER AS Instant NOT NULL,
+  endTime                       INTEGER AS Instant NOT NULL,
+  lostFactor                    TEXT AS PhysicalFactor NOT NULL,
+  destinationAppGlobalAuthKey   TEXT AS AppGlobalAuthPublicKey NOT NULL,
+  -- Note that Recovery Auth key is optional. It's possible that the customer has not
+  -- initiated DN recovery by providing an existing/new Recovery Auth key because they
+  -- started the recovery in older app version. The recovery will proceed nonetheless,
+  -- and the Recovery Auth key will be backfilled later (see BKR-573).
+  destinationAppRecoveryAuthKey TEXT AS AppRecoveryAuthPublicKey,
+  destinationHardwareAuthKey    TEXT AS HwAuthPublicKey NOT NULL
+);
+
+CREATE TABLE localRecoveryAttemptEntity(
+  rowId                           INTEGER NOT NULL PRIMARY KEY,
+  account                         TEXT AS FullAccountId NOT NULL,
+  destinationAppGlobalAuthKey     TEXT AS AppGlobalAuthPublicKey NOT NULL,
+  -- Note that Recovery Auth key is optional. It's possible that the customer has not
+  -- initiated DN recovery by providing an existing/new Recovery Auth key because they
+  -- started the recovery in older app version. The recovery will proceed nonetheless,
+  -- and the Recovery Auth key will be backfilled later (see BKR-573).
+  destinationAppRecoveryAuthKey   TEXT AS AppRecoveryAuthPublicKey,
+  destinationHardwareAuthKey      TEXT AS HwAuthPublicKey NOT NULL,
+  destinationAppSpendingKey       TEXT AS AppSpendingPublicKey NOT NULL,
+  destinationHardwareSpendingKey  TEXT AS HwSpendingPublicKey NOT NULL,
+  lostFactor                      TEXT AS PhysicalFactor NOT NULL,
+  -- presence of above means initiated status
+  hadServerRecovery                INTEGER AS Boolean NOT NULL,
+  -- presence of above means we had a server recovery at some point
+  sealedCsek                      BLOB AS SealedCsek,
+  -- presence of above means we are attempting auth key rotation (server completion)
+  authKeysRotated                 INTEGER AS Boolean NOT NULL,
+-- presence of above means we completed auth key rotation (server completion)
+  -- presence of above means authKeysRotated status
+  serverKeysetId                  TEXT,
+  serverSpendingKey               TEXT AS F8eSpendingPublicKey,
+  -- presence of above means spendingKeysRotated status
+  backedUpToCloud                 INTEGER AS Boolean NOT NULL
+  -- presence of above means backed up to cloud status
+);
+
+getServerRecovery:
+SELECT * FROM activeServerRecoveryEntity WHERE rowId = 0;
+
+getLocalRecovery:
+SELECT * FROM localRecoveryAttemptEntity WHERE rowId = 0;
+
+setActiveServerRecovery {
+  INSERT OR REPLACE INTO activeServerRecoveryEntity(rowId, account, startTime, endTime, lostFactor, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey)
+    -- Use stable id to ensure we only ever have a single active recovery.
+    VALUES(0, ?, ?, ?, ?, ?, ?, ?);
+  UPDATE localRecoveryAttemptEntity
+    SET hadServerRecovery = 1
+    WHERE rowId = 0;
+}
+
+clearActiveServerRecovery:
+DELETE FROM activeServerRecoveryEntity;
+
+purgeUnconfirmedLocalRecoveryAttempts:
+DELETE FROM localRecoveryAttemptEntity WHERE hadServerRecovery = 0;
+
+clear {
+    DELETE FROM activeServerRecoveryEntity;
+    DELETE FROM localRecoveryAttemptEntity;
+}
+
+markAsInitiated:
+INSERT INTO localRecoveryAttemptEntity(rowId, account, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, lostFactor, sealedCsek, authKeysRotated, serverKeysetId, serverSpendingKey, authKeysRotated, backedUpToCloud, hadServerRecovery)
+-- Use stable id to ensure we only ever have a single active set of local pending recovery keys.
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, NULL, 0, NULL, NULL, 0, 0, 0);
+
+-- To protect against race conditions where we might not get a server sync between the time we
+-- rotate auth keys to the time we complete our recovery on the app, we clear the server recovery
+-- so that it doesn't look like there's still an exisiting one once we exit the
+-- recovery completion flow. We could eliminate the need for this by, for example, calling sync
+-- manually after completion (and blocking on it). Currently the syncer doesn't support
+-- on-demand or transactional syncs, which we'd need to let the syncer handle this for us.
+markAuthKeysRotated {
+    DELETE FROM activeServerRecoveryEntity;
+    UPDATE localRecoveryAttemptEntity SET authKeysRotated = 1;
+}
+
+markAsAttemptingCompletion:
+UPDATE localRecoveryAttemptEntity SET sealedCsek = ?;
+
+markAttemptedCompletionAsFailed:
+UPDATE localRecoveryAttemptEntity SET sealedCsek = NULL;
+
+markSpendingKeysRotated:
+UPDATE localRecoveryAttemptEntity SET serverKeysetId = ?, serverSpendingKey = ?;
+
+markCloudBackedUp:
+UPDATE localRecoveryAttemptEntity SET backedUpToCloud = 1;
+
+clearLocalRecoveryAttempt:
+DELETE FROM localRecoveryAttemptEntity;

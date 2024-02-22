@@ -1,0 +1,26 @@
+# new_wallet.yaml
+# Test that a new wallet can be onboarded
+appId: ${APP_ID}
+tags:
+    - ios
+    - android
+name: Onboard with a New Wallet
+onFlowStart:
+  - runFlow: utility_flows/debug_setup.yaml
+---
+- tapOn:
+    id: "setup-new-wallet"
+- tapOn: "Continue"
+- assertVisible: "Pair your Bitkey device"
+- tapOn:
+    id: "pair-bitkey-device"
+- assertVisible: "Set up your fingerprint"
+- tapOn: 
+    id: "save-fingerprint"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "Home"
+    timeout: 10000
+- assertVisible: "Home"
+- assertVisible: "$0.00"
+

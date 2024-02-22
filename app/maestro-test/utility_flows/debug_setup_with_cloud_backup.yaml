@@ -1,0 +1,27 @@
+# debug_setup_with_cloud_backup.yaml
+# This utility only enables skip-notifications in the debug menu
+appId: ${APP_ID}
+tags:
+    - utility_flow
+---
+- launchApp:
+    clearState: true
+- tapOn: 
+    id: "logo"
+- tapOn:
+    id: "skip-notifications"
+- scrollUntilVisible:
+    element:
+        text: "Wipe"
+- runFlow:
+    when:
+        platform: android
+    commands:
+        - back
+- runFlow:
+    when:
+        platform: iOS
+    commands:
+        - tapOn: "Wipe"
+        - tapOn: "Yes"
+        - tapOn: "Close"

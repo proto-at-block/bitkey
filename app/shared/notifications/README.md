@@ -1,0 +1,1 @@
+This module contains domain specific components for setting up and managing notification touchpoints, specifically email and text messages.

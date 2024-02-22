@@ -1,0 +1,6 @@
+dekTableName = "wsm_deks"
+customerKeysTableName = "wsm_customer_keys"
+cmkId = "fake"
+dynamodbEndpoint = "http://localhost:8000"
+enclaveEndpoint = "http://localhost:7446"
+kmsProxyPort = 1000

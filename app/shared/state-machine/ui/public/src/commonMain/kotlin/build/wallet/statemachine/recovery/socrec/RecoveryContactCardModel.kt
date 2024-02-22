@@ -1,0 +1,34 @@
+package build.wallet.statemachine.recovery.socrec
+
+import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
+import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.ui.model.Click
+import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.button.ButtonModel.Size.Compact
+
+fun RecoveryContactCardModel(
+  contact: RecoveryContact,
+  buttonText: String,
+  onClick: () -> Unit,
+  buttonTreatment: ButtonModel.Treatment = ButtonModel.Treatment.Primary,
+) = CardModel(
+  leadingImage = CardModel.CardImage.StaticImage(Icon.MediumIconTrustedContact),
+  title =
+    LabelModel.StringWithStyledSubstringModel.from(
+      string = contact.trustedContactAlias.alias,
+      substringToColor = emptyMap()
+    ),
+  subtitle = "Trusted Contact",
+  trailingButton =
+    ButtonModel(
+      text = buttonText,
+      size = Compact,
+      onClick = Click.standardClick(onClick),
+      treatment = buttonTreatment
+    ),
+  onClick = onClick,
+  content = null,
+  style = CardModel.CardStyle.Gradient
+)

@@ -1,0 +1,36 @@
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey;
+import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+
+CREATE TABLE appKeyBundleEntity(
+  id              TEXT NOT NULL PRIMARY KEY,
+  globalAuthKey   TEXT AS AppGlobalAuthPublicKey NOT NULL,
+  spendingKey     TEXT AS AppSpendingPublicKey NOT NULL,
+  -- Note that App Recovery Auth key is optional to ensure backwards compatability with existing accounts.
+  -- TODO(BKR-573): generate and backfill the App Recovery Auth Key for existing customers.
+  recoveryAuthKey TEXT AS AppRecoveryAuthPublicKey
+);
+
+insertKeyBundle:
+INSERT OR REPLACE INTO appKeyBundleEntity(id, globalAuthKey, spendingKey, recoveryAuthKey)
+VALUES(?, ?, ?, ?);
+
+-- When fetching the keybundle, join the key table for each key.
+keyBundleById:
+SELECT * FROM appKeyBundleEntity
+WHERE id = ?;
+
+rotateAppAuthKeys:
+UPDATE appKeyBundleEntity SET
+    globalAuthKey = ?,
+    recoveryAuthKey = ?
+WHERE id = ?;
+
+clear:
+DELETE FROM appKeyBundleEntity;
+
+lastInsertRowId:
+SELECT last_insert_rowid();
+
+deleteById:
+DELETE FROM appKeyBundleEntity WHERE appKeyBundleEntity.id = ?;

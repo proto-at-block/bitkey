@@ -1,0 +1,66 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.bitkey.f8e.LiteAccountId;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+
+-- Table for Lite Account.
+CREATE TABLE liteAccountEntity(
+  accountId           TEXT AS LiteAccountId NOT NULL PRIMARY KEY,
+  appRecoveryAuthKey  TEXT AS AppRecoveryAuthPublicKey NOT NULL,
+  bitcoinNetworkType  TEXT AS BitcoinNetworkType NOT NULL,
+  f8eEnvironment      TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount       INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes  INTEGER AS Boolean NOT NULL
+);
+
+-- Table for an active Lite Account data, if any.
+CREATE TABLE activeLiteAccountEntity(
+  rowId      INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS LiteAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES liteAccountEntity(accountId)
+);
+
+-- Table for an onboarding Lite Account data, if any.
+CREATE TABLE onboardingLiteAccountEntity(
+  rowId     INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS LiteAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES liteAccountEntity(accountId)
+);
+
+-- Query to set a Lite account
+insertLiteAccount:
+INSERT OR REPLACE INTO liteAccountEntity
+VALUES (?, ?, ?, ?, ?, ?);
+
+-- Query to set a Lite account as active to make it ready to use.
+setActiveLiteAccountId:
+INSERT OR REPLACE INTO activeLiteAccountEntity(rowId, accountId)
+-- Use stable row ID to ensure we only ever have a single active Lite Account.
+VALUES(0, ?);
+
+-- Query to get currently active Lite Account, if any.
+getActiveLiteAccount:
+SELECT * FROM liteAccountEntity
+INNER JOIN activeLiteAccountEntity
+WHERE liteAccountEntity.accountId = activeLiteAccountEntity.accountId;
+
+setOnboardingLiteAccountId:
+INSERT OR REPLACE INTO onboardingLiteAccountEntity(rowId, accountId)
+-- Use stable row ID to ensure we only ever have a single Lite Account being onboarded.
+VALUES(0, ?);
+
+getOnboardingLiteAccount:
+SELECT * FROM liteAccountEntity
+INNER JOIN onboardingLiteAccountEntity
+WHERE liteAccountEntity.accountId = onboardingLiteAccountEntity.accountId;
+
+clearOnboardingLiteAccount:
+DELETE FROM onboardingLiteAccountEntity;
+
+-- Query to delete all Lite account data.
+clear {
+  DELETE FROM activeLiteAccountEntity;
+  DELETE FROM onboardingLiteAccountEntity;
+  DELETE FROM liteAccountEntity;
+}

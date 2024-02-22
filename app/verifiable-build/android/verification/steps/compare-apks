@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Compares the content of extracted apks by comparing two directories.
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <directory-1> <directory-2>" >&2
+    exit 1
+fi
+
+if ! which "diff" > /dev/null 2>&1; then
+    echo "Cannot find 'diff'. Please install it first and then rerun this command." >&2
+    exit 100
+fi
+
+
+differences=$(diff -r "$1" "$2")
+
+diff_exit_status=$?
+
+if [ $diff_exit_status -eq 0 ]; then
+  echo "The builds are identical!"
+else
+  printf "The builds are NOT identical!\n\n"
+
+  printf "Found differences:\n\n"
+
+  echo "$differences"
+
+  exit $diff_exit_status
+fi
+
+

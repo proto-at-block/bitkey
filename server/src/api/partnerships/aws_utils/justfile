@@ -1,0 +1,18 @@
+alias b := build
+alias t := test
+
+[private]
+default:
+  just --list
+
+build:
+  cargo build
+
+# Run all tests
+test:
+  cargo test
+
+# Format and lint
+fmt:
+  cargo fmt
+  cargo clippy --fix --no-deps --allow-dirty --allow-staged

@@ -1,0 +1,50 @@
+# Docker compose that starts a local bitcoind and electrs (electrum) server
+#
+# Because electrs expects to be able to read bitcoind's data directly, they share
+# a docker volume. The data on this volume will be persisted.
+# To remove the volume before/after tests, run
+#   docker-compose -f <path-to-docker-compose.yaml> rm -v
+services:
+  bitcoind:
+    image: lncm/bitcoind:v25.0
+    command:
+      - -regtest
+      - -rpcbind=0.0.0.0:18443
+      - -rpcuser=test
+      - -rpcpassword=test
+      - -rpcallowip=0.0.0.0/0
+      - -server=1
+      - -txindex=1
+      - -prune=0
+    volumes:
+      - bitcoin-data:/data/.bitcoin
+    ports:
+      - 18443:18443
+
+  esplora:
+    image: blockstream/esplora:electrs-latest
+    # Esplora has no arm image. Setting it explicitly to x86 gets rid of a noisy warning.
+    platform: linux/amd64
+    command:
+      - ./electrs_bitcoin/bin/electrs
+      - -vvv
+      - --timestamp
+      - --daemon-dir=/app/.bitcoin
+      - --db-dir=/app/db
+      - --network
+      - regtest
+      - --http-addr=0.0.0.0:8100
+      - --electrum-rpc-addr=0.0.0.0:8101
+      - --daemon-rpc-addr=bitcoind:18443
+      - --cookie=test:test
+      - --electrum-txs-limit=1000000
+      - --utxos-limit=1000000
+    volumes:
+      - bitcoin-data:/app/.bitcoin
+    ports:
+      # Electrum HTTP Port
+      - 8100:8100
+      # RPC port is exposed in consumers of this base compose file.
+
+volumes:
+  bitcoin-data:

@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+
+message mfgtest_fingerprint_cmd {
+  enum mfgtest_fingerprint_image_analysis_mode {
+    RESET = 0;
+    CHECKERBOARD = 1;
+    CHECKERBOARD_INVERTED = 2;
+  }
+  message calibrate_cmd {}
+  message image_capture_cmd {}
+  message image_get_capture_cmd {
+    uint32 image_offset = 1;
+  }
+  message selftest_start_cmd {}
+  message selftest_get_result_cmd {}
+  message security_mode_cmd {}  // DEPRECATED: Prefer fingerprint_settings_get_cmd.
+  message security_enable_cmd {
+    bool dry_run = 1;
+  }
+  message security_test_cmd {}
+  message image_analysis_cmd {
+    mfgtest_fingerprint_image_analysis_mode mode = 1;
+  }
+
+  oneof cmd {
+    calibrate_cmd calibrate = 1;
+    image_capture_cmd image_capture = 2;
+    image_get_capture_cmd image_get_capture = 3;
+    selftest_start_cmd selftest_start = 4;
+    selftest_get_result_cmd selftest_get_result = 5;
+    security_mode_cmd security_mode = 6;
+    security_enable_cmd security_enable = 7;
+    security_test_cmd security_test = 8;
+    image_analysis_cmd image_analysis = 9;
+  }
+}
+
+message mfgtest_fingerprint_rsp {
+  message calibrate_rsp {
+    bytes calibration_data = 1 [(nanopb).max_size = 64];
+  }
+  message image_capture_rsp {}
+  message image_get_capture_rsp {
+    bytes image_chunk = 1 [(nanopb).max_size = 256];
+    uint32 bytes_remaining = 2;
+  }
+  message selftest_start_rsp {}
+  message selftest_get_result_rsp {
+    bool irq_test = 1;
+    bool spi_rw_test = 2;
+    bool spi_speed_test = 3;
+    bool image_stress_test = 4;
+    bool reg_stress_test = 5;
+    bool otp_test = 6;
+    bool prod_test = 7;
+  }
+  message security_mode_rsp {
+    bool security_enabled = 1;
+    bool otp_locked = 2;
+  }
+  message security_enable_rsp {}
+  message security_test_rsp {
+    uint32 total_errors = 1;
+    uint32 cmac_errors = 2;
+    uint32 data_errors = 3;
+    uint32 other_errors = 4;
+    uint32 iterations = 5;
+  }
+  message image_analysis_rsp {
+    uint32 num_of_defect_pixels = 1;
+    uint32 num_of_defect_pixels_in_detect_zones = 2;
+    uint32 median_type1_min = 3;
+    uint32 median_type1_max = 4;
+    uint32 median_type2_min = 5;
+    uint32 median_type2_max = 6;
+    uint32 median = 7;  // Only used if mode = RESET
+  }
+
+  enum mfgtest_fingerprint_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  mfgtest_fingerprint_rsp_status rsp_status = 1;
+
+  oneof rsp {
+    calibrate_rsp calibrate = 2;
+    image_capture_rsp image_capture = 3;
+    image_get_capture_rsp image_get_capture = 4;
+    selftest_start_rsp selftest_start = 5;
+    selftest_get_result_rsp selftest_get_result = 6;
+    security_mode_rsp security_mode = 7;
+    security_enable_rsp security_enable = 8;
+    security_test_rsp security_test = 9;
+    image_analysis_rsp image_analysis = 10;
+  }
+}
+
+enum serial_type {
+  UNSPECIFIED_SERIAL = 0;
+  ASSY_SERIAL = 1;
+  MLB_SERIAL = 2;
+}
+
+message mfgtest_serial_write_cmd {
+  string serial = 1 [(nanopb).max_size = 17];  // +1 for null terminator
+  serial_type type = 2;
+}
+
+message mfgtest_serial_write_rsp {
+  enum mfgtest_serial_write_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  mfgtest_serial_write_status rsp_status = 1;
+}
+
+message mfgtest_gpio_cmd {
+  enum mfgtest_gpio_action {
+    UNSPECIFIED = 0;
+    READ = 1;
+    SET = 2;
+    CLEAR = 3;
+  }
+
+  enum mfgtest_gpio_port {
+    // Note: normally should use 'unspecified' as the first value,
+    // but these need to match the actual GPIO ports.
+    PORT_A = 0;
+    PORT_B = 1;
+    PORT_C = 2;
+    PORT_D = 3;
+  }
+
+  mfgtest_gpio_action action = 1;
+  mfgtest_gpio_port port = 2;
+  uint32 pin = 3;
+}
+
+message mfgtest_gpio_rsp {
+  uint32 output = 1;
+}
+
+enum battery_variant {
+  DEFAULT = 0;
+  VARIANT_1 = 1;
+  VARIANT_2 = 2;
+}
+
+message mfgtest_battery_variant_cmd {
+  battery_variant variant = 1;
+}
+
+message mfgtest_battery_variant_rsp {
+  enum mfgtest_battery_variant_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    reserved 3 to 9;
+  }
+
+  mfgtest_battery_variant_status status = 1;
+}

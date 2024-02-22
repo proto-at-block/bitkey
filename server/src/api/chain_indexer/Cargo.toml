@@ -1,0 +1,20 @@
+[package]
+edition = { workspace = true }
+name = "chain_indexer"
+publish = { workspace = true }
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = { workspace = true }
+bdk_utils = { workspace = true }
+config = { workspace = true, features = ["toml"] }
+database = { workspace = true }
+reqwest = { workspace = true }
+reqwest-middleware = { workspace = true }
+reqwest-retry = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }

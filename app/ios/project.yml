@@ -1,0 +1,226 @@
+---
+name: Wallet
+options:
+  deploymentTarget: '15.2'
+  preGenCommand: "../core/build_swift_package.sh"
+configs:
+  Release: release
+  Beta: release
+  Team: release
+  TeamAlpha: release
+  Debug: debug
+  Emergency: release
+targets:
+  Wallet:
+    platform: iOS
+    deploymentTarget: 15.2
+    type: application
+    settings:
+      base:
+        CODE_SIGN_STYLE: Manual
+        ENABLE_BITCODE: false
+        PROJECT_BUNDLE_NAME: W1 Beta
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.15.0
+        PROJECT_BUNDLE_VERSION: 1
+        TARGETED_DEVICE_FAMILY: 1
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        OTHER_CFLAGS: -DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=3 -DSQLCIPHER_CRYPTO_CC -DNDEBUG
+      configs:
+        Release:
+          APP_ICON: AppIconRelease
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconRelease
+          CODE_SIGN_IDENTITY: $(SQUARE_CODE_SIGN_IDENTITY)
+          DEVELOPMENT_TEAM: $(SQUARE_DEVELOPMENT_TEAM)
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.app
+          PROJECT_BUNDLE_NAME: "Bitkey"
+          PROVISIONING_PROFILE_SPECIFIER: $(SQUARE_PROVISIONING_PROFILE_SPECIFIER)
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: RELEASE
+          KOTLIN_FRAMEWORK_BUILD_TYPE: Release
+          GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
+        Beta:
+          APP_ICON: AppIconRelease
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconRelease
+          CODE_SIGN_IDENTITY: $(SQUARE_CODE_SIGN_IDENTITY)
+          DEVELOPMENT_TEAM: $(SQUARE_DEVELOPMENT_TEAM)
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey
+          PROJECT_BUNDLE_NAME: "Bitkey Beta"
+          PROVISIONING_PROFILE_SPECIFIER: $(SQUARE_PROVISIONING_PROFILE_SPECIFIER)
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: BETA
+          KOTLIN_FRAMEWORK_BUILD_TYPE: Release
+          GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
+        Team:
+          APP_ICON: AppIconInternal
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconInternal
+          CODE_SIGN_IDENTITY: $(SQUARE_CODE_SIGN_IDENTITY)
+          DEVELOPMENT_TEAM: $(SQUARE_DEVELOPMENT_TEAM)
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.team
+          PROJECT_BUNDLE_NAME: "Bitkey Team"
+          PROVISIONING_PROFILE_SPECIFIER: $(SQUARE_PROVISIONING_PROFILE_SPECIFIER)
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG DEBUGMENU INTERNAL
+          KOTLIN_FRAMEWORK_BUILD_TYPE: Release
+          GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
+        TeamAlpha:
+          APP_ICON: AppIconInternal
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconInternal
+          CODE_SIGN_IDENTITY: $(SQUARE_CODE_SIGN_IDENTITY)
+          DEVELOPMENT_TEAM: $(SQUARE_DEVELOPMENT_TEAM)
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.team.alpha
+          PROJECT_BUNDLE_NAME: "Bitkey Alpha"
+          PROVISIONING_PROFILE_SPECIFIER: $(SQUARE_PROVISIONING_PROFILE_SPECIFIER)
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG DEBUGMENU INTERNAL
+          KOTLIN_FRAMEWORK_BUILD_TYPE: Release
+          GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
+        Debug:
+          APP_ICON: AppIconDebug
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDebug
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.dev
+          PROJECT_BUNDLE_NAME: "Bitkey Debug"
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG DEBUGMENU DEVELOPMENT
+          KOTLIN_FRAMEWORK_BUILD_TYPE: Debug
+          GCC_PREPROCESSOR_DEFINITIONS: DEBUG=1 SQLITE_HAS_CODEC=1
+        Emergency:
+          APP_ICON: AppIconRelease
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIconRelease
+          CODE_SIGN_IDENTITY: $(SQUARE_CODE_SIGN_IDENTITY)
+          DEVELOPMENT_TEAM: $(SQUARE_DEVELOPMENT_TEAM)
+          PRODUCT_BUNDLE_IDENTIFIER: world.bitkey
+          PROJECT_BUNDLE_NAME: "Bitkey EAK"
+          PROVISIONING_PROFILE_SPECIFIER: $(SQUARE_PROVISIONING_PROFILE_SPECIFIER)
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: RELEASE
+          KOTLIN_FRAMEWORK_BUILD_TYPE: Release
+          GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
+
+    dependencies:
+    - package: Dependencies
+
+    sources:
+    - Wallet/Sources
+    - Wallet/Resources
+    - path: ../shared
+      includes:
+        - "**/src/commonMain/kotlin/**"
+        - "**/src/iosMain/kotlin/**"
+      buildPhase: none
+    info:
+      path: Wallet/Info.plist
+      properties:
+        CFBundleName: "$(PROJECT_BUNDLE_NAME)"
+        CFBundleVersion: "$(PROJECT_BUNDLE_VERSION)"
+        CFBundleShortVersionString: "$(PROJECT_BUNDLE_SHORT_VERSION)"
+        ITSAppUsesNonExemptEncryption: false
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UIUserInterfaceStyle: Light
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UILaunchStoryboardName: SplashScreen
+        NSCameraUsageDescription: Allow access to your camera in order to scan QR codes
+        NFCReaderUsageDescription: We use NFC to connect your phone to your W1
+        NSFaceIDUsageDescription: We use FaceID to securely store your wallet keys
+        com.apple.developer.nfc.readersession.iso7816.select-identifiers:
+        - D2760000850101
+        bugsnag:
+        # TODO [W-1434]: Remove Bugsnag API Key
+          apiKey: fc7c9dc80a0a6bc05888435db53d0871
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: build.bitkey
+            CFBundleURLSchemes:
+              - bitkey
+        NSUbiquitousContainers:
+          iCloud.world.bitkey.app:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Bitkey
+            NSUbiquitousContainerSupportedFolderLevels: One
+          iCloud.world.bitkey:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Bitkey
+            NSUbiquitousContainerSupportedFolderLevels: One
+          iCloud.world.bitkey.team:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Bitkey Team
+            NSUbiquitousContainerSupportedFolderLevels: One
+          iCloud.world.bitkey.team.alpha:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Bitkey Alpha
+            NSUbiquitousContainerSupportedFolderLevels: One
+          iCloud.world.bitkey.dev:
+            NSUbiquitousContainerIsDocumentScopePublic: true
+            NSUbiquitousContainerName: Bitkey Debug
+            NSUbiquitousContainerSupportedFolderLevels: One
+    entitlements:
+      path: Wallet/Wallet.entitlements
+      properties:
+        aps-environment: production
+        com.apple.developer.associated-domains: [applinks:bitkey.world]
+        com.apple.developer.nfc.readersession.formats:
+        - TAG
+        com.apple.developer.ubiquity-kvstore-identifier: "$(AppIdentifierPrefix)$(CFBundleIdentifier)"
+        com.apple.developer.icloud-container-identifiers: ["iCloud.$(CFBundleIdentifier)"]
+    preBuildScripts:
+      - name: Compile and embed Kotlin framework
+        basedOnDependencyAnalysis: false
+        shell: /usr/bin/env bash
+        script: |
+          set -e
+          if [ "YES" = "$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED" ]; then
+            echo "Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \"YES\""
+            exit 0
+          fi
+          cd "$SRCROOT/.."
+          ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode --configuration-cache
+    scheme:
+      gatherCoverageData: true
+      stopOnEveryMainThreadCheckerIssue: true
+      testTargets:
+      - name: WalletUnitTests
+        parallelizable: true
+        randomExecutionOrder: true
+      - name: WalletSnapshotTests
+        parallelizable: true
+        randomExecutionOrder: true
+  WalletUnitTests:
+    platform: iOS
+    type: bundle.unit-test
+    sources:
+    - Wallet/Resources
+    - Wallet/Tests/UnitTests
+    info:
+      path: Wallet/Tests/Info.plist
+    dependencies:
+    - target: Wallet
+    scheme:
+      testTargets:
+        - WalletUnitTests
+      gatherCoverageData: true
+  WalletSnapshotTests:
+    platform: iOS
+    type: bundle.unit-test
+    sources:
+    - Wallet/Resources
+    - Wallet/Tests/SnapshotTests
+    info:
+      path: Wallet/Tests/Info.plist
+    dependencies:
+    - target: Wallet
+    - package: SnapshotTesting
+    scheme:
+      testTargets:
+        - WalletSnapshotTests
+      gatherCoverageData: true
+      commandLineArguments:
+        -is-recording ${SNAPSHOT_TESTS_RECORD}: true
+settings:
+  base:
+    IPHONEOS_DEPLOYMENT_TARGET: 15.2
+    FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]: $(inherited) "../shared/xc-framework/_build/xcode-frameworks/$(CONFIGURATION)/iphonesimulator$(SDK_VERSION)"
+    FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) "../shared/xc-framework/_build/xcode-frameworks/$(CONFIGURATION)/iphoneos$(SDK_VERSION)"
+
+packages:
+  Dependencies:
+    path: Dependencies/
+
+  SnapshotTesting:
+    url: https://github.com/pointfreeco/swift-snapshot-testing
+    from: 1.15.1
+

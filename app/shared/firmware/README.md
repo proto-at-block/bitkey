@@ -1,0 +1,1 @@
+This module contains functional components for uploading firmware telemetry and managing firmware metadata.

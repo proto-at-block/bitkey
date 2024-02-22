@@ -1,0 +1,8 @@
+target extended-remote localhost:2331
+monitor reset
+load
+compare-sections
+monitor reset
+monitor go
+disconnect
+quit

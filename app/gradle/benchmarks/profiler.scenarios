@@ -1,0 +1,85 @@
+# Gradle Profiler scenarios for measuring build times
+
+# ABI vs non-ABI?
+#
+# ABI refers to an Application Binary Interface.
+# An ABI change, such as modifications to function signatures or class hierarchies, alters the binary
+# interface of a module, requiring dependent modules to be recompiled.
+# On the other hand, non-ABI changes like internal code refactoring don’t affect the binary interface,
+# thus having a lesser impact on build times.
+# We measure the impact of both ABI and non-ABI changes on build times.
+
+# Reusable config
+ios {
+    frameworkModule = ":shared:xc-framework"
+    linkTaskName = "linkDebugFrameworkIosSimulatorArm64"
+    linkTask = ${ios.frameworkModule}":"${ios.linkTaskName}
+}
+
+android {
+    assembleTask = ":android:app:assembleDebug"
+}
+
+# Inheritable config
+base {
+    # TODO: This was taken from the previous scenarios file in this repo, 
+    #   we need to find the number of warmups and iterations we want, 
+    #   as well as whether the `--no-build-cache` is something we want.
+    # warm-ups = 3
+    # iterations = 2
+    # 
+    # gradle-args = ["--no-build-cache"]
+}
+
+base_android = ${base} {
+    tasks = [${android.assembleTask}]
+}
+
+base_ios = ${base} {
+    tasks = [${ios.linkTask}]
+}
+
+base_clean {
+    cleanup-tasks = ["clean"]
+}
+
+base_abi_change {
+    # Make an ABI change in a dependency module
+    apply-abi-change-to = "shared/f8e-client/public/src/commonMain/kotlin/build/wallet/f8e/client/F8eHttpClient.kt"
+}
+
+base_nonabi_change {
+    # Make a non-ABI change in a dependency module
+    apply-non-abi-change-to = "shared/f8e-client/public/src/commonMain/kotlin/build/wallet/f8e/client/F8eHttpClient.kt"
+}
+
+# SCENARIOS
+default-scenarios = []
+
+android_app_clean_build = ${base_android} ${base_clean} {
+    title = "Android app - clean build"
+}
+android_app_incremental_build_abi_change = ${base_android} ${base_abi_change} {
+    title = "Android app - incremental build (ABI change)"
+}
+android_app_incremental_build_nonabi_change = ${base_android} ${base_nonabi_change} {
+    title = "Android app - incremental build (non-ABI change)"
+}
+
+ios_app_clean_build = ${base_ios} ${base_clean} {
+    title = "iOS Framework - clean build"
+}
+ios_app_incremental_build_abi_change = ${base_ios} ${base_abi_change} {
+    title = "iOS Framework - incremental build (ABI change)"    
+}
+ios_app_incremental_build_nonabi_change = ${base_ios} ${base_nonabi_change} {
+    title = "iOS Framework - incremental build (non-ABI change)"
+}
+
+sync_android_studio: ${base} {
+    title = "Android Studio Sync"
+    android-studio-sync {
+        studio-jvm-args = ["-Xmx8192m"]
+        idea-properties = ["gradle.tooling.models.parallel.fetch=true"]
+    }
+}

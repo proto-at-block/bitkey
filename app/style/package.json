@@ -1,0 +1,17 @@
+{
+  "name": "wallet-style-dictionary",
+  "version": "1.0.0",
+  "description": "",
+  "files": [
+    "build.js",
+    "tokens"
+  ],
+  "scripts": {
+    "build": "npm install && node build.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "style-dictionary": "3.9.2"
+  }
+}

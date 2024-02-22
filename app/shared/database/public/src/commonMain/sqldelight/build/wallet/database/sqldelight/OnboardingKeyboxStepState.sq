@@ -1,0 +1,20 @@
+import build.wallet.onboarding.OnboardingKeyboxStep;
+import build.wallet.onboarding.OnboardingKeyboxStepState;
+import kotlin.Boolean;
+
+CREATE TABLE onboardingStepStateEntity(
+  stepId   TEXT AS OnboardingKeyboxStep NOT NULL PRIMARY KEY,
+  state    TEXT AS OnboardingKeyboxStepState NOT NULL
+);
+
+
+setStateForStep:
+INSERT OR REPLACE INTO onboardingStepStateEntity(stepId, state)
+VALUES(?, ?);
+
+getStateForStep:
+SELECT * FROM onboardingStepStateEntity
+WHERE stepId = ?;
+
+clear:
+DELETE FROM onboardingStepStateEntity;

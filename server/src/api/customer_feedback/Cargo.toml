@@ -1,0 +1,30 @@
+[package]
+edition = { workspace = true }
+name = "customer_feedback"
+publish = { workspace = true }
+version = "0.1.0"
+
+[features]
+debug-embed = ["rust-embed/debug-embed"]
+
+[dependencies]
+axum = { workspace = true }
+axum-macros = { workspace = true }
+reqwest = { workspace = true }
+rust-embed = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+errors = { workspace = true }
+http_server = { workspace = true }
+metrics = { workspace = true }
+types = { workspace = true }

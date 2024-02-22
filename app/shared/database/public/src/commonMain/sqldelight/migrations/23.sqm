@@ -1,0 +1,9 @@
+import build.wallet.bitkey.f8e.LiteAccountId;
+
+-- Migration to add table for active Lite account.
+
+CREATE TABLE activeLiteAccountEntity(
+  accountId TEXT AS LiteAccountId NOT NULL PRIMARY KEY
+);
+
+PRAGMA foreign_key_check;

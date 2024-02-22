@@ -1,0 +1,31 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.f8e.FullAccountId;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+import kotlin.String;
+import kotlin.collections.Set;
+import kotlin.time.Duration;
+
+-- Table for Full Account's Keybox data, contains spending keysets.
+CREATE TABLE keyboxEntity(
+  id                      TEXT NOT NULL PRIMARY KEY,
+  account                 TEXT AS FullAccountId NOT NULL,
+  activeSpendingKeysetId  TEXT NOT NULL UNIQUE,
+  activeKeyBundleId       TEXT NOT NULL UNIQUE,
+  inactiveKeysetIds       TEXT AS Set<String> NOT NULL,
+  networkType             TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware            INTEGER AS Boolean NOT NULL,
+  f8eEnvironment          TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount           INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes      INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration     TEXT AS Duration,
+  FOREIGN KEY (activeSpendingKeysetId) REFERENCES spendingKeysetEntity(id),
+  FOREIGN KEY (activeKeyBundleId) REFERENCES appKeyBundleEntity(id)
+);
+
+insertKeybox:
+INSERT OR REPLACE INTO keyboxEntity(id, account, activeSpendingKeysetId, activeKeyBundleId, inactiveKeysetIds, networkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration)
+VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+clear:
+DELETE FROM keyboxEntity;

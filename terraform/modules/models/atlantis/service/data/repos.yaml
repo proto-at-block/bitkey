@@ -1,0 +1,86 @@
+repos:
+  - id: /.*/
+    branch: /main/
+    # We can't use `mergeable` here yet because atlantis doesn't play nice with gh rulesets that require apply for merge
+    # See https://github.com/runatlantis/atlantis/issues/4116
+    apply_requirements: [approved]
+    allow_custom_workflows: true
+    allowed_overrides:
+      - workflow
+    workflow: terragrunt
+workflows:
+  terragrunt:
+    apply:
+      steps:
+        - env:
+            # Reduce Terraform suggestion output
+            name: TF_IN_AUTOMATION
+            value: 'true'
+        - run: terragrunt apply -input=false $PLANFILE --terragrunt-ignore-external-dependencies
+    plan:
+      steps:
+        - env:
+            # Reduce Terraform suggestion output
+            name: TF_IN_AUTOMATION
+            value: 'true'
+        # Needs to happen before plan to have intended security benefits
+        - run:
+            command: terragrunt providers schema -json > providers-schema.json
+            output: hide
+        # Needs to happen before plan to have intended security benefits
+        - run: /policies/provider-allowlist/check.sh
+        - run:
+            command: terragrunt plan -input=false -out $PLANFILE --terragrunt-ignore-external-dependencies
+            # Omit data source and state refresh from output
+            output: strip_refreshing
+        - run: terragrunt show -json $PLANFILE > $SHOWFILE
+    policy_check:
+      # override the default policy_check implementation; skip the default `show` step since it invokes terraform instead
+      # of terragrunt the default `policy_check` step will automatically read from $SHOWFILE, which was created in the plan stage
+      steps:
+        - policy_check
+  firmware-signer-development:
+    plan:
+      steps:
+        - run: rm -rf .terraform
+        - init:
+            extra_args: ["-backend-config", "tfvars/development/backends.tfvars"]
+        - plan:
+            extra_args: ["-var-file", "tfvars/development/development.tfvars", "-var-file", "tfvars/development/backends.tfvars", "-var", "'is_localstack=false'"]
+    apply:
+      steps:
+        - apply
+  firmware-signer-staging:
+    plan:
+      steps:
+        - run: rm -rf .terraform
+        - init:
+            extra_args: ["-backend-config", "tfvars/staging/backends.tfvars"]
+        - plan:
+            extra_args: ["-var-file", "tfvars/staging/staging.tfvars", "-var-file", "tfvars/staging/backends.tfvars", "-var", "'is_localstack=false'"]
+    apply:
+      steps:
+        - apply
+  firmware-signer-production:
+    plan:
+      steps:
+        - run: rm -rf .terraform
+        - init:
+            extra_args: ["-backend-config", "tfvars/production/backends.tfvars"]
+        - plan:
+            extra_args: ["-var-file", "tfvars/production/production.tfvars", "-var-file", "tfvars/production/backends.tfvars", "-var", "'is_localstack=false'"]
+    apply:
+      steps:
+        - apply
+policies:
+  owners:
+    teams:
+      - w1-team
+  approve_count: 2
+  policy_sets:
+    - name: deny_local_exec
+      path: /policies/deny-local-exec/
+      source: local
+    - name: deny_remote_exec
+      path: /policies/deny-remote-exec/
+      source: local

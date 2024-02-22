@@ -1,0 +1,34 @@
+{
+  "current_version": "2024.15.0-b1-sqb1128",
+  "version_pattern": "YYYY.VERSION0.PATCH-bBUILD-sqbSQB",
+  "commit_message": "release: {new_version}",
+  "commit": false,
+  "tag": false,
+  "push": false,
+  "file_patterns": {
+    ".sqiosbuild.json": [
+      "\"product_version\": \"YYYY.VERSION0.PATCH\"",
+      "\"build_version_prefix\": \"SQB\""
+    ],
+    "app/android/app/build.gradle.kts": [
+      "yyyy = YYYY",
+      "version = VERSION0",
+      "patch = PATCH",
+      "build = BUILD"
+    ],
+    "app/core/Cargo.lock": [
+      "version = \"YYYY.VERSION0.PATCH\""
+    ],
+    "app/core/cli/Cargo.toml": [
+      "version = \"YYYY.VERSION0.PATCH\""
+    ],
+    "app/ios/project.yml": [
+      "PROJECT_BUNDLE_SHORT_VERSION: YYYY.VERSION0.PATCH",
+      "PROJECT_BUNDLE_VERSION: BUILD"
+    ],
+    "bumpver.json": [
+      "\"current_version\": \"YYYY.VERSION0.PATCH-bBUILD-sqbSQB\""
+    ]
+  }
+}
+

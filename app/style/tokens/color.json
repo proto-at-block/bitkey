@@ -1,0 +1,152 @@
+{
+  "color": {
+      "background": {
+        "light": { "value": "#FFFFFF", "comment": "The default background for the app" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "groupedBackground": {
+        "light": { "value": "#FFFFFF", "comment": "The background when the view has containers" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "containerBackground": {
+        "light": { "value": "#FFFFFF", "comment": "The default background for a container" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "containerBackgroundHighlight": {
+        "light": { "value": "#F5F8FE", "comment": "The background for a container that needs to draw attention" },
+        "dark": { "value": "#F5F8FE" }
+      },
+      "containerHighlightForeground": {
+        "light": { "value": "#A5C6FF", "comment": "foreground blue used on a highlighted container" },
+        "dark": { "value": "#A5C6FF" }
+      },
+      "foreground": {
+        "light": { "value": "#111111", "comment": "The main foreground color for things like text" },
+        "dark": { "value": "#111111" }
+      },
+      "foreground60": {
+        "light": { "value": "#666666", "comment": "The secondary foreground color for things like secondary text" },
+        "dark": { "value": "#666666" }
+      },
+      "foreground30": {
+        "light": { "value": "#C6C6C6", "comment": "used for chevrons" },
+        "dark": { "value": "#C6C6C6" }
+      },
+      "foreground10": {
+        "light": { "value": "#F6F6F6", "comment": "used for borders and dividers" },
+        "dark": { "value": "#F6F6F6" }
+      },
+      "primary": {
+        "light": { "value": "#008096", "comment": "The primary color for buttons, switches, etc" },
+        "dark": { "value": "#008096" }
+      },
+      "primaryForeground": {
+        "light": { "value": "#FFFFFF", "comment": "The foreground color for things on top of the primary color like text and icons" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "primaryForeground30": {
+        "light": { "value": "#C6C6C6", "comment": "The disabled foreground color for things on top of the primary color like text and icons" },
+        "dark": { "value": "#C6C6C6" }
+      },
+      "secondary": {
+        "light": { "value": "#0000000A", "comment": "The background color for secondary buttons" },
+        "dark": { "value": "#0000000A" }
+      },
+      "secondaryForeground": {
+        "light": { "value": "#111111", "comment": "Used as the foreground color for things on top of the secondary button like text and icons" },
+        "dark": { "value": "#111111" }
+      },
+      "secondaryForeground30": {
+        "light": { "value": "#C6C6C6", "comment": "The disabled foreground color for things on top of the secondary button like text and icons" },
+        "dark": { "value": "#C6C6C6" }
+      },
+      "primaryIcon": {
+        "light": { "value": "#111111", "comment": "The primary color for icons" },
+        "dark": { "value": "#111111" }
+      },
+      "primaryIconForeground": {
+        "light": { "value": "#FFFFFF", "comment": "The primary foreground color for icons" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "secondaryIcon": {
+        "light": { "value": "#0000000D", "comment": "The secondary color for icons" },
+        "dark": { "value": "#0000000D" }
+      },
+      "secondaryIconForeground": {
+        "light": { "value": "#111111", "comment": "The secondary foreground color for icons" },
+        "dark": { "value": "#111111" }
+      },
+      "translucentButton20": {
+        "light": { "value": "#FFFFFF33", "comment": "The background color for normal (20%) translucent buttons" },
+        "dark": { "value": "#FFFFFF33" }
+      },
+      "translucentButton10": {
+        "light": { "value": "#FFFFFF1A", "comment": "The background color for lighter (10%) translucent buttons" },
+        "dark": { "value": "#FFFFFF1A" }
+      },
+      "translucentForeground": {
+        "light": { "value": "#FFFFFF", "comment": "The foreground color for translucent buttons" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "mask": {
+        "light": { "value": "#11111199", "comment": "Mask color" },
+        "dark": { "value": "#11111199" }
+      },
+      "positive": {
+        "light": { "value": "#0093370D", "comment": "Positive banner foreground color" },
+        "dark": { "value": "#0093370D" }
+      },
+      "positiveForeground": {
+        "light": { "value": "#008000", "comment": "Positive color" },
+        "dark": { "value": "#008000" }
+      },
+      "destructive": {
+        "light": { "value": "#FF0000", "comment": "Destructive color" },
+        "dark": { "value": "#FF0000" }
+      },
+      "destructiveForeground": {
+        "light": { "value": "#CA0000", "comment": "Destructive foreground color" },
+        "dark": { "value": "#CA0000" }
+      },
+      "warning": {
+        "light": { "value": "#FFF5F0", "comment": "Warning banner background color" },
+        "dark": { "value": "#FFF5F0" }
+      },
+      "warningForeground": {
+        "light": { "value": "#F46E38", "comment": "Warning foreground color" },
+        "dark": { "value": "#F46E38" }
+      },
+      "deviceLEDGreen": {
+        "light": { "value": "#008000", "comment": "Device LED green color" },
+        "dark": { "value": "#008000" }
+      },
+      "deviceLEDRed": {
+        "light": { "value": "#FF0000", "comment": "Device LED red color" },
+        "dark": { "value": "#FF0000" }
+      },
+      "deviceLEDBlue": {
+        "light": { "value": "#0059FF", "comment": "Device LED blue color" },
+        "dark": { "value": "#0059FF" }
+      },
+      "deviceLEDWhite": {
+        "light": { "value": "#FFFFFF", "comment": "Device LED white color" },
+        "dark": { "value": "#FFFFFF" }
+      },
+      "nfcBlue": {
+        "light": { "value": "#3D81FF", "comment": "nfc blue" },
+        "dark": { "value": "#3D81FF" }
+      },
+      "bitkeyGetStartedBackground": {
+        "light": { "value": "#201E22", "comment": "Background color for the initial landing screen before any setup" },
+        "dark": { "value": "#201E22" }
+      },
+      "bitkeyGetStartedTint": {
+        "light": { "value": "#F8F4E4", "comment": "Tint color for the logo and text on the initial landing screen before any setup" },
+        "dark": { "value": "#F8F4E4" }
+      },
+      "outOfDate": {
+        "light": { "value": "#ECA900", "comment": "Color for the out of date icon in the app status screen" },
+        "dark": { "value": "#ECA900" }
+      }
+  }
+}

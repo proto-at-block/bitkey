@@ -1,0 +1,96 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.bitkey.f8e.FullAccountId;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+
+-- Table for Full Account data. This can be an active or an onboarding account, if any.
+CREATE TABLE fullAccountEntity(
+  accountId           TEXT AS FullAccountId NOT NULL PRIMARY KEY,
+  keyboxId            TEXT NOT NULL,
+  FOREIGN KEY (keyboxId) REFERENCES keyboxEntity(id)
+);
+
+-- Table for an active Full Account data, if any.
+CREATE TABLE activeFullAccountEntity(
+  rowId      INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS FullAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES fullAccountEntity(accountId)
+);
+
+-- Table for an onboarding Full Account data, if any.
+CREATE TABLE onboardingFullAccountEntity(
+  rowId     INTEGER NOT NULL PRIMARY KEY,
+  accountId  TEXT AS FullAccountId NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES fullAccountEntity(accountId)
+);
+
+-- Query to set a Full account
+insertFullAccount:
+INSERT OR REPLACE INTO fullAccountEntity
+VALUES (?, ?);
+
+-- Query to set a Full account as active to make it ready to use.
+setActiveFullAccountId:
+INSERT OR REPLACE INTO activeFullAccountEntity(rowId, accountId)
+-- Use stable row ID to ensure we only ever have a single active Full Account.
+VALUES(0, ?);
+
+-- Query to get currently active Full Account, if any.
+getActiveFullAccount:
+SELECT fullAccountView.*
+FROM fullAccountView
+INNER JOIN activeFullAccountEntity
+ON fullAccountView.accountId = activeFullAccountEntity.accountId;
+
+setOnboardingFullAccountId:
+INSERT OR REPLACE INTO onboardingFullAccountEntity(rowId, accountId)
+-- Use stable row ID to ensure we only ever have a single FUll Account being onboarded.
+VALUES(0, ?);
+
+getOnboardingFullAccount:
+SELECT fullAccountView.*
+FROM fullAccountView
+INNER JOIN onboardingFullAccountEntity
+ON fullAccountView.accountId = onboardingFullAccountEntity.accountId;
+
+clearOnboardingFullAccount:
+DELETE FROM onboardingFullAccountEntity;
+
+-- Query to delete account data.
+clear {
+  DELETE FROM activeFullAccountEntity;
+  DELETE FROM onboardingFullAccountEntity;
+  DELETE FROM fullAccountEntity;
+}
+
+-- A view to get keybox's data with all of its keys
+CREATE VIEW fullAccountView AS
+SELECT
+  fullAccountEntity.accountId AS accountId,
+  keyboxEntity.id AS keyboxId,
+  keyboxEntity.inactiveKeysetIds,
+  keyboxEntity.networkType,
+  keyboxEntity.fakeHardware,
+  keyboxEntity.f8eEnvironment,
+  keyboxEntity.isTestAccount,
+  keyboxEntity.isUsingSocRecFakes,
+  keyboxEntity.delayNotifyDuration,
+  spendingKeysetEntity.id AS spendingPublicKeysetId,
+  spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
+  spendingKeysetEntity.appKey,
+  spendingKeysetEntity.hardwareKey,
+  spendingKeysetEntity.serverKey,
+  appKeyBundleEntity.id AS appKeyBundleId,
+  appKeyBundleEntity.globalAuthKey,
+  appKeyBundleEntity.recoveryAuthKey
+FROM fullAccountEntity
+-- keybox
+INNER JOIN keyboxEntity
+ON keyboxEntity.id = fullAccountEntity.keyboxId
+-- spending public keyset
+INNER JOIN spendingKeysetEntity
+ON keyboxEntity.activeSpendingKeysetId = spendingKeysetEntity.id
+-- bundle
+INNER JOIN appKeyBundleEntity
+ON keyboxEntity.activeKeyBundleId = appKeyBundleEntity.id;

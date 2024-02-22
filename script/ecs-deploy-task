@@ -1,0 +1,79 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+export ECS_DEPLOY="${SCRIPT_DIR}/ecs-deploy"
+
+# Function to display script usage
+display_usage() {
+  echo "Deploy an ECS Task and run it, waiting for successful completion"
+  echo ""
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo "  --region                         AWS region (required if AWS_REGION not set)"
+  echo "  -c, --cluster                    ECS cluster name (required)"
+  echo "  -i, --image                      Docker image (required)"
+  echo "  --security-groups                VPC Security Groups for the task (required)"
+  echo "  --subnet                         VPC Subnet for the task to run in (required)"
+  echo "  -t, --task-definition            ECS Task Definition name to update (required)"
+  echo "  -h, --help                       Display this help message"
+}
+
+# Parse command-line options
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --region)
+      AWS_REGION="$2"
+      shift
+      ;;
+    -c|--cluster)
+      ECS_CLUSTER_NAME="$2"
+      shift
+      ;;
+    -i|--image)
+      DOCKER_IMAGE="$2"
+      shift
+      ;;
+    --security-groups)
+      SECURITY_GROUPS="$2"
+      shift
+      ;;
+    --subnet)
+      SUBNET="$2"
+      shift
+      ;;
+    -t|--task-definition)
+      TASK_DEFINITION_NAME="$2"
+      shift
+      ;;
+    -h|--help)
+      display_usage
+      exit 0
+      ;;
+    *)
+      echo "Invalid option: $1"
+      display_usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Check if required options are missing
+if [[ -z $AWS_REGION || -z $ECS_CLUSTER_NAME || -z $DOCKER_IMAGE || -z $TASK_DEFINITION_NAME ]]; then
+  echo "Missing required options!"
+  display_usage
+  exit
+fi
+
+
+$ECS_DEPLOY --run-task \
+--cluster $ECS_CLUSTER_NAME \
+--image $DOCKER_IMAGE \
+--task-definition $TASK_DEFINITION_NAME \
+--use-latest-task-def \
+--network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SECURITY_GROUPS]}" \
+--launch-type FARGATE \
+--timeout 300 \
+--wait-for-success

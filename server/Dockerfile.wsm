@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1.4
+FROM scratch as source
+COPY --link Cargo.lock .
+COPY --link Cargo.toml .
+COPY --link src src
+COPY --link vendor vendor
+
+FROM rust:alpine as toolchain
+COPY --link rust-toolchain.toml .
+RUN cargo version
+RUN apk add --no-cache \
+  musl-dev
+
+FROM toolchain as builder
+WORKDIR /usr/src
+COPY --from=source . .
+RUN \
+  --mount=type=cache,sharing=private,id=target-alpine,target=/usr/src/target \
+  --mount=type=cache,sharing=private,id=registry,target=/usr/local/cargo/registry \
+  cargo --locked install --bin wsm-enclave --path src/wsm/wsm-enclave
+
+FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as deployable
+RUN apk add --no-cache \
+  gcompat \
+  libgcc \
+  socat
+# HACK: this tar gets regenerated non-deterministically. Deleted to let SHA verification succeed for attestation.
+RUN rm /lib/apk/db/scripts.tar
+COPY --from=builder /usr/local/cargo/bin/wsm-enclave .
+COPY --from=kmstool-enclave-cli kmstool_enclave_cli .
+COPY src/wsm/wsm-enclave/start_enclave_with_proxy.sh .
+CMD ["sh", "/start_enclave_with_proxy.sh"]

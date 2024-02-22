@@ -1,0 +1,243 @@
+# See "Updating Dependencies" docs for extra instructions: https://docs.wallet.build/guides/mobile/architecture/dependencies/#updating-dependencies
+[versions]
+
+gradle-enterprise = "3.15.1"
+
+# Tooling
+# JDK runtime target version
+jvmTarget = "11"
+# JDK version for builds
+jvmToolchain = "17"
+bdk = "0.31.0"
+datadog = "2.5.1"
+detekt = "1.23.4"
+kotlin = "1.9.21"
+
+# KMP versions
+kmp-aws = "1.0.55"
+kmp-crashkios = "0.8.5"
+kmp-compose-runtime = "1.5.11"
+kmp-kermit = "2.0.2"
+kmp-kotest = "5.8.0"
+kmp-kotlin-coroutines = "1.7.3"
+kmp-kotlin-serialization = "1.6.2"
+kmp-kotlin-result = "1.1.18"
+kmp-ktor = "2.3.8"
+kmp-mosaic = "0.9.0"
+kmp-redacted = "1.7.1"
+kmp-secp256k1 = "0.13.0"
+kmp-settings = "1.1.1"
+kmp-sqldelight = "2.0.1"
+kmp-sqlighter = "1.3.1"
+kmp-wire = "4.9.5"
+
+# Android versions
+android-activity = "1.7.2"
+android-bugsnag = "5.31.1"
+android-bugsnag-plugin = "8.1.0"
+# Before upgrading the following, please make sure this runs successfully on a physical device.
+# Please also the locked (min + max) Android Studio version in `app/.idea/externalDependencies.xml`.
+android-gradle-plugin = "8.1.1"
+android-compose-ui = "1.4.3"
+android-compose-ui-compiler = "1.5.7"
+android-compose-ui-foundation = "1.4.3"
+android-compose-ui-material = "1.4.3"
+android-datastore = "1.0.0"
+android-lib-phone-number = "8.13.30"
+android-lifecycle = "2.6.1"
+android-lottie = "6.1.0"
+android-anvil = "2.4.7-1-8"
+# Don't forget to also update .github/actions/android-sdk/action.yml and app/verifiable-build/android/Dockerfile
+android-build-tools = "34.0.0"
+# Don't forget to also update .github/actions/android-sdk/action.yml and app/verifiable-build/android/Dockerfile
+android-ndk = "25.2.9519653"
+# Don't forget to also update .github/actions/android-sdk/action.yml
+android-sdk-compile = "34"
+android-sdk-min = "24"
+android-sdk-target = "34"
+# Warning: when updating Paparazzi, make sure it doesn't break [PaparazziExtension] implementation.
+# TODO: remove this comment once Paparazzi is decoupled from Junit 4: https://github.com/cashapp/paparazzi/issues/282.
+# TODO: Paparazzi does not currently work with Android SDK 34. We have a workaround that forces Paparazzi to use 33.
+#       Once the bug is fixed in Paparazzi:
+#         - Remove hardcoded SDK 33 in TestConfigurations.kt (let it use default SDK - 34)
+#         - Remove SDK 33 from `../.github/actions/android-sdk/action.yml`, just use SDK 34.
+android-paparazzi = "1.3.2"
+android-camera = "1.3.0-alpha05"
+android-voyager = "1.0.0-rc05"
+
+# Native versions
+native-kotlin-coroutines = "0.13.3"
+
+[libraries]
+
+# KMP libraries
+kmp-big-number = { module = "com.ionspin.kotlin:bignum", version = "0.3.8" }
+kmp-crashkios-bugsnag = { module = "co.touchlab.crashkios:bugsnag", version.ref = "kmp-crashkios" }
+kmp-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "kmp-compose-runtime" }
+kmp-kermit = { module = "co.touchlab:kermit", version.ref = "kmp-kermit" }
+kmp-kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kmp-kermit" }
+kmp-kotlin-codepoints = { module = "de.cketti.unicode:kotlin-codepoints-deluxe", version = "0.6.1" }
+kmp-kotlin-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version =  "0.3.5" }
+kmp-kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kmp-kotlin-coroutines" }
+kmp-kotlin-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version = "0.5.0" }
+kmp-kotlin-reflection = { module = "org.jetbrains.kotlin:kotlin-reflect", version.ref = "kotlin" }
+kmp-kotlin-result = { module = "com.michael-bull.kotlin-result:kotlin-result", version.ref = "kmp-kotlin-result" }
+kmp-kotlin-result-coroutines = { module = "com.michael-bull.kotlin-result:kotlin-result-coroutines", version.ref = "kmp-kotlin-result" }
+kmp-kotlin-serialization-cbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "kmp-kotlin-serialization" }
+kmp-kotlin-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kmp-kotlin-serialization" }
+kmp-kotlin-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kmp-kotlin-serialization" }
+kmp-ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "kmp-ktor" }
+kmp-ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "kmp-ktor" }
+kmp-ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "kmp-ktor" }
+kmp-ktor-client-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "kmp-ktor" }
+kmp-ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "kmp-ktor" }
+kmp-molecule-runtime = { module = "app.cash.molecule:molecule-runtime", version = "0.9.0" }
+kmp-okhttp = { module = "com.squareup.okhttp3:okhttp", version = "5.0.0-alpha.11" }
+kmp-okio = { module = "com.squareup.okio:okio", version = "3.7.0" }
+kmp-picnic = { module = "com.jakewharton.picnic:picnic", version = "0.7.0" }
+kmp-redacted-annotations = { module = "dev.zacsweers.redacted:redacted-compiler-plugin-annotations", version.ref = "kmp-redacted" }
+kmp-secp256k1 = { module = "fr.acinq.secp256k1:secp256k1-kmp", version.ref = "kmp-secp256k1" }
+kmp-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "kmp-settings" }
+kmp-settings-datastore = { module = "com.russhwolf:multiplatform-settings-datastore", version.ref = "kmp-settings" }
+kmp-settings-coroutines = { module = "com.russhwolf:multiplatform-settings-coroutines", version.ref = "kmp-settings" }
+kmp-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "kmp-settings" }
+kmp-sqldelight-async = { module = "app.cash.sqldelight:async-extensions", version.ref = "kmp-sqldelight" }
+kmp-sqldelight-coroutines = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "kmp-sqldelight" }
+kmp-sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "kmp-sqldelight" }
+kmp-sqldelight-primitive-adapters = { module = "app.cash.sqldelight:primitive-adapters", version.ref = "kmp-sqldelight" }
+kmp-wire-compiler = { module = "com.squareup.wire:wire-compiler", version.ref = "kmp-wire" }
+kmp-wire-runtime = { module = "com.squareup.wire:wire-runtime", version.ref = "kmp-wire" }
+
+# KMP Android + JVM libraries
+kmp-aws-secretsmanager = { module = "aws.sdk.kotlin:secretsmanager", version.ref = "kmp-aws" }
+
+# KMP testing libraries
+kmp-test-kotest-assertions = { module = "io.kotest:kotest-assertions-core", version.ref = "kmp-kotest" }
+kmp-test-kotest-assertions-json = { module = "io.kotest:kotest-assertions-json", version.ref = "kmp-kotest" }
+kmp-test-kotest-framework-api = { module = "io.kotest:kotest-framework-api", version.ref = "kmp-kotest" }
+kmp-test-kotest-framework-datatest = { module = "io.kotest:kotest-framework-datatest", version.ref = "kmp-kotest" }
+kmp-test-kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", version.ref = "kmp-kotest" }
+kmp-test-kotest-property = { module = "io.kotest:kotest-property", version.ref = "kmp-kotest" }
+kmp-test-kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kmp-kotlin-coroutines" }
+kmp-test-turbine = { module = "app.cash.turbine:turbine", version = "1.0.0" }
+kmp-test-ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "kmp-ktor" }
+
+# Android libraries
+android-accompanist-system-ui-controller = { module = "com.google.accompanist:accompanist-systemuicontroller", version = "0.30.1" }
+android-activity = { module = "androidx.activity:activity-ktx", version.ref = "android-activity" }
+android-bdk = { module = "org.bitcoindevkit:bdk-android", version.ref = "bdk" }
+android-browser = { module = "androidx.browser:browser", version = "1.5.0" }
+android-bugsnag = { module = "com.bugsnag:bugsnag-android", version.ref = "android-bugsnag" }
+android-compose-ui-activity = { module = "androidx.activity:activity-compose", version.ref = "android-activity" }
+android-compose-ui-core = { module = "androidx.compose.ui:ui", version.ref = "android-compose-ui" }
+android-compose-ui-util = { module = "androidx.compose.ui:ui-util", version.ref = "android-compose-ui" }
+android-compose-ui-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "android-compose-ui-foundation" }
+android-compose-ui-material = { module = "androidx.compose.material:material", version.ref = "android-compose-ui-material" }
+android-compose-ui-material3 = { module = "androidx.compose.material3:material3", version = "1.1.1" }
+android-compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling", version.ref = "android-compose-ui" }
+android-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview", version.ref = "android-compose-ui" }
+android-core-ktx = { module = "androidx.core:core-ktx", version = "1.10.1" }
+android-custom-view-pooling-container = { module = "androidx.customview:customview-poolingcontainer", version = "1.0.0" }
+android-datadog-logs = { module = "com.datadoghq:dd-sdk-android-logs", version.ref = "datadog" }
+android-datadog-rum = { module = "com.datadoghq:dd-sdk-android-rum", version.ref = "datadog" }
+android-datadog-trace = { module = "com.datadoghq:dd-sdk-android-trace", version.ref = "datadog" }
+android-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "android-datastore" }
+android-google-api-client = { module = "com.google.api-client:google-api-client-android", version = "2.2.0" }
+android-google-auth = { module = "com.google.android.gms:play-services-auth", version = "20.6.0" }
+android-google-play-services-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version = "1.7.3" }
+android-leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version = "2.13" }
+android-lifecycle-common = { module = "androidx.lifecycle:lifecycle-common", version.ref = "android-lifecycle" }
+android-lib-phone-number = { module = "com.googlecode.libphonenumber:libphonenumber", version.ref = "android-lib-phone-number" }
+android-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "android-lifecycle" }
+android-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "android-lifecycle" }
+android-lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "android-lifecycle" }
+android-lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "android-lottie" }
+android-savedstate = { module = "androidx.savedstate:savedstate-ktx", version = "1.2.1" }
+android-secp256k1 = { module = "fr.acinq.secp256k1:secp256k1-kmp-jni-android", version.ref = "kmp-secp256k1" }
+android-security-cryptography = { module = "androidx.security:security-crypto-ktx", version = "1.1.0-alpha06" }
+android-sqlcipher = { module = "net.zetetic:sqlcipher-android", version = "4.5.6" }
+android-sqlite = { module = "androidx.sqlite:sqlite", version = "2.4.0" }
+android-sqldelight-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "kmp-sqldelight" }
+android-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "android-camera" }
+android-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "android-camera"}
+android-camera-view = { module = "androidx.camera:camera-view", version.ref = "android-camera"}
+android-firebase-messaging = { module = "com.google.firebase:firebase-messaging", version = "23.2.1" }
+android-io-coil-compose = { module = "io.coil-kt:coil-compose", version = "2.5.0" }
+android-splashscreen = {  module = "androidx.core:core-splashscreen", version = "1.0.1" }
+android-voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "android-voyager" }
+android-voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "android-voyager" }
+android-pbfbox = { module = "com.tom-roush:pdfbox-android", version = "2.0.27.0" }
+
+# Warning: when updating, make sure that Android Studio Gradle sync still works.
+# Newer versions are likely to break due to compatability requirements, even if project still compiles: https://developer.android.com/studio/write/java8-support#library-desugaring-versions.
+android-tools-desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version = "2.0.3" }
+
+# Android testing libraries
+android-test-espresso-core = { module = "androidx.test.espresso:espresso-core", version = "3.5.1" }
+android-test-junit = { module = "androidx.test.ext:junit", version = "1.1.5" }
+android-test-junit-ktx = { module = "androidx.test.ext:junit-ktx", version = "1.1.5" }
+android-test-paparazzi = { module = "app.cash.paparazzi:paparazzi", version.ref = "android-paparazzi" }
+android-test-runner = { module = "androidx.test:runner", version = "1.5.2" }
+
+# JVM libraries
+jvm-bdk = { module = "org.bitcoindevkit:bdk-jvm", version.ref = "bdk" }
+jvm-bitcoin-rpc-client = { module = "wf.bitcoin:bitcoin-rpc-client", version = "1.2.4" }
+jvm-di-inject = { module = "javax.inject:javax.inject", version = "1" }
+jvm-google-drive = { module = "com.google.apis:google-api-services-drive", version = "v3-rev20231120-2.0.0" }
+jvm-jna = { module = "net.java.dev.jna:jna", version = "5.13.0" }
+jvm-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "kmp-ktor" }
+jvm-secp256k1 = { module = "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm", version.ref = "kmp-secp256k1" }
+jvm-slf4j = { module = "org.slf4j:slf4j-api", version = "2.0.6" }
+jvm-sqldelight-driver = { module = "app.cash.sqldelight:sqlite-driver", version.ref = "kmp-sqldelight" }
+jvm-zxing = { module = "com.google.zxing:core", version = "3.5.2" }
+
+# JVM testing libraries
+jvm-test-junit = { module = "junit:junit", version = "4.13.2" }
+jvm-test-kotest-junit = { module = "io.kotest:kotest-runner-junit5", version.ref = "kmp-kotest" }
+jvm-test-toxiproxy-client = { module = "eu.rekawek.toxiproxy:toxiproxy-java", version = "2.1.7" }
+
+# Native libraries
+native-nserror-kt = { module = "com.rickclephas.kmp:nserror-kt", version = "0.2.0" }
+native-ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "kmp-ktor" }
+native-sqldelight-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "kmp-sqldelight" }
+native-sqliter = { module = "co.touchlab:sqliter-driver", version.ref = "kmp-sqlighter" }
+
+# Gradle plugin runtimes
+pluginClasspath-android = { module = "com.android.tools.build:gradle", version.ref = "android-gradle-plugin" }
+pluginClasspath-android-paparazzi = { module = "app.cash.paparazzi:paparazzi-gradle-plugin", version.ref = "android-paparazzi" }
+pluginClasspath-detekt = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
+pluginClasspath-detekt-compose = { module = "com.twitter.compose.rules:detekt", version = "0.0.26" }
+pluginClasspath-gradleEnterprise ={ module = "com.gradle.enterprise:com.gradle.enterprise.gradle.plugin", version.ref = "gradle-enterprise" }
+pluginClasspath-kmp = { module = "org.jetbrains.kotlin.multiplatform:org.jetbrains.kotlin.multiplatform.gradle.plugin", version.ref = "kotlin" }
+pluginClasspath-kmp-compose-runtime = { module = "org.jetbrains.compose:org.jetbrains.compose.gradle.plugin", version.ref = "kmp-compose-runtime" }
+pluginClasspath-kmp-kotest = { module = "io.kotest:kotest-framework-multiplatform-plugin-gradle", version.ref = "kmp-kotest" }
+pluginClasspath-kmp-kotlin-coroutines-native = { module = "com.rickclephas.kmp.nativecoroutines:com.rickclephas.kmp.nativecoroutines.gradle.plugin", version.ref = "native-kotlin-coroutines" }
+pluginClasspath-kmp-sqldelight = { module = "app.cash.sqldelight:gradle-plugin", version.ref = "kmp-sqldelight" }
+pluginClasspath-kotlin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
+pluginClasspath-mosaic = { module = "com.jakewharton.mosaic:mosaic-gradle-plugin", version.ref = "kmp-mosaic" }
+pluginClasspath-redacted = { module = "dev.zacsweers.redacted:redacted-compiler-plugin-gradle", version.ref = "kmp-redacted" }
+pluginClasspath-testLogger = { module = "com.adarshr:gradle-test-logger-plugin", version = "4.0.0" }
+pluginClasspath-wire = { module = "com.squareup.wire:com.squareup.wire.gradle.plugin", version.ref = "kmp-wire" }
+pluginClasspath-google-services = { module = "com.google.gms:google-services", version = "4.3.15" }
+pluginClasspath-bugsnag-android = { module = "com.bugsnag:bugsnag-android-gradle-plugin", version.ref = "android-bugsnag-plugin" }
+
+[bundles]
+kmp-test-kotest = ["kmp-test-kotest-assertions", "kmp-test-kotest-assertions-json", "kmp-test-kotest-framework-engine", "kmp-test-kotest-framework-api", "kmp-test-kotest-property", "kmp-test-kotlin-coroutines"]
+
+[plugins]
+compose-runtime = { id = "org.jetbrains.compose", version.ref = "kmp-compose-runtime" }
+datadog = { id = "com.datadoghq.dd-sdk-android-gradle-plugin", version = "1.12.0" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+gradle-doctor = { id = "com.osacky.doctor", version = "0.9.1" }
+kotlin-coroutines-native = { id = "com.rickclephas.kmp.nativecoroutines", version.ref = "native-kotlin-coroutines" }
+kotest-kmp = { id = "io.kotest.multiplatform", version.ref = "kmp-kotest" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-kmp = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+mosaic = { id = "com.jakewharton.mosaic", version.ref = "kmp-mosaic" }
+licensee = { id = "app.cash.licensee", version = "1.7.0" }
+paparazzi = { id = "app.cash.paparazzi", version.ref = "android-paparazzi" }
+sqldelight = { id = "app.cash.sqldelight", version.ref = "kmp-sqldelight" }
+test-logger = { id = "com.adarshr.test-logger", version = "4.0.0" }
+wire = { id = "com.squareup.wire", version.ref = "kmp-wire" }
+google-services = { id = "com.google.gms.google-services", version = "4.3.15" }

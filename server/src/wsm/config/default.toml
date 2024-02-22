@@ -1,0 +1,3 @@
+enclaveEndpoint = "http://127.0.0.1:7446/"
+kmsProxyPort = 8000
+address = "0.0.0.0"

@@ -1,0 +1,25 @@
+[package]
+edition = { workspace = true }
+name = "wsm-rust-client"
+publish.workspace = true
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+reqwest = { workspace = true, default-features = false, features = [
+  "json",
+  "rustls-tls",
+] }
+reqwest-middleware = { workspace = true }
+reqwest-tracing = { version = "0.4.7", features = ["opentelemetry_0_21"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+
+# path dependencies
+wsm-common = { workspace = true }
+
+[dev-dependencies]
+bdk = { workspace = true, features = ["electrum", "std"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

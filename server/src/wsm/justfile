@@ -1,0 +1,38 @@
+[private]
+default:
+  just --list
+
+download-artifacts run_id='':
+  #!/bin/bash
+  set -euo pipefail
+  GITHUB_BRANCH=main
+  GITHUB_RUN="{{run_id}}"
+  if [[ -z "$GITHUB_RUN" ]]; then
+    GITHUB_RUN=$(gh run list -w server -b ${GITHUB_BRANCH} --json 'conclusion,databaseId,number,startedAt,status' | jq -r 'map(select(.conclusion == "success"))[0].databaseId')
+    if ! [[ $GITHUB_RUN =~ ^[0-9]+$ ]] ; then
+       echo "Failed to get latest successful Github run. ${GITHUB_RUN}"; exit 1
+    fi
+  fi
+
+  echo "Downloading artifacts from https://github.com/squareup/wallet/actions/runs/${GITHUB_RUN}"
+
+  mkdir -p build
+  echo "⬇️ downloading WSM API"
+  rm -f wsm-api-bin
+  gh run download $GITHUB_RUN -n wsm-api
+  mkdir -p build
+  mv wsm-api-bin build/
+
+  echo "⬇️ downloading WSM Enclave"
+  gh run download $GITHUB_RUN -n wsm-enclave.eif
+  mv wsm-enclave.eif build/
+
+  echo "⬇️ downloading WSM socat"
+  gh run download $GITHUB_RUN -n socat
+  mv socat build/
+
+deploy-development:
+  AWS_PROFILE=w1-development--admin AWS_DEFAULT_REGION=us-west-2 ./deploy_from_gha.sh main
+
+deploy-staging:
+  AWS_PROFILE=bitkey-staging--admin AWS_DEFAULT_REGION=us-west-2 ./deploy_from_gha.sh default

@@ -1,0 +1,14 @@
+CREATE TABLE phoneNumberTouchpointEntity(
+  touchpointId     TEXT NOT NULL PRIMARY KEY,
+  phoneNumber      TEXT NOT NULL
+);
+
+setPhoneNumber:
+INSERT INTO phoneNumberTouchpointEntity(touchpointId, phoneNumber)
+VALUES(?, ?);
+
+getAllPhoneNumbers:
+SELECT * FROM phoneNumberTouchpointEntity;
+
+clear:
+DELETE FROM phoneNumberTouchpointEntity;

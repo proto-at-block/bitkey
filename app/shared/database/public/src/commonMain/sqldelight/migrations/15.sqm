@@ -1,0 +1,8 @@
+import build.wallet.money.Currency;
+
+CREATE TABLE fiatCurrencyPreferenceEntity(
+  rowId     INTEGER NOT NULL PRIMARY KEY,
+  currency  TEXT AS Currency NOT NULL
+);
+
+PRAGMA foreign_key_check;

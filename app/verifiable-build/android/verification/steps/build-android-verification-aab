@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Reproduces an AAB from local sources based on provided build-variables
+
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory> <reproducible-build-variables>" >&2
+    exit 1
+fi
+
+if [ ! -f "$1/app/verifiable-build/android/Dockerfile" ]; then
+    echo "Cannot find the Dockerfile used for building the AAB. Ensure the path points to the root directory of the Bitkey repository." >&2
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory> <reproducible-build-variables>" >&2
+    exit 2
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided build directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 3
+fi
+
+source "$1/app/verifiable-build/android/common/preconditions"
+source "$1/app/verifiable-build/android/common/docker-commands"
+source "$1/app/verifiable-build/android/common/utils"
+
+testDockerExists
+
+
+configureAndroidFlavor
+
+mkdir -p "$2"
+
+docker build -f "$1/app/verifiable-build/android/Dockerfile" \
+  -t bitkey-android-verification-builder \
+  --target verification \
+  --build-arg REPRODUCIBLE_BUILD_VARIABLES="$3" \
+  "$1" || exit $?
+
+buildAabUsingDockerContainer bitkey-android-verification-builder "$ANDROID_FLAVOR" "$2"
+
+cleanUpDockerResources bitkey-android-verification-builder

@@ -1,0 +1,11 @@
+[package]
+edition = { workspace = true }
+name = "uniffi-bindgen"
+publish = { workspace = true }
+version = { workspace = true }
+
+[[bin]]
+name = "uniffi-bindgen"
+
+[dependencies]
+uniffi = { workspace = true, features = ["cli"] }

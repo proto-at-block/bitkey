@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# Used for building new AABs.
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <output-directory>" >&2
+    exit 1
+fi
+
+if [ ! -f "$1/app/verifiable-build/android/Dockerfile" ]; then
+    echo "Cannot find the Dockerfile used for building the AAB. Ensure the path points to the root directory of the Bitkey repository." >&2
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <output-directory>" >&2
+    exit 2
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided output directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 3
+fi
+
+source "$1/app/verifiable-build/android/common/preconditions"
+source "$1/app/verifiable-build/android/common/docker-commands"
+source "$1/app/verifiable-build/android/common/utils"
+
+testDockerExists
+
+configureAndroidFlavor
+
+mkdir -p "$2"
+
+docker build -f "$1/app/verifiable-build/android/Dockerfile" \
+  -t bitkey-android-builder \
+  --target build \
+  "$1" || exit $?
+
+buildAabUsingDockerContainer bitkey-android-builder "$ANDROID_FLAVOR" "$2"
+
+cleanUpDockerResources bitkey-android-builder

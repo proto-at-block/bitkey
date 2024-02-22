@@ -1,0 +1,1 @@
+This module contains various functional platform components.

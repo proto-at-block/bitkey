@@ -1,0 +1,12 @@
+#[cfg(feature = "account")]
+pub mod account;
+#[cfg(feature = "consent")]
+pub mod consent;
+pub mod currencies;
+#[cfg(feature = "exchange_rate")]
+pub mod exchange_rate;
+#[cfg(feature = "notification")]
+pub mod notification;
+#[cfg(feature = "recovery")]
+pub mod recovery;
+pub mod serde;

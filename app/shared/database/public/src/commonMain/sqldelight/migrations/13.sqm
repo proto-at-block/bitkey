@@ -1,0 +1,27 @@
+import build.wallet.analytics.v1.Event;
+import build.wallet.f8e.F8eEnvironment;
+
+-- 1. Create temp table
+
+-- (Use the new table definition here)
+CREATE TABLE eventEntity_tmp(
+    id             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    event          BLOB AS Event NOT NULL,
+    f8eEnvironment TEXT AS F8eEnvironment NOT NULL
+);
+
+-- 2. Copy rows to temp table
+
+INSERT INTO eventEntity_tmp SELECT id, event, f8eEnvironemnt FROM eventEntity;
+
+-- 3. Drop old table
+
+DROP TABLE eventEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE eventEntity_tmp RENAME TO eventEntity;
+
+-- 5. Make sure the foreign keys still work
+
+PRAGMA foreign_key_check;

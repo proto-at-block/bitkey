@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+source bin/activate-hermit
+
+echo "Run KMP iOS Tests... "
+gradle --project-dir=app/shared iosTest --no-daemon

@@ -1,0 +1,19 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+
+CREATE TABLE fiatCurrencyPreferenceEntity(
+  rowId     INTEGER NOT NULL PRIMARY KEY,
+  currency  TEXT AS IsoCurrencyTextCode NOT NULL
+);
+
+fiatCurrencyPreference:
+SELECT * FROM fiatCurrencyPreferenceEntity
+INNER JOIN fiatCurrencyEntity ON currency = textCode
+LIMIT 1;
+
+setFiatCurrencyPreference:
+INSERT OR REPLACE INTO fiatCurrencyPreferenceEntity(rowId, currency)
+-- Use stable row ID to ensure we only ever have a single currency preference stored.
+VALUES(0, ?);
+
+clear:
+DELETE FROM fiatCurrencyPreferenceEntity;

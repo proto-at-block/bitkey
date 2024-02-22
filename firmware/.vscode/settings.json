@@ -1,0 +1,27 @@
+{
+  "C_Cpp.clang_format_style": "file",
+  "C_Cpp.clang_format_sortIncludes": true,
+  "C_Cpp.clang_format_path": "${workspaceFolder}/bin/clang-format",
+  "editor.tabSize": 2,
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/build": true,
+    "**/venv": true,
+    "**/__pycache__": true,
+    "**/*.egg-info": true,
+    "**/.fs-backups": true,
+    "**/.hermit": true,
+    "**/.pytest_cache": true,
+    "**/dist": true,
+    "python/lib": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/third-party/*": true
+  },
+  "editor.formatOnSave": true,
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "git.detectSubmodules": false
+}

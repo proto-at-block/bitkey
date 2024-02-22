@@ -1,0 +1,73 @@
+include:
+  - docker-compose-sidecars.yml
+
+services:
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy
+    command:
+    - -host=0.0.0.0
+    - -config=/toxiproxy.json
+    configs:
+      - toxiproxy.json
+    volumes:
+      - bitcoin-data:/data/.bitcoin
+    ports:
+      - 8474:8474 # toxiproxy management HTTP API
+      - 8080:8080 # toxic fromagerie
+      - 8101:8101 # toxic electrum rpc for app use
+      - 8102:8102 # toxic electrum rpc for fromagerie use
+    depends_on:
+      - esplora
+      - fromagerie
+
+  fromagerie:
+    extends:
+      file: docker-compose-services.base.yml
+      service: fromagerie
+    environment:
+      REGTEST_ELECTRUM_SERVER_URI: tcp://toxiproxy:8102
+      REGTEST_ELECTRUM_SERVER_EXTERNAL_URI: tcp://localhost:8101
+    # We put wallet-api on the esplora container's network so that
+    # wallet-api can talk to esplora on localhost.
+    # If we don't this, we have to configure fromagerie with a container-internal
+    # domain for esplora and external domain for the /api/bdk-configuration endpoint
+    depends_on:
+      - esplora
+
+  esplora:
+    extends:
+      file: docker-compose-bitcoin.base.yml
+      service: esplora
+
+  bitcoind:
+    extends:
+      file: docker-compose-bitcoin.base.yml
+      service: bitcoind
+
+  wsm-enclave:
+    extends:
+      file: docker-compose-services.base.yml
+      service: wsm-enclave
+
+  wsm-api:
+    extends:
+      file: docker-compose-services.base.yml
+      service: wsm-api
+    depends_on:
+      setup-ddb:
+        condition: service_completed_successfully
+
+  setup-ddb:
+    extends:
+      file: docker-compose-services.base.yml
+      service: setup-ddb
+    depends_on:
+      dynamodb:
+        condition: service_healthy
+
+volumes:
+  bitcoin-data:
+
+configs:
+  toxiproxy.json:
+    file: ./toxiproxy.json

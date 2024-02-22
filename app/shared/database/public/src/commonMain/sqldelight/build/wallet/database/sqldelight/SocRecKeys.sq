@@ -1,0 +1,20 @@
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.socrec.SocRecKeyPurpose;
+
+CREATE TABLE socRecKeys (
+    rowId       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    purpose     TEXT AS SocRecKeyPurpose NOT NULL UNIQUE,
+    key         TEXT AS PublicKey NOT NULL UNIQUE
+);
+
+insertKey:
+INSERT OR REPLACE INTO socRecKeys(purpose, key) VALUES (?, ?);
+
+getKeyByPurpose:
+SELECT * FROM socRecKeys WHERE purpose = ? LIMIT 1;
+
+getAll:
+SELECT * FROM socRecKeys;
+
+deleteAll:
+DELETE FROM socRecKeys;

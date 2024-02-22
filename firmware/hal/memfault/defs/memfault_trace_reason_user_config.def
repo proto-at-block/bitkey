@@ -1,0 +1,41 @@
+//! Define custom error reasons that can be filtered & searched
+//! on in the Memfault UI
+MEMFAULT_TRACE_REASON_DEFINE(critical_error)
+MEMFAULT_TRACE_REASON_DEFINE(reset_reason)
+
+// Power
+MEMFAULT_TRACE_REASON_DEFINE(power_down)
+MEMFAULT_TRACE_REASON_DEFINE(fuel_gauge_init)
+MEMFAULT_TRACE_REASON_DEFINE(fuel_gauge_validate_err)
+MEMFAULT_TRACE_REASON_DEFINE(fuel_gauge_por_init_err)
+MEMFAULT_TRACE_REASON_DEFINE(fuel_gauge_reg_read_err)
+MEMFAULT_TRACE_REASON_DEFINE(fuel_gauge_reg_write_err)
+MEMFAULT_TRACE_REASON_DEFINE(charger_validate_err)
+
+// Biometrics
+MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_error)
+MEMFAULT_TRACE_REASON_DEFINE(bio_auth_failure)
+
+// This is an abuse of trace reasons; should be a metric.
+MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_sample_pass_count)
+MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_sample_fail_count)
+
+// FWUP
+MEMFAULT_TRACE_REASON_DEFINE(fwup_finish)
+MEMFAULT_TRACE_REASON_DEFINE(fwup_write_err)
+MEMFAULT_TRACE_REASON_DEFINE(fwup_verify_err)
+MEMFAULT_TRACE_REASON_DEFINE(fwup_delta_init_err)
+MEMFAULT_TRACE_REASON_DEFINE(fwup_delta_write_patch_err)
+MEMFAULT_TRACE_REASON_DEFINE(fwup_delta_verify_patch_err)
+MEMFAULT_TRACE_REASON_DEFINE(fwup_delta_apply_patch_err)
+
+// Wallet
+MEMFAULT_TRACE_REASON_DEFINE(wallet_sign_txn)
+MEMFAULT_TRACE_REASON_DEFINE(wallet_generate_key)
+
+// Tamper
+MEMFAULT_TRACE_REASON_DEFINE(tamper_status)
+MEMFAULT_TRACE_REASON_DEFINE(tamper_status_raw)
+MEMFAULT_TRACE_REASON_DEFINE(tamper_reset)
+// Use tamper_error for failures to retrieve tamper information.
+MEMFAULT_TRACE_REASON_DEFINE(tamper_error)

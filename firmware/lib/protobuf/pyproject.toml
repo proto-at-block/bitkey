@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "bitkey-proto"
+authors = ["Bitkey firmware team <team@bitkey.build>"]
+description = "Python Bitkey protobuf interface"
+version = "0.0.0"
+packages = [{ include = "bitkey_proto" }]
+include = ["bitkey_proto/*.py"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+protobuf = "^4.23.4"     # Must match hermit-installed libprotoc
+grpcio-tools = "^1.56.2"
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "semver"
+pattern = "^fw-(?P<base>[^+]+)"
+
+[tool.poetry.build]
+generate-setup-file = false
+script = "build.py"
+
+[build-system]
+requires = [
+  "poetry-core>=1.0.0",
+  "poetry-dynamic-versioning",
+  "grpcio-tools>=1.56.2",
+  "nanopb",
+  "click",
+]
+build-backend = "poetry_dynamic_versioning.backend"

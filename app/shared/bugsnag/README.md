@@ -1,0 +1,1 @@
+Module for configuring Bugsnag crash reporting and logging, using [touchlab/CrashKiOS](https://github.com/touchlab/CrashKiOS).

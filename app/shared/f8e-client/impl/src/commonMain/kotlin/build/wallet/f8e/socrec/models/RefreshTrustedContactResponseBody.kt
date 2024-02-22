@@ -1,0 +1,8 @@
+package build.wallet.f8e.socrec.models
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+internal data class RefreshTrustedContactResponseBody(
+  val invitation: CreateTrustedContactInvitation,
+)

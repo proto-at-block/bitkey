@@ -1,0 +1,25 @@
+import build.wallet.home.GettingStartedTask;
+import build.wallet.home.GettingStartedTask.TaskId;
+import build.wallet.home.GettingStartedTask.TaskState;
+
+CREATE TABLE gettingStartedTaskEntity(
+    id          INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    taskId      TEXT AS GettingStartedTask.TaskId NOT NULL,
+    taskState   TEXT AS GettingStartedTask.TaskState NOT NULL,
+    CONSTRAINT unique_task_id UNIQUE (taskId)
+);
+
+insertGettingStartedTask:
+INSERT INTO gettingStartedTaskEntity(taskId, taskState)
+VALUES(?, ?);
+
+updateGettingStartedTask:
+UPDATE gettingStartedTaskEntity
+SET taskState = ?
+WHERE taskId == ?;
+
+allGettingStartedTasks:
+SELECT * FROM gettingStartedTaskEntity;
+
+clearGettingStartedTasks:
+DELETE FROM gettingStartedTaskEntity;

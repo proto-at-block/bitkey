@@ -1,0 +1,18 @@
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority;
+
+CREATE TABLE priorityPreferenceEntity(
+    rowId    INTEGER NOT NULL PRIMARY KEY,
+    priority TEXT AS EstimatedTransactionPriority NOT NULL
+);
+
+setPriorityPreference:
+INSERT OR REPLACE INTO priorityPreferenceEntity(rowId, priority)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getPriorityPreference:
+SELECT * FROM priorityPreferenceEntity
+WHERE rowid = 0;
+
+clear:
+DELETE FROM priorityPreferenceEntity;

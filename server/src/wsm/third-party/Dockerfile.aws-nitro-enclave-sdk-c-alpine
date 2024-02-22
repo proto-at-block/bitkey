@@ -1,0 +1,95 @@
+# syntax=docker/dockerfile:1.4
+FROM rust:alpine3.18@sha256:d4d3ccbfb49d4119c748144b2767966a8a3361ee9c529e8fcfa1fa9adfbc9cf5 as builder
+
+RUN apk add --no-cache \
+    cmake \
+    doxygen \
+    g++ \
+    git \
+    go \
+    libffi-dev \
+    make \
+    ninja \
+    openssl-dev \
+    py3-pip \
+    tar \
+    zlib-dev
+
+# We keep the build artifacts in the -build directory
+WORKDIR /tmp/crt-builder
+
+RUN git clone -b v1.0.2 https://github.com/awslabs/aws-lc.git aws-lc
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-lc -B aws-lc/build .
+RUN go env -w GOPROXY=direct
+RUN cmake --build aws-lc/build --target install
+
+RUN git clone -b v1.3.11 https://github.com/aws/s2n-tls.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -S s2n-tls -B s2n-tls/build
+RUN cmake --build s2n-tls/build --target install
+
+RUN git clone -b v0.6.20 https://github.com/awslabs/aws-c-common.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-common -B aws-c-common/build
+RUN cmake --build aws-c-common/build --target install
+
+RUN git clone -b v0.1.2 https://github.com/awslabs/aws-c-sdkutils.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-sdkutils -B aws-c-sdkutils/build
+RUN cmake --build aws-c-sdkutils/build --target install
+
+RUN git clone -b v0.5.17 https://github.com/awslabs/aws-c-cal.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-cal -B aws-c-cal/build
+RUN cmake --build aws-c-cal/build --target install
+
+RUN git clone -b v0.10.21 https://github.com/awslabs/aws-c-io.git
+RUN cmake -DUSE_VSOCK=1 -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-io -B aws-c-io/build
+RUN cmake --build aws-c-io/build --target install
+
+RUN git clone -b v0.2.14 http://github.com/awslabs/aws-c-compression.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-compression -B aws-c-compression/build
+RUN cmake --build aws-c-compression/build --target install
+
+RUN git clone -b v0.6.13 https://github.com/awslabs/aws-c-http.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-http -B aws-c-http/build
+RUN cmake --build aws-c-http/build --target install
+
+RUN git clone -b v0.6.11 https://github.com/awslabs/aws-c-auth.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-auth -B aws-c-auth/build
+RUN cmake --build aws-c-auth/build --target install
+
+RUN git clone -b json-c-0.16-20220414 https://github.com/json-c/json-c.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=OFF -GNinja -S json-c -B json-c/build
+RUN cmake --build json-c/build --target install
+
+RUN git clone -b v0.2.1 https://github.com/aws/aws-nitro-enclaves-nsm-api.git
+COPY --link rust-toolchain.toml aws-nitro-enclaves-nsm-api/rust-toolchain.toml
+RUN <<EOF
+    cd aws-nitro-enclaves-nsm-api
+    cargo build --release -p nsm-lib
+EOF
+RUN mv aws-nitro-enclaves-nsm-api/target/release/libnsm.a /usr/lib
+RUN mv aws-nitro-enclaves-nsm-api/target/release/nsm.h /usr/include
+
+RUN git clone -b v0.3.2 https://github.com/aws/aws-nitro-enclaves-sdk-c.git
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-nitro-enclaves-sdk-c -B aws-nitro-enclaves-sdk-c/build
+RUN cmake --build aws-nitro-enclaves-sdk-c/build --target install
+
+# Test
+FROM builder as test
+RUN cmake --build aws-nitro-enclaves-sdk-c/build --target test
+
+# kmstool-enclave
+FROM alpine:latest as kmstool-enclave
+COPY --from=builder /usr/bin/kmstool_enclave /kmstool_enclave
+ARG REGION
+ARG ENDPOINT
+ENV REGION=${REGION}
+ENV ENDPOINT=${ENDPOINT}
+CMD ["/kmstool_enclave"]
+
+# kmstool-instance
+FROM alpine:latest as kmstool-instance
+COPY --from=builder /usr/bin/kmstool_instance /kmstool_instance
+CMD ["/kmstool_instance"]
+
+# kmstool-enclave-cli
+FROM alpine:latest as kmstool-enclave-cli
+COPY --from=builder /usr/bin/kmstool_enclave_cli /kmstool_enclave_cli

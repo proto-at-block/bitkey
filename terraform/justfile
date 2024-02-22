@@ -1,0 +1,45 @@
+[private]
+default:
+  just --list
+
+ci: init-linter lint fmt-ci validate
+
+clean:
+  # Delete all files ignored by .gitignore
+  git clean -ffdX
+
+fmt:
+  terraform fmt --recursive
+  terragrunt hclfmt
+
+fmt-ci:
+  just fmt
+  git diff --exit-code
+
+init-linter:
+  tflint --init
+
+# Need to pass in full path to the config file. --recursive seems to change the working directory and
+# fail to find the config file if a relative path is used.
+lint:
+  tflint -c $PWD/.tflint.hcl --recursive
+
+validate:
+  #!/bin/bash
+  set -e
+  paths=( $(find modules -type d -path '*/.terraform' -prune -o -name 'main.tf' | xargs dirname) )
+  for dir in ${paths[@]}; do
+    (
+      echo ""
+      echo "##############################"
+      echo "# Validating $dir"
+      echo "##############################"
+      echo ""
+
+      cd $dir
+      terraform init -backend=false
+      # Workaround for https://github.com/hashicorp/terraform/issues/28490
+      [[ -f providers.tf.validate-fix ]] && mv providers.tf.validate-fix providers.tf || true
+      terraform validate
+    )
+  done

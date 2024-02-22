@@ -1,0 +1,11 @@
+cargo_packages:
+  - name: launchdarkly-server-sdk
+    reason: "Belongs to LaunchDarkly so we can probably trust this package."
+  - name: prost-build-config
+    reason: "Using Prost for Analytics and there isn't a suitable alternative."
+  - name: health
+    reason: "To be removed (W-5808)."
+  - name: urn
+    reason: "To be pulled in (W-5809)."
+  - name: trait-variant
+    reason: "This is an official Rust crate and the replacement for async-trait."

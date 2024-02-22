@@ -1,0 +1,15 @@
+[Unit]
+Description=WSM enclave service
+After=nitro-enclaves-allocator.service nitro-enclaves-vsock-proxy.service
+
+[Service]
+Type=forking
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wsm-enclave
+ExecStart=/usr/bin/nitro-cli run-enclave --cpu-count=2 --memory=512 --eif-path=/opt/wsm/wsm-enclave.eif --enclave-cid=1234 --debug-mode
+User=ec2-user
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

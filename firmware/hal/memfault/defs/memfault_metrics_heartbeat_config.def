@@ -1,0 +1,2 @@
+//! Define custom system metrics to track
+MEMFAULT_METRICS_KEY_DEFINE(fwup_signature_verification_failed, kMemfaultMetricType_Unsigned)

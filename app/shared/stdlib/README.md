@@ -1,0 +1,1 @@
+This module contains functional extensions for Kotlin stdlib. Should not depend on other modules.

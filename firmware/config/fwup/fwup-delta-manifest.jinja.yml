@@ -1,0 +1,24 @@
+manifest_version: {{manifest_version}}
+fwup_bundle:
+  product: {{product}}
+  from_version: {{from_version}}
+  to_version: {{to_version}}
+  assets:
+    a2b_patch:  # Patch for going from A slot to B slot.
+      image:
+        name: {{a2b_patch_name}}.signed.patch
+      signature:
+        name: {{application_b_name}}.detached_signature
+    b2a_patch:  # Patch for going from B slot to A slot.
+      image:
+        name: {{b2a_patch_name}}.signed.patch
+      signature:
+        name: {{application_a_name}}.detached_signature
+  parameters:
+    wca_chunk_size: 452
+    # 632K - 64.
+    # Application slot size minus signature size.
+    # This is tied to partitions.yml (sizes, and signature location), and MUST match it.
+    signature_offset: 647104
+    # Also from partitions.yml. MUST match.
+    app_properties_offset: 1024

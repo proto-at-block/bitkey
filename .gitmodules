@@ -1,0 +1,50 @@
+[submodule "firmware/third-party/printf"]
+	path = firmware/third-party/printf
+	url = https://github.com/mpaland/printf.git
+	shallow = true
+[submodule "firmware/third-party/FreeRTOS"]
+	path = firmware/third-party/FreeRTOS
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
+	shallow = true
+[submodule "firmware/third-party/fff"]
+	path = firmware/third-party/fff
+	url = https://github.com/meekrosoft/fff.git
+	shallow = true
+[submodule "firmware/third-party/uthash"]
+	path = firmware/third-party/uthash
+	url = https://github.com/troydhanson/uthash.git
+	shallow = true
+[submodule "firmware/third-party/nanopb"]
+	path = firmware/third-party/nanopb
+	url = https://github.com/nanopb/nanopb.git
+	shallow = true
+[submodule "firmware/third-party/cmp"]
+	path = firmware/third-party/cmp
+	url = https://github.com/camgunz/cmp.git
+	shallow = true
+[submodule "firmware/third-party/gecko-sdk"]
+	path = firmware/third-party/gecko-sdk
+	url = https://github.com/SiliconLabs/gecko_sdk.git
+	shallow = true
+[submodule "firmware/third-party/littlefs"]
+	path = firmware/third-party/littlefs
+	url = https://github.com/littlefs-project/littlefs.git
+	shallow = true
+[submodule "firmware/third-party/secp256k1"]
+	path = firmware/third-party/secp256k1
+	url = https://github.com/bitcoin-core/secp256k1.git
+	shallow = true
+[submodule "firmware/third-party/libbase58"]
+	path = firmware/third-party/libbase58
+	url = https://github.com/bitcoin/libbase58.git
+	shallow = true
+[submodule "nodes/esplora-electrs/electrs"]
+	path = nodes/esplora-electrs/electrs
+	url = https://github.com/Blockstream/electrs.git
+	shallow = true
+[submodule "firmware/third-party/detools"]
+	path = firmware/third-party/detools
+	url = https://github.com/eerimoq/detools.git
+[submodule "firmware/third-party/memfault-firmware-sdk"]
+	path = firmware/third-party/memfault-firmware-sdk
+	url = https://github.com/memfault/memfault-firmware-sdk.git

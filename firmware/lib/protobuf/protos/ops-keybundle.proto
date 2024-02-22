@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+
+message derivation_path {
+  repeated uint32 child = 1 [(nanopb).max_count = 256];
+  bool wildcard = 2 [deprecated = true];  // Use key_descriptor.wildcard instead! This field was put in the wrong place.
+}
+
+enum wildcard {
+  NONE = 0;
+  UNHARDENED = 1;
+  HARDENED = 2;
+}
+
+// https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md
+//
+// Example descriptor to be serialized into this proto:
+//   [37249cd2/84'/1'/0']tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL/0/*
+//                                                                                                                                         ^
+// Is encoded as:
+//   origin_fingerprint: 37249cd2 (size 4 byte array of hex representation like [0x37, 0x24, 0x9c, 0xd2])
+//   origin_path: {
+//     child: [84, 1, 0]
+//   }
+//   bare_bip32_key: base58decoded(tpubDFM3v2rdpgQG6crKcQoePQSAuARPAsGrdNsHB9zBXvTHyYVGKAKqeSCZzLjHVRDS6vkyqJoRKRHkc1mn5Mcvb6a1CqaFLAwwhuXBHaLLwhL)
+//   derivation_path : {
+//     child: [0]
+//   }
+//   wildcard: UNHARDENED
+//
+message key_descriptor {
+  bytes origin_fingerprint = 1 [(nanopb).max_size = 4];
+  derivation_path origin_path = 2;
+  bytes bare_bip32_key = 4 [(nanopb).max_size = 78];
+  derivation_path xpub_path = 5;
+  wildcard wildcard = 6;
+}
+
+// Bitcoin network types
+//
+// IMPORTANT: These values are written to the filesystem. Existing values must
+// NOT be modified. New values may be added.
+enum btc_network {
+  BITCOIN = 0;
+  TESTNET = 1;
+  SIGNET = 2;
+  REGTEST = 3;
+}
+
+// A command used by the mobile client to ask the hw device to sign a PSBT.
+// The client parses the PSBT.
+message sign_txn_cmd {
+  bytes sighash = 1 [(nanopb).max_size = 32];
+  uint32 change = 2;
+  uint32 address_index = 3;
+}
+
+// The response for `sign_txn_cmd `
+message sign_txn_rsp {
+  enum sign_txn_rsp_status {
+    // Common error codes
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    SIGNING_ERROR = 3;
+    UNAUTHENTICATED = 4;
+    reserved 5 to 9;
+  }
+
+  sign_txn_rsp_status rsp_status = 1;
+  bytes signature = 2 [(nanopb).max_size = 64];
+  key_descriptor key = 3;
+}

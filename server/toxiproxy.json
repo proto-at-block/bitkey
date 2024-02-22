@@ -1,0 +1,20 @@
+[
+  {
+    "name": "fromagerie",
+    "listen": "[::]:8080",
+    "upstream": "fromagerie:8080",
+    "enabled": true
+  },
+  {
+    "name": "app_electrum_rpc",
+    "listen": "[::]:8101",
+    "upstream": "esplora:8101",
+    "enabled": true
+  },
+  {
+    "name": "server_electrum_rpc",
+    "listen": "[::]:8102",
+    "upstream": "esplora:8101",
+    "enabled": true
+  }
+]

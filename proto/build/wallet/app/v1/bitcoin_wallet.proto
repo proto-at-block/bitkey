@@ -1,0 +1,25 @@
+syntax = "proto3";
+package build.wallet.app.v1;
+
+message BitcoinWalletKeySet {
+    message SegWit {
+        string app_xprv = 1;
+        string hw_xpub = 2;
+        string server_xpub = 3;
+    }
+
+    // TODO: Replace this with something real.
+    message Frost {
+        string placeholder = 1;
+    }
+
+    oneof key_set {
+        SegWit seg_wit = 1;
+        Frost frost = 2;
+    }
+}
+
+message BitcoinWallet {
+    string wallet_id = 1;
+    BitcoinWalletKeySet key_set = 2;
+}

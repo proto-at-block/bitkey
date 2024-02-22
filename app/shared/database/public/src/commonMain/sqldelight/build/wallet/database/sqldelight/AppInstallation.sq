@@ -1,0 +1,18 @@
+CREATE TABLE appInstallationEntity(
+  rowid                 INTEGER NOT NULL PRIMARY KEY,
+  id                    TEXT NOT NULL,
+  hardwareSerialNumber  TEXT
+);
+
+initializeAppInstallationIfAbsent:
+INSERT OR IGNORE INTO appInstallationEntity(rowid, id, hardwareSerialNumber)
+-- Use stable row ID to ensure we only ever have a single id.
+VALUES(0, ?, NULL);
+
+getAppInstallation:
+SELECT * FROM appInstallationEntity
+WHERE rowid = 0;
+
+updateHardwareSerialNumber:
+UPDATE appInstallationEntity SET hardwareSerialNumber = ?
+WHERE rowid = 0;

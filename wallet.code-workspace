@@ -1,0 +1,94 @@
+{
+	"folders": [
+		{
+			"name": "Core",
+			"path": "app/core"
+		},
+		{
+			"name": "Github",
+			"path": ".github"
+		},
+		{
+			"name": "Proto",
+			"path": "proto"
+		},
+		{
+			"name": "Firmware",
+			"path": "firmware"
+		},
+		{
+			"name": "Factory Test",
+			"path": "factory-test"
+		},
+		{
+			"name": "Firmware Signer",
+			"path": "firmware-signer"
+		},
+	],
+	"settings": {
+		"files.associations": {
+			"*.h": "c",
+			"*.c": "c",
+			"__mutex_base": "c",
+			"memory": "c",
+			"mutex": "c",
+			"algorithm": "c",
+			"bitset": "c",
+			"cstdlib": "c",
+			"ctime": "c",
+			"cwchar": "c",
+			"filesystem": "c",
+			"functional": "c",
+			"iomanip": "c",
+			"iterator": "c",
+			"random": "c",
+			"string": "c",
+			"vector": "c",
+			"*.tcc": "c",
+			"complex": "c",
+			"deque": "c",
+			"unordered_map": "c",
+			"optional": "c",
+			"fstream": "c",
+			"ios": "c",
+			"istream": "c",
+			"limits": "c",
+			"ostream": "c",
+			"sstream": "c",
+			"streambuf": "c",
+			"thread": "c",
+			"type_traits": "c",
+			"tuple": "c",
+			"locale": "c",
+			"new": "c",
+			"ld.jinja": "linkerscript",
+			"ranges": "c",
+			"__tuple": "c",
+			"array": "c",
+			"compare": "c",
+			"cstddef": "c",
+			"chrono": "c",
+			"memory_resource": "c",
+			"ratio": "c",
+			"utility": "c",
+			"variant": "c",
+			"regex": "c",
+			"cstdint": "c",
+			"shared_mutex": "c"
+		},
+		"C_Cpp.enhancedColorization": "enabled",
+		"cortex-debug.JLinkGDBServerPath": "/usr/local/bin/JLinkGDBServerCL",
+		"cortex-debug.variableUseNaturalFormat": false,
+		"git.autoRepositoryDetection": false,
+		"git.detectSubmodules": false,
+		"search.exclude": {
+			"**/.git": true,
+			"**/firmware/third-party/*": true,
+		},
+		"files.exclude": {
+			"**/builddir": true,
+			"**/*.egg-info": true,
+		},
+		"python.defaultInterpreterPath": "~/.pyenv/shims/python"
+	}
+}

@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.4
+FROM scratch as source
+COPY --link Cargo.lock .
+COPY --link Cargo.toml .
+COPY --link src src
+COPY --link vendor vendor
+COPY --link .cargo .cargo
+
+FROM rust:alpine as toolchain
+COPY --link rust-toolchain.toml .
+RUN cargo version
+RUN apk add --no-cache \
+  git \
+  musl-dev \
+  openssl-dev  \
+  pkgconfig \
+  protobuf
+ENV PROTOC=/usr/bin/protoc
+
+FROM toolchain as builder
+WORKDIR /usr/src
+COPY --from=source . .
+RUN \
+  --mount=type=cache,sharing=private,id=target-alpine,target=/usr/src/target \
+  --mount=type=cache,sharing=private,id=registry,target=/usr/local/cargo/registry \
+  cargo --locked install --bin server --features partnerships --path src/api/server
+
+FROM alpine as deployable
+COPY --from=builder /usr/local/cargo/bin/server /server
+COPY --link src/api/Rocket.toml .
+COPY --link src/api/resources resources
+# needed to support ring (which we pull in via jsonwebtoken)
+RUN apk add --no-cache libc6-compat
+EXPOSE 80/tcp
+ENV ROCKET_PROFILE=development
+ENV OTEL_BSP_SCHEDULE_DELAY=500
+ENTRYPOINT ["/server"]
+CMD ["server"]

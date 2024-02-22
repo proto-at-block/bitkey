@@ -1,0 +1,26 @@
+-- 1. Create temp table
+
+CREATE TABLE exchangeRateEntity_tmp(
+    id            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    fromCurrency  TEXT AS IsoCurrencyTextCode NOT NULL,
+    toCurrency    TEXT AS IsoCurrencyTextCode NOT NULL,
+    rate          REAL NOT NULL,
+    timeRetrieved INTEGER AS Instant NOT NULL,
+    CONSTRAINT currency_combination_unique UNIQUE (fromCurrency, toCurrency)
+);
+
+-- 2. Copy rows to temp table
+
+INSERT INTO exchangeRateEntity_tmp
+SELECT id, fromCurrency, toCurrency, rate, 0
+FROM exchangeRateEntity;
+
+-- 3. Drop old table
+
+DROP TABLE exchangeRateEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE exchangeRateEntity_tmp RENAME TO exchangeRateEntity;
+
+PRAGMA foreign_key_check;

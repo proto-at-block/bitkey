@@ -1,0 +1,56 @@
+# This is an appspec.yml template file for use with an EC2/On-Premises deployment in CodeDeploy.
+# The lines in this template starting with the hashtag symbol are
+#   instructional comments and can be safely left in the file or
+#   ignored.
+# For help completing this file, see the "AppSpec File Reference" in the
+#   "CodeDeploy User Guide" at
+#   https://docs.aws.amazon.com/codedeploy/latest/userguide/app-spec-ref.html
+
+# NB: version MUST be 0.0 or deployment will fail
+version: 0.0
+os: linux
+
+files:
+  - source: wsm-api-bin
+    destination: /opt/wsm/
+  - source: wsm-enclave.eif
+    destination: /opt/wsm/
+  - source: socat
+    destination: /usr/local/bin/
+  - source: scripts/wsm-proxy.sh
+    destination: /opt/wsm/
+  - source: scripts/wsm-enclave.service
+    destination: /usr/lib/systemd/system/
+  - source: scripts/wsm-proxy.service
+    destination: /usr/lib/systemd/system/
+  - source: scripts/wsm-api.service
+    destination: /usr/lib/systemd/system/
+  - source: config
+    destination: /opt/wsm/config/
+
+permissions:
+  - object: /opt/wsm/
+    owner: ec2-user
+    group: ec2-user
+    mode: 544
+
+  - object: /usr/local/bin/socat
+    owner: ec2-user
+    group: ec2-user
+    mode: 544
+
+hooks:
+  BeforeInstall:
+    - location: scripts/BeforeInstall.sh
+      timeout: 120
+      runas: ec2-user
+
+  AfterInstall:
+    - location: scripts/AfterInstall.sh
+      timeout: 120
+      runas: ec2-user
+
+  ApplicationStart:
+    - location: scripts/ApplicationStart.sh
+      timeout: 120
+      runas: ec2-user

@@ -1,0 +1,1 @@
+This module contains functional components for queueing up and batching background work.

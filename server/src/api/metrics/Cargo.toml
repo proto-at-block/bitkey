@@ -1,0 +1,15 @@
+[package]
+edition = { workspace = true }
+name = "metrics"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+axum = { workspace = true }
+futures-util = "0.3.30"
+once_cell = { workspace = true }
+opentelemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-metrics = "0.3.0"
+tower = { workspace = true }

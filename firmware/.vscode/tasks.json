@@ -1,0 +1,73 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "source activate; inv build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": {
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}/build"
+                ],
+                "pattern": {
+                    "regexp": "^\\.\\.\\/(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "owner": "gcc"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Test (unit)",
+            "type": "shell",
+            "command": "source activate; inv test.test",
+            "group": "build"
+        },
+        {
+            "label": "Test (automation)",
+            "type": "shell",
+            "command": "source activate; inv test.automation",
+            "group": "build"
+        },
+        {
+            "label": "Codespell",
+            "type": "shell",
+            "command": "codespell",
+            "args": [
+                "."
+            ],
+            "presentation": {
+                "reveal": "never",
+                "clear": true,
+                "close": true
+            },
+            "problemMatcher": {
+                "fileLocation": [
+                    "relative",
+                    "${workspaceFolder}"
+                ],
+                "pattern": {
+                    "regexp": "^(.+):(\\d+):\\s+(.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "location": 2,
+                    "message": 3,
+                }
+            },
+            "group": "none"
+        },
+    ]
+}

@@ -1,0 +1,28 @@
+cargo := "RUSTFLAGS='--cfg feature=\"mock-time\"' cargo --locked"
+
+[private]
+clippy *args:
+  {{cargo}} clippy {{args}}
+
+# Run the CI clippy lint commands
+clippy-ci:
+  just clippy -- -A deprecated -A clippy::large_enum_variant -A clippy::result_large_err -A clippy::new_without_default
+
+# Format and lint
+fmt:
+  {{cargo}} fmt --all
+  just clippy --fix --allow-dirty --allow-staged
+
+# Run the CI format commands
+fmt-ci:
+  just fmt
+  git diff --exit-code
+
+integration:
+  {{cargo}} test --all-features --test integration_test
+
+record-integration $UPDATE_EXPECT="1":
+  {{cargo}} test --all-features --test integration_test
+
+end-to-end $AWS_PROFILE="w1-development--admin" $AWS_REGION="us-west-2":
+  {{cargo}} run --release -- end-to-end

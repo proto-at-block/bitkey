@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Used for verifying that the given AAB was produced from the provided source code.
+
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <path-to-aab> <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    exit 1
+fi
+
+if [ ! -f "$1" ] || [[ $1 != *.aab ]]; then
+    echo "$1 is not an AAB" >&2
+    echo "Usage: $0 <path-to-aab> <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    exit 2
+fi
+
+if [ ! -f "$2/app/verifiable-build/android/Dockerfile" ]; then
+    echo "Cannot find the Dockerfile used for building the AAB. Ensure the path points to the root directory of the Bitkey repository." >&2
+    echo "Usage: $0 <path-to-aab> <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    exit 3
+fi
+
+source "$2/app/verifiable-build/android/common/preconditions"
+source "$2/app/verifiable-build/android/common/utils"
+
+testCommandExists sha256sum
+testCommandExists unzip
+
+
+provided_aab_hash=$(sha256sum "$1" | cut -d" " -f1)
+
+reproducible_build_variables=$(unzip -p "$1" base/root/reproducible-build-variables.json)
+
+"$2/app/verifiable-build/android/verification/steps/build-android-verification-aab" "$2" "$3" "$reproducible_build_variables" || exit $?
+
+aab_path=$(find "$3" -type f -name "*.aab")
+
+built_aab_hash=$(sha256sum "$aab_path" | cut -d" " -f1)
+
+
+printf "\n\n---------------------------\n\n"
+
+printf "Provided AAB SHA-256:      %s\n" "$provided_aab_hash"
+printf "Locally built AAB SHA-256: %s\n" "$built_aab_hash"
+
+if [ "$provided_aab_hash" == "$built_aab_hash" ]; then
+  echo "The builds are identical!"
+else
+  echo "The builds are NOT identical!"
+  exit 5;
+fi

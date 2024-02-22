@@ -1,0 +1,24 @@
+import kotlin.Boolean;
+
+CREATE TABLE electrumConfigEntity(
+  id                           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  f8eDefinedElectrumServerUrl  TEXT,
+  isCustomElectrumServerOn     INTEGER AS Boolean NOT NULL,
+  customElectrumServerUrl      TEXT
+);
+
+insertElectrumConfigEntity:
+INSERT INTO electrumConfigEntity(f8eDefinedElectrumServerUrl, isCustomElectrumServerOn, customElectrumServerUrl)
+VALUES(?, ?, ?);
+
+updateF8eDefinedConfig:
+UPDATE electrumConfigEntity
+SET f8eDefinedElectrumServerUrl = ?;
+
+updateUserPreference:
+UPDATE electrumConfigEntity
+SET isCustomElectrumServerOn = ?,
+customElectrumServerUrl = ?;
+
+loadElectrumConfig:
+SELECT * FROM electrumConfigEntity ORDER BY id ASC LIMIT 1;

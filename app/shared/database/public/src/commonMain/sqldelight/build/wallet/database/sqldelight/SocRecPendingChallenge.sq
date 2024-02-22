@@ -1,0 +1,14 @@
+CREATE TABLE socRecStartedChallenge(
+    rowId       INTEGER NOT NULL PRIMARY KEY,
+    challengeId TEXT NOT NULL
+);
+
+getPendingChallenge:
+SELECT challengeId FROM socRecStartedChallenge WHERE rowId = 0;
+
+setPendingChallenge:
+INSERT OR REPLACE INTO socRecStartedChallenge(rowId, challengeId)
+VALUES(0, ?);
+
+clear:
+DELETE FROM socRecStartedChallenge;

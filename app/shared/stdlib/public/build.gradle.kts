@@ -1,0 +1,21 @@
+import build.wallet.gradle.logic.extensions.targets
+
+plugins {
+  id("build.wallet.kmp")
+}
+
+kotlin {
+  targets(ios = true, jvm = true)
+
+  sourceSets {
+    commonMain {
+      /**
+       * Note! This module is meant to contain absolute *minimum* amount of dependencies and no
+       * dependencies on other modules.
+       */
+      dependencies {
+        api(libs.kmp.okio)
+      }
+    }
+  }
+}

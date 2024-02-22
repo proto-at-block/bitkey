@@ -1,0 +1,17 @@
+import kotlin.Boolean;
+
+CREATE TABLE booleanFeatureFlagEntity(
+  featureFlagId   TEXT NOT NULL PRIMARY KEY,
+  value           INTEGER AS Boolean
+);
+
+setFlag:
+INSERT OR REPLACE INTO booleanFeatureFlagEntity(featureFlagId, value)
+VALUES(?, ?);
+
+getFlag:
+SELECT value FROM booleanFeatureFlagEntity
+WHERE featureFlagId = ?;
+
+clear:
+DELETE FROM booleanFeatureFlagEntity;

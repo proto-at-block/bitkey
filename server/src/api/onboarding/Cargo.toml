@@ -1,0 +1,35 @@
+[package]
+edition = { workspace = true }
+name = "onboarding"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+axum-macros = { workspace = true }
+bitcoin = { version = "0.29.2" }
+isocountry = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+authn_authz = { workspace = true }
+bdk_utils = { workspace = true }
+comms_verification = { workspace = true }
+database = { workspace = true }
+errors = { workspace = true }
+external_identifier = { workspace = true }
+feature_flags = { workspace = true }
+http_server = { workspace = true }
+metrics = { workspace = true }
+notification = { workspace = true }
+recovery = { workspace = true }
+types = { workspace = true, features = ["account"] }
+wsm-rust-client = { workspace = true }

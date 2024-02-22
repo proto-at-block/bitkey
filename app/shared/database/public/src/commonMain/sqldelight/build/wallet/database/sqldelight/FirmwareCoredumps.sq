@@ -1,0 +1,20 @@
+CREATE TABLE firmwareCoredumpsEntity(
+    id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    coredump  BLOB NOT NULL,
+    serial    TEXT NOT NULL,
+    swVersion TEXT NOT NULL,
+    hwVersion TEXT NOT NULL,
+    swType    TEXT NOT NULL
+);
+
+append:
+INSERT INTO firmwareCoredumpsEntity(coredump, serial, swVersion, hwVersion, swType)
+VALUES(?, ?, ?, ?, ?);
+
+take:
+SELECT id, coredump, serial, swVersion, hwVersion, swType FROM firmwareCoredumpsEntity ORDER BY id ASC LIMIT ?;
+
+removeFirst:
+DELETE FROM firmwareCoredumpsEntity
+WHERE id IN
+(SELECT id FROM firmwareCoredumpsEntity ORDER BY id ASC LIMIT ?);

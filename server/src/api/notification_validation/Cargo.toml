@@ -1,0 +1,15 @@
+[package]
+edition = { workspace = true }
+name = "notification_validation"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+
+# path dependencies
+errors = { workspace = true }
+notification = { workspace = true }
+recovery = { workspace = true }

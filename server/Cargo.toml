@@ -1,0 +1,142 @@
+[workspace]
+exclude = ["auth/auth_lambda_handlers"]
+members = [
+  "src/api/account",
+  "src/api/analytics",
+  "src/api/authn_authz",
+  "src/api/bdk_utils",
+  "src/api/chain_indexer",
+  "src/api/comms_verification",
+  "src/api/customer_feedback",
+  "src/api/database",
+  "src/api/errors",
+  "src/api/exchange_rate",
+  "src/api/external_identifier",
+  "src/api/http_server",
+  "src/api/metrics",
+  "src/api/migration",
+  "src/api/mobile_pay",
+  "src/api/notification",
+  "src/api/notification_validation",
+  "src/api/onboarding",
+  "src/api/partnerships",
+  "src/api/partnerships/partnerships_lib/src/partners/cash_app/lambdas",
+  "src/api/queue",
+  "src/api/recovery",
+  "src/api/repository",
+  "src/api/server",
+  "src/api/types",
+  "src/api/workers",
+  "src/feature_flags",
+  "src/wallet-telemetry",
+  "src/wsm/wsm-api",
+  "src/wsm/wsm-common",
+  "src/wsm/wsm-enclave",
+  "src/wsm/wsm-rust-client",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+publish = false
+version = "0.1.0"
+
+[workspace.dependencies]
+anyhow = "1.0.79"
+argon2 = { version = "0.5.3", features = ["std"] }
+async-trait = "0.1.77"
+aws-config = "1.1.3"
+aws-credential-types = "1.1.5"
+aws-sdk-cognitoidentityprovider = "1.12.0"
+aws-sdk-dynamodb = "1.12.0"
+aws-sdk-kms = "1.11.0"
+aws-sdk-secretsmanager = "1.13.0"
+aws-sdk-sesv2 = "1.11.0"
+aws-sdk-sns = "1.11.0"
+aws-sdk-sqs = "1.11.0"
+aws-smithy-async = "1.1.5"
+aws-smithy-http = "0.60.4"
+aws-smithy-types = "1.1.4"
+aws-types = "1.1.4"
+axum = "0.7.4"
+axum-macros = "0.4.1"
+axum-tracing-opentelemetry = "0.16.0"
+base64 = "0.21.7"
+bdk = { version = "0.29.0", default-features = false }
+config = { version = "0.13.1", features = ["toml"] }
+ctrlc = "3.4.2"
+derive_builder = "0.13.0"
+dyn-clone = "1.0.16"
+futures = "0.3.30"
+hex = "0.4.3"
+http = "1.0.0"
+isocountry = "0.3.2"
+itertools = "0.12.1"
+jwt-authorizer = { version = "0.14.0", default-features = false, features = [
+  "rustls-tls",
+] }
+once_cell = "1.19.0"
+opentelemetry = { version = "0.21.0", feature = ["metrics", "rt-tokio"] }
+prost = "0.12.1"
+rand = "0.8.5"
+regex = "1.10.3"
+reqwest = { version = "0.11.24", default-features = false, features = [
+  "json",
+  "rustls-tls",
+] }
+reqwest-middleware = "0.2.4"
+reqwest-retry = "0.3.0"
+rust-embed = { version = "8.2.0", features = [
+  "include-exclude",
+  "interpolate-folder-path",
+] }
+serde = { version = "1.0.196", features = ["derive"] }
+serde_dynamo = { version = "4.2.13", features = ["aws-sdk-dynamodb+1"] }
+serde_json = "1.0.113"
+strum = "0.25.0"
+strum_macros = "0.25.3"
+thiserror = "1.0.57"
+time = { version = "0.3.34", features = [
+  "formatting",
+  "macros",
+  "serde-human-readable",
+  "serde-well-known",
+] }
+tokio = { version = "1.36.0", features = ["macros", "rt", "rt-multi-thread"] }
+tower = "0.4.13"
+tracing = "0.1.40"
+trait-variant = "0.1.1"
+ulid = { version = "1.1.2", features = ["serde", "uuid"] }
+url = "2.4.1"
+urn = { path = "vendor/urn", features = ["serde"] }
+utoipa = { version = "4.2.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "6.0.0", features = ["axum"] }
+
+account = { path = "src/api/account" }
+analytics = { path = "src/api/analytics" }
+authn_authz = { path = "src/api/authn_authz" }
+bdk_utils = { path = "src/api/bdk_utils" }
+chain_indexer = { path = "src/api/chain_indexer" }
+comms_verification = { path = "src/api/comms_verification" }
+customer_feedback = { path = "src/api/customer_feedback" }
+database = { path = "src/api/database" }
+errors = { path = "src/api/errors" }
+exchange_rate = { path = "src/api/exchange_rate" }
+external_identifier = { path = "src/api/external_identifier" }
+feature_flags = { path = "src/feature_flags" }
+http_server = { path = "src/api/http_server" }
+metrics = { path = "src/api/metrics" }
+migration = { path = "src/api/migration" }
+mobile_pay = { path = "src/api/mobile_pay" }
+notification = { path = "src/api/notification" }
+notification_validation = { path = "src/api/notification_validation" }
+onboarding = { path = "src/api/onboarding" }
+partnerships = { path = "src/api/partnerships" }
+queue = { path = "src/api/queue" }
+recovery = { path = "src/api/recovery" }
+repository = { path = "src/api/repository" }
+types = { path = "src/api/types" }
+wallet-telemetry = { path = "src/wallet-telemetry" }
+workers = { path = "src/api/workers" }
+wsm-common = { path = "src/wsm/wsm-common" }
+wsm-rust-client = { path = "src/wsm/wsm-rust-client" }

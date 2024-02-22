@@ -1,0 +1,21 @@
+import build.wallet.bitkey.socrec.TrustedContactAlias;
+import kotlinx.datetime.Instant;
+
+-- Migration to remove [protectedCustomerAlias] row from socRecTrustedContactInvitationEntity
+CREATE TABLE socRecTrustedContactInvitationEntity_tmp(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  token                   TEXT NOT NULL,
+  expiresAt               INTEGER AS Instant NOT NULL
+);
+
+INSERT INTO socRecTrustedContactInvitationEntity_tmp
+SELECT rowId, recoveryRelationshipId, trustedContactAlias, token, expiresAt
+FROM socRecTrustedContactInvitationEntity;
+
+DROP TABLE socRecTrustedContactInvitationEntity;
+
+ALTER TABLE socRecTrustedContactInvitationEntity_tmp RENAME TO socRecTrustedContactInvitationEntity;
+
+PRAGMA foreign_key_check;

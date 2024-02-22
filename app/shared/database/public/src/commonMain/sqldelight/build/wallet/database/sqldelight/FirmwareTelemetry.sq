@@ -1,0 +1,21 @@
+/**
+ * Note that eventTime is the time the entry was created in the DB, NOT the underlying
+ * telemetry time inside the structure itself.
+ */
+CREATE TABLE firmwareTelemetryEntity(
+    id        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    serial    TEXT NOT NULL,
+    event     BLOB NOT NULL
+);
+
+append:
+INSERT INTO firmwareTelemetryEntity(serial, event)
+VALUES(?, ?);
+
+take:
+SELECT id, serial, event FROM firmwareTelemetryEntity ORDER BY id ASC LIMIT ?;
+
+removeFirst:
+DELETE FROM firmwareTelemetryEntity
+WHERE serial IN
+(SELECT serial FROM firmwareTelemetryEntity ORDER BY id ASC LIMIT ?);

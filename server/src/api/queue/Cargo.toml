@@ -1,0 +1,18 @@
+[package]
+edition = { workspace = true }
+name = "queue"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+aws-config = { workspace = true }
+aws-sdk-sqs = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# path dependencies
+errors = { workspace = true }

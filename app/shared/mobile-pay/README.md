@@ -1,0 +1,1 @@
+This module contains domain specific components for Mobile Pay spending limits.

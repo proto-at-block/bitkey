@@ -1,0 +1,37 @@
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot;
+import build.wallet.firmware.FirmwareMetadata.SecureBootConfig;
+
+-- Migration to add secureBootConfig to firmwareDeviceInfoEntity
+
+-- 1. Create temp table for the new table
+
+CREATE TABLE firmwareDeviceInfoEntity_temp(
+  rowId         INTEGER NOT NULL PRIMARY KEY,
+  version       TEXT    NOT NULL,
+  serial        TEXT    NOT NULL,
+  swType        TEXT    NOT NULL,
+  hwRevision    TEXT    NOT NULL,
+  activeSlot    TEXT    AS FirmwareSlot NOT NULL,
+  batteryCharge REAL    NOT NULL,
+  vCell         INTEGER NOT NULL,
+  timeRetrieved INTEGER NOT NULL,
+  avgCurrentMa  INTEGER NOT NULL,
+  batteryCycles INTEGER NOT NULL,
+  secureBootConfig TEXT AS SecureBootConfig NOT NULL
+);
+
+-- 2. Copy rows to temp table
+
+INSERT INTO firmwareDeviceInfoEntity_temp
+SELECT rowId, version, serial, swType, hwRevision, activeSlot, batteryCharge, vCell, timeRetrieved, avgCurrentMa, batteryCycles, 'NOT_SET'
+FROM firmwareDeviceInfoEntity;
+
+-- 3. Drop old table
+
+DROP TABLE firmwareDeviceInfoEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE firmwareDeviceInfoEntity_temp RENAME TO firmwareDeviceInfoEntity;
+
+PRAGMA foreign_key_check;

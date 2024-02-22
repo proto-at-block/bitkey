@@ -1,0 +1,40 @@
+port_name: sysinfo_port
+
+messages:
+  protos:
+    - name: fwpb_meta_cmd
+      auth: never
+    - name: fwpb_device_id_cmd
+      auth: never
+    - name: fwpb_wipe_state_cmd
+      auth: after_onboarding
+    - name: fwpb_fuel_cmd
+      auth: never
+    - name: fwpb_coredump_get_cmd
+      auth: after_onboarding
+    - name: fwpb_events_get_cmd
+      auth: after_onboarding
+    - name: fwpb_feature_flags_get_cmd
+      auth: never
+    - name: fwpb_feature_flags_set_cmd
+      auth: after_onboarding
+    - name: fwpb_telemetry_id_get_cmd
+      auth: never
+    - name: fwpb_secinfo_get_cmd
+      auth: never
+    - name: fwpb_cert_get_cmd
+      auth: never
+    - name: fwpb_pubkeys_get_cmd
+      auth: never
+    - name: fwpb_fingerprint_settings_get_cmd
+      auth: after_onboarding
+    - name: fwpb_cap_touch_cal_cmd
+      auth: never
+    - name: fwpb_empty_cmd
+      auth: never
+    - name: fwpb_device_info_cmd
+      auth: never
+    - name: fwpb_lock_device_cmd
+      auth: never
+    - name: fwpb_pubkey_get_cmd
+      auth: never

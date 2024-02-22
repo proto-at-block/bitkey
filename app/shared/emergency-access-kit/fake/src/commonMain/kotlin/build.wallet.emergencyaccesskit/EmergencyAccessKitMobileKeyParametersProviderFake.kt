@@ -1,0 +1,22 @@
+package build.wallet.emergencyaccesskit
+
+import build.wallet.bitkey.keybox.Keybox
+import build.wallet.cloud.backup.csek.SealedCsek
+import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.Result
+
+class EmergencyAccessKitMobileKeyParametersProviderFake :
+  EmergencyAccessKitMobileKeyParametersProvider {
+  private val fakeEncodedPayload = "EaPPQKZtd8Ai3H6i4Wa8xWAbdiGECdM1a7VhDrpmEAoSsnCWPaFttTPCfnk9oE3Q3HNDsnJYhqeiWNHSseCdXNswKRr4TQt2GZtfsEQMWGy9CEJQwkgNt1Awfqct5wMK8fNLSorxSD2wmTvg8oGHB223gy9VU7SoacU7N9bcgzkGihKVUVoB2i9EomM3Uc8NR4czCyyED12tnKAch8fbQuVMsVbvWqGqfDhJReEgRWr8ZcoAuEFwXJHCaRgfMtjGYAkk6dHSvE6yt82N8fr4MKEKX5yoFjWaKiSpn6VA4onz7C9Cy98nhdKr2KKb2fJuXNVUZ84VoVTnyf9Z3apggGePwxY6ka5o7YETjRzbrMt6SFpMsukqgX5WoBpbk2TE2yTx5UQZgfSYpyW5XzU5DJ47RYsFpmUFR32sy4dTd3UALaHVqycVEN13cJPd3DP5TcWAZHLLvfTqTaJCBCuek9prtB35UjUpvNECDC8YyXKqE2H8eSvgoNop2Jd1Fc8MpomwKFr9FVch2KRCNVMvgm4CoiZKb1WRg6eMed9EnBxSomBgS41yWFaY3vUhxYEmaL1vCWjnFQjKfHVNJnuR4AXRTUUBr8LodoPcm2NQL4FfMtfS3j4Qu9UAHxY1wLn72noiuJ5BPnCoQjjHtWm1wzDcEnUoEn45UWGB8KTR2sd9kve1ZZH5FLkyzKYVPtEEW9T8dP5GN3K4v3ywNmphZkkNgd23fjsLVyrBiwhhx9SsBREMxRjh3TWLXcke1XdGs1xzRvidsu8Z4QGdc71JYNzo1k9TYLxWUrQpCTNEvDUP3zCLhFX7sdePaWYxY9MaWugCd6XrZj1qYV2eCNQonnc9csMKKDDLNDLkLSxWgihZqvf85VhEhfSfMv4SRjy5tsXP1xaJJTGuEtfqPbpb8BV43KRQjWK2tvqTyJgj5ePExRUuR8aoV7GmzD4eyg6fW"
+
+  override suspend fun parameters(
+    keybox: Keybox,
+    sealedCsek: SealedCsek,
+  ): Result<MobileKeyParameters, Error> =
+    Ok(
+      MobileKeyParameters(
+        mobileKeyCharacters = fakeEncodedPayload,
+        mobileKeyQRCodeText = fakeEncodedPayload
+      )
+    )
+}

@@ -1,0 +1,41 @@
+root = true
+
+[{*.kt,*.kts}]
+ktlint_code_style = ktlint_official
+
+# Naming
+ktlint_standard_function-naming=disabled
+ktlint_standard_enum-entry-name-case=disabled
+ktlint_standard_property-naming=disabled
+
+# Wrapping
+max_line_length = 100
+ktlint_standard_max-line-length=disabled
+ktlint_standard_filename=disabled
+ktlint_standard_argument-list-wrapping=disabled
+ktlint_standard_property-wrapping=disabled
+ktlint_standard_multiline-expression-wrapping=disabled
+ktlint_standard_string-template-indent=disabled
+
+# Spacing
+ij_kotlin_line_break_after_multiline_when_entry=false
+
+# Indents
+indent_size = 2
+ij_continuation_indent_size = 4
+
+# Imports
+# Disallow wildcard imports
+ij_kotlin_name_count_to_use_star_import = 999
+ij_kotlin_name_count_to_use_star_import_for_members = 999
+# https://github.com/squareup/wallet/pull/10791
+ij_kotlin_import_nested_classes = false
+
+# Trailing comma
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = false
+
+# Comments
+ktlint_standard_value-parameter-comment=disabled
+ktlint_standard_value-argument-comment=disabled
+

@@ -1,0 +1,10 @@
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.socrec.SocRecKeyPurpose;
+
+CREATE TABLE socRecKeys (
+    rowId       INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    purpose     TEXT AS SocRecKeyPurpose NOT NULL UNIQUE,
+    key         TEXT AS PublicKey NOT NULL UNIQUE
+);
+
+PRAGMA foreign_key_check;

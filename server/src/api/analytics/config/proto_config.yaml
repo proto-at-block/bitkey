@@ -1,0 +1,68 @@
+---
+includes: [../../proto]
+files: [../../proto/build/wallet/analytics/v1/event.proto]
+output: src/definitions
+messages:
+  - paths: [Event]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip
+  - paths: [EventBundle]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip
+      - allow(clippy::all)
+  - paths: [HardwareInfo]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip
+  - paths: [PlatformInfo]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip
+  - paths: [TransactionInfo]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - serde(rename_all = "camelCase")
+      - serde(default)
+      - rustfmt::skip
+enums:
+  - paths: [Action]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+  - paths: [Client]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+  - paths: [AddressInput]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+  - paths: [AddressType]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+  - paths: [CurrencyFiat]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+  - paths: [CurrencyCrypto]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+  - paths: [OSType]
+    attrs:
+      - derive(serde::Serialize, serde::Deserialize)
+      - rustfmt::skip
+fields:
+btree_map: [.]
+bytes: [.]

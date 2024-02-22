@@ -1,0 +1,21 @@
+port_name: auth_port
+
+messages:
+  protos:
+    - name: fwpb_start_fingerprint_enrollment_cmd
+      auth: after_onboarding
+    - name: fwpb_get_fingerprint_enrollment_status_cmd
+      auth: never
+    - name: fwpb_query_authentication_cmd
+      auth: never
+    - name: fwpb_send_unlock_secret_cmd
+      auth: never
+    - name: fwpb_provision_unlock_secret_cmd
+      auth: after_onboarding
+    - name: fwpb_configure_unlock_limit_response_cmd
+      auth: after_onboarding
+  structs:
+    - name: auth_set_timestamp_t
+      fields:
+        - uint32_t timestamp
+

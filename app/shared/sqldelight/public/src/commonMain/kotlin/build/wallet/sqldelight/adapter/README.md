@@ -1,0 +1,1 @@
+Contains SqlDelight column adapters for common, domain agnostic types.

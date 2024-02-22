@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+import "ops-keybundle.proto";
+
+
+message derive_key_descriptor_cmd {
+  btc_network network = 1;
+  derivation_path derivation_path = 2;
+}
+
+message derive_rsp {
+  enum derive_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    DERIVATION_FAILED = 4;
+  }
+
+  derive_rsp_status status = 1;
+  key_descriptor descriptor = 2;
+}
+
+message derive_key_descriptor_and_sign_cmd {
+  derivation_path derivation_path = 1;
+  bytes hash = 2 [(nanopb).max_size = 32];
+}
+
+message derive_and_sign_rsp {
+  enum derive_and_sign_rsp_status {
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    DERIVATION_FAILED = 4;
+  }
+  derive_and_sign_rsp_status status = 1;
+  bytes signature = 2 [(nanopb).max_size = 64];
+}
+
+enum curve {
+  CURVE_P256 = 0;
+  CURVE_ED25519 = 1;
+}
+
+message derive_public_key_cmd {
+  curve curve = 1;
+  bytes label = 2 [(nanopb).max_size = 32];
+}
+
+message derive_public_key_rsp {
+  bytes pubkey = 1 [(nanopb).max_size = 64];
+}
+
+message derive_public_key_and_sign_cmd {
+  curve curve = 1;
+  bytes label = 2 [(nanopb).max_size = 32];
+  bytes hash = 3 [(nanopb).max_size = 32];
+}
+
+message derive_public_key_and_sign_rsp {
+  bytes pubkey = 1 [(nanopb).max_size = 64];
+  bytes signature = 2 [(nanopb).max_size = 64];
+}

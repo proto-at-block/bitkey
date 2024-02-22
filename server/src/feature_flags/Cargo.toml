@@ -1,0 +1,18 @@
+[package]
+edition = "2021"
+name = "feature_flags"
+publish.workspace = true
+version = "0.0.1"
+
+[lib]
+name = "feature_flags"
+
+[features]
+debug-embed = ["rust-embed/debug-embed"]
+
+[dependencies]
+launchdarkly-server-sdk = "2.0.2"
+rust-embed = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8.10"

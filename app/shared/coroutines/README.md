@@ -1,0 +1,1 @@
+This module contains various extensions and testing components for Kotlin Coroutines.

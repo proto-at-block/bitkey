@@ -1,0 +1,44 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "build",
+			"args": [
+				"--all-features",
+				"--all-targets",
+				"--locked"
+			],
+			"env": {
+				"RUST_BACKTRACE": "1",
+				"RUST_LOG": "debug"
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "rust: cargo build (all)"
+		},
+		{
+			"type": "cargo",
+			"command": "test",
+			"args": [
+				"--all-features",
+				"--all-targets",
+				"--locked"
+			],
+			"env": {
+				"RUST_BACKTRACE": "1",
+				"RUST_LOG": "debug"
+			},
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"label": "rust: cargo test (all)"
+		}
+	]
+}

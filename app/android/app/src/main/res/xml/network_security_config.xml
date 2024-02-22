@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <!-- Allow cleartext to 10.0.2.2 for local dev -->
+    <domain includeSubdomains="true">10.0.2.2</domain>
+  </domain-config>
+</network-security-config>

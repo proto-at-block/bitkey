@@ -1,0 +1,1 @@
+pub const ONE_BTC_IN_SATOSHIS: u64 = 100_000_000;

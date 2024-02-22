@@ -1,0 +1,9 @@
+#!/bin/bash
+
+configureAndroidFlavor() {
+  if [ -z "$ANDROID_FLAVOR" ]; then
+    ANDROID_FLAVOR="customer"
+  else
+    echo "Building flavor: $ANDROID_FLAVOR"
+  fi
+}

@@ -1,0 +1,22 @@
+port_name: key_manager_port
+
+messages:
+  protos:
+    - name: fwpb_seal_csek_cmd
+      auth: always
+    - name: fwpb_unseal_csek_cmd
+      auth: always
+    - name: fwpb_derive_key_descriptor_cmd
+      auth: always
+    - name: fwpb_derive_key_descriptor_and_sign_cmd
+      auth: always
+    - name: fwpb_hardware_attestation_cmd
+      auth: never
+    - name: fwpb_secure_channel_establish_cmd
+      auth: never
+    - name: fwpb_derive_public_key_cmd
+      auth: always
+    - name: fwpb_derive_public_key_and_sign_cmd
+      auth: always
+  structs:
+    - name: key_manager_remove_wallet_state_t

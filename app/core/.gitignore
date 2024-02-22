@@ -1,0 +1,17 @@
+# Rust
+target/
+
+# Gradle
+.gradle/
+_build/
+.build/
+
+# IDE
+.idea/
+*.code-workspace
+
+# Kotlin
+local.properties
+
+# CLI database
+wallet.db

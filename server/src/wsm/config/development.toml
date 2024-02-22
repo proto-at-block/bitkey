@@ -1,0 +1,4 @@
+dekTableName = "wsm_deks"
+customerKeysTableName = "wsm_customer_keys"
+cmkId = "fake"
+dynamodbEndpoint = "http://localhost:8000"

@@ -1,0 +1,17 @@
+[Unit]
+Description=WSM API service
+After=wsm-enclave.service
+
+[Service]
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wsm-api
+Environment=ROCKET_PROFILE=release
+Environment=RUST_LOG=info,wsm_api=debug
+WorkingDirectory=/opt/wsm
+ExecStart=/opt/wsm/wsm-api-bin
+User=ec2-user
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

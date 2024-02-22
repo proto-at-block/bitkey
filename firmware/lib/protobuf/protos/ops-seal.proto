@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+import "secure-channel.proto";
+
+// Data sealed using the Advanced Encryption Standard (AES) Galois Counter Mode (GCM) cipher
+message sealed_data {
+  // The encrypted data.
+  bytes data = 1 [(nanopb).max_size = 32];
+
+  // The nonce used to encrypt the data.
+  bytes nonce = 2 [(nanopb).max_size = 12];
+
+  // An authentication tag.
+  bytes tag = 3 [(nanopb).max_size = 16];
+}
+
+// A command used by the mobile client to ask the hw device to encrypt
+// a given data key
+message seal_csek_cmd {
+  // The raw data key being used to encrypt data on the mobile client.
+  bytes unsealed_csek = 1 [(nanopb).max_size = 32, deprecated = true];
+
+  // The raw CSEK, but wrapped in a secure channel message.
+  secure_channel_message csek = 2;
+}
+
+// The response for `seal_csek_cmd`
+message seal_csek_rsp {
+  enum seal_csek_rsp_status {
+    // Common error codes
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    SEAL_ERROR = 3;
+    reserved 6 to 9;
+  }
+
+  seal_csek_rsp_status rsp_status = 1;
+
+  // The encrypted data key.
+  sealed_data sealed_csek = 2;
+}
+
+// A command used by the mobile client to ask the hw device to decrypt
+// a given sealed data key
+message unseal_csek_cmd {
+  // The encrypted data key.
+  sealed_data sealed_csek = 1;
+}
+
+// The response for `unseal_csek_cmd`
+message unseal_csek_rsp {
+  enum unseal_csek_rsp_status {
+    // Common error codes
+    UNSPECIFIED = 0;
+    SUCCESS = 1;
+    ERROR = 2;
+    UNAUTHENTICATED = 3;
+    UNSEAL_ERROR = 4;
+    reserved 5 to 9;
+  }
+
+  unseal_csek_rsp_status rsp_status = 1;
+
+  // The raw data key being used to encrypt data on the mobile client.
+  bytes unsealed_csek = 2 [(nanopb).max_size = 32];
+}

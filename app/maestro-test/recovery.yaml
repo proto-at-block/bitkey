@@ -1,0 +1,31 @@
+# recovery.yaml
+# Test that an existing wallet can be recovered from cloud backup
+appId: ${APP_ID}
+tags:
+    - android
+name: Recover an Existing Wallet
+when:
+    platform: android
+onFlowStart:
+  - runFlow: utility_flows/delete_app_key_setup.yaml
+---
+- tapOn:
+    id: "more-options"
+- tapOn:
+    id: "restore-your-wallet"
+- tapOn:
+    id: "com.google.android.gms:id/account_particle_disc"
+- tapOn: "CONTINUE"
+- waitForAnimationToEnd
+- tapOn:
+    id: i1
+- scrollUntilVisible:
+    element:
+        id: "submit_approve_access"
+- tapOn: 
+    id: "submit_approve_access"
+- waitForAnimationToEnd
+- tapOn:
+    text: "Restore Bitkey Wallet" #todo figure out adding id for button in list item
+- assertVisible: "Home"
+- assertVisible: "$0.00"

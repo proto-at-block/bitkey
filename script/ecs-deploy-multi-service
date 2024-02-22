@@ -1,0 +1,159 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# Export path for use in parallel subshell
+export ECS_DEPLOY="${SCRIPT_DIR}/ecs-deploy"
+
+TIMEOUT=300
+DOCKER_REPO=""
+USE_TEMPLATE_TASK_DEFINITION=""
+
+# Function to display script usage
+display_usage() {
+  echo "Deploy multiple ECS services with the same docker tag (or image) in parallel"
+  echo ""
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo "  --region                         AWS region (required if AWS_REGION not set)"
+  echo "  -c, --cluster                    ECS cluster name (required)"
+  echo "  -r, --repo                       Docker image repo (required)"
+  echo "  -t, --tag                        Docker image tag (required)"
+  echo "  -s, --services                   ECS services (space-separated) to update (required)"
+  echo "  --use-template-task-definition   If set, use a task definition named \${service}-template instead of the currently deployed one as the base for updating the image"
+  echo "  --timeout                        How long to wait for deployment to complete. Default is 300 seconds."
+  echo "  -h, --help                       Display this help message"
+}
+
+# Parse command-line options
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    --region)
+      AWS_REGION="$2"
+      shift
+      ;;
+    -c|--cluster)
+      ECS_CLUSTER_NAME="$2"
+      shift
+      ;;
+    -r|--repo)
+      DOCKER_REPO="$2"
+      shift
+      ;;
+    -t|--tag)
+      DOCKER_TAG="$2"
+      shift
+      ;;
+    -s|--services)
+      ECS_SERVICES=($2)
+      shift
+      ;;
+    --timeout)
+      TIMEOUT=$2
+      shift
+      ;;
+    --use-template-task-definition)
+      USE_TEMPLATE_TASK_DEFINITION=$2
+      shift
+      ;;
+    -h|--help)
+      display_usage
+      exit 0
+      ;;
+    *)
+      echo "Invalid option: $1"
+      display_usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Check if required options are missing
+if [[ -z $AWS_REGION || -z $ECS_CLUSTER_NAME || -z $DOCKER_TAG || ${#ECS_SERVICES[@]} -eq 0 ]]; then
+  echo "Missing required options!"
+  display_usage
+  exit
+fi
+
+if [[ "${USE_TEMPLATE_TASK_DEFINITION}" == "0" || "${USE_TEMPLATE_TASK_DEFINITION}" == "false" ]]; then
+  USE_TEMPLATE_TASK_DEFINITION=""
+fi
+
+# Function to render the task definition for an ECS service
+render_task_definition() {
+  local service_name=$1
+  local old_task_definition="$1.old.json"
+  local new_task_definition="$1.json"
+  local repo="$DOCKER_REPO"
+
+  if [[ -z "${USE_TEMPLATE_TASK_DEFINITION}" ]]; then
+    # Get the current task definition ARN of the service
+    CURRENT_TASK_DEFINITION_ARN=$(aws ecs describe-services --cluster $ECS_CLUSTER_NAME --service $service_name --region $AWS_REGION \
+      | jq -r '.services[0].taskDefinition')
+    if [[ "${CURRENT_TASK_DEFINITION_ARN}" == "null" ]]; then
+      echo "service \"$service_name\" not found"
+      exit 1
+    fi
+
+    # Get the current task definition details
+    aws ecs describe-task-definition --task-definition $CURRENT_TASK_DEFINITION_ARN --region $AWS_REGION | jq > $old_task_definition
+  else
+    aws ecs describe-task-definition --task-definition "${service_name}-template" --region $AWS_REGION | jq > $old_task_definition
+  fi
+
+  # Render the new task definition
+  # Updates the primary first container's image with the new image
+  # Update all DD_VERSION environment variables with the docker tag
+  if [[ -z "$repo" ]]; then
+    # If repo not provided, keep the repo the same
+    repo=$(jq -r '.taskDefinition.containerDefinitions[0].image | split(":")[0]' $old_task_definition)
+  fi
+  jq --arg REPO $repo \
+     --arg TAG $DOCKER_TAG \
+     --arg FAMILY $service_name \
+     '.taskDefinition.containerDefinitions[].environment[] |= if .name == "DD_VERSION" then .value = $TAG else . end |
+      .taskDefinition.containerDefinitions[].dockerLabels."com.datadoghq.tags.version" |= if . then $TAG else empty end |
+      .taskDefinition.containerDefinitions[0].image = "\($REPO):\($TAG)" |
+      .taskDefinition.family = $FAMILY' $old_task_definition > "$new_task_definition"
+
+  # Extract the primary container name
+  CONTAINER_NAME=$(jq -r '.taskDefinition.containerDefinitions[0].name' "$new_task_definition")
+
+  echo -e "$service_name\tUpdated container \"${CONTAINER_NAME}\" with image $repo:$DOCKER_TAG"
+  diff --unified=2 "$old_task_definition" "$new_task_definition" || true
+}
+
+# Loop through the ECS services and render new task definitions
+for service in "${ECS_SERVICES[@]}"; do
+  render_task_definition "$service"
+done
+
+deploy() {
+  local service=$1
+  shift
+  local task_definition_file=$service.json
+  # The deploy script requires an --image arg to update the task definition with. We already did
+  # that in render_task_definition(), so just give it the existing image to cause a noop update.
+  IMAGE=$(jq -r '.taskDefinition.containerDefinitions[0].image' $task_definition_file)
+  "$ECS_DEPLOY" --task-definition-file $task_definition_file --image $IMAGE "$@"
+}
+export -f deploy
+
+echo "will cite" | parallel --citation > /dev/null 2>&1 || true # The homebrew version has a citation request for research papers...
+set +e
+parallel --linebuffer --tag -j64 \
+  deploy {} \
+  --cluster "$ECS_CLUSTER_NAME" \
+  --timeout "$TIMEOUT" \
+  --service-name {} \
+  ::: "${ECS_SERVICES[@]}"
+# GNU Parallel exit code indicates how many jobs failed
+code=$?
+if [[ $code -ne 0 ]]; then
+  echo "$code services failed to deploy"
+  exit 1
+fi
+
+echo "All ECS services updated successfully with the new Docker image"

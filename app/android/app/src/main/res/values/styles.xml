@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+  <!-- A workaround to bug in Google Sign In activity where the status bar gets animated down over the app's UI: https://github.com/flutter/flutter/issues/48371 -->
+  <style name="GoogleSignInActivity" parent="android:Theme.Translucent.NoTitleBar">
+    <item name="android:statusBarColor">@android:color/transparent</item>
+    <item name="android:navigationBarColor">@android:color/transparent</item>
+    <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+  </style>
+</resources>

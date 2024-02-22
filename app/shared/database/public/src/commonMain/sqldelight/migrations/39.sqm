@@ -1,0 +1,27 @@
+import build.wallet.availability.NetworkConnection;
+import build.wallet.availability.NetworkReachability;
+import kotlinx.datetime.Instant;
+
+-- 1. Create temp table
+
+CREATE TABLE networkReachabilityEventEntity_tmp(
+    rowId           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    connection      TEXT AS NetworkConnection NOT NULL,
+    reachability    TEXT AS NetworkReachability NOT NULL,
+    timestamp       INTEGER AS Instant NOT NULL,
+    CONSTRAINT connection_reachability_unique UNIQUE (connection, reachability)
+);
+
+-- 2. Copy rows to temp table
+
+INSERT INTO networkReachabilityEventEntity_tmp SELECT * FROM networkReachabilityEventEntity_tmp;
+
+-- 3. Drop old table
+
+ DROP TABLE networkReachabilityEventEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE networkReachabilityEventEntity_tmp RENAME TO networkReachabilityEventEntity;
+
+PRAGMA foreign_key_check;

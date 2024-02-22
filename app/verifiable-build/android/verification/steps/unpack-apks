@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Unzips all APKs located in the input directory and puts the result into the output directory.
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <input-directory> <output-directory>" >&2
+    exit 1
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided output directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 2
+fi
+
+if ! which "unzip" > /dev/null 2>&1; then
+    echo "Cannot find 'unzip'. Please install it first and then rerun this command." >&2
+    exit 100
+fi
+
+
+mkdir -p "$2"
+
+for apk in "$1"/*.apk; do
+  file_name="${apk##*/}"
+  file_name_without_extension="${file_name%.apk}"
+
+  unzip -d "$2/$file_name_without_extension" "$apk"
+done

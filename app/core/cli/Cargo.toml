@@ -1,0 +1,42 @@
+[package]
+edition = { workspace = true }
+name = "bk"
+publish = { workspace = true }
+version = "2024.15.0"
+
+default-run = "bk"
+
+[dependencies]
+aes-gcm-siv = "0.11.1"
+anyhow = { workspace = true, features = ["backtrace"] }
+aws-config = "0.56.1"
+aws-sdk-cognitoidentityprovider = "0.34.0"
+aws-sdk-dynamodb = "0.33.0"
+aws-sdk-secretsmanager = "0.34.0"
+aws-types = "0.56.0"
+bdk = { workspace = true }
+clap = { version = "4.5.0", features = ["derive"] }
+derive_builder = { version = "0.13.0" }
+hkdf = "0.12.3"
+http = { version = "0.2.10" }
+indicatif = "0.17.8"
+pcsc = { workspace = true }
+qrcode = { version = "0.13.0", default-features = false }
+rustify = { version = "0.5.3", default-features = false, features = [
+  "blocking",
+  "rustls-tls",
+] }
+rustify_derive = { version = "0.5.2" }
+serde = { workspace = true }
+serde_derive = { version = "1.0.137" }
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+0_29"] }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+sled = { version = "0.34.7" }
+thiserror = { workspace = true }
+time = { version = "0.3.34", features = ["serde", "serde-well-known"] }
+tokio = { version = "1.36.0", features = ["rt-multi-thread"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+wca = { path = "../wca" }
+zip = "0.6.6"

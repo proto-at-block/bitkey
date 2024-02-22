@@ -1,0 +1,35 @@
+[package]
+edition = { workspace = true }
+name = "wallet-telemetry"
+publish.workspace = true
+version = "0.0.1"
+
+[lib]
+name = "wallet_telemetry"
+
+[dependencies]
+http = { workspace = true }
+once_cell = "1.19.0"
+opentelemetry = { workspace = true }
+opentelemetry-jaeger = { version = "0.20.0", features = ["rt-tokio"] }
+opentelemetry-otlp = { version = "0.14.0", features = ["metrics"] }
+opentelemetry-semantic-conventions = "0.13.0"
+opentelemetry_sdk = { version = "0.21.2", features = ["trace"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true, features = ["formatting", "parsing"] }
+tracing = { workspace = true }
+tracing-core = "0.1.32"
+tracing-log = "0.2.0"
+tracing-opentelemetry = "0.22.0"
+tracing-serde = "0.1.3"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter", "json"] }
+
+[dev-dependencies]
+async-trait = "0.1"
+bytes = "1"
+futures-util = { version = "0.3", default-features = false, features = ["io"] }
+isahc = "1.4"
+opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
+opentelemetry_sdk = { version = "0.21.2", features = ["testing", "trace"] }

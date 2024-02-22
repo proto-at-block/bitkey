@@ -1,0 +1,33 @@
+[package]
+edition = { workspace = true }
+name = "mobile_pay"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+axum = { workspace = true }
+axum-macros = { workspace = true }
+once_cell = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+authn_authz = { workspace = true }
+bdk_utils = { workspace = true }
+database = { workspace = true }
+errors = { workspace = true }
+exchange_rate = { workspace = true }
+feature_flags = { workspace = true }
+http_server = { workspace = true }
+metrics = { workspace = true }
+migration = { workspace = true }
+types = { workspace = true, features = ["exchange_rate", "serde"] }
+wsm-rust-client = { workspace = true }
+
+#[dev-dependencies]
+tokio = { workspace = true }

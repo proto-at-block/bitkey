@@ -1,0 +1,44 @@
+package build.wallet.statemachine.account.create.full.hardware
+
+import build.wallet.analytics.events.screen.EventTrackerScreenInfo
+import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel.BackgroundVideo.VideoContent.BitkeyActivate
+import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.model.Click
+import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.video.VideoStartingPosition.END
+import build.wallet.ui.model.video.VideoStartingPosition.START
+
+fun ActivationInstructionsBodyModel(
+  onContinue: (() -> Unit)?,
+  onBack: () -> Unit,
+  isNavigatingBack: Boolean,
+  eventTrackerScreenIdContext: EventTrackerScreenIdContext,
+) = PairNewHardwareBodyModel(
+  onBack = onBack,
+  header =
+    FormHeaderModel(
+      headline = "Wake your Bitkey device",
+      subline =
+        "Touch the fingerprint reader until you see a white light." +
+          " If your device doesn’t turn on, charge your device and try again."
+    ),
+  primaryButton =
+    ButtonModel(
+      text = "Continue",
+      onClick = Click.standardClick { onContinue?.invoke() },
+      treatment = ButtonModel.Treatment.White,
+      size = ButtonModel.Size.Footer,
+      isLoading = onContinue == null
+    ),
+  backgroundVideo = PairNewHardwareBodyModel.BackgroundVideo(
+    content = BitkeyActivate,
+    startingPosition = if (isNavigatingBack) END else START
+  ),
+  eventTrackerScreenInfo =
+    EventTrackerScreenInfo(
+      eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS,
+      eventTrackerScreenIdContext = eventTrackerScreenIdContext
+    )
+)

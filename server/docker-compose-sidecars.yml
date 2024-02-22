@@ -1,0 +1,32 @@
+services:
+  dynamodb:
+    image: amazon/dynamodb-local
+    healthcheck:
+      # to avoid aws-cli dependency, just see if the endpoint returns an unauthenticated error to show it can process
+      test: curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/ | grep -q '400'
+      interval: 1s
+      timeout: 5s
+      retries: 10
+    command: -jar DynamoDBLocal.jar -inMemory -sharedDb
+    ports:
+      - "8000:8000"
+
+  dynamodb-admin:
+    links:
+      - dynamodb
+    image: aaronshaf/dynamodb-admin
+    environment:
+      AWS_REGION: us-west-2
+      AWS_ACCESS_KEY:
+      AWS_SECRET_ACCESS_KEY:
+      DYNAMO_ENDPOINT: http://dynamodb:8000
+    ports:
+      - "8001:8001"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.48.0
+    ports:
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "16686:16686"
+      - "14268:14268"

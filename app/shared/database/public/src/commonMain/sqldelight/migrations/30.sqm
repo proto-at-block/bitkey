@@ -1,0 +1,26 @@
+-- 1. Create temp table
+
+-- (Use the new table definition here)
+CREATE TABLE transactionDetailEntity_tmp(
+    transactionId                    TEXT NOT NULL PRIMARY KEY,
+    broadcastTimeInstant             INTEGER AS Instant NOT NULL,
+    estimatedConfirmationTimeInstant INTEGER AS Instant
+);
+
+-- 2. Copy rows to temp table
+
+INSERT INTO transactionDetailEntity_tmp
+SELECT transactionId, broadcastTimeInstant, NULL
+FROM transactionDetailEntity;
+
+-- 3. Drop old table
+
+DROP TABLE transactionDetailEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE transactionDetailEntity_tmp RENAME TO transactionDetailEntity;
+
+-- 5. Make sure the foreign keys still work
+
+PRAGMA foreign_key_check;

@@ -1,0 +1,3 @@
+package build.wallet.emergencyaccesskit
+
+expect class EmergencyAccessKitQrCodeGeneratorImpl() : EmergencyAccessKitQrCodeGenerator

@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Normalizes APKs content by removing all incomparable files from all apks.
+# The script does not modify the input directory and instead puts the result into the output directory.
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <input-directory> <output-directory>" >&2
+    exit 1
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided output directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 2
+fi
+
+if ! which "find" > /dev/null 2>&1; then
+    echo "Cannot find 'find'. Please install it first and then rerun this command." >&2
+    exit 100
+fi
+
+
+mkdir -p "$2"
+
+cp -r "$1/." "$2"
+
+incomparable_files=("AndroidManifest.xml" "stamp-cert-sha256" "BNDLTOOL.RSA" "BNDLTOOL.SF" "MANIFEST.MF")
+
+for incomparable_file in "${incomparable_files[@]}"; do
+  find "$2" -type f -name "$incomparable_file" -exec rm {} \;
+done
+
+find "$2" -type f -path "*/res/xml/splits*.xml" -exec rm {} \;
+
+find "$2" -type d -empty -exec rmdir {} +

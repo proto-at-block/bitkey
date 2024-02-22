@@ -1,0 +1,33 @@
+[package]
+edition = { workspace = true }
+name = "account"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-sns = { workspace = true }
+isocountry = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+ulid = { workspace = true }
+urn = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+bdk_utils = { workspace = true }
+database = { workspace = true }
+errors = { workspace = true }
+external_identifier = { workspace = true }
+migration = { workspace = true }
+types = { workspace = true, features = [
+  "account",
+  "exchange_rate",
+  "notification",
+] }

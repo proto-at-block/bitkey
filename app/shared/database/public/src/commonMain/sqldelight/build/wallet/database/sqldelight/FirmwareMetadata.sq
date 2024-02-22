@@ -1,0 +1,43 @@
+CREATE TABLE firmwareMetadataEntity(
+  rowId       INTEGER NOT NULL PRIMARY KEY,
+  activeSlot  TEXT    NOT NULL,
+  gitId       TEXT    NOT NULL,
+  gitBranch   TEXT    NOT NULL,
+  version     TEXT    NOT NULL,
+  build       TEXT    NOT NULL,
+  timestamp   INTEGER NOT NULL,
+  hash        BLOB    NOT NULL,
+  hwRevision  TEXT    NOT NULL
+);
+
+setActiveFirmwareMetadata:
+INSERT OR REPLACE INTO firmwareMetadataEntity(
+  rowId,
+  activeSlot,
+  gitId,
+  gitBranch,
+  version,
+  build,
+  timestamp,
+  hash,
+  hwRevision
+)
+-- Use stable row ID to ensure we only ever have a single account.
+VALUES(
+  0,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?
+);
+
+getActiveFirmwareMetadata:
+SELECT * FROM firmwareMetadataEntity
+WHERE rowid = 0;
+
+clear:
+DELETE FROM firmwareMetadataEntity;

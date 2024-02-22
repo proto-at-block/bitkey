@@ -1,0 +1,27 @@
+[package]
+edition = { workspace = true }
+name = "aws-utils"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-secretsmanager = { workspace = true }
+base64 = { workspace = true }
+futures = { workspace = true }
+http = { workspace = true }
+lambda_runtime = "0.8.0"
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[lib]
+name = "aws_utils"
+path = "src/lib.rs"
+
+[dev-dependencies]
+aws-credential-types = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+wiremock = "0.5.18"

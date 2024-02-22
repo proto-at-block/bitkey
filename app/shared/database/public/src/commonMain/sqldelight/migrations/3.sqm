@@ -1,0 +1,52 @@
+import kotlin.Boolean;
+
+-- This migration renames account in [recoveriesView] to serverAccount and
+-- adds localAccount based on the account from [localRecoveryAttemptEntity]
+
+DROP VIEW recoveriesView;
+
+CREATE VIEW recoveriesView AS
+SELECT
+    activeServerRecoveryEntity.account AS serverAccount,
+    activeServerRecoveryEntity.destinationAppAuthKey AS serverDestinationAppAuthKey,
+    activeServerRecoveryEntity.destinationHardwareAuthKey AS serverDestinationHardwareAuthKey,
+    activeServerRecoveryEntity.lostFactor AS serverfactorToRecover,
+    localRecoveryAttemptEntity.account AS localAccount,
+    localRecoveryAttemptEntity.destinationAppAuthKey AS localDestinationAppAuthKey,
+    localRecoveryAttemptEntity.destinationHardwareAuthKey AS localDestinationHardwareAuthKey,
+    localRecoveryAttemptEntity.lostFactor AS localFactorToRecover,
+    localRecoveryAttemptEntity.sealedCsek,
+    startTime,
+    endTime,
+    destinationAppSpendingKey,
+    destinationHardwareSpendingKey,
+    authKeysRotated,
+    serverKeysetId,
+    serverSpendingKey,
+    backedUpToCloud
+FROM activeServerRecoveryEntity
+LEFT JOIN localRecoveryAttemptEntity
+UNION ALL
+SELECT
+    activeServerRecoveryEntity.account AS serverAccount,
+    activeServerRecoveryEntity.destinationAppAuthKey AS serverDestinationAppAuthKey,
+    activeServerRecoveryEntity.destinationHardwareAuthKey AS serverDestinationHardwareAuthKey,
+    activeServerRecoveryEntity.lostFactor AS serverfactorToRecover,
+    localRecoveryAttemptEntity.account AS localAccount,
+    localRecoveryAttemptEntity.destinationAppAuthKey AS localDestinationAppAuthKey,
+    localRecoveryAttemptEntity.destinationHardwareAuthKey AS localDestinationHardwareAuthKey,
+    localRecoveryAttemptEntity.lostFactor AS localFactorToRecover,
+    localRecoveryAttemptEntity.sealedCsek,
+    startTime,
+    endTime,
+    destinationAppSpendingKey,
+    destinationHardwareSpendingKey,
+    authKeysRotated,
+    serverKeysetId,
+    serverSpendingKey,
+    backedUpToCloud
+FROM localRecoveryAttemptEntity
+LEFT JOIN activeServerRecoveryEntity
+WHERE serverDestinationAppAuthKey IS NULL;
+
+PRAGMA foreign_key_check;

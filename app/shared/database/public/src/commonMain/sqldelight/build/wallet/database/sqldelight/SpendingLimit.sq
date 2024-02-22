@@ -1,0 +1,39 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import kotlin.Boolean;
+import kotlinx.datetime.TimeZone;
+
+-- The table for [SpendingLimit] objects
+CREATE TABLE spendingLimitEntity(
+    id                                 INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    limitAmountFractionalUnitValue     INTEGER NOT NULL,
+    limitAmountCurrencyAlphaCode       TEXT AS IsoCurrencyTextCode NOT NULL,
+    limitTimeZoneZoneId                TEXT AS TimeZone NOT NULL,
+    active                             INTEGER AS Boolean NOT NULL
+);
+
+insertLimit:
+INSERT INTO spendingLimitEntity(active, limitAmountFractionalUnitValue, limitAmountCurrencyAlphaCode, limitTimeZoneZoneId)
+VALUES(?, ?, ?, ?);
+
+updateLimit:
+UPDATE spendingLimitEntity
+SET active = ?,
+limitAmountFractionalUnitValue = ?,
+limitAmountCurrencyAlphaCode = ?,
+limitTimeZoneZoneId = ?;
+
+activeLimit:
+SELECT * FROM spendingLimitEntity
+WHERE active IS 1
+ORDER BY id DESC
+LIMIT 1;
+
+removeAllLimits:
+DELETE FROM spendingLimitEntity;
+
+lastLimit:
+SELECT * FROM spendingLimitEntity ORDER BY id DESC LIMIT 1;
+
+disableLimit:
+UPDATE spendingLimitEntity
+SET active = 0;

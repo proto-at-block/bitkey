@@ -1,0 +1,36 @@
+import build.wallet.bitkey.socrec.ProtectedCustomerAlias;
+import build.wallet.bitkey.socrec.TrustedContactAlias;
+import build.wallet.bitkey.socrec.TrustedContactIdentityKey;
+import kotlinx.datetime.Instant;
+
+-- Migration to add [protectedCustomerAlias] row to socRecTrustedContactInvitationEntity
+
+-- 1. Create temp table
+
+-- (Use the new table definition here)
+CREATE TABLE socRecTrustedContactInvitationEntity_tmp(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  protectedCustomerAlias  TEXT AS ProtectedCustomerAlias NOT NULL,
+  token                   TEXT NOT NULL,
+  expiresAt               INTEGER AS Instant NOT NULL
+);
+
+-- 2. Copy rows to temp table using empty string for [protectedCustomerAlias]
+
+INSERT INTO socRecTrustedContactInvitationEntity_tmp
+SELECT rowId, recoveryRelationshipId, trustedContactAlias, "", token, expiresAt
+FROM socRecTrustedContactInvitationEntity;
+
+-- 3. Drop old table
+
+DROP TABLE socRecTrustedContactInvitationEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE socRecTrustedContactInvitationEntity_tmp RENAME TO socRecTrustedContactInvitationEntity;
+
+-- 5. Make sure the foreign keys still work
+
+PRAGMA foreign_key_check;

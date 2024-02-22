@@ -1,0 +1,27 @@
+import build.wallet.bitkey.socrec.CustomerAlias;
+import build.wallet.bitkey.socrec.TrustedContactAlias;
+import build.wallet.bitkey.socrec.TrustedContactIdentityKey;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE socRecTrustedContactEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  publicKey               TEXT AS TrustedContactIdentityKey NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL
+);
+
+CREATE TABLE socRecProtectedCustomerEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  alias                   TEXT AS CustomerAlias NOT NULL
+);
+
+CREATE TABLE socRecTrustedContactInvitationEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId  TEXT UNIQUE NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  token                   TEXT NOT NULL,
+  expiresAt               INTEGER AS Instant NOT NULL
+);
+
+PRAGMA foreign_key_check;

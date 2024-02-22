@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "ms-vscode.cpptools-extension-pack",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "marus25.cortex-debug",
+    "dchanco.vsc-invoke",
+    "zixuanwang.linkerscript",
+    "davidanson.vscode-markdownlint",
+    "zxh404.vscode-proto3",
+    "mcu-debug.memory-view"
+  ]
+}

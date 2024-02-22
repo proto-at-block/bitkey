@@ -1,0 +1,36 @@
+[package]
+edition = { workspace = true }
+name = "authn_authz"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-cognitoidentityprovider = { workspace = true }
+aws-types = { workspace = true }
+axum = { workspace = true }
+axum-macros = { workspace = true }
+dyn-clone = { workspace = true }
+hex = { workspace = true }
+jsonwebtoken = "9.2.0"
+jwt-authorizer = { workspace = true }
+rand = { workspace = true }
+secp256k1 = { version = "0.27.0", features = ["bitcoin_hashes", "serde"] }
+serde = { workspace = true }
+sha2 = "0.10.8"
+thiserror = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+bdk_utils = { workspace = true }
+errors = { workspace = true }
+http_server = { workspace = true }
+migration = { workspace = true }
+types = { workspace = true, features = ["account"] }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tower = { workspace = true }

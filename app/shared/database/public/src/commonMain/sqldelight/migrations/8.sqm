@@ -1,0 +1,42 @@
+
+-- 1. Create temp table for the new table
+import build.wallet.bitkey.app.AppAuthPublicKey;
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.Account;
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
+import build.wallet.bitkey.factor.PhysicalFactor;
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+import build.wallet.cloud.backup.csek.SealedCsek;
+import kotlin.Boolean;
+
+CREATE TABLE localRecoveryAttemptEntity_temp(
+  rowId                           INTEGER NOT NULL PRIMARY KEY,
+  account                         TEXT AS Account NOT NULL,
+  destinationAppAuthKey           TEXT AS AppAuthPublicKey NOT NULL,
+  destinationHardwareAuthKey      TEXT AS HwAuthPublicKey NOT NULL,
+  destinationAppSpendingKey       TEXT AS AppSpendingPublicKey NOT NULL,
+  destinationHardwareSpendingKey  TEXT AS HwSpendingPublicKey NOT NULL,
+  lostFactor                      TEXT AS PhysicalFactor NOT NULL,
+  -- presence of above means initiated status
+  hadServerRecovery                INTEGER AS Boolean NOT NULL,
+  -- presence of above means we had a server recovery at some point
+  authKeysRotated                 INTEGER AS Boolean NOT NULL,
+  sealedCsek                      BLOB AS SealedCsek,
+  -- presence of above means authKeysRotated status
+  serverKeysetId                  TEXT,
+  serverSpendingKey               TEXT AS F8eSpendingPublicKey,
+  -- presence of above means spendingKeysRotated status
+  backedUpToCloud                 INTEGER AS Boolean NOT NULL
+  -- presence of above means backed up to cloud status
+);
+
+INSERT INTO localRecoveryAttemptEntity_temp
+SELECT rowId, account, destinationAppAuthKey, destinationHardwareAuthKey, destinationAppSpendingKey, destinationHardwareSpendingKey, lostFactor, 0, authKeysRotated, sealedCsek, serverKeysetId, serverSpendingKey, backedUpToCloud
+FROM localRecoveryAttemptEntity;
+
+DROP TABLE localRecoveryAttemptEntity;
+
+ALTER TABLE localRecoveryAttemptEntity_temp RENAME TO localRecoveryAttemptEntity;
+
+PRAGMA foreign_key_check;

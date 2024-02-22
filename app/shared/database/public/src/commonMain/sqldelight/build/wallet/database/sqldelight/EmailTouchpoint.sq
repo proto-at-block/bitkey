@@ -1,0 +1,15 @@
+import build.wallet.email.Email;
+
+CREATE TABLE emailTouchpointEntity(
+  touchpointId  TEXT NOT NULL PRIMARY KEY,
+  email         TEXT AS Email NOT NULL
+);
+
+setEmail:
+INSERT INTO emailTouchpointEntity(touchpointId, email) VALUES (?,?);
+
+getAllEmails:
+SELECT * FROM emailTouchpointEntity;
+
+clear:
+DELETE FROM emailTouchpointEntity;

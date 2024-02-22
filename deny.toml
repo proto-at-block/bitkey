@@ -1,0 +1,109 @@
+all-features = true
+
+[advisories]
+unmaintained = "deny"
+vulnerability = "warn"
+yanked = "deny"
+
+# Partnerships can use openssl-sys because it's a dev-dependency
+[[bans.deny]]
+name = "openssl-sys"
+wrappers = ["curl", "curl-sys"] # api/partnerships/wallet-partnerships/aws_utils
+
+[licenses]
+allow = [
+    "0BSD",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "BSL-1.0",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MITNFA",
+    "MPL-2.0",
+    "OpenSSL",
+    "Unicode-DFS-2016",
+    "Zlib",
+]
+allow-osi-fsf-free = "either"
+copyleft = "deny"
+default = "deny"
+unlicensed = "deny"
+
+deny = [
+    "GPL-1.0",
+    "GPL-2.0",
+    "GPL-3.0",
+    "LGPL-2.0",
+    "LGPL-2.1",
+    "LGPL-3.0",
+    "AGPL-1.0",
+    "AGPL-3.0",
+]
+
+confidence-threshold = 0.8
+
+[[licenses.clarify]]
+name = "ring"
+expression = "MIT AND ISC AND OpenSSL"	# https://github.com/briansmith/ring/blob/main/LICENSE
+license-files = [
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+
+# Prefer using `md-5`, part of the RustCrypto ecosystem.
+[[bans.deny]]
+name = "md5"
+
+# Prefer using `sha1` as the RustCrypto ecosystem recently took control of.
+# `sha-1` is the older and now deprecated name.
+[[bans.deny]]
+name = "sha-1"
+
+# Prefer using `prost` or `protobuf-native` instead.
+[[bans.deny]]
+name = "protobuf"
+
+# Use `dyn-clone` instead as this one is out of date
+[[bans.deny]]
+name = "dyn-clonable"
+
+# Use `ulid` instead
+[[bans.deny]]
+name = "uuid"
+wrappers = [
+    "aws-runtime",
+    "launchdarkly-server-sdk",
+    "moka",
+    "partnerships-lib", # TODO[W-5649]: Update partnerships-lib to not use uuid
+    "state",
+    "ulid",
+]
+
+# Prefer `once_cell` as it is being added to std and doesn't use macros,
+# Unfortunately, `lazy_static` is heavily used, so we have lots of exceptions.
+[[bans.deny]]
+name = "lazy_static"
+wrappers = [
+  "aws-http",
+  "aws-smithy-client",
+  "bindgen",
+  "config",
+  "console",
+  "httpmock",
+  "launchdarkly-server-sdk",
+  "launchdarkly-server-sdk-evaluation",
+  "mockall",
+  "prost-build",
+  "sharded-slab",
+  "tracing-test",
+  "tracing-test-macro",
+  "x509-parser",
+]

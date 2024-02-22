@@ -1,0 +1,30 @@
+import build.wallet.bitkey.socrec.TrustedContactEnrollmentKey;
+import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentKey;
+import kotlin.Boolean;
+
+CREATE TABLE socRecEnrollmentAuthentication(
+  recoveryRelationshipId                   TEXT UNIQUE NOT NULL,
+  protectedCustomerEnrollmentKey           TEXT AS ProtectedCustomerEnrollmentKey NOT NULL,
+  pakeCode                                 TEXT NOT NULL
+);
+
+insert:
+INSERT OR REPLACE INTO socRecEnrollmentAuthentication(
+  recoveryRelationshipId,
+  protectedCustomerEnrollmentKey,
+  pakeCode
+) VALUES (?, ?, ?);
+
+getAll:
+SELECT * FROM socRecEnrollmentAuthentication;
+
+getByRelationshipId:
+SELECT * FROM socRecEnrollmentAuthentication
+WHERE recoveryRelationshipId = ?;
+
+deleteByRelationshipId:
+DELETE FROM socRecEnrollmentAuthentication
+WHERE recoveryRelationshipId = ?;
+
+clear:
+DELETE FROM socRecEnrollmentAuthentication;

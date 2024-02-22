@@ -1,0 +1,7 @@
+[build]
+# https://github.com/tokio-rs/tokio-metrics/tree/main#getting-started-with-runtime-metrics
+rustflags = ["--cfg", "tokio_unstable"]
+rustdocflags = ["--cfg", "tokio_unstable"]
+
+[target.x86_64-unknown-linux-musl]
+linker = "x86_64-linux-musl-gcc"

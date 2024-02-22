@@ -1,0 +1,23 @@
+[package]
+edition = { workspace = true }
+name = "analytics"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+axum = { workspace = true }
+axum-macros = { workspace = true }
+base64 = { workspace = true }
+http = { workspace = true }
+prost = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+strum_macros = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+trait-variant = { workspace = true }
+
+[build-dependencies]
+prost-build-config = "0.6.3"
+serde_yaml = "0.9.32"

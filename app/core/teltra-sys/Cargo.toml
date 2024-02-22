@@ -1,0 +1,10 @@
+[package]
+edition = { workspace = true }
+links = "teltra"
+name = "teltra-sys"
+publish = { workspace = true }
+version = { workspace = true }
+
+[build-dependencies]
+bindgen = "0.69.4"
+make-cmd = "0.1.0"

@@ -1,0 +1,1 @@
+This module contains functional extensions and testing utilities for [SqlDelight](https://cashapp.github.io/sqldelight/) library.

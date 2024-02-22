@@ -1,0 +1,120 @@
+--- port.c.orig	2023-10-11 16:28:05
++++ port.c	2023-10-11 16:28:05
+@@ -1,3 +1,4 @@
++// clang-format off
+ /*
+  * FreeRTOS Kernel <DEVELOPMENT BRANCH>
+  * Copyright (C) 2021 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+@@ -413,12 +414,20 @@
+ /**
+  * @brief Enter critical section.
+  */
+-void vPortEnterCritical( void ) PRIVILEGED_FUNCTION;
++#if( configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS == 1 )
++    void vPortEnterCritical( void ) FREERTOS_SYSTEM_CALL;
++#else
++    void vPortEnterCritical( void ) PRIVILEGED_FUNCTION;
++#endif
+ 
+ /**
+  * @brief Exit from critical section.
+  */
+-void vPortExitCritical( void ) PRIVILEGED_FUNCTION;
++#if( configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS == 1 )
++    void vPortExitCritical( void ) FREERTOS_SYSTEM_CALL;
++#else
++    void vPortExitCritical( void ) PRIVILEGED_FUNCTION;
++#endif
+ 
+ /**
+  * @brief SysTick handler.
+@@ -483,7 +492,11 @@
+  *
+  * @return pdTRUE if the calling task is privileged, pdFALSE otherwise.
+  */
++#if( configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS == 1 )
++    BaseType_t xPortIsTaskPrivileged( void ) FREERTOS_SYSTEM_CALL;
++#else
+     BaseType_t xPortIsTaskPrivileged( void ) PRIVILEGED_FUNCTION;
++#endif
+ 
+ #endif /* configENABLE_MPU == 1 */
+ /*-----------------------------------------------------------*/
+@@ -960,6 +973,31 @@
+ 
+ void vPortEnterCritical( void ) /* PRIVILEGED_FUNCTION */
+ {
++    #if( configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS == 1 )
++        if( portIS_PRIVILEGED() == pdFALSE )
++        {
++            portRAISE_PRIVILEGE();
++            portDISABLE_INTERRUPTS();
++            ulCriticalNesting++;
++
++            /* Barriers are normally not required but do ensure the code is
++            * completely within the specified behaviour for the architecture. */
++            __asm volatile ( "dsb" ::: "memory" );
++            __asm volatile ( "isb" );
++            portRESET_PRIVILEGE();
++        }
++        else
++        {
++            portDISABLE_INTERRUPTS();
++            ulCriticalNesting++;
++
++            /* Barriers are normally not required but do ensure the code is
++            * completely within the specified behaviour for the architecture. */
++            __asm volatile ( "dsb" ::: "memory" );
++            __asm volatile ( "isb" );
++
++        }
++    #else
+     portDISABLE_INTERRUPTS();
+     ulCriticalNesting++;
+ 
+@@ -967,11 +1005,37 @@
+      * completely within the specified behaviour for the architecture. */
+     __asm volatile ( "dsb" ::: "memory" );
+     __asm volatile ( "isb" );
++    #endif
+ }
+ /*-----------------------------------------------------------*/
+ 
+ void vPortExitCritical( void ) /* PRIVILEGED_FUNCTION */
+ {
++    #if( configALLOW_UNPRIVILEGED_CRITICAL_SECTIONS == 1 )
++        if( portIS_PRIVILEGED() == pdFALSE )
++        {
++            portRAISE_PRIVILEGE();
++            configASSERT( ulCriticalNesting );
++            ulCriticalNesting--;
++
++            if( ulCriticalNesting == 0 )
++            {
++                portENABLE_INTERRUPTS();
++            }
++            portRESET_PRIVILEGE();
++        }
++        else
++        {
++            configASSERT( ulCriticalNesting );
++            ulCriticalNesting--;
++
++            if( ulCriticalNesting == 0 )
++            {
++                portENABLE_INTERRUPTS();
++            }
++        }
++
++    #else
+     configASSERT( ulCriticalNesting );
+     ulCriticalNesting--;
+ 
+@@ -979,6 +1043,7 @@
+     {
+         portENABLE_INTERRUPTS();
+     }
++    #endif
+ }
+ /*-----------------------------------------------------------*/
+ 

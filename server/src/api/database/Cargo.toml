@@ -1,0 +1,23 @@
+[package]
+edition = { workspace = true }
+name = "database"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-credential-types = { workspace = true }
+aws-sdk-dynamodb = { workspace = true }
+aws-smithy-async = { workspace = true }
+aws-types = { workspace = true }
+http = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_dynamo = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# path dependencies
+errors = { workspace = true }
+http_server = { workspace = true }

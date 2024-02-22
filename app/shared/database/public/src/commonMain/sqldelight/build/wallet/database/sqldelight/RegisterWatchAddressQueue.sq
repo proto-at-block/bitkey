@@ -1,0 +1,22 @@
+import build.wallet.bitcoin.address.BitcoinAddress;
+import build.wallet.f8e.F8eEnvironment;
+
+CREATE TABLE registerWatchAddressEntity(
+  id                INTEGER                     NOT NULL PRIMARY KEY,
+  address           TEXT AS BitcoinAddress      NOT NULL,
+  spendingKeysetId  TEXT                        NOT NULL,
+  accountId         TEXT                        NOT NULL,
+  f8eEnvironment    TEXT AS F8eEnvironment      NOT NULL
+);
+
+append:
+INSERT INTO registerWatchAddressEntity(address, spendingKeysetId, accountId, f8eEnvironment)
+VALUES(?, ?, ?, ?);
+
+take:
+SELECT id, address, spendingKeysetId, accountId, f8eEnvironment FROM registerWatchAddressEntity ORDER BY id ASC LIMIT ?;
+
+removeFirst:
+DELETE FROM registerWatchAddressEntity
+WHERE id IN
+(SELECT id FROM registerWatchAddressEntity ORDER BY id ASC LIMIT ?);

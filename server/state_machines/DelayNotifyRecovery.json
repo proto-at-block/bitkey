@@ -1,0 +1,64 @@
+{
+    "Comment": "A Step Function for Delay and Notify Recovery",
+    "StartAt": "FetchOrCreateRecovery",
+    "States": {
+      "FetchOrCreateRecovery": {
+        "Type": "Task",
+        "Resource": "{{FetchOrCreateRecoveryActivityARN}}",
+        "Next": "CheckForExistingRecovery"
+      },
+      "CheckForExistingRecovery": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.CreateRecoveryIfNeededOutput.existing_recovery",
+            "BooleanEquals": true,
+            "Next": "End"
+          }
+        ],
+        "Default": "WaitPeriodOrUserCancellation"
+      },
+      "End": {
+        "Type": "Pass",
+        "End": true
+      },
+      "WaitPeriodOrUserCancellation": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+        "TimeoutSecondsPath": "$.DelayPeriodNumSeconds",
+        "Next": "CancelRecovery",
+        "Catch": [
+          {
+            "ErrorEquals": ["States.Timeout"],
+            "Next": "WaitForUserCompletionSignal"
+          }
+        ]        
+      },
+      "WaitForUserCompletionSignal": {
+        "Type": "Task",
+        "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+        "Next": "CancelOrCompleteRecovery"     
+      },
+      "CancelOrCompleteRecovery": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.WaitForUserCompletionSignal.complete_recovery",
+            "BooleanEquals": true,
+            "Next": "CompleteRecovery"
+          }    
+        ],
+        "Default": "CancelRecovery"
+      },
+      "CompleteRecovery": {
+        "Type": "Task",
+        "Resource": "{{CompleteRecoveryActivityARN}}",
+        "End": true
+      },
+      "CancelRecovery": {
+        "Type": "Task",
+        "Resource": "{{CancelRecoveryActivityARN}}",
+        "End": true
+      }
+    }
+  }

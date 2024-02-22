@@ -1,0 +1,28 @@
+import build.wallet.availability.NetworkConnection;
+import build.wallet.availability.NetworkReachability;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE networkReachabilityEventEntity(
+    rowId           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    connection      TEXT AS NetworkConnection NOT NULL,
+    reachability    TEXT AS NetworkReachability NOT NULL,
+    timestamp       INTEGER AS Instant NOT NULL,
+--     Note: we only have 1 row stored for a given connection + reachability
+    CONSTRAINT connection_reachability_unique UNIQUE (connection, reachability)
+);
+
+insertEvent:
+INSERT OR REPLACE INTO networkReachabilityEventEntity(connection, reachability, timestamp)
+VALUES( ?, ?, ?);
+
+getMostRecentEventForConnection:
+SELECT * FROM networkReachabilityEventEntity
+WHERE connection = ? AND reachability = ?
+ORDER BY timestamp DESC
+LIMIT 1;
+
+getMostRecentEvent:
+SELECT * FROM networkReachabilityEventEntity
+WHERE reachability = ?
+ORDER BY timestamp DESC
+LIMIT 1;

@@ -1,0 +1,10 @@
+[package]
+edition = { workspace = true }
+name = "teltra"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+hex = "0.4"
+teltra-sys = { path = "../teltra-sys" }
+thiserror = { workspace = true }

@@ -1,0 +1,1 @@
+This module contains functional extensions and utilities for using Ktor client.

@@ -1,0 +1,18 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE historicalExchangeRateEntity(
+    id            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    fromCurrency  TEXT AS IsoCurrencyTextCode NOT NULL,
+    toCurrency    TEXT AS IsoCurrencyTextCode NOT NULL,
+    rate          REAL NOT NULL,
+    time          INTEGER AS Instant NOT NULL
+);
+
+insertHistoricalExchangeRate:
+INSERT INTO historicalExchangeRateEntity(fromCurrency, toCurrency, rate, time)
+VALUES(?, ?, ?, ?);
+
+allHistoricalExchangeRatesAtTime:
+SELECT * FROM historicalExchangeRateEntity
+WHERE time = ?;

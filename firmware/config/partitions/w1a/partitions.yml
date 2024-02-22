@@ -1,0 +1,74 @@
+flash:
+  size: 1536K
+  origin: 0x08000000
+  partitions:
+    - name: bootloader
+      size: 48K
+      sections:
+        - name: program
+          permissions: rx
+          target: loader
+        - name: metadata
+          size: 1K
+          permissions: r
+        - name: codesign_signature
+          size: 64
+          permissions: r
+    - name: filesystem
+      size: 192K
+      permissions: rw
+    # NOTE: Each application slot doubles as the indexfs for lib/unlock. See lib/unlock or lib/indexfs for more context.
+    - name: application_a
+      size: 632K
+      sections:
+        - name: metadata
+          size: 1K
+          permissions: r
+        - name: properties
+          # NOTE:
+          #
+          # The vector table must be aligned to the nearest power of two to the number of interrupts implemented * 4.
+          # EFR32MG24 supports 96 interrupts, so that's 96*4 = 384, round up to 512.
+          #
+          # The following `size: 256` was intended for padding, but incorrectly pads to a 256 byte alignment, NOT 512.
+          # The bootloader jumps to a fixed address, which means adjusting this number requires a BL update.
+          # We discovered this issue relatively late, so we opted not to update the BL -- namely due to backwards
+          # compatibility complexity. Instead, refer to mcu_startup.c which uses two vector tables to fix the problem.
+          # This has the added benefit of taking less space than pushing the program base address 256 bytes.
+          size: 256
+          permissions: r
+        - name: program
+          permissions: rwx
+          target: app-a
+        - name: codesign_signature
+          size: 64
+          permissions: r
+    - name: application_b
+      size: 632K
+      sections:
+        - name: metadata
+          size: 1K
+          permissions: r
+        - name: properties
+          # See note about VTOR above.
+          size: 256
+          permissions: r
+        - name: program
+          permissions: rwx
+          target: app-b
+        - name: codesign_signature
+          size: 64
+          permissions: r
+ram:
+  origin: 0x20000000
+  size: 256K
+  partitions:
+    # User-defined noinit RAM must be placed at the bottom of SRAM
+    # because efr32 root code uses the top of DRAM for storage across
+    # reset.
+    - name: ram_noinit
+      size: 128
+      permissions: rwx
+    - name: ram
+      size: 262016
+      permissions: rwx

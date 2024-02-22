@@ -1,0 +1,198 @@
+syntax = "proto3";
+package build.wallet.analytics.v1;
+
+message EventBundle {
+    repeated Event events = 1;
+}
+
+message Event {
+    string          event_time          	= 1;
+    Action          action              	= 2;
+    string          account_id          	= 3;
+    string          app_device_id       	= 4;
+    string          app_installation_id 	= 5;
+    string          keyset_id           	= 6;
+    string          session_id          	= 7;
+    HardwareInfo    hw_info             	= 9;
+    PlatformInfo    platform_info       	= 10;
+
+    /** Device locale settings */
+    string          country             	= 8;
+    string          locale_currency             = 12;
+    
+    /** Optional information for the ACTION_APP_SCREEN_IMPRESSION event */
+    string          screen_id           	= 11;
+
+    /** Preferences */
+    string          fiat_currency_preference    = 13;
+    string          bitcoin_display_preference  = 14;
+}
+
+enum Action {
+    ACTION_UNSPECIFIED                                                  = 0;
+
+    /** [App] Mobile transactions were enabled */
+    ACTION_APP_MOBILE_TRANSACTIONS_ENABLED                              = 1;
+
+    /** [App] Mobile transactions were disabled */
+    ACTION_APP_MOBILE_TRANSACTIONS_DISABLED                             = 2;
+
+    /** [App] Customer taps on a push notification and opens the app */
+    ACTION_APP_PUSH_NOTIFICATION_OPEN                                   = 3;
+
+    /** [App] Customer dismisses a push notifications and closes it without opening (e.g. on iOS clears them without clicking on them)  */
+    ACTION_APP_PUSH_NOTIFICATION_DISMISS                                = 4;
+
+    /** [App] Customer grants request for push notifications */
+    ACTION_APP_PUSH_NOTIFICATIONS_ENABLED                               = 5;
+
+    /** [App] Customer denies request for push notifications */
+    ACTION_APP_PUSH_NOTIFICATIONS_DISABLED                              = 6;
+
+    /** [App] The app is launched */
+    ACTION_APP_OPEN_INITIALIZE                                          = 7;
+
+    /**
+     * [App] Customer initiates the first HW interaction in onboarding (start fingerprint enrollment).
+     * Note: This event only tracks NFC being initiated, not detected or completed.
+     */
+    ACTION_HW_ONBOARDING_OPEN                                           = 8;
+
+    /**
+     * [App] Customer initiates the complete fingerprint enrollment NFC command, indicating that they have completed registering requested fingerprints.
+     * Note: This event only tracks NFC being initiated, not detected or completed.
+     */
+    ACTION_HW_ONBOARDING_FINGERPRINT                                    = 9;
+
+    /** TBD: Currently unused */
+    ACTION_HW_FINGERPRINT_SCAN_GOOD                                     = 10;
+
+    /** TBD: Currently unused */
+    ACTION_HW_FINGERPRINT_SCAN_BAD                                      = 11;
+
+    /**
+     * [App] The complete fingerprint enrollment NFC command returns a successful response from the HW.
+     * Note: This event tracks NFC being completed and corresponds to the initiation tracked by [ACTION_HW_ONBOARDING_FINGERPRINT].
+     */
+    ACTION_HW_FINGERPRINT_COMPLETE                                      = 12;
+
+    /** [App] Cloud sign in is successful */
+    ACTION_APP_CLOUD_BACKUP_INITIALIZE                                  = 13;
+
+    /** [App] Cloud sign in is unsuccessful */
+    ACTION_APP_CLOUD_BACKUP_MISSING                                     = 14;
+
+    /** [App] Onboarding successfully created a new keybox  */
+    ACTION_APP_ACCOUNT_CREATED                                          = 15;
+
+    /** [App] App launches with no persisted active keybox */
+    ACTION_APP_OPEN_KEY_MISSING                                         = 16;
+
+    /** [App] Cloud backups is successfully restored after confirming with HW */
+    ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED                             = 17;
+
+    /** [App] Customer indicates 'Yes' in the Lost HW flow when asked if they have a new HW device ready */
+    ACTION_APP_HW_RECOVERY_STARTED                                      = 18;
+
+    /** [App] Getting started tasks are added to database to be shown to customer */
+    ACTION_APP_GETTINGSTARTED_INITIATED                                 = 19;
+
+    /** [App] Getting started tasks are cleared from database and no longer shown to customer */
+    ACTION_APP_GETTINGSTARTED_COMPLETED                                 = 20;
+
+    /** [App] Customer taps "Skip" on mobile transactions information screen from the getting started tasks */
+    ACTION_APP_MOBILE_TRANSACTION_SKIP                                  = 21;
+
+    /** [App] A generic event for a screen appearing on the mobile app. Use `screen_id` in the `Event` parameters to distinguish the screen that loaded. */
+    ACTION_APP_SCREEN_IMPRESSION                                        = 22;
+   
+    /** [App] Customer taps and successfully skips inputting a phone number during the onboarding the onboarding experience */
+    ACTION_APP_PHONE_NUMBER_INPUT_SKIP                                  = 23;
+    
+    /** [App] Customer taps and successfully skips inputting an email during the onboarding the onboarding experience */
+    ACTION_APP_EMAIL_INPUT_SKIP                                         = 24;
+    
+    /** [App] Customer taps and successfully resends a verification code while verifying their phone number */
+    ACTION_APP_PHONE_NUMBER_RESEND                                      = 25;
+    
+    /** [App] Customer taps "Skip for now" when verifying a phone number. "Skip for now" only appears after resending the code at least once. */
+    ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW                         = 26;
+
+    /** [App] Customer taps and successfully resends a verification code while verifying their email */
+    ACTION_APP_EMAIL_RESEND                			        = 36;
+
+    /** [App] Customer taps "Skip for now" when verifying an email. "Skip for now" only appears after resending the code at least once. */
+    ACTION_APP_EMAIL_RESEND_SKIP_FOR_NOW                         	= 37;
+
+    /** [App] Customer taps on the firmware update card  */
+    ACTION_APP_TAP_FWUP_CARD                                            = 27;
+
+    /** [App] The firmware update process has completed successfully  */
+    ACTION_APP_FWUP_COMPLETE                                            = 28;
+
+    /** [App] Customer has funded their wallet */
+    ACTION_APP_WALLET_FUNDED                                            = 29;
+
+    /** [App] Customer tapped stop recovery on pending lost app screen */
+    ACTION_APP_DELAY_NOTIFY_LOST_APP_TAPPED_STOP                        = 30;
+
+    /** [App] Customer tapped stop recovery on pending lost hw screen */
+    ACTION_APP_DELAY_NOTIFY_LOST_HARDWARE_TAPPED_STOP                   = 31;
+
+    /** [App] Customer cancelled recovery on pending lost app screen */
+    ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_CANCEL                     = 32;
+
+    /** [App] Customer cancelled recovery on pending lost hw screen */
+    ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_CANCEL                = 33;
+
+    /** [App] Customer dismissed modal asking for confirmation to cancel recovery on pending lost app screen */
+    ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_DISMISS_STOP_RECOVERY      = 34;
+
+    /** [App] Customer cancelled recovery on pending lost hw screen */
+    ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_DISMISS_STOP_RECOVERY = 35;
+
+    /** [App] Customer selected a new fiat currency preference for displaying monetary amounts */
+    ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE = 38;
+
+    /** [App] Customer selected a new BTC display preference (i.e. sats or BTC) for displaying monetary amounts */
+    ACTION_APP_BITCOIN_DISPLAY_PREFERENCE_CHANGE = 39;
+
+    /** [App] Customer taps "Speed Up" on the "Transaction Details" screen */
+    ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION = 40;
+
+    // Next tag is 41
+}
+
+message PlatformInfo {
+    string    device_id           = 1;
+    Client    client_type         = 2;
+    string    application_version = 3;
+    OSType    os_type             = 4;
+    string    os_version          = 5;
+    string    device_make         = 6;
+    string    device_model        = 7;
+    string    app_id              = 8;
+}
+
+message HardwareInfo {
+    string firmware_version    = 1;
+    string hw_model            = 2;
+    string hw_manufacture_info = 3;
+    bool   hw_paired           = 4;
+    string serial_number       = 5;
+}
+
+enum Client {
+    CLIENT_UNSPECIFIED = 0;
+    CLIENT_ANDROID_APP = 1;
+    CLIENT_IOS_APP     = 2;
+    CLIENT_WEB         = 3;
+}
+
+enum OSType {
+    OS_TYPE_UNSPECIFIED = 0;
+    OS_TYPE_ANDROID     = 1;
+    OS_TYPE_IOS         = 2;
+    OS_TYPE_WINDOWS     = 3;
+    OS_TYPE_UNIX        = 4;
+}

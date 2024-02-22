@@ -1,0 +1,7 @@
+package build.wallet.statemachine.platform.permissions
+
+import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
+
+expect class NotificationPermissionRequesterImpl constructor(
+  pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider,
+) : NotificationPermissionRequester

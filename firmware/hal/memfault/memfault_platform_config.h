@@ -1,0 +1,35 @@
+#pragma once
+
+#define MEMFAULT_USE_GNU_BUILD_ID        0
+#define MEMFAULT_PLATFORM_HAS_LOG_CONFIG 1
+
+#ifdef EMBEDDED_BUILD
+#define MEMFAULT_COMPACT_LOG_ENABLE 1
+#else
+// Compact logs not supported in C++, so will break our fuzzers.
+#define MEMFAULT_COMPACT_LOG_ENABLE 0
+#endif
+
+// Store logs during coredump.
+#define MEMFAULT_COREDUMP_COLLECT_LOG_REGIONS 1
+
+// Tiny coredumps
+#define MEMFAULT_COLLECT_MPU_STATE                     0
+#define MEMFAULT_COLLECT_INTERRUPT_STATE               0
+#define MEMFAULT_COREDUMP_COLLECT_HEAP_STATS           0
+#define MEMFAULT_COREDUMP_COLLECT_TASK_WATCHDOG_REGION 0
+
+#define MEMFAULT_PLATFORM_ACTIVE_STACK_SIZE_TO_COLLECT 64
+#define MEMFAULT_PLATFORM_TASK_STACK_SIZE_TO_COLLECT   0
+
+#define MEMFAULT_PLATFORM_MAX_TRACKED_TASKS 16
+
+#define MEMFAULT_FREERTOS_WARN_STACK_HIGH_ADDRESS_UNAVAILABLE 0
+
+// Don't log the build id in events.
+#define MEMFAULT_EVENT_INCLUDE_BUILD_ID 0
+
+// Enable the following for debugging.
+#define MEMFAULT_ENABLE_REBOOT_DIAG_DUMP          0
+#define MEMFAULT_DUMP_BUILD_AND_DEVICE_INFO       0
+#define MEMFAULT_ASSERT_HALT_IF_DEBUGGING_ENABLED 0

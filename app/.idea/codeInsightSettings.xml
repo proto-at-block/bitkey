@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="JavaProjectCodeInsightSettings">
+    <excluded-names>
+
+      <!-- Exclude names that pollute Compose APIs. -->
+      <!-- https://www.jetpackcompose.app/articles/productivity-hack-to-save-tens-of-engineering-hours-when-working-with-Jetpack-Compose -->
+      <name>android.app.LauncherActivity.ListItem</name>
+      <name>android.graphics.Color</name>
+      <name>android.graphics.drawable.Icon</name>
+      <name>android.graphics.fonts.FontFamily</name>
+      <name>android.inputmethodservice.Keyboard.Row</name>
+      <name>android.text.layout.Alignment</name>
+      <name>android.widget.GridLayout.Alignment</name>
+      <name>android.view.RoundedCorner</name>
+      <name>android.view.Surface</name>
+      <name>java.lang.reflect.Modifier</name>
+      <name>java.nio.file.WatchEvent.Modifier</name>
+      <name>java.time.format.TextStyle</name>
+      <name>org.w3c.dom.Text</name>
+
+      <!-- We prefer to use kotlinx-datetime library. -->
+      <name>java.time</name>
+      <name>java.util.Calendar</name>
+      <name>java.util.Date</name>
+      <name>java.util.GregorianCalendar</name>
+      <name>java.util.TimeZone</name>
+      <name>javax.xml.datatype.Duration</name>
+
+      <!-- APIs that pollute Kotlin Coroutine suggetsions, we don't use these. -->
+      <name>java.util.concurrent.Flow</name>
+      <name>org.intellij.lang.annotations.Flow</name>
+
+      <!-- We use 3rd party library for Result monad type-->
+      <name>kotlin.Result</name>
+      <name>kotlin.ResultKt</name>
+    </excluded-names>
+  </component>
+</project>

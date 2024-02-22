@@ -1,0 +1,25 @@
+services:
+  fromagerie:
+    extends:
+      file: docker-compose-services.base.yml
+      service: fromagerie
+    ports:
+      - 8080:8080
+
+  wsm-enclave:
+    extends:
+      file: docker-compose-services.base.yml
+      service: wsm-enclave
+
+  wsm-api:
+    extends:
+      file: docker-compose-services.base.yml
+      service: wsm-api
+    depends_on:
+      setup-ddb:
+        condition: service_completed_successfully
+
+  setup-ddb:
+    extends:
+      file: docker-compose-services.base.yml
+      service: setup-ddb

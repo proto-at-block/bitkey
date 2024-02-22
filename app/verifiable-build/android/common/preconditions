@@ -1,0 +1,19 @@
+#!/bin/bash
+
+testCommandExists() {
+  local command="$1"
+
+  if ! which "$command" > /dev/null 2>&1; then
+      echo "Cannot find '$command'. Please install it first and then rerun this command." >&2
+      exit 100
+  fi
+}
+
+testDockerExists() {
+  testCommandExists docker
+
+  if ! docker ps > /dev/null; then
+      echo "Cannot use docker command. Ensure that the Docker daemon is running and this process has the necessary permissions." >&2
+      exit 101
+  fi
+}

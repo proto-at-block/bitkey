@@ -1,0 +1,24 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE exchangeRateEntity(
+    id            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    fromCurrency  TEXT AS IsoCurrencyTextCode NOT NULL,
+    toCurrency    TEXT AS IsoCurrencyTextCode NOT NULL,
+    rate          REAL NOT NULL,
+    timeRetrieved INTEGER AS Instant NOT NULL,
+    CONSTRAINT currency_combination_unique UNIQUE (fromCurrency, toCurrency)
+);
+
+insertExchangeRate:
+INSERT INTO exchangeRateEntity(fromCurrency, toCurrency, rate, timeRetrieved)
+VALUES(?, ?, ?, ?);
+
+updateExchangeRate:
+UPDATE exchangeRateEntity
+SET rate = ?, timeRetrieved = ?
+WHERE fromCurrency == ? AND toCurrency == ?;
+
+allExchangeRates:
+SELECT * FROM exchangeRateEntity;
+

@@ -1,0 +1,4 @@
+[codespell]
+skip = ./venv/*,./third-party/*,./**/*.svd,./build/*,./**/build.spec
+ignore-words-list = dout,keypair
+check-filenames = true

@@ -1,0 +1,30 @@
+import build.wallet.firmware.FirmwareMetadata.FirmwareSlot;
+import build.wallet.firmware.SecureBootConfig;
+
+CREATE TABLE firmwareDeviceInfoEntity(
+  rowId         INTEGER NOT NULL PRIMARY KEY,
+  version       TEXT    NOT NULL,
+  serial        TEXT    NOT NULL,
+  swType        TEXT    NOT NULL,
+  hwRevision    TEXT    NOT NULL,
+  activeSlot    TEXT    AS FirmwareSlot NOT NULL,
+  batteryCharge REAL    NOT NULL,
+  vCell         INTEGER NOT NULL,
+  timeRetrieved INTEGER NOT NULL,
+  avgCurrentMa  INTEGER NOT NULL,
+  batteryCycles INTEGER NOT NULL,
+  secureBootConfig TEXT AS SecureBootConfig NOT NULL
+);
+
+setDeviceInfo:
+INSERT OR REPLACE INTO firmwareDeviceInfoEntity(rowId, version, serial, swType,
+  hwRevision, activeSlot, batteryCharge, vCell, timeRetrieved, avgCurrentMa, batteryCycles, secureBootConfig)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+getDeviceInfo:
+SELECT * FROM firmwareDeviceInfoEntity
+WHERE rowid = 0;
+
+clear:
+DELETE FROM firmwareDeviceInfoEntity;

@@ -1,0 +1,18 @@
+import build.wallet.money.display.BitcoinDisplayUnit;
+
+CREATE TABLE bitcoinDisplayPreferenceEntity(
+  rowId         INTEGER NOT NULL PRIMARY KEY,
+  displayUnit   TEXT AS BitcoinDisplayUnit NOT NULL
+);
+
+bitcoinDisplayPreference:
+SELECT * FROM bitcoinDisplayPreferenceEntity
+LIMIT 1;
+
+setBitcoinDisplayPreference:
+INSERT OR REPLACE INTO bitcoinDisplayPreferenceEntity(rowId, displayUnit)
+-- Use stable row ID to ensure we only ever have a single bitcoin display preference stored.
+VALUES(0, ?);
+
+clear:
+DELETE FROM bitcoinDisplayPreferenceEntity;

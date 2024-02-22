@@ -1,0 +1,12 @@
+port_name: led_port
+
+messages:
+  structs:
+    - name: led_start_animation_t
+      fields:
+        - uint32_t animation
+        - bool immediate
+    - name: led_stop_animation_t
+    - name: led_set_rest_animation_t
+      fields:
+        - uint32_t animation

@@ -1,0 +1,69 @@
+# deleted_app_key_setup.yaml
+# This utility onboards a new wallet with cloud backup enabled, then deletes the app key
+appId: ${APP_ID}
+tags:
+    - utility_flow
+---
+- runFlow: debug_setup_with_cloud_backup.yaml
+- tapOn:
+    id: "setup-new-wallet"
+- tapOn: "Continue"
+- assertVisible: "Pair your Bitkey device"
+- tapOn:
+    id: "pair-bitkey-device"
+- assertVisible: "Set up your fingerprint"
+- tapOn: 
+    id: "save-fingerprint"
+- waitForAnimationToEnd
+- tapOn: "Backup"
+- runFlow:
+    when:
+        platform: android
+    commands:
+        - assertVisible:
+            id: "identifierId"
+        - tapOn:
+            id: "identifierId"
+        - inputText: ${MAESTRO_GOOGLE_LOGIN}
+        - tapOn:
+            id: "identifierNext"
+        - tapOn:
+            id: "password"
+        - inputText: ${MAESTRO_GOOGLE_PW}
+        - tapOn:
+            id: "passwordNext"    
+        - tapOn:
+            id: "signinconsentNext"
+        - scrollUntilVisible:
+            element:
+                text: "ACCEPT"
+        - tapOn: "ACCEPT"
+        - waitForAnimationToEnd
+- runFlow:
+    when:
+        visible: "Sign in to Bitkey"
+    commands:
+        - tapOn: "CONTINUE"
+        - waitForAnimationToEnd
+        - tapOn:
+            id: i1
+        - scrollUntilVisible:
+            element:
+                text: "CONTINUE"
+        - tapOn: "CONTINUE"
+        - waitForAnimationToEnd
+- assertVisible: "Home"
+- assertVisible: "$0.00"
+- tapOn:
+    id: "tab-bar-settings"
+- scrollUntilVisible:
+    element:
+        text: "Debug Menu"
+- tapOn: "Debug Menu"
+- scrollUntilVisible:
+    element:
+        id: "delete-app-key"
+- tapOn:
+    id: "delete-app-key"
+- tapOn:
+    id: "confirm-alert"

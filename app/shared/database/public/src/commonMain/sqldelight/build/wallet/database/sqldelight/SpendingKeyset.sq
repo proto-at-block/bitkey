@@ -1,0 +1,26 @@
+import build.wallet.bitkey.app.AppSpendingPublicKey;
+import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+
+CREATE TABLE spendingKeysetEntity(
+  id          TEXT NOT NULL PRIMARY KEY,
+  serverId    TEXT NOT NULL,
+  appKey      TEXT AS AppSpendingPublicKey NOT NULL UNIQUE,
+  hardwareKey TEXT AS HwSpendingPublicKey NOT NULL UNIQUE,
+  serverKey   TEXT AS F8eSpendingPublicKey NOT NULL UNIQUE
+);
+
+insertKeyset:
+INSERT OR REPLACE INTO spendingKeysetEntity(id, serverId, appKey, hardwareKey, serverKey)
+VALUES(?, ?, ?, ?, ?);
+
+-- When fetching the keyset, join the key table for each key.
+keysetById:
+SELECT * FROM spendingKeysetEntity
+WHERE id = ?;
+
+deleteById:
+DELETE FROM spendingKeysetEntity WHERE spendingKeysetEntity.id = ?;
+
+clear:
+DELETE FROM spendingKeysetEntity;

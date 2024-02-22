@@ -1,0 +1,602 @@
+namespace core {};
+
+interface Version {
+  constructor();
+  [Throws=CommandError]
+  U16State next(sequence<u8> response);
+};
+
+interface StartFingerprintEnrollment {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface QueryAuthentication {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetFingerprintEnrollmentStatus {
+  constructor();
+  [Throws=CommandError]
+  FingerprintEnrollmentStatusState next(sequence<u8> response);
+};
+
+interface SignTransaction {
+  constructor(PartiallySignedTransaction serialized_psbt);
+  [Throws=CommandError]
+  PartiallySignedTransactionState next(sequence<u8> response);
+};
+
+interface WipeState {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface SealKey {
+  [Throws=CommandError]
+  constructor(sequence<u8> unsealed_key);
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface UnsealKey {
+  constructor(sequence<u8> sealed_key);
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface GetFirmwareMetadata {
+  constructor();
+  [Throws=CommandError]
+  FirmwareMetadataState next(sequence<u8> response);
+};
+
+interface GetDeviceIdentifiers {
+  constructor();
+  [Throws=CommandError]
+  DeviceIdentifiersState next(sequence<u8> response);
+};
+
+interface FwupStart {
+  constructor(u32? patch_size, FwupMode fwup_mode);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface FwupTransfer {
+  constructor(u32 sequence_id, sequence<u8> fwup_data, u32 offset, FwupMode fwup_mode);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface FwupFinish {
+  constructor(u32 app_properties_offset, u32 signature_offset, FwupMode fwup_mode);
+  [Throws=CommandError]
+  FwupFinishRspStatusState next(sequence<u8> response);
+};
+
+interface GetFirmwareFeatureFlags {
+  constructor();
+  [Throws=CommandError]
+  FirmwareFeatureFlagsState next(sequence<u8> response);
+};
+
+interface SetFirmwareFeatureFlags {
+  constructor(sequence<FirmwareFeatureFlag> flags, boolean enabled);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetEvents {
+  constructor();
+  [Throws=CommandError]
+  EventFragmentState next(sequence<u8> response);
+};
+
+interface GetTelemetryIdentifiers {
+  constructor();
+  [Throws=CommandError]
+  TelemetryIdentifiersState next(sequence<u8> response);
+};
+
+interface GetDeviceInfo {
+  constructor();
+  [Throws=CommandError]
+  DeviceInfoState next(sequence<u8> response);
+};
+
+interface GetCoredumpFragment {
+  constructor(u32 offset);
+  [Throws=CommandError]
+  CoredumpFragmentState next(sequence<u8> response);
+};
+
+interface GetCoredumpCount {
+  constructor();
+  [Throws=CommandError]
+  U16State next(sequence<u8> response);
+};
+
+interface GetAuthenticationKey {
+  constructor();
+  [Throws=CommandError]
+  PublicKeyState next(sequence<u8> response);
+};
+
+interface GetAuthenticationKeyV2 {
+  constructor();
+  [Throws=CommandError]
+  PublicKeyHandleState next(sequence<u8> response);
+};
+
+interface SignChallenge {
+  constructor(sequence<u8> challenge);
+  [Throws=CommandError]
+  SignatureState next(sequence<u8> response);
+};
+
+interface SignChallengeV2 {
+  constructor(sequence<u8> challenge);
+  [Throws=CommandError]
+  SignatureContextState next(sequence<u8> response);
+};
+
+interface GetInitialSpendingKey {
+  constructor(BtcNetwork network);
+  [Throws=CommandError]
+  DescriptorPublicKeyState next(sequence<u8> response);
+};
+
+interface GetNextSpendingKey {
+  constructor(sequence<DescriptorPublicKey> existing, BtcNetwork network);
+  [Throws=CommandError]
+  DescriptorPublicKeyState next(sequence<u8> response);
+};
+
+interface LockDevice {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetCert {
+  constructor(CertType kind);
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface SignVerifyAttestationChallenge {
+  constructor(sequence<u8> device_identity_der, sequence<u8> challenge);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+[Enum]
+interface BooleanState {
+  Data(sequence<u8> response);
+  Result(boolean value);
+};
+
+[Enum]
+interface U16State {
+  Data(sequence<u8> response);
+  Result(u16 value);
+};
+
+[Enum]
+interface PartiallySignedTransactionState {
+  Data(sequence<u8> response);
+  Result(PartiallySignedTransaction value);
+};
+
+[Enum]
+interface FingerprintEnrollmentStatusState {
+  Data(sequence<u8> response);
+  Result(FingerprintEnrollmentStatus value);
+};
+
+[Enum]
+interface BytesState {
+  Data(sequence<u8> response);
+  Result(sequence<u8> value);
+};
+
+[Enum]
+interface FirmwareMetadataState {
+  Data(sequence<u8> response);
+  Result(FirmwareMetadata value);
+};
+
+[Enum]
+interface DeviceIdentifiersState {
+  Data(sequence<u8> response);
+  Result(DeviceIdentifiers value);
+};
+
+[Enum]
+interface TelemetryIdentifiersState {
+  Data(sequence<u8> response);
+  Result(TelemetryIdentifiers value);
+};
+
+[Enum]
+interface DeviceInfoState {
+  Data(sequence<u8> response);
+  Result(DeviceInfo value);
+};
+
+[Enum]
+interface FwupFinishRspStatusState {
+  Data(sequence<u8> response);
+  Result(FwupFinishRspStatus value);
+};
+
+[Enum]
+interface FirmwareFeatureFlagsState {
+  Data(sequence<u8> response);
+  Result(sequence<FirmwareFeatureFlagCfg> value);
+};
+
+[Enum]
+interface EventFragmentState {
+  Data(sequence<u8> response);
+  Result(EventFragment value);
+};
+
+[Enum]
+interface PublicKeyState {
+  Data(sequence<u8> response);
+  Result(PublicKey value);
+};
+
+[Enum]
+interface DescriptorPublicKeyState {
+  Data(sequence<u8> response);
+  Result(DescriptorPublicKey value);
+};
+
+[Enum]
+interface PublicKeyHandleState {
+  Data(sequence<u8> response);
+  Result(PublicKeyHandle value);
+};
+
+[Enum]
+interface SignatureContextState {
+  Data(sequence<u8> response);
+  Result(SignatureContext value);
+};
+
+[Enum]
+interface SignatureState {
+  Data(sequence<u8> response);
+  Result(Signature value);
+};
+
+[Enum]
+interface CoredumpFragmentState {
+  Data(sequence<u8> response);
+  Result(CoredumpFragment value);
+};
+
+enum FingerprintEnrollmentStatus {
+  "StatusUnspecified",
+  "Incomplete",
+  "Complete",
+  "NotInProgress",
+};
+
+enum FwupFinishRspStatus {
+  "Unspecified",
+  "Success",
+  "SignatureInvalid",
+  "VersionInvalid",
+  "Error",
+  "WillApplyPatch",
+  "Unauthenticated",
+};
+
+[Error]
+enum CommandError {
+  "InvalidArguments",
+  "InvalidResponse",
+  "EncodeError",
+  "CorruptResponseEnvelope",
+  "CorruptResponsePayload",
+  "MissingMessage",
+  "PoisonedLockError",
+  "UnspecifiedCommandError",
+  "GeneralCommandError",
+  "SigningError",
+  "Unauthenticated",
+  "Unimplemented",
+  "ECDSASigningError",
+  "DescriptorKeyParseError",
+  "PsbtParseError",
+  "SealCsekResponseSealError",
+  "SealCsekResponseUnsealError",
+  "SealCsekResponseUnauthenticatedError",
+  "KeySizeError",
+  "SignatureInvalid",
+  "VersionInvalid",
+  "KeyGenerationFailed",
+  "PSBTSigningError",
+  "MetadataError",
+  "BatteryError",
+  "SerialError",
+  "UnknownMessage",
+  "NoSecureChannel",
+  "KeyDerivationFailed",
+  "SecureChannelError",
+  "WrongSecret",
+  "StorageErr",
+  "NoSecretProvisioned",
+  "WaitingOnDelay",
+  "FeatureNotSupported",
+  "CertReadFail",
+  "AttestationError",
+};
+
+enum FirmwareSlot {
+  "A",
+  "B",
+};
+
+enum FwupMode {
+  "Normal",
+  "Delta",
+};
+
+enum FirmwareFeatureFlag {
+  "Telemetry",
+  "DeviceInfoFlag",
+  "RateLimitTemplateUpdate",
+  "Unlock",
+};
+
+enum SecureBootConfig {
+  "Dev",
+  "Prod",
+};
+
+dictionary FirmwareMetadata {
+  FirmwareSlot active_slot;
+  string git_id;
+  string git_branch;
+  string version;
+  string build;
+  u64 timestamp;
+  sequence<u8> hash;
+  string hw_revision;
+};
+
+dictionary DeviceIdentifiers {
+  string mlb_serial;
+  string assy_serial;
+};
+
+dictionary FirmwareFeatureFlagCfg {
+  FirmwareFeatureFlag flag;
+  boolean enabled;
+};
+
+dictionary EventFragment {
+  sequence<u8> fragment;
+  i32 remaining_size;
+};
+
+dictionary TelemetryIdentifiers {
+  string serial;
+  string version;
+  string sw_type;
+  string hw_revision;
+};
+
+dictionary DeviceInfo {
+  string version;
+  string serial;
+  string sw_type;
+  string hw_revision;
+  FirmwareSlot active_slot;
+  f32 battery_charge;
+  u32 vcell;
+  i32 avg_current_ma;
+  u32 battery_cycles;
+  SecureBootConfig? secure_boot_config;
+};
+
+dictionary CoredumpFragment {
+  sequence<u8> data;
+  i32 offset;
+  boolean complete;
+  i32 coredumps_remaining;
+};
+
+[Error]
+enum SecretKeyError {
+  "InvalidSecretBytes",
+};
+
+interface SecretKey {
+  [Throws=SecretKeyError]
+  constructor(sequence<u8> secret_bytes);
+
+  Signature sign_message(sequence<u8> message);
+
+  PublicKey as_public();
+};
+
+[Error]
+enum TeltraError {
+  "ParsingError",
+  "TranslationError",
+  "LockError",
+};
+
+interface Teltra {
+  constructor();
+
+  [Throws=TeltraError]
+  sequence<sequence<u8>> translate_bitlogs(sequence<u8> bitlog_bytes, TelemetryIdentifiers identifiers);
+};
+
+[Error]
+enum AttestationError {
+  "NotForBlock",
+  "InvalidChain",
+  "ParseFailure",
+  "VerificationFailure",
+};
+
+interface Attestation {
+  constructor();
+
+  [Throws=AttestationError]
+  string verify_device_identity_cert_chain(sequence<u8> identity_cert_der, sequence<u8> batch_cert_der);
+
+  [Throws=AttestationError]
+  sequence<u8> generate_challenge();
+};
+
+enum BtcNetwork {
+  "Bitcoin",
+  "Testnet",
+  "Signet",
+  "Regtest",
+};
+
+enum CertType {
+  "Unspecified",
+  "BatchCert",
+  "DeviceSeCert",
+  "DeviceHostCert",
+};
+
+[Error]
+enum InvoiceError {
+  "InvalidInvoiceFormat",
+  "InvalidPaymentHash"
+};
+
+interface Invoice {
+  [Throws=InvoiceError]
+  constructor(string invoice_string);
+  Sha256 payment_hash();
+  PublicKey? payee_pubkey();
+  boolean is_expired();
+  u64? amount_msat();
+};
+
+enum EllipticCurve {
+  "Secp256k1",
+  "P256",
+  "Ed25519",
+};
+
+enum KeyEncoding {
+  "Raw",
+};
+
+dictionary PublicKeyMetadata {
+  EllipticCurve curve;
+  KeyEncoding encoding;
+};
+
+dictionary PublicKeyHandle {
+  PublicKeyMetadata metadata;
+  sequence<u8> material;
+};
+
+dictionary SignatureContext {
+  PublicKeyHandle? pubkey;
+  sequence<u8> signature;
+};
+
+[Custom]
+typedef string PartiallySignedTransaction;
+
+[Custom]
+typedef string DescriptorPublicKey;
+
+[Custom]
+typedef string Sha256;
+
+[Custom]
+typedef string PublicKey;
+
+[Custom]
+typedef string Signature;
+
+interface Secp256k1SharedSecret {
+  constructor([ByRef] PublicKey point, [ByRef] SecretKey scalar);
+  bytes secret_bytes();
+};
+
+[Error]
+enum HkdfError {
+  "ExpandError",
+};
+
+interface Hkdf {
+  constructor([ByRef] bytes salt, [ByRef] bytes ikm);
+  [Throws=HkdfError]
+  bytes expand([ByRef] bytes info, i32 len);
+};
+
+enum ChaCha20Poly1305Error {
+  "EncryptError",
+  "DecryptError",
+};
+
+interface XChaCha20Poly1305 {
+  constructor([ByRef] bytes key);
+  [Throws=ChaCha20Poly1305Error]
+  bytes encrypt([ByRef] bytes nonce, [ByRef] bytes plaintext, [ByRef] bytes aad);
+  [Throws=ChaCha20Poly1305Error]
+  bytes decrypt([ByRef] bytes nonce, [ByRef] bytes ciphertext, [ByRef] bytes aad);
+};
+
+[Error]
+enum Spake2Error {
+  "ContextCreationError",
+  "LengthError",
+  "GenerateMessageError",
+  "ProcessMessageError",
+  "InvalidName",
+  "HkdfError",
+  "MacError",
+  "InvalidRole",
+};
+
+interface Spake2Context {
+  [Throws=Spake2Error]
+  constructor(Spake2Role my_role, string my_name, string their_name);
+
+  [Throws=Spake2Error]
+  bytes generate_msg(bytes password);
+
+  [Throws=Spake2Error]
+  Spake2Keys process_msg(bytes their_msg, bytes? aad);
+
+  [Throws=Spake2Error]
+  bytes generate_key_conf_msg([ByRef] Spake2Keys keys);
+
+  [Throws=Spake2Error]
+  void process_key_conf_msg(bytes received_mac, [ByRef] Spake2Keys keys);
+};
+
+dictionary Spake2Keys {
+  bytes alice_encryption_key;
+  bytes bob_encryption_key;
+  bytes alice_conf_key;
+  bytes bob_conf_key;
+};
+
+enum Spake2Role {
+  "Alice",
+  "Bob",
+};

@@ -1,0 +1,11 @@
+# Terraform auto-generated
+.terraform/
+
+# Terragrunt auto-generated
+.terragrunt-cache/
+backend.tf
+provider.tf
+
+# Terraform dependency locks. We should be running terraform mostly
+# using Atlantis so these lockfiles would not get updated
+.terraform.lock.hcl

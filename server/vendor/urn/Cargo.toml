@@ -1,0 +1,26 @@
+[package]
+authors = ["chayleaf <chayleaf-cratesio@pavluk.org>"]
+categories = ["encoding", "parser-implementations", "web-programming"]
+description = "A crate for handling URNs (Unique Resource Names)"
+edition = "2021"
+keywords = ["iana", "namespace", "parser", "uri", "urn"]
+license = "0BSD OR MIT OR Apache-2.0"
+name = "urn"
+readme = "README.md"
+repository = "https://github.com/chayleaf/urn/"
+version = "0.7.0"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies.serde]
+default-features = false
+optional = true
+version = "1.0"
+
+[features]
+alloc = ["serde?/alloc"]
+default = ["std"]
+nightly = []
+std = ["alloc"]

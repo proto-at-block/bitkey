@@ -1,0 +1,28 @@
+manifest_version: {{manifest_version}}
+fwup_bundle:
+  product: {{product}}
+  version: {{version}}
+  assets:
+    bootloader:
+      image:
+        name: {{bootloader_name}}.signed.bin
+      signature:
+        name: {{bootloader_name}}.detached_signature
+    application_a:
+      image:
+        name: {{application_a_name}}.signed.bin
+      signature:
+        name: {{application_a_name}}.detached_signature
+    application_b:
+      image:
+        name: {{application_b_name}}.signed.bin
+      signature:
+        name: {{application_b_name}}.detached_signature
+  parameters:
+    wca_chunk_size: 452
+    # 632K - 64.
+    # Application slot size minus signature size.
+    # This is tied to partitions.yml (sizes, and signature location), and MUST match it.
+    signature_offset: 647104
+    # Also from partitions.yml. MUST match.
+    app_properties_offset: 1024

@@ -1,0 +1,1 @@
+This module contains domain specific components for onboarding customer with their new or recovered Keybox.

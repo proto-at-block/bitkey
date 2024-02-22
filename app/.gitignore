@@ -1,0 +1,51 @@
+# IDE
+*.iml
+**/.idea/*
+!/.idea/codeInsightSettings.xml
+!/.idea/externalDependencies.xml
+!/.idea/detekt.xml
+!/.idea/vcs.xml
+# ktlint code style
+!/.idea/codeStyles/codeStyleConfig.xml
+!/.idea/codeStyles/Project.xml
+/captures
+
+# Gradle
+.gradle
+_build
+local.properties
+**/reports/configuration-cache/
+
+# Gradle Profiler
+profile-out*
+gradle-user-home
+
+# Kotlin
+**/build/classes/kotlin/commonizer/
+**/build/kotlin/sessions/**/*.salive
+
+# SqlDelight
+*.db
+# Allow genered database schemas used to test migrations.
+!**/databases/*.db
+
+# Native
+.externalNativeBuild
+xcuserdata
+.cxx
+# https://youtrack.jetbrains.com/issue/KTIJ-23160
+**/build/bin/**/*.framework*/
+
+# Mac
+.DS_Store
+
+# Android
+# TODO: remove once Paparazzi respects custom build output directory
+**/build/reports/paparazzi
+# TODO: why does Paparazzi not put this into build output directory?
+**/out/failures/**/*.png
+
+# App Bundles
+*.aab
+
+buildSrc/build

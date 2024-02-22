@@ -1,0 +1,21 @@
+import build.wallet.analytics.v1.Event;
+import build.wallet.f8e.F8eEnvironment;
+
+-- The table for [Event] objects
+CREATE TABLE eventEntity(
+    id             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    event          BLOB AS Event NOT NULL,
+    f8eEnvironment TEXT AS F8eEnvironment NOT NULL
+);
+
+append:
+INSERT INTO eventEntity(event, f8eEnvironment)
+VALUES(?, ?);
+
+take:
+SELECT * FROM eventEntity ORDER BY id ASC LIMIT ?;
+
+removeFirst:
+DELETE FROM eventEntity
+WHERE id IN
+(SELECT id FROM eventEntity ORDER BY id ASC LIMIT ?);

@@ -1,0 +1,74 @@
+[package]
+default-run = "server"
+edition = { workspace = true }
+name = "server"
+publish = { workspace = true }
+version = "0.0.1"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]]
+name = "server"
+
+[dependencies]
+# utility dependencies
+async-trait = { workspace = true }
+axum = { workspace = true }
+axum-tracing-opentelemetry = { workspace = true }
+clap = { version = "4.5.0", features = ["derive", "env"] }
+hex = { workspace = true }
+http = { workspace = true }
+isocountry = { workspace = true }
+jwt-authorizer = { workspace = true }
+prost = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_urlencoded = "0.7.1"
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+ulid = { workspace = true }
+utoipa = { workspace = true }
+utoipa-swagger-ui = { workspace = true }
+wallet-telemetry = { workspace = true }
+wsm-rust-client = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+analytics = { workspace = true }
+authn_authz = { workspace = true }
+bdk_utils = { workspace = true }
+chain_indexer = { workspace = true }
+comms_verification = { workspace = true }
+customer_feedback = { workspace = true }
+database = { workspace = true }
+errors = { workspace = true }
+exchange_rate = { workspace = true }
+external_identifier = { workspace = true }
+feature_flags = { workspace = true }
+http_server = { workspace = true }
+metrics = { workspace = true }
+migration = { workspace = true }
+mobile_pay = { workspace = true }
+notification = { workspace = true }
+onboarding = { workspace = true }
+partnerships = { workspace = true, optional = true }
+queue = { workspace = true }
+recovery = { workspace = true }
+repository = { workspace = true, features = ["recovery"] }
+types = { workspace = true, features = ["account", "recovery"] }
+workers = { workspace = true }
+
+[dev-dependencies]
+aws-sdk-sqs = { workspace = true }
+env_logger = "0.11.1"
+http-body-util = "0.1.0"
+httpmock = "0.7"
+mockall = "0.12.1"
+rstest = "0.18.1"
+tower = { workspace = true }
+
+[features]
+partnerships = ["dep:partnerships"]

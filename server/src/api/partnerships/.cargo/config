@@ -1,0 +1,2 @@
+[net]
+git-fetch-with-cli = true	# libssh2 and beyond-ssh-agent don't play well together

@@ -1,0 +1,4 @@
+# ignore third_party code from clang-format checks
+firmware/third-party/*
+firmware/mcu/efr32xg24/gecko-cfg/*
+firmware/app/**/**/autogen/*

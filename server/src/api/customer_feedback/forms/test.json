@@ -1,0 +1,4717 @@
+{
+    "ticket_form": {
+      "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_forms/19386715141908.json",
+      "name": "Support Request",
+      "display_name": "Service Inquiry",
+      "id": 19386715141908,
+      "raw_name": "Support Request",
+      "raw_display_name": "Service Inquiry",
+      "end_user_visible": true,
+      "position": 0,
+      "ticket_field_ids": [
+        11296171485588,
+        11296203801108,
+        11296218933140,
+        11296203798676,
+        18558334323604,
+        19386478935316,
+        18557523746836,
+        19386487286420,
+        17171641094164,
+        21675607952276,
+        21675493661204,
+        21675638329236,
+        19386593578900,
+        19386566440468,
+        19386587342740,
+        19386606520724,
+        19386591286292,
+        18557474183060,
+        17171619135892,
+        17171594621332,
+        19386550194836,
+        19386560407956,
+        19386541626772,
+        19386627184148,
+        18557489576852,
+        21676161699220,
+        11296211478292,
+        11296199663124,
+        19572531415316,
+        19437346200468,
+        19386548592788,
+        19769247991828
+      ],
+      "active": true,
+      "default": true,
+      "created_at": "2023-09-21T04:40:36Z",
+      "updated_at": "2024-01-29T14:20:32Z",
+      "in_all_brands": true,
+      "restricted_brand_ids": [],
+      "end_user_conditions": [
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "exchange_custodial_partners_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false
+            },
+            {
+              "id": 18557523746836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "mobile_app_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386587342740,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "orders_shipping_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386487286420,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "transactions_wallet_balance_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386606520724,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "wallet_recovery_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386591286292,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "setting_up_my_wallet_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386593578900,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "problems_with_my_hardware_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386566440468,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "privacy_questions_contact_reason",
+          "child_fields": [
+            {
+              "id": 21676161699220,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "accessing_the_app_mobile",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "other_mobile",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "notifications_mobile",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386541626772,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "unresponsive_app_mobile",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "setting_preferences_mobile",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "app_updates_mobile",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "app_crash",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "sending_bitcoin_balance",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "wallet_balance",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "receiving_bitcoin_balance",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "fees_balance",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "lost_bitcoin_balance",
+          "child_fields": [
+            {
+              "id": 18557489576852,
+              "is_required": false
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "mobile_pay_balance",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "transaction_history_balance",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "other_balance",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "cloud_recovery_isn’t_working_recovery",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "unable_to_complete_recovery",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "unable_to_start_recovery",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "other_recovery",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "device_arrived_damaged_orders/shipping",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19437346200468,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "cancel_order_orders/shipping",
+          "child_fields": [
+            {
+              "id": 21675493661204,
+              "is_required": true
+            },
+            {
+              "id": 17171641094164,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "refund_status_orders/shipping",
+          "child_fields": [
+            {
+              "id": 21675607952276,
+              "is_required": true
+            },
+            {
+              "id": 17171641094164,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "resend_confirmation/shipping_email_orders/shipping",
+          "child_fields": [
+            {
+              "id": 17171641094164,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "other_orders/shipping",
+          "child_fields": [
+            {
+              "id": 21675638329236,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "unable_to_download_the_app_setup_wallet",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "unable_to_pair_hardware_setup_wallet",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "setting_up_notifications_setup_wallet",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 19386541626772,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "other_setup_wallet",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "creating_a_cloud_backup_setup_wallet",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "device_doesn’t_recognize_fingerprint_hardware",
+          "child_fields": [
+            {
+              "id": 19386627184148,
+              "is_required": false
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "usb-c_port_isn’t_working_hardware",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "device_won’t_communicate_with_the_phone/app_hardware",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "battery_hardware",
+          "child_fields": [
+            {
+              "id": 19386627184148,
+              "is_required": false
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "led_doesn’t_turn_on_hardware",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "physical_damage_to_the_device_hardware",
+          "child_fields": [
+            {
+              "id": 19386627184148,
+              "is_required": false
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true
+            },
+            {
+              "id": 19386548592788,
+              "is_required": true
+            }
+          ]
+        }
+      ],
+      "agent_conditions": [
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "transactions_wallet_balance_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386606520724,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "wallet_recovery_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386591286292,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "orders_shipping_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386487286420,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "mobile_app_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386587342740,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "exchange_custodial_partners_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 18557523746836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "setting_up_my_wallet_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386593578900,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "problems_with_my_hardware_contact_reason",
+          "child_fields": [
+            {
+              "id": 19386566440468,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386478935316,
+          "parent_field_type": "tagger",
+          "value": "privacy_questions_contact_reason",
+          "child_fields": [
+            {
+              "id": 21676161699220,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "device_arrived_damaged_orders/shipping",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19437346200468,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "cancel_order_orders/shipping",
+          "child_fields": [
+            {
+              "id": 17171641094164,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 21675493661204,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "resend_confirmation/shipping_email_orders/shipping",
+          "child_fields": [
+            {
+              "id": 17171641094164,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "other_orders/shipping",
+          "child_fields": [
+            {
+              "id": 21675638329236,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386487286420,
+          "parent_field_type": "tagger",
+          "value": "refund_status_orders/shipping",
+          "child_fields": [
+            {
+              "id": 21675607952276,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171641094164,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "accessing_the_app_mobile",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "unresponsive_app_mobile",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "other_mobile",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "setting_preferences_mobile",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "app_updates_mobile",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "notifications_mobile",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386541626772,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386587342740,
+          "parent_field_type": "tagger",
+          "value": "app_crash",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "sending_bitcoin_balance",
+          "child_fields": [
+            {
+              "id": 18557489576852,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "wallet_balance",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "lost_bitcoin_balance",
+          "child_fields": [
+            {
+              "id": 18557474183060,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "receiving_bitcoin_balance",
+          "child_fields": [
+            {
+              "id": 18557489576852,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "fees_balance",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 18557489576852,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 18557474183060,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "mobile_pay_balance",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "transaction_history_balance",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386606520724,
+          "parent_field_type": "tagger",
+          "value": "other_balance",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "cloud_recovery_isn’t_working_recovery",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "unable_to_complete_recovery",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "unable_to_start_recovery",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386591286292,
+          "parent_field_type": "tagger",
+          "value": "other_recovery",
+          "child_fields": [
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "setting_up_notifications_setup_wallet",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386541626772,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "other_setup_wallet",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "unable_to_pair_hardware_setup_wallet",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "creating_a_cloud_backup_setup_wallet",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386593578900,
+          "parent_field_type": "tagger",
+          "value": "unable_to_download_the_app_setup_wallet",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "physical_damage_to_the_device_hardware",
+          "child_fields": [
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386548592788,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "usb-c_port_isn’t_working_hardware",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "led_doesn’t_turn_on_hardware",
+          "child_fields": [
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "device_won’t_communicate_with_the_phone/app_hardware",
+          "child_fields": [
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "hardware_device_updates_hardware",
+          "child_fields": [
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "other_hardware",
+          "child_fields": [
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386560407956,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            },
+            {
+              "id": 19386550194836,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171594621332,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "battery_hardware",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        },
+        {
+          "parent_field_id": 19386566440468,
+          "parent_field_type": "tagger",
+          "value": "device_doesn’t_recognize_fingerprint_hardware",
+          "child_fields": [
+            {
+              "id": 17171619135892,
+              "is_required": true,
+              "required_on_statuses": {
+                "type": "SOME_STATUSES",
+                "statuses": [
+                  "solved"
+                ]
+              }
+            },
+            {
+              "id": 19386627184148,
+              "is_required": false,
+              "required_on_statuses": {
+                "type": "NO_STATUSES"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "ticket_fields": [
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/11296171485588.json",
+        "id": 11296171485588,
+        "type": "status",
+        "title": "Status",
+        "raw_title": "Status",
+        "description": "Request status",
+        "raw_description": "Request status",
+        "position": 3,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Status",
+        "raw_title_in_portal": "Status",
+        "visible_in_portal": false,
+        "editable_in_portal": false,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2022-12-02T16:07:40Z",
+        "updated_at": "2023-07-06T21:23:21Z",
+        "removable": false,
+        "key": null,
+        "agent_description": null,
+        "system_field_options": [
+          {
+            "name": "Open",
+            "value": "open"
+          },
+          {
+            "name": "Pending",
+            "value": "pending"
+          },
+          {
+            "name": "On-hold",
+            "value": "hold"
+          },
+          {
+            "name": "Solved",
+            "value": "solved"
+          }
+        ],
+        "sub_type_id": 1
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/11296203801108.json",
+        "id": 11296203801108,
+        "type": "group",
+        "title": "Group",
+        "raw_title": "Group",
+        "description": "Request group",
+        "raw_description": "Request group",
+        "position": 6,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Group",
+        "raw_title_in_portal": "Group",
+        "visible_in_portal": false,
+        "editable_in_portal": false,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2022-12-02T16:07:41Z",
+        "updated_at": "2022-12-02T16:07:41Z",
+        "removable": false,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/11296218933140.json",
+        "id": 11296218933140,
+        "type": "assignee",
+        "title": "Assignee",
+        "raw_title": "Assignee",
+        "description": "Agent assigned to your request",
+        "raw_description": "Agent assigned to your request",
+        "position": 7,
+        "active": true,
+        "required": true,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Assignee",
+        "raw_title_in_portal": "Assignee",
+        "visible_in_portal": true,
+        "editable_in_portal": false,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2022-12-02T16:07:41Z",
+        "updated_at": "2022-12-02T16:07:41Z",
+        "removable": false,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/11296203798676.json",
+        "id": 11296203798676,
+        "type": "custom_status",
+        "title": "Ticket status",
+        "raw_title": "Ticket status",
+        "description": "Request ticket status",
+        "raw_description": "Request ticket status",
+        "position": 8,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Ticket status",
+        "raw_title_in_portal": "Ticket status",
+        "visible_in_portal": false,
+        "editable_in_portal": false,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2022-12-02T16:07:40Z",
+        "updated_at": "2022-12-02T16:07:40Z",
+        "removable": false,
+        "key": null,
+        "agent_description": null,
+        "custom_statuses": [
+          {
+            "url": "https://bitkeysupport.zendesk.com/api/v2/custom_statuses/11296188072724.json",
+            "id": 11296188072724,
+            "status_category": "new",
+            "agent_label": "New",
+            "end_user_label": "Open",
+            "description": "Ticket is awaiting assignment to an agent",
+            "end_user_description": "We are working on a response for you",
+            "active": true,
+            "default": true,
+            "created_at": "2022-12-02T16:07:43Z",
+            "updated_at": "2022-12-02T16:07:43Z"
+          },
+          {
+            "url": "https://bitkeysupport.zendesk.com/api/v2/custom_statuses/11296204024212.json",
+            "id": 11296204024212,
+            "status_category": "open",
+            "agent_label": "Open",
+            "end_user_label": "Open",
+            "description": "Staff is working on the ticket",
+            "end_user_description": "We are working on a response for you",
+            "active": true,
+            "default": true,
+            "created_at": "2022-12-02T16:07:43Z",
+            "updated_at": "2022-12-02T16:07:43Z"
+          },
+          {
+            "url": "https://bitkeysupport.zendesk.com/api/v2/custom_statuses/11296199919764.json",
+            "id": 11296199919764,
+            "status_category": "pending",
+            "agent_label": "Pending",
+            "end_user_label": "Awaiting your reply",
+            "description": "Staff is waiting for the requester to reply",
+            "end_user_description": "We are waiting for you to respond",
+            "active": true,
+            "default": true,
+            "created_at": "2022-12-02T16:07:43Z",
+            "updated_at": "2022-12-02T16:07:43Z"
+          },
+          {
+            "url": "https://bitkeysupport.zendesk.com/api/v2/custom_statuses/11296188085524.json",
+            "id": 11296188085524,
+            "status_category": "hold",
+            "agent_label": "On-hold",
+            "end_user_label": "Open",
+            "description": "Staff is waiting for a third party",
+            "end_user_description": "We are working on a response for you",
+            "active": true,
+            "default": true,
+            "created_at": "2022-12-02T16:07:43Z",
+            "updated_at": "2023-07-06T21:23:21Z"
+          },
+          {
+            "url": "https://bitkeysupport.zendesk.com/api/v2/custom_statuses/11296211762196.json",
+            "id": 11296211762196,
+            "status_category": "solved",
+            "agent_label": "Solved",
+            "end_user_label": "Solved",
+            "description": "The ticket has been solved",
+            "end_user_description": "This request has been solved",
+            "active": true,
+            "default": true,
+            "created_at": "2022-12-02T16:07:43Z",
+            "updated_at": "2022-12-02T16:07:43Z"
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/18558334323604.json",
+        "id": 18558334323604,
+        "type": "tagger",
+        "title": "Country",
+        "raw_title": "Country",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": true,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Where are you located?",
+        "raw_title_in_portal": "Where are you located?",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": true,
+        "tag": null,
+        "created_at": "2023-08-23T21:39:47Z",
+        "updated_at": "2023-12-08T18:13:41Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 18558375891732,
+            "name": "Angola",
+            "raw_name": "Angola",
+            "value": "angola",
+            "default": false
+          },
+          {
+            "id": 18558375891860,
+            "name": "Argentina",
+            "raw_name": "Argentina",
+            "value": "argentina",
+            "default": false
+          },
+          {
+            "id": 18558375891988,
+            "name": "Australia",
+            "raw_name": "Australia",
+            "value": "australia",
+            "default": false
+          },
+          {
+            "id": 18558375892116,
+            "name": "Austria",
+            "raw_name": "Austria",
+            "value": "austria",
+            "default": false
+          },
+          {
+            "id": 18558375892244,
+            "name": "Azerbaijan",
+            "raw_name": "Azerbaijan",
+            "value": "azerbaijan",
+            "default": false
+          },
+          {
+            "id": 18558375892372,
+            "name": "Belgium",
+            "raw_name": "Belgium",
+            "value": "belgium",
+            "default": false
+          },
+          {
+            "id": 18558375892500,
+            "name": "Benin",
+            "raw_name": "Benin",
+            "value": "benin",
+            "default": false
+          },
+          {
+            "id": 18558375892628,
+            "name": "Bolivia",
+            "raw_name": "Bolivia",
+            "value": "bolivia",
+            "default": false
+          },
+          {
+            "id": 18558375892756,
+            "name": "Bosnia and Herzegovina",
+            "raw_name": "Bosnia and Herzegovina",
+            "value": "bosnia_and_herzegovina",
+            "default": false
+          },
+          {
+            "id": 18558375892884,
+            "name": "Brazil",
+            "raw_name": "Brazil",
+            "value": "brazil",
+            "default": false
+          },
+          {
+            "id": 18558375893012,
+            "name": "Bulgaria",
+            "raw_name": "Bulgaria",
+            "value": "bulgaria",
+            "default": false
+          },
+          {
+            "id": 18558375893140,
+            "name": "Burkina Faso",
+            "raw_name": "Burkina Faso",
+            "value": "burkina_faso",
+            "default": false
+          },
+          {
+            "id": 18558375893268,
+            "name": "Cambodia",
+            "raw_name": "Cambodia",
+            "value": "cambodia",
+            "default": false
+          },
+          {
+            "id": 18558375893396,
+            "name": "Cameroon",
+            "raw_name": "Cameroon",
+            "value": "cameroon",
+            "default": false
+          },
+          {
+            "id": 18558375893524,
+            "name": "Canada",
+            "raw_name": "Canada",
+            "value": "canada",
+            "default": false
+          },
+          {
+            "id": 18558375893652,
+            "name": "Chad",
+            "raw_name": "Chad",
+            "value": "chad",
+            "default": false
+          },
+          {
+            "id": 18558375893780,
+            "name": "Chile",
+            "raw_name": "Chile",
+            "value": "chile",
+            "default": false
+          },
+          {
+            "id": 18558375893908,
+            "name": "Colombia",
+            "raw_name": "Colombia",
+            "value": "colombia",
+            "default": false
+          },
+          {
+            "id": 18558375894036,
+            "name": "Costa Rica",
+            "raw_name": "Costa Rica",
+            "value": "costa_rica",
+            "default": false
+          },
+          {
+            "id": 18558375894164,
+            "name": "Côte d’Ivoire",
+            "raw_name": "Côte d’Ivoire",
+            "value": "côte_d’ivoire",
+            "default": false
+          },
+          {
+            "id": 18558375894292,
+            "name": "Croatia",
+            "raw_name": "Croatia",
+            "value": "croatia",
+            "default": false
+          },
+          {
+            "id": 18558375894420,
+            "name": "Cyprus",
+            "raw_name": "Cyprus",
+            "value": "cyprus",
+            "default": false
+          },
+          {
+            "id": 18558375894548,
+            "name": "Czech Republic",
+            "raw_name": "Czech Republic",
+            "value": "czech_republic",
+            "default": false
+          },
+          {
+            "id": 18558375894676,
+            "name": "Denmark",
+            "raw_name": "Denmark",
+            "value": "denmark",
+            "default": false
+          },
+          {
+            "id": 18558375894804,
+            "name": "Dominican Republic",
+            "raw_name": "Dominican Republic",
+            "value": "dominican_republic",
+            "default": false
+          },
+          {
+            "id": 18558375894932,
+            "name": "Ecuador",
+            "raw_name": "Ecuador",
+            "value": "ecuador",
+            "default": false
+          },
+          {
+            "id": 18558375895060,
+            "name": "El Salvador",
+            "raw_name": "El Salvador",
+            "value": "el_salvador",
+            "default": false
+          },
+          {
+            "id": 18558375895188,
+            "name": "Estonia",
+            "raw_name": "Estonia",
+            "value": "estonia",
+            "default": false
+          },
+          {
+            "id": 18558375895316,
+            "name": "Finland",
+            "raw_name": "Finland",
+            "value": "finland",
+            "default": false
+          },
+          {
+            "id": 18558375895444,
+            "name": "France",
+            "raw_name": "France",
+            "value": "france",
+            "default": false
+          },
+          {
+            "id": 18558375895572,
+            "name": "Germany",
+            "raw_name": "Germany",
+            "value": "germany",
+            "default": false
+          },
+          {
+            "id": 18558375895700,
+            "name": "Ghana",
+            "raw_name": "Ghana",
+            "value": "ghana",
+            "default": false
+          },
+          {
+            "id": 18558375895828,
+            "name": "Greece",
+            "raw_name": "Greece",
+            "value": "greece",
+            "default": false
+          },
+          {
+            "id": 18558375895956,
+            "name": "Guatemala",
+            "raw_name": "Guatemala",
+            "value": "guatemala",
+            "default": false
+          },
+          {
+            "id": 18558375896084,
+            "name": "Guinea",
+            "raw_name": "Guinea",
+            "value": "guinea",
+            "default": false
+          },
+          {
+            "id": 18558375896212,
+            "name": "Haiti",
+            "raw_name": "Haiti",
+            "value": "haiti",
+            "default": false
+          },
+          {
+            "id": 18558375896340,
+            "name": "Honduras",
+            "raw_name": "Honduras",
+            "value": "honduras",
+            "default": false
+          },
+          {
+            "id": 18558375896468,
+            "name": "Hong Kong",
+            "raw_name": "Hong Kong",
+            "value": "hong_kong",
+            "default": false
+          },
+          {
+            "id": 18558375896596,
+            "name": "Hungary",
+            "raw_name": "Hungary",
+            "value": "hungary",
+            "default": false
+          },
+          {
+            "id": 18558375896724,
+            "name": "Iceland",
+            "raw_name": "Iceland",
+            "value": "iceland",
+            "default": false
+          },
+          {
+            "id": 18558375896852,
+            "name": "India",
+            "raw_name": "India",
+            "value": "india",
+            "default": false
+          },
+          {
+            "id": 18558375896980,
+            "name": "Indonesia",
+            "raw_name": "Indonesia",
+            "value": "indonesia",
+            "default": false
+          },
+          {
+            "id": 18558375897108,
+            "name": "Ireland",
+            "raw_name": "Ireland",
+            "value": "ireland",
+            "default": false
+          },
+          {
+            "id": 18558375897364,
+            "name": "Italy",
+            "raw_name": "Italy",
+            "value": "italy",
+            "default": false
+          },
+          {
+            "id": 18558375897492,
+            "name": "Jamaica",
+            "raw_name": "Jamaica",
+            "value": "jamaica",
+            "default": false
+          },
+          {
+            "id": 18558375897620,
+            "name": "Jordan",
+            "raw_name": "Jordan",
+            "value": "jordan",
+            "default": false
+          },
+          {
+            "id": 18558375897748,
+            "name": "Kazakhstan",
+            "raw_name": "Kazakhstan",
+            "value": "kazakhstan",
+            "default": false
+          },
+          {
+            "id": 18558375897876,
+            "name": "Kenya",
+            "raw_name": "Kenya",
+            "value": "kenya",
+            "default": false
+          },
+          {
+            "id": 18558375898004,
+            "name": "Latvia",
+            "raw_name": "Latvia",
+            "value": "latvia",
+            "default": false
+          },
+          {
+            "id": 18558375898132,
+            "name": "Lebanon",
+            "raw_name": "Lebanon",
+            "value": "lebanon",
+            "default": false
+          },
+          {
+            "id": 18558375898260,
+            "name": "Lithuania",
+            "raw_name": "Lithuania",
+            "value": "lithuania",
+            "default": false
+          },
+          {
+            "id": 18558375898388,
+            "name": "Luxembourg",
+            "raw_name": "Luxembourg",
+            "value": "luxembourg",
+            "default": false
+          },
+          {
+            "id": 18558375898516,
+            "name": "Madagascar",
+            "raw_name": "Madagascar",
+            "value": "madagascar",
+            "default": false
+          },
+          {
+            "id": 18558375898644,
+            "name": "Malawi",
+            "raw_name": "Malawi",
+            "value": "malawi",
+            "default": false
+          },
+          {
+            "id": 18558375898772,
+            "name": "Malaysia",
+            "raw_name": "Malaysia",
+            "value": "malaysia",
+            "default": false
+          },
+          {
+            "id": 18558375898900,
+            "name": "Mali",
+            "raw_name": "Mali",
+            "value": "mali",
+            "default": false
+          },
+          {
+            "id": 18558375899028,
+            "name": "Malta",
+            "raw_name": "Malta",
+            "value": "malta",
+            "default": false
+          },
+          {
+            "id": 18558375899156,
+            "name": "Mexico",
+            "raw_name": "Mexico",
+            "value": "mexico",
+            "default": false
+          },
+          {
+            "id": 18558375899284,
+            "name": "Moldova",
+            "raw_name": "Moldova",
+            "value": "moldova",
+            "default": false
+          },
+          {
+            "id": 18558375899412,
+            "name": "Mozambique",
+            "raw_name": "Mozambique",
+            "value": "mozambique",
+            "default": false
+          },
+          {
+            "id": 18558375899540,
+            "name": "Netherlands",
+            "raw_name": "Netherlands",
+            "value": "netherlands",
+            "default": false
+          },
+          {
+            "id": 18558375899668,
+            "name": "New Zealand",
+            "raw_name": "New Zealand",
+            "value": "new_zealand",
+            "default": false
+          },
+          {
+            "id": 18558375899796,
+            "name": "Niger",
+            "raw_name": "Niger",
+            "value": "niger",
+            "default": false
+          },
+          {
+            "id": 18558375899924,
+            "name": "Nigeria",
+            "raw_name": "Nigeria",
+            "value": "nigeria",
+            "default": false
+          },
+          {
+            "id": 18558375900052,
+            "name": "Norway",
+            "raw_name": "Norway",
+            "value": "norway",
+            "default": false
+          },
+          {
+            "id": 18558375900180,
+            "name": "Papua New Guinea",
+            "raw_name": "Papua New Guinea",
+            "value": "papua_new_guinea",
+            "default": false
+          },
+          {
+            "id": 18558375900308,
+            "name": "Peru",
+            "raw_name": "Peru",
+            "value": "peru",
+            "default": false
+          },
+          {
+            "id": 18558375900436,
+            "name": "Philippines",
+            "raw_name": "Philippines",
+            "value": "philippines",
+            "default": false
+          },
+          {
+            "id": 18558375900564,
+            "name": "Poland",
+            "raw_name": "Poland",
+            "value": "poland",
+            "default": false
+          },
+          {
+            "id": 18558375900692,
+            "name": "Portugal",
+            "raw_name": "Portugal",
+            "value": "portugal",
+            "default": false
+          },
+          {
+            "id": 18558375900820,
+            "name": "Puerto Rico",
+            "raw_name": "Puerto Rico",
+            "value": "puerto_rico",
+            "default": false
+          },
+          {
+            "id": 18558375900948,
+            "name": "Romania",
+            "raw_name": "Romania",
+            "value": "romania",
+            "default": false
+          },
+          {
+            "id": 18558375901076,
+            "name": "Senegal",
+            "raw_name": "Senegal",
+            "value": "senegal",
+            "default": false
+          },
+          {
+            "id": 18558375901204,
+            "name": "Sierra Leone",
+            "raw_name": "Sierra Leone",
+            "value": "sierra_leone",
+            "default": false
+          },
+          {
+            "id": 18558375901332,
+            "name": "Singapore",
+            "raw_name": "Singapore",
+            "value": "singapore",
+            "default": false
+          },
+          {
+            "id": 18558375901460,
+            "name": "Slovakia",
+            "raw_name": "Slovakia",
+            "value": "slovakia",
+            "default": false
+          },
+          {
+            "id": 18558375901588,
+            "name": "Slovenia",
+            "raw_name": "Slovenia",
+            "value": "slovenia",
+            "default": false
+          },
+          {
+            "id": 18558375901716,
+            "name": "South Africa",
+            "raw_name": "South Africa",
+            "value": "south_africa",
+            "default": false
+          },
+          {
+            "id": 18558375901844,
+            "name": "South Korea",
+            "raw_name": "South Korea",
+            "value": "south_korea",
+            "default": false
+          },
+          {
+            "id": 18558375901972,
+            "name": "Spain",
+            "raw_name": "Spain",
+            "value": "spain",
+            "default": false
+          },
+          {
+            "id": 18558375902100,
+            "name": "Sri Lanka",
+            "raw_name": "Sri Lanka",
+            "value": "sri_lanka",
+            "default": false
+          },
+          {
+            "id": 18558375902228,
+            "name": "Sweden",
+            "raw_name": "Sweden",
+            "value": "sweden",
+            "default": false
+          },
+          {
+            "id": 18558375902356,
+            "name": "Switzerland",
+            "raw_name": "Switzerland",
+            "value": "switzerland",
+            "default": false
+          },
+          {
+            "id": 18558375902484,
+            "name": "Taiwan",
+            "raw_name": "Taiwan",
+            "value": "taiwan",
+            "default": false
+          },
+          {
+            "id": 18558375902612,
+            "name": "Tajikistan",
+            "raw_name": "Tajikistan",
+            "value": "tajikistan",
+            "default": false
+          },
+          {
+            "id": 18558375902740,
+            "name": "Tanzania",
+            "raw_name": "Tanzania",
+            "value": "tanzania",
+            "default": false
+          },
+          {
+            "id": 18558375902868,
+            "name": "Thailand",
+            "raw_name": "Thailand",
+            "value": "thailand",
+            "default": false
+          },
+          {
+            "id": 18558375902996,
+            "name": "Turkey",
+            "raw_name": "Turkey",
+            "value": "turkey",
+            "default": false
+          },
+          {
+            "id": 18558375903124,
+            "name": "Uganda",
+            "raw_name": "Uganda",
+            "value": "uganda",
+            "default": false
+          },
+          {
+            "id": 18558375903380,
+            "name": "United Arab Emirates",
+            "raw_name": "United Arab Emirates",
+            "value": "united_arab_emirates",
+            "default": false
+          },
+          {
+            "id": 18558375903508,
+            "name": "United Kingdom",
+            "raw_name": "United Kingdom",
+            "value": "united_kingdom",
+            "default": false
+          },
+          {
+            "id": 18558375903636,
+            "name": "United States",
+            "raw_name": "United States",
+            "value": "united_states",
+            "default": false
+          },
+          {
+            "id": 18558375903764,
+            "name": "Uruguay",
+            "raw_name": "Uruguay",
+            "value": "uruguay",
+            "default": false
+          },
+          {
+            "id": 18558375903892,
+            "name": "Uzbekistan",
+            "raw_name": "Uzbekistan",
+            "value": "uzbekistan",
+            "default": false
+          },
+          {
+            "id": 18558375904020,
+            "name": "Vietnam",
+            "raw_name": "Vietnam",
+            "value": "vietnam",
+            "default": false
+          },
+          {
+            "id": 18558375904148,
+            "name": "Zambia",
+            "raw_name": "Zambia",
+            "value": "zambia",
+            "default": false
+          },
+          {
+            "id": 21676590876052,
+            "name": "Decline to answer",
+            "raw_name": "Decline to answer",
+            "value": "decline_to_answer",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386478935316.json",
+        "id": 19386478935316,
+        "type": "tagger",
+        "title": "Contact Reason",
+        "raw_title": "Contact Reason",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": true,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "How can we help?",
+        "raw_title_in_portal": "How can we help?",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": true,
+        "tag": null,
+        "created_at": "2023-09-21T04:18:04Z",
+        "updated_at": "2023-12-08T16:40:50Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386469146644,
+            "name": "Feedback & Suggestions",
+            "raw_name": "Feedback & Suggestions",
+            "value": "feedback_suggestions_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469146772,
+            "name": "Orders & Shipping",
+            "raw_name": "Orders & Shipping",
+            "value": "orders_shipping_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19600948410516,
+            "name": "Setting up my wallet",
+            "raw_name": "Setting up my wallet",
+            "value": "setting_up_my_wallet_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19601208599828,
+            "name": "Problems with my hardware",
+            "raw_name": "Problems with my hardware",
+            "value": "problems_with_my_hardware_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469147156,
+            "name": "Mobile App",
+            "raw_name": "Mobile App",
+            "value": "mobile_app_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469147284,
+            "name": "Transactions & wallet balance",
+            "raw_name": "Transactions & wallet balance",
+            "value": "transactions_wallet_balance_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469147412,
+            "name": "Wallet recovery",
+            "raw_name": "Wallet recovery",
+            "value": "wallet_recovery_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469147540,
+            "name": "Exchange / Custodial Partners",
+            "raw_name": "Exchange / Custodial Partners",
+            "value": "exchange_custodial_partners_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469147668,
+            "name": "Privacy Request or Query",
+            "raw_name": "Privacy Request or Query",
+            "value": "privacy_questions_contact_reason",
+            "default": false
+          },
+          {
+            "id": 19386469147796,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_contact_reason",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/18557523746836.json",
+        "id": 18557523746836,
+        "type": "tagger",
+        "title": "Exchange Partner",
+        "raw_title": "Exchange Partner",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Exchange Partner",
+        "raw_title_in_portal": "Exchange Partner",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-08-23T21:16:59Z",
+        "updated_at": "2023-09-21T04:34:00Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 18557540076180,
+            "name": "Cash App",
+            "raw_name": "Cash App",
+            "value": "custodial_exchange_cash_app",
+            "default": false
+          },
+          {
+            "id": 18557540076308,
+            "name": "Coinbase",
+            "raw_name": "Coinbase",
+            "value": "custodial_exchange_coinbase",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386487286420.json",
+        "id": 19386487286420,
+        "type": "tagger",
+        "title": "Orders & Shipping",
+        "raw_title": "Orders & Shipping",
+        "description": "Please note - we are unable to change existing shipping address. If this is required, please request a cancellation. ",
+        "raw_description": "Please note - we are unable to change existing shipping address. If this is required, please request a cancellation. ",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Order & Shipping",
+        "raw_title_in_portal": "Order & Shipping",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:19:58Z",
+        "updated_at": "2023-12-08T19:40:11Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 21675440825748,
+            "name": "Cancel Order",
+            "raw_name": "Cancel Order",
+            "value": "cancel_order_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 21675440825876,
+            "name": "Resend confirmation/shipping email",
+            "raw_name": "Resend confirmation/shipping email",
+            "value": "resend_confirmation/shipping_email_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 21675440826004,
+            "name": "Bulk Orders",
+            "raw_name": "Bulk Orders",
+            "value": "bulk_orders_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 21675440826132,
+            "name": "Refund status",
+            "raw_name": "Refund status",
+            "value": "refund_status_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 21675440826260,
+            "name": "Request Bitkey in my country",
+            "raw_name": "Request Bitkey in my country",
+            "value": "request_bitkey_in_my_country_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 19386501800724,
+            "name": "Lost or stuck shipment",
+            "raw_name": "Lost or stuck shipment",
+            "value": "lost_or_stuck_shipment_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 19386501800852,
+            "name": "Package misdelivered",
+            "raw_name": "Package misdelivered",
+            "value": "package_misdelivered_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 19386501800980,
+            "name": "Import receipt request or customs hold",
+            "raw_name": "Import receipt request or customs hold",
+            "value": "import_receipt_request_or_customs_hold_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 19386501801108,
+            "name": "Device arrived damaged",
+            "raw_name": "Device arrived damaged",
+            "value": "device_arrived_damaged_orders/shipping",
+            "default": false
+          },
+          {
+            "id": 19386501801236,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_orders/shipping",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/17171641094164.json",
+        "id": 17171641094164,
+        "type": "text",
+        "title": "Order Number",
+        "raw_title": "Order Number",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Order Number",
+        "raw_title_in_portal": "Order Number",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-07-06T20:44:00Z",
+        "updated_at": "2023-07-06T20:44:00Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/21675607952276.json",
+        "id": 21675607952276,
+        "type": "date",
+        "title": "Date ordered canceled",
+        "raw_title": "Date ordered canceled",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": "\\A([0-9]{4})-(1[0-2]|0[1-9])-(3[01]|[12][0-9]|0[1-9])\\z",
+        "title_in_portal": "Date ordered canceled",
+        "raw_title_in_portal": "Date ordered canceled",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-12-08T16:20:23Z",
+        "updated_at": "2023-12-08T16:20:23Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/21675493661204.json",
+        "id": 21675493661204,
+        "type": "tagger",
+        "title": "Reason for cancellation",
+        "raw_title": "Reason for cancellation",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Reason for cancellation",
+        "raw_title_in_portal": "Reason for cancellation",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-12-08T16:15:58Z",
+        "updated_at": "2023-12-08T19:36:16Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 21675449485972,
+            "name": "Bitkey will arrive too late",
+            "raw_name": "Bitkey will arrive too late",
+            "value": "bitkey_will_arrive_too_late",
+            "default": false
+          },
+          {
+            "id": 21675449486100,
+            "name": "I was charged more than I expected",
+            "raw_name": "I was charged more than I expected",
+            "value": "i_was_charged_more_than_i_expected_cancellation",
+            "default": false
+          },
+          {
+            "id": 21675449486228,
+            "name": "No longer interested in Bitkey",
+            "raw_name": "No longer interested in Bitkey",
+            "value": "no_longer_interested_in_bitkey_cancellation",
+            "default": false
+          },
+          {
+            "id": 21675449486356,
+            "name": "Bought another self-custody wallet",
+            "raw_name": "Bought another self-custody wallet",
+            "value": "bought_another_self-custody_wallet_cancellation",
+            "default": false
+          },
+          {
+            "id": 21675449486484,
+            "name": "Will keep my bitcoin on an exchange",
+            "raw_name": "Will keep my bitcoin on an exchange",
+            "value": "will_keep_my_bitcoin_on_an_exchange_cancellation",
+            "default": false
+          },
+          {
+            "id": 21675449486612,
+            "name": "I don’t have bitcoin anymore",
+            "raw_name": "I don’t have bitcoin anymore",
+            "value": "i_don’t_have_bitcoin_anymore_cancellation",
+            "default": false
+          },
+          {
+            "id": 21683504471188,
+            "name": "Need to change address",
+            "raw_name": "Need to change address",
+            "value": "need_to_change_address_cancellation",
+            "default": false
+          },
+          {
+            "id": 21675449486740,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_cancellation",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/21675638329236.json",
+        "id": 21675638329236,
+        "type": "text",
+        "title": "Other cancellation",
+        "raw_title": "Other cancellation",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Please specify reason for cancellation",
+        "raw_title_in_portal": "Please specify reason for cancellation",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-12-08T16:20:10Z",
+        "updated_at": "2023-12-08T16:20:10Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386593578900.json",
+        "id": 19386593578900,
+        "type": "tagger",
+        "title": "Setting up my wallet",
+        "raw_title": "Setting up my wallet",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Setting up my wallet",
+        "raw_title_in_portal": "Setting up my wallet",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:27:45Z",
+        "updated_at": "2023-09-28T22:57:28Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386563911828,
+            "name": "Unable to download the app",
+            "raw_name": "Unable to download the app",
+            "value": "unable_to_download_the_app_setup_wallet",
+            "default": false
+          },
+          {
+            "id": 19386563911956,
+            "name": "Unable to pair hardware",
+            "raw_name": "Unable to pair hardware",
+            "value": "unable_to_pair_hardware_setup_wallet",
+            "default": false
+          },
+          {
+            "id": 19386563912084,
+            "name": "Creating a cloud backup",
+            "raw_name": "Creating a cloud backup",
+            "value": "creating_a_cloud_backup_setup_wallet",
+            "default": false
+          },
+          {
+            "id": 19386563912212,
+            "name": "Setting up notifications",
+            "raw_name": "Setting up notifications",
+            "value": "setting_up_notifications_setup_wallet",
+            "default": false
+          },
+          {
+            "id": 19386563912340,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_setup_wallet",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386566440468.json",
+        "id": 19386566440468,
+        "type": "tagger",
+        "title": "Problems with my hardware",
+        "raw_title": "Problems with my hardware",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Problems with my hardware",
+        "raw_title_in_portal": "Problems with my hardware",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:29:41Z",
+        "updated_at": "2023-09-28T23:05:24Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386582580500,
+            "name": "Physical damage to the device",
+            "raw_name": "Physical damage to the device",
+            "value": "physical_damage_to_the_device_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582580628,
+            "name": "Device doesn’t recognize fingerprint",
+            "raw_name": "Device doesn’t recognize fingerprint",
+            "value": "device_doesn’t_recognize_fingerprint_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582580756,
+            "name": "Battery",
+            "raw_name": "Battery",
+            "value": "battery_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582580884,
+            "name": "USB-C port isn’t working",
+            "raw_name": "USB-C port isn’t working",
+            "value": "usb-c_port_isn’t_working_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582581012,
+            "name": "LED doesn’t turn on",
+            "raw_name": "LED doesn’t turn on",
+            "value": "led_doesn’t_turn_on_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582581140,
+            "name": "Device won’t communicate with the phone/app",
+            "raw_name": "Device won’t communicate with the phone/app",
+            "value": "device_won’t_communicate_with_the_phone/app_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582581268,
+            "name": "Hardware device updates",
+            "raw_name": "Hardware device updates",
+            "value": "hardware_device_updates_hardware",
+            "default": false
+          },
+          {
+            "id": 19571736492436,
+            "name": "Lost hardware device",
+            "raw_name": "Lost hardware device",
+            "value": "lost_hardware_device_hardware",
+            "default": false
+          },
+          {
+            "id": 19386582581396,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_hardware",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386587342740.json",
+        "id": 19386587342740,
+        "type": "tagger",
+        "title": "Mobile App",
+        "raw_title": "Mobile App",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Mobile App",
+        "raw_title_in_portal": "Mobile App",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:30:49Z",
+        "updated_at": "2023-10-05T16:39:23Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386603552148,
+            "name": "Accessing the app",
+            "raw_name": "Accessing the app",
+            "value": "accessing_the_app_mobile",
+            "default": false
+          },
+          {
+            "id": 19386603552276,
+            "name": "App updates",
+            "raw_name": "App updates",
+            "value": "app_updates_mobile",
+            "default": false
+          },
+          {
+            "id": 19783148827540,
+            "name": "App crash",
+            "raw_name": "App crash",
+            "value": "app_crash",
+            "default": false
+          },
+          {
+            "id": 19386603552404,
+            "name": "Unresponsive app",
+            "raw_name": "Unresponsive app",
+            "value": "unresponsive_app_mobile",
+            "default": false
+          },
+          {
+            "id": 19386603552532,
+            "name": "Notifications",
+            "raw_name": "Notifications",
+            "value": "notifications_mobile",
+            "default": false
+          },
+          {
+            "id": 19386603552660,
+            "name": "Setting & Preferences",
+            "raw_name": "Setting & Preferences",
+            "value": "setting_preferences_mobile",
+            "default": false
+          },
+          {
+            "id": 19386603552788,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_mobile",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386606520724.json",
+        "id": 19386606520724,
+        "type": "tagger",
+        "title": "Transactions & wallet balance",
+        "raw_title": "Transactions & wallet balance",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Transactions & wallet balance",
+        "raw_title_in_portal": "Transactions & wallet balance",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:32:47Z",
+        "updated_at": "2023-09-21T04:32:47Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386620024084,
+            "name": "Sending Bitcoin",
+            "raw_name": "Sending Bitcoin",
+            "value": "sending_bitcoin_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024212,
+            "name": "Receiving Bitcoin",
+            "raw_name": "Receiving Bitcoin",
+            "value": "receiving_bitcoin_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024340,
+            "name": "Lost Bitcoin",
+            "raw_name": "Lost Bitcoin",
+            "value": "lost_bitcoin_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024468,
+            "name": "Fees",
+            "raw_name": "Fees",
+            "value": "fees_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024596,
+            "name": "Wallet balance",
+            "raw_name": "Wallet balance",
+            "value": "wallet_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024724,
+            "name": "Mobile Pay",
+            "raw_name": "Mobile Pay",
+            "value": "mobile_pay_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024852,
+            "name": "Transaction history",
+            "raw_name": "Transaction history",
+            "value": "transaction_history_balance",
+            "default": false
+          },
+          {
+            "id": 19386620024980,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_balance",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386591286292.json",
+        "id": 19386591286292,
+        "type": "tagger",
+        "title": "Wallet recovery",
+        "raw_title": "Wallet recovery",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Wallet recovery",
+        "raw_title_in_portal": "Wallet recovery",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:33:29Z",
+        "updated_at": "2023-09-21T04:33:29Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386607668372,
+            "name": "Cloud Recovery isn’t working",
+            "raw_name": "Cloud Recovery isn’t working",
+            "value": "cloud_recovery_isn’t_working_recovery",
+            "default": false
+          },
+          {
+            "id": 19386607668500,
+            "name": "Unable to start recovery",
+            "raw_name": "Unable to start recovery",
+            "value": "unable_to_start_recovery",
+            "default": false
+          },
+          {
+            "id": 19386607668628,
+            "name": "Unable to complete recovery",
+            "raw_name": "Unable to complete recovery",
+            "value": "unable_to_complete_recovery",
+            "default": false
+          },
+          {
+            "id": 19386607668756,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_recovery",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/18557474183060.json",
+        "id": 18557474183060,
+        "type": "text",
+        "title": "Wallet address",
+        "raw_title": "Wallet address",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Your bitcoin wallet address",
+        "raw_title_in_portal": "Your bitcoin wallet address",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-08-23T21:15:43Z",
+        "updated_at": "2023-09-21T04:20:59Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/17171619135892.json",
+        "id": 17171619135892,
+        "type": "text",
+        "title": "Bitkey serial number",
+        "raw_title": "Bitkey serial number",
+        "description": "Located on the back of the Bitkey",
+        "raw_description": "Located on the back of the Bitkey",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Bitkey serial number",
+        "raw_title_in_portal": "Bitkey serial number",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-07-06T20:43:41Z",
+        "updated_at": "2023-09-21T04:41:14Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/17171594621332.json",
+        "id": 17171594621332,
+        "type": "text",
+        "title": "Phone make and model",
+        "raw_title": "Phone make and model",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Phone make and model",
+        "raw_title_in_portal": "Phone make and model",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-07-06T20:42:32Z",
+        "updated_at": "2023-09-21T04:23:22Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386550194836.json",
+        "id": 19386550194836,
+        "type": "text",
+        "title": "Mobile OS version",
+        "raw_title": "Mobile OS version",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "What mobile phone OS version are you running?",
+        "raw_title_in_portal": "What mobile phone OS version are you running?",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:24:03Z",
+        "updated_at": "2023-09-21T04:24:03Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386560407956.json",
+        "id": 19386560407956,
+        "type": "text",
+        "title": "Bitkey app version",
+        "raw_title": "Bitkey app version",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "What Bitkey app version are you using?",
+        "raw_title_in_portal": "What Bitkey app version are you using?",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:25:09Z",
+        "updated_at": "2023-09-21T04:25:09Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386541626772.json",
+        "id": 19386541626772,
+        "type": "multiselect",
+        "title": "Notifications check all that apply",
+        "raw_title": "Notifications check all that apply",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Check all that apply",
+        "raw_title_in_portal": "Check all that apply",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:26:35Z",
+        "updated_at": "2023-09-21T04:26:35Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19386530340372,
+            "name": "SMS",
+            "raw_name": "SMS",
+            "value": "sms_notifications",
+            "default": false
+          },
+          {
+            "id": 19386530340500,
+            "name": "email",
+            "raw_name": "email",
+            "value": "email_notifications",
+            "default": false
+          },
+          {
+            "id": 19386530340628,
+            "name": "push notifications",
+            "raw_name": "push notifications",
+            "value": "push_notifications",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386627184148.json",
+        "id": 19386627184148,
+        "type": "text",
+        "title": "Firmware version",
+        "raw_title": "Firmware version",
+        "description": "You can find your Firmware version here:\nFrom the app Home Screen > Settings > Debug Menu or N/A if not available",
+        "raw_description": "You can find your Firmware version here:\nFrom the app Home Screen > Settings > Debug Menu or N/A if not available",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Firmware version",
+        "raw_title_in_portal": "Firmware version",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:28:11Z",
+        "updated_at": "2023-10-03T16:45:06Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/18557489576852.json",
+        "id": 18557489576852,
+        "type": "text",
+        "title": "Transaction ID",
+        "raw_title": "Transaction ID",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Transaction ID",
+        "raw_title_in_portal": "Transaction ID",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-08-23T21:15:54Z",
+        "updated_at": "2023-08-23T21:15:54Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/21676161699220.json",
+        "id": 21676161699220,
+        "type": "tagger",
+        "title": "Privacy Request or Query",
+        "raw_title": "Privacy Request or Query",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Privacy Request or Query",
+        "raw_title_in_portal": "Privacy Request or Query",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-12-08T16:36:25Z",
+        "updated_at": "2023-12-08T16:36:25Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 21676177854996,
+            "name": "Request access to your personal information",
+            "raw_name": "Request access to your personal information",
+            "value": "request_access_to_your_personal_information_privacy",
+            "default": false
+          },
+          {
+            "id": 21676177855124,
+            "name": "Request erasure of your personal information",
+            "raw_name": "Request erasure of your personal information",
+            "value": "request_erasure_of_your_personal_information_privacy",
+            "default": false
+          },
+          {
+            "id": 21676177855252,
+            "name": "Other",
+            "raw_name": "Other",
+            "value": "other_privacy",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/11296211478292.json",
+        "id": 11296211478292,
+        "type": "subject",
+        "title": "Subject",
+        "raw_title": "Subject",
+        "description": "",
+        "raw_description": "",
+        "position": 1,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Subject",
+        "raw_title_in_portal": "Subject",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": true,
+        "tag": null,
+        "created_at": "2022-12-02T16:07:40Z",
+        "updated_at": "2022-12-02T16:07:40Z",
+        "removable": false,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/11296199663124.json",
+        "id": 11296199663124,
+        "type": "description",
+        "title": "Description",
+        "raw_title": "Description",
+        "description": "Please enter the details of your request. A member of our support staff will respond as soon as possible.",
+        "raw_description": "Please enter the details of your request. A member of our support staff will respond as soon as possible.",
+        "position": 2,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Description",
+        "raw_title_in_portal": "Description",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": true,
+        "tag": null,
+        "created_at": "2022-12-02T16:07:40Z",
+        "updated_at": "2022-12-02T16:07:40Z",
+        "removable": false,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19572531415316.json",
+        "id": 19572531415316,
+        "type": "tagger",
+        "title": "Region",
+        "raw_title": "Region",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Region",
+        "raw_title_in_portal": "Region",
+        "visible_in_portal": false,
+        "editable_in_portal": false,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-27T23:33:29Z",
+        "updated_at": "2023-12-08T18:14:29Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19572523464468,
+            "name": "Caribbean",
+            "raw_name": "Caribbean",
+            "value": "caribbean_region",
+            "default": false
+          },
+          {
+            "id": 19572523464596,
+            "name": "Central Africa",
+            "raw_name": "Central Africa",
+            "value": "central_africa_region",
+            "default": false
+          },
+          {
+            "id": 19572523464724,
+            "name": "Central America",
+            "raw_name": "Central America",
+            "value": "central_america_region",
+            "default": false
+          },
+          {
+            "id": 21676640627604,
+            "name": "Central Asia",
+            "raw_name": "Central Asia",
+            "value": "central_asia",
+            "default": false
+          },
+          {
+            "id": 19572523464852,
+            "name": "East Africa",
+            "raw_name": "East Africa",
+            "value": "east_africa_region",
+            "default": false
+          },
+          {
+            "id": 19572523464980,
+            "name": "East Asia",
+            "raw_name": "East Asia",
+            "value": "east_asia_region",
+            "default": false
+          },
+          {
+            "id": 19572523465108,
+            "name": "Eastern Europe",
+            "raw_name": "Eastern Europe",
+            "value": "eastern_europe_region",
+            "default": false
+          },
+          {
+            "id": 19572523465364,
+            "name": "North America",
+            "raw_name": "North America",
+            "value": "north_america_region",
+            "default": false
+          },
+          {
+            "id": 19572523465492,
+            "name": "Northern Europe",
+            "raw_name": "Northern Europe",
+            "value": "northern_europe_region",
+            "default": false
+          },
+          {
+            "id": 19572523465620,
+            "name": "Pacific",
+            "raw_name": "Pacific",
+            "value": "pacific_region",
+            "default": false
+          },
+          {
+            "id": 19572523465748,
+            "name": "South America",
+            "raw_name": "South America",
+            "value": "south_america_region",
+            "default": false
+          },
+          {
+            "id": 19572523465876,
+            "name": "South Asia",
+            "raw_name": "South Asia",
+            "value": "south_asia_region",
+            "default": false
+          },
+          {
+            "id": 19572523466004,
+            "name": "Southeast Asia",
+            "raw_name": "Southeast Asia",
+            "value": "southeast_asia_region",
+            "default": false
+          },
+          {
+            "id": 19572523466132,
+            "name": "Southern Africa",
+            "raw_name": "Southern Africa",
+            "value": "southern_africa_region",
+            "default": false
+          },
+          {
+            "id": 19572523466260,
+            "name": "Southern Europe",
+            "raw_name": "Southern Europe",
+            "value": "southern_europe_region",
+            "default": false
+          },
+          {
+            "id": 19572523466388,
+            "name": "West Africa",
+            "raw_name": "West Africa",
+            "value": "west_africa_region",
+            "default": false
+          },
+          {
+            "id": 19572523466516,
+            "name": "Western Asia",
+            "raw_name": "Western Asia",
+            "value": "western_asia_region",
+            "default": false
+          },
+          {
+            "id": 19572523466644,
+            "name": "Western Europe",
+            "raw_name": "Western Europe",
+            "value": "western_europe_region",
+            "default": false
+          }
+        ]
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19437346200468.json",
+        "id": 19437346200468,
+        "type": "checkbox",
+        "title": "Damaged Photo?",
+        "raw_title": "Damaged Photo?",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Check to confirm you've attached a photo of your damaged Bitkey below",
+        "raw_title_in_portal": "Check to confirm you've attached a photo of your damaged Bitkey below",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-22T20:25:54Z",
+        "updated_at": "2023-09-25T15:41:49Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19386548592788.json",
+        "id": 19386548592788,
+        "type": "checkbox",
+        "title": "Photo attached?",
+        "raw_title": "Photo attached?",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Check to confirm you've attached a photo of your payment receipt below",
+        "raw_title_in_portal": "Check to confirm you've attached a photo of your payment receipt below",
+        "visible_in_portal": true,
+        "editable_in_portal": true,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-09-21T04:22:54Z",
+        "updated_at": "2023-09-22T20:24:33Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null
+      },
+      {
+        "url": "https://bitkeysupport.zendesk.com/api/v2/ticket_fields/19769247991828.json",
+        "id": 19769247991828,
+        "type": "tagger",
+        "title": "Language",
+        "raw_title": "Language",
+        "description": "",
+        "raw_description": "",
+        "position": 9999,
+        "active": true,
+        "required": false,
+        "collapsed_for_agents": false,
+        "regexp_for_validation": null,
+        "title_in_portal": "Language",
+        "raw_title_in_portal": "Language",
+        "visible_in_portal": false,
+        "editable_in_portal": false,
+        "required_in_portal": false,
+        "tag": null,
+        "created_at": "2023-10-05T03:35:19Z",
+        "updated_at": "2023-10-06T16:18:24Z",
+        "removable": true,
+        "key": null,
+        "agent_description": null,
+        "custom_field_options": [
+          {
+            "id": 19769220591380,
+            "name": "Spanish (Mexico)",
+            "raw_name": "Spanish (Mexico)",
+            "value": "language_spanish_mexico",
+            "default": false
+          },
+          {
+            "id": 19769220591508,
+            "name": "Portuguese (Brazil)",
+            "raw_name": "Portuguese (Brazil)",
+            "value": "language_portuguese_brazil",
+            "default": false
+          },
+          {
+            "id": 19788183781396,
+            "name": "French",
+            "raw_name": "French",
+            "value": "language_french",
+            "default": false
+          },
+          {
+            "id": 19810916094356,
+            "name": "German",
+            "raw_name": "German",
+            "value": "language_german",
+            "default": false
+          },
+          {
+            "id": 19811068558228,
+            "name": "Arabic",
+            "raw_name": "Arabic",
+            "value": "language_arabic",
+            "default": false
+          },
+          {
+            "id": 19811068558356,
+            "name": "Dutch",
+            "raw_name": "Dutch",
+            "value": "language_dutch",
+            "default": false
+          },
+          {
+            "id": 19811068558484,
+            "name": "Italian",
+            "raw_name": "Italian",
+            "value": "language_italian",
+            "default": false
+          },
+          {
+            "id": 19811068558612,
+            "name": "Polish",
+            "raw_name": "Polish",
+            "value": "language_polish",
+            "default": false
+          },
+          {
+            "id": 19811068558740,
+            "name": "Chinese",
+            "raw_name": "Chinese",
+            "value": "language_chinese",
+            "default": false
+          },
+          {
+            "id": 19811068558868,
+            "name": "Danish",
+            "raw_name": "Danish",
+            "value": "language_danish",
+            "default": false
+          },
+          {
+            "id": 19811068558996,
+            "name": "Thai",
+            "raw_name": "Thai",
+            "value": "language_thai",
+            "default": false
+          },
+          {
+            "id": 19811068559124,
+            "name": "Russian",
+            "raw_name": "Russian",
+            "value": "language_russian",
+            "default": false
+          },
+          {
+            "id": 19812194168596,
+            "name": "Hindi",
+            "raw_name": "Hindi",
+            "value": "language_hindi",
+            "default": false
+          },
+          {
+            "id": 19812194168724,
+            "name": "Korean",
+            "raw_name": "Korean",
+            "value": "language_korean",
+            "default": false
+          },
+          {
+            "id": 19812194168852,
+            "name": "Indonesian ",
+            "raw_name": "Indonesian ",
+            "value": "language_indonesian",
+            "default": false
+          },
+          {
+            "id": 19812194168980,
+            "name": "Japanese",
+            "raw_name": "Japanese",
+            "value": "language_japanese",
+            "default": false
+          },
+          {
+            "id": 19812194169108,
+            "name": "Swedish",
+            "raw_name": "Swedish",
+            "value": "language_swedish",
+            "default": false
+          },
+          {
+            "id": 19812194169236,
+            "name": "Turkish",
+            "raw_name": "Turkish",
+            "value": "language_turkish",
+            "default": false
+          },
+          {
+            "id": 19812194169364,
+            "name": "Vietnamese",
+            "raw_name": "Vietnamese",
+            "value": "language_vietnamese",
+            "default": false
+          }
+        ]
+      }
+    ]
+}

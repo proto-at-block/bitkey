@@ -1,0 +1,12 @@
+[package]
+edition = { workspace = true }
+name = "state"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+aes-gcm-siv = "0.11.1"
+bitcoin = { workspace = true }
+miniscript = { workspace = true }
+thiserror = { workspace = true }
+uuid = { version = "1.6.1", features = ["serde"] }

@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "cortex-debug",
+      "request": "launch",
+      "name": "Debug (App)",
+      "servertype": "jlink",
+      "preLaunchTask": "Build",
+      "runToEntryPoint": "main",
+      "executable": "./build/firmware/app/w1/application/w1a-proto-0-app-a-dev.signed.elf",
+      "device": "EFR32MG24BXXXF1536",
+      "interface": "swd",
+      "serialNumber": "",
+      "breakAfterReset": true,
+      "svdFile": "${workspaceFolder}/config/EFR32MG24B010F1536IM48.svd"
+    },
+    {
+      "type": "cortex-debug",
+      "request": "launch",
+      "name": "Debug (Loader)",
+      "servertype": "jlink",
+      "preLaunchTask": "Build",
+      "runToEntryPoint": "main",
+      "executable": "./build/firmware/app/w1/loader/w1a-proto-0-loader-dev.signed.elf",
+      "device": "EFR32MG24BXXXF1536",
+      "interface": "swd",
+      "serialNumber": "",
+      "breakAfterReset": true,
+      "svdFile": "${workspaceFolder}/config/EFR32MG24B010F1536IM48.svd"
+    }
+  ]
+}

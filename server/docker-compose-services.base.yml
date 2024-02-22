@@ -1,0 +1,55 @@
+services:
+  fromagerie:
+    image: ${WALLET_API_IMAGE_REPO:-000000000000.dkr.ecr.us-west-2.amazonaws.com/wallet-api}:${TAG:-latest}
+    platform: linux/arm64
+    environment:
+      ROCKET_PROFILE: test-docker
+      REGTEST_ELECTRUM_SERVER_URI: tcp://localhost:50001
+      LAUNCHDARKLY_SDK_KEY: ${LAUNCHDARKLY_SDK_KEY:-}
+    healthcheck:
+      test: wget --tries 1 --spider http://localhost:8080 || exit 1
+      interval: 10s # increase after start_interval supported (engine 25)
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - wsm-api
+      - wsm-enclave
+
+  wsm-enclave:
+    image: ${WSM_ENCLAVE_IMAGE_REPO:-000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-enclave}:${TAG:-latest}
+    platform: linux/arm64
+    environment:
+      ROCKET_PROFILE: test
+      ROCKET_ADDRESS: 0.0.0.0
+      ROCKET_PORT: 8080
+    command:
+      - /wsm-enclave
+      - start-server
+    privileged: true
+    ports:
+      - "7446:8080"
+
+  wsm-api:
+    image: ${WSM_API_IMAGE_REPO:-000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-api}:${TAG:-latest}
+    platform: linux/arm64
+    environment:
+      ROCKET_PROFILE: test-docker
+      ROCKET_PORT: 9090
+    volumes:
+      - ./src/wsm/config/test-docker.toml:/config/test-docker.toml
+    ports:
+      - "9090:9090"
+
+  setup-ddb:
+    image: amazon/aws-cli
+    entrypoint: ""
+    volumes:
+      - ./src/wsm/scripts/setup_wsm_local_ddb.sh:/setup_wsm_local_ddb.sh
+    environment:
+      DYNAMODB_HOST: dynamodb
+    command:
+      - /setup_wsm_local_ddb.sh
+    restart: no
+    depends_on:
+      dynamodb:
+        condition: service_healthy

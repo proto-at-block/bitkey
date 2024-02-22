@@ -1,0 +1,21 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import kotlin.Int;
+import kotlin.collections.Map;
+
+CREATE TABLE fiatCurrencyMobilePayConfigurationEntity(
+    textCode            TEXT AS IsoCurrencyTextCode NOT NULL PRIMARY KEY,
+    minimumLimit        INTEGER NOT NULL,
+    maximumLimit        INTEGER NOT NULL,
+    snapValues          TEXT AS Map<Int, Int>
+);
+
+insertOrUpdateFiatCurrencyMobilePayConfiguration:
+INSERT OR REPLACE INTO fiatCurrencyMobilePayConfigurationEntity(textCode, minimumLimit, maximumLimit, snapValues)
+VALUES(?, ?, ?, ?);
+
+getAllFiatCurrencyMobilePayConfigurations:
+SELECT * FROM fiatCurrencyMobilePayConfigurationEntity
+INNER JOIN fiatCurrencyEntity ON fiatCurrencyMobilePayConfigurationEntity.textCode = fiatCurrencyEntity.textCode;
+
+clear:
+DELETE FROM fiatCurrencyMobilePayConfigurationEntity;

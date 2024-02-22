@@ -1,0 +1,5 @@
+[package]
+edition = { workspace = true }
+name = "apdu"
+publish = { workspace = true }
+version = { workspace = true }

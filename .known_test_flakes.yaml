@@ -1,0 +1,20 @@
+- test_class: NotificationManagerImplTests
+  test_method: test_applicationDidEnterForeground_updatePushNotificationStatus_authorized
+  jira: MDX-8984 # Simulator might reject app launch request with `The request was denied by service delegate (SBMainWorkspace)`
+  test_target: WalletUnitTests
+  failure_message_regex: XCTAssertEqual failed
+- test_class: NotificationManagerImplTests
+  test_method: test_applicationDidEnterForeground_updatePushNotificationStatus_notDetermined
+  jira: MDX-8984 # Simulator might reject app launch request with `The request was denied by service delegate (SBMainWorkspace)`
+  test_target: WalletUnitTests
+  failure_message_regex: XCTAssertEqual failed
+- test_class: NotificationManagerImplTests
+  test_method: test_applicationDidEnterForeground_updatePushNotificationStatus_ephemeral
+  jira: MDX-8984 # Simulator might reject app launch request with `The request was denied by service delegate (SBMainWorkspace)`
+  test_target: WalletUnitTests
+  failure_message_regex: XCTAssertEqual failed
+- test_class: NotificationManagerImplTests
+  test_method: test_applicationDidEnterForeground_updatePushNotificationStatus_denied
+  jira: MDX-8984 # Simulator might reject app launch request with `The request was denied by service delegate (SBMainWorkspace)`
+  test_target: WalletUnitTests
+  failure_message_regex: XCTAssertEqual failed

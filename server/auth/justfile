@@ -1,0 +1,30 @@
+alias t := test
+
+#!/usr/bin/env just --justfile
+docker_platform := "linux/amd64"
+
+cargo := "cargo --locked"
+
+[private]
+default:
+  just --list
+
+docker:
+  docker build --platform={{docker_platform}} -t auth-lambda-image .
+
+extract-lambda-binaries:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  container_name="lambda-container"
+  docker rm -f "${container_name}" 2>/dev/null
+  docker container create --platform={{docker_platform}} --name ${container_name} auth-lambda-image
+  lambdas=("create_auth_challenge" "define_auth_challenge" "verify_auth_challenge" "pre_token_generation" )
+  for lambda_name in "${lambdas[@]}"
+  do
+   mkdir -p resources/lambda/$lambda_name-lambda
+   docker cp lambda-container:/root/binaries/$lambda_name resources/lambda/${lambda_name}-lambda/bootstrap
+  done
+  docker rm -f "${container_name}" 2>/dev/null
+
+test:
+  {{cargo}} test --manifest-path ./auth_lambda_handlers/Cargo.toml

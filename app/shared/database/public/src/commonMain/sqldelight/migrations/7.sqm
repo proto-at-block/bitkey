@@ -1,0 +1,27 @@
+import build.wallet.money.Currency;
+import kotlin.Boolean;
+import kotlinx.datetime.TimeZone;
+
+CREATE TABLE spendingLimitEntity_Temp(
+    id                                 INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    limitAmountFractionalUnitValue     INTEGER NOT NULL,
+    limitAmountCurrencyAlphaCode       TEXT AS Currency NOT NULL,
+    limitTimeZoneZoneId                TEXT AS TimeZone NOT NULL,
+    active                             INTEGER AS Boolean DEFAULT 0 NOT NULL
+);
+
+-- Copy data from the old table to the temporary table
+INSERT INTO spendingLimitEntity_Temp
+  SELECT s.*,
+  CASE WHEN a.limit_id IS NULL THEN 0 ELSE 1 END
+  FROM spendingLimitEntity s
+  LEFT JOIN activeSpendingLimitEntity a
+  ON s.id = a.limit_id;
+
+DROP TABLE spendingLimitEntity;
+
+ALTER TABLE spendingLimitEntity_Temp RENAME TO spendingLimitEntity;
+
+DROP TABLE activeSpendingLimitEntity;
+
+PRAGMA foreign_key_check;

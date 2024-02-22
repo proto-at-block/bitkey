@@ -1,0 +1,25 @@
+import build.wallet.gradle.logic.extensions.targets
+
+plugins {
+  id("build.wallet.kmp")
+}
+
+kotlin {
+  targets(ios = true, jvm = true)
+
+  sourceSets {
+    commonMain {
+      dependencies {
+        api(projects.shared.platformPublic)
+        api(projects.shared.databasePublic)
+        implementation(projects.shared.loggingPublic)
+      }
+    }
+
+    commonTest {
+      dependencies {
+        implementation(projects.shared.sqldelightTesting)
+      }
+    }
+  }
+}

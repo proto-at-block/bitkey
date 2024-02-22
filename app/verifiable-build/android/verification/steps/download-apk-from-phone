@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Downloads all APKs with the given package name from the connected device using ADB.
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <app-package-name> <path-to-output-directory>" >&2
+    exit 1
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided output directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 2
+fi
+
+if ! which "adb" > /dev/null 2>&1; then
+    echo "Cannot find 'adb'. Please install it first and then rerun this command." >&2
+    exit 100
+fi
+
+
+mkdir -p "$2"
+
+adb shell pm path "$1" | while read -r package_path; do
+  name=${package_path##*/}
+  file_path=${package_path#package:}
+
+  adb pull "$file_path" "$2/$name"
+done

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <!-- Configuration for Detekt IJ plugin: https://github.com/detekt/detekt-intellij-plugin -->
+  <component name="DetektPluginSettings">
+    <option name="configurationFiles">
+      <list>
+        <option value="$PROJECT_DIR$/detekt/config.yml" />
+      </list>
+    </option>
+    <option name="enableDetekt" value="true" />
+  </component>
+</project>

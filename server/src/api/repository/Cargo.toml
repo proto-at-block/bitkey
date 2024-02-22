@@ -1,0 +1,20 @@
+[package]
+edition = { workspace = true }
+name = "repository"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+serde = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+
+# path dependencies
+database = { workspace = true }
+types = { workspace = true }
+
+[features]
+all = ["consent", "recovery"]
+consent = ["types/consent"]
+recovery = ["types/recovery"]

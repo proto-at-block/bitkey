@@ -1,0 +1,249 @@
+alias b := build
+alias t := test
+alias r := run
+
+cargo := "cargo --locked"
+
+[private]
+default:
+  just --list
+
+# Build all server deployable containers
+server-deployable:
+  docker buildx bake server
+
+# Build API deployable container
+api-deployable:
+  docker buildx bake api
+
+# Build WSM deployable containers
+wsm-deployable:
+  docker buildx bake wsm
+
+# Build the WSM nitro CLI container
+nitro-cli:
+  docker buildx bake nitro-cli
+
+# Build the WSM enclave eif image
+wsm-enclave-eif:
+  docker run \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v $PWD/src/wsm/build:/build \
+    nitro-cli:latest \
+    sh -c "nitro-cli build-enclave --docker-uri wsm-enclave:latest --output-file /build/wsm-enclave.eif  || \
+           (cat /var/log/nitro_enclaves/*.log && exit 1)"
+  @echo Image created at $PWD/src/wsm/build/wsm-enclave.eif
+
+# Start sidecars (inc. dynamodb, jaeger, mysql, ...) in background
+sidecars:
+  docker compose -f docker-compose-sidecars.yml up --wait
+  src/wsm/scripts/setup_wsm_local_ddb.sh
+
+# Stop sidecars
+stop-sidecars:
+  docker compose -f docker-compose-sidecars.yml down
+
+# Build all (inc. api, wsm, ...)
+build:
+  {{cargo}} build
+
+# Build all binaries
+build-bins:
+  {{cargo}} build --bins
+
+# Run all tests
+test: sidecars
+  {{cargo}} test
+
+# Run server tests
+test-server: sidecars
+  {{cargo}} test --exclude 'wsm*' --workspace
+
+# Run wsm tests
+test-wsm: sidecars
+  {{cargo}} test --package 'wsm*' --workspace
+
+# Start sidecars and run the server in debug mode
+run: sidecars run-server
+
+# Run the server in debug mode
+run-server *args:
+  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server --features partnerships -- server {{args}}
+
+# Run the server in debug mode
+migrate-from-unified-keysets:
+  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- worker migrate-from-unified-keyset
+
+revert-to-unified-keysets:
+  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- worker revert-to-unified-keyset
+
+# Run wsm-api in debug mode
+run-wsm-api *args:
+  {{cargo}} run --bin wsm-api -- {{args}}
+
+# Run wsm-enclave in debug mode
+run-wsm-enclave *args:
+  {{cargo}} run --bin wsm-enclave -- {{args}}
+
+[private]
+clippy *args:
+  {{cargo}} clippy {{args}}
+
+# Run the CI clippy lint commands
+clippy-ci:
+  just clippy
+
+# Format and lint
+fmt:
+  {{cargo}} fmt --all
+  just clippy --fix --allow-dirty --allow-staged
+
+# Run the CI format commands
+fmt-ci:
+  just fmt
+  git diff --exit-code
+
+# Multiple opentelemetry crates in the same object have caused propagation erros in the past. Assert the invariant
+# that we should only have one.
+cargo-lock-check:
+  matchcount=$(grep -c "name = \"opentelemetry\"" "Cargo.lock"); \
+  if [ $matchcount -gt 1 ]; then \
+      echo "Error: More than one opentelemetry crate. Check dependencies."; \
+      exit 1; \
+  fi
+
+# Open VSCode
+vscode:
+  code {{justfile_directory()}}
+
+# Run the entire integrated server cluster (inc. api, wsm, ...)
+run-integration: _integration
+  goreman start
+
+# Start the integrated server cluster (inc. api, wsm, ...) in background
+start-integration: _integration
+  nohup -- goreman start &
+  curl --fail --retry 10 --retry-all-errors http://localhost:8080
+
+# Stop the integrated server cluster
+stop-integration:
+  goreman run stop-all
+
+# Create a named stack
+stack-up stack_name=env_var('USER'):
+  ./scripts/create_named_env.sh {{ stack_name }}
+
+# Tear down a named stack
+stack-down stack_name=env_var('USER'):
+  ./scripts/tear_down_named_env.sh {{ stack_name }}
+
+compose_backends := "docker compose -f docker-compose-integration.yml"
+
+start-backend $TAG="latest" $PRINT_LOGS="0":
+  #!/bin/bash
+  set -e
+  if [[ -z "$AWS_ACCESS_KEY_ID" ]]; then
+    AWS_PROFILE=w1-development--admin aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 000000000000.dkr.ecr.us-west-2.amazonaws.com
+  fi
+  export WALLET_API_IMAGE_REPO="000000000000.dkr.ecr.us-west-2.amazonaws.com/wallet-api"
+  export WSM_ENCLAVE_IMAGE_REPO="000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-enclave"
+  export WSM_API_IMAGE_REPO="000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-api"
+  echo "TAG: $TAG"
+
+  if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+  fi
+
+  {{ compose_backends }} pull fromagerie wsm-enclave wsm-api
+  set +e
+  {{ compose_backends }} up --wait
+  # If starting the containers failed, print logs and exit
+  if [[ $? -ne 0 ]]; then
+    {{ compose_backends }} logs
+    exit 1
+  fi
+  set -e
+
+  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs || true
+  just _setup-treasury
+
+start-backend-local-build $PRINT_LOGS="0":
+  #!/bin/bash
+  set -e
+  docker buildx bake api wsm-api wsm-enclave
+
+  export WALLET_API_IMAGE_REPO="api"
+  export WSM_ENCLAVE_IMAGE_REPO="wsm-enclave"
+  export WSM_API_IMAGE_REPO="wsm-api"
+  export TAG="latest"
+
+  if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+  fi
+
+  set +e
+  {{ compose_backends }} up --wait
+  # If starting the containers failed, print logs and exit
+  if [[ $? -ne 0 ]]; then
+    {{ compose_backends }} logs
+    exit 1
+  fi
+  set -e
+
+  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs || true
+  just _setup-treasury
+
+bitcoincli := "docker exec server-bitcoind-1 bitcoin-cli -regtest -rpcuser=test -rpcpassword=test"
+
+_setup-treasury:
+  #!/bin/bash
+  set -x
+  {{ bitcoincli }} -named createwallet wallet_name=testwallet blank=true
+  {{ bitcoincli }} -rpcwallet=testwallet importdescriptors '[
+    {
+        "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/0/*)#hhlcx0nt",
+        "timestamp": "now",
+        "active": true,
+        "internal": false
+    },
+    {
+        "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/1/*)#xr6em6rn",
+        "timestamp": "now",
+        "active": true,
+        "internal": true
+    }
+  ]'
+  addr=$({{ bitcoincli }} -rpcwallet=testwallet getnewaddress | xargs)
+  # Mine a single block to our treasury
+  {{ bitcoincli }} generatetoaddress 1 $addr
+  # Send the rest to a blackhole
+  # See https://github.com/bitcoindevkit/bdk/issues/1148.
+  # We can remove this (change above to 101 blocks) after we bump bdk to 0.29
+  {{ bitcoincli }} generatetoaddress 100 bcrt1qrt37mr0kf2th5dgsqq6k87tl8k220e7nj4ts5u
+
+stop-backend:
+  {{ compose_backends }} down --volumes --timeout=1
+
+get-regtest-funds address amount:
+  {{ bitcoincli }} -named sendtoaddress address={{ address }} amount={{ amount }} fee_rate=1
+  @echo
+  @echo sent {{ amount }} BTC to {{ address }}
+
+export RUST_LOG := "info"
+export ROCKET_PROFILE := "test"
+
+_run-wsm-enclave $ROCKET_ADDRESS="localhost" $ROCKET_PORT="7446":
+  cd src/wsm && ../../target/debug/wsm-enclave
+
+_run-wsm-api $ROCKET_PORT="9090" $AWS_DEFAULT_REGION="us-west-2" $AWS_ACCESS_KEY_ID="fakeKeyId" $AWS_SECRET_ACCESS_KEY="fakeSecretAccessKey":
+  cd src/wsm && ../../target/debug/wsm-api
+
+_run-api $ROCKET_PORT="8080" $ROCKET_PROFILE="localprod":
+  #!/bin/bash
+  set -e
+  if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+  fi
+  cd src/api && ../../target/debug/server server
+
+_integration: build-bins sidecars

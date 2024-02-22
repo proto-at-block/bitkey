@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package fwpb;
+
+import "nanopb.proto";
+
+message manifest {
+  int32 version = 1;
+}
+
+message foo {
+  bytes bar = 1 [(nanopb).max_size = 1024];
+  int32 baz = 2;
+}
+
+message test_cmd {
+  oneof msg {
+    manifest manifest = 1;
+    foo foo = 2;
+  }
+}
+
+message test_rsp {
+  oneof msg {
+    manifest manifest = 1;
+    foo foo = 2;
+  }
+}
