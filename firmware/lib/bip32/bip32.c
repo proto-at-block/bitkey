@@ -13,11 +13,12 @@
 #define KEY_IDENTIFIER_SIZE (HASH160_DIGEST_SIZE)
 
 static bool all_zeroes(uint8_t* buf, uint32_t size) {
+  // Constant-time check for all-0s
+  volatile uint8_t val = 0;
   for (size_t i = 0; i < size; i++) {
-    if (buf[i] != 0)
-      return false;
+    val |= buf[i];
   }
-  return true;
+  return val == 0;
 }
 
 static bool compute_identifier(uint8_t* sec_encoded_pubkey, uint8_t* identifier,

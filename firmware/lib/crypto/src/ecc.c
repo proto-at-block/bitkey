@@ -345,11 +345,12 @@ out:
 }
 
 static inline bool all_zeroes(uint8_t* buf, uint32_t size) {
+  // Constant-time check for all-0s
+  volatile uint8_t val = 0;
   for (size_t i = 0; i < size; i++) {
-    if (buf[i] != 0)
-      return false;
+    val |= buf[i];
   }
-  return true;
+  return val == 0;
 }
 
 static void clamp_ed25519_private_key(uint8_t* privkey) {
