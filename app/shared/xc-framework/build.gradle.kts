@@ -40,7 +40,6 @@ kotlin {
       projects.shared.cloudStoreImpl,
       projects.shared.cloudStorePublic,
       projects.shared.datadogPublic,
-      projects.shared.depositPublic,
       projects.shared.encryptionImpl,
       projects.shared.encryptionPublic,
       projects.shared.keyValueStoreImpl,

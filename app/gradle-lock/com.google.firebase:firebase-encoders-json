@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-encoders-json",
+    "components": [
+        {
+            "version": "18.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-encoders-json-18.0.0.aar": "80aece7e1ef58957ca2fc1957bc9208ec92a3a9528201331d3c63e3182570f97"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

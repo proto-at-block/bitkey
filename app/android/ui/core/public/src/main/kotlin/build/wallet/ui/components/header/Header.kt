@@ -27,7 +27,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.MONO
 import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.REGULAR
-import build.wallet.ui.components.icon.Icon
+import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.SMALL
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
@@ -99,6 +99,7 @@ fun Header(
     sublineLabelType =
       when (model.sublineTreatment) {
         REGULAR -> LabelType.Body2Regular
+        SMALL -> LabelType.Body3Regular
         MONO -> LabelType.Body2Mono
       },
     sublineLabelTreatment =
@@ -113,7 +114,7 @@ fun Header(
 fun Header(
   modifier: Modifier = Modifier,
   iconModel: IconModel? = null,
-  headline: String,
+  headline: String?,
   subline: AnnotatedString? = null,
   textAlignment: TextAlign = TextAlign.Start,
   horizontalAlignment: Alignment.Horizontal = Alignment.Start,
@@ -132,7 +133,7 @@ fun Header(
     modifier = modifier.thenIf(fillsMaxWidth) { Modifier.fillMaxWidth() },
     iconContent = {
       iconModel?.let {
-        Spacer(modifier = Modifier.height(iconTopSpacing))
+        Spacer(modifier = Modifier.height(iconModel.iconTopSpacing?.dp ?: iconTopSpacing))
         IconImage(model = iconModel)
       }
     },
@@ -156,7 +157,7 @@ fun Header(
 fun Header(
   modifier: Modifier = Modifier,
   iconContent: @Composable () -> Unit,
-  headline: String,
+  headline: String?,
   subline: AnnotatedString? = null,
   textAlignment: TextAlign = TextAlign.Start,
   horizontalAlignment: Alignment.Horizontal = Alignment.Start,
@@ -175,14 +176,16 @@ fun Header(
     horizontalAlignment = horizontalAlignment,
     iconContent = iconContent,
     headlineContent = {
-      Label(
-        modifier = Modifier.padding(top = headlineTopSpacing),
-        text = headline,
-        type = headlineLabelType,
-        treatment = headlineLabelTreatment,
-        alignment = textAlignment,
-        color = headlineLabelColor
-      )
+      headline?.let {
+        Label(
+          modifier = Modifier.padding(top = headlineTopSpacing),
+          text = headline,
+          type = headlineLabelType,
+          treatment = headlineLabelTreatment,
+          alignment = textAlignment,
+          color = headlineLabelColor
+        )
+      }
     },
     sublineContent = {
       subline?.let {

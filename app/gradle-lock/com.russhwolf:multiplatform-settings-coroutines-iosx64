@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-coroutines-iosx64",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines-iosx64-1.1.1-metadata.jar": "64565a79f7406b6caa9b84bbd5a0d9501020a8ac2b1c407f0d8bc34dae8934e7"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines.klib": "2afc35b445575a3c804e193fde9c0b1cdcf57105343c6475574478da22539084"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

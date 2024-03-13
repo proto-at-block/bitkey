@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:smithy-client-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "smithy-client-jvm-1.0.13.jar": "b68405f6ebcdb9c11fcd5d50a2c488282e6e47c15c089ca912673ba69fbfbbb3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -6,24 +6,24 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class AuthTokensRepositoryMock : AuthTokensRepository {
-  var authTokens = AccountAuthTokensMock
+  var authTokensResult: Result<AccountAuthTokens, Error> = Ok(AccountAuthTokensMock)
 
   override suspend fun refreshAccessToken(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens, Error> {
-    return Ok(authTokens)
+    return authTokensResult
   }
 
   override suspend fun getAuthTokens(
     accountId: AccountId,
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens?, Throwable> {
-    return Ok(authTokens)
+    return authTokensResult
   }
 
   fun reset() {
-    authTokens = AccountAuthTokensMock
+    authTokensResult = Ok(AccountAuthTokensMock)
   }
 }

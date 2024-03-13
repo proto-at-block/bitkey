@@ -180,7 +180,7 @@ class SweepDataStateMachineImpl(
       is AwaitingHardwareSignedSweepsState ->
         AwaitingHardwareSignedSweepsData(
           recoveredFactor = props.recoveredFactor,
-          keyboxConfig = props.keybox.config,
+          fullAccountConfig = props.keybox.config,
           needsHwSign = state.needsHwSign,
           addHwSignedSweeps = { hwSignedPsbts ->
             val mergedPsbts = mergeHwSignedPsbts(state.allPsbts, hwSignedPsbts)

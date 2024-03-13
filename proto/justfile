@@ -1,4 +1,2 @@
 lint:
-    find . -name '*.proto' -print0 \
-        | xargs -0 protoc -I . -o /dev/stdout \
-        | buf lint -
+    buf lint

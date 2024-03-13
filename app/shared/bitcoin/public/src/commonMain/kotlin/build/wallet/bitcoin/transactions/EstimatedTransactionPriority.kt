@@ -40,3 +40,14 @@ fun EstimatedTransactionPriority.toDuration(): Duration {
     EstimatedTransactionPriority.SIXTY_MINUTES -> 60.toDuration(MINUTES)
   }
 }
+
+/*
+ * Provides a [ULong] based on how many target blocks
+ */
+fun EstimatedTransactionPriority.targetBlocks(): ULong {
+  return when (this) {
+    EstimatedTransactionPriority.FASTEST -> 1UL
+    EstimatedTransactionPriority.THIRTY_MINUTES -> 3UL
+    EstimatedTransactionPriority.SIXTY_MINUTES -> 6UL
+  }
+}

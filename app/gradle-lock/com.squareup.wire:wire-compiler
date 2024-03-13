@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-compiler",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-compiler-4.9.5.jar": "34db2d4f7b19a28fc7fc7a1e0a2469a8373fea4e0be4f28db2cacf3e837f2229"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

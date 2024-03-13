@@ -4,6 +4,7 @@ import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
@@ -48,6 +49,7 @@ class PairingTransactionProviderImplTests : FunSpec({
 
     provider(
       networkType = networkType,
+      appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
       onCancel = { onCancelCalls.add(Unit) },
       onSuccess = {},
       isHardwareFake = true
@@ -62,6 +64,7 @@ class PairingTransactionProviderImplTests : FunSpec({
     val transaction =
       provider(
         networkType = networkType,
+        appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
         onCancel = {},
         onSuccess = { onSuccessCalls.add(Unit) },
         isHardwareFake = true

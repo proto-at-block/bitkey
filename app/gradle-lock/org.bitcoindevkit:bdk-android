@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bitcoindevkit:bdk-android",
+    "components": [
+        {
+            "version": "0.31.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bdk-android-0.31.0.aar": "5736a821134fff96b976f99c36868f5b925fc5ed815d07f2bf01cd26d6bd912c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

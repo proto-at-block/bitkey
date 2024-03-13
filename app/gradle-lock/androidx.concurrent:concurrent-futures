@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.concurrent:concurrent-futures",
+    "components": [
+        {
+            "version": "1.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "concurrent-futures-1.1.0.jar": "0ce067c514a0d1049d1bebdf709e344ed3266fe9744275682937cdcb13334e9e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-ktx",
+    "components": [
+        {
+            "version": "2.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-ktx-2.7.0.aar": "b492dbfc85926471367112f6d0e5d2c9991e855c5421ab37399396cc0123e2af"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

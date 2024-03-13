@@ -29,7 +29,7 @@ impl SecretKey {
         // https://www.rfc-editor.org/rfc/rfc6979#section-2.4
         let message = Message::from_hashed_data::<sha256::Hash>(&message);
 
-        Secp256k1::new().sign_ecdsa(&message, &self.inner())
+        Secp256k1::signing_only().sign_ecdsa(&message, &self.inner())
     }
 
     pub fn as_public(&self) -> PublicKey {
@@ -38,5 +38,34 @@ impl SecretKey {
 
     pub fn inner(&self) -> MutexGuard<BitcoinSecretKey> {
         self.0.lock().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::RngCore;
+
+    #[test]
+    fn test_sign_message() {
+        let mut random_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut random_bytes);
+        let secret_key = SecretKey::new(random_bytes.to_vec()).unwrap();
+        let message = b"hello world";
+        let signature = secret_key.sign_message(message.to_vec());
+        let secp = Secp256k1::verification_only();
+        let hashed_message = Message::from_hashed_data::<sha256::Hash>(message);
+        assert!(secp
+            .verify_ecdsa(&hashed_message, &signature, &secret_key.as_public())
+            .is_ok());
+        let invalid_message = b"helloworld!";
+        let hashed_invalid_message = Message::from_hashed_data::<sha256::Hash>(invalid_message);
+        assert!(secp
+            .verify_ecdsa(&hashed_invalid_message, &signature, &secret_key.as_public())
+            .is_err());
+        let invalid_signature = Signature::from_compact(&[0u8; 64]).unwrap();
+        assert!(secp
+            .verify_ecdsa(&hashed_message, &invalid_signature, &secret_key.as_public())
+            .is_err());
     }
 }

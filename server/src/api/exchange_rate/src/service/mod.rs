@@ -4,6 +4,7 @@ use crate::error::{ExchangeRateError, ProviderResponseError};
 use futures::future::join_all;
 use moka::future::{Cache, CacheBuilder};
 use time::OffsetDateTime;
+use tracing::instrument;
 use tracing::log::error;
 
 use crate::historical::HistoricalExchangeRateProvider;
@@ -46,6 +47,7 @@ impl Service {
     ///
     /// If what we have in-memory was less than [`TIME_WINDOW_DURATION`] ago, we return that.
     /// Otherwise, we fetch the latest rates from the provider and return those.
+    #[instrument(err, skip(self, rate_provider))]
     pub async fn get_latest_rate<T>(
         &self,
         rate_provider: T,
@@ -84,6 +86,7 @@ impl Service {
     ///
     /// If what we have in-memory was less than [`TIME_WINDOW_DURATION`] ago, we return that.
     /// Otherwise, we fetch the latest rates from the provider and return those.
+    #[instrument(err, skip(self, rate_provider))]
     pub async fn get_latest_rates<T>(
         &self,
         rate_provider: T,
@@ -127,6 +130,7 @@ impl Service {
     }
 
     // Performs the network call to fetch the latest rate from the provider.
+    #[instrument(err, skip(rate_provider))]
     async fn fetch_latest_rate<T>(
         rate_provider: &T,
         time_retrieved: OffsetDateTime,
@@ -279,8 +283,13 @@ mod tests {
         assert_eq!(mock_provider.get_network_call_count().await, 1);
 
         // Assert that rates are the same as first call.
-        assert_eq!(exchange_rate_1.clone().unwrap().rate, 1.0);
-        assert_eq!(exchange_rate_1.unwrap().rate, exchange_rate_2.unwrap().rate);
+        match (&exchange_rate_1, &exchange_rate_2) {
+            (Ok(rate_1), Ok(rate_2)) => {
+                assert_eq!(rate_1.rate, 1.0);
+                assert_eq!(rate_2.rate, 1.0);
+            }
+            _ => panic!("Request failed"),
+        }
     }
 
     // Check concurrent calls to `get_latest_rate` handle `rate_updated` mechanism correctly
@@ -326,11 +335,13 @@ mod tests {
         let unwrapped_exchange_rate_1 = rate_1.unwrap();
         let unwrapped_exchange_rate_2 = rate_2.unwrap();
 
-        assert_eq!(unwrapped_exchange_rate_1.clone().unwrap().rate, 1.0);
-        assert_eq!(
-            unwrapped_exchange_rate_1.unwrap().rate,
-            unwrapped_exchange_rate_2.unwrap().rate
-        );
+        match (&unwrapped_exchange_rate_1, &unwrapped_exchange_rate_2) {
+            (Ok(rate_1), Ok(rate_2)) => {
+                assert_eq!(rate_1.rate, 1.0);
+                assert_eq!(rate_2.rate, 1.0);
+            }
+            _ => panic!("Request failed"),
+        }
     }
 
     // Test rates is not fetched again within the time window if it has already been fetched.

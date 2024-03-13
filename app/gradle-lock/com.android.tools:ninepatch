@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools:ninepatch",
+    "components": [
+        {
+            "version": "31.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ninepatch-31.1.2.jar": "12cbb4cb936157728076660320c7e1bc7ea14eb925421e4f7029a9a5a350a2c0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

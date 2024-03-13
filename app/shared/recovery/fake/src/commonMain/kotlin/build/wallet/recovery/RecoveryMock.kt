@@ -4,6 +4,7 @@ import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -24,6 +25,7 @@ val StillRecoveringInitiatedRecoveryMock =
     appRecoveryAuthKey = AppRecoveryAuthPublicKeyMock,
     hardwareSpendingKey = HwSpendingPublicKey(DescriptorPublicKeyMock("hardware-spending-key")),
     hardwareAuthKey = HwAuthPublicKey(Secp256k1PublicKey("hardware-auth-key")),
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     factorToRecover = App,
     serverRecovery =
       ServerRecovery(

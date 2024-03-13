@@ -28,6 +28,10 @@ public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperV
         rootView = WrapperView(wrappedView: wrappedView, screenModel: screenModel)
     }
 
+    public func updateWrappedView(_ update: (_ view: T) -> Void) {
+        update(rootView.wrappedView)
+    }
+
 }
 
 // MARK: -
@@ -37,13 +41,13 @@ public struct WrapperView<T: View>: View {
     // MARK: - Private Properties
 
     private var screenModel: ScreenModel
-    private let wrappedView: T
+    let wrappedView: T
 
     // MARK: - Life Cycle
 
     init(wrappedView: T, screenModel: ScreenModel) {
-        self.wrappedView = wrappedView
         self.screenModel = screenModel
+        self.wrappedView = wrappedView
     }
 
     public var body: some View {

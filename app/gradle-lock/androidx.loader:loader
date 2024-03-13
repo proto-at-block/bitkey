@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.loader:loader",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "loader-1.0.0.aar": "11f735cb3b55c458d470bed9e25254375b518b4b1bad6926783a7026db0f5025"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -16,9 +16,24 @@ class DurationFormatterImplTests : FunSpec({
     formatter.formatWithWords(14.days.toDouble(SECONDS)).shouldBe("14 days")
   }
 
+  test("Words: 1 day") {
+    formatter.formatWithWords(1.days).shouldBe("1 day")
+    formatter.formatWithWords(1.days.toDouble(SECONDS)).shouldBe("1 day")
+  }
+
   test("Words: 8 days, 17 hours") {
     formatter.formatWithWords(8.days + 17.hours).shouldBe("8 days, 17 hours")
     formatter.formatWithWords((8.days + 17.hours).toDouble(SECONDS)).shouldBe("8 days, 17 hours")
+  }
+
+  test("Words: 1 day, 17 hours") {
+    formatter.formatWithWords(1.days + 17.hours).shouldBe("1 day, 17 hours")
+    formatter.formatWithWords((1.days + 17.hours).toDouble(SECONDS)).shouldBe("1 day, 17 hours")
+  }
+
+  test("Words: 1 day, 1 hour") {
+    formatter.formatWithWords(1.days + 1.hours).shouldBe("1 day, 1 hour")
+    formatter.formatWithWords((1.days + 1.hours).toDouble(SECONDS)).shouldBe("1 day, 1 hour")
   }
 
   test("Words: 2 hours, 5 minutes") {
@@ -28,9 +43,28 @@ class DurationFormatterImplTests : FunSpec({
     )
   }
 
+  test("Words: 1 hour, 5 minutes") {
+    formatter.formatWithWords(1.hours + 5.minutes).shouldBe("1 hour, 5 minutes")
+    formatter.formatWithWords((1.hours + 5.minutes).toDouble(SECONDS)).shouldBe(
+      "1 hour, 5 minutes"
+    )
+  }
+
+  test("Words: 1 hour, 1 minute") {
+    formatter.formatWithWords(1.hours + 1.minutes).shouldBe("1 hour, 1 minute")
+    formatter.formatWithWords((1.hours + 1.minutes).toDouble(SECONDS)).shouldBe(
+      "1 hour, 1 minute"
+    )
+  }
+
   test("Words: 42 minutes") {
     formatter.formatWithWords(42.minutes).shouldBe("42 minutes")
     formatter.formatWithWords(42.minutes.toDouble(SECONDS)).shouldBe("42 minutes")
+  }
+
+  test("Words: 1 minute") {
+    formatter.formatWithWords(1.minutes).shouldBe("1 minute")
+    formatter.formatWithWords(1.minutes.toDouble(SECONDS)).shouldBe("1 minute")
   }
 
   test("Words: Less than 1 minute") {

@@ -1,0 +1,31 @@
+{
+    "module-identifier": "com.google.code.gson:gson",
+    "components": [
+        {
+            "version": "2.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gson-2.10.jar": "0cdd163ce3598a20fc04eee71b140b24f6f2a3b35f0a499dbbdd9852e83fbfaf"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "2.8.9",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gson-2.8.9.jar": "d3999291855de495c94c743761b8ab5176cfeabe281a5ab0d8e8d45326fd703e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

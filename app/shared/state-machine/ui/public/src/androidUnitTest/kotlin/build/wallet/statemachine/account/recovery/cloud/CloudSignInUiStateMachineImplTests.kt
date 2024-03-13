@@ -9,7 +9,7 @@ import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInModel
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInModel.SigningIn
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInProps
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
@@ -47,7 +47,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       googleSignInStateMachine.props.forceSignOut.shouldBeFalse()
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
 
       onSignedInCalls.awaitItem().shouldBe(cloudAccount)
     }
@@ -58,7 +58,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props.copy(forceSignOut = true)) {
       googleSignInStateMachine.props.forceSignOut.shouldBeTrue()
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
 
       onSignedInCalls.awaitItem().shouldBe(cloudAccount)
     }
@@ -68,7 +68,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
     googleSignInStateMachine.emitModel(SigningIn)
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
     }
   }
 
@@ -76,7 +76,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
     googleSignInStateMachine.emitModel(GoogleSignInModel.SignInFailure(message = "oops"))
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel>()
     }
 
     onSignInFailureCalls.awaitItem()
@@ -86,7 +86,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
     googleSignInStateMachine.emitModel(SigningIn)
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel> {
+      awaitBody<LoadingSuccessBodyModel> {
         onBack.shouldBeNull()
       }
     }

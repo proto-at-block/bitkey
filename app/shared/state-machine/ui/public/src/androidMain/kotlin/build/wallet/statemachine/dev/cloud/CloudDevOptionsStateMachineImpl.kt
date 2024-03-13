@@ -12,7 +12,7 @@ import build.wallet.google.signin.GoogleSignInLauncher
 import build.wallet.google.signin.GoogleSignOutAction
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.DebugMenuBodyModel
-import build.wallet.ui.model.Click.StandardClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.CARD_GROUP

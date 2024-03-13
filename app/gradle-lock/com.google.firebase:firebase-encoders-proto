@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-encoders-proto",
+    "components": [
+        {
+            "version": "16.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-encoders-proto-16.0.0.jar": "293db96a0d1d43f033167881b638d8fde844e4e5495f5101cf52295765295e0e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

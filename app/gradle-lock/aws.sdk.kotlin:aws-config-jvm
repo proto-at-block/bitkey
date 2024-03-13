@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.sdk.kotlin:aws-config-jvm",
+    "components": [
+        {
+            "version": "1.0.55",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-config-jvm-1.0.55.jar": "d3461f8152c484212113c699fa5600c85b7e76f64cf6aed2499d5bc0623b90b1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

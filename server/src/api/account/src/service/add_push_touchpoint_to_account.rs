@@ -14,7 +14,7 @@ impl Service {
         &self,
         input: AddPushTouchpointToAccountInput,
     ) -> Result<Touchpoint, AccountError> {
-        let mut account = self.repo.fetch(&input.account_id).await?;
+        let mut account = self.account_repo.fetch(&input.account_id).await?;
 
         let device_token = input.device_token.clone();
         if let Some(touchpoint) = account.get_common_fields().touchpoints.iter().find(|t| {
@@ -30,6 +30,15 @@ impl Service {
             }
         }) {
             return Ok(touchpoint.to_owned());
+        }
+
+        // Prevent inactive devices from registering device tokens as soon as their access token is revoked
+        if self
+            .userpool_service
+            .is_access_token_revoked(input.access_token)
+            .await?
+        {
+            return Err(AccountError::UnauthorizedDeviceTokenRegistration);
         }
 
         let device_arn = generate_device_arn(
@@ -64,7 +73,7 @@ impl Service {
                 .push(new_touchpoint.clone()),
         };
 
-        self.repo.persist(&account).await?;
+        self.account_repo.persist(&account).await?;
         Ok(new_touchpoint)
     }
 }

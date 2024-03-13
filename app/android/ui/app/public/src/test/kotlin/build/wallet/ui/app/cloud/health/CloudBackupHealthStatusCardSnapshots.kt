@@ -1,22 +1,36 @@
 package build.wallet.ui.app.cloud.health
 
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.ui.app.backup.health.CloudBackupHealthStatusCardWithButtonPreview
-import build.wallet.ui.app.backup.health.CloudBackupHealthStatusCardWithoutButtonPreview
+import build.wallet.ui.app.backup.health.CloudBackupHealthStatusEAKError
+import build.wallet.ui.app.backup.health.CloudBackupHealthStatusEAKGood
+import build.wallet.ui.app.backup.health.CloudBackupHealthStatusError
+import build.wallet.ui.app.backup.health.CloudBackupHealthStatusGood
 import io.kotest.core.spec.style.FunSpec
 
 class CloudBackupHealthStatusCardSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("status card with action button") {
+  test("backup health good") {
     paparazzi.snapshot {
-      CloudBackupHealthStatusCardWithButtonPreview()
+      CloudBackupHealthStatusGood()
     }
   }
 
-  test("status card without action button") {
+  test("backup health error") {
     paparazzi.snapshot {
-      CloudBackupHealthStatusCardWithoutButtonPreview()
+      CloudBackupHealthStatusError()
+    }
+  }
+
+  test("eak good") {
+    paparazzi.snapshot {
+      CloudBackupHealthStatusEAKGood()
+    }
+  }
+
+  test("eak error") {
+    paparazzi.snapshot {
+      CloudBackupHealthStatusEAKError()
     }
   }
 })

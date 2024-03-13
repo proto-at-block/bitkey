@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-debug",
+    "components": [
+        {
+            "version": "1.7.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-debug-1.7.3.jar": "e3f63422e0eb05f9de5683067aee6fcd6c819a19306d83e225317f50627d6b12"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

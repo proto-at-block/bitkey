@@ -1,15 +1,15 @@
 package build.wallet.statemachine.settings.full.device
 
-import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.Icon.BitkeyDevice3D
-import build.wallet.statemachine.core.Icon.SmallIconRefresh
+import build.wallet.statemachine.core.Icon.SmallIconSync
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Button
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.DataHero
 import build.wallet.statemachine.core.form.FormMainContentModel.Spacer
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -38,6 +38,9 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * @param onBack - Invoked once the back action is called
  */
 fun DeviceSettingsFormBodyModel(
+  trackerScreenId: EventTrackerScreenId,
+  emptyState: Boolean,
+  modelName: String,
   currentVersion: String,
   updateVersion: String?,
   modelNumber: String,
@@ -52,7 +55,7 @@ fun DeviceSettingsFormBodyModel(
   onManageReplacement: (() -> Unit)?,
   onBack: () -> Unit,
 ) = FormBodyModel(
-  id = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO,
+  id = trackerScreenId,
   onBack = onBack,
   toolbar =
     ToolbarModel(
@@ -71,74 +74,94 @@ fun DeviceSettingsFormBodyModel(
                   LocalImage(
                     icon = BitkeyDevice3D
                   ),
-                iconSize = XLarge
+                iconSize = XLarge,
+                iconOpacity = 0.3f.takeIf { emptyState }
               ),
             title =
-              if (replacementPending != null) {
-                "Replacement pending..."
-              } else if (updateVersion != null) {
-                "Update available"
-              } else {
-                "Up to date"
-              },
-            subtitle = replacementPending ?: currentVersion,
+              (
+                if (replacementPending != null) {
+                  "Replacement pending..."
+                } else if (updateVersion != null) {
+                  "Update available"
+                } else {
+                  "Up to date"
+                }
+              ).takeUnless { emptyState },
+            subtitle = (replacementPending ?: currentVersion).takeUnless { emptyState },
             button =
               replacementPending?.let {
                 ButtonModel(
                   text = "Manage",
                   treatment = Secondary,
                   size = Footer,
-                  onClick = Click.standardClick { onManageReplacement?.invoke() }
+                  onClick = StandardClick { onManageReplacement?.invoke() }
                 )
               } ?: updateVersion?.let {
                 ButtonModel(
                   text = "Update to $updateVersion",
                   treatment = Primary,
                   size = Footer,
-                  onClick = Click.standardClick { onUpdateVersion?.invoke() }
+                  onClick = StandardClick { onUpdateVersion?.invoke() }
                 )
               }
           ),
-        items =
+        items = run {
+          val sideTextType = DataList.Data.SideTextType.REGULAR.takeIf { emptyState }
+            ?: DataList.Data.SideTextType.MEDIUM
+          val sideTextTreatment = DataList.Data.SideTextTreatment.SECONDARY.takeIf { emptyState }
+            ?: DataList.Data.SideTextTreatment.PRIMARY
           immutableListOf(
             DataList.Data(
               title = "Model name",
-              sideText = "Bitkey",
+              sideText = modelName,
+              sideTextType = sideTextType,
+              sideTextTreatment = sideTextTreatment,
               showBottomDivider = true
             ),
             DataList.Data(
               title = "Model number",
               sideText = modelNumber,
+              sideTextType = sideTextType,
+              sideTextTreatment = sideTextTreatment,
               showBottomDivider = true
             ),
             DataList.Data(
               title = "Serial number",
               sideText = serialNumber,
+              sideTextType = sideTextType,
+              sideTextTreatment = sideTextTreatment,
               showBottomDivider = true
             ),
             DataList.Data(
               title = "Firmware version",
               sideText = currentVersion,
+              sideTextType = sideTextType,
+              sideTextTreatment = sideTextTreatment,
               showBottomDivider = true
             ),
             DataList.Data(
               title = "Last known charge",
               sideText = deviceCharge,
+              sideTextType = sideTextType,
+              sideTextTreatment = sideTextTreatment,
               showBottomDivider = true
             ),
             DataList.Data(
               title = "Last sync",
-              sideText = lastSyncDate
+              sideText = lastSyncDate,
+              sideTextType = sideTextType,
+              sideTextTreatment = sideTextTreatment
             )
-          ),
+          )
+        },
         buttons =
           immutableListOf(
             ButtonModel(
               text = "Sync device info",
               treatment = TertiaryPrimaryNoUnderline,
-              leadingIcon = SmallIconRefresh,
+              leadingIcon = SmallIconSync,
               size = Compact,
-              onClick = Click.standardClick { onSyncDeviceInfo() }
+              onClick = StandardClick { onSyncDeviceInfo() }
             )
           )
       ),
@@ -149,7 +172,7 @@ fun DeviceSettingsFormBodyModel(
               text = "Replace device",
               treatment = TertiaryDestructive,
               size = Footer,
-              onClick = Click.standardClick { onReplaceDevice() },
+              onClick = StandardClick { onReplaceDevice() },
               isEnabled = replaceDeviceEnabled
             )
         )

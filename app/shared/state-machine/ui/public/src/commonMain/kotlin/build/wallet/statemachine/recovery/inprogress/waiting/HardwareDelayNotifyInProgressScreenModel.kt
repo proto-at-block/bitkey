@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Timer
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
@@ -34,7 +34,7 @@ fun HardwareDelayNotifyInProgressScreenModel(
           ButtonModel(
             text = "Cancel recovery",
             treatment = TertiaryDestructive,
-            onClick = Click.standardClick { onCancelRecovery() },
+            onClick = StandardClick { onCancelRecovery() },
             size = Regular
           )
         )
@@ -65,6 +65,6 @@ fun HardwareDelayNotifyInProgressScreenModel(
       text = "Done",
       treatment = Secondary,
       size = Footer,
-      onClick = Click.standardClick { onExit() }
+      onClick = StandardClick { onExit() }
     )
 )

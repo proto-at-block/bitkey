@@ -47,9 +47,11 @@ struct IconButton_Preview: PreviewProvider {
                             color: .foreground10
                         ),
                         iconTint: nil,
+                        iconOpacity: nil,
+                        iconTopSpacing: nil,
                         text: "Send"
                     ),
-                    onClick: ClickCompanion().standardClick {},
+                    onClick: StandardClick {},
                     enabled: true
                 )
         )

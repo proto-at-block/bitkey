@@ -5,8 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.feature.FeatureFlag
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.partnerships.AddBitcoinUiState.PurchasingUiState
@@ -19,19 +17,13 @@ import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiSta
 
 class AddBitcoinUiStateMachineImpl(
   val partnershipsTransferUiStateMachine: PartnershipsTransferUiStateMachine,
-  val purchaseFlowIsEnabledFeatureFlag: FeatureFlag<BooleanFlag>,
   val partnershipsPurchaseUiStateMachine: PartnershipsPurchaseUiStateMachine,
 ) : AddBitcoinUiStateMachine {
   @Composable
   override fun model(props: AddBitcoinUiProps): SheetModel {
-    val purchaseFlowIsEnabled = purchaseFlowIsEnabledFeatureFlag.flagValue().value.value
     var uiState: AddBitcoinUiState by remember {
       mutableStateOf(
-        if (purchaseFlowIsEnabled) {
-          props.purchaseAmount?.let { PurchasingUiState(it) } ?: ShowingBuyOrTransferUiState
-        } else {
-          TransferringUiState
-        }
+        props.purchaseAmount?.let { PurchasingUiState(it) } ?: ShowingBuyOrTransferUiState
       )
     }
     val showBuyOrTransferState: () -> Unit = {
@@ -53,15 +45,9 @@ class AddBitcoinUiStateMachineImpl(
         partnershipsTransferUiStateMachine.model(
           props =
             PartnershipsTransferUiProps(
-              account = props.account,
-              onBack = {
-                when (purchaseFlowIsEnabled) {
-                  true -> {
-                    uiState = ShowingBuyOrTransferUiState
-                  }
-                  false -> props.onExit()
-                }
-              },
+              keybox = props.keybox,
+              generateAddress = props.generateAddress,
+              onBack = { uiState = ShowingBuyOrTransferUiState },
               onAnotherWalletOrExchange = props.onAnotherWalletOrExchange,
               onPartnerRedirected = props.onPartnerRedirected,
               onExit = props.onExit
@@ -72,7 +58,8 @@ class AddBitcoinUiStateMachineImpl(
         partnershipsPurchaseUiStateMachine.model(
           props =
             PartnershipsPurchaseUiProps(
-              account = props.account,
+              keybox = props.keybox,
+              generateAddress = props.generateAddress,
               fiatCurrency = props.fiatCurrency,
               selectedAmount = currentState.selectedAmount,
               onPartnerRedirected = props.onPartnerRedirected,

@@ -43,7 +43,7 @@ sealed interface AccountStatus {
   companion object {
     fun accountFromAccountStatus(accountStatus: AccountStatus): Account? {
       return when (accountStatus) {
-        NoAccount, null -> null
+        NoAccount -> null
         is ActiveAccount -> accountStatus.account
         is OnboardingAccount -> accountStatus.account
         is LiteAccountUpgradingToFullAccount -> accountStatus.account

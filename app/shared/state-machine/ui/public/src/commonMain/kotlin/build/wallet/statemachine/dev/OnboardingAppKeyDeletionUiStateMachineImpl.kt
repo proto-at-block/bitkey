@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.platform.config.AppVariant
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -52,7 +52,7 @@ class OnboardingAppKeyDeletionUiStateMachineImpl(
                     isLoading = isDeletingAppKey,
                     size = ButtonModel.Size.Compact,
                     treatment = ButtonModel.Treatment.TertiaryDestructive,
-                    onClick = Click.standardClick { isDeletingAppKey = true }
+                    onClick = StandardClick { isDeletingAppKey = true }
                   )
               )
           )

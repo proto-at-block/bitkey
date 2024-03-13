@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.utp:android-test-plugin-result-listener-gradle-proto",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "android-test-plugin-result-listener-gradle-proto-31.1.1.jar": "b1e49ff23fa357f8702aef1632b04405224a3846f4fe76654c76ef9bd7b5a601"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

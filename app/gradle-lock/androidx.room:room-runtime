@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.room:room-runtime",
+    "components": [
+        {
+            "version": "2.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "room-runtime-2.5.0.aar": "9882841877a4437f2002ed9d353f757a5452e13b4ab0ebf195c63ccf0e2e0847"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

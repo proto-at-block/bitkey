@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.core:core-splashscreen",
+    "components": [
+        {
+            "version": "1.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-splashscreen-1.0.1.aar": "25c813ae7795c99dd20628527043f8d0425eb2e826e6c42cb77acbb6c01dde68"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

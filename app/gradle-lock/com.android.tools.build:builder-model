@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:builder-model",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "builder-model-8.1.1.jar": "55ba5a39517d1e0047d257a0ef0e1c8324108a667ea2096c018cb8d0c9fa54c6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-runtime",
+    "components": [
+        {
+            "version": "2.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-2.7.0.aar": "81c6fb1dbb6a3cd7dc827d7b08e1c8142ed3a400a3422441108480e22f8937c4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

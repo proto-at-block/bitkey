@@ -1,7 +1,7 @@
 package build.wallet.statemachine.settings.full.feedback
 
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.support.SupportTicketData
@@ -13,9 +13,10 @@ import build.wallet.support.SupportTicketForm
 interface FeedbackFormUiStateMachine : StateMachine<FeedbackFormUiProps, ScreenModel>
 
 data class FeedbackFormUiProps(
-  val keyboxConfig: KeyboxConfig,
+  val f8eEnvironment: F8eEnvironment,
   val accountId: AccountId,
   val formStructure: SupportTicketForm,
   val initialData: SupportTicketData,
+  val addAttachmentsEnabled: Boolean,
   val onBack: () -> Unit,
 )

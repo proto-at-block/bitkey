@@ -10,7 +10,6 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.onboarding.CreateAccountKeysetService
 import build.wallet.keybox.KeyboxDao
-import build.wallet.keybox.builder.KeyCrossBuilder
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
@@ -43,7 +42,6 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
   lateinit var account: FullAccount
   lateinit var stateMachine: SweepDataStateMachineImpl
   lateinit var createAccountKeysetService: CreateAccountKeysetService
-  lateinit var keyCrossBuilder: KeyCrossBuilder
   lateinit var appKeysGenerator: AppKeysGenerator
   lateinit var appPrivateKeyDao: AppPrivateKeyDao
   lateinit var keyboxDao: KeyboxDao
@@ -55,7 +53,6 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
 
       account = app.onboardFullAccountWithFakeHardware()
       createAccountKeysetService = app.app.createAccountKeysetService
-      keyCrossBuilder = app.app.keyCrossBuilder
       appKeysGenerator = app.app.appKeysGenerator
       appPrivateKeyDao = app.app.appComponent.appPrivateKeyDao
       keyboxDao = app.app.appComponent.keyboxDao
@@ -171,28 +168,31 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
         networkType = network
       )
 
-    val appKeyCross = keyCrossBuilder.createNewKeyCross(account.keybox.config)
-    val appHwKeyCross = keyCrossBuilder.addHardwareKeyBundle(appKeyCross, hwKeyBundle)
-    val response =
-      createAccountKeysetService.createKeyset(
-        account.config.f8eEnvironment,
-        account.accountId,
-        HwSpendingPublicKey(hwKeyBundle.spendingKey.key),
-        appHwKeyCross.appKeyBundle.spendingKey,
-        network,
-        account.keybox.activeKeyBundle.authKey,
-        app.getHardwareFactorProofOfPossession(account.keybox)
-      ).getOrThrow()
+    val appKeyBundle = appKeysGenerator.generateKeyBundle(network).getOrThrow()
 
-    val keyset =
-      keyCrossBuilder.addServerKey(
-        appHwKeyCross,
-        response
-      ).spendingKeyset
+    val f8eSpendingKeyset =
+      createAccountKeysetService
+        .createKeyset(
+          f8eEnvironment = account.config.f8eEnvironment,
+          fullAccountId = account.accountId,
+          hardwareSpendingKey = HwSpendingPublicKey(hwKeyBundle.spendingKey.key),
+          appSpendingKey = appKeyBundle.spendingKey,
+          network = network,
+          appAuthKey = account.keybox.activeAppKeyBundle.authKey,
+          hardwareProofOfPossession = app.getHardwareFactorProofOfPossession(account.keybox)
+        )
+        .getOrThrow()
+
+    val keyset = SpendingKeyset(
+      localId = "fake-spending-keyset-id",
+      appKey = appKeyBundle.spendingKey,
+      networkType = network,
+      hardwareKey = hwKeyBundle.spendingKey,
+      f8eSpendingKeyset = f8eSpendingKeyset
+    )
+
     keyboxDao.saveKeyboxAsActive(
-      account.keybox.copy(
-        inactiveKeysets = (account.keybox.inactiveKeysets + keyset).toImmutableList()
-      )
+      account.keybox.copy(inactiveKeysets = (account.keybox.inactiveKeysets + keyset).toImmutableList())
     ).getOrThrow()
     return keyset
   }

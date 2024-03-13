@@ -16,4 +16,7 @@ enum class CloudEventTrackerScreenIdContext : EventTrackerScreenIdContext {
 
   /** Cloud events during Cloud Backup repair as part of Cloud Backup Health experience. */
   BACKUP_REPAIR,
+
+  /** Cloud events in the debug menu */
+  DEBUG_MENU,
 }

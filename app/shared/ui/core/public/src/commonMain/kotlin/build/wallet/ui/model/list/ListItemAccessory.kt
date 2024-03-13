@@ -20,6 +20,7 @@ sealed interface ListItemAccessory {
     /** The padding to apply to the icon on all sides  */
     val iconPadding: Int? = null,
     val model: IconModel,
+    val onClick: (() -> Unit)? = null,
   ) : ListItemAccessory {
     constructor(icon: Icon) :
       this(

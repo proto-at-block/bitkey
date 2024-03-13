@@ -1,0 +1,24 @@
+{
+    "module-identifier": "io.ktor:ktor-utils-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-utils-cinterop-threadUtils.klib": "2047bbc0a90761fa1d0ea77f191fd636d78531d1c3e97aad1b2ae7928ee6a67e",
+                        "ktor-utils.klib": "bfdb2c313d6814c4218fa20519ff62cdc25918bb17826bd44d5c39e790957db0"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-utils-iosarm64-2.3.8-metadata.jar": "cc253bb30173c1b2a67fdb00e374ae8bc96ae87e4cb2d9f5ed17a97937a35344"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

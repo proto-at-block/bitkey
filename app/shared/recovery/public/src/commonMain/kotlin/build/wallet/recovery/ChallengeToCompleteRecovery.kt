@@ -23,7 +23,7 @@ data class ChallengeToCompleteRecovery(
 ) {
   constructor(
     app: AppGlobalAuthPublicKey,
-    recovery: AppRecoveryAuthPublicKey?,
+    recovery: AppRecoveryAuthPublicKey,
     hw: HwAuthPublicKey,
   ) : this(
     bytes = "CompleteDelayNotify${hw.pubKey.value}${app.pubKey.value}${recovery?.pubKey?.value ?: ""}".encodeUtf8()

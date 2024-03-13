@@ -1,10 +1,10 @@
 package build.wallet.auth
 
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.database.BitkeyDatabaseProvider
-import build.wallet.database.sqldelight.GetAuthKeyRotationAttempt
 import build.wallet.db.DbError
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
@@ -19,60 +19,72 @@ class AuthKeyRotationAttemptDaoImpl(
 ) : AuthKeyRotationAttemptDao {
   private val database by lazy { databaseProvider.database() }
 
-  override fun getAuthKeyRotationAttemptState(): Flow<Result<AuthKeyRotationAttemptDaoState, Throwable>> {
+  override fun observeAuthKeyRotationAttemptState(): Flow<Result<AuthKeyRotationAttemptDaoState, Throwable>> {
     return database.authKeyRotationAttemptQueries
       .getAuthKeyRotationAttempt()
       .asFlowOfOneOrNull()
       .unwrapLoadedValue()
-      .mapResult {
-        when (it) {
-          null -> AuthKeyRotationAttemptDaoState.NoAttemptInProgress
-          else -> {
-            if (!it.succeededServerRotation) {
-              AuthKeyRotationAttemptDaoState.AuthKeysWritten(
-                appAuthPublicKeys = it.appAuthPublicKeys(),
-                hwAuthPublicKey = it.destinationHardwareAuthKey
+      .mapResult { attempt ->
+        if (attempt != null) {
+          val appGlobalAuthPublicKey = attempt.destinationAppGlobalAuthKey
+          val appRecoveryAuthPublicKey = attempt.destinationAppRecoveryAuthKey
+          val appGlobalAuthKeyHwSignature = attempt.destinationAppGlobalAuthKeyHwSignature
+
+          if (appGlobalAuthPublicKey != null && appRecoveryAuthPublicKey != null && appGlobalAuthKeyHwSignature != null) {
+            AuthKeyRotationAttemptDaoState.AuthKeysWritten(
+              appAuthPublicKeys = AppAuthPublicKeys(
+                appGlobalAuthPublicKey = appGlobalAuthPublicKey,
+                appRecoveryAuthPublicKey = appRecoveryAuthPublicKey,
+                appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
               )
-            } else {
-              AuthKeyRotationAttemptDaoState.ServerRotationAttemptComplete(
-                appAuthPublicKeys = it.appAuthPublicKeys()
-              )
+            )
+          } else {
+            if (appGlobalAuthPublicKey != null) {
+              log(LogLevel.Error) {
+                "Auth key rotation proposal found, but global auth key wasn't null."
+              }
             }
+            if (appRecoveryAuthPublicKey != null) {
+              log(LogLevel.Error) {
+                "Auth key rotation proposal found, but recovery auth key wasn't null."
+              }
+            }
+            if (appGlobalAuthKeyHwSignature != null) {
+              log(LogLevel.Error) {
+                "Auth key rotation proposal found, but app global auth key hardware signature wasn't null."
+              }
+            }
+            AuthKeyRotationAttemptDaoState.KeyRotationProposalWritten
           }
+        } else {
+          AuthKeyRotationAttemptDaoState.NoAttemptInProgress
         }
       }
       .distinctUntilChanged()
   }
 
+  override suspend fun setKeyRotationProposal(): Result<Unit, DbError> {
+    return database.awaitTransaction {
+      authKeyRotationAttemptQueries.setKeyRotationProposal()
+    }.logFailure { "Error setting key rotation proposal." }
+  }
+
   override suspend fun setAuthKeysWritten(
     appAuthPublicKeys: AppAuthPublicKeys,
-    hwAuthPublicKey: HwAuthPublicKey,
   ): Result<Unit, DbError> {
     return database.awaitTransaction {
+      authKeyRotationAttemptQueries.clear()
       authKeyRotationAttemptQueries.setAuthKeyCreated(
         destinationAppGlobalAuthKey = appAuthPublicKeys.appGlobalAuthPublicKey,
         destinationAppRecoveryAuthKey = appAuthPublicKeys.appRecoveryAuthPublicKey,
-        destinationHardwareAuthKey = hwAuthPublicKey
+        destinationAppGlobalAuthKeyHwSignature = appAuthPublicKeys.appGlobalAuthKeyHwSignature
       )
     }.logFailure { "Error setting auth keys written." }
-  }
-
-  override suspend fun setServerRotationAttemptComplete(): Result<Unit, DbError> {
-    return database.awaitTransaction {
-      authKeyRotationAttemptQueries.setSucceededServerRotation()
-    }.logFailure { "Error setting server rotation attempt complete." }
   }
 
   override suspend fun clear(): Result<Unit, DbError> {
     return database.awaitTransaction {
       authKeyRotationAttemptQueries.clear()
     }.logFailure { "Error clearing auth key rotation attempt" }
-  }
-
-  private fun GetAuthKeyRotationAttempt.appAuthPublicKeys(): AppAuthPublicKeys {
-    return AppAuthPublicKeys(
-      appGlobalAuthPublicKey = this.destinationAppGlobalAuthKey,
-      appRecoveryAuthPublicKey = this.destinationAppRecoveryAuthKey
-    )
   }
 }

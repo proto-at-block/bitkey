@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-serialization-kotlinx-json-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-serialization-kotlinx-json-iosx64-2.3.8-metadata.jar": "f00e47bce5e96bc3b0b59edca74a69a881a0457c176bcc1fb84d459486dff15f"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-serialization-kotlinx-json.klib": "10137466f9ff20bf497e7a704cb9497b2983ef467dc673337fb4b4bbf6bb75c7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

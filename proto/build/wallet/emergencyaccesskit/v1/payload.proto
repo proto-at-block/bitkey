@@ -1,6 +1,12 @@
 syntax = "proto3";
 package build.wallet.emergencyaccesskit.v1;
 
+import "google/protobuf/descriptor.proto";
+extend google.protobuf.FieldOptions {
+    /** Fields marked with redacted are not logged */
+    optional bool redacted = 22200;
+}
+
 message Payload {
     oneof backup {
         BackupV1 backup_v1 = 1;
@@ -36,7 +42,7 @@ message ActiveSpendingKeysetV1 {
 
 message AppSpendingKey {
     optional SpendingPublicKey key = 1;
-    optional string xprv = 2;
+    optional string xprv = 2 [(redacted) = true];
 }
 
 message SpendingPublicKey {

@@ -1,0 +1,24 @@
+{
+    "module-identifier": "co.touchlab.crashkios:bugsnag-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.8.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bugsnag-cinterop-bugsnag.klib": "2d96e1e2a62d80cd9f70a353f03f5e83ed53c9a93a8eb8a5871284dae1318a2a",
+                        "bugsnag.klib": "568d5463cc3819cb7d865679257fcc1a01f37226cc18648112d4b7d127e008e1"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "bugsnag-iossimulatorarm64-0.8.5-metadata.jar": "9e4140498031851cf55d49b7d349af08ad67fc8d56385ee300c5c80ba28f0d84"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

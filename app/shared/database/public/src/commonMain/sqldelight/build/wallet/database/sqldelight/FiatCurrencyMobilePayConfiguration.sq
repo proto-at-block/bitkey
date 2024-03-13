@@ -6,7 +6,7 @@ CREATE TABLE fiatCurrencyMobilePayConfigurationEntity(
     textCode            TEXT AS IsoCurrencyTextCode NOT NULL PRIMARY KEY,
     minimumLimit        INTEGER NOT NULL,
     maximumLimit        INTEGER NOT NULL,
-    snapValues          TEXT AS Map<Int, Int>
+    snapValues          TEXT AS Map<Int, Int> NOT NULL
 );
 
 insertOrUpdateFiatCurrencyMobilePayConfiguration:

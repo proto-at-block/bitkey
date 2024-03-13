@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.ionspin.kotlin:bignum-jvm",
+    "components": [
+        {
+            "version": "0.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bignum-jvm-0.3.8.jar": "c71f24ce8341a5106c3cf5db161476b6b8f80233de64ad93e6290ec493dda22c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

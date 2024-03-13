@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test.espresso:espresso-idling-resource",
+    "components": [
+        {
+            "version": "3.5.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "espresso-idling-resource-3.5.1.aar": "84fb8e2f5eda937771bee28582f5d2cfa61b0e9438d02041ca61b81e3dac3c87"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

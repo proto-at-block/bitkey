@@ -4,11 +4,14 @@ import build.wallet.account.AccountRepositoryFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.auth.AuthKeyRotationAttemptDaoMock
 import build.wallet.auth.AuthTokenDaoMock
+import build.wallet.availability.AuthSignatureStatus
+import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.TransactionDetailDaoMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthKeypairMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
@@ -31,10 +34,12 @@ import build.wallet.limit.SpendingLimitDaoMock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.notifications.NotificationTouchpointDaoMock
-import build.wallet.onboarding.OnboardingKeyboxHwAuthPublicKeyDaoFake
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeys
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoFake
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.platform.config.AppVariant
+import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.recovery.socrec.SocRecKeysDaoFake
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
@@ -43,6 +48,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.maps.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.shouldBe
 
 class AppDataDeleterImplTests : FunSpec({
 
@@ -63,7 +69,7 @@ class AppDataDeleterImplTests : FunSpec({
   val firmwareMetadataDao = FirmwareMetadataDaoMock(turbines::create)
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val onboardingAppKeyKeystoreFake = OnboardingAppKeyKeystoreFake()
-  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHwAuthPublicKeyDaoFake()
+  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val homeUiBottomSheetDao = HomeUiBottomSheetDaoMock(turbines::create)
   val bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(turbines::create)
@@ -73,6 +79,8 @@ class AppDataDeleterImplTests : FunSpec({
   val socRecStartedChallengeDao = SocRecStartedChallengeDaoFake()
   val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
   val authKeyRotationAttemptMock = AuthKeyRotationAttemptDaoMock(turbines::create)
+  val recoveryDaoMock = RecoveryDaoMock(turbines::create)
+  val authSignatureStatusProvider = F8eAuthSignatureStatusProviderImpl()
 
   fun appDataDeleter(appVariant: AppVariant) =
     AppDataDeleterImpl(
@@ -84,7 +92,7 @@ class AppDataDeleterImplTests : FunSpec({
       notificationTouchpointDao = notificationTouchpointDao,
       onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      onboardingKeyboxHwAuthPublicKeyDao = onboardingKeyboxHwAuthPublicKeyDao,
+      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
       spendingLimitDao = spendingLimitDao,
       transactionDetailDao = transactionDetailDao,
       fwupDataDao = fwupDataDao,
@@ -101,7 +109,9 @@ class AppDataDeleterImplTests : FunSpec({
       socRecRelationshipsRepository = socRecRelationshipsRepository,
       socRecStartedChallengeDao = socRecStartedChallengeDao,
       csekDao = CsekDaoFake(),
-      authKeyRotationAttemptDao = authKeyRotationAttemptMock
+      authKeyRotationAttemptDao = authKeyRotationAttemptMock,
+      recoveryDao = recoveryDaoMock,
+      authSignatureStatusProvider = authSignatureStatusProvider
     )
 
   beforeTest {
@@ -131,9 +141,15 @@ class AppDataDeleterImplTests : FunSpec({
           AppRecoveryAuthPublicKeyMock,
           SIGNET
         )
-      onboardingKeyboxHwAuthPublicKeyDao.set(HwAuthPublicKey(Secp256k1PublicKey("fake-hw")))
+      onboardingKeyboxHwAuthPublicKeyDao.set(
+        OnboardingKeyboxHardwareKeys(
+          hwAuthPublicKey = HwAuthPublicKey(Secp256k1PublicKey("fake-hw")),
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
+        )
+      )
       transactionPriorityPreference.set(FASTEST)
       socRecStartedChallengeDao.set("fake")
+      authSignatureStatusProvider.updateAuthSignatureStatus(AuthSignatureStatus.Unauthenticated)
 
       appDataDeleter(variant).deleteAll()
 
@@ -157,8 +173,10 @@ class AppDataDeleterImplTests : FunSpec({
       homeUiBottomSheetDao.clearHomeUiBottomSheetCalls.awaitItem()
       bitcoinDisplayPreferenceRepository.clearCalls?.awaitItem()
       authKeyRotationAttemptMock.clearCalls.awaitItem()
-      onboardingKeyboxHwAuthPublicKeyDao.hwAuthPublicKey.shouldBeNull()
+      onboardingKeyboxHwAuthPublicKeyDao.keys?.hwAuthPublicKey.shouldBeNull()
       socRecStartedChallengeDao.pendingChallengeId.shouldBeNull()
+      recoveryDaoMock.clearCalls.awaitItem()
+      authSignatureStatusProvider.authSignatureStatus().value.shouldBe(AuthSignatureStatus.Authenticated)
 
       cloudBackupDao.shouldBeEmpty()
     }

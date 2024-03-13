@@ -3,9 +3,11 @@ package build.wallet.statemachine.data.keybox.address
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.spending.F8eSpendingPublicKeyMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.notifications.RegisterWatchAddressContext
@@ -41,12 +43,15 @@ class FullAccountAddressDataStateMachineImplTests : FunSpec({
 
       with(awaitItem()) {
         latestAddress.shouldBeNull()
-        generateAddress { }
+        generateAddress()
         registerWatchAddressProcessor.processBatchCalls.awaitItem().shouldBe(
           listOf(
             RegisterWatchAddressContext(
               someBitcoinAddress,
-              KeyboxMock.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+              F8eSpendingKeyset(
+                keysetId = "spending-public-keyset-fake-server-id",
+                spendingPublicKey = F8eSpendingPublicKeyMock
+              ),
               FullAccountIdMock.serverId,
               KeyboxMock.config.f8eEnvironment
             )
@@ -67,12 +72,15 @@ class FullAccountAddressDataStateMachineImplTests : FunSpec({
 
       with(awaitItem()) {
         latestAddress.shouldBeNull()
-        generateAddress { }
+        generateAddress()
         registerWatchAddressProcessor.processBatchCalls.awaitItem().shouldBe(
           listOf(
             RegisterWatchAddressContext(
               someBitcoinAddress,
-              KeyboxMock.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+              F8eSpendingKeyset(
+                keysetId = "spending-public-keyset-fake-server-id",
+                spendingPublicKey = F8eSpendingPublicKeyMock
+              ),
               FullAccountIdMock.serverId,
               KeyboxMock.config.f8eEnvironment
             )
@@ -84,7 +92,7 @@ class FullAccountAddressDataStateMachineImplTests : FunSpec({
         latestAddress.shouldBe(someBitcoinAddress)
         spendingWallet.newAddressResult =
           Err(Generic(Exception("failed to generate address"), null))
-        generateAddress {}
+        generateAddress()
       }
 
       // Latest address hasn't changed

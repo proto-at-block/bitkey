@@ -32,7 +32,14 @@ services:
     # If we don't this, we have to configure fromagerie with a container-internal
     # domain for esplora and external domain for the /api/bdk-configuration endpoint
     depends_on:
-      - esplora
+      esplora:
+        condition: service_started
+      dynamodb:
+        condition: service_healthy
+      wsm-api:
+        condition: service_started
+      wsm-enclave:
+        condition: service_started
 
   esplora:
     extends:

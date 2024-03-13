@@ -16,10 +16,12 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoder
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer
 import build.wallet.keybox.KeyboxDao
+import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
 import build.wallet.platform.random.Uuid
 import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -32,7 +34,6 @@ import build.wallet.toUByteList
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.coroutines.binding.binding
-import okio.ByteString
 
 class EmergencyAccessKitRecoveryUiStateMachineImpl(
   private val clipboard: Clipboard,
@@ -99,7 +100,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       is State.QrEntry ->
         QrCodeScanBodyModel(
           headline = "Import your wallet",
-          reticleLabel = "Scan your Emergency Access Kit code",
+          reticleLabel = "Scan the QR code in section 4 of the PDF",
           onClose = { state = currentState.onBack(props) },
           onQrCodeScanned = { rawData ->
             state =
@@ -135,7 +136,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         val sealedCsek =
           when (currentState.payload) {
             is EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1 ->
-              currentState.payload.hwEncryptionKeyCiphertext
+              currentState.payload.sealedHwEncryptionKey
           }
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
@@ -155,7 +156,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
               state = currentState.onSuccess()
             },
             onCancel = { state = currentState.onBack(props) },
-            isHardwareFake = props.keyboxConfig.isHardwareFake,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = ScreenPresentationStyle.Root,
             eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP
           )
@@ -164,15 +165,16 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
 
       is State.RestoreCompleting -> {
         LaunchedEffect("restoring-from-backup") {
-          when (
+          state = when (
             val result =
               emergencyAccessPayloadRestorer.restoreFromPayload(currentState.payload)
+                .logFailure { "EAK payload failed to decrypt" }
           ) {
             is Ok -> {
-              state = currentState.onSuccess(result.value)
+              currentState.onSuccess(result.value)
             }
             is Err -> {
-              state = currentState.onFailure()
+              currentState.onFailure()
             }
           }
         }
@@ -197,7 +199,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     }
   }
 
-  private fun importingBackupScreen(): LoadingBodyModel =
+  private fun importingBackupScreen(): LoadingSuccessBodyModel =
     LoadingBodyModel(
       onBack = null,
       message = "Importing Emergency Access backup...",
@@ -310,9 +312,9 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     }
 
     data object RestoreFailed : State {
-      fun onScanQRCode() = State.QrEntry
+      fun onScanQRCode() = QrEntry
 
-      fun onImport() = State.ManualEntry(enteredText = "")
+      fun onImport() = ManualEntry(enteredText = "")
     }
 
     data class RestoreCompleted(
@@ -324,10 +326,11 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       ) = binding {
         // Only set the active keybox. This will leave the app in a "server offline" state
         // but able to transfer funds.
-        val activeKeybox =
-          accountRestoration.asKeybox(
-            localId = uuid.random()
-          )
+        val activeKeybox = accountRestoration.asKeybox(
+          keyboxId = uuid.random(),
+          appKeyBundleId = uuid.random(),
+          hwKeyBundleId = uuid.random()
+        )
 
         keyboxDao
           .saveKeyboxAsActive(activeKeybox)
@@ -370,15 +373,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       entrySource: EntrySource,
       payloadDecoder: EmergencyAccessKitPayloadDecoder,
     ): State {
-      return when (val result = payloadDecoder.decode(rawInput)) {
+      return when (
+        val result = payloadDecoder.decode(rawInput)
+          .logFailure { "Emergency Access Kit decrypted payload failed to decode" }
+      ) {
         is Ok -> RestoreWallet(payload = result.value, entrySource = entrySource)
         is Err -> CodeNotRecognized(entrySource = entrySource)
       }
     }
   }
-}
-
-// TODO BKR-731: Update this to the resulted data after NFC decryption
-data class EmergencyAccessKitDecryptedData(val bytes: ByteString) {
-  data object DecryptionFailure : Error()
 }

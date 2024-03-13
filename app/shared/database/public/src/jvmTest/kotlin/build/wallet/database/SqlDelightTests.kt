@@ -12,24 +12,27 @@ class SqlDelightTests : FunSpec({
   test("verify correct number of databases") {
     // check number of databases
     val directory = File("src/commonMain/sqldelight/databases")
-    // This should actually be BitkeyDatabase.Schema.version, but we somehow skipped "20.db" so we have to subtract 1 🙃
     directory.listFiles {
         _,
         name,
       ->
       name.endsWith(".db")
-    }?.size.shouldBe(BitkeyDatabase.Schema.version - 1)
+    }?.size.shouldBe(BitkeyDatabase.Schema.version)
   }
 
   // if this test fails, you're trying to update the db schema without adding a migration
   test("verify correct number of migrations") {
     // check number of migrations
     val directory = File("src/commonMain/sqldelight/migrations")
-    directory.listFiles {
+    val files = directory.listFiles {
         _,
         name,
       ->
       name.endsWith(".sqm")
-    }?.size.shouldBe(BitkeyDatabase.Schema.version - 1)
+    }
+      // No directory found, thus no migrations
+      .orEmpty()
+
+    files.size.shouldBe(BitkeyDatabase.Schema.version - 1)
   }
 })

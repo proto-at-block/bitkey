@@ -4,14 +4,14 @@
 # The script assumes that there is an established ADB session with a phone that contains the app to verify.
 # The build directory is used for temporary storage and is not deleted afterwards so that the user can inspect the outputs of each verification step or do certain steps manually.
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory> <app-package-name>" >&2
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
     exit 1
 fi
 
 if [ ! -f "$1/app/verifiable-build/android/Dockerfile" ]; then
     echo "Cannot find the Dockerfile used for building the AAB. Ensure the path points to the root directory of the Bitkey repository." >&2
-    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory> <app-package-name>" >&2
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
     exit 2
 fi
 
@@ -20,26 +20,23 @@ if [ -e "$2" ]; then
   exit 3
 fi
 
+package_name="world.bitkey.app"
 
 mkdir -p "$2"
 
 steps_path="$1/app/verifiable-build/android/verification/steps"
 
-
-
 printf "Downloading APK from phone:\n\n"
-"$steps_path/download-apk-from-phone" "$3" "$2/from-device/downloaded" || exit $?
-
-printf "Unpacking downloaded APKs:\n\n"
-"$steps_path/unpack-apks" "$2/from-device/downloaded" "$2/from-device/unpacked" || exit $?
-
-printf "Normalizing content of downloaded APKs:\n\n"
-"$steps_path/normalize-apk-content" "$2/from-device/unpacked" "$2/from-device/normalized-content" || exit $?
+"$steps_path/download-apk-from-phone" "$package_name" "$2/from-device/downloaded" || exit $?
 
 printf "Normalizing names of downloaded APKs:\n\n"
-"$steps_path/normalize-apk-names" "$2/from-device/normalized-content" "$2/from-device/comparable" || exit $?
+"$steps_path/normalize-apk-names-new" "$2/from-device/downloaded" "$2/from-device/normalized-names" "device" || exit $?
 
+printf "Unpacking downloaded APKs:\n\n"
+"$steps_path/unpack-apks" "$2/from-device/normalized-names" "$2/from-device/unpacked" || exit $?
 
+printf "Normalizing content of downloaded APKs:\n\n"
+"$steps_path/normalize-apk-content" "$2/from-device/unpacked" "$2/from-device/comparable" || exit $?
 
 reproducible_build_variables=$(find "$2/from-device/unpacked" -type f -name "reproducible-build-variables.json" -exec cat {} \;)
 
@@ -51,17 +48,15 @@ aab_path=$(find "$2/locally-built/aab" -type f -name "*.aab")
 printf "Converting AAB to APKs:\n\n"
 "$steps_path/convert-aab-to-apks" "$aab_path" "$2/locally-built/apks" || exit $?
 
+printf "Normalizing names of locally built APKs:\n\n"
+"$steps_path/normalize-apk-names-new" "$2/locally-built/apks" "$2/locally-built/normalized-names" "bundletool" || exit $?
+
 printf "Unpacking locally built APKs:\n\n"
-"$steps_path/unpack-apks" "$2/locally-built/apks" "$2/locally-built/unpacked" || exit $?
+"$steps_path/unpack-apks" "$2/locally-built/normalized-names" "$2/locally-built/unpacked" || exit $?
 
 printf "Normalizing content of locally built APKs:\n\n"
-"$steps_path/normalize-apk-content" "$2/locally-built/unpacked" "$2/locally-built/normalized-content" || exit $?
-
-printf "Normalizing names of locally built APKs:\n\n"
-"$steps_path/normalize-apk-names" "$2/locally-built/normalized-content" "$2/locally-built/comparable" || exit $?
-
-
+"$steps_path/normalize-apk-content" "$2/locally-built/unpacked" "$2/locally-built/comparable" || exit $?
 
 printf "\n\n---------------------------\n\n"
 printf "Comparing builds:\n\n"
-"$steps_path/compare-apks" "$2/from-device/comparable" "$2/locally-built/comparable" || exit $?
+"$steps_path/compare-apks-new" "$2/from-device" "$2/locally-built" || exit $?

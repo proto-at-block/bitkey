@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.api.grpc:proto-google-common-protos",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "proto-google-common-protos-2.0.1.jar": "5ce71656118618731e34a5d4c61aa3a031be23446dc7de8b5a5e77b66ebcd6ef"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -25,8 +25,9 @@ class LostHardwareRecoveryDataStateMachineImpl(
           recoveryInProgressDataStateMachine.model(
             props =
               RecoveryInProgressProps(
-                keyboxConfig = props.account.keybox.config,
+                fullAccountConfig = props.account.keybox.config,
                 recovery = hardwareRecovery,
+                oldAppGlobalAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
                 onRetryCloudRecovery = null // Cloud Backup Recovery is not available for Lost Hardware.
               )
           )

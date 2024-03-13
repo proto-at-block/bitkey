@@ -9,19 +9,21 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class SocialChallengeVerifierTests : FunSpec({
 
+  val socRecCrypto = SocRecCryptoFake()
   val socialChallengeVerifier =
     SocialChallengeVerifierImpl(
       socRecChallengeRepository = SocRecChallengeRepositoryMock(),
-      socRecCrypto = SocRecCryptoFake()
+      socRecCrypto = socRecCrypto,
+      socialRecoveryCodeBuilder = SocialRecoveryCodeBuilderFake()
     )
 
   test("verify challenge with correct code") {
     val result =
       socialChallengeVerifier.verifyChallenge(
         account = LiteAccountMock,
-        trustedContactIdentityKey = TrustedContactIdentityKeyFake,
+        delegatedDecryptionKey = DelegatedDecryptionKeyFake,
         recoveryRelationshipId = "recovery-relationship-id",
-        code = "123456"
+        recoveryCode = "ABCDEF,123456"
       )
 
     result.get().shouldBe(Unit)
@@ -31,9 +33,9 @@ class SocialChallengeVerifierTests : FunSpec({
     val result =
       socialChallengeVerifier.verifyChallenge(
         account = LiteAccountMock,
-        trustedContactIdentityKey = TrustedContactIdentityKeyFake,
+        delegatedDecryptionKey = DelegatedDecryptionKeyFake,
         recoveryRelationshipId = "recovery-relationship-id",
-        code = "!123456"
+        recoveryCode = "!123456,__"
       )
 
     result.getError()

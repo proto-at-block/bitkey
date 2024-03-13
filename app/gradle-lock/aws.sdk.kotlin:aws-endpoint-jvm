@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.sdk.kotlin:aws-endpoint-jvm",
+    "components": [
+        {
+            "version": "1.0.55",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-endpoint-jvm-1.0.55.jar": "d3f30ef5e3b11b358f28f42422226585b72e4a11bf13b1fc3411962dcfde64f3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -11,7 +11,7 @@ import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.USD
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
@@ -84,7 +84,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
 
   test("load mobile pay data") {
     stateMachine.test(props(mobilePayData = LoadingMobilePayData)) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       updateProps(
         props(MobilePayEnabledData(activeSpendingLimit = SpendingLimitMock))

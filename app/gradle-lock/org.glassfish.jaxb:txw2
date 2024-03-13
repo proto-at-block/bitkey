@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.glassfish.jaxb:txw2",
+    "components": [
+        {
+            "version": "2.3.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "txw2-2.3.2.jar": "4a6a9f483388d461b81aa9a28c685b8b74c0597993bf1884b04eddbca95f48fe"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

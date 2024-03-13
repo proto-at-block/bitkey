@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.apache.httpcomponents:httpmime",
+    "components": [
+        {
+            "version": "4.5.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "httpmime-4.5.6.jar": "0b2b1102c18d3c7e05a77214b9b7501a6f6056174ae5604e0e256776eda7553e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

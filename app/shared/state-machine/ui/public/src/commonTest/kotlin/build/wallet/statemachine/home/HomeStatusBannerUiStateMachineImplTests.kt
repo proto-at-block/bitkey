@@ -1,8 +1,11 @@
 package build.wallet.statemachine.home
 
+import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
+import build.wallet.availability.InactiveApp
 import build.wallet.availability.InternetUnreachable
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
@@ -20,12 +23,14 @@ import kotlinx.datetime.Instant
 
 class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
+  val eventTracker = EventTrackerMock(turbines::create)
   val stateMachine =
     HomeStatusBannerUiStateMachineImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
-      clock = ClockFake()
+      clock = ClockFake(),
+      eventTracker = eventTracker
     )
 
   val propsOnBannerClickCalls = turbines.create<Unit>("props onBannerClick calls")
@@ -55,11 +60,30 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
       )
 
       awaitItem().shouldNotBeNull().apply {
-        title.shouldBe("Bitkey Services Unavailable")
+        title.shouldBe("Unable to reach Bitkey services")
         subtitle.shouldBe("Some features may not be available")
         onClick?.invoke()
         propsOnBannerClickCalls.awaitItem()
       }
+    }
+  }
+
+  test("Model when LimitedFunctionality - Inactive App") {
+    stateMachine.test(props) {
+      awaitItem().shouldBeNull()
+      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+        AppFunctionalityStatus.LimitedFunctionality(cause = InactiveApp)
+      )
+
+      awaitItem().shouldNotBeNull().apply {
+        title.shouldBe("Limited Functionality")
+        subtitle.shouldBe("Your wallet is active on another phone")
+        onClick?.invoke()
+        propsOnBannerClickCalls.awaitItem()
+      }
+
+      eventTracker.eventCalls.awaitItem().action
+        .shouldBe(Action.ACTION_APP_BECAME_INACTIVE)
     }
   }
 

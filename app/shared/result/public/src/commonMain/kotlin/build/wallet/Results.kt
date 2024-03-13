@@ -1,5 +1,6 @@
 package build.wallet
 
+import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.runSuspendCatching
 import com.github.michaelbull.result.map
@@ -31,3 +32,5 @@ inline fun <V, E> Result<V, E>.mapUnit(): Result<Unit, E> = map { }
 inline fun <V, E, U> Flow<Result<V, E>>.mapResult(
   crossinline transform: suspend (V) -> U,
 ): Flow<Result<U, E>> = map { result -> result.map { transform(it) } }
+
+fun <V, E> Result<V, E>.isOk(): Boolean = this is Ok

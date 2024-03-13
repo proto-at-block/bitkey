@@ -1,7 +1,9 @@
 import build.wallet.gradle.logic.extensions.allTargets
+import build.wallet.gradle.logic.reproducible.GenerateEmergencyAccessKitInformationTask
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.build.reproducible")
 }
 
 buildLogic {
@@ -33,7 +35,6 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(libs.kmp.test.kotest.assertions.json)
         implementation(projects.shared.emergencyAccessKitFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.testingPublic)
@@ -68,6 +69,30 @@ kotlin {
         api(projects.shared.platformFake)
         implementation(projects.shared.platformImpl)
       }
+    }
+  }
+}
+
+val generateEmergencyAccessKitInformation by tasks.registering(GenerateEmergencyAccessKitInformationTask::class) {
+  val variables = reproducibleBuildVariables.variables
+  apkVersion = variables.map { it.emergencyApkVersion }
+  apkHash = variables.map { it.emergencyApkHash }
+  apkUrl = variables.map { it.emergencyApkUrl }
+  outputFile = layout.buildDirectory.file(
+    "generated/source/commonMain/build/wallet/emergencyaccesskit/EmergencyAccessKitAppInformation.kt"
+  )
+  // `outputDirectories` aren't used in the task, but this way the task gets run automatically by Gradle because we register it below as sources
+  outputDirectories.setFrom(
+    layout.buildDirectory.dir(
+      "generated/source/commonMain"
+    )
+  )
+}
+
+kotlin {
+  sourceSets {
+    commonMain {
+      kotlin.srcDir(generateEmergencyAccessKitInformation.map { it.outputDirectories })
     }
   }
 }

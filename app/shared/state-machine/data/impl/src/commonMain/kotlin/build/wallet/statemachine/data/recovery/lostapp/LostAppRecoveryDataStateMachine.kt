@@ -1,7 +1,7 @@
 package build.wallet.statemachine.data.recovery.lostapp
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.statemachine.core.StateMachine
@@ -18,12 +18,12 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostA
 interface LostAppRecoveryDataStateMachine : StateMachine<LostAppRecoveryProps, LostAppRecoveryData>
 
 /**
- * @property keyboxConfig keybox configuration to use for Lost App recovery.
+ * @property fullAccountConfig keybox configuration to use for Lost App recovery.
  * @property account existing account if any. TODO(W-3072): move into state machine as implementation detail.
  */
 data class LostAppRecoveryProps(
   val cloudBackup: CloudBackup?,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val activeRecovery: StillRecovering?,
   val onRollback: () -> Unit,
   val onRetryCloudRecovery: () -> Unit,
@@ -41,7 +41,7 @@ class LostAppRecoveryDataStateMachineImpl(
         lostAppRecoveryHaveNotStartedDataStateMachine.model(
           LostAppRecoveryHaveNotStartedProps(
             cloudBackup = props.cloudBackup,
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             onRollback = props.onRollback
           )
         )
@@ -51,8 +51,9 @@ class LostAppRecoveryDataStateMachineImpl(
           recoveryInProgressData =
             recoveryInProgressDataStateMachine.model(
               RecoveryInProgressProps(
-                keyboxConfig = props.keyboxConfig,
+                fullAccountConfig = props.fullAccountConfig,
                 recovery = props.activeRecovery,
+                oldAppGlobalAuthKey = null,
                 onRetryCloudRecovery = props.onRetryCloudRecovery
               )
             )

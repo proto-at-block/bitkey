@@ -5,6 +5,7 @@ use boring_sys::*;
 use std::ffi::CString;
 use std::os::raw::c_uchar;
 use std::sync::{Arc, Mutex};
+use std::{ptr, slice};
 use thiserror::Error;
 
 pub struct Spake2Context {
@@ -270,6 +271,71 @@ impl Spake2Context {
         verify_mac(key, CONFIRMATION_LABEL.as_bytes(), received_mac.as_slice())
             .map_err(|_| Spake2Error::MacError)
     }
+
+    pub fn read_private_key(&self) -> Vec<u8> {
+        // This is not good. We are bypassing BoringSSL's struct hiding here so that we can read the private key
+        // to persist it, to support async communication.
+        // This **BADLY** breaks if BoringSSL changes the struct layout.
+        //
+        // struct spake2_ctx_st {
+        //     uint8_t private_key[32];
+        //     uint8_t my_msg[32];
+        //     uint8_t password_scalar[32];
+        //     uint8_t password_hash[64];
+        //     uint8_t *my_name;
+        //     size_t my_name_len;
+        //     uint8_t *their_name;
+        //     size_t their_name_len;
+        //     enum spake2_role_t my_role;
+        //     enum spake2_state_t state;
+        //     char disable_password_scalar_hack;
+        //   };
+        let ctx_guard = self.ctx.lock().unwrap();
+        let ctx = *ctx_guard;
+
+        unsafe {
+            let private_key_ptr = ctx as *mut u8;
+            let private_key_slice = slice::from_raw_parts(private_key_ptr, 32);
+            private_key_slice.to_vec()
+        }
+    }
+
+    pub fn read_public_key(&self) -> Vec<u8> {
+        // See note in `read_private_key`.
+
+        let ctx_guard = self.ctx.lock().unwrap();
+        let ctx = *ctx_guard as *mut u8;
+
+        unsafe {
+            let my_msg_offset = ctx.add(32); // Offset by the size of private_key
+            let public_key_slice = slice::from_raw_parts(my_msg_offset, 32);
+            public_key_slice.to_vec()
+        }
+    }
+
+    pub fn write_key_pair(
+        &self,
+        private_key: Vec<u8>,
+        public_key: Vec<u8>,
+    ) -> Result<(), Spake2Error> {
+        if private_key.len() != 32 || public_key.len() != 32 {
+            return Err(Spake2Error::LengthError);
+        }
+
+        // See note in `read_private_key`. EVIL! BAD! NO! Anyway.
+
+        let ctx_guard = self.ctx.lock().unwrap();
+        let ctx = *ctx_guard as *mut u8;
+
+        unsafe {
+            // Copy private_key to the start of the context
+            ptr::copy_nonoverlapping(private_key.as_ptr(), ctx, 32);
+            // Offset by the size of private_key
+            let my_msg_offset = ctx.add(32);
+            ptr::copy_nonoverlapping(public_key.as_ptr(), my_msg_offset, 32);
+        }
+        Ok(())
+    }
 }
 
 impl Drop for Spake2Context {
@@ -444,5 +510,61 @@ mod tests {
         // Keys should be different
         assert!(alice_keys != alice_keys2);
         assert!(bob_keys != bob_keys2);
+    }
+
+    #[test]
+    fn read_write_key_pair() {
+        let (alice_ctx, bob_ctx) = setup_contexts();
+
+        let bob_pubkey = bob_ctx
+            .generate_msg("password".as_bytes().to_vec())
+            .unwrap();
+        let bob_private_key = bob_ctx.read_private_key();
+
+        alice_ctx
+            .write_key_pair(bob_private_key.clone(), bob_pubkey.clone())
+            .unwrap();
+
+        let alice_new_private_key = alice_ctx.read_private_key();
+        let alice_new_public_key = alice_ctx.read_public_key();
+
+        assert_eq!(alice_new_private_key, bob_private_key);
+        assert_eq!(alice_new_public_key, bob_pubkey);
+    }
+
+    #[test]
+    fn async_ctx() {
+        // Alice generates PAKE key
+        let password = "password";
+        let initial_alice_ctx =
+            Spake2Context::new(Spake2Role::Alice, "alice".to_string(), "bob".to_string()).unwrap();
+        let alice_pubkey = initial_alice_ctx
+            .generate_msg(password.as_bytes().to_vec())
+            .unwrap();
+        let alice_privkey = initial_alice_ctx.read_private_key();
+
+        // Bob generates PAKE key
+        let bob_ctx =
+            Spake2Context::new(Spake2Role::Bob, "bob".to_string(), "alice".to_string()).unwrap();
+        let bob_pubkey = bob_ctx.generate_msg(password.as_bytes().to_vec()).unwrap();
+        let bob_shared_secrets = bob_ctx.process_msg(alice_pubkey.clone(), None).unwrap();
+        let bob_key_conf_msg = bob_ctx.generate_key_conf_msg(&bob_shared_secrets).unwrap();
+
+        // Alice writes secrets into new context
+        let new_alice_ctx =
+            Spake2Context::new(Spake2Role::Alice, "alice".to_string(), "bob".to_string()).unwrap();
+        new_alice_ctx
+            .generate_msg(password.as_bytes().to_vec())
+            .unwrap();
+        new_alice_ctx
+            .write_key_pair(alice_privkey.clone(), alice_pubkey.clone())
+            .unwrap();
+
+        // Alice verifies key confirmation from new context
+        let alice_shared_secrets_from_new_ctx =
+            new_alice_ctx.process_msg(bob_pubkey.clone(), None).unwrap();
+        assert!(new_alice_ctx
+            .process_key_conf_msg(bob_key_conf_msg, &alice_shared_secrets_from_new_ctx)
+            .is_ok());
     }
 }

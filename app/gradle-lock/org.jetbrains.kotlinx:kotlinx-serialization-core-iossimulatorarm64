@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-core-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-core-iossimulatorarm64-1.6.2-metadata.jar": "6ded067663779f83b813ed8a8742e1132aa82ede699709450519346955af9420"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-core.klib": "eff0e7912dd21734ad1cd58bef2877a5c6865530cf2c2eaee84bb4b0345c4350"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

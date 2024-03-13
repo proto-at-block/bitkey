@@ -2,6 +2,8 @@ package build.wallet.nfc.transaction
 
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
@@ -13,6 +15,7 @@ import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
 import build.wallet.logging.log
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.nfc.platform.signChallenge
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentRestarted
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
@@ -27,6 +30,7 @@ class PairingTransactionProviderImpl(
 ) : PairingTransactionProvider {
   override operator fun invoke(
     networkType: BitcoinNetworkType,
+    appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
     onSuccess: (PairingTransactionResponse) -> Unit,
     onCancel: () -> Unit,
     isHardwareFake: Boolean,
@@ -45,13 +49,15 @@ class PairingTransactionProviderImpl(
         unsealedCsek = csekGenerator.generate()
 
         FingerprintEnrolled(
-          keyBundle =
-            HwKeyBundle(
-              localId = uuid.random(),
-              spendingKey = commands.getInitialSpendingKey(session, networkType),
-              authKey = commands.getAuthenticationKey(session),
-              networkType = networkType
-            ),
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
+            commands.signChallenge(session, appGlobalAuthPublicKey.pubKey.value)
+          ),
+          keyBundle = HwKeyBundle(
+            localId = uuid.random(),
+            spendingKey = commands.getInitialSpendingKey(session, networkType),
+            authKey = commands.getAuthenticationKey(session),
+            networkType = networkType
+          ),
           sealedCsek = commands.sealKey(session, unsealedCsek),
           serial = commands.getDeviceInfo(session).serial
         )

@@ -2,13 +2,15 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.ProtectedCustomerEphemeralKey
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
-import build.wallet.bitkey.socrec.SocialChallenge
+import build.wallet.bitkey.socrec.ChallengeWrapper
+import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
 import com.github.michaelbull.result.Result
+import kotlinx.collections.immutable.ImmutableList
+import okio.ByteString
 
 /**
  * Manages the active Social Recovery Challenges for a given account.
@@ -20,10 +22,10 @@ interface SocRecChallengeRepository {
   suspend fun startChallenge(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
+    trustedContacts: ImmutableList<TrustedContact>,
+    sealedDekMap: Map<String, XCiphertext>,
     isUsingSocRecFakes: Boolean,
-    protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-  ): Result<SocialChallenge, Error>
+  ): Result<ChallengeWrapper, Error>
 
   /**
    * Get the current active social challenge for this device, if one exists.
@@ -32,17 +34,17 @@ interface SocRecChallengeRepository {
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     isUsingSocRecFakes: Boolean,
-  ): Result<SocialChallenge?, Error>
+  ): Result<ChallengeWrapper?, Error>
 
   /**
-   * Get a a specific social challenge by a specified ID.
+   * Get a specific social challenge by a specified ID.
    */
   suspend fun getChallengeById(
     challengeId: String,
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     isUsingSocRecFakes: Boolean,
-  ): Result<SocialChallenge, Error>
+  ): Result<ChallengeWrapper, Error>
 
   /**
    * Verify the active social challenge by providing the code sent by the protect customer.
@@ -51,7 +53,7 @@ interface SocRecChallengeRepository {
   suspend fun verifyChallenge(
     account: Account,
     recoveryRelationshipId: String,
-    code: String,
+    code: Int,
   ): Result<ChallengeVerificationResponse, Error>
 
   /**
@@ -60,7 +62,9 @@ interface SocRecChallengeRepository {
   suspend fun respondToChallenge(
     account: Account,
     socialChallengeId: String,
-    sharedSecretCiphertext: XCiphertext,
+    trustedContactRecoveryPakePubkey: PublicKey,
+    recoveryPakeConfirmation: ByteString,
+    resealedDek: XCiphertext,
   ): Result<Unit, Error>
 }
 

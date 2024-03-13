@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Hermit clean"
+source bin/activate-hermit
+hermit clean --packages
+hermit update
+
+app/ios/Scripts/CI/FetchBuildVariables "$1"
+
+echo "Building Xcode Project"
+REPRODUCIBLE_BUILD="$(pwd)/reproducible-build-variables.json" xcodegen --spec app/ios/project.yml

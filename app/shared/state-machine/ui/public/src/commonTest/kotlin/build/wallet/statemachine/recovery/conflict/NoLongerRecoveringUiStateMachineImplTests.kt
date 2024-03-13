@@ -5,6 +5,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -85,7 +86,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
       bottomSheet.onClosed()
       clearingLocalRecoveryFailedDataRollbackCalls.awaitItem()
       val bottomSheetBody = bottomSheet.body.shouldBeInstanceOf<FormBodyModel>()
-      bottomSheetBody.primaryButton.shouldNotBeNull().onClick()
+      bottomSheetBody.clickPrimaryButton()
       clearingLocalRecoveryFailedDataRetryCalls.awaitItem()
     }
   }

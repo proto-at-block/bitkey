@@ -42,13 +42,17 @@ import build.wallet.ui.components.sheet.LocalSheetCloser
 import build.wallet.ui.compose.resId
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.Click
+import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
+import build.wallet.ui.model.button.ButtonModel.Size.FitContent
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
 import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
+import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.coroutines.delay
@@ -103,7 +107,7 @@ fun Button(
   // Otherwise, we can just invoke the onClick callback.
   val clickHandler: () -> Unit =
     when (onClick) {
-      is Click.SheetClosingClick -> {
+      is SheetClosingClick -> {
         val scope = rememberStableCoroutineScope()
         val sheetCloser = LocalSheetCloser.current
         {
@@ -113,7 +117,7 @@ fun Button(
         }
       }
 
-      is Click.StandardClick -> onClick::invoke
+      is StandardClick -> onClick::invoke
     }
 
   Button(
@@ -189,8 +193,9 @@ internal fun Button(
     },
     modifier =
       modifier
-        .resId(testTag)
-        .height(style.height),
+        .resId(testTag).run {
+          style.height?.let { height(it) } ?: this
+        },
     enabled = enabled,
     shape = style.shape,
     contentPadding = PaddingValues(0.dp),
@@ -458,7 +463,7 @@ private fun AllButtonsForSizeAndIcon(
           leadingIcon = if (showLeadingIcon) Icon.SmallIconBitkey else null,
           size = size,
           enabled = enabled,
-          onClick = Click.StandardClick { }
+          onClick = StandardClick {}
         )
       }
     }
@@ -481,7 +486,22 @@ private fun ButtonLoadingPreview() {
         treatment = Primary,
         isLoading = isLoading,
         size = Regular,
-        onClick = Click.StandardClick { }
+        onClick = StandardClick {}
+      )
+    }
+  }
+}
+
+@Preview
+@Composable
+private fun ButtonWithLongTextPreview() {
+  PreviewWalletTheme {
+    Box(modifier = Modifier.padding(5.dp).height(72.dp)) {
+      Button(
+        text = "Your information will be collected and used in accordance with our Privacy Notice",
+        treatment = Tertiary,
+        size = FitContent,
+        onClick = StandardClick { }
       )
     }
   }

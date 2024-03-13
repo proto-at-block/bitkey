@@ -33,8 +33,10 @@ inline fun <E> buildPersistentList(
   return buildList {
     val scope =
       object : PersistentListBuilderScope<E> {
-        override fun E.unaryPlus() {
-          add(this)
+        override fun E?.unaryPlus() {
+          if (this != null) {
+            add(this)
+          }
         }
 
         override fun List<E>.unaryPlus() {
@@ -46,7 +48,7 @@ inline fun <E> buildPersistentList(
 }
 
 interface PersistentListBuilderScope<E> {
-  operator fun E.unaryPlus()
+  operator fun E?.unaryPlus()
 
   operator fun List<E>.unaryPlus()
 }

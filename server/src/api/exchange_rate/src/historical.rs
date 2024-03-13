@@ -80,9 +80,9 @@ impl HistoricalExchangeRateProvider for CoinmarketcapRateProvider {
                 }
                 _ => Err(ProviderResponseError::Generic(r.status().to_string()).into()),
             },
-            Err(_) => {
+            Err(e) => {
                 event!(Level::ERROR, "Unable to reach Coinmarketcap API");
-                Err(ExchangeRateError::ProviderUnreachable)
+                Err(ExchangeRateError::ProviderUnreachable(e))
             }
         }
     }

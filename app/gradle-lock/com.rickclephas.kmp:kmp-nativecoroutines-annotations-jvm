@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-annotations-jvm",
+    "components": [
+        {
+            "version": "0.13.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-annotations-jvm-0.13.3.jar": "c5a28ac2c982566f0a04e71bda10c1d7fbb8510eae04c75b5d93a46076233dfe"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

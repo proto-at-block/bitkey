@@ -7,7 +7,7 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.kotlin.dsl.register
 
-fun ApplicationBuildType.reproducibleBugsnag(project: Project) {
+fun ApplicationBuildType.reproducibleBuildVariables(project: Project) {
   val buildTypeName = name
   val capitalizedBuildTypeName = buildTypeName.replaceFirstChar { it.uppercase() }
 

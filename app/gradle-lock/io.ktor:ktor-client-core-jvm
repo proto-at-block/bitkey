@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-client-core-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-core-jvm-2.3.8.jar": "bc81ef5e0989abb3041242f296631c8d12e093ddcdb224cd6696d047fe921292"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

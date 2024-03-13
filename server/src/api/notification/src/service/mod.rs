@@ -1,6 +1,7 @@
 use std::{collections::HashSet, env};
 
 use account::{repository::Repository as AccountRepository, service::Service as AccountService};
+use authn_authz::key_claims::KeyClaims;
 use queue::sqs::SqsQueue;
 use repository::consent::Repository as ConsentRepository;
 use serde::Deserialize;
@@ -147,4 +148,5 @@ pub struct FetchNotificationsPreferencesInput<'a> {
 pub struct UpdateNotificationsPreferencesInput<'a> {
     pub account_id: &'a AccountId,
     pub notifications_preferences: &'a NotificationsPreferences,
+    pub key_proof: Option<KeyClaims>,
 }

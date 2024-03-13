@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.gms:play-services-auth-api-phone",
+    "components": [
+        {
+            "version": "18.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "play-services-auth-api-phone-18.0.1.aar": "9564154e45e625d2e6240740fa8a205285b0d69dfa3871d2b908b6ca35ba5827"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

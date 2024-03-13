@@ -4,9 +4,6 @@ import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.setFlagValue
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.BodyStateMachineMock
@@ -21,6 +18,8 @@ import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementPro
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementUiStateMachine
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.status.StatusBannerModelMock
@@ -29,9 +28,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
-  val multipleFiatCurrencyEnabledFeatureFlag =
-    MultipleFiatCurrencyEnabledFeatureFlag(FeatureFlagDaoMock())
-
   val stateMachine =
     LiteSettingsHomeUiStateMachineImpl(
       currencyPreferenceUiStateMachine =
@@ -49,7 +45,10 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
       settingsListUiStateMachine =
         object : SettingsListUiStateMachine, BodyStateMachineMock<SettingsListUiProps>(
           "settings-list"
-        ) {}
+        ) {},
+      feedbackUiStateMachine = object : FeedbackUiStateMachine, ScreenStateMachineMock<FeedbackUiProps>(
+        "feedback"
+      ) {}
     )
 
   val socrecRepositoryMock = SocRecRelationshipsRepositoryMock(turbines::create)
@@ -64,12 +63,6 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
       socRecLiteAccountActions = socrecRepositoryMock.toActions(LiteAccountMock),
       onBack = { propsOnBackCalls.add(Unit) }
     )
-
-  beforeEach {
-    multipleFiatCurrencyEnabledFeatureFlag.apply {
-      setFlagValue(defaultFlagValue)
-    }
-  }
 
   test("onBack calls props onBack") {
     stateMachine.test(props) {
@@ -102,6 +95,7 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
             setOf(
               SettingsListUiProps.SettingsListRow.TrustedContacts::class,
               SettingsListUiProps.SettingsListRow.CurrencyPreference::class,
+              SettingsListUiProps.SettingsListRow.ContactUs::class,
               SettingsListUiProps.SettingsListRow.HelpCenter::class
             )
           )
@@ -110,7 +104,6 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("open and close currency preference") {
-    multipleFiatCurrencyEnabledFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.CurrencyPreference }.onClick()

@@ -4,8 +4,6 @@ import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.money.currency.USD
-import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -13,7 +11,6 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataFake
-import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
@@ -34,7 +31,6 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   val stateMachine =
     LiteMoneyHomeUiStateMachineImpl(
       inAppBrowserNavigator = inAppBrowserNavigator,
-      moneyDisplayFormatter = MoneyDisplayFormatterFake,
       viewingProtectedCustomerUiStateMachine =
         object : ViewingProtectedCustomerUiStateMachine, ScreenStateMachineMock<ViewingProtectedCustomerProps>(
           "protected-customer-detail"
@@ -58,7 +54,6 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
         HasActiveLiteAccountDataFake.copy(
           onUpgradeAccount = { propsOnUpgradeAccountCalls.add(Unit) }
         ),
-      fiatCurrency = USD,
       protectedCustomers = immutableListOf(),
       homeStatusBannerModel = null,
       onRemoveRelationship = {
@@ -75,13 +70,13 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
 
   test("initially shows Money Home screen") {
     stateMachine.test(props) {
-      awaitScreenWithBody<MoneyHomeBodyModel>()
+      awaitScreenWithBody<LiteMoneyHomeBodyModel>()
     }
   }
 
   test("settings tap invokes props") {
     stateMachine.test(props) {
-      awaitScreenWithBody<MoneyHomeBodyModel> {
+      awaitScreenWithBody<LiteMoneyHomeBodyModel> {
         trailingToolbarAccessoryModel
           .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
           .model.onClick.invoke()
@@ -98,7 +93,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props.copy(protectedCustomers = immutableListOf(protectedCustomer))) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)
-      awaitScreenWithBody<MoneyHomeBodyModel> {
+      awaitScreenWithBody<LiteMoneyHomeBodyModel> {
         cardsModel.cards.first()
           .content.shouldNotBeNull()
           .shouldBeTypeOf<CardModel.CardContent.DrillList>()
@@ -112,7 +107,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
         onExit()
       }
 
-      awaitScreenWithBody<MoneyHomeBodyModel>()
+      awaitScreenWithBody<LiteMoneyHomeBodyModel>()
     }
   }
 
@@ -120,10 +115,10 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     "Accept Invite button calls invokes props"
   ) {
     val protectedCustomer = ProtectedCustomerFake
-    stateMachine.test(props.copy(protectedCustomers = immutableListOf(protectedCustomer))) {
+    stateMachine.test(props.copy(protectedCustomers = immutableListOf())) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)
-      awaitScreenWithBody<MoneyHomeBodyModel> {
+      awaitScreenWithBody<LiteMoneyHomeBodyModel> {
         cardsModel.cards.first()
           .content.shouldNotBeNull()
           .shouldBeTypeOf<CardModel.CardContent.DrillList>()
@@ -133,6 +128,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
       }
 
       onAcceptInvite.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -140,7 +136,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Showing Money Home, tap on "Buy Your Own Bitkey" card
       // (which is the first card when there's no protected customers)
-      awaitScreenWithBody<MoneyHomeBodyModel> {
+      awaitScreenWithBody<LiteMoneyHomeBodyModel> {
         cardsModel.cards.last().onClick.shouldNotBeNull().invoke()
       }
 
@@ -152,7 +148,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
         .shouldBe("https://bitkey.world/")
 
       inAppBrowserNavigator.onCloseCallback.shouldNotBeNull().invoke()
-      awaitScreenWithBody<MoneyHomeBodyModel>()
+      awaitScreenWithBody<LiteMoneyHomeBodyModel>()
     }
   }
 
@@ -160,7 +156,7 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Showing Money Home, tap on "Buy Your Own Bitkey" card
       // (which is the first card when there's no protected customers)
-      awaitScreenWithBody<MoneyHomeBodyModel> {
+      awaitScreenWithBody<LiteMoneyHomeBodyModel> {
         buttonsModel
           .shouldBeTypeOf<MoneyHomeButtonsModel.SingleButtonModel>()
           .button.onClick()

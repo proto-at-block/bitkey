@@ -6,22 +6,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.money.BitcoinMoney
-import build.wallet.money.Money
-import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
-import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 
 class LiteMoneyHomeUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
 ) : LiteMoneyHomeUiStateMachine {
@@ -33,16 +28,18 @@ class LiteMoneyHomeUiStateMachineImpl(
       ScreenModel(
         body =
           LiteMoneyHomeBodyModel(
-            props = props,
-            onViewProtectedCustomerDetail = {
+            onSettings = props.onSettings,
+            buttonModel = MoneyHomeButtonsModel.SingleButtonModel(
+              onSetUpBitkeyDevice = { props.accountData.onUpgradeAccount() }
+            ),
+            protectedCustomers = props.protectedCustomers,
+            onProtectedCustomerClick = {
               state = State.ViewingProtectedCustomerDetail(it)
             },
             onBuyOwnBitkeyClick = {
               state = State.ViewingBuyOwnBitkeyUrl
             },
-            onSetUpBitkeyDeviceClick = {
-              props.accountData.onUpgradeAccount()
-            }
+            onAcceptInviteClick = props.onAcceptInvite
           ),
         statusBannerModel = props.homeStatusBannerModel
       )
@@ -96,29 +93,6 @@ class LiteMoneyHomeUiStateMachineImpl(
             )
         )
     }
-  }
-
-  @Composable
-  private fun LiteMoneyHomeBodyModel(
-    props: LiteMoneyHomeUiProps,
-    onViewProtectedCustomerDetail: (ProtectedCustomer) -> Unit,
-    onBuyOwnBitkeyClick: () -> Unit,
-    onSetUpBitkeyDeviceClick: () -> Unit,
-  ): BodyModel {
-    // We use a placeholder amount of 0 just to demonstrate to
-    // "lite" customers what the full experience looks like
-    val zeroFiat = Money.money(props.fiatCurrency, 0.toBigDecimal())
-
-    return LiteMoneyHomeBodyModel(
-      onSettings = props.onSettings,
-      primaryAmountString = moneyDisplayFormatter.format(zeroFiat),
-      secondaryAmountString = moneyDisplayFormatter.format(BitcoinMoney.zero()),
-      onSetUpBitkeyDevice = onSetUpBitkeyDeviceClick,
-      protectedCustomers = props.protectedCustomers,
-      onProtectedCustomerClick = onViewProtectedCustomerDetail,
-      onBuyOwnBitkeyClick = onBuyOwnBitkeyClick,
-      onAcceptInviteClick = props.onAcceptInvite
-    )
   }
 }
 

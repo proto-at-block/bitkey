@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.LargeIconAdd
 import build.wallet.statemachine.core.Icon.LargeIconReceive
 import build.wallet.statemachine.core.Icon.LargeIconSend
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
@@ -52,7 +52,7 @@ sealed interface MoneyHomeButtonsModel {
           text = "Set up Bitkey Device",
           treatment = ButtonModel.Treatment.Secondary,
           size = ButtonModel.Size.Footer,
-          onClick = Click.standardClick { onSetUpBitkeyDevice() }
+          onClick = StandardClick(onSetUpBitkeyDevice)
         )
     )
   }
@@ -72,5 +72,5 @@ fun MoneyMovementIconModel(
       text = text,
       iconTint = if (button.enabled) null else IconTint.On30
     ),
-  onClick = Click.standardClick { button.onClick() }
+  onClick = StandardClick { button.onClick() }
 )

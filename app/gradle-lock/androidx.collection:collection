@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.collection:collection",
+    "components": [
+        {
+            "version": "1.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "collection-1.1.0.jar": "632a0e5407461de774409352940e292a291037724207a787820c77daf7d33b72"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-core-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-core-iosarm64-2.3.8-metadata.jar": "0cd409f0e41b5f1935785177eefd09a510262a8be6f475cc002321bad03d5b72"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-core.klib": "a7251d8bdc8fa1671a19b57654ca2db8501b5259109d7ce87add0fbc2e213991"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

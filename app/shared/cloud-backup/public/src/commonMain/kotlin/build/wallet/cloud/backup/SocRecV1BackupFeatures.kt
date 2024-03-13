@@ -15,7 +15,7 @@ interface SocRecV1BackupFeatures {
    */
   val isUsingSocRecFakes: Boolean
   val appRecoveryAuthKeypair: AppRecoveryAuthKeypair
-  val trustedContactIdentityKeypair: AppKey
+  val delegatedDecryptionKeypair: AppKey
 
   /**
    * Account backup used to restore and authenticate the account during recovery.
@@ -32,6 +32,6 @@ val CloudBackup.socRecDataAvailable: Boolean get() {
   fullAccountFields.let { account ->
     if (account !is SocRecV1AccountFeatures) return false
 
-    return account.socRecEncryptionKeyCiphertextMap.isNotEmpty()
+    return account.socRecSealedDekMap.isNotEmpty()
   }
 }

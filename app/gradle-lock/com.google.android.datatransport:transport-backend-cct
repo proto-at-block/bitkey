@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.datatransport:transport-backend-cct",
+    "components": [
+        {
+            "version": "3.1.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "transport-backend-cct-3.1.8.aar": "e17edd1ef7fd475c90baa4e39422332f27087d34bcb46cb48ce86af9a54a612e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.aeonbits.owner:owner-java8",
+    "components": [
+        {
+            "version": "1.0.12",
+            "variants": [
+                {
+                    "artifacts": {
+                        "owner-java8-1.0.12.jar": "57eaba33b6ac4da0157c00e219741cd3ef7564f5f77486e7868b937267e1c001"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

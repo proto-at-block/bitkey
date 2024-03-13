@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.github.java-diff-utils:java-diff-utils",
+    "components": [
+        {
+            "version": "4.12",
+            "variants": [
+                {
+                    "artifacts": {
+                        "java-diff-utils-4.12.jar": "9990a2039778f6b4cc94790141c2868864eacee0620c6c459451121a901cd5b5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

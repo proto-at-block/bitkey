@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.leakcanary:leakcanary-android-utils",
+    "components": [
+        {
+            "version": "2.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "leakcanary-android-utils-2.13.aar": "a7f3288ad5099b0cfdb465f87547631986611c4796f08f07c7defad89749c607"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

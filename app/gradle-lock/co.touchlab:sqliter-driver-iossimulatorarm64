@@ -1,0 +1,24 @@
+{
+    "module-identifier": "co.touchlab:sqliter-driver-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.3.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sqliter-driver-cinterop-sqlite3.klib": "daf6e76925979cbacb7008e29f53f9d422a5c4e76a5fba69a4f776eddfd00834",
+                        "sqliter-driver.klib": "4611898be9a1b12c52870e00190b962ba828bd5f2bb84cf217b57cc5fbfef047"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "sqliter-driver-iossimulatorarm64-1.3.1-metadata.jar": "3c11ae41b1cc2211ab8e830fe2237d498ab586207bb5b262864e4ccae9732b51"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

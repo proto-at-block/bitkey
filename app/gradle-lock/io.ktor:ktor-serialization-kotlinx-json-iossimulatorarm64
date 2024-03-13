@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-serialization-kotlinx-json-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-serialization-kotlinx-json-iossimulatorarm64-2.3.8-metadata.jar": "60127431de051b5b0362a140c2118431f42af39cc6b9f5ef1f4999a3e75cb02c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-serialization-kotlinx-json.klib": "d07a9607a1443ef915cdf7de643f7c2faf83f125ff22cad65d9be00af298921a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

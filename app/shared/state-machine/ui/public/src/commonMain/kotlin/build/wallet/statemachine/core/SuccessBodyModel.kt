@@ -1,48 +1,38 @@
 package build.wallet.statemachine.core
 
-import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
-import build.wallet.platform.random.UuidImpl
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 
 /**
+ * A screen with a static horizontally left-aligned, vertically top-aligned
+ * [LargeIconCheckFilled]. If the success should be animated (not static)
+ * from a loading animation, use [LoadingSuccessBodyModel].
+ *
  * @property id: A unique identifier for this screen that will also be used to track screen
  * analytic events.
  */
-data class SuccessBodyModel(
-  val title: String,
-  val message: String? = null,
-  val style: Style,
-  val id: EventTrackerScreenId?,
-) : BodyModel() {
-  override val eventTrackerScreenInfo: EventTrackerScreenInfo?
-    get() = id?.let { EventTrackerScreenInfo(it) }
-
-  sealed interface Style {
-    /**
-     * Horizontally left-aligned, vertically top-aligned
-     * Needs explicit customer action to continue
-     */
-    data class Explicit(
-      val primaryButton: ButtonDataModel,
-    ) : Style {
-      constructor(
-        onPrimaryButtonClick: () -> Unit,
-      ) : this(
-        primaryButton =
-          ButtonDataModel(
-            text = "Done",
-            onClick = onPrimaryButtonClick
-          )
-      )
-    }
-
-    /**
-     * Horizontally center-aligned, vertically center-aligned
-     * No customer action required, automatically continues
-     */
-    data object Implicit : Style
+fun SuccessBodyModel(
+  title: String,
+  message: String? = null,
+  primaryButtonModel: ButtonDataModel?,
+  id: EventTrackerScreenId?,
+) = FormBodyModel(
+  id = id,
+  onBack = null,
+  toolbar = null,
+  header = FormHeaderModel(
+    icon = Icon.LargeIconCheckFilled,
+    headline = title,
+    subline = message
+  ),
+  primaryButton = primaryButtonModel?.let {
+    ButtonModel(
+      text = primaryButtonModel.text,
+      size = ButtonModel.Size.Footer,
+      onClick = StandardClick(primaryButtonModel.onClick)
+    )
   }
-
-  private val unique = id?.name ?: UuidImpl().random()
-  override val key: String = "${this::class.qualifiedName}-$unique."
-}
+)

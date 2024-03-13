@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.inprogress
 
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -15,7 +15,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
@@ -30,7 +30,7 @@ fun RecoverYourMobileKeyBodyModel(
   onBack: () -> Unit,
   onStartRecovery: () -> Unit,
 ) = FormBodyModel(
-  id = AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS,
+  id = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS,
   onBack = onBack,
   toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
   header =
@@ -75,7 +75,7 @@ fun DelayAndNotifyNewKeyReady(
 ) = FormBodyModel(
   id =
     factorToRecover.getEventId(
-      AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY,
+      DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY,
       HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY
     ),
   onBack = onExit,
@@ -92,7 +92,7 @@ fun DelayAndNotifyNewKeyReady(
               text = "Cancel recovery",
               treatment = TertiaryDestructive,
               size = Compact,
-              onClick = Click.standardClick { onStopRecovery() }
+              onClick = StandardClick { onStopRecovery() }
             )
         )
     ),

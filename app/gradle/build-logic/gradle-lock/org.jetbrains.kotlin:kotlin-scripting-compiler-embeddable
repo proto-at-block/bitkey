@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-compiler-embeddable",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-scripting-compiler-embeddable-1.9.10.jar": "9e73c79220882f92d1da81f84a56b0f4edd50a51ed50175240ac76fe03541149"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

@@ -32,4 +32,10 @@ data class EventTrackerScreenInfo(
     eventTrackerScreenIdContext = null,
     eventTrackerShouldTrack = eventTrackerShouldTrack
   )
+
+  val screenId: String
+    get() = when (val context = eventTrackerScreenIdContext) {
+      null -> eventTrackerScreenId.name
+      else -> "${eventTrackerScreenId.name}_${context.name}"
+    }
 }

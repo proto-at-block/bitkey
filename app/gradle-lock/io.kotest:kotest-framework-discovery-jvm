@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-discovery-jvm",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-discovery-jvm-5.8.0.jar": "9605cc7df0a678ac760168151d1e0c1cae4a60b5c7e1ab9f0c83fdd24d18d508"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

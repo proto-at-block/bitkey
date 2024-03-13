@@ -8,11 +8,11 @@ import XCTest
 final class SuccessSnapshotTests: XCTestCase {
 
     func test_success_explicit() {
-        let view = SuccessView(
-            viewModel: .init(
+        let view = FormView(
+            viewModel: SuccessBodyModelKt.SuccessBodyModel(
                 title: "You have succeeded",
                 message: nil,
-                style: SuccessBodyModelStyleExplicit(onPrimaryButtonClick: {}),
+                primaryButtonModel: .init(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
                 id: .none
             )
         )
@@ -21,11 +21,11 @@ final class SuccessSnapshotTests: XCTestCase {
     }
 
     func test_success_explicit_with_message() {
-        let view = SuccessView(
-            viewModel: .init(
+        let view = FormView(
+            viewModel: SuccessBodyModelKt.SuccessBodyModel(
                 title: "You have succeeded",
                 message: "Congratulations for doing such a great job.",
-                style: SuccessBodyModelStyleExplicit(onPrimaryButtonClick: {}),
+                primaryButtonModel: .init(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
                 id: .none
             )
         )
@@ -34,11 +34,11 @@ final class SuccessSnapshotTests: XCTestCase {
     }
 
     func test_success_implicit() {
-        let view = SuccessView(
-            viewModel: .init(
+        let view = FormView(
+            viewModel: SuccessBodyModelKt.SuccessBodyModel(
                 title: "You have succeeded",
                 message: nil,
-                style: SuccessBodyModelStyleImplicit(),
+                primaryButtonModel: nil,
                 id: .none
             )
         )

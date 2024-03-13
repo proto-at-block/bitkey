@@ -14,7 +14,7 @@ import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateM
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataState.UpgradingLiteAccount
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataState.UsingLiteAccount
 import build.wallet.unwrapLoadedValue
-import com.github.michaelbull.result.getOr
+import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.map
 
 class HasActiveLiteAccountDataStateMachineImpl(
@@ -54,18 +54,18 @@ class HasActiveLiteAccountDataStateMachineImpl(
         AccountData.HasActiveLiteAccountData(
           account = props.account,
           accountUpgradeOnboardConfigData = props.accountUpgradeOnboardConfigData,
-          accountUpgradeTemplateKeyboxConfigData = props.accountUpgradeTemplateKeyboxConfigData,
+          accountUpgradeTemplateFullAccountConfigData = props.accountUpgradeTemplateFullAccountConfigData,
           onUpgradeAccount = { state = UpgradingLiteAccount }
         )
 
       is UpgradingLiteAccount ->
         AccountData.NoActiveAccountData.CreatingFullAccountData(
-          templateKeyboxConfig = props.accountUpgradeTemplateKeyboxConfigData.config,
+          templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
           createFullAccountData =
             createFullAccountDataStateMachine.model(
               props =
                 CreateFullAccountDataProps(
-                  templateKeyboxConfig = props.accountUpgradeTemplateKeyboxConfigData.config,
+                  templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
                   onboardConfig = props.accountUpgradeOnboardConfigData.config,
                   onboardingKeybox = onboardingKeybox,
                   currencyPreferenceData = props.currencyPreferenceData,
@@ -82,7 +82,7 @@ class HasActiveLiteAccountDataStateMachineImpl(
     return remember {
       keyboxDao.onboardingKeybox().unwrapLoadedValue().map {
         // Treat DbError as null Keybox value
-        it.getOr(null)
+        it.get()
       }
     }.collectAsState(null).value
   }

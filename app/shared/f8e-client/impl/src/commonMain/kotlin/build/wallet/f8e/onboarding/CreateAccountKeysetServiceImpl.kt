@@ -1,6 +1,7 @@
 package build.wallet.f8e.onboarding
 
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -11,8 +12,10 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.serialization.toJsonString
+import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
+import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -52,10 +55,31 @@ class CreateAccountKeysetServiceImpl(
           )
         }
       }
-      .map { body ->
+      .map { response ->
+        val verified = runCatching {
+          f8eHttpClient.wsmVerifier.verify(
+            base58Message = DescriptorPublicKey(response.spendingDpub).xpub,
+            signature = response.spendingSig,
+            keyVariant = f8eEnvironment.wsmIntegrityKeyVariant
+          ).isValid
+        }.getOrElse {
+          false
+        }
+
+        if (!verified) {
+          // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
+          log {
+            "[wsm_integrity_failure] WSM integrity signature verification failed: " +
+              "${response.spendingSig} : " +
+              "${response.spendingDpub} : " +
+              response.keysetId
+          }
+          // Just log, don't fail the call.
+        }
+
         F8eSpendingKeyset(
-          keysetId = body.keysetId,
-          spendingPublicKey = F8eSpendingPublicKey(dpub = body.spendingDpub)
+          keysetId = response.keysetId,
+          spendingPublicKey = F8eSpendingPublicKey(dpub = response.spendingDpub)
         )
       }
       .logNetworkFailure { "Failed to create new spending keyset from f8e" }
@@ -82,5 +106,7 @@ class CreateAccountKeysetServiceImpl(
     val keysetId: String,
     @SerialName("spending")
     val spendingDpub: String,
+    @SerialName("spending_sig")
+    val spendingSig: String,
   )
 }

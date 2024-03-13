@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.annotation:annotation-experimental",
+    "components": [
+        {
+            "version": "1.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotation-experimental-1.3.0.aar": "abfd29c8556e5bd0325a9f769ab9e9d154ff4a5515c476cdd5a2a8285b1b19dc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

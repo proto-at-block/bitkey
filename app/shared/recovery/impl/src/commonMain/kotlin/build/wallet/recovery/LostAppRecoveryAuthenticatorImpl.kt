@@ -5,9 +5,9 @@ import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.logAuthFailure
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError.AccessTokensNotSavedError
@@ -22,7 +22,7 @@ class LostAppRecoveryAuthenticatorImpl(
   private val deviceTokenManager: DeviceTokenManager,
 ) : LostAppRecoveryAuthenticator {
   override suspend fun authenticate(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     fullAccountId: FullAccountId,
     authResponseSessionToken: String,
     hardwareAuthSignature: String,
@@ -32,7 +32,7 @@ class LostAppRecoveryAuthenticatorImpl(
       val authTokens =
         accountAuthenticator
           .hwAuth(
-            f8eEnvironment = keyboxConfig.f8eEnvironment,
+            f8eEnvironment = fullAccountConfig.f8eEnvironment,
             fullAccountId = fullAccountId,
             session = authResponseSessionToken,
             signature = hardwareAuthSignature
@@ -51,7 +51,7 @@ class LostAppRecoveryAuthenticatorImpl(
       deviceTokenManager
         .addDeviceTokenIfPresentForAccount(
           fullAccountId = fullAccountId,
-          f8eEnvironment = keyboxConfig.f8eEnvironment,
+          f8eEnvironment = fullAccountConfig.f8eEnvironment,
           authTokenScope = AuthTokenScope.Global
         )
 

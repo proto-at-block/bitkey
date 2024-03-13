@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.sdk.kotlin:aws-http-jvm",
+    "components": [
+        {
+            "version": "1.0.55",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-http-jvm-1.0.55.jar": "156672c67e5ada2f340244bd86871772d47f42a3e4f2cd18f259c5c63bac9b25"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

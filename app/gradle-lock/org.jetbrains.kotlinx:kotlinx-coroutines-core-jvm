@@ -1,0 +1,32 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm",
+    "components": [
+        {
+            "version": "1.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core-jvm-1.5.0.jar": "78d6cc7135f84d692ff3752fcfd1fa1bbe0940d7df70652e4f1eaeec0c78afbb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        },
+        {
+            "version": "1.7.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core-jvm-1.7.3.jar": "1ab3acc38f3e7355c4f9d1ec62107a46fa73c899f3070d055e5d4373dfe67e12"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

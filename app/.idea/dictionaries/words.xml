@@ -1,0 +1,26 @@
+<!-- Project-specific dictoinary to exclude certain words from IDE spellchecking. -->
+<component name="ProjectDictionaryState">
+    <dictionary name="words">
+        <words>
+            <w>bitkey</w>
+            <w>dpub</w>
+            <w>dpubs</w>
+            <w>fwup</w>
+            <w>keybox</w>
+            <w>keyproof</w>
+            <w>keyset</w>
+            <w>keysets</w>
+            <w>pake</w>
+            <w>psbt</w>
+            <w>psbts</w>
+            <w>pubkey</w>
+            <w>segwit</w>
+            <w>socrec</w>
+            <w>transacter</w>
+            <w>transceive</w>
+            <w>unendorsed</w>
+            <w>xpub</w>
+            <w>xpubs</w>
+        </words>
+    </dictionary>
+</component>

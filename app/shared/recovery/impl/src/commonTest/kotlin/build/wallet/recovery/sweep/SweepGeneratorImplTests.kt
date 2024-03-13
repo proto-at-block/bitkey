@@ -4,6 +4,7 @@ import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
@@ -20,10 +21,13 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.ListKeysetsServiceMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.money.BitcoinMoney
+import build.wallet.notifications.RegisterWatchAddressContext
+import build.wallet.queueprocessor.ProcessorMock
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
 import build.wallet.testing.shouldBeErrOfType
@@ -169,12 +173,14 @@ class SweepGeneratorImplTests : FunSpec({
     }
   val listKeysetsService = ListKeysetsServiceMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
+  val registerWatchAddressService = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
   val sweepGenerator =
     SweepGeneratorImpl(
       listKeysetsService,
       BitcoinFeeRateEstimatorMock(),
       keysetWalletProvider,
-      appPrivateKeyDao
+      appPrivateKeyDao,
+      registerWatchAddressService
     )
 
   beforeEach {
@@ -199,6 +205,14 @@ class SweepGeneratorImplTests : FunSpec({
     )
   }
 
+  beforeTest {
+    registerWatchAddressService.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
+  }
+
+  afterTest {
+    registerWatchAddressService.reset()
+  }
+
   test("lost app recovery - single keyset - success") {
     wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
@@ -209,6 +223,21 @@ class SweepGeneratorImplTests : FunSpec({
     result.component1()[0]
       .shouldBe(
         SweepPsbt(psbtMock, Hardware, lostAppKeyset1)
+      )
+    // single address to watch
+    registerWatchAddressService.processBatchCalls.awaitItem()
+      .shouldBe(
+        listOf(
+          RegisterWatchAddressContext(
+            address = BitcoinAddress(address = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"),
+            f8eSpendingKeyset = F8eSpendingKeyset(
+              keysetId = "active-serverId",
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+            ),
+            accountId = "server-id",
+            f8eEnvironment = F8eEnvironment.Development
+          )
+        )
       )
   }
 
@@ -228,6 +257,36 @@ class SweepGeneratorImplTests : FunSpec({
         )
       )
     )
+
+    // two addresses to watch
+    registerWatchAddressService.processBatchCalls.awaitItem()
+      .shouldBe(
+        listOf(
+          RegisterWatchAddressContext(
+            address = BitcoinAddress(address = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"),
+            f8eSpendingKeyset = F8eSpendingKeyset(
+              keysetId = "active-serverId",
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+            ),
+            accountId = "server-id",
+            f8eEnvironment = F8eEnvironment.Development
+          )
+        )
+      )
+    registerWatchAddressService.processBatchCalls.awaitItem()
+      .shouldBe(
+        listOf(
+          RegisterWatchAddressContext(
+            address = BitcoinAddress(address = "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs"),
+            f8eSpendingKeyset = F8eSpendingKeyset(
+              keysetId = "active-serverId",
+              spendingPublicKey = F8eSpendingPublicKey(DescriptorPublicKeyMock("server-dpub-active"))
+            ),
+            accountId = "server-id",
+            f8eEnvironment = F8eEnvironment.Development
+          )
+        )
+      )
   }
 
   test("destination spending address generation failed") {
@@ -255,6 +314,9 @@ class SweepGeneratorImplTests : FunSpec({
         )
       )
     )
+    // two addresses to watch
+    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressService.processBatchCalls.awaitItem()
   }
 
   test("no signable keysets - lost both") {
@@ -278,6 +340,9 @@ class SweepGeneratorImplTests : FunSpec({
         )
       )
     )
+    // two addresses to watch
+    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressService.processBatchCalls.awaitItem()
   }
 
   test("insufficient balance for one keyset should skip the keyset") {
@@ -289,6 +354,9 @@ class SweepGeneratorImplTests : FunSpec({
 
     sweepGenerator.generateSweep(activeKeybox)
       .shouldBe(Ok(listOf(SweepPsbt(psbtMock, App, lostHwKeyset2))))
+    // two addresses to watch
+    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressService.processBatchCalls.awaitItem()
   }
 
   test("psbt create failure for one keyset should fail all") {
@@ -299,5 +367,7 @@ class SweepGeneratorImplTests : FunSpec({
     listKeysetsService.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
 
     sweepGenerator.generateSweep(activeKeybox).shouldBeErrOfType<BdkFailedToCreatePsbt>()
+    // single address to watch, subsequent fail and don't trigger
+    registerWatchAddressService.processBatchCalls.awaitItem()
   }
 })

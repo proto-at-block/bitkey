@@ -1,12 +1,20 @@
 use database::{
-    aws_sdk_dynamodb::error::ProvideErrorMetadata,
-    ddb::{try_to_attribute_val, DDBService, DatabaseError},
+    aws_sdk_dynamodb::{
+        error::ProvideErrorMetadata,
+        types::{DeleteRequest, WriteRequest},
+    },
+    ddb::{try_from_items, try_to_attribute_val, DDBService, DatabaseError},
 };
 use time::format_description::well_known::Rfc3339;
 use tracing::{event, instrument, Level};
-use types::recovery::social::relationship::RecoveryRelationship;
+use types::{
+    account::identifiers::AccountId,
+    recovery::social::{challenge::SocialChallenge, relationship::RecoveryRelationship},
+};
 
-use super::{Repository, PARTITION_KEY};
+use super::{
+    Repository, SocialRecoveryRow, CUSTOMER_IDX, CUSTOMER_IDX_PARTITION_KEY, PARTITION_KEY,
+};
 
 impl Repository {
     #[instrument(skip(self, relationship))]
@@ -49,6 +57,116 @@ impl Repository {
                 );
                 DatabaseError::PersistenceError(database_object)
             })?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_challenges_for_customer(
+        &self,
+        customer_account_id: &AccountId,
+    ) -> Result<(), DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let mut exclusive_start_key = None;
+
+        loop {
+            let item_output = self
+                .connection
+                .client
+                .query()
+                .table_name(table_name.clone())
+                .index_name(CUSTOMER_IDX)
+                .key_condition_expression(
+                    format!("{} = :{}", CUSTOMER_IDX_PARTITION_KEY, CUSTOMER_IDX_PARTITION_KEY)
+                )
+                .expression_attribute_values(format!(":{}", CUSTOMER_IDX_PARTITION_KEY), try_to_attribute_val(customer_account_id, database_object)?)
+                .set_exclusive_start_key(exclusive_start_key.clone())
+                .limit(25)
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not query social challenges customer index: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+
+            let challenges = try_from_items::<_, SocialRecoveryRow>(
+                item_output.items().to_owned(),
+                database_object,
+            )?
+            .into_iter()
+            .filter_map(|r| match r {
+                SocialRecoveryRow::Challenge(challenge) => Some(challenge),
+                _ => None,
+            })
+            .collect::<Vec<SocialChallenge>>();
+
+            self.batch_delete_challenges(challenges).await?;
+
+            if let Some(last_evaluated_key) = item_output.last_evaluated_key() {
+                exclusive_start_key = Some(last_evaluated_key.to_owned());
+            } else {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    async fn batch_delete_challenges(
+        &self,
+        challenges: Vec<SocialChallenge>,
+    ) -> Result<(), DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        if !challenges.is_empty() {
+            self.connection
+                .client
+                .batch_write_item()
+                .request_items(
+                    table_name.clone(),
+                    challenges
+                        .into_iter()
+                        .try_fold(Vec::new(), |mut write_requests, c| {
+                            write_requests.push(
+                                WriteRequest::builder()
+                                    .delete_request(
+                                        DeleteRequest::builder()
+                                            .key(
+                                                PARTITION_KEY,
+                                                try_to_attribute_val(
+                                                    c.id.clone(),
+                                                    database_object,
+                                                )?,
+                                            )
+                                            .build()?,
+                                    )
+                                    .build(),
+                            );
+
+                            Ok::<Vec<WriteRequest>, DatabaseError>(write_requests)
+                        })?,
+                )
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not delete social challenges: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::DeleteItemsError(database_object)
+                })?;
+        }
+
         Ok(())
     }
 }

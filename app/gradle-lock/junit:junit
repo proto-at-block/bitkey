@@ -1,0 +1,31 @@
+{
+    "module-identifier": "junit:junit",
+    "components": [
+        {
+            "version": "3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-3.7.jar": "170d31297cd401b6338679f393900421e64d38b542538b549f3f1a0f26bcd848"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "4.13.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-4.13.2.jar": "8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

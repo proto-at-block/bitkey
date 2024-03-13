@@ -5,7 +5,7 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
@@ -20,7 +20,7 @@ import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateM
 import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingRecoveryOrOnboarding
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.AttemptingCloudRecoveryLostAppRecoveryDataData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
@@ -49,7 +49,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
       StateMachineMock<CreateFullAccountDataProps, CreateFullAccountData>(
         initialModel =
           CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
-            keyboxConfig = KeyboxConfigMock,
+            fullAccountConfig = FullAccountConfigMock,
             rollback = {}
           )
       ) {}
@@ -78,8 +78,8 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
 
   fun props(existingRecovery: Recovery.StillRecovering? = null) =
     NoActiveAccountDataProps(
-      LoadedTemplateKeyboxConfigData(
-        config = KeyboxConfigMock,
+      LoadedTemplateFullAccountConfigData(
+        config = FullAccountConfigMock,
         updateConfig = {}
       ),
       existingRecovery = existingRecovery,

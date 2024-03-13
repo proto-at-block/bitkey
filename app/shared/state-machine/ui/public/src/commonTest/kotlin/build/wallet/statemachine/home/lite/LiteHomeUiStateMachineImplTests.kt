@@ -1,5 +1,6 @@
 package build.wallet.statemachine.home.lite
 
+import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
@@ -15,7 +16,6 @@ import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataFake
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiStateMachine
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementProps
-import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementProps.AcceptInvite
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementUiStateMachine
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiProps
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiStateMachine
@@ -46,7 +46,8 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
         object : LiteTrustedContactManagementUiStateMachine, ScreenStateMachineMock<LiteTrustedContactManagementProps>(
           "lite-trusted-contact-management"
         ) {},
-      socRecRelationshipsRepository = socRecRelationshipsRepository
+      socRecRelationshipsRepository = socRecRelationshipsRepository,
+      eventTracker = EventTrackerMock(turbines::create)
     )
 
   val props =
@@ -58,8 +59,8 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
 
   test("launches soc rec relationships sync") {
     stateMachine.test(props) {
-      awaitItem()
       socRecRelationshipsRepository.launchSyncCalls.awaitItem()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -67,6 +68,9 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
     val customer = ProtectedCustomer("relationship-id", ProtectedCustomerAlias("allison"))
     stateMachine.test(props) {
       socRecRelationshipsRepository.launchSyncCalls.awaitItem()
+
+      awaitItem() // Initial loading
+
       awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
         onRemoveRelationship(customer)
       }
@@ -78,6 +82,9 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
   test("money home onSettings shows settings, settings onBack shows money home") {
     stateMachine.test(props) {
       socRecRelationshipsRepository.launchSyncCalls.awaitItem()
+
+      awaitItem() // Initial loading
+
       awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
         onSettings()
       }
@@ -92,6 +99,9 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
     val relationshipId = "relationship-id"
     stateMachine.test(props) {
       socRecRelationshipsRepository.launchSyncCalls.awaitItem()
+
+      awaitItem() // Initial loading
+
       awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
         onSettings()
       }
@@ -100,18 +110,6 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
       }
       socRecRelationshipsRepository.removeRelationshipCalls.awaitItem()
         .shouldBe(relationshipId)
-    }
-  }
-
-  test("accept invite button redirects to accept invite") {
-    stateMachine.test(props) {
-      socRecRelationshipsRepository.launchSyncCalls.awaitItem()
-      awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
-        onAcceptInvite()
-      }
-      awaitScreenWithBodyModelMock<LiteTrustedContactManagementProps> {
-        acceptInvite.shouldBe(AcceptInvite(inviteCode = null))
-      }
     }
   }
 })

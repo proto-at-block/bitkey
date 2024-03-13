@@ -1,6 +1,6 @@
 import { Construct } from "constructs";
 import { Environment } from "../common/environments";
-import { getRecipients } from "../recipients";
+import { getErrorRecipients } from "../recipients";
 import { Monitor } from "../common/monitor";
 import {Comparator, metric_sum_query, trace_analytics_count_query} from "../common/queries";
 
@@ -10,7 +10,7 @@ export class ShopApiOrderUpdateJobMonitors extends Construct {
 
         super(scope, `${serviceName}_${environment}`);
         const trace_alert_config = {
-            recipients: getRecipients(environment),
+            recipients: getErrorRecipients(environment),
             type: "trace-analytics alert",
             monitorThresholds: {
                 critical: "3",
@@ -52,7 +52,7 @@ export class ShopApiOrderUpdateJobMonitors extends Construct {
         });
 
         const executionRateConfig = {
-            recipients: getRecipients(environment),
+            recipients: getErrorRecipients(environment),
             type: "metric alert",
             monitorThresholds: {
                 critical: "1",

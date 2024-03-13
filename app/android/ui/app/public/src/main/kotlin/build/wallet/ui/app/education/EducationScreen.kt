@@ -28,7 +28,7 @@ import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.progress.LinearProgressIndicator
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
@@ -130,14 +130,14 @@ fun PreviewExplainerScreen() {
             ButtonModel(
               text = "Primary Button",
               size = ButtonModel.Size.Footer,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             ),
           secondaryButton =
             ButtonModel(
               text = "Secondary Button",
               size = ButtonModel.Size.Footer,
               treatment = ButtonModel.Treatment.Secondary,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             ),
           onClick = {},
           onBack = {}

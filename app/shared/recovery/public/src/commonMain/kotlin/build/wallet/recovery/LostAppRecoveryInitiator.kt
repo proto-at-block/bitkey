@@ -1,7 +1,9 @@
 package build.wallet.recovery
 
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
@@ -19,17 +21,21 @@ interface LostAppRecoveryInitiator {
    * Initiates delay + notify recovery for Lost App/Mobile key. Process is initiated
    * through f8e, DN recovery is written into local state.
    *
-   * @param keyboxConfig config to use for recovery. Mainly used to tell f8e which network type
+   * @param fullAccountConfig config to use for recovery. Mainly used to tell f8e which network type
    * we are recovering for.
    * @param hardwareKeysForRecovery The auth/spending keys we got from the hardware to begin recovery
+   * @param newAppKeys new app spending and auth keys to use after recovery for the new keybox.
+   * @param appGlobalAuthKeyHwSignature the hardware signature of the new [newAppKeys].
    * @param f8eEnvironment the active F8E environment
    * @param fullAccountId The customer's account ID
    * @param hwFactorProofOfPossession The proof of possession obtained by signing the latest access
    * token with the HW
    */
   suspend fun initiate(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     hardwareKeysForRecovery: HardwareKeysForRecovery,
+    newAppKeys: AppKeyBundle,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     hwFactorProofOfPossession: HwFactorProofOfPossession,

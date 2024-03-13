@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-test-iosarm64",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test-iosarm64-1.1.1-metadata.jar": "932a4d6c9398c5fc31a8dc9f737075ff3f1f1c584f94ad1ea2e90960d79729c5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test.klib": "2056178c629ca1f91fa0c0aa388f3cdb30f6fdfe5dd006efbe0920ded9ec2c79"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.adarshr:gradle-test-logger-plugin",
+    "components": [
+        {
+            "version": "4.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gradle-test-logger-plugin-4.0.0.jar": "e678683a33d2bc835671bdd4e58710004ad1d9316aa9f9a54cfe22419a4f6ef9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.work:work-runtime",
+    "components": [
+        {
+            "version": "2.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "work-runtime-2.8.1.aar": "26d9d5622a0d69c2b601cb661ea175f6e0b54db2753711b18ca136be4b9ae9c2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

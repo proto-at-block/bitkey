@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:http-client-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "http-client-jvm-1.0.13.jar": "ffa7ddd6022e0c39c9ccfc293893eb6c51cea1465761649f17cea6c14d3bfeaf"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

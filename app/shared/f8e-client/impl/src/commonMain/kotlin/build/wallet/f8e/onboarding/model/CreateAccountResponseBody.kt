@@ -21,6 +21,8 @@ data class FullCreateAccountResponseBody(
   val keysetId: String,
   @SerialName("spending")
   val spending: String,
+  @SerialName("spending_sig")
+  val spendingSig: String,
 ) : CreateAccountResponseBody
 
 /**

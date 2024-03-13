@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.squareup.wire:wire-runtime-jvm",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-runtime-jvm-4.9.5.jar": "35f1d3025e6080fe38cbb9c266e1ff40f88240b611c9369f93934e8601b65d45"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

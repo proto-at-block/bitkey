@@ -1,0 +1,18 @@
+{
+    "module-identifier": "net.minidev:json-smart",
+    "components": [
+        {
+            "version": "2.4.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "json-smart-2.4.10.jar": "70cab5e9488630dc631b1fc6e7fa550d95cddd19ba14db39ceca7cabfbd4e5ae"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

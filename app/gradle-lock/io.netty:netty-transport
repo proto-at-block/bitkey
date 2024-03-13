@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.netty:netty-transport",
+    "components": [
+        {
+            "version": "4.1.72.Final",
+            "variants": [
+                {
+                    "artifacts": {
+                        "netty-transport-4.1.72.Final.jar": "c5fb68e9a65b6e8a516adfcb9fa323479ee7b4d9449d8a529d2ecab3d3711d5a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

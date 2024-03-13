@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
 data class QrCodeScanBodyModel(
@@ -38,7 +38,7 @@ data class QrCodeScanBodyModel(
     this?.let { button ->
       ButtonModel(
         text = button.text,
-        onClick = Click.standardClick { button.onClick() },
+        onClick = StandardClick(button.onClick),
         isLoading = button.isLoading,
         treatment = ButtonModel.Treatment.Translucent,
         size = ButtonModel.Size.Footer,

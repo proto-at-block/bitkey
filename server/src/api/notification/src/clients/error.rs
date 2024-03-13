@@ -13,6 +13,10 @@ pub enum NotificationClientsError {
     IterableUpdateUserSubscriptionsError,
     #[error("Failed to update user subscriptions via Iterable; nonexistent user")]
     IterableUpdateUserSubscriptionsNonexistentUserError,
+    #[error("Failed to subscribe user via Iterable")]
+    IterableSubscribeUserError,
+    #[error("Timeout exceeded waiting for touchpoint user")]
+    IterableWaitForTouchpointUserError,
     #[error("Iterable considered the email address invalid")]
     IterableInvalidEmailAddressError,
     #[error("Failed to create message via Twilio")]
@@ -39,6 +43,8 @@ impl From<NotificationClientsError> for ApiError {
             | NotificationClientsError::IterableUpdateUserError
             | NotificationClientsError::IterableUpdateUserSubscriptionsError
             | NotificationClientsError::IterableUpdateUserSubscriptionsNonexistentUserError
+            | NotificationClientsError::IterableSubscribeUserError
+            | NotificationClientsError::IterableWaitForTouchpointUserError
             | NotificationClientsError::IterableGetUserError
             | NotificationClientsError::TwilioCreateMessageError
             | NotificationClientsError::TwilioLookupError

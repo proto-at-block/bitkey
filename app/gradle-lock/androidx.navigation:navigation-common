@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.navigation:navigation-common",
+    "components": [
+        {
+            "version": "2.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigation-common-2.3.0.aar": "bf8013824a45be07f16ca4c0a909a70c3a0daacdc5de3669e9edabbe5fedf5dd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

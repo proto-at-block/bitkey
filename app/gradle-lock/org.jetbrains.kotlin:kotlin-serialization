@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-serialization",
+    "components": [
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-serialization-1.9.21-gradle82.jar": "e8a0a4c1a35147a23191e34b82f27fdec322d7c038f9cfa429123baf9b0d0eda"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -6,27 +6,32 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.keybox.AppDataDeleter
 import build.wallet.keybox.CloudBackupDeleter
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.platform.config.AppVariant
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveLiteAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CreatingFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiStateMachine
 import build.wallet.statemachine.dev.lightning.LightningOptionsUiProps
 import build.wallet.statemachine.dev.lightning.LightningOptionsUiStateMachine
+import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
+import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -49,29 +54,27 @@ class DebugMenuListStateMachineImpl(
   private val lightningOptionsUiStateMachine: LightningOptionsUiStateMachine,
   private val onboardingAppKeyDeletionUiStateMachine: OnboardingAppKeyDeletionUiStateMachine,
   private val onboardingConfigStateMachine: OnboardingConfigStateMachine,
+  private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
 ) : DebugMenuListStateMachine {
   @Composable
-  override fun model(props: DebugMenuListProps): DebugMenuBodyModel {
+  override fun model(props: DebugMenuListProps): BodyModel {
     var actionConfirmation: ActionConfirmationRequest? by remember { mutableStateOf(null) }
     var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
 
-    val templateKeyboxConfigData =
+    val templateFullAccountConfigData =
       when (val accountData = props.accountData) {
-        is GettingStartedData -> accountData.templateKeyboxConfigData
-        is HasActiveLiteAccountData -> accountData.accountUpgradeTemplateKeyboxConfigData
+        is GettingStartedData -> accountData.templateFullAccountConfigData
+        is HasActiveLiteAccountData -> accountData.accountUpgradeTemplateFullAccountConfigData
         else -> null
       }
 
-    deleteAppDataRequest?.let { request ->
-      LaunchedEffect("delete-app-data-$request)") {
-        if (request.deleteAppKeyBackup) {
-          cloudBackupDeleter.delete(cloudServiceProvider())
-        }
-        if (request.deleteAppKey) {
-          appDataDeleter.deleteAll()
-        }
+    if (deleteAppDataRequest != null) {
+      val interstitial = DeleteEffect(deleteAppDataRequest!!, props.accountData) {
         deleteAppDataRequest = null
         props.onClose()
+      }
+      if (interstitial != null) {
+        return interstitial
       }
     }
 
@@ -80,9 +83,9 @@ class DebugMenuListStateMachineImpl(
       onBack = props.onClose,
       groups =
         listOfNotNull(
-          AccountConfigListGroupModel(props, templateKeyboxConfigData),
+          AccountConfigListGroupModel(props, templateFullAccountConfigData),
           OnboardingConfigListGroupModel(props),
-          BitcoinNetworkPickerListGroupModel(templateKeyboxConfigData),
+          BitcoinNetworkPickerListGroupModel(templateFullAccountConfigData),
           F8eEnvironmentPickerListGroupModel(props),
           infoOptionsUiStateMachine.model(Unit),
           BitkeyDeviceOptionsListGroupModel(
@@ -95,7 +98,6 @@ class DebugMenuListStateMachineImpl(
           FeatureFlagsOptionsListGroupModel(props.onSetState),
           NetworkingDebugOptionsListGroupModel(props.onSetState),
           KeyboxDeleterOptionsListGroupModel(
-            accountData = props.accountData,
             onActionConfirmationRequest = { actionConfirmation = it },
             onDeleteKeybox = { deleteAppDataRequest = it }
           ),
@@ -109,6 +111,40 @@ class DebugMenuListStateMachineImpl(
           )
         }
     )
+  }
+
+  @Composable
+  private fun DeleteEffect(
+    request: DeleteAppDataRequest,
+    accountData: AccountData,
+    onDone: () -> Unit,
+  ): BodyModel? {
+    val requiresLogin = !(accountData is AccountData.HasActiveFullAccountData || accountData is HasActiveLiteAccountData)
+    var cloudLoggedIn: Boolean by remember { mutableStateOf(false) }
+
+    if (requiresLogin && !cloudLoggedIn) {
+      return cloudSignUiStateMachine.model(
+        CloudSignInUiProps(
+          forceSignOut = true,
+          onSignedIn = { cloudLoggedIn = true },
+          onSignInFailure = {
+            log(LogLevel.Warn) { "Failed to sign in to cloud" }
+            onDone()
+          },
+          eventTrackerContext = CloudEventTrackerScreenIdContext.DEBUG_MENU
+        )
+      )
+    }
+    LaunchedEffect("delete-app-data-$request)") {
+      if (request.deleteAppKeyBackup) {
+        cloudBackupDeleter.delete(cloudServiceProvider())
+      }
+      if (request.deleteAppKey) {
+        appDataDeleter.deleteAll()
+      }
+      onDone()
+    }
+    return null
   }
 
   @Composable
@@ -130,10 +166,11 @@ class DebugMenuListStateMachineImpl(
   @Composable
   private fun AccountConfigListGroupModel(
     props: DebugMenuListProps,
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData?,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData?,
   ): ListGroupModel? {
     return accountConfigUiStateMachine.model(
-      AccountConfigProps(props.accountData, templateKeyboxConfigData)
+      AccountConfigProps(props.accountData, templateFullAccountConfigData)
     )
   }
 
@@ -146,10 +183,11 @@ class DebugMenuListStateMachineImpl(
 
   @Composable
   private fun BitcoinNetworkPickerListGroupModel(
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData?,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData?,
   ): ListGroupModel? {
     return bitcoinNetworkPickerUiStateMachine.model(
-      BitcoinNetworkPickerUiProps(templateKeyboxConfigData)
+      BitcoinNetworkPickerUiProps(templateFullAccountConfigData)
     )
   }
 
@@ -158,7 +196,7 @@ class DebugMenuListStateMachineImpl(
     props: DebugMenuListProps,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
   ): ListGroupModel? {
-    val isHardwareFake = props.accountData.keyboxConfig?.isHardwareFake ?: return null
+    val isHardwareFake = props.accountData.fullAccountConfig?.isHardwareFake ?: return null
     return bitkeyDeviceOptionsUiStateMachine.model(
       props =
         BitkeyDeviceOptionsUiProps(
@@ -220,67 +258,59 @@ class DebugMenuListStateMachineImpl(
 
   @Composable
   private fun KeyboxDeleterOptionsListGroupModel(
-    accountData: AccountData,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onDeleteKeybox: (DeleteAppDataRequest) -> Unit,
   ): ListGroupModel? {
-    return when (accountData) {
-      is HasActiveFullAccountData,
-      is HasActiveLiteAccountData,
-      ->
-        appStateDeleterOptionsUiStateMachine.model(
-          props =
-            AppStateDeleterOptionsUiProps(
-              onDeleteAppKeyRequest = {
-                onActionConfirmationRequest(
-                  ActionConfirmationRequest(
-                    gatedActionTitle = "Delete App Key",
-                    gatedAction = {
-                      onDeleteKeybox(
-                        DeleteAppDataRequest(
-                          deleteAppKey = true,
-                          deleteAppKeyBackup = false
-                        )
-                      )
-                    }
+    return appStateDeleterOptionsUiStateMachine.model(
+      props =
+        AppStateDeleterOptionsUiProps(
+          onDeleteAppKeyRequest = {
+            onActionConfirmationRequest(
+              ActionConfirmationRequest(
+                gatedActionTitle = "Delete App Key",
+                gatedAction = {
+                  onDeleteKeybox(
+                    DeleteAppDataRequest(
+                      deleteAppKey = true,
+                      deleteAppKeyBackup = false
+                    )
                   )
-                )
-              },
-              onDeleteAppKeyBackupRequest = {
-                onActionConfirmationRequest(
-                  ActionConfirmationRequest(
-                    gatedActionTitle = "Delete App Key Backup",
-                    gatedAction = {
-                      onDeleteKeybox(
-                        DeleteAppDataRequest(
-                          deleteAppKey = false,
-                          deleteAppKeyBackup = true
-                        )
-                      )
-                    }
-                  )
-                )
-              },
-              onDeleteAppKeyAndBackupRequest = {
-                onActionConfirmationRequest(
-                  ActionConfirmationRequest(
-                    gatedActionTitle = "Delete App Key and Backup",
-                    gatedAction = {
-                      onDeleteKeybox(
-                        DeleteAppDataRequest(
-                          deleteAppKey = true,
-                          deleteAppKeyBackup = true
-                        )
-                      )
-                    }
-                  )
-                )
-              }
+                }
+              )
             )
+          },
+          onDeleteAppKeyBackupRequest = {
+            onActionConfirmationRequest(
+              ActionConfirmationRequest(
+                gatedActionTitle = "Delete App Key Backup",
+                gatedAction = {
+                  onDeleteKeybox(
+                    DeleteAppDataRequest(
+                      deleteAppKey = false,
+                      deleteAppKeyBackup = true
+                    )
+                  )
+                }
+              )
+            )
+          },
+          onDeleteAppKeyAndBackupRequest = {
+            onActionConfirmationRequest(
+              ActionConfirmationRequest(
+                gatedActionTitle = "Delete App Key and Backup",
+                gatedAction = {
+                  onDeleteKeybox(
+                    DeleteAppDataRequest(
+                      deleteAppKey = true,
+                      deleteAppKeyBackup = true
+                    )
+                  )
+                }
+              )
+            )
+          }
         )
-
-      else -> null
-    }
+    )
   }
 
   @Composable
@@ -315,8 +345,8 @@ class DebugMenuListStateMachineImpl(
     return f8eEnvironmentPickerUiStateMachine.model(
       F8eEnvironmentPickerUiProps(
         accountData = props.accountData,
-        openCustomUrlInput = { customUrl, templateKeyboxConfigData ->
-          props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl, templateKeyboxConfigData))
+        openCustomUrlInput = { customUrl, templateFullAccountConfigData ->
+          props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl, templateFullAccountConfigData))
         }
       )
     )
@@ -359,14 +389,14 @@ private data class ActionConfirmationRequest(
   val gatedAction: () -> Unit,
 )
 
-private val AccountData.keyboxConfig: KeyboxConfig?
+private val AccountData.fullAccountConfig: FullAccountConfig?
   get() =
     when (val accountData = this) {
       is ActiveFullAccountLoadedData -> accountData.account.keybox.config
       is LoadingActiveFullAccountData -> accountData.account.keybox.config
-      is CreatingFullAccountData -> accountData.templateKeyboxConfig
-      is GettingStartedData -> accountData.templateKeyboxConfigData.config
-      is RecoveringAccountData -> accountData.templateKeyboxConfig
-      is HasActiveLiteAccountData -> accountData.accountUpgradeTemplateKeyboxConfigData.config
+      is CreatingFullAccountData -> accountData.templateFullAccountConfig
+      is GettingStartedData -> accountData.templateFullAccountConfigData.config
+      is RecoveringAccountData -> accountData.templateFullAccountConfig
+      is HasActiveLiteAccountData -> accountData.accountUpgradeTemplateFullAccountConfigData.config
       else -> null
     }

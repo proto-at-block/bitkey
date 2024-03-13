@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.exifinterface:exifinterface",
+    "components": [
+        {
+            "version": "1.3.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "exifinterface-1.3.6.aar": "1804105e9e05fdd8f760413bad5de498c381aa329f4f9d94c851bc891ac654c6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

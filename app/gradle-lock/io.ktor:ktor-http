@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-http",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-http-metadata-2.3.8.jar": "f4f0033a14fac21241a8bbbe1c5cf1933bd103edc8e9e277ee3ee0c1cbd34642"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

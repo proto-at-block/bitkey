@@ -8,10 +8,9 @@ import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EakDataFake
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.setFlagValue
-import build.wallet.recovery.emergencyaccess.EmergencyAccessFeatureFlag
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -28,13 +27,13 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
   val fakeCloudAccount = CloudAccountMock(instanceId = "1")
   val fakeBackup = CloudBackupV2WithFullAccountMock
   val cloudBackupRepository = CloudBackupRepositoryFake()
-  val emergencyAccessFeatureFlag = EmergencyAccessFeatureFlag(FeatureFlagDaoMock())
   val stateMachine =
     AccessCloudBackupUiStateMachineImpl(
       cloudSignInUiStateMachine = CloudSignInUiStateMachineMock(),
       cloudBackupRepository = cloudBackupRepository,
       rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
-      emergencyAccessFeatureFlag = emergencyAccessFeatureFlag
+      deviceInfoProvider = DeviceInfoProviderMock(),
+      inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
     )
 
   val exitCalls = turbines.create<Unit>("exit calls")
@@ -62,7 +61,6 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
 
   afterTest {
     cloudBackupRepository.reset()
-    emergencyAccessFeatureFlag.setFlagValue(false)
   }
 
   test("android - cloud account signed in but cloud backup not found - check cloud again and fail") {
@@ -71,7 +69,9 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel> {
         mainContentList
           .first()
@@ -86,7 +86,9 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel>()
     }
   }
@@ -97,9 +99,11 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel> {
-        cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup)
+        cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, requireAuthRefresh = true)
         mainContentList
           .first()
           .shouldNotBeNull()
@@ -113,7 +117,9 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       backupFoundCalls.awaitItem().shouldBe(fakeBackup)
     }

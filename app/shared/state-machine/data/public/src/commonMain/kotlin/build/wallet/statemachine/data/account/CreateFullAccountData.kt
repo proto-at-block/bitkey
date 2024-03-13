@@ -2,12 +2,12 @@ package build.wallet.statemachine.data.account
 
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.nfc.transaction.PairingTransactionResponse
 
 /**
@@ -29,7 +29,7 @@ sealed interface CreateFullAccountData {
      */
     data class CreatingAppKeysData(
       val rollback: () -> Unit,
-      val keyboxConfig: KeyboxConfig,
+      val fullAccountConfig: FullAccountConfig,
     ) : CreateKeyboxData
 
     /**
@@ -38,8 +38,9 @@ sealed interface CreateFullAccountData {
      * [onPairHardwareComplete] progresses data to [HasAppAndHardwareKeysData].
      */
     data class HasAppKeysData(
+      val appKeys: KeyCrossDraft.WithAppKeys,
       val rollback: () -> Unit,
-      val keyboxConfig: KeyboxConfig,
+      val fullAccountConfig: FullAccountConfig,
       val onPairHardwareComplete: (PairingTransactionResponse.FingerprintEnrolled) -> Unit,
     ) : CreateKeyboxData
 
@@ -120,19 +121,6 @@ sealed interface CreateFullAccountData {
      * The [NotificationPreferences] step is being marked as complete.
      */
     data object CompletingNotificationsDataFull : OnboardKeyboxDataFull
-
-    /**
-     * The [CurrencyPreference] step is being marked as complete.
-     */
-    data class SettingCurrencyPreferenceDataFull(
-      val currencyPreferenceData: CurrencyPreferenceData,
-      val onComplete: () -> Unit,
-    ) : OnboardKeyboxDataFull
-
-    /**
-     * The [CurrencyPreference] step is being marked as complete.
-     */
-    data object CompletingCurrencyPreferenceDataFull : OnboardKeyboxDataFull
   }
 
   sealed interface ActivateKeyboxDataFull : CreateFullAccountData {

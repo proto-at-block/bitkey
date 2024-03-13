@@ -5,6 +5,7 @@ import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.FullAccountId
@@ -78,6 +79,7 @@ class RecoveryDaoImplTests : FunSpec({
             appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
             hardwareSpendingKey = keyset.hardwareKey,
             hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             factorToRecover = Hardware,
             serverRecovery = serverRecovery
           )
@@ -97,6 +99,7 @@ class RecoveryDaoImplTests : FunSpec({
             appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
             hardwareSpendingKey = keyset.hardwareKey,
             hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             factorToRecover = Hardware,
             sealedCsek = sealedCsek
           )
@@ -115,6 +118,7 @@ class RecoveryDaoImplTests : FunSpec({
             appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
             hardwareSpendingKey = keyset.hardwareKey,
             hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             factorToRecover = Hardware,
             sealedCsek = sealedCsek
           )
@@ -133,6 +137,7 @@ class RecoveryDaoImplTests : FunSpec({
             appRecoveryAuthKey = serverRecovery.destinationAppRecoveryAuthPubKey,
             hardwareSpendingKey = keyset.hardwareKey,
             hardwareAuthKey = serverRecovery.destinationHardwareAuthPubKey,
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             factorToRecover = Hardware
           )
         )
@@ -213,7 +218,7 @@ private suspend fun setProgressInitiated(
   fullAccountId: FullAccountId,
   keyset: SpendingKeyset,
   appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
-  appRecoveryAuthPublicKey: AppRecoveryAuthPublicKey?,
+  appRecoveryAuthPublicKey: AppRecoveryAuthPublicKey,
   hwAuthPublicKey: HwAuthPublicKey,
 ) {
   dao.setLocalRecoveryProgress(
@@ -234,6 +239,7 @@ private suspend fun setProgressInitiated(
           authKey = hwAuthPublicKey,
           networkType = BITCOIN
         ),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
       Hardware
     )
   )

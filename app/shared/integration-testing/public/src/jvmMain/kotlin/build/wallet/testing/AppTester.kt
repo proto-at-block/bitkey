@@ -22,37 +22,46 @@ import build.wallet.bitcoin.blockchain.RegtestControl
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
+import build.wallet.bitcoin.treasury.FundingResult
 import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
+import build.wallet.bitkey.app.AppGlobalAuthKeypair
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudKeyValueStoreImpl
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
+import build.wallet.cloud.store.CloudStoreAccountFake.Companion.cloudStoreAccountFakes
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.CloudStoreAccountRepositoryImpl
 import build.wallet.cloud.store.CloudStoreServiceProviderFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
+import build.wallet.crypto.Spake2Impl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponentImpl
 import build.wallet.di.makeAppComponent
 import build.wallet.email.Email
-import build.wallet.encrypt.HkdfImpl
+import build.wallet.encrypt.CryptoBoxImpl
 import build.wallet.encrypt.MessageSignerImpl
 import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
-import build.wallet.encrypt.Secp256k1SharedSecretImpl
+import build.wallet.encrypt.SignatureVerifierImpl
 import build.wallet.encrypt.SymmetricKeyEncryptorImpl
 import build.wallet.encrypt.SymmetricKeyGeneratorImpl
 import build.wallet.encrypt.XChaCha20Poly1305Impl
@@ -64,9 +73,13 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.firmware.TeltraMock
 import build.wallet.limit.SpendingLimit
 import build.wallet.logging.log
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.matchers.shouldBeGreaterThan
+import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.FakeHardwareKeyStoreImpl
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
+import build.wallet.nfc.FakeHwAuthKeypair
 import build.wallet.nfc.NfcCommandsFake
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.nfc.platform.NfcCommands
@@ -85,19 +98,30 @@ import build.wallet.platform.pdf.PdfAnnotatorFactoryImpl
 import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import build.wallet.statemachine.cloud.CloudSignInUiStateMachineFake
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
+import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
+import com.github.michaelbull.result.unwrap
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
+import io.kotest.assertions.withClue
+import io.kotest.matchers.maps.shouldHaveKey
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.TimeZone
+import okio.ByteString
+import okio.ByteString.Companion.encodeUtf8
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.time.Duration
@@ -109,6 +133,7 @@ const val F8E_ENV_ENV_VAR_NAME = "F8E_ENVIRONMENT"
 @Suppress("TooManyFunctions")
 class AppTester(
   val app: ActivityComponentImpl,
+  val fakeHardwareKeyStore: FakeHardwareKeyStore,
   val fakeNfcCommands: NfcCommandsFake,
   private val sharingManager: SharingManagerFake,
   private val blockchainControl: BlockchainControl,
@@ -133,43 +158,54 @@ class AppTester(
   ): FullAccount {
     fakeNfcCommands.clearHardwareKeys()
     app.apply {
-      val keyboxConfig =
-        KeyboxConfig(
-          networkType = initialBitcoinNetworkType,
+      // Create Keybox config
+      val fullAccountConfig =
+        FullAccountConfig(
+          bitcoinNetworkType = initialBitcoinNetworkType,
           isHardwareFake = true,
           f8eEnvironment = initialF8eEnvironment,
           isTestAccount = true,
           isUsingSocRecFakes = isUsingSocRecFakes,
           delayNotifyDuration = delayNotifyDuration
         )
-      appComponent.templateKeyboxConfigDao.set(keyboxConfig)
-      val keyCrossAppDraft = keyCrossBuilder.createNewKeyCross(keyboxConfig)
+      appComponent.templateFullAccountConfigDao.set(fullAccountConfig)
 
+      // Generate app keys
+      val appKeys =
+        appComponent.appKeysGenerator.generateKeyBundle(fullAccountConfig.bitcoinNetworkType).getOrThrow()
+
+      // Generate hardware keys
       val hwActivation =
         pairingTransactionProvider(
-          networkType = keyboxConfig.networkType,
+          networkType = fullAccountConfig.bitcoinNetworkType,
+          appGlobalAuthPublicKey = appKeys.authKey,
           onSuccess = {},
           onCancel = {},
-          isHardwareFake = keyboxConfig.isHardwareFake
+          isHardwareFake = fullAccountConfig.isHardwareFake
         ).let { transaction ->
           nfcTransactor.fakeTransact(
             transaction = transaction::session
           ).getOrThrow().also { transaction.onSuccess(it) }
         }
       require(hwActivation is FingerprintEnrolled)
-      val hwKeyBundle = hwActivation.keyBundle
-      val keyCrossAppHwDraft =
-        keyCrossBuilder.addHardwareKeyBundle(
-          keyCrossAppDraft,
-          hwKeyBundle
-        )
+      val appGlobalAuthKeyHwSignature = signChallengeWithHardware(
+        appKeys.authKey.pubKey.value
+      ).let(::AppGlobalAuthKeyHwSignature)
+      val keyCrossAppHwDraft = WithAppKeysAndHardwareKeys(
+        appKeyBundle = appKeys,
+        hardwareKeyBundle = hwActivation.keyBundle,
+        appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
+        config = fullAccountConfig
+      )
+
+      // Create f8e account
       val account = fullAccountCreator.createAccount(keyCrossAppHwDraft).getOrThrow()
       println("Created account ${account.accountId}")
 
       if (shouldSetUpNotifications) {
         val addedTouchpoint =
           notificationTouchpointService.addTouchpoint(
-            f8eEnvironment = keyboxConfig.f8eEnvironment,
+            f8eEnvironment = fullAccountConfig.f8eEnvironment,
             fullAccountId = account.accountId,
             touchpoint =
               NotificationTouchpoint.EmailTouchpoint(
@@ -178,13 +214,13 @@ class AppTester(
               )
           ).mapError { it.error }.getOrThrow()
         notificationTouchpointService.verifyTouchpoint(
-          f8eEnvironment = keyboxConfig.f8eEnvironment,
+          f8eEnvironment = fullAccountConfig.f8eEnvironment,
           fullAccountId = account.accountId,
           touchpointId = addedTouchpoint.touchpointId,
           verificationCode = "123456" // This code always works for Test Accounts
         ).mapError { it.error }.getOrThrow()
         notificationTouchpointService.activateTouchpoint(
-          f8eEnvironment = keyboxConfig.f8eEnvironment,
+          f8eEnvironment = fullAccountConfig.f8eEnvironment,
           fullAccountId = account.accountId,
           touchpointId = addedTouchpoint.touchpointId,
           hwFactorProofOfPossession = null
@@ -193,9 +229,18 @@ class AppTester(
 
       if (cloudStoreAccountForBackup != null) {
         val backup =
-          app.fullAccountCloudBackupCreator.create(account.keybox, hwActivation.sealedCsek, emptyList())
+          app.fullAccountCloudBackupCreator.create(
+            keybox = account.keybox,
+            sealedCsek = hwActivation.sealedCsek,
+            trustedContacts = emptyList()
+          )
             .getOrThrow()
-        app.cloudBackupRepository.writeBackup(account.accountId, cloudStoreAccountForBackup, backup)
+        app.cloudBackupRepository.writeBackup(
+          account.accountId,
+          cloudStoreAccountForBackup,
+          backup,
+          true
+        )
           .getOrThrow()
         (app.cloudStoreAccountRepository as WritableCloudStoreAccountRepository)
           .set(cloudStoreAccountForBackup)
@@ -203,7 +248,7 @@ class AppTester(
       }
 
       onboardingService.completeOnboarding(
-        f8eEnvironment = keyboxConfig.f8eEnvironment,
+        f8eEnvironment = fullAccountConfig.f8eEnvironment,
         fullAccountId = account.accountId
       ).getOrThrow()
 
@@ -218,25 +263,40 @@ class AppTester(
   /**
    * Full Account creates a Trusted Contact [Invitation].
    */
-  suspend fun createTcInvite(
-    account: FullAccount,
-    tcName: String,
-  ): Invitation {
+  suspend fun createTcInvite(tcName: String): TrustedContactFullInvite {
+    val account = getActiveFullAccount()
     val hwPop = getHardwareFactorProofOfPossession(account.keybox)
-    return app.socRecRelationshipsRepository
+    val invitation = app.socRecRelationshipsRepository
       .createInvitation(
         account = account,
         trustedContactAlias = TrustedContactAlias(tcName),
         hardwareProofOfPossession = hwPop
       )
       .getOrThrow()
+    val pakeData = app.socRecEnrollmentAuthenticationDao
+      .getByRelationshipId(invitation.invitation.recoveryRelationshipId)
+      .getOrThrow()
+      .shouldNotBeNull()
+    return TrustedContactFullInvite(
+      invitation.inviteCode,
+      IncomingInvitation(
+        invitation.invitation.recoveryRelationshipId,
+        invitation.invitation.code,
+        pakeData.protectedCustomerEnrollmentPakeKey.copy(AppKey.fromPublicKey(pakeData.protectedCustomerEnrollmentPakeKey.publicKey.value))
+      )
+    )
   }
+
+  data class TrustedContactFullInvite(
+    val inviteCode: String,
+    val invitation: IncomingInvitation,
+  )
 
   /**
    * Onboard Lite Account by accepting a Trusted Contact invitation.
    */
   suspend fun onboardLiteAccountFromInvitation(
-    invitation: Invitation,
+    inviteCode: String,
     protectedCustomerName: String,
     cloudStoreAccountForBackup: CloudStoreAccountFake? = null,
   ): LiteAccount {
@@ -259,28 +319,77 @@ class AppTester(
 
       // Accept TC invitation from Protected Customer
       val protectedCustomerAlias = ProtectedCustomerAlias(protectedCustomerName)
-      // TODO(BKR-529) Generate a real public key
+      val invitation =
+        socRecRelationshipsRepository
+          .retrieveInvitation(account, inviteCode)
+          .unwrap()
+      val tcIdentityKey =
+        socRecKeysRepository.getOrCreateKey(::DelegatedDecryptionKey).getOrThrow()
       val protectedCustomer =
         socRecRelationshipsRepository
           .acceptInvitation(
             account,
             invitation,
             protectedCustomerAlias,
-            TrustedContactIdentityKey(AppKey.fromPublicKey("TODO"))
+            tcIdentityKey,
+            inviteCode
           )
-          .getOrThrow { it.error }
+          .unwrap()
       protectedCustomer.alias.shouldBe(protectedCustomerAlias)
 
       if (cloudStoreAccountForBackup != null) {
         val backup =
           app.liteAccountCloudBackupCreator.create(account).getOrThrow()
-        app.cloudBackupRepository.writeBackup(account.accountId, cloudStoreAccountForBackup, backup)
+        app.cloudBackupRepository.writeBackup(
+          account.accountId,
+          cloudStoreAccountForBackup,
+          backup,
+          true
+        )
           .getOrThrow()
       }
 
       return account
     }
   }
+
+  /**
+   * Attempts to do PAKE confirmation on all unendorsed TCs and then endorses and verifies
+   * the key certificates for any that succeed.
+   *
+   * The app must already be logged into the cloud and have an existing cloud backup,
+   * or method will fail.
+   *
+   * @param relationshipId the relationship that must be endorsed and verified, or this method
+   *   will fail the test.
+   */
+  suspend fun endorseAndVerifyTc(relationshipId: String) =
+    withClue("endorse and verify TC") {
+      val account = getActiveFullAccount()
+      // PAKE confirmation and endorsement
+      val unendorsedTcs = app.socRecRelationshipsRepository.syncRelationshipsWithoutVerification(
+        account.accountId,
+        account.config.f8eEnvironment
+      ).getOrThrow()
+        .unendorsedTrustedContacts
+      unendorsedTcs.first { it.recoveryRelationshipId == relationshipId }
+      app.trustedContactKeyAuthenticator
+        .authenticateAndEndorse(unendorsedTcs, account)
+
+      // Verify endorsement
+      app.socRecRelationshipsRepository.syncAndVerifyRelationships(account).getOrThrow()
+        .trustedContacts
+        .first { it.recoveryRelationshipId == relationshipId }
+        .authenticationState
+        .shouldBe(TrustedContactAuthenticationState.VERIFIED)
+
+      app.bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackup(account).getOrThrow()
+      app.cloudBackupDao.get(account.accountId.serverId).getOrThrow().shouldNotBeNull()
+        .shouldBeTypeOf<CloudBackupV2>()
+        .fullAccountFields.shouldNotBeNull()
+        .socRecSealedDekMap
+        .shouldHaveKey(relationshipId)
+    }
 
   /**
    * Returns funds to the treasury wallet.
@@ -324,22 +433,83 @@ class AppTester(
     blockchainControl.mineBlocks(1)
   }
 
+  suspend fun getActiveAccount(): Account {
+    val accountStatus = app.appComponent.accountRepository.accountStatus().first().getOrThrow()
+    return (accountStatus as? ActiveAccount)?.account ?: error("active account not found")
+  }
+
   /**
    * Returns and asserts the active keybox
    */
   suspend fun getActiveFullAccount(): FullAccount {
-    val accountStatus = app.appComponent.accountRepository.accountStatus().first().getOrThrow()
-    return (accountStatus as? ActiveAccount)?.account as? FullAccount
-      ?: error("active Full Account not found")
+    return getActiveAccount() as? FullAccount ?: error("active Full Account not found")
+  }
+
+  /**
+   * Add some funds from treasury to active Full account.
+   *
+   * Please return back to treasury later using [returnFundsToTreasury]!
+   */
+  suspend fun addSomeFunds(amount: BitcoinMoney = BitcoinMoney.sats(10_000L)): FundingResult {
+    val keybox = getActiveFullAccount().keybox
+    val wallet = app.appComponent.appSpendingWalletProvider
+      .getSpendingWallet(keybox.activeSpendingKeyset)
+      .getOrThrow()
+    return treasuryWallet.fund(wallet, amount)
+  }
+
+  /**
+   * Syncs wallet of active Full account until it has some funds - balance is not zero.
+   */
+  suspend fun waitForFunds() {
+    val activeAccount = getActiveFullAccount()
+    val activeWallet = app.appComponent.appSpendingWalletProvider
+      .getSpendingWallet(activeAccount.keybox.activeSpendingKeyset)
+      .getOrThrow()
+    eventually(
+      eventuallyConfig {
+        duration = 60.seconds
+        interval = 1.seconds
+        initialDelay = 1.seconds
+      }
+    ) {
+      activeWallet.sync().shouldBeOk()
+      val balance = activeWallet.balance().first().shouldBeLoaded()
+      balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
+      // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
+    }
+  }
+
+  /**
+   * Syncs wallet of active Full account.
+   */
+  suspend fun syncWallet() {
+    val activeAccount = getActiveFullAccount()
+    val activeWallet = app.appComponent.appSpendingWalletProvider
+      .getSpendingWallet(activeAccount.keybox.activeSpendingKeyset)
+      .getOrThrow()
+    activeWallet.sync().shouldBeOk()
   }
 
   /**
    * Returns and asserts the active lite account
    */
   suspend fun getActiveLiteAccount(): LiteAccount {
-    val accountStatus = app.appComponent.accountRepository.accountStatus().first().getOrThrow()
-    return (accountStatus as? ActiveAccount)?.account as? LiteAccount
-      ?: error("active Lite Account not found")
+    return getActiveAccount() as? LiteAccount ?: error("active Lite Account not found")
+  }
+
+  suspend fun getActiveAppGlobalAuthKey(): AppGlobalAuthKeypair {
+    val account = getActiveFullAccount()
+    val appGlobalAuthPublicKey = account.keybox.activeAppKeyBundle.authKey
+    val appGlobalAuthPrivateKey =
+      requireNotNull(
+        app.appComponent.appPrivateKeyDao.getGlobalAuthKey(appGlobalAuthPublicKey).getOrThrow()
+      )
+    return AppGlobalAuthKeypair(appGlobalAuthPublicKey, appGlobalAuthPrivateKey)
+  }
+
+  suspend fun getActiveHwAuthKey(): FakeHwAuthKeypair {
+    return fakeHardwareKeyStore.getAuthKeypair()
   }
 
   /**
@@ -396,12 +566,24 @@ class AppTester(
   }
 
   /**
+   * Signs some challenge with the fake hardware's auth private key.
+   */
+  suspend fun signChallengeWithHardware(challenge: ByteString): String {
+    return app.nfcTransactor.fakeTransact { session, commands ->
+      commands.signChallenge(session, challenge)
+    }.getOrThrow()
+  }
+
+  suspend fun signChallengeWithHardware(challenge: String): String {
+    return signChallengeWithHardware(challenge.encodeUtf8())
+  }
+
+  /**
    * Delete real cloud backups from fake, local cloud accounts.
    */
   suspend fun deleteBackupsFromFakeCloud() {
-    val fakeCloudAccounts = listOf(CloudStoreAccount1Fake)
-    fakeCloudAccounts.forEach { fakeCloudAccount ->
-      app.cloudBackupRepository.clear(fakeCloudAccount)
+    cloudStoreAccountFakes.forEach { fakeCloudAccount ->
+      app.cloudBackupRepository.clear(fakeCloudAccount, clearRemoteOnly = true)
     }
   }
 
@@ -418,15 +600,13 @@ class AppTester(
 fun AppTester.relaunchApp(
   bdkBlockchainFactory: BdkBlockchainFactory? = null,
   f8eEnvironment: F8eEnvironment? = null,
-  cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
-  cloudKeyValueStore: CloudKeyValueStore? = null,
 ): AppTester =
   launchApp(
+    existingAppDir = app.appComponent.fileDirectoryProvider.appDir(),
     bdkBlockchainFactory = bdkBlockchainFactory,
     f8eEnvironment = f8eEnvironment,
-    existingAppDir = app.appComponent.fileDirectoryProvider.appDir(),
-    cloudStoreAccountRepository = cloudStoreAccountRepository,
-    cloudKeyValueStore = cloudKeyValueStore,
+    cloudStoreAccountRepository = app.cloudStoreAccountRepository,
+    cloudKeyValueStore = app.cloudKeyValueStore,
     isUsingSocRecFakes = isUsingSocRecFakes
   )
 
@@ -439,6 +619,7 @@ fun launchNewApp(
   bitcoinNetworkType: BitcoinNetworkType? = null,
   cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
   cloudKeyValueStore: CloudKeyValueStore? = null,
+  hardwareSeed: FakeHardwareKeyStore.Seed? = null,
   isUsingSocRecFakes: Boolean = false,
 ): AppTester =
   launchApp(
@@ -448,6 +629,7 @@ fun launchNewApp(
     bitcoinNetworkType,
     cloudStoreAccountRepository,
     cloudKeyValueStore,
+    hardwareSeed,
     isUsingSocRecFakes
   )
 
@@ -464,6 +646,7 @@ private fun launchApp(
   bitcoinNetworkType: BitcoinNetworkType? = null,
   cloudStoreAccountRepository: CloudStoreAccountRepository? = null,
   cloudKeyValueStore: CloudKeyValueStore? = null,
+  hardwareSeed: FakeHardwareKeyStore.Seed? = null,
   isUsingSocRecFakes: Boolean,
 ): AppTester {
   /**
@@ -484,7 +667,8 @@ private fun launchApp(
   val platformContext = initPlatform(existingAppDir)
   val appComponent = createAppComponent(platformContext, bdkBlockchainFactory)
   val blockchainControl = createBlockchainControl(bitcoinNetworkType)
-  val fakeHardwareKeyStore = createFakeHardwareKeyStore(appComponent.secureStoreFactory)
+  val fakeHardwareKeyStore =
+    createFakeHardwareKeyStore(appComponent.secureStoreFactory, hardwareSeed)
   val fakeHardwareSpendingWalletProvider =
     FakeHardwareSpendingWalletProvider(
       spendingWalletProvider = appComponent.spendingWalletProvider,
@@ -518,9 +702,9 @@ private fun launchApp(
       ).create(bitcoinNetworkType)
     }
 
-  val keyboxConfig =
-    KeyboxConfig(
-      networkType = bitcoinNetworkType,
+  val fullAccountConfig =
+    FullAccountConfig(
+      bitcoinNetworkType = bitcoinNetworkType,
       isHardwareFake = true,
       f8eEnvironment = f8eEnvironment,
       isTestAccount = true,
@@ -528,11 +712,12 @@ private fun launchApp(
       delayNotifyDuration = 0.seconds
     )
   runBlocking {
-    appComponent.templateKeyboxConfigDao.set(keyboxConfig)
+    appComponent.templateFullAccountConfigDao.set(fullAccountConfig)
   }
 
   return AppTester(
     activityComponent,
+    fakeHardwareKeyStore,
     fakeNfcCommands,
     fakeSharingManager,
     blockchainControl,
@@ -572,11 +757,13 @@ private fun createAppComponent(
     bdkTxBuilderFactory = BdkTxBuilderFactoryImpl(),
     bdkWalletFactory = BdkWalletFactoryImpl(),
     datadogRumMonitor = DatadogRumMonitorImpl(),
+    delayer = ControlledDelayer(),
     deviceTokenConfigProvider =
       DeviceTokenConfigProviderImpl(
         DeviceTokenConfig("fake-device-token", FcmTeam)
       ),
     messageSigner = MessageSignerImpl(),
+    signatureVerifier = SignatureVerifierImpl(),
     platformContext = platformContext,
     teltra = TeltraMock()
   )
@@ -596,8 +783,12 @@ private fun createActivityComponent(
 
   return ActivityComponentImpl(
     appComponent = appComponent,
-    cloudKeyValueStore = cloudKeyValueStore ?: CloudKeyValueStoreImpl(appComponent.keyValueStoreFactory),
-    cloudFileStore = CloudFileStoreFake(fileManager = appComponent.fileManager),
+    cloudKeyValueStore = cloudKeyValueStore
+      ?: CloudKeyValueStoreImpl(appComponent.keyValueStoreFactory),
+    cloudFileStore = CloudFileStoreFake(
+      parentDir = appComponent.fileDirectoryProvider.filesDir(),
+      fileManager = appComponent.fileManager
+    ),
     cloudSignInUiStateMachine =
       CloudSignInUiStateMachineFake(
         cloudStoreAccountRepository as WritableCloudStoreAccountRepository,
@@ -615,12 +806,11 @@ private fun createActivityComponent(
     sharingManager = sharingManager,
     systemSettingsLauncher = systemSettingsLauncher,
     inAppBrowserNavigator = inAppBrowserNavigator,
-    secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl(),
     xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
-    secp256k1SharedSecret = Secp256k1SharedSecretImpl(),
-    hkdf = HkdfImpl(),
     xNonceGenerator = XNonceGeneratorImpl(),
-    pdfAnnotatorFactory = PdfAnnotatorFactoryImpl()
+    pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(),
+    spake2 = Spake2Impl(),
+    cryptoBox = CryptoBoxImpl()
   )
 }
 
@@ -646,6 +836,7 @@ private fun createBlockchainControl(networkType: BitcoinNetworkType): Blockchain
 
 private fun createFakeHardwareKeyStore(
   secureStoreFactory: EncryptedKeyValueStoreFactoryImpl,
+  hardwareSeed: FakeHardwareKeyStore.Seed?,
 ): FakeHardwareKeyStoreImpl {
   val bdkMnemonicGenerator = BdkMnemonicGeneratorImpl()
   val bdkDescriptorSecretKeyGenerator = BdkDescriptorSecretKeyGeneratorImpl()
@@ -657,6 +848,11 @@ private fun createFakeHardwareKeyStore(
       secp256k1KeyGenerator = publicKeyGenerator,
       encryptedKeyValueStoreFactory = secureStoreFactory
     )
+  if (hardwareSeed != null) {
+    runBlocking {
+      fakeHardwareKeyStore.setSeed(hardwareSeed)
+    }
+  }
   return fakeHardwareKeyStore
 }
 

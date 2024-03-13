@@ -13,7 +13,7 @@ fun AppFunctionalityStatusAlertModel(
 ) = AlertModel(
   title =
     when (status.cause) {
-      is F8eUnreachable -> "Bitkey Services Unavailable"
+      is F8eUnreachable -> "Unable to reach Bitkey services"
       is InternetUnreachable -> "Offline"
       InactiveApp -> "Limited Functionality"
       EmergencyAccessMode -> "Limited Functionality"

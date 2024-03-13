@@ -70,7 +70,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
   ) {
     pdfAnnotator.addBlackHelveticaText(
       text = "Version: " + apkParameters.apkVersion,
-      fontSize = FONT_SIZE_LARGE,
+      fontSize = FONT_SIZE_MEDIUM,
       pageNum = 0,
       frame = PdfFrame(TEXT_BOX_X, 2190.0f, 1653.0f, 116.0f)
     )
@@ -78,7 +78,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
     // Populate APK link text.
     pdfAnnotator.addBlackHelveticaText(
       text = apkParameters.apkLinkText,
-      fontSize = FONT_SIZE_LARGE,
+      fontSize = FONT_SIZE_MEDIUM,
       pageNum = 0,
       frame = PdfFrame(TEXT_BOX_X, 2031.0f, 1653.0f, 116.0f),
       url = apkParameters.apkLinkUrl
@@ -97,9 +97,9 @@ class EmergencyAccessKitPdfGeneratorImpl(
     // Populate APK hash.
     pdfAnnotator.addBlackHelveticaText(
       text = apkParameters.apkHash,
-      fontSize = FONT_SIZE_LARGE,
+      fontSize = FONT_SIZE_MEDIUM,
       pageNum = 0,
-      frame = PdfFrame(TEXT_BOX_X, 880.0f, 1490.0f, 142.0f)
+      frame = PdfFrame(TEXT_BOX_X, 790.0f, 1490.0f, 142.0f)
     )
   }
 
@@ -112,7 +112,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
       text = mobileKeyParameters.mobileKeyCharacters,
       fontSize = FONT_SIZE_MEDIUM,
       pageNum = 1,
-      frame = PdfFrame(TEXT_BOX_X, 1220.0f, 1490.0f, 850.0f)
+      frame = PdfFrame(TEXT_BOX_X, 1198.0f, 1490.0f, 850.0f)
     )
 
     // Populate Mobile Key QR code.
@@ -121,7 +121,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
         contents = mobileKeyParameters.mobileKeyQRCodeText,
         pageNum = 1,
         frameX = QR_CODE_FRAME_X,
-        frameY = 2150.0f
+        frameY = 2176.0f
       )
     }
   }

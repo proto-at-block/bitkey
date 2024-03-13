@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:kermit-core-android",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kermit-core-release.aar": "25df296895d2d799ef28f44c5bf3b52ea4dcc1d47a6cafbc649d5ff34827b6a4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,45 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-reflect",
+    "components": [
+        {
+            "version": "1.6.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-reflect-1.6.10.jar": "3277ac102ae17aad10a55abec75ff5696c8d109790396434b496e75087854203"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        },
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-reflect-1.9.10.jar": "8a835f5176355083668aff0ed6eef5b3eb030e10e89679ed3eeb703fd2d5b900"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-reflect-1.9.21.jar": "a133e049f0a4e249651582428e166de4dfac9546adf436b6172119255ede510f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "SQLDelight-DialectClasspath",
+                "build-classpath"
+            ]
+        }
+    ]
+}

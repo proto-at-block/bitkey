@@ -38,15 +38,8 @@ data class ServerRecovery(
   /**
    * [destinationAppRecoveryAuthPubKey] the app recovery auth pub key that will be made active on
    * the account once the recovery is complete
-   *
-   * Note that this Recovery aut key is nullable. This is because it was recently introduced.
-   * It's possible that we have a customer that has initiated a DN recovery without providing
-   * the new Recovery Auth key (as part of older app versions). As a result, the customer
-   * will be finishing Recovery nonetheless but will not end up with a newly generated Recovery
-   * auth key. The Recovery auth key will be backfilled later as part of a separate process,
-   * see BKR-573.
    */
-  val destinationAppRecoveryAuthPubKey: AppRecoveryAuthPublicKey?,
+  val destinationAppRecoveryAuthPubKey: AppRecoveryAuthPublicKey,
   /**
    * [destinationHardwareAuthPubKey] the hardware auth pub key that will be made active on the
    * account once the recovery is complete

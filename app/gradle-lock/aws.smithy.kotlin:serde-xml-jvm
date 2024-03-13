@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:serde-xml-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "serde-xml-jvm-1.0.13.jar": "483375a225ea3f034fbacec5ac9fe18e6a0fb71fc1a7e285654ae736f5a8bbb2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

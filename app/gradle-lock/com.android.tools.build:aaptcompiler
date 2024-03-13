@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:aaptcompiler",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aaptcompiler-8.1.1.jar": "33752307b0b9b7ebe3b957573e39b18c8c77165330ff973bebdc63b9ac6f2c24"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

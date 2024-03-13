@@ -1,5 +1,6 @@
 package build.wallet.statemachine.data.recovery.losthardware
 
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
@@ -22,7 +23,10 @@ class LostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   val initiatingLostHardwareRecoveryDataStateMachine =
     object : InitiatingLostHardwareRecoveryDataStateMachine,
       StateMachineMock<InitiatingLostHardwareRecoveryProps, InitiatingLostHardwareRecoveryData>(
-        initialModel = AwaitingNewHardwareData(addHardwareKeys = { _, _ -> })
+        initialModel = AwaitingNewHardwareData(
+          newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+          addHardwareKeys = { _, _, _ -> }
+        )
       ) {}
 
   val recovery = StillRecoveringInitiatedRecoveryMock.copy(factorToRecover = Hardware)

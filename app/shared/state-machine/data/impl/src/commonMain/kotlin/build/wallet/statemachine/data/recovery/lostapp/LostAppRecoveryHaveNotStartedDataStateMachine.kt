@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData
@@ -24,9 +24,9 @@ data class LostAppRecoveryHaveNotStartedProps(
    */
   val cloudBackup: CloudBackup?,
   /**
-   * Keybox configuration to restore with.
+   * Full account configuration to restore with.
    */
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   /**
    * Action to perform if recovery is rolled back.
    */
@@ -63,7 +63,7 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
         is InitiatingLostAppRecoveryState ->
           initiatingLostAppRecoveryDataStateMachine.model(
             InitiatingLostAppRecoveryProps(
-              keyboxConfig = props.keyboxConfig,
+              fullAccountConfig = props.fullAccountConfig,
               onRollback = props.onRollback
             )
           )

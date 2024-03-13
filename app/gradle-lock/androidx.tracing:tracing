@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.tracing:tracing",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "tracing-1.0.0.aar": "07b8b6139665b884a162eccf97891ca50f7f56831233bf25168ae04f7b568612"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

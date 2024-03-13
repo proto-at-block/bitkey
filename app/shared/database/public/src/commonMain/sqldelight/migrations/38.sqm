@@ -1,6 +1,0 @@
-CREATE TABLE socRecStartedChallenge(
-    rowId       INTEGER NOT NULL PRIMARY KEY,
-    challengeId TEXT NOT NULL
-);
-
-PRAGMA foreign_key_check;

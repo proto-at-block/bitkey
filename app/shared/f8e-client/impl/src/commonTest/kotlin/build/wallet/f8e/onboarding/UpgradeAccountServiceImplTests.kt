@@ -19,7 +19,7 @@ class UpgradeAccountServiceImplTests : FunSpec({
     val result = Json.encodeToString(request)
 
     result.shouldBeEqual(
-      """{"auth":{"app":"app-auth-dpub","hardware":"hw-dpub-2"},"spending":{"app":"[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVappdpub/*","hardware":"[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRhwspendingdpub/*","network":"bitcoin"}}"""
+      """{"auth":{"app":"app-auth-dpub","hardware":"hw-auth-dpub"},"spending":{"app":"[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVappdpub/*","hardware":"[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQhardwaredpub/*","network":"bitcoin"}}"""
     )
   }
 
@@ -27,12 +27,14 @@ class UpgradeAccountServiceImplTests : FunSpec({
     val accountId = "fake-account-id"
     val keysetId = "fake-keyset-id"
     val spending = "spending-keys"
+    val spendingSig = "spending-sig"
     val response =
       """
       {
         "account_id":"$accountId",
         "keyset_id":"$keysetId",
-        "spending":"$spending"
+        "spending":"$spending",
+        "spending_sig":"$spendingSig"
       }
       """.trimIndent()
 
@@ -42,7 +44,8 @@ class UpgradeAccountServiceImplTests : FunSpec({
       UpgradeAccountServiceImpl.ResponseBody(
         accountId = accountId,
         keysetId = keysetId,
-        spending = spending
+        spending = spending,
+        spendingSig = spendingSig
       )
     )
   }

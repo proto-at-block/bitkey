@@ -4,9 +4,9 @@ use crate::tests;
 use account::entities::{Network, TouchpointPlatform};
 use http::StatusCode;
 use notification::clients::iterable::IterableClient;
-use notification::routes::{SendTestPushData, SetNotificationsPreferencesRequest};
+use notification::routes::SendTestPushData;
 use notification::service::FetchForAccountInput;
-use onboarding::routes::AccountAddDeviceTokenRequest;
+use onboarding::routes::{AccountAddDeviceTokenRequest, CompleteOnboardingRequest};
 use types::account::identifiers::AccountId;
 use types::consent::{Consent, NotificationConsentAction};
 use types::notification::{NotificationCategory, NotificationChannel, NotificationsPreferences};
@@ -33,6 +33,18 @@ async fn send_test_notification_test(vector: SendTestNotificationTestVector) {
                 device_token: "test".to_string(),
                 platform: TouchpointPlatform::ApnsTeam,
             },
+        )
+        .await;
+    client
+        .set_notifications_preferences(
+            &account.id.to_string(),
+            &NotificationsPreferences {
+                account_security: HashSet::from([NotificationChannel::Push]),
+                money_movement: HashSet::default(),
+                product_marketing: HashSet::default(),
+            },
+            false,
+            false,
         )
         .await;
 
@@ -139,31 +151,37 @@ async fn test_notifications_preferences() {
         HashSet::default(),
     );
 
+    // Initial subscribe
     let set_response = client
         .set_notifications_preferences(
             &account.id.to_string(),
-            &SetNotificationsPreferencesRequest {
-                account_security: HashSet::default(),
-                money_movement: HashSet::from([
+            &NotificationsPreferences {
+                account_security: HashSet::from([
                     NotificationChannel::Push,
                     NotificationChannel::Email,
                 ]),
+                money_movement: HashSet::default(),
                 product_marketing: HashSet::from([
                     NotificationChannel::Sms,
                     NotificationChannel::Email,
                 ]),
             },
+            false,
+            false,
         )
         .await;
     assert_eq!(set_response.status_code, StatusCode::OK);
     assert_eq!(
         set_response.body.unwrap(),
         NotificationsPreferences {
-            account_security: HashSet::default(),
-            money_movement: HashSet::from([NotificationChannel::Push, NotificationChannel::Email]),
+            account_security: HashSet::from([
+                NotificationChannel::Push,
+                NotificationChannel::Email,
+            ]),
+            money_movement: HashSet::default(),
             product_marketing: HashSet::from([
                 NotificationChannel::Sms,
-                NotificationChannel::Email
+                NotificationChannel::Email,
             ]),
         }
     );
@@ -175,7 +193,7 @@ async fn test_notifications_preferences() {
             .cloned()
             .unwrap_or_default(),
         HashSet::from([
-            NotificationCategory::MoneyMovement,
+            NotificationCategory::AccountSecurity,
             NotificationCategory::ProductMarketing
         ]),
     );
@@ -188,10 +206,16 @@ async fn test_notifications_preferences() {
     assert_eq!(consents.iter().filter(|c| matches!(c, Consent::Notification(n) if n.action == NotificationConsentAction::OptIn)).count(), 4);
     assert_eq!(consents.iter().filter(|c| matches!(c, Consent::Notification(n) if n.action == NotificationConsentAction::OptOut)).count(), 0);
 
+    // Complete onboarding
+    let complete_response = client
+        .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+        .await;
+    assert_eq!(complete_response.status_code, StatusCode::OK);
+
     // Out of band unsubscribe
     store.lock().await.insert(
         account.id.to_string(),
-        HashSet::from([NotificationCategory::MoneyMovement]),
+        HashSet::from([NotificationCategory::AccountSecurity]),
     );
     let get_response = client
         .get_notifications_preferences(&account.id.to_string())
@@ -200,9 +224,12 @@ async fn test_notifications_preferences() {
     assert_eq!(
         get_response.body.unwrap(),
         NotificationsPreferences {
-            account_security: HashSet::default(),
-            money_movement: HashSet::from([NotificationChannel::Push, NotificationChannel::Email]),
-            product_marketing: HashSet::from([NotificationChannel::Sms]),
+            account_security: HashSet::from([
+                NotificationChannel::Push,
+                NotificationChannel::Email,
+            ]),
+            money_movement: HashSet::default(),
+            product_marketing: HashSet::from([NotificationChannel::Sms,]),
         },
     );
     assert_eq!(
@@ -212,13 +239,63 @@ async fn test_notifications_preferences() {
             .get(&account.id.to_string())
             .cloned()
             .unwrap_or_default(),
-        HashSet::from([NotificationCategory::MoneyMovement]),
+        HashSet::from([NotificationCategory::AccountSecurity]),
     );
 
     let set_response = client
         .set_notifications_preferences(
             &account.id.to_string(),
-            &SetNotificationsPreferencesRequest {
+            &NotificationsPreferences {
+                account_security: HashSet::from([
+                    NotificationChannel::Push,
+                    NotificationChannel::Email,
+                ]),
+                money_movement: HashSet::from([
+                    NotificationChannel::Push,
+                    NotificationChannel::Sms,
+                ]),
+                product_marketing: HashSet::default(),
+            },
+            false,
+            false,
+        )
+        .await;
+    assert_eq!(set_response.status_code, StatusCode::OK);
+    assert_eq!(
+        set_response.body.unwrap(),
+        NotificationsPreferences {
+            account_security: HashSet::from([
+                NotificationChannel::Push,
+                NotificationChannel::Email
+            ]),
+            money_movement: HashSet::from([NotificationChannel::Push, NotificationChannel::Sms]),
+            product_marketing: HashSet::default(),
+        }
+    );
+    assert_eq!(
+        store
+            .lock()
+            .await
+            .get(&account.id.to_string())
+            .cloned()
+            .unwrap_or_default(),
+        HashSet::from([NotificationCategory::AccountSecurity,]),
+    );
+
+    let consents = bootstrap
+        .services
+        .consent_repository
+        .fetch_for_account_id(&account.id)
+        .await
+        .unwrap();
+    assert_eq!(consents.iter().filter(|c| matches!(c, Consent::Notification(n) if n.action == NotificationConsentAction::OptIn)).count(), 6);
+    assert_eq!(consents.iter().filter(|c| matches!(c, Consent::Notification(n) if n.action == NotificationConsentAction::OptOut)).count(), 2);
+
+    // Unsubscribe from account security without signatures
+    let set_response = client
+        .set_notifications_preferences(
+            &account.id.to_string(),
+            &NotificationsPreferences {
                 account_security: HashSet::default(),
                 money_movement: HashSet::from([
                     NotificationChannel::Push,
@@ -229,32 +306,9 @@ async fn test_notifications_preferences() {
                     NotificationChannel::Sms,
                 ]),
             },
+            false,
+            false,
         )
         .await;
-    assert_eq!(set_response.status_code, StatusCode::OK);
-    assert_eq!(
-        set_response.body.unwrap(),
-        NotificationsPreferences {
-            account_security: HashSet::default(),
-            money_movement: HashSet::from([NotificationChannel::Push, NotificationChannel::Sms]),
-            product_marketing: HashSet::from([NotificationChannel::Push, NotificationChannel::Sms]),
-        }
-    );
-    assert_eq!(
-        store
-            .lock()
-            .await
-            .get(&account.id.to_string())
-            .cloned()
-            .unwrap_or_default(),
-        HashSet::default(),
-    );
-    let consents = bootstrap
-        .services
-        .consent_repository
-        .fetch_for_account_id(&account.id)
-        .await
-        .unwrap();
-    assert_eq!(consents.iter().filter(|c| matches!(c, Consent::Notification(n) if n.action == NotificationConsentAction::OptIn)).count(), 6);
-    assert_eq!(consents.iter().filter(|c| matches!(c, Consent::Notification(n) if n.action == NotificationConsentAction::OptOut)).count(), 2);
+    assert_eq!(set_response.status_code, StatusCode::FORBIDDEN);
 }

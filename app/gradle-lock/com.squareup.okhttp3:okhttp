@@ -1,0 +1,32 @@
+{
+    "module-identifier": "com.squareup.okhttp3:okhttp",
+    "components": [
+        {
+            "version": "4.11.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okhttp-4.11.0.jar": "ee8f6bd6cd1257013d748330f4ca147638a9fbcb52fb388d5ac93cf53408745d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]"
+            ]
+        },
+        {
+            "version": "4.12.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okhttp-4.12.0.jar": "b1050081b14bb7a3a7e55a4d3ef01b5dcfabc453b4573a4fc019767191d5f4e0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

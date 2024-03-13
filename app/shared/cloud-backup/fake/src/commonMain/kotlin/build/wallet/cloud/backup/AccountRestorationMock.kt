@@ -3,14 +3,16 @@ package build.wallet.cloud.backup
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.BitcoinNetworkType.TESTNET
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.compose.collections.emptyImmutableList
@@ -41,7 +43,7 @@ val AccountRestorationMock =
           )
       ),
     inactiveKeysets = emptyImmutableList(),
-    activeKeyBundle =
+    activeAppKeyBundle =
       AppKeyBundle(
         localId = "fake-uuid",
         spendingKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "spending-dpub")),
@@ -49,13 +51,15 @@ val AccountRestorationMock =
         networkType = TESTNET,
         recoveryAuthKey = AppRecoveryAuthPublicKeyMock
       ),
+    activeHwKeyBundle = HwKeyBundleMock,
     config =
-      KeyboxConfig(
+      FullAccountConfig(
         isHardwareFake = false,
-        networkType = SIGNET,
+        bitcoinNetworkType = SIGNET,
         f8eEnvironment = Development,
         isTestAccount = false,
         isUsingSocRecFakes = false
       ),
-    cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock
+    cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock,
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
   )

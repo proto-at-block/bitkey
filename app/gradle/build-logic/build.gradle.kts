@@ -1,6 +1,9 @@
+import build.wallet.gradle.dependencylocking.extension.commonDependencyLockingGroups
+
 plugins {
   `kotlin-dsl`
   id("build.wallet.dependency-locking")
+  id("build.wallet.dependency-locking.common-group-configuration")
 }
 
 /**
@@ -40,6 +43,14 @@ gradlePlugin {
       id = "build.wallet.android.bugsnag"
       implementationClass = "build.wallet.gradle.logic.reproducible.ReproducibleBugsnagAndroidPlugin"
     }
+    create("reproducibleBuildVariablesPlugin") {
+      id = "build.wallet.build.reproducible"
+      implementationClass = "build.wallet.gradle.logic.reproducible.ReproducibleBuildVariablesPlugin"
+    }
+    create("dependencyLockingDependencyConfigurationPlugin") {
+      id = "build.wallet.dependency-locking.dependency-configuration"
+      implementationClass = "build.wallet.gradle.logic.DependencyLockingDependencyConfigurationPlugin"
+    }
   }
 }
 
@@ -56,12 +67,18 @@ dependencies {
   compileOnly(libs.pluginClasspath.detekt)
   compileOnly(libs.pluginClasspath.gradleEnterprise)
   compileOnly(libs.pluginClasspath.kmp)
-  compileOnly(libs.pluginClasspath.kmp.sqldelight)
+  compileOnly(libs.pluginClasspath.kmp.sqldelight) {
+    exclude("org.jetbrains.kotlin", "kotlin-stdlib")
+  }
   compileOnly(libs.pluginClasspath.kotlin)
   compileOnly(libs.pluginClasspath.wire)
 
-  implementation(libs.pluginClasspath.redacted)
-  implementation(libs.pluginClasspath.bugsnag.android)
+  implementation(libs.pluginClasspath.redacted) {
+    exclude("org.jetbrains.kotlin", "kotlin-stdlib")
+  }
+  implementation(libs.pluginClasspath.bugsnag.android) {
+    exclude("org.jetbrains.kotlin")
+  }
   implementation(libs.pluginClasspath.testLogger)
 
   implementation(":dependency-locking")
@@ -74,3 +91,11 @@ dependencies {
 }
 
 layout.buildDirectory = File("_build")
+
+customDependencyLocking {
+  configurations.named("embeddedKotlin").configure {
+    dependencyLockingGroup = commonDependencyLockingGroups.buildToolchain
+  }
+
+  commonDependencyLockingGroups.buildClasspath.pin(libs.jvm.asm)
+}

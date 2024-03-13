@@ -1,7 +1,7 @@
 import {Construct} from "constructs";
 import {AverageLatencyHighMonitor, ErrorRateHighMonitor} from "./common/http";
 import {Monitor} from "./common/monitor";
-import {getRecipients} from "./recipients";
+import {getCriticalRecipients, getErrorRecipients} from "./recipients";
 import {Environment} from "./common/environments";
 
 export class WsmApiMonitors extends Construct {
@@ -10,8 +10,8 @@ export class WsmApiMonitors extends Construct {
 
     let tags = [`env:${environment}`, "service:wsm"]
 
-    const recipients = getRecipients(environment)
-    const highPriorityRecipients = getRecipients(environment, true)
+    const recipients = getErrorRecipients(environment)
+    const highPriorityRecipients = getCriticalRecipients(environment)
     
     new Monitor(this, "abnormal_throughput", {
       name: "[wsm]: service has an abnormal change in throughput (ANOMALY)",

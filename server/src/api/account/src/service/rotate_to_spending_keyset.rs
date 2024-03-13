@@ -24,7 +24,7 @@ impl Service {
             ..full_account
         }
         .into();
-        self.repo.persist(&account).await?;
+        self.account_repo.persist(&account).await?;
         Ok(account)
     }
 }

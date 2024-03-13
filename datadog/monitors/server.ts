@@ -1,6 +1,6 @@
 import { Construct } from "constructs";
 import { ErrorRateHighMonitor, HttpStatusCompositeMonitor } from "./common/http";
-import { getRecipients } from "./recipients";
+import { getCriticalRecipients, getErrorRecipients } from "./recipients";
 import { Environment } from "./common/environments";
 import { ContainerCpuUtilizationHighMonitor, ContainerMemoryUtilizationHighMonitor, TokioBusyRatioHighMonitor } from "./common/system";
 
@@ -8,8 +8,8 @@ export class FromagerieMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `fromagerie_${environment}`);
 
-    const highPriorityRecipients = getRecipients(environment, true);
-    const lowPriorityRecipients = getRecipients(environment, false);
+    const highPriorityRecipients = getCriticalRecipients(environment);
+    const lowPriorityRecipients = getErrorRecipients(environment);
 
     new ErrorRateHighMonitor(this, "error_rate_high", {
       name: `Service fromagerie-api has a high error rate on env:${environment}`,

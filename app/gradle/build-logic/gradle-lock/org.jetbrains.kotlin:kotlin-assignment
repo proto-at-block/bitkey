@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-assignment",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-assignment-1.9.10-gradle81.jar": "7d817656b7ad97738221a9094ee6045e0b0decd09dac50b450d8a26d1349b115"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

@@ -75,5 +75,5 @@ $ECS_DEPLOY --run-task \
 --use-latest-task-def \
 --network-configuration "awsvpcConfiguration={subnets=[$SUBNET],securityGroups=[$SECURITY_GROUPS]}" \
 --launch-type FARGATE \
---timeout 300 \
+--timeout 600 \
 --wait-for-success

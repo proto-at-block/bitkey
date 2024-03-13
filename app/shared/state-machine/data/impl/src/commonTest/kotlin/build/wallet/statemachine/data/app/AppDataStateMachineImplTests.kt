@@ -5,7 +5,7 @@ import build.wallet.account.analytics.AppInstallationMock
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_INITIALIZE
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.configuration.FiatMobilePayConfigurationRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EakDataFake
@@ -32,9 +32,9 @@ import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountDa
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigDataStateMachine
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDataStateMachine
 import build.wallet.statemachine.data.lightning.LightningNodeData
 import build.wallet.statemachine.data.lightning.LightningNodeData.LightningNodeDisabledData
 import build.wallet.statemachine.data.lightning.LightningNodeDataStateMachine
@@ -66,10 +66,11 @@ class AppDataStateMachineImplTests : FunSpec({
     object : LightningNodeDataStateMachine,
       StateMachineMock<Unit, LightningNodeData>(initialModel = LightningNodeDisabledData) {}
   val permissionChecker = PermissionCheckerMock()
-  val templateKeyboxConfigDataStateMachine =
-    object : TemplateKeyboxConfigDataStateMachine,
-      StateMachineMock<Unit, TemplateKeyboxConfigData>(
-        initialModel = LoadedTemplateKeyboxConfigData(config = KeyboxConfigMock, updateConfig = {})
+  val templateFullAccountConfigDataStateMachine =
+    object : TemplateFullAccountConfigDataStateMachine,
+      StateMachineMock<Unit, TemplateFullAccountConfigData>(
+        initialModel = LoadedTemplateFullAccountConfigData(config = FullAccountConfigMock, updateConfig = {
+        })
       ) {}
   val electrumServerDataStateMachine =
     object : ElectrumServerDataStateMachine,
@@ -103,7 +104,7 @@ class AppDataStateMachineImplTests : FunSpec({
       periodicFirmwareCoredumpProcessor = periodicFirmwareCoredumpSender,
       periodicRegisterWatchAddressProcessor = periodicRegisterWatchAddressSender,
       lightningNodeDataStateMachine = lightningNodeDataStateMachine,
-      templateKeyboxConfigDataStateMachine = templateKeyboxConfigDataStateMachine,
+      templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
       electrumServerDataStateMachine = electrumServerDataStateMachine,
       firmwareDataStateMachine = firmwareDataStateMachine,
       currencyPreferenceDataStateMachine = currencyPreferenceDataStateMachine,

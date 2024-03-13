@@ -11,6 +11,7 @@ import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.notifications.NotificationPreferences
 import build.wallet.notifications.NotificationTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
 import com.github.michaelbull.result.Ok
@@ -93,6 +94,26 @@ class NotificationTouchpointServiceMock(
   ): Result<List<NotificationTouchpoint>, NetworkingError> {
     getTouchpointsCalls += fullAccountId
     return getTouchpointsResult
+  }
+
+  var getNotificationsPreferencesResult: Result<NotificationPreferences, NetworkError> = Ok(NotificationPreferences(moneyMovement = emptySet(), productMarketing = emptySet()))
+
+  override suspend fun getNotificationsPreferences(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+  ): Result<NotificationPreferences, NetworkingError> {
+    return getNotificationsPreferencesResult
+  }
+
+  var updateNotificationsPreferencesResult: Result<Unit, NetworkError> = Ok(Unit)
+
+  override suspend fun updateNotificationsPreferences(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+    preferences: NotificationPreferences,
+    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+  ): Result<Unit, NetworkingError> {
+    return updateNotificationsPreferencesResult
   }
 
   fun reset() {

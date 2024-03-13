@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.charleskorn.kaml:kaml-jvm",
+    "components": [
+        {
+            "version": "0.56.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kaml-jvm-0.56.0.jar": "3af54b7f6c375f0217acef31b22e479f9310480fcc3f10d7ef3ad328e3ff68c5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -7,6 +7,6 @@ import kotlinx.serialization.Serializable
 internal data class VerifyChallengeRequestBody(
   @SerialName("recovery_relationship_id")
   val recoveryRelationshipId: String,
-  @SerialName("code")
-  val code: String,
+  @SerialName("counter")
+  val code: Int,
 )

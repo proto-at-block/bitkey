@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.ui:ui-tooling-preview-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-tooling-preview-release.aar": "1263288480372dbfb54d63234e9cabfa7f94b13a5ba108d06c4aa1976dbbaade"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

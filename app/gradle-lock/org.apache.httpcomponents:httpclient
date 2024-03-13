@@ -1,0 +1,31 @@
+{
+    "module-identifier": "org.apache.httpcomponents:httpclient",
+    "components": [
+        {
+            "version": "4.5.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "httpclient-4.5.13.jar": "6fe9026a566c6a5001608cf3fc32196641f6c1e5e1986d1037ccdbd5f31ef743"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "4.5.14",
+            "variants": [
+                {
+                    "artifacts": {
+                        "httpclient-4.5.14.jar": "c8bc7e1c51a6d4ce72f40d2ebbabf1c4b68bfe76e732104b04381b493478e9d6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

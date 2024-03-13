@@ -2,16 +2,17 @@ package build.wallet.integration.statemachine.recovery.socrec.add
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.launchNewApp
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -19,7 +20,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
 import io.kotest.matchers.string.shouldNotBeBlank
-import io.kotest.matchers.string.shouldNotBeEmpty
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Clock
 
@@ -31,11 +31,15 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   val onAddTc = { alias: TrustedContactAlias, _: HwFactorProofOfPossession ->
     onAddTcCalls.add(Unit)
     Ok(
-      Invitation(
-        "test-id",
-        alias,
-        "test-token",
-        Clock.System.now()
+      OutgoingInvitation(
+        Invitation(
+          "test-id",
+          alias,
+          "test-token",
+          40,
+          Clock.System.now()
+        ),
+        "test-token-123"
       )
     )
   }
@@ -52,10 +56,12 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      )
+      ),
+      useVirtualTime = false
     ) {
-      awaitUntilScreenWithBody<FormBodyModel> {
-        id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME)
+      awaitUntilScreenWithBody<FormBodyModel>(
+        id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME
+      ) {
         header?.headline.shouldNotBeNull()
         header?.sublineModel.shouldNotBeNull()
         secondaryButton.shouldBe(null)
@@ -65,16 +71,19 @@ class AddingTrustedContactFunctionalTests : FunSpec({
           fieldModel.onValueChange.invoke("tc-name", 0..6)
         }
       }
-      awaitUntilScreenWithBody<FormBodyModel> {
-        id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME)
-        primaryButton?.isEnabled.shouldBe(true)
-        primaryButton?.onClick?.invoke()
+      awaitUntilScreenWithBody<FormBodyModel>(
+        id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
+        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      ) {
+        clickPrimaryButton()
       }
       awaitUntilScreenWithBody<FormBodyModel> {
         onBack?.invoke()
       }
-      awaitUntilScreenWithBody<FormBodyModel> {
-        id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME)
+      awaitUntilScreenWithBody<FormBodyModel>(
+        id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
+        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      ) {
         mainContentList.first().shouldBeTypeOf<FormMainContentModel.TextInput>().run {
           // Name field is retained:
           fieldModel.value.shouldBe("tc-name")
@@ -91,7 +100,8 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      )
+      ),
+      useVirtualTime = false
     ) {
       proceedWithFakeNames()
       awaitUntilScreenWithBody<FormBodyModel> {
@@ -108,13 +118,16 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      )
+      ),
+      useVirtualTime = false
     ) {
       proceedWithFakeNames()
       awaitUntilScreenWithBody<FormBodyModel>().primaryButton?.onClick?.invoke()
       proceedNfcScreens()
 
-      awaitUntilScreenWithBody<LoadingBodyModel>()
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       onAddTcCalls.awaitItem()
       awaitUntilScreenWithBody<FormBodyModel> {
         header?.headline.shouldBe("Finally, invite tc-name to be your Trusted Contact")
@@ -133,22 +146,24 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         onAddTc = onAddTc,
         onInvitationShared = { onInvitationShared.add(Unit) },
         onExit = { onExitCalls.add(Unit) }
-      )
+      ),
+      useVirtualTime = false
     ) {
       proceedWithFakeNames()
       awaitUntilScreenWithBody<FormBodyModel>().primaryButton?.onClick?.invoke()
       proceedNfcScreens()
 
-      awaitUntilScreenWithBody<LoadingBodyModel>()
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitUntilScreenWithBody<FormBodyModel>().primaryButton?.onClick?.invoke()
       onAddTcCalls.awaitItem()
-      awaitUntilScreenWithBody<SuccessBodyModel> {
-        title.shouldNotBeBlank()
-        message.shouldNotBeBlank()
-        style.shouldBeTypeOf<SuccessBodyModel.Style.Explicit>().primaryButton.run {
-          text.shouldNotBeEmpty()
-          onClick.invoke()
+      awaitUntilScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().run {
+          headline.shouldNotBeBlank()
+          sublineModel.shouldNotBeNull().string.shouldNotBeBlank()
         }
+        clickPrimaryButton()
       }
       onInvitationShared.awaitItem()
     }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-release.aar": "a7df39bcc1327fa5a7ea5dca2976e11b87feea4ca89d1968cbbb6914f983cd4c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

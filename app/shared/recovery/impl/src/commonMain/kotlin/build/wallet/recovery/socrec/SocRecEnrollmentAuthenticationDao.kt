@@ -1,6 +1,7 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentKey
+import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.database.sqldelight.SocRecEnrollmentAuthentication
 import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Result
@@ -12,8 +13,8 @@ import com.github.michaelbull.result.Result
 interface SocRecEnrollmentAuthenticationDao {
   suspend fun insert(
     recoveryRelationshipId: String,
-    protectedCustomerEnrollmentKey: ProtectedCustomerEnrollmentKey,
-    pakeCode: String,
+    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    pakeCode: PakeCode,
   ): Result<Unit, Throwable>
 
   suspend fun getByRelationshipId(

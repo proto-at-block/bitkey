@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-assertions-shared",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-assertions-shared-metadata-5.8.0.jar": "4325fc011e36ecaa64c8dcd1568e97841a827c1a85bf28dc30f7606fe2ea8974"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

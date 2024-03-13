@@ -20,13 +20,17 @@ pub enum ServiceError {
     RecoveryRelationship(#[from] RecoveryRelationshipServiceError),
     #[error(transparent)]
     NotificationPayloadBuilder(#[from] notification::NotificationPayloadBuilderError),
+    #[error(transparent)]
+    Account(#[from] account::error::AccountError),
+    #[error(transparent)]
+    TryFromIntError(#[from] std::num::TryFromIntError),
 }
 
 impl From<ServiceError> for ApiError {
     fn from(value: ServiceError) -> Self {
         let msg = value.to_string();
         match value {
-            ServiceError::NotificationPayloadBuilder(_) => {
+            ServiceError::NotificationPayloadBuilder(_) | ServiceError::TryFromIntError(_) => {
                 ApiError::GenericInternalApplicationError(msg)
             }
             ServiceError::MismatchingRecoveryRelationships => ApiError::GenericBadRequest(msg),
@@ -37,6 +41,7 @@ impl From<ServiceError> for ApiError {
             ServiceError::RecoveryRelationshipStatusMismatch => ApiError::GenericConflict(msg),
             ServiceError::Notification(e) => e.into(),
             ServiceError::RecoveryRelationship(e) => e.into(),
+            ServiceError::Account(e) => e.into(),
         }
     }
 }

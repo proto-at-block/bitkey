@@ -32,13 +32,7 @@ public struct FormContentView: View {
             VStack {
                 FormHeaderView(
                     viewModel: header,
-                    headlineFont: {
-                        switch renderContext {
-                        case .screen: return .title1
-                        case .sheet: return .title2
-                        default: return .title1
-                        }
-                    }()
+                    headlineFont: .title1
                 )
                 Spacer()
                     .frame(height: 24)

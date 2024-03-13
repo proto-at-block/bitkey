@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.savedstate:savedstate",
+    "components": [
+        {
+            "version": "1.2.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-1.2.1.aar": "21a7d4bcf6bdb94ad7b9283801529300b4fbb8808ca4f191e0cdce6fd8e4705a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

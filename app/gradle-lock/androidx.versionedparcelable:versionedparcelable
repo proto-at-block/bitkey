@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.versionedparcelable:versionedparcelable",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "versionedparcelable-1.1.1.aar": "57e8d93260d18d5b9007c9eed3c64ad159de90c8609ebfc74a347cbd514535a4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

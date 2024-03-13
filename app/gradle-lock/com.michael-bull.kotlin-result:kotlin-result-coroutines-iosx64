@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines-iosx64",
+    "components": [
+        {
+            "version": "1.1.18",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-result-coroutines-iosx64-1.1.18-metadata.jar": "48963dbca39a6be1347e591729efe6ba4fe8276cfd17b44427f10b5704c6ea59"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-result-coroutines.klib": "611b4344d02dab5f0a5a2520f5a80c207446f204907ffe4d22e296ee0748f6d8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

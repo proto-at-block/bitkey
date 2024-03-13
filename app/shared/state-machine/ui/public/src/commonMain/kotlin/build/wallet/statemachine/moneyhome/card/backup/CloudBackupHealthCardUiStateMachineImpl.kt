@@ -5,6 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import build.wallet.LoadableValue
+import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
 import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
@@ -21,6 +22,7 @@ class CloudBackupHealthCardUiStateMachineImpl(
     // Do not show the card if the feature flag is off.
     val flagValue = remember { cloudBackupHealthFeatureFlag.flagValue() }.collectAsState()
     if (!flagValue.value.value) return null
+    if (props.appFunctionalityStatus.featureStates.cloudBackupHealth == Unavailable) return null
 
     val mobileKeyBackupStatus by
       remember { cloudBackupHealthRepository.mobileKeyBackupStatus() }.collectAsState()

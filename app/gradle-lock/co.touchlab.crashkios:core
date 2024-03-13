@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab.crashkios:core",
+    "components": [
+        {
+            "version": "0.8.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-metadata-0.8.5.jar": "ae30a633331306889db20ad4d849acbdbe270c3446c8c05cf9fafe84167d967f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

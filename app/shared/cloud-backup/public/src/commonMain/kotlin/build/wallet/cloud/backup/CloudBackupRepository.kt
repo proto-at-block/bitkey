@@ -19,10 +19,16 @@ interface CloudBackupRepository {
     accountId: AccountId,
     cloudStoreAccount: CloudStoreAccount,
     backup: CloudBackup,
+    requireAuthRefresh: Boolean,
   ): Result<Unit, CloudBackupError>
 
   /**
    * Clear wallet from cloud storage using logged in [CloudStoreAccount].
+   * @param clearRemoteOnly if true, only clear remote storage, if false,
+   * clear both remote and local storage.
    */
-  suspend fun clear(cloudStoreAccount: CloudStoreAccount): Result<Unit, CloudBackupError>
+  suspend fun clear(
+    cloudStoreAccount: CloudStoreAccount,
+    clearRemoteOnly: Boolean,
+  ): Result<Unit, CloudBackupError>
 }

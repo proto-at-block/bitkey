@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.lint:lint-typedef-remover",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lint-typedef-remover-31.1.1.jar": "5b4f485215ca4d86ef2319fc398b5f2251e62f5446bc5fd0e00653648ddde318"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -3,6 +3,7 @@ package build.wallet.f8e.client
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.app.AppAuthPublicKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.WsmVerifier
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import io.ktor.client.HttpClient
@@ -12,6 +13,8 @@ import io.ktor.client.engine.HttpClientEngine
  * Provides [HttpClient] for F8e APIs.
  */
 interface F8eHttpClient : UnauthenticatedF8eHttpClient {
+  val wsmVerifier: WsmVerifier
+
   /**
    * Client that talks to F8e
    *

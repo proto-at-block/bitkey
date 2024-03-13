@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.jakewharton.picnic:picnic-iosarm64",
+    "components": [
+        {
+            "version": "0.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "picnic-iosarm64-metadata.jar": "9e06d52aae4d175c33f5e612bf1198c009e4c30b0acf443e7916bfbb3a6771f5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "picnic.klib": "aeb95965bd014fdfd12f1780a19a064d55d36588a9fae83cc2cdf43b506ac72d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

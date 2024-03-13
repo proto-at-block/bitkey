@@ -1,12 +1,20 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::env;
 use std::str::FromStr;
 
+use argon2::{
+    password_hash::{PasswordHash, PasswordVerifier},
+    Argon2,
+};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 use axum::{
     extract::{Path, State},
     Json,
+};
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    TypedHeader,
 };
 use bdk_utils::error::BdkUtilError;
 use bdk_utils::generate_electrum_rpc_uris;
@@ -16,7 +24,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
-use types::notification::NotificationChannel;
+use userpool::userpool::{CreateRecoveryUserInput, CreateWalletUserInput, UserPoolService};
 use utoipa::{OpenApi, ToSchema};
 
 use account::entities::{
@@ -33,7 +41,6 @@ use account::service::{
     Service as AccountService, UpgradeLiteAccountToFullAccountInput,
 };
 use authn_authz::key_claims::KeyClaims;
-use authn_authz::userpool::{CreateRecoveryUserInput, CreateWalletUserInput, UserPoolService};
 use bdk_utils::{
     bdk::{
         bitcoin::{secp256k1::PublicKey, Network},
@@ -50,9 +57,7 @@ use external_identifier::ExternalIdentifier;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::swagger::{SwaggerEndpoint, Url};
-use notification::clients::iterable::{
-    IterableClient, IterableMode, IterableUserId, ACCOUNT_ID_KEY, TOUCHPOINT_ID_KEY, USER_SCOPE_KEY,
-};
+use notification::clients::iterable::{IterableClient, IterableMode};
 use notification::clients::twilio::{TwilioClient, TwilioMode};
 use notification::service::Service as NotificationService;
 use recovery::repository::Repository as RecoveryService;
@@ -60,7 +65,7 @@ use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId}
 use wsm_rust_client::{SigningService, WsmClient};
 
 use crate::account_validation::{AccountValidation, AccountValidationRequest};
-use crate::{create_account_iterable_users, enable_account_security_notifications, metrics};
+use crate::{create_touchpoint_iterable_user, metrics, upsert_account_iterable_user};
 use once_cell::sync::Lazy;
 
 static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
@@ -99,6 +104,7 @@ impl RouteState {
         Router::new()
             .route("/api/accounts", post(create_account))
             .route("/api/bdk-configuration", get(get_bdk_config))
+            .route("/api/demo/initiate", post(initiate_demo_mode))
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -178,6 +184,7 @@ impl From<RouteState> for SwaggerEndpoint {
         delete_account,
         get_bdk_config,
         get_touchpoints_for_account,
+        initiate_demo_mode,
         rotate_spending_keyset,
         upgrade_account,
         verify_touchpoint_for_account,
@@ -207,6 +214,8 @@ impl From<RouteState> for SwaggerEndpoint {
             FullAccountAuthKeysRequest,
             GetAccountKeysetsResponse,
             GetAccountStatusResponse,
+            InitiateDemoModeRequest,
+            InitiateDemoModeResponse,
             LiteAccountAuthKeysRequest,
             RotateSpendingKeysetRequest,
             RotateSpendingKeysetResponse,
@@ -231,6 +240,7 @@ pub struct AccountAddDeviceTokenRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountAddDeviceTokenResponse {}
 
+#[instrument(fields(account_id), skip(account_service, config, request))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/device-token",
@@ -245,9 +255,9 @@ pub struct AccountAddDeviceTokenResponse {}
 )]
 async fn add_device_token_to_account(
     State(account_service): State<AccountService>,
-    State(notification_service): State<NotificationService>,
-    Path(account_id): Path<AccountId>,
     State(config): State<Config>,
+    TypedHeader(bearer): TypedHeader<Authorization<Bearer>>,
+    Path(account_id): Path<AccountId>,
     Json(request): Json<AccountAddDeviceTokenRequest>,
 ) -> Result<Json<AccountAddDeviceTokenResponse>, ApiError> {
     account_service
@@ -256,16 +266,9 @@ async fn add_device_token_to_account(
             use_local_sns: config.use_local_sns,
             platform: request.platform,
             device_token: request.device_token,
+            access_token: bearer.token().to_string(),
         })
         .await?;
-
-    // Adding a device token implicitly subscribes to account security notifications for Push
-    enable_account_security_notifications(
-        &notification_service,
-        &account_id,
-        NotificationChannel::Push,
-    )
-    .await?;
 
     Ok(Json(AccountAddDeviceTokenResponse {}))
 }
@@ -282,6 +285,16 @@ pub struct AccountAddTouchpointResponse {
     pub touchpoint_id: TouchpointId,
 }
 
+#[instrument(
+    fields(account_id),
+    skip(
+        account_service,
+        comms_verification_service,
+        iterable_client,
+        twilio_client,
+        request
+    )
+)]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/touchpoints",
@@ -416,21 +429,15 @@ async fn add_touchpoint_to_account(
                 });
             }
 
-            // Ensure Iterable touchpoint "user" is updated and subscribed to account security notifications
+            // Ensure Iterable touchpoint "user" is created and subscribed to account security notifications
             // before sending verification email
-            iterable_client
-                .update_user(
-                    IterableUserId::Touchpoint(&account_id),
-                    email_address,
-                    Some(HashMap::from([
-                        (ACCOUNT_ID_KEY, account_id.to_string().as_str()),
-                        (USER_SCOPE_KEY, "touchpoint"),
-                    ])),
-                )
-                .await?;
-            iterable_client
-                .subscribe_to_account_security(IterableUserId::Touchpoint(&account_id))
-                .await?;
+            create_touchpoint_iterable_user(
+                &iterable_client,
+                &account_id,
+                &touchpoint_id,
+                email_address,
+            )
+            .await?;
 
             comms_verification_service
                 .initiate_verification_for_scope(InitiateVerificationForScopeInput {
@@ -456,6 +463,7 @@ pub struct AccountVerifyTouchpointRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountVerifyTouchpointResponse {}
 
+#[instrument(fields(account_id), skip(account_service, comms_verification_service))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/touchpoints/{touchpoint_id}/verify",
@@ -513,6 +521,10 @@ pub struct AccountActivateTouchpointRequest {}
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AccountActivateTouchpointResponse {}
 
+#[instrument(
+    fields(account_id),
+    skip(account_service, comms_verification_service, iterable_client)
+)]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/touchpoints/{touchpoint_id}/activate",
@@ -529,7 +541,6 @@ async fn activate_touchpoint_for_account(
     State(account_service): State<AccountService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(iterable_client): State<IterableClient>,
-    State(notification_service): State<NotificationService>,
     key_proof: KeyClaims,
     Path((account_id, touchpoint_id)): Path<(AccountId, TouchpointId)>,
     Json(_request): Json<AccountActivateTouchpointRequest>,
@@ -583,29 +594,20 @@ async fn activate_touchpoint_for_account(
         .await?;
 
     if let Touchpoint::Email {
-        id, email_address, ..
+        id: touchpoint_id,
+        email_address,
+        ..
     } = &touchpoint
     {
         // Ensure Iterable account "user" is updated
-        iterable_client
-            .update_user(
-                IterableUserId::Account(&account_id),
-                email_address.to_owned(),
-                Some(HashMap::from([
-                    (TOUCHPOINT_ID_KEY, id.to_string().as_str()),
-                    (USER_SCOPE_KEY, "account"),
-                ])),
-            )
-            .await?;
+        upsert_account_iterable_user(
+            &iterable_client,
+            &account_id,
+            Some(touchpoint_id),
+            Some(email_address.to_owned()),
+        )
+        .await?;
     }
-
-    // Activating a touchpoint implicitly subscribes to account security notifications for that channel
-    enable_account_security_notifications(
-        &notification_service,
-        &account_id,
-        NotificationChannel::from(&touchpoint),
-    )
-    .await?;
 
     Ok(Json(AccountActivateTouchpointResponse {}))
 }
@@ -615,6 +617,7 @@ pub struct AccountGetTouchpointsResponse {
     pub touchpoints: Vec<Touchpoint>,
 }
 
+#[instrument(fields(account_id), skip(account_service))]
 #[utoipa::path(
     get,
     path = "/api/accounts/{account_id}/touchpoints",
@@ -793,6 +796,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
                     Some(CreateKeysetResponse {
                         keyset_id: full_account.active_keyset_id.clone(),
                         spending: spending_keyset.server_dpub,
+                        spending_sig: None,
                     }),
                 )
             }
@@ -844,7 +848,21 @@ pub async fn create_account(
         )
         .await?
     {
-        return Ok(Json(CreateAccountResponse::try_from(&v.existing_account)?));
+        let mut create_account_response = CreateAccountResponse::try_from(&v.existing_account)?;
+        match &v.existing_account {
+            Account::Full(full_account) => {
+                let spending_sig = maybe_get_wsm_integrity_sig(
+                    &wsm_client,
+                    &full_account.active_keyset_id.to_string(),
+                )
+                .await;
+                if let Some(keyset) = &mut create_account_response.keyset {
+                    keyset.spending_sig = spending_sig;
+                }
+            }
+            Account::Lite(_) => {}
+        }
+        return Ok(Json(create_account_response));
     }
 
     let account_id = AccountId::new(id_generator.gen_account_id()).map_err(|e| {
@@ -879,26 +897,24 @@ pub async fn create_account(
             let keyset_id = KeysetId::new(id_generator.gen_spending_keyset_id())
                 .map_err(RouteError::InvalidIdentifier)?;
             // TODO: use a correctly derived spending dpub from WSM, rather than the root xpub [W-5622]
-            let spending_server_dpub = wsm_client
+            let key = wsm_client
                 .create_root_key(
                     &keyset_id.to_string(),
                     BitcoinNetwork::from(spending.network).0,
                 )
                 .await
-                .map_or_else(
-                    |e| {
-                        let msg = "Failed to create new key in WSM";
-                        error!("{msg}: {e}");
-                        Err(ApiError::GenericInternalApplicationError(msg.to_string()))
-                    },
-                    |k| {
-                        DescriptorPublicKey::from_str(&k.xpub).map_err(|e| {
-                            let msg = "Failed to parse spending dpub from WSM";
-                            error!("{msg}: {e}");
-                            ApiError::GenericInternalApplicationError(msg.to_string())
-                        })
-                    },
-                )?;
+                .map_err(|e| {
+                    let msg = "Failed to create new key in WSM";
+                    error!("{msg}: {e}");
+                    ApiError::GenericInternalApplicationError(msg.to_string())
+                })?;
+
+            // Attempt to parse the DescriptorPublicKey from the xpub string
+            let spending_server_dpub = DescriptorPublicKey::from_str(&key.xpub).map_err(|e| {
+                let msg = "Failed to parse spending dpub from WSM";
+                error!("{msg}: {e}");
+                ApiError::GenericInternalApplicationError(msg.to_string())
+            })?;
 
             let auth_key_id = AuthKeysId::new(id_generator.gen_spending_keyset_id())
                 .map_err(RouteError::InvalidIdentifier)?;
@@ -925,14 +941,14 @@ pub async fn create_account(
             };
             let account = account_service.create_account_and_keysets(input).await?;
 
-            // Attempt to create Iterable users early, but don't fail the account creation if this fails.
-            // We upsert the users later when they're needed anyway; this is an optimization to avoid
-            // added latency or errors waiting for Iterable user database consistency on first use.
-            create_account_iterable_users(&iterable_client, &account.id)
+            // Attempt to create account Iterable user early, but don't fail the account creation if
+            // this fails. We upsert the users later when they're needed anyway; this is an optimization
+            // to avoid added latency or errors waiting for Iterable user database consistency on first use.
+            upsert_account_iterable_user(&iterable_client, &account.id, None, None)
                 .await
                 .map_or_else(
                     |e| {
-                        error!("Failed to create account Iterable users: {e}");
+                        error!("Failed to create account Iterable user: {e}");
                     },
                     |_| (),
                 );
@@ -942,6 +958,7 @@ pub async fn create_account(
                 keyset: Some(CreateKeysetResponse {
                     keyset_id: account.active_keyset_id,
                     spending: spending_server_dpub,
+                    spending_sig: Some(key.xpub_sig),
                 }),
             }))
         }
@@ -1051,7 +1068,14 @@ pub async fn upgrade_account(
                 && active_spending_keyset.app_dpub == request.spending.app
                 && active_spending_keyset.hardware_dpub == request.spending.hardware
             {
-                return Ok(Json(CreateAccountResponse::try_from(existing_account)?));
+                let mut account = CreateAccountResponse::try_from(existing_account)?;
+                if let Some(keyset) = &mut account.keyset {
+                    let spending_sig =
+                        maybe_get_wsm_integrity_sig(&wsm_client, &keyset.keyset_id.to_string())
+                            .await;
+                    keyset.spending_sig = spending_sig;
+                }
+                return Ok(Json(account));
             } else {
                 return Err(ApiError::GenericConflict(
                     "Account is already a full account".to_string(),
@@ -1090,26 +1114,28 @@ pub async fn upgrade_account(
     let keyset_id = KeysetId::new(id_generator.gen_spending_keyset_id())
         .map_err(RouteError::InvalidIdentifier)?;
     // TODO: use a correctly derived spending dpub from WSM, rather than the root xpub [W-5622]
-    let spending_server_dpub = wsm_client
+    let create_key_result = wsm_client
         .create_root_key(
             &keyset_id.to_string(),
             BitcoinNetwork::from(request.spending.network).0,
         )
-        .await
-        .map_or_else(
-            |e| {
-                let msg = "Failed to create new key in WSM";
-                error!("{msg}: {e}");
-                Err(ApiError::GenericInternalApplicationError(msg.to_string()))
-            },
-            |k| {
-                DescriptorPublicKey::from_str(&k.xpub).map_err(|e| {
-                    let msg = "Failed to parse spending dpub from WSM";
-                    error!("{msg}: {e}");
-                    ApiError::GenericInternalApplicationError(msg.to_string())
-                })
-            },
-        )?;
+        .await;
+
+    let (xpub, xpub_sig) = match create_key_result {
+        Ok(k) => (k.xpub, k.xpub_sig),
+        Err(e) => {
+            let msg = "Failed to create new key in WSM";
+            error!("{msg}: {e}");
+            return Err(ApiError::GenericInternalApplicationError(msg.to_string()));
+        }
+    };
+
+    // Attempt to parse the DescriptorPublicKey
+    let spending_server_dpub = DescriptorPublicKey::from_str(&xpub).map_err(|e| {
+        let msg = "Failed to parse spending dpub from WSM";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
 
     let auth_key_id = AuthKeysId::new(id_generator.gen_spending_keyset_id())
         .map_err(RouteError::InvalidIdentifier)?;
@@ -1143,6 +1169,7 @@ pub async fn upgrade_account(
         keyset: Some(CreateKeysetResponse {
             keyset_id: full_account.active_keyset_id,
             spending: spending_server_dpub,
+            spending_sig: Some(xpub_sig),
         }),
     }))
 }
@@ -1159,6 +1186,8 @@ pub struct CreateKeysetResponse {
     pub keyset_id: KeysetId,
     #[serde(with = "bdk_utils::serde::descriptor_key")]
     pub spending: DescriptorPublicKey,
+    #[serde(default)]
+    pub spending_sig: Option<String>,
 }
 
 #[instrument(skip(account_service))]
@@ -1206,9 +1235,12 @@ pub async fn create_keyset(
                     && spending_keyset.hardware_dpub == request.spending.hardware
             })
     {
+        let spending_sig = maybe_get_wsm_integrity_sig(&wsm_client, &keyset_id.to_string()).await;
+
         return Ok(Json(CreateKeysetResponse {
             keyset_id: keyset_id.to_owned(),
             spending: keyset.server_dpub.to_owned(),
+            spending_sig,
         }));
     }
 
@@ -1258,6 +1290,7 @@ pub async fn create_keyset(
     Ok(Json(CreateKeysetResponse {
         keyset_id: inactive_spend_keyset_id,
         spending: inactive_spend_keyset.server_dpub,
+        spending_sig: Some(key.xpub_sig),
     }))
 }
 
@@ -1373,7 +1406,7 @@ pub struct CompleteOnboardingRequest {}
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct CompleteOnboardingResponse {}
 
-#[instrument(skip(account_service))]
+#[instrument(skip(account_service, notification_service))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/complete-onboarding",
@@ -1387,6 +1420,7 @@ pub struct CompleteOnboardingResponse {}
 pub async fn complete_onboarding(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
+    State(notification_service): State<NotificationService>,
     Json(request): Json<CompleteOnboardingRequest>,
 ) -> Result<Json<CompleteOnboardingResponse>, ApiError> {
     account_service
@@ -1394,6 +1428,7 @@ pub async fn complete_onboarding(
             account_id: &account_id,
         })
         .await?;
+
     Ok(Json(CompleteOnboardingResponse {}))
 }
 
@@ -1495,4 +1530,60 @@ pub async fn delete_account(
         .await?;
 
     Ok(())
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct InitiateDemoModeRequest {
+    pub code: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct InitiateDemoModeResponse {}
+
+#[instrument]
+#[utoipa::path(
+    post,
+    path = "/api/demo/initiate",
+    responses(
+        (status = 200, description = "Code is valid"),
+        (status = 400, description = "Code is not valid"),
+    ),
+)]
+pub async fn initiate_demo_mode(
+    Json(request): Json<InitiateDemoModeRequest>,
+) -> Result<Json<InitiateDemoModeResponse>, ApiError> {
+    let code_hash = std::env::var("ONBOARDING_DEMO_MODE_CODE_HASH").map_err(|e| {
+        let msg = "Failed to retrieve code hash from environment";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
+
+    let parsed_hash = PasswordHash::new(&code_hash).map_err(|e| {
+        let msg = "Failed to parse code hash from environment";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
+
+    if Argon2::default()
+        .verify_password(request.code.as_bytes(), &parsed_hash)
+        .is_ok()
+    {
+        Ok(Json(InitiateDemoModeResponse {}))
+    } else {
+        Err(ApiError::GenericBadRequest("Invalid code".to_string()))
+    }
+}
+
+async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &String) -> Option<String> {
+    wsm_client
+        .get_key_integrity_sig(keyset_id)
+        .await
+        .map_or_else(
+            |e| {
+                let msg = "Failed to get key integrity signature";
+                error!("{msg}: {e}");
+                None
+            },
+            |response| Some(response.signature),
+        )
 }

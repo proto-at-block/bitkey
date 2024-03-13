@@ -24,6 +24,7 @@ import com.github.michaelbull.result.Ok
 class FeedbackUiStateMachineImpl(
   private val supportTicketRepository: SupportTicketRepository,
   private val feedbackFormNewUiEnabled: FeedbackFormNewUiEnabledFeatureFlag,
+  private val feedbackFormAddAttachments: FeedbackFormAddAttachmentsFeatureFlag,
   private val feedbackFormUiStateMachine: FeedbackFormUiStateMachine,
   private val oldFeedbackUiStateMachine: OldFeedbackUiStateMachine,
 ) : FeedbackUiStateMachine {
@@ -31,6 +32,10 @@ class FeedbackUiStateMachineImpl(
   override fun model(props: FeedbackUiProps): ScreenModel {
     val newUiEnabled by remember {
       feedbackFormNewUiEnabled.flagValue()
+    }.collectAsState()
+
+    val addAttachmentsEnabled by remember {
+      feedbackFormAddAttachments.flagValue()
     }.collectAsState()
 
     if (!newUiEnabled.value) {
@@ -44,7 +49,7 @@ class FeedbackUiStateMachineImpl(
     return when (val state = uiState) {
       FeedbackUiState.LoadingFormStructure ->
         LoadingFormStructure(
-          f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+          f8eEnvironment = props.f8eEnvironment,
           accountId = props.accountId,
           onStructureLoaded = { form, initialData ->
             uiState =
@@ -68,10 +73,11 @@ class FeedbackUiStateMachineImpl(
         feedbackFormUiStateMachine.model(
           props =
             FeedbackFormUiProps(
-              keyboxConfig = props.keyboxConfig,
+              f8eEnvironment = props.f8eEnvironment,
               accountId = props.accountId,
               formStructure = state.structure,
               initialData = state.initialData,
+              addAttachmentsEnabled = addAttachmentsEnabled.value,
               onBack = props.onBack
             )
         )
@@ -96,7 +102,6 @@ class FeedbackUiStateMachineImpl(
     }
 
     return LoadingBodyModel(
-      style = LoadingBodyModel.Style.Implicit,
       id = FeedbackEventTrackerScreenId.FEEDBACK_LOADING_FORM
     ).asRootScreen()
   }

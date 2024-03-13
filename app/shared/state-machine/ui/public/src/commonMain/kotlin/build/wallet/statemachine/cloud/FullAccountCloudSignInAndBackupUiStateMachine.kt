@@ -34,4 +34,5 @@ data class FullAccountCloudSignInAndBackupProps(
   val onExistingCloudBackupFound: ((cloudBackup: CloudBackup, proceed: () -> Unit) -> Unit)? = null,
   val presentationStyle: ScreenPresentationStyle,
   val isSkipCloudBackupInstructions: Boolean = false,
+  val requireAuthRefreshForCloudBackup: Boolean,
 )

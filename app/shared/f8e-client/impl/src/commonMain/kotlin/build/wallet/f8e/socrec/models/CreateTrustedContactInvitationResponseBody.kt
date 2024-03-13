@@ -17,7 +17,9 @@ internal data class CreateTrustedContactInvitation(
   @SerialName("trusted_contact_alias")
   val trustedContactAlias: TrustedContactAlias,
   @SerialName("code")
-  val token: String,
+  val code: String,
+  @SerialName("code_bit_length")
+  val codeBitLength: Int,
   @SerialName("expires_at")
   val expiresAt: Instant,
 )

@@ -8,26 +8,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecKeysRepository
+import build.wallet.recovery.socrec.SocialChallengeError
 import build.wallet.recovery.socrec.SocialChallengeVerifier
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.SecurityNoticeFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.VerifyingContactMethodFormBodyModel
+import build.wallet.time.Delayer
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 class HelpingWithRecoveryUiStateMachineImpl(
+  private val delayer: Delayer,
   private val socialChallengeVerifier: SocialChallengeVerifier,
   private val socRecKeysRepository: SocRecKeysRepository,
 ) : HelpingWithRecoveryUiStateMachine {
@@ -60,10 +64,19 @@ class HelpingWithRecoveryUiStateMachineImpl(
 
       is UiState.EnteringRecoveryCode ->
         EnterRecoveryCodeFormBodyModel(
-          value = state.code,
+          value = state.recoveryCode,
+          primaryButton =
+            ButtonModel(
+              text = "Continue",
+              isEnabled = state.recoveryCode.isNotEmpty(),
+              size = ButtonModel.Size.Footer,
+              onClick =
+                StandardClick {
+                  uiState = UiState.VerifyingRecoveryCode(recoveryCode = state.recoveryCode)
+                }
+            ),
           onBack = { uiState = UiState.VerifyingContactMethod },
-          onContinueClick = { uiState = UiState.VerifyingRecoveryCode(code = state.code) },
-          onInputChange = { code -> uiState = UiState.EnteringRecoveryCode(code) }
+          onInputChange = { recoveryCode -> uiState = UiState.EnteringRecoveryCode(recoveryCode) }
         ).asModalScreen()
 
       is UiState.VerifyingRecoveryCode ->
@@ -71,15 +84,21 @@ class HelpingWithRecoveryUiStateMachineImpl(
           account = props.account,
           relationshipId = props.protectedCustomer.recoveryRelationshipId,
           goToSuccess = { uiState = UiState.SuccessfullyVerified },
-          goToFailure = { uiState = UiState.FailedToVerify },
-          code = state.code
+          goToFailure = { uiState = UiState.FailedToVerify(it) },
+          recoveryCode = state.recoveryCode
         ).asModalScreen()
 
-      UiState.FailedToVerify ->
+      is UiState.FailedToVerify ->
         ErrorFormBodyModel(
           onBack = props.onExit,
-          title = "Failed to verify your recovery code",
-          subline = "Please try to re-enter your recovery code.",
+          title = when (state.error) {
+            is SocialChallengeError.ChallengeCodeVersionMismatch -> "Bitkey app out of date"
+            else -> "Failed to verify your recovery code"
+          },
+          subline = when (state.error) {
+            is SocialChallengeError.ChallengeCodeVersionMismatch -> "The invite could not be accepted - please make sure both you and the Trusted Contact you invited have updated to the most recent Bitkey app version, and then try again."
+            else -> "Please try to re-enter your recovery code."
+          },
           primaryButton =
             ButtonDataModel(
               text = "Try again",
@@ -104,42 +123,43 @@ class HelpingWithRecoveryUiStateMachineImpl(
   private fun VerifyingRecoveryCodeModel(
     account: Account,
     relationshipId: String,
-    code: String,
+    recoveryCode: String,
     goToSuccess: () -> Unit,
-    goToFailure: () -> Unit,
+    goToFailure: (Error) -> Unit,
   ): BodyModel {
     LaunchedEffect("verifying-recovery-code") {
       socRecKeysRepository
-        .getKeyWithPrivateMaterialOrCreate(::TrustedContactIdentityKey)
+        .getKeyWithPrivateMaterialOrCreate(::DelegatedDecryptionKey)
         .flatMap { trustedContactIdentityKey ->
           socialChallengeVerifier.verifyChallenge(
             account = account,
-            trustedContactIdentityKey = trustedContactIdentityKey,
+            delegatedDecryptionKey = trustedContactIdentityKey,
             recoveryRelationshipId = relationshipId,
-            code = code
+            recoveryCode = recoveryCode
           )
         }
         .onSuccess { goToSuccess() }
-        .onFailure { goToFailure() }
+        .logFailure { "Failed to verify social recovery code" }
+        .onFailure { goToFailure(it) }
     }
 
-    return LoadingBodyModel(
-      style = LoadingBodyModel.Style.Implicit,
-      id = null
+    return LoadingSuccessBodyModel(
+      id = null,
+      state = LoadingSuccessBodyModel.State.Loading
     )
   }
 
   @Composable
   private fun SuccessfulVerifiedRecoveryCodeModel(exit: () -> Unit): BodyModel {
     LaunchedEffect("verifying-recovery-code") {
-      delay(2.seconds)
+      delayer.delay(3.seconds)
       exit()
     }
 
-    return SuccessBodyModel(
+    return LoadingSuccessBodyModel(
       id = SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_SUCCESS,
-      title = "Verified",
-      style = SuccessBodyModel.Style.Implicit
+      message = "Verified",
+      state = LoadingSuccessBodyModel.State.Success
     )
   }
 }
@@ -151,11 +171,11 @@ private sealed interface UiState {
 
   data object ViewingSecurityNotice : UiState
 
-  data class EnteringRecoveryCode(val code: String = "") : UiState
+  data class EnteringRecoveryCode(val recoveryCode: String = "") : UiState
 
-  data class VerifyingRecoveryCode(val code: String) : UiState
+  data class VerifyingRecoveryCode(val recoveryCode: String) : UiState
 
   data object SuccessfullyVerified : UiState
 
-  data object FailedToVerify : UiState
+  data class FailedToVerify(val error: Error) : UiState
 }

@@ -16,7 +16,7 @@ import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.Hidden
 import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.ShowingErrorSheet
 import build.wallet.statemachine.core.input.EmailInputUiStateMachineImpl.State.BottomSheetState.ShowingSkipSheet
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 
@@ -37,6 +37,7 @@ class EmailInputUiStateMachineImpl(
           Enter -> "Enter your email address"
           Edit -> "Edit your email address"
         },
+      subline = props.subline,
       value = state.email.value,
       primaryButton =
         ButtonModel(
@@ -45,7 +46,7 @@ class EmailInputUiStateMachineImpl(
           isLoading = state.isLoading,
           size = Footer,
           onClick =
-            Click.standardClick {
+            StandardClick {
               if (state.isValid) {
                 state = state.copy(isLoading = true)
               }

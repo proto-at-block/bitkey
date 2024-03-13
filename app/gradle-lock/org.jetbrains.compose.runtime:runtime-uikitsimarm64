@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.runtime:runtime-uikitsimarm64",
+    "components": [
+        {
+            "version": "1.5.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-uikitsimarm64-1.5.11-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime.klib": "0cbcc115f9c644c2757bd292d523a8c77cde2506a521dd28d2ad81398d269fe5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

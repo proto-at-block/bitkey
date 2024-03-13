@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.perfmark:perfmark-api",
+    "components": [
+        {
+            "version": "0.23.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "perfmark-api-0.23.0.jar": "c705b5c10c18ff3032b9e81742bc2f6b0e5607f6a6dfc0c8ad0cff75d4913042"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

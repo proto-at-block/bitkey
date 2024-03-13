@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.ui:ui-unit",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-unit-metadata-1.5.4.jar": "a122255bc8f3d7fe1ad1aa4d971508ae552a0c60d05b9c82400f05e579984df1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

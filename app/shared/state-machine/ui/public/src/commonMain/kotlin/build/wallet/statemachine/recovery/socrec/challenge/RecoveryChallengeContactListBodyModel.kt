@@ -1,13 +1,12 @@
 package build.wallet.statemachine.recovery.socrec.challenge
 
-import androidx.compose.runtime.Composable
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -18,7 +17,6 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
-@Composable
 fun RecoveryChallengeContactListBodyModel(
   onExit: () -> Unit,
   trustedContacts: ImmutableList<TrustedContact>,
@@ -31,8 +29,8 @@ fun RecoveryChallengeContactListBodyModel(
   toolbar = ToolbarModel(),
   header =
     FormHeaderModel(
-      headline = "Share your recovery code",
-      subline = "Reach out to your Trusted Contact and provide them with a recovery code. Once they enter the code you’ll be able to continue restoring on this device."
+      headline = "Select a Trusted Contact",
+      subline = "Choose a Trusted Contact to help with recovery."
     ),
   mainContentList =
     immutableListOf(
@@ -59,8 +57,8 @@ fun RecoveryChallengeContactListBodyModel(
                   ListItemAccessory.ButtonAccessory(
                     model =
                       ButtonModel(
-                        text = "Verify",
-                        onClick = Click.standardClick { onVerifyClick(contact) },
+                        text = "Select",
+                        onClick = StandardClick { onVerifyClick(contact) },
                         treatment = ButtonModel.Treatment.Secondary,
                         size = ButtonModel.Size.Compact
                       )
@@ -72,8 +70,8 @@ fun RecoveryChallengeContactListBodyModel(
     ),
   primaryButton =
     ButtonModel(
-      text = "Verify to continue",
+      text = "Continue",
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onContinue() }
+      onClick = StandardClick { onContinue() }
     ).takeIf { verifiedBy.isNotEmpty() }
 )

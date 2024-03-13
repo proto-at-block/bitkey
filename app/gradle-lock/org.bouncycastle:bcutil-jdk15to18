@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcutil-jdk15to18",
+    "components": [
+        {
+            "version": "1.72",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcutil-jdk15to18-1.72.jar": "d92184bdeb3105a11ad9e36acbd66b5f8eed091b08b9c8f3e2549e42b7f131f1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

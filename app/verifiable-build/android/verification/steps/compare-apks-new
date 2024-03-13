@@ -1,0 +1,85 @@
+#!/bin/bash
+
+# Compares the content of extracted apks by comparing two directories.
+set -x
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <directory-1> <directory-2>" >&2
+    exit 1
+fi
+
+if ! which "diff" > /dev/null 2>&1; then
+    echo "Cannot find 'diff'. Please install it first and then rerun this command." >&2
+    exit 100
+fi
+
+if ! which "$AAPT2" > /dev/null 2>&1; then
+  echo "Can't find aapt2. Make sure you set environment variable \$AAPT2 to point to it." >&2
+  exit 101
+fi
+
+lhs_comparable="$1/comparable"
+lhs_apks="$1/normalized-names"
+rhs_comparable="$2/comparable"
+rhs_apks="$2/normalized-names"
+
+lhs_apk_files=$(find "$lhs_apks" -maxdepth 1 -mindepth 1 -type f -exec basename {} \;)
+rhs_apk_files=$(find "$rhs_apks" -maxdepth 1 -mindepth 1 -type f -exec basename {} \;)
+
+# Create union of lhs_apk_files and rhs_apk_files
+all_apk_files=$(sort -u <(echo "${lhs_apk_files[@]}") <(echo "${rhs_apk_files[@]}"))
+
+differences=$(diff -x resources.arsc -r "$lhs_comparable" "$rhs_comparable")
+diff_exit_status=$?
+diff_result=$diff_exit_status
+
+declare -a aapt_differences
+for apk_file in $all_apk_files; do
+  if [ ! -f "$lhs_apks/$apk_file" ]; then
+    aapt_differences+=("Only in $rhs_apks: $apk_file")
+    ((diff_result++))
+    continue
+  fi
+  if [ ! -f "$rhs_apks/$apk_file" ]; then
+    aapt_differences+=("Only in $lhs_apks: $apk_file")
+    ((diff_result++))
+    continue
+  fi
+
+  unzip -l "$lhs_apks/$apk_file" resources.arsc
+  lhs_contains_resources_exit_code=$?
+  unzip -l "$rhs_apks/$apk_file" resources.arsc
+  rhs_contains_resources_exit_code=$?
+
+  if [ $lhs_contains_resources_exit_code -ne 0 ] || [ $rhs_contains_resources_exit_code -ne 0 ]; then
+    if [ $lhs_contains_resources_exit_code -eq 0 ]; then
+      aapt_differences+=("Only $lhs_apks/$apk_file contains resources.arsc")
+      diff_result=$((diff_result + rhs_contains_resources_exit_code))
+    elif [ $rhs_contains_resources_exit_code -eq 0 ]; then
+      aapt_differences+=("Only $rhs_apks/$apk_file cotnains resrouces.arsc")
+      diff_result=$((diff_result + lhs_contains_resources_exit_code))
+    else
+      echo "Skipping aapt2 diff of $apk_file as it doesn't contain resources.arsc file"
+    fi
+  else
+    aapt_difference=$("$AAPT2" diff "$lhs_apks/$apk_file" "$rhs_apks/$apk_file" 2>&1)
+    aapt_diff_exit_status=$?
+    if [ "$aapt_difference" != "" ]; then
+      aapt_differences+=("$aapt_difference")
+    fi
+    diff_result=$((diff_result + aapt_diff_exit_status))
+  fi
+done
+
+if [ $diff_result -eq 0 ]; then
+  echo "The builds are identical!"
+else
+  printf "The builds are NOT identical!\n\n"
+
+  printf "Found differences:\n\n"
+
+  echo "$differences"
+
+  echo "${aapt_differences[@]}"
+
+  exit $diff_result
+fi

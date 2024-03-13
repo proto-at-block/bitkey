@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-http-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-http-iosx64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-http.klib": "7354091525fbab4e73beb4b5b935f9a63d7e1e4e4ae1c04020bbb00d93852c82"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

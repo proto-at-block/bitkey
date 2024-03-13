@@ -2,7 +2,8 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.keys.app.AppKeyImpl
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentKey
+import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.crypto.CurveType
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
@@ -15,7 +16,9 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.ktor.utils.io.core.toByteArray
 import okio.ByteString.Companion.encodeUtf8
+import okio.ByteString.Companion.toByteString
 
 class SocRecEnrollmentAuthenticationDaoImplTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
@@ -27,7 +30,7 @@ class SocRecEnrollmentAuthenticationDaoImplTests : FunSpec({
         BitkeyDatabaseProviderImpl(sqlDriver.factory)
       )
     val key =
-      ProtectedCustomerEnrollmentKey(
+      ProtectedCustomerEnrollmentPakeKey(
         AppKeyImpl(
           CurveType.Curve25519,
           PublicKey("pub"),
@@ -35,7 +38,8 @@ class SocRecEnrollmentAuthenticationDaoImplTests : FunSpec({
         )
       )
     val relationshipId = "a"
-    dao.insert(relationshipId, key, "123456")
+    val pakeCode = PakeCode("F00DBAR".toByteArray().toByteString())
+    dao.insert(relationshipId, key, pakeCode)
       .shouldBeOk()
 
     dao.getByRelationshipId(relationshipId)
@@ -44,8 +48,8 @@ class SocRecEnrollmentAuthenticationDaoImplTests : FunSpec({
       .shouldBeEqual(
         SocRecEnrollmentAuthentication(
           recoveryRelationshipId = relationshipId,
-          protectedCustomerEnrollmentKey = key,
-          pakeCode = "123456"
+          protectedCustomerEnrollmentPakeKey = key,
+          pakeCode = pakeCode.bytes
         )
       )
     dao.deleteByRelationshipId(relationshipId)

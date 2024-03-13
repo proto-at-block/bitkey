@@ -337,4 +337,60 @@ impl Repository {
             customers,
         })
     }
+
+    #[instrument(skip(self))]
+    pub async fn count_social_challenges_for_customer(
+        &self,
+        customer_account_id: &AccountId,
+    ) -> Result<usize, DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let mut exclusive_start_key = None;
+        let mut count = 0;
+
+        loop {
+            let item_output = self
+                .connection
+                .client
+                .query()
+                .table_name(table_name.clone())
+                .index_name(CUSTOMER_IDX)
+                .key_condition_expression(
+                    format!("{} = :{}", CUSTOMER_IDX_PARTITION_KEY, CUSTOMER_IDX_PARTITION_KEY)
+                )
+                .expression_attribute_values(format!(":{}", CUSTOMER_IDX_PARTITION_KEY), try_to_attribute_val(customer_account_id, database_object)?)
+                .set_exclusive_start_key(exclusive_start_key.clone())
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not query social challenges customer index: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+
+            count += try_from_items::<_, SocialRecoveryRow>(
+                item_output.items().to_owned(),
+                database_object,
+            )?
+            .into_iter()
+            .filter_map(|r| match r {
+                SocialRecoveryRow::Challenge(challenge) => Some(challenge),
+                _ => None,
+            })
+            .count();
+
+            if let Some(last_evaluated_key) = item_output.last_evaluated_key() {
+                exclusive_start_key = Some(last_evaluated_key.to_owned());
+            } else {
+                break;
+            }
+        }
+
+        Ok(count)
+    }
 }

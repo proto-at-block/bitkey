@@ -5,7 +5,7 @@ use database::ddb::DatabaseError;
 use derive_builder::Builder;
 use errors::ApiError;
 use payloads::{
-    comms_verification::CommsVerificationPayload,
+    comms_verification::CommsVerificationPayload, push_blast::PushBlastPayload,
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
     recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
@@ -106,6 +106,7 @@ pub enum NotificationPayloadType {
     RecoveryRelationshipInvitationAccepted,
     RecoveryRelationshipDeleted,
     SocialChallengeResponseReceived,
+    PushBlast,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -118,6 +119,7 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::RecoveryRelationshipDeleted
             | NotificationPayloadType::RecoveryRelationshipInvitationAccepted
             | NotificationPayloadType::SocialChallengeResponseReceived
+            | NotificationPayloadType::PushBlast
             | NotificationPayloadType::TestPushNotification => {
                 NotificationCategory::AccountSecurity
             }
@@ -184,6 +186,10 @@ impl NotificationPayloadType {
                     payload.social_challenge_response_received_payload.clone(),
                 );
                 payload.social_challenge_response_received_payload.is_some()
+            }
+            NotificationPayloadType::PushBlast => {
+                builder.push_blast_payload(payload.push_blast_payload.clone());
+                payload.push_blast_payload.is_some()
             }
         };
         if valid_payload {
@@ -308,6 +314,12 @@ impl
                         .ok_or(NotificationError::PayloadNotFound(payload_type))?,
                 ))
             }
+            NotificationPayloadType::PushBlast => NotificationMessage::try_from((
+                composite_key,
+                payload
+                    .push_blast_payload
+                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+            )),
         }
     }
 }
@@ -350,4 +362,6 @@ pub struct NotificationPayload {
     pub recovery_relationship_deleted_payload: Option<RecoveryRelationshipDeletedPayload>,
     #[serde(default)]
     pub social_challenge_response_received_payload: Option<SocialChallengeResponseReceivedPayload>,
+    #[serde(default)]
+    pub push_blast_payload: Option<PushBlastPayload>,
 }

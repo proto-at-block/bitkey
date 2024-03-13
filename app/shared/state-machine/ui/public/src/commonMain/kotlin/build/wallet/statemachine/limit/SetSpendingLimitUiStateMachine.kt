@@ -22,7 +22,6 @@ interface SetSpendingLimitUiStateMachine : StateMachine<SpendingLimitProps, Scre
  * @property Keybox Reference to the keybox used for verifying with the hardware wallet
  */
 data class SpendingLimitProps(
-  val entryPoint: SpendingLimitEntryPoint,
   val currentSpendingLimit: FiatMoney?,
   val onClose: () -> Unit,
   val onSetLimit: (SpendingLimit) -> Unit,

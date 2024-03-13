@@ -1,18 +1,22 @@
 package build.wallet.statemachine.recovery.socrec.view
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.logging.logFailure
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
+import build.wallet.recovery.socrec.InviteCodeLoader
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.recovery.socrec.reinvite.ReinviteTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.reinvite.ReinviteTrustedContactUiStateMachine
 import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiStateMachine
+import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.Clock
 
 class ViewingInvitationUiStateMachineImpl(
@@ -20,10 +24,20 @@ class ViewingInvitationUiStateMachineImpl(
   private val reinviteTrustedContactUiStateMachine: ReinviteTrustedContactUiStateMachine,
   private val sharingManager: SharingManager,
   private val clock: Clock,
+  private val inviteCodeLoader: InviteCodeLoader,
 ) : ViewingInvitationUiStateMachine {
   @Composable
   override fun model(props: ViewingInvitationProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.Viewing) }
+    var code: String by remember { mutableStateOf("") }
+
+    LaunchedEffect(props.invitation.recoveryRelationshipId) {
+      inviteCodeLoader.getInviteCode(props.invitation)
+        .logFailure { "failed to load invite code" }
+        .onSuccess {
+          code = it.inviteCode
+        }
+    }
 
     return when (state) {
       State.Viewing ->
@@ -42,7 +56,7 @@ class ViewingInvitationUiStateMachineImpl(
                   },
                   onShare = {
                     sharingManager.shareInvitation(
-                      props.invitation.token,
+                      code,
                       onCompletion = {
                         props.onExit()
                       }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-livedata-core-ktx",
+    "components": [
+        {
+            "version": "2.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-livedata-core-ktx-2.7.0.aar": "a97f4c2191ebdd32f99ac229597bd1a92446b01cd1a088d13494cc05cabf0def"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

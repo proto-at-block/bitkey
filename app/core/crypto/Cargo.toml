@@ -8,6 +8,9 @@ version = { workspace = true }
 bitcoin = { workspace = true }
 boring-sys = "4.4.0"
 chacha20poly1305 = "0.10.1"
+crypto-common = "0.1.6"
+crypto_box = { version = "0.9.1", features = ["chacha20"] }
+hex = "0.4.3"
 hkdf = "0.12.4"
 hmac = "0.12.1"
 lightning-invoice = { workspace = true }
@@ -16,6 +19,5 @@ thiserror = { workspace = true }
 uniffi = { workspace = true }
 
 [dev-dependencies]
-hex = "0.4"
-rand = "0.8"
-typenum = "1.17"
+rand = "0.8.5"
+typenum = "1.17.0"

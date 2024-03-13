@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-websockets-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-websockets-jvm-2.3.8.jar": "3ccc86a35b4301945ba20c8a7ef70e10911558525c3a28274aa36f32ffc2ade9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

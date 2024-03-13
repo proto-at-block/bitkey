@@ -14,6 +14,7 @@ kotlin {
         api(projects.shared.timePublic)
         api(libs.kmp.okio)
         api(projects.shared.memfaultPublic)
+        api(projects.shared.featureFlagPublic)
       }
     }
   }

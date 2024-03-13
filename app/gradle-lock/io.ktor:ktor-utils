@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-utils",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-utils-metadata-2.3.8.jar": "b8af079c61b7a1eb3aaf93e2a6c7a1aa1663172208a665093cd26906e049e864"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

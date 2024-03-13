@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-logging-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-logging-iosx64-2.3.8-metadata.jar": "fab3a9ce9b753a7006b1903bee6e98727cd92d9e1efdfff54f33d682cf8ce6ca"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-logging.klib": "47df853de5811e1a10fadf91c0883f3a49f467f78569f8693d03efd2af3d7fe3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

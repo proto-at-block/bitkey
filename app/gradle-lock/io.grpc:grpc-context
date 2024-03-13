@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.grpc:grpc-context",
+    "components": [
+        {
+            "version": "1.27.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-context-1.27.2.jar": "bcbf9055dff453fd6508bd7cca2a0aa2d5f059a9c94beed1f5fda1dc015607b8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

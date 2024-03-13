@@ -1,6 +1,7 @@
 package build.wallet.ui.model.list
 
-import build.wallet.ui.model.Click
+import build.wallet.statemachine.core.LabelModel
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconTint.On30
@@ -15,6 +16,7 @@ import build.wallet.ui.model.switch.SwitchModel
 data class ListItemModel(
   val title: String,
   val titleAlignment: ListItemTitleAlignment = ListItemTitleAlignment.LEFT,
+  val listItemTitleBackgroundTreatment: ListItemTitleBackgroundTreatment? = null,
   val secondaryText: String? = null,
   val sideText: String? = null,
   val secondarySideText: String? = null,
@@ -28,6 +30,7 @@ data class ListItemModel(
   val onClick: (() -> Unit)? = null,
   val pickerMenu: ListItemPickerMenu<*>? = null,
   val testTag: String? = null,
+  val titleLabel: LabelModel? = null,
 )
 
 enum class ListItemTitleAlignment {
@@ -44,6 +47,11 @@ enum class ListItemTreatment {
   PRIMARY,
   SECONDARY,
   TERTIARY,
+  JUMBO,
+}
+
+enum class ListItemTitleBackgroundTreatment {
+  RECOVERY,
 }
 
 enum class ListItemSideTextTint {
@@ -64,7 +72,7 @@ fun ListItemAccessory.disable(): ListItemAccessory {
             leadingIcon = model.leadingIcon,
             treatment = model.treatment,
             size = model.size,
-            onClick = Click.StandardClick { },
+            onClick = StandardClick {},
             testTag = model.testTag
           )
       )

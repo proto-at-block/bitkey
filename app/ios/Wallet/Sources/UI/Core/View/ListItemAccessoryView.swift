@@ -21,8 +21,17 @@ public struct ListItemAccessoryView: View {
     public var body: some View {
         switch viewModel {
         case let accessory as ListItemAccessoryIconAccessory:
-            IconView(model: accessory.model)
-                .padding(.all, accessory.iconPadding?.intValue.f ?? 0)
+            if let iconOnClick = accessory.onClick {
+                Button {
+                    iconOnClick()
+                } label: {
+                    IconView(model: accessory.model)
+                        .padding(.all, accessory.iconPadding?.intValue.f ?? 0)
+                }
+            } else {
+                IconView(model: accessory.model)
+                    .padding(.all, accessory.iconPadding?.intValue.f ?? 0)
+            }
 
         case let accessory as ListItemAccessorySwitchAccessory:
             switchAccessoryView(model: accessory.model)
@@ -55,6 +64,7 @@ public struct ListItemAccessoryView: View {
         )
         .tint(.primary)
         .labelsHidden()
+        .disabled(!model.enabled)
         .ifNonnull(model.testTag) { view, testTag in
             view.accessibilityIdentifier(testTag)
         }

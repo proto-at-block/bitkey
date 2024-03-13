@@ -1,0 +1,23 @@
+{
+    "module-identifier": "co.touchlab:kermit-core-iosarm64",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kermit-core-iosarm64-2.0.3-metadata.jar": "c11f60f5bd7bca0f265b6b3e0d5864028a05670c9784bd46127c9b4cc1cd2f03"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kermit-core.klib": "eeec6e1fb549795a99f05b0253c5da184935d8672ae58f2ff204d0c5d8fa60cb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

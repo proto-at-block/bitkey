@@ -4,6 +4,6 @@ import okio.ByteString
 
 class PdfAnnotatorFactoryImpl : PdfAnnotatorFactory {
   override fun createBlocking(pdfTemplateData: ByteString): PdfAnnotationResult<PdfAnnotator> {
-    TODO("Tracked by BKR-898")
+    return PdfAnnotationResult.Ok(PdfAnnotatorImpl())
   }
 }

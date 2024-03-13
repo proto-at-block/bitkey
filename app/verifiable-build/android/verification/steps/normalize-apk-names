@@ -32,3 +32,6 @@ for directory in $sorted_directories; do
 
     ((i++))
 done
+
+# For some reason this otherwise exits with non-zero (maybe because of the last line in the for?)
+exit 0

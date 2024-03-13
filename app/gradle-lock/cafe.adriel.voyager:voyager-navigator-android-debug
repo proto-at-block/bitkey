@@ -1,0 +1,18 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-navigator-android-debug",
+    "components": [
+        {
+            "version": "1.0.0-rc05",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-navigator-debug.aar": "d960003d56dd068d48ab3e981bdba24b301b5e8716c65bd9d21c120fb14bb8ec"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

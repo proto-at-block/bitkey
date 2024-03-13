@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.annotation:annotation",
+    "components": [
+        {
+            "version": "1.6.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotation-metadata-1.6.0.jar": "fbc64f5c44a7added8b6eab517cf7d70555e25153bf5d44a6ed9b0e5312f7de9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

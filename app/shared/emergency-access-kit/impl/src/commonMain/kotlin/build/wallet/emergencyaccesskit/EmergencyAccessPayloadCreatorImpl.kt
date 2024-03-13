@@ -33,7 +33,7 @@ class EmergencyAccessPayloadCreatorImpl(
       val backup =
         EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
           spendingKeyset = keybox.activeSpendingKeyset,
-          appSpendingKeyXprv = xprv.key.xprv
+          appSpendingKeyXprv = xprv
         )
 
       val pkek =
@@ -52,7 +52,7 @@ class EmergencyAccessPayloadCreatorImpl(
         )
 
       EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1(
-        hwEncryptionKeyCiphertext = sealedCsek,
+        sealedHwEncryptionKey = sealedCsek,
         sealedActiveSpendingKeys = sealedData
       )
     }

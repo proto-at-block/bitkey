@@ -1,21 +1,24 @@
 package build.wallet.statemachine.partnerships
 
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
-import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetPurchaseOptionsServiceMock
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListServiceServiceMock
 import build.wallet.f8e.partnerships.GetPurchaseRedirectServiceMock
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.money.FiatMoney
+import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.ui.model.list.ListItemModel
@@ -28,8 +31,6 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   val getPurchaseOptionsService = GetPurchaseOptionsServiceMock(turbines::create)
   val getPurchaseQuoteListServiceMock = GetPurchaseQuoteListServiceServiceMock(turbines::create)
   val getPurchaseRedirectServiceMock = GetPurchaseRedirectServiceMock(turbines::create)
-  val appSpendingWalletProviderMock =
-    AppSpendingWalletProviderMock(SpendingWalletMock(turbines::create))
   val onPartnerRedirectedCalls =
     turbines.create<PartnerRedirectionMethod>(
       "on partner redirected calls"
@@ -44,37 +45,45 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
       getPurchaseOptionsService = getPurchaseOptionsService,
       getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-      getPurchaseRedirectService = getPurchaseRedirectServiceMock,
-      appSpendingWalletProvider = appSpendingWalletProviderMock
+      getPurchaseRedirectService = getPurchaseRedirectServiceMock
     )
 
-  fun props(selectedAmount: FiatMoney? = null) =
-    PartnershipsPurchaseUiProps(
-      account = FullAccountMock,
-      fiatCurrency = USD,
-      selectedAmount = selectedAmount,
-      onPartnerRedirected = { onPartnerRedirectedCalls.add(it) },
-      onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },
-      onBack = {},
-      onExit = {}
-    )
+  fun props(
+    fiatCurrency: FiatCurrency = USD,
+    selectedAmount: FiatMoney? = null,
+  ) = PartnershipsPurchaseUiProps(
+    keybox = KeyboxMock,
+    generateAddress = KeyboxAddressDataMock.generateAddress,
+    fiatCurrency = selectedAmount?.currency ?: fiatCurrency,
+    selectedAmount = selectedAmount,
+    onPartnerRedirected = { onPartnerRedirectedCalls.add(it) },
+    onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },
+    onBack = {},
+    onExit = {}
+  )
 
-  beforeTest {
-    getPurchaseOptionsService.reset()
+  test("no partnerships purchase options") {
+    stateMachine.test(props(fiatCurrency = GBP)) {
+      // load purchase amounts
+      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      awaitLoader()
+
+      awaitSheetWithBody<FormBodyModel> {
+        header?.headline.shouldBe("New Partners Coming Soon")
+        header?.sublineModel?.string.shouldBe("Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin purchases. Until then, you can add bitcoin using the receive button.")
+      }
+    }
   }
 
   test("partnerships purchase options") {
     stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
-
-      awaitSheetWithBody<FormBodyModel> {
-        mainContentList[0].shouldBeTypeOf<Loader>()
-      }
+      awaitLoader()
 
       // show purchase amounts
       awaitSheetWithBody<FormBodyModel> {
-        header?.headline.shouldBe("Choose an amount")
+        toolbar?.middleAccessory?.title.shouldBe("Choose an amount")
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
         items[0].title.shouldBe("$10")
         items[0].selected.shouldBe(false)
@@ -114,10 +123,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
-
-      awaitSheetWithBody<FormBodyModel> {
-        mainContentList[0].shouldBeTypeOf<Loader>()
-      }
+      awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
         // tap next with default selection ($100)
@@ -126,10 +132,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
       // load purchase quotes
       getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
-
-      awaitSheetWithBody<FormBodyModel> {
-        mainContentList[0].shouldBeTypeOf<Loader>()
-      }
+      awaitLoader()
 
       // show purchase quotes
       awaitSheetWithBody<FormBodyModel> {
@@ -148,7 +151,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
-      awaitSheetWithBody<FormBodyModel>()
+      awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
         // tap next with default selection ($100)
@@ -157,7 +160,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
       // load purchase quotes
       getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
-      awaitSheetWithBody<FormBodyModel>()
+      awaitLoader()
 
       // show purchase quotes
       awaitSheetWithBody<FormBodyModel> {
@@ -171,6 +174,8 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
       // load redirect info
       getPurchaseRedirectServiceMock.getPurchasePartnersRedirectCall.awaitItem()
+      awaitSheetWithBody<FormBodyModel>()
+
       awaitSheetWithBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
         onPartnerRedirectedCalls.awaitItem().shouldBe(
@@ -187,10 +192,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     stateMachine.test(props(selectedAmount = selectedAmount)) {
       // load purchase amounts
       getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      awaitLoader()
 
       // load purchase quotes
       getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
-      awaitSheetWithBody<FormBodyModel>()
+      awaitLoader()
 
       // show purchase quotes
       awaitSheetWithBody<FormBodyModel> {
@@ -209,7 +215,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
-      awaitSheetWithBody<FormBodyModel>()
+      awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
         val items = mainContentList[0].shouldBeTypeOf<ListGroup>().listGroupModel.items
@@ -222,3 +228,9 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private suspend fun StateMachineTester<PartnershipsPurchaseUiProps, SheetModel>.awaitLoader() {
+  awaitSheetWithBody<FormBodyModel> {
+    mainContentList[0].shouldBeTypeOf<Loader>()
+  }
+}

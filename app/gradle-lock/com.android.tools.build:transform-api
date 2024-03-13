@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:transform-api",
+    "components": [
+        {
+            "version": "2.0.0-deprecated-use-gradle-api",
+            "variants": [
+                {
+                    "artifacts": {
+                        "transform-api-2.0.0-deprecated-use-gradle-api.jar": "4de4a3d05e1c534c2db9e4588bf34082bb2bd232d8abb9727c430290ce225740"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

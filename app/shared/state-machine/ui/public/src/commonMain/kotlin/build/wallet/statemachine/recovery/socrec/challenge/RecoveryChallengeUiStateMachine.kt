@@ -1,7 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.challenge
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.encrypt.XCiphertext
@@ -25,7 +24,6 @@ data class RecoveryChallengeUiProps(
   val accountId: FullAccountId,
   val f8eEnvironment: F8eEnvironment,
   val actions: SocRecChallengeActions,
-  val protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
   val relationshipIdToSocRecPkekMap: Map<String, XCiphertext>,
   val sealedPrivateKeyMaterial: XCiphertext,
   val trustedContacts: ImmutableList<TrustedContact>,

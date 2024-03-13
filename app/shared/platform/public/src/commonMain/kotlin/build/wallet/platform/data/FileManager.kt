@@ -40,4 +40,9 @@ interface FileManager {
    * Remove a directory.
    */
   suspend fun removeDir(path: String): FileManagerResult<Unit>
+
+  /**
+   * Creates a directory for given path, including intermediate directories.
+   */
+  suspend fun mkdirs(path: String): FileManagerResult<Boolean>
 }

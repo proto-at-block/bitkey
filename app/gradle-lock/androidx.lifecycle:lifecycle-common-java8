@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-common-java8",
+    "components": [
+        {
+            "version": "2.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-common-java8-2.7.0.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

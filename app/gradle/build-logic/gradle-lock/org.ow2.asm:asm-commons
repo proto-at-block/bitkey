@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.ow2.asm:asm-commons",
+    "components": [
+        {
+            "version": "5.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "asm-commons-5.0.3.jar": "18c1e092230233c9d29e46f21943d769bdb48130cc279e4b0e663f423948c2da"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -4,10 +4,24 @@ buildAabUsingDockerContainer() {
   local docker_name="$1"
   local android_flavor="$2"
   local output_directory="$3"
+  local upload_bugsnag_mapping="$4"
 
-  docker run --detach --name "$docker_name" -e ANDROID_FLAVOR="$android_flavor" "$docker_name" 'sleep infinity' || exit $?
+  docker run --detach --name "$docker_name" -e ANDROID_FLAVOR="$android_flavor" -e UPLOAD_BUGSNAG_MAPPING="$upload_bugsnag_mapping" "$docker_name" 'sleep infinity' || exit $?
 
-  docker exec "$docker_name" bash -c 'source bin/activate-hermit; cd app; gradle :android:app:bundle$ANDROID_FLAVOR;' || exit $?
+  docker exec "$docker_name" bash -c 'source bin/activate-hermit; cd app; gradle :android:app:bundle$ANDROID_FLAVOR --no-daemon --no-build-cache --no-configuration-cache;' || exit $?
+
+  docker cp "$docker_name":/build/app/android/app/_build/outputs "$output_directory" || exit $?
+}
+
+buildApkUsingDockerContainer() {
+  local docker_name="$1"
+  local android_flavor="$2"
+  local output_directory="$3"
+  local upload_bugsnag_mapping="$4"
+
+  docker run --detach --name "$docker_name" -e ANDROID_FLAVOR="$android_flavor" -e UPLOAD_BUGSNAG_MAPPING="$upload_bugsnag_mapping" "$docker_name" 'sleep infinity' || exit $?
+
+  docker exec "$docker_name" bash -c 'source bin/activate-hermit; cd app; gradle :android:app:assemble$ANDROID_FLAVOR --no-daemon --no-build-cache --no-configuration-cache;' || exit $?
 
   docker cp "$docker_name":/build/app/android/app/_build/outputs "$output_directory" || exit $?
 }

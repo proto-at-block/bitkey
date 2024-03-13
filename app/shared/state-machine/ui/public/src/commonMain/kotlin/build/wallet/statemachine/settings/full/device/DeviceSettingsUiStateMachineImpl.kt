@@ -8,14 +8,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
+import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
@@ -76,72 +75,60 @@ class DeviceSettingsUiStateMachineImpl(
     }
 
     return when (val state = uiState) {
-      is ViewingDeviceDataUiState ->
-        props.firmwareData.firmwareDeviceInfo?.let { deviceInfo ->
-          ViewingDeviceScreenModel(
-            props = props,
-            firmwareDeviceInfo = deviceInfo,
-            goToFwup = { uiState = UpdatingFirmwareUiState(it) },
-            goToNfcMetadata = { uiState = TappingForFirmwareMetadataUiState },
-            goToRecovery = {
-              if (securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available) {
-                uiState = InitiatingHardwareRecoveryUiState
-              } else {
-                alertModel =
-                  AppFunctionalityStatusAlertModel(
-                    status = appFunctionalityStatus as AppFunctionalityStatus.LimitedFunctionality,
-                    onDismiss = { alertModel = null }
-                  )
-              }
-            },
-            onManageReplacement = { uiState = HardwareRecoveryDelayAndNotifyUiState },
-            dateTimeFormatter = dateTimeFormatter,
-            timeZoneProvider = timeZoneProvider,
-            durationFormatter = durationFormatter,
-            replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available
-          ).copy(
-            alertModel = alertModel
-          )
-        } ?: run {
-          ErrorFormBodyModel(
-            title = "There was an issue retrieving your device information",
-            primaryButton =
-              ButtonDataModel(
-                text = "Go Back",
-                onClick = props.onBack
-              ),
-            eventTrackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO_ERROR
-          ).asRootScreen()
-        }
+      is ViewingDeviceDataUiState -> {
+        val availability = props.firmwareData.firmwareDeviceInfo?.let { deviceInfo ->
+          FirmwareDeviceAvailability.Present(deviceInfo)
+        } ?: FirmwareDeviceAvailability.None
+        ViewingDeviceScreenModel(
+          props = props,
+          firmwareDeviceAvailability = availability,
+          goToFwup = { uiState = UpdatingFirmwareUiState(it) },
+          goToNfcMetadata = { uiState = TappingForFirmwareMetadataUiState },
+          goToRecovery = {
+            if (securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available) {
+              uiState = InitiatingHardwareRecoveryUiState
+            } else {
+              alertModel =
+                AppFunctionalityStatusAlertModel(
+                  status = appFunctionalityStatus as AppFunctionalityStatus.LimitedFunctionality,
+                  onDismiss = { alertModel = null }
+                )
+            }
+          },
+          onManageReplacement = { uiState = HardwareRecoveryDelayAndNotifyUiState },
+          dateTimeFormatter = dateTimeFormatter,
+          timeZoneProvider = timeZoneProvider,
+          durationFormatter = durationFormatter,
+          replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available
+        ).copy(
+          alertModel = alertModel
+        )
+      }
 
       InitiatingHardwareRecoveryUiState ->
         lostHardwareRecoveryUiStateMachine.model(
-          props =
-            LostHardwareRecoveryProps(
-              keyboxConfig = props.accountData.account.keybox.config,
-              fullAccountId = props.accountData.account.accountId,
-              lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
-              fiatCurrency = props.fiatCurrency,
-              screenPresentationStyle = Modal,
-              instructionsStyle = InstructionsStyle.Independent,
-              onFoundHardware = {}, // noop
-              onExit = { uiState = ViewingDeviceDataUiState }
-            )
+          props = LostHardwareRecoveryProps(
+            account = props.accountData.account,
+            lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
+            fiatCurrency = props.fiatCurrency,
+            screenPresentationStyle = Modal,
+            instructionsStyle = InstructionsStyle.Independent,
+            onFoundHardware = {}, // noop
+            onExit = { uiState = ViewingDeviceDataUiState }
+          )
         )
 
       HardwareRecoveryDelayAndNotifyUiState ->
         lostHardwareRecoveryUiStateMachine.model(
-          props =
-            LostHardwareRecoveryProps(
-              keyboxConfig = props.accountData.account.keybox.config,
-              fullAccountId = props.accountData.account.accountId,
-              lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
-              fiatCurrency = props.fiatCurrency,
-              screenPresentationStyle = Modal,
-              instructionsStyle = InstructionsStyle.Independent,
-              onFoundHardware = {}, // noop
-              onExit = { uiState = ViewingDeviceDataUiState }
-            )
+          props = LostHardwareRecoveryProps(
+            account = props.accountData.account,
+            lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
+            fiatCurrency = props.fiatCurrency,
+            screenPresentationStyle = Modal,
+            instructionsStyle = InstructionsStyle.Independent,
+            onFoundHardware = {}, // noop
+            onExit = { uiState = ViewingDeviceDataUiState }
+          )
         )
 
       TappingForFirmwareMetadataUiState ->
@@ -177,7 +164,7 @@ class DeviceSettingsUiStateMachineImpl(
 @Composable
 private fun ViewingDeviceScreenModel(
   props: DeviceSettingsProps,
-  firmwareDeviceInfo: FirmwareDeviceInfo,
+  firmwareDeviceAvailability: FirmwareDeviceAvailability,
   goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
   goToNfcMetadata: () -> Unit,
   goToRecovery: () -> Unit,
@@ -187,38 +174,74 @@ private fun ViewingDeviceScreenModel(
   durationFormatter: DurationFormatter,
   replaceDeviceEnabled: Boolean,
 ): ScreenModel {
+  val noInfo = "-"
+
+  data class ModelData(
+    val trackerScreenId: EventTrackerScreenId,
+    val emptyState: Boolean = true,
+    val currentVersion: String = noInfo,
+    val updateVersion: String? = null,
+    val modelNumber: String = noInfo,
+    val serialNumber: String = noInfo,
+    val deviceCharge: String = noInfo,
+    val lastSyncDate: String = noInfo,
+    val modelName: String = noInfo,
+    val replacementPending: String? = null,
+  )
   return ScreenModel(
-    body =
-      DeviceSettingsFormBodyModel(
-        currentVersion = firmwareDeviceInfo.version,
-        updateVersion = props.firmwareData.updateVersion,
-        modelNumber = firmwareDeviceInfo.hwRevision,
-        serialNumber = firmwareDeviceInfo.serial,
-        // trim decimals and format as int
-        deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
-        lastSyncDate =
-          dateTimeFormatter.fullShortDateWithTime(
-            localDateTime =
-              Instant.fromEpochSeconds(firmwareDeviceInfo.timeRetrieved)
-                .toLocalDateTime(timeZoneProvider.current())
-          ),
-        replaceDeviceEnabled = replaceDeviceEnabled,
-        replacementPending =
-          when (val recoveryData = props.accountData.lostHardwareRecoveryData) {
-            is LostHardwareRecoveryInProgressData ->
-              when (val recoveryInProgressData = recoveryData.recoveryInProgressData) {
-                is WaitingForRecoveryDelayPeriodData ->
-                  durationFormatter.formatWithWords(
-                    nonNegativeDurationBetween(
-                      startTime = Clock.System.now(),
-                      endTime = recoveryInProgressData.delayPeriodEndTime
-                    )
-                  )
-                is CompletingRecoveryData -> "Awaiting confirmation"
+    body = run {
+      val modelData = when (firmwareDeviceAvailability) {
+        FirmwareDeviceAvailability.None -> ModelData(
+          trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO_EMPTY
+        )
+        is FirmwareDeviceAvailability.Present -> {
+          val firmwareDeviceInfo = firmwareDeviceAvailability.firmwareDeviceInfo
+          ModelData(
+            trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO,
+            currentVersion = firmwareDeviceInfo.version,
+            updateVersion = props.firmwareData.updateVersion,
+            modelNumber = firmwareDeviceInfo.hwRevision,
+            serialNumber = firmwareDeviceInfo.serial,
+            deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
+            lastSyncDate =
+              dateTimeFormatter.fullShortDateWithTime(
+                localDateTime =
+                  Instant.fromEpochSeconds(firmwareDeviceInfo.timeRetrieved)
+                    .toLocalDateTime(timeZoneProvider.current())
+              ),
+            modelName = "Bitkey",
+            emptyState = false,
+            replacementPending =
+              when (val recoveryData = props.accountData.lostHardwareRecoveryData) {
+                is LostHardwareRecoveryInProgressData ->
+                  when (val recoveryInProgressData = recoveryData.recoveryInProgressData) {
+                    is WaitingForRecoveryDelayPeriodData ->
+                      durationFormatter.formatWithWords(
+                        nonNegativeDurationBetween(
+                          startTime = Clock.System.now(),
+                          endTime = recoveryInProgressData.delayPeriodEndTime
+                        )
+                      )
+                    is CompletingRecoveryData -> "Awaiting confirmation"
+                    else -> null
+                  }
                 else -> null
               }
-            else -> null
-          },
+          )
+        }
+      }
+      DeviceSettingsFormBodyModel(
+        trackerScreenId = modelData.trackerScreenId,
+        emptyState = modelData.emptyState,
+        modelName = modelData.modelName,
+        currentVersion = modelData.currentVersion,
+        updateVersion = modelData.updateVersion,
+        modelNumber = modelData.modelNumber,
+        serialNumber = modelData.serialNumber,
+        deviceCharge = modelData.deviceCharge,
+        lastSyncDate = modelData.lastSyncDate,
+        replaceDeviceEnabled = replaceDeviceEnabled,
+        replacementPending = modelData.replacementPending,
         onUpdateVersion =
           when (val firmwareUpdateState = props.firmwareData.firmwareUpdateState) {
             is FirmwareData.FirmwareUpdateState.UpToDate -> null
@@ -230,9 +253,23 @@ private fun ViewingDeviceScreenModel(
         onReplaceDevice = goToRecovery,
         onManageReplacement = { onManageReplacement() },
         onBack = props.onBack
-      ),
+      )
+    },
     presentationStyle = Root
   )
+}
+
+private sealed interface FirmwareDeviceAvailability {
+  /**
+   * When [FirmwareDeviceInfo] is available
+   */
+  data class Present(val firmwareDeviceInfo: FirmwareDeviceInfo) : FirmwareDeviceAvailability
+
+  /**
+   * When FirmwareDeviceInfo is not available. Can happen in cases when the app doesn't have
+   * a device paired
+   */
+  data object None : FirmwareDeviceAvailability
 }
 
 sealed interface DeviceSettingsUiState {

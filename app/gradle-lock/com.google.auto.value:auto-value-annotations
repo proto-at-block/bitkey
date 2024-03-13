@@ -1,0 +1,31 @@
+{
+    "module-identifier": "com.google.auto.value:auto-value-annotations",
+    "components": [
+        {
+            "version": "1.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "auto-value-annotations-1.6.2.jar": "b48b04ddba40e8ac33bf036f06fc43995fc5084bd94bdaace807ce27d3bea3fb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.6.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "auto-value-annotations-1.6.3.jar": "0e951fee8c31f60270bc46553a8586001b7b93dbb12aec06373aa99a150392c0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

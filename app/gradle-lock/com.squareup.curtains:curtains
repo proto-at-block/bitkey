@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.curtains:curtains",
+    "components": [
+        {
+            "version": "1.2.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "curtains-1.2.4.aar": "7f53e22dad8df994cec6867943c6a757190d412c6a30bcc091d44d8cde15fa54"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

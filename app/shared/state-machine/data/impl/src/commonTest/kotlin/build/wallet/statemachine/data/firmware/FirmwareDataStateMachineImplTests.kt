@@ -1,8 +1,10 @@
 package build.wallet.statemachine.data.firmware
 
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.firmware.FirmwareDeviceNotFoundEnabledFeatureFlag
 import build.wallet.fwup.FirmwareDownloadError
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
 import build.wallet.fwup.FwupDataDaoMock
@@ -25,9 +27,12 @@ class FirmwareDataStateMachineImplTests : FunSpec({
     FirmwareDeviceInfoDaoMock(turbines::create)
   val fwupDataFetcher = FwupDataFetcherMock(turbines::create)
   val fwupDataDao = FwupDataDaoMock(turbines::create)
+  val firmwareDeviceNotFoundEnabledFeatureFlag =
+    FirmwareDeviceNotFoundEnabledFeatureFlag(featureFlagDao = FeatureFlagDaoMock())
 
   val stateMachine =
     FirmwareDataStateMachineImpl(
+      firmwareDeviceNotFoundEnabledFeatureFlag = firmwareDeviceNotFoundEnabledFeatureFlag,
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       fwupDataFetcher = fwupDataFetcher,
       fwupDataDao = fwupDataDao

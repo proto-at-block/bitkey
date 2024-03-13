@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
@@ -40,7 +39,7 @@ import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.refresh.PullRefreshIndicator
 import build.wallet.ui.components.refresh.pullRefresh
 import build.wallet.ui.components.toolbar.ToolbarAccessory
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Treatment
@@ -128,6 +127,51 @@ fun MoneyHomeScreen(model: MoneyHomeBodyModel) {
         refreshing = model.isRefreshing,
         onRefresh = model.onRefresh
       )
+    }
+  }
+}
+
+@Composable
+fun LiteMoneyHomeScreen(model: LiteMoneyHomeBodyModel) {
+  val listState = rememberLazyListState()
+  Column {
+    Box {
+      LazyColumn(
+        modifier =
+          Modifier
+            .fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        state = listState
+      ) {
+        // Header
+        item {
+          Row(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Header(
+              headline = "Home",
+              headlineTopSpacing = 8.dp,
+              fillsMaxWidth = false
+            )
+            Spacer(Modifier.weight(1F))
+            ToolbarAccessory(model.trailingToolbarAccessoryModel)
+          }
+        }
+
+        // Cards
+        items(model.cardsModel.cards) { cardModel ->
+          Spacer(Modifier.height(40.dp))
+          MoneyHomeCard(
+            modifier = Modifier.padding(horizontal = 20.dp),
+            model = cardModel
+          )
+        }
+
+        item {
+          MoneyHomeButtons(model = model.buttonsModel)
+        }
+      }
     }
   }
 }
@@ -250,7 +294,7 @@ internal fun MoneyHomeScreenFull() {
               "See All",
               treatment = Treatment.Secondary,
               size = Size.Footer,
-              onClick = Click.StandardClick {}
+              onClick = StandardClick {}
             ),
           buttonsModel =
             MoneyHomeButtonsModel.MoneyMovementButtonsModel(
@@ -282,17 +326,14 @@ internal fun MoneyHomeScreenFull() {
 @Composable
 internal fun MoneyHomeScreenLite() {
   PreviewWalletTheme {
-    MoneyHomeScreen(
+    LiteMoneyHomeScreen(
       model =
         LiteMoneyHomeBodyModel(
           onSettings = {},
-          primaryAmountString = "$0",
-          secondaryAmountString = "0 sats",
-          onSetUpBitkeyDevice = {},
-          protectedCustomers =
-            immutableListOf(
-              ProtectedCustomer("", ProtectedCustomerAlias("Alice"))
-            ),
+          buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
+          protectedCustomers = immutableListOf(
+            ProtectedCustomer("", ProtectedCustomerAlias("Alice"))
+          ),
           onProtectedCustomerClick = {},
           onBuyOwnBitkeyClick = {},
           onAcceptInviteClick = {}

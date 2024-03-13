@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:aws-xml-protocols-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-xml-protocols-jvm-1.0.13.jar": "77fa58fc8d9433fa3d8d7d05ba6aadf888b82864292e49a13e37c452ffeac1a5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

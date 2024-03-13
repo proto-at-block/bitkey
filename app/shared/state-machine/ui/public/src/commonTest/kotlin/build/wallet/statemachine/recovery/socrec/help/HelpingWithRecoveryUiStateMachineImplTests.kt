@@ -10,28 +10,31 @@ import build.wallet.recovery.socrec.SocRecKeysDaoFake
 import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.recovery.socrec.SocialChallengeError
 import build.wallet.recovery.socrec.SocialChallengeVerifierMock
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.input.onValueChange
 import build.wallet.statemachine.core.test
+import build.wallet.time.ControlledDelayer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeTypeOf
 
 class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("on exit calls")
 
   val verifierMock = SocialChallengeVerifierMock()
+  val socRecCrypto = SocRecCryptoFake()
   val stateMachine =
     HelpingWithRecoveryUiStateMachineImpl(
+      delayer = ControlledDelayer(),
       socialChallengeVerifier = verifierMock,
-      socRecKeysRepository = SocRecKeysRepository(SocRecCryptoFake(), SocRecKeysDaoFake())
+      socRecKeysRepository = SocRecKeysRepository(socRecCrypto, SocRecKeysDaoFake())
     )
 
   val props =
@@ -56,13 +59,13 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBody<FormBodyModel> {
-        shouldHaveFieldModel().onValueChange("123456")
+        shouldHaveFieldModel().onValueChange("1234-56")
       }
 
       awaitScreenWithBody<FormBodyModel> {
         shouldHaveFieldModel()
           .value
-          .shouldBe("123456")
+          .shouldBe("1234-56")
 
         primaryButton.shouldNotBeNull().let {
           it.isEnabled.shouldBeTrue()
@@ -70,9 +73,13 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+      }
 
-      awaitScreenWithBody<SuccessBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+      }
 
       onExitCalls.awaitItem()
     }
@@ -98,7 +105,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         shouldHaveFieldModel()
           .value
-          .shouldBe("123456")
+          .shouldBe("1234-56")
 
         primaryButton.shouldNotBeNull().let {
           it.isEnabled.shouldBeTrue()
@@ -106,10 +113,55 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+      }
       awaitScreenWithBody<FormBodyModel>(
         SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_FAILURE
       ) {
+        primaryButton.shouldNotBeNull().onClick.invoke()
+      }
+      awaitScreenWithBody<FormBodyModel>(
+        SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
+      )
+    }
+  }
+
+  test("version mismatch") {
+    verifierMock.error = SocialChallengeError.ChallengeCodeVersionMismatch(RuntimeException())
+
+    stateMachine.test(props) {
+      awaitScreenWithBody<FormBodyModel> {
+        shouldClickPhoneCall()
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        shouldClickButtonWithTitle("Yes, I verified their identity")
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        shouldHaveFieldModel()
+          .onValueChange("1234-56")
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        shouldHaveFieldModel()
+          .value
+          .shouldBe("1234-56")
+
+        primaryButton.shouldNotBeNull().let {
+          it.isEnabled.shouldBeTrue()
+          it.onClick.invoke()
+        }
+      }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+      }
+      awaitScreenWithBody<FormBodyModel>(
+        SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_FAILURE
+      ) {
+        header?.headline?.shouldBe("Bitkey app out of date")
         primaryButton.shouldNotBeNull().onClick.invoke()
       }
       awaitScreenWithBody<FormBodyModel>(

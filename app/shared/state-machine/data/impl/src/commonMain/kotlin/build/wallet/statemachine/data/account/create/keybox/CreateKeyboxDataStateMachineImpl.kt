@@ -23,7 +23,8 @@ import build.wallet.f8e.error.code.CreateAccountClientErrorCode
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.logging.log
-import build.wallet.onboarding.OnboardingKeyboxHwAuthPublicKeyDao
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeys
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
 import build.wallet.platform.random.Uuid
 import build.wallet.statemachine.data.account.CreateFullAccountData
@@ -53,7 +54,7 @@ class CreateKeyboxDataStateMachineImpl(
   private val fullAccountCreator: FullAccountCreator,
   private val appKeysGenerator: AppKeysGenerator,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
-  private val onboardingKeyboxHwAuthPublicKeyDao: OnboardingKeyboxHwAuthPublicKeyDao,
+  private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val uuid: Uuid,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val liteToFullAccountUpgrader: LiteToFullAccountUpgrader,
@@ -77,14 +78,14 @@ class CreateKeyboxDataStateMachineImpl(
                     requireNotNull(appKeyBundle.recoveryAuthKey) {
                       "AppKeyBundle is missing AppRecoveryAuthPublicKey."
                     },
-                  bitcoinNetworkType = props.templateKeyboxConfig.networkType
+                  bitcoinNetworkType = props.templateFullAccountConfig.bitcoinNetworkType
                 )
                 state =
                   HasAppKeysState(
                     keyCrossDraft =
                       WithAppKeys(
                         appKeyBundle = appKeyBundle,
-                        config = props.templateKeyboxConfig
+                        config = props.templateFullAccountConfig
                       )
                   )
               }
@@ -94,7 +95,7 @@ class CreateKeyboxDataStateMachineImpl(
           }
           CreatingAppKeysData(
             rollback = props.rollback,
-            keyboxConfig = props.templateKeyboxConfig
+            fullAccountConfig = props.templateFullAccountConfig
           )
         }
 
@@ -108,8 +109,9 @@ class CreateKeyboxDataStateMachineImpl(
 
         is HasAppKeysState ->
           HasAppKeysData(
+            appKeys = s.keyCrossDraft,
             rollback = props.rollback,
-            keyboxConfig = props.templateKeyboxConfig,
+            fullAccountConfig = props.templateFullAccountConfig,
             onPairHardwareComplete = { newHardwareActivation ->
               state =
                 HasAppAndHardwareKeysState(
@@ -117,7 +119,8 @@ class CreateKeyboxDataStateMachineImpl(
                     WithAppKeysAndHardwareKeys(
                       appKeyBundle = s.keyCrossDraft.appKeyBundle,
                       hardwareKeyBundle = newHardwareActivation.keyBundle,
-                      config = s.keyCrossDraft.config
+                      config = s.keyCrossDraft.config,
+                      appGlobalAuthKeyHwSignature = newHardwareActivation.appGlobalAuthKeyHwSignature
                     ),
                   sealedCsek = newHardwareActivation.sealedCsek
                 )
@@ -134,7 +137,12 @@ class CreateKeyboxDataStateMachineImpl(
                 // Save the hw auth public key in case we find a lite account backup and need to
                 // go through lite => full account upgrade instead. Saving this pub key will allow
                 // us to save a tap later.
-                onboardingKeyboxHwAuthPublicKeyDao.set(s.keyCrossDraft.hardwareKeyBundle.authKey)
+                onboardingKeyboxHardwareKeysDao.set(
+                  OnboardingKeyboxHardwareKeys(
+                    hwAuthPublicKey = s.keyCrossDraft.hardwareKeyBundle.authKey,
+                    appGlobalAuthKeyHwSignature = s.keyCrossDraft.appGlobalAuthKeyHwSignature
+                  )
+                )
               }
               .onSuccess {
                 state =
@@ -270,24 +278,16 @@ class CreateKeyboxDataStateMachineImpl(
       val appKeys =
         onboardingAppKeyKeystore.getAppKeyBundle(
           localId = uuid.random(),
-          network = props.templateKeyboxConfig.networkType
+          network = props.templateFullAccountConfig.bitcoinNetworkType
         )
     ) {
       null -> {
         log { "Generating new app key bundle" }
-        appKeysGenerator.generateKeyBundle(props.templateKeyboxConfig.networkType)
+        appKeysGenerator.generateKeyBundle(props.templateFullAccountConfig.bitcoinNetworkType)
       }
       else -> {
-        // this branch can't happen in the release app and we can delete it once everyone has migrated
-        // off of the external beta (TODO: BKR-573)
-        // Temp crash fix for BKR-904/appkeybundle-is-missing-apprecoveryauthpublickey-crash
-        if (appKeys.recoveryAuthKey == null) {
-          log { "Generating new app key bundle" }
-          appKeysGenerator.generateKeyBundle(props.templateKeyboxConfig.networkType)
-        } else {
-          log { "Using existing app key bundle " }
-          Ok(appKeys)
-        }
+        log { "Using existing app key bundle " }
+        Ok(appKeys)
       }
     }
   }
@@ -303,7 +303,8 @@ class CreateKeyboxDataStateMachineImpl(
             WithAppKeysAndHardwareKeys(
               appKeyBundle = state.keyCrossDraft.appKeyBundle,
               hardwareKeyBundle = state.keyCrossDraft.hardwareKeyBundle,
-              config = props.templateKeyboxConfig
+              config = props.templateFullAccountConfig,
+              appGlobalAuthKeyHwSignature = state.keyCrossDraft.appGlobalAuthKeyHwSignature
             )
         )
 
@@ -314,7 +315,8 @@ class CreateKeyboxDataStateMachineImpl(
             WithAppKeysAndHardwareKeys(
               appKeyBundle = state.keyCrossDraft.appKeyBundle,
               hardwareKeyBundle = state.keyCrossDraft.hardwareKeyBundle,
-              config = props.templateKeyboxConfig
+              config = props.templateFullAccountConfig,
+              appGlobalAuthKeyHwSignature = state.keyCrossDraft.appGlobalAuthKeyHwSignature
             )
         )
     }

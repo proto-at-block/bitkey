@@ -29,7 +29,6 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
-import build.wallet.statemachine.limit.SpendingLimitEntryPoint.GettingStarted
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ReceiveFlowUiState
@@ -61,7 +60,8 @@ import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachine
 import build.wallet.statemachine.transactions.TransactionListUiProps
 import build.wallet.statemachine.transactions.TransactionListUiProps.TransactionVisibility.All
 import build.wallet.statemachine.transactions.TransactionListUiStateMachine
-import com.github.michaelbull.result.getOr
+import com.github.michaelbull.result.get
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class MoneyHomeUiStateMachineImpl(
@@ -83,10 +83,11 @@ class MoneyHomeUiStateMachineImpl(
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
-    var uiState: MoneyHomeUiState by remember(props.accountData.isCompletingSocialRecovery) {
-      // Navigate directly to hardware recovery when completing hardware recovery
-      val lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData
-      val initialState =
+    var uiState: MoneyHomeUiState by remember(props.origin, props.accountData.isCompletingSocialRecovery) {
+      val initialState = if (props.origin == MoneyHomeUiProps.Origin.Launch) {
+        // Navigate directly to hardware recovery when completing hardware recovery
+        val lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData
+
         when {
           props.accountData.isCompletingSocialRecovery -> {
             ViewHardwareRecoveryStatusUiState(InstructionsStyle.ContinuingRecovery)
@@ -101,6 +102,9 @@ class MoneyHomeUiStateMachineImpl(
             }
           else -> ViewingBalanceUiState()
         }
+      } else {
+        ViewingBalanceUiState()
+      }
       mutableStateOf(initialState)
     }
 
@@ -153,7 +157,7 @@ class MoneyHomeUiStateMachineImpl(
               paymentDataParser.decode(
                 it.data,
                 props.accountData.account.config.bitcoinNetworkType
-              ).getOr(null)
+              ).get()
             },
           onExit = {
             uiState = ViewingBalanceUiState()
@@ -173,14 +177,9 @@ class MoneyHomeUiStateMachineImpl(
           props,
           state.instructionsStyle,
           onExit = {
-            scope.launch {
-              // Set the flag to no longer show the replace hardware card nudge
-              // this flag is used by the MoneyHomeCardsUiStateMachine
-              // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
-              recoveryIncompleteRepository.setHardwareReplacementNeeded(false)
-            }
             uiState = ViewingBalanceUiState()
-          }
+          },
+          scope
         )
 
       is FwupFlowUiState ->
@@ -230,7 +229,7 @@ class MoneyHomeUiStateMachineImpl(
           }
         ).asModalScreen()
 
-      MoneyHomeUiState.InviteTrustedContactFlow ->
+      is MoneyHomeUiState.InviteTrustedContactFlow ->
         inviteTrustedContactFlowUiStateMachine.model(
           props =
             InviteTrustedContactFlowUiProps(
@@ -303,7 +302,6 @@ class MoneyHomeUiStateMachineImpl(
   ) = setSpendingLimitUiStateMachine.model(
     props =
       SpendingLimitProps(
-        entryPoint = GettingStarted,
         currentSpendingLimit = null,
         accountData = props.accountData,
         fiatCurrency = props.fiatCurrency,
@@ -332,16 +330,24 @@ class MoneyHomeUiStateMachineImpl(
     props: MoneyHomeUiProps,
     instructionsStyle: InstructionsStyle,
     onExit: () -> Unit,
+    scope: CoroutineScope,
   ) = lostHardwareUiStateMachine.model(
     props =
       LostHardwareRecoveryProps(
-        keyboxConfig = props.accountData.account.keybox.config,
+        account = props.accountData.account,
         lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
         fiatCurrency = props.fiatCurrency,
         onExit = onExit,
-        onFoundHardware = onExit,
+        onFoundHardware = {
+          scope.launch {
+            // Set the flag to no longer show the replace hardware card nudge
+            // this flag is used by the MoneyHomeCardsUiStateMachine
+            // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
+            recoveryIncompleteRepository.setHardwareReplacementNeeded(false)
+          }
+          onExit()
+        },
         screenPresentationStyle = Modal,
-        fullAccountId = props.accountData.account.accountId,
         instructionsStyle = instructionsStyle
       )
   )
@@ -401,7 +407,15 @@ sealed interface MoneyHomeUiState {
        */
       data class Partners(val purchaseAmount: FiatMoney? = null) : BottomSheetDisplayState
 
-      data object TrustedContact : BottomSheetDisplayState
+      data class TrustedContact(val skipped: Boolean) : BottomSheetDisplayState
+
+      /**
+       * Enabling mobile pay or optionally skipping - shown when user enters from getting
+       * started
+       *
+       * @property skipped - when true, the db operation to mark the getting started task is executed
+       */
+      data class MobilePay(val skipped: Boolean) : BottomSheetDisplayState
     }
   }
 

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcpkix-jdk15to18",
+    "components": [
+        {
+            "version": "1.72",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcpkix-jdk15to18-1.72.jar": "d9b97477b72499bcee02f5a906510810257ff36a94bf69fbca0b1e65e7ffdb6e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

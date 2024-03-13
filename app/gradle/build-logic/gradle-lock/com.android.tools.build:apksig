@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:apksig",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "apksig-8.1.1.jar": "468ee1852fa12461c6629608fe47be70e50f60be7c4744bb7f62ca48e85c0a6c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

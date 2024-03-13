@@ -19,13 +19,14 @@ import build.wallet.statemachine.core.Icon.SmallIconCopy
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.Error
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
+import build.wallet.time.Delayer
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 class AddressQrCodeUiStateMachineImpl(
   private val clipboard: Clipboard,
+  private val delayer: Delayer,
   private val sharingManager: SharingManager,
   private val bitcoinInvoiceUrlEncoder: BitcoinInvoiceUrlEncoder,
 ) : AddressQrCodeUiStateMachine {
@@ -36,8 +37,8 @@ class AddressQrCodeUiStateMachineImpl(
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
         LaunchedEffect("loading-address") {
-          props.accountData.addressData.generateAddress {
-            onSuccess { address ->
+          props.accountData.addressData.generateAddress()
+            .onSuccess { address ->
               state =
                 State.AddressLoadedUiState(
                   address = address,
@@ -46,18 +47,16 @@ class AddressQrCodeUiStateMachineImpl(
                   chunkedAddress = address.chunkedAddress()
                 )
             }
-
-            onFailure {
+            .onFailure {
               state = State.ErrorLoadingAddressUiState
             }
-          }
         }
       }
 
       is State.AddressLoadedUiState -> {
         if (state.copyStatus == State.CopyStatus.Copied) {
           LaunchedEffect("restore-copy-state") {
-            delay(4.seconds)
+            delayer.delay(4.seconds)
             state = currentState.copy(copyStatus = State.CopyStatus.Ready)
           }
         }
@@ -75,8 +74,11 @@ class AddressQrCodeUiStateMachineImpl(
           },
           content =
             QrCode(
-              address = state.chunkedAddress,
-              addressQrCode =
+              address = state.address?.address,
+              addressQrImageUrl = state.address?.let {
+                "https://api.cash.app/qr/btc/${it.address}?currency=btc&logoColor=000000&rounded=true&size=2000&errorCorrection=2"
+              },
+              fallbackAddressQrCodeModel =
                 state.addressInvoice?.let {
                   QrCodeModel(data = it)
                 },

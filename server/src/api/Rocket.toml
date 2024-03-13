@@ -16,6 +16,7 @@ iterable = { mode = "test" }
 sns = "test"
 twilio = { mode = "test" }
 zendesk = { mode = "test" }
+screener = { mode = "test" }
 allow_test_accounts_with_mainnet_keysets = true
 known_fields.18558334323604 = "Country"
 known_fields.17171619135892 = "HardwareSerialNumber"
@@ -49,7 +50,7 @@ dynamodb = "test"
 # LaunchDarkly is not available in unit tests. Any flags that need to be evaluated in tests
 # should be added to src/feature_flags/overrides/test.toml
 launchdarkly = "test"
-feature_flag_overrides = "test"
+feature_flag_overrides = { file = "test" }
 sql = "test"
 use_local_sns = true
 use_local_wallet_id = true
@@ -83,8 +84,9 @@ ses = "environment"
 sns = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
-iterable = { mode = "environment", comms_verification_campaign_id = 7747468, recovery_pending_delay_period_campaign_id = 7747494, recovery_completed_delay_period_campaign_id = 7747602, recovery_canceled_delay_period_campaign_id = 7747639, recovery_relationship_invitation_accepted_campaign_id = 8728307, recovery_relationship_deleted_campaign_id = 8728517, social_challenge_response_received_campaign_id = 8728399, marketing_channel_id = 87983, transactional_channel_id = 87984, account_security_message_type_id = 125365, money_movement_message_type_id = 125366, product_marketing_message_type_id = 125367 }
+iterable = { mode = "environment", comms_verification_campaign_id = 9235160, recovery_pending_delay_period_lost_app_campaign_id = 9234980, recovery_pending_delay_period_lost_hw_campaign_id = 9234864, recovery_completed_delay_period_lost_app_campaign_id = 9235008, recovery_completed_delay_period_lost_hw_campaign_id = 9234993, recovery_canceled_delay_period_lost_app_campaign_id = 9235101, recovery_canceled_delay_period_lost_hw_campaign_id = 9235091, recovery_relationship_invitation_accepted_campaign_id = 9235205, recovery_relationship_deleted_campaign_id = 9235258, social_challenge_response_received_campaign_id = 9235231, marketing_channel_id = 87983, transactional_channel_id = 87984, account_security_message_type_id = 125365, money_movement_message_type_id = 125366, product_marketing_message_type_id = 125367 }
 twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c" }
+screener = { mode = "s3" }
 
 [staging]
 port = 80
@@ -99,9 +101,10 @@ ses = "environment"
 sns = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
-iterable = { mode = "environment", comms_verification_campaign_id = 7747468, recovery_pending_delay_period_campaign_id = 7747494, recovery_completed_delay_period_campaign_id = 7747602, recovery_canceled_delay_period_campaign_id = 7747639, recovery_relationship_invitation_accepted_campaign_id = 8728307, recovery_relationship_deleted_campaign_id = 8728517, social_challenge_response_received_campaign_id = 8728399, marketing_channel_id = 87983, transactional_channel_id = 87984, account_security_message_type_id = 125365, money_movement_message_type_id = 125366, product_marketing_message_type_id = 125367 }
+iterable = { mode = "environment", comms_verification_campaign_id = 9235160, recovery_pending_delay_period_lost_app_campaign_id = 9234980, recovery_pending_delay_period_lost_hw_campaign_id = 9234864, recovery_completed_delay_period_lost_app_campaign_id = 9235008, recovery_completed_delay_period_lost_hw_campaign_id = 9234993, recovery_canceled_delay_period_lost_app_campaign_id = 9235101, recovery_canceled_delay_period_lost_hw_campaign_id = 9235091, recovery_relationship_invitation_accepted_campaign_id = 9235205, recovery_relationship_deleted_campaign_id = 9235258, social_challenge_response_received_campaign_id = 9235231, marketing_channel_id = 87983, transactional_channel_id = 87984, account_security_message_type_id = 125365, money_movement_message_type_id = 125366, product_marketing_message_type_id = 125367 }
 twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c" }
 zendesk = { mode = "environment" }
+screener = { mode = "s3" }
 
 [production]
 port = 80
@@ -116,7 +119,8 @@ ses = "environment"
 sns = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
-iterable = { mode = "environment", comms_verification_campaign_id = 7747305, recovery_pending_delay_period_campaign_id = 7747495, recovery_completed_delay_period_campaign_id = 7747606, recovery_canceled_delay_period_campaign_id = 7747714, recovery_relationship_invitation_accepted_campaign_id = 8728379, recovery_relationship_deleted_campaign_id = 8728603, social_challenge_response_received_campaign_id = 8728447, marketing_channel_id = 87980, transactional_channel_id = 87981, account_security_message_type_id = 125506, money_movement_message_type_id = 125507, product_marketing_message_type_id = 125505 }
+iterable = { mode = "environment", comms_verification_campaign_id = 7747305, recovery_pending_delay_period_lost_app_campaign_id = 7747495, recovery_pending_delay_period_lost_hw_campaign_id = 7747495, recovery_completed_delay_period_lost_app_campaign_id = 7747606, recovery_completed_delay_period_lost_hw_campaign_id = 7747606, recovery_canceled_delay_period_lost_app_campaign_id = 7747714, recovery_canceled_delay_period_lost_hw_campaign_id = 7747714, recovery_relationship_invitation_accepted_campaign_id = 8728379, recovery_relationship_deleted_campaign_id = 8728603, social_challenge_response_received_campaign_id = 8728447, marketing_channel_id = 87980, transactional_channel_id = 87981, account_security_message_type_id = 125506, money_movement_message_type_id = 125507, product_marketing_message_type_id = 125505 }
 twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c" }
 zendesk = { mode = "environment" }
+screener = { mode = "s3" }
 allow_test_accounts_with_mainnet_keysets = true

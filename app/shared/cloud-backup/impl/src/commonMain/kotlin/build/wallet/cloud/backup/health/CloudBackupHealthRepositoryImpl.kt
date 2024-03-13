@@ -10,7 +10,6 @@ import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.coroutines.callCoroutineEvery
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
-import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
@@ -29,7 +28,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.hours
 
-// TODO(796): add integration tests
 class CloudBackupHealthRepositoryImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val cloudBackupRepository: CloudBackupRepository,
@@ -93,7 +91,7 @@ class CloudBackupHealthRepositoryImpl(
 
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
     return syncLock.withLock {
-      log(Debug) { "Performing Cloud Backup Health sync." }
+//      log(Debug) { "Performing Cloud Backup Health sync." }
       getCurrentCloudAccount()
         .fold(
           success = { cloudAccount ->
@@ -142,7 +140,7 @@ class CloudBackupHealthRepositoryImpl(
     cloudAccount: CloudStoreAccount,
     account: FullAccount,
   ): MobileKeyBackupStatus {
-    log { "Syncing mobile key backup status" }
+//    log { "Syncing mobile key backup status" }
 
     val localCloudBackup = cloudBackupDao
       .get(account.accountId.serverId)
@@ -178,11 +176,11 @@ class CloudBackupHealthRepositoryImpl(
           MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
         }
       )
-      .also { log(Debug) { "Mobile key backup status: $it" } }
+//      .also { log(Debug) { "Mobile key backup status: $it" } }
   }
 
   private suspend fun syncEakBackupStatus(cloudAccount: CloudStoreAccount): EakBackupStatus {
-    log { "Syncing EAK backup status" }
+//    log { "Syncing EAK backup status" }
     return emergencyAccessKitRepository
       .read(cloudAccount)
       .fold(
@@ -197,6 +195,6 @@ class CloudBackupHealthRepositoryImpl(
           EakBackupStatus.ProblemWithBackup.BackupMissing
         }
       )
-      .also { log(Debug) { "EAK backup status: $it" } }
+//      .also { log(Debug) { "EAK backup status: $it" } }
   }
 }

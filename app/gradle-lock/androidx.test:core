@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test:core",
+    "components": [
+        {
+            "version": "1.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-1.5.0.aar": "2c06715c0d0843cee2143ab8bb322bb3f34d5247630402fc8c1b6a0eafa15b9f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

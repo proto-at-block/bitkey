@@ -29,6 +29,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedBuildingKeyCrossData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedToCancelConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
@@ -39,7 +40,7 @@ import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHa
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
@@ -55,6 +56,12 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
   @Composable
   override fun model(props: InitiatingLostHardwareRecoveryProps): ScreenModel {
     return when (val recoveryData = props.initiatingLostHardwareRecoveryData) {
+      is GeneratingNewAppKeysData -> {
+        LoadingBodyModel(
+          id = null,
+          onBack = props.onExit
+        ).asScreen(props.screenPresentationStyle)
+      }
       is AwaitingNewHardwareData -> {
         val initialScreen =
           when (props.instructionsStyle) {
@@ -96,87 +103,86 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
                   InstructionsStyle.ResumedRecoveryAttempt ->
                     ButtonModel(
                       text = "I’ve found my old Bitkey device",
-                      onClick = Click.standardClick { props.onFoundHardware() },
+                      onClick = StandardClick { props.onFoundHardware() },
                       treatment = ButtonModel.Treatment.Tertiary,
                       size = ButtonModel.Size.Footer
                     )
                   else ->
                     ButtonModel(
                       text = "Yes",
-                      onClick =
-                        Click.standardClick {
-                          eventTracker.track(ACTION_APP_HW_RECOVERY_STARTED)
-                          state = PairingNewWalletState
-                        },
+                      onClick = StandardClick {
+                        eventTracker.track(ACTION_APP_HW_RECOVERY_STARTED)
+                        state = PairingNewWalletState
+                      },
                       size = ButtonModel.Size.Footer
                     )
                 },
-              secondaryAction =
-                when (props.instructionsStyle) {
-                  InstructionsStyle.Independent ->
-                    ButtonModel(
-                      text = "No",
-                      onClick =
-                        Click.standardClick {
-                          showingNoDeviceAlert = true
-                        },
-                      treatment = ButtonModel.Treatment.Secondary,
-                      size = ButtonModel.Size.Footer
-                    )
-                  InstructionsStyle.ContinuingRecovery ->
-                    ButtonModel(
-                      text = "No",
-                      onClick = Click.standardClick { props.onExit() },
-                      treatment = ButtonModel.Treatment.Secondary,
-                      size = ButtonModel.Size.Footer
-                    )
-                  InstructionsStyle.ResumedRecoveryAttempt ->
-                    ButtonModel(
-                      text = "Yes",
-                      onClick =
-                        Click.standardClick {
-                          eventTracker.track(ACTION_APP_HW_RECOVERY_STARTED)
-                          state = PairingNewWalletState
-                        },
-                      treatment = ButtonModel.Treatment.Primary,
-                      size = ButtonModel.Size.Footer
-                    )
-                },
-              presentationStyle = props.screenPresentationStyle,
-              showBack =
-                when (props.instructionsStyle) {
-                  InstructionsStyle.Independent,
-                  InstructionsStyle.ResumedRecoveryAttempt,
-                  -> true
-                  InstructionsStyle.ContinuingRecovery -> false
-                },
-              backIconModel =
-                IconModel(
-                  icon =
-                    when (props.instructionsStyle) {
-                      InstructionsStyle.ResumedRecoveryAttempt -> Icon.SmallIconX
-                      else -> Icon.SmallIconArrowLeft
+              secondaryAction = when (props.instructionsStyle) {
+                InstructionsStyle.Independent ->
+                  ButtonModel(
+                    text = "No",
+                    onClick = StandardClick {
+                      showingNoDeviceAlert = true
                     },
-                  iconSize = IconSize.Accessory,
-                  iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
-                )
+                    treatment = ButtonModel.Treatment.Secondary,
+                    size = ButtonModel.Size.Footer
+                  )
+                InstructionsStyle.ContinuingRecovery ->
+                  ButtonModel(
+                    text = "No",
+                    onClick = StandardClick { props.onExit() },
+                    treatment = ButtonModel.Treatment.Secondary,
+                    size = ButtonModel.Size.Footer
+                  )
+                InstructionsStyle.ResumedRecoveryAttempt ->
+                  ButtonModel(
+                    text = "Yes",
+                    onClick = StandardClick {
+                      eventTracker.track(ACTION_APP_HW_RECOVERY_STARTED)
+                      state = PairingNewWalletState
+                    },
+                    treatment = ButtonModel.Treatment.Primary,
+                    size = ButtonModel.Size.Footer
+                  )
+              },
+              presentationStyle = props.screenPresentationStyle,
+              showBack = when (props.instructionsStyle) {
+                InstructionsStyle.Independent,
+                InstructionsStyle.ResumedRecoveryAttempt,
+                -> true
+                InstructionsStyle.ContinuingRecovery -> false
+              },
+              backIconModel = IconModel(
+                icon = when (props.instructionsStyle) {
+                  InstructionsStyle.ResumedRecoveryAttempt -> Icon.SmallIconX
+                  else -> Icon.SmallIconArrowLeft
+                },
+                iconSize = IconSize.Accessory,
+                iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
+              )
             )
           }
 
           PairingNewWalletState ->
             pairNewHardwareUiStateMachine.model(
-              props =
-                PairNewHardwareProps(
-                  keyboxConfig = props.keyboxConfig,
-                  screenPresentationStyle = props.screenPresentationStyle,
+              props = PairNewHardwareProps(
+                request = PairNewHardwareProps.Request.Ready(
+                  fullAccountConfig = props.account.keybox.config,
+                  appGlobalAuthPublicKey = recoveryData.newAppGlobalAuthKey,
                   onSuccess = { response ->
-                    recoveryData.addHardwareKeys(response.sealedCsek, response.keyBundle)
-                  },
-                  onExit = {
-                    state = AskingNewHardwareReadyQuestionState
-                  },
-                  eventTrackerContext = HW_RECOVERY
-                )
+                    recoveryData.addHardwareKeys(
+                      response.sealedCsek,
+                      response.keyBundle,
+                      response.appGlobalAuthKeyHwSignature
+                    )
+                  }
+                ),
+                screenPresentationStyle = props.screenPresentationStyle,
+                onExit = {
+                  state = AskingNewHardwareReadyQuestionState
+                },
+                eventTrackerContext = HW_RECOVERY
+              )
             )
         }
       }
@@ -206,16 +212,15 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
 
       is VerifyingNotificationCommsData ->
         recoveryNotificationVerificationUiStateMachine.model(
-          props =
-            RecoveryNotificationVerificationUiProps(
-              recoveryNotificationVerificationData = recoveryData.data,
-              lostFactor = Hardware
-            )
+          props = RecoveryNotificationVerificationUiProps(
+            recoveryNotificationVerificationData = recoveryData.data,
+            lostFactor = Hardware
+          )
         )
 
       is CancellingConflictingRecoveryData ->
         LoadingBodyModel(
-          "Cancelling Existing Recovery",
+          message = "Cancelling Existing Recovery",
           id = LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
         ).asScreen(props.screenPresentationStyle)
 
@@ -230,14 +235,14 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       is AwaitingHardwareProofOfPossessionKeyData -> {
         proofOfPossessionNfcStateMachine.model(
           ProofOfPossessionNfcProps(
-            request =
-              Request.HwKeyProof(
-                onSuccess = {
-                  recoveryData.onComplete(it)
-                }
-              ),
-            fullAccountId = props.fullAccountId,
-            keyboxConfig = props.keyboxConfig,
+            request = Request.HwKeyProof(
+              onSuccess = {
+                recoveryData.onComplete(it)
+              }
+            ),
+            fullAccountId = props.account.accountId,
+            fullAccountConfig = props.account.keybox.config,
+            appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
             screenPresentationStyle = props.screenPresentationStyle,
             onBack = recoveryData.rollback
           )

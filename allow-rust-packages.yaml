@@ -1,4 +1,4 @@
-cargo_packages:
+packages:
   - name: launchdarkly-server-sdk
     reason: "Belongs to LaunchDarkly so we can probably trust this package."
   - name: prost-build-config

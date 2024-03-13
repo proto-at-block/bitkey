@@ -123,6 +123,8 @@ mod local_analytics_segment_tracker_test {
                 screen_id: String::from("test-screen-id"),
                 fiat_currency_preference: String::from("test-fiat-currency-preference"),
                 bitcoin_display_preference: String::from("test-bitcoin-display-preference"),
+                counter_id: String::from("counter_id"),
+                counter_count: 0,
             }],
         };
 

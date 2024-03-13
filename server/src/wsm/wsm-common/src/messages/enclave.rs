@@ -2,8 +2,23 @@ use bitcoin::util::bip32::{DerivationPath, ExtendedPubKey};
 use bitcoin::Network;
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Debug, Default)]
+pub struct KmsRequest {
+    pub region: String,
+    pub proxy_port: String,
+    pub akid: String,
+    pub skid: String,
+    pub session_token: String,
+    pub ciphertext: String,
+    pub cmk_id: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoadSecretRequest {
+    // This is mostly duplicated from KmsRequest above because
+    // changing the API of existing endpoints is breaking, due to
+    // wsm-api and wsm-enclave not being deployed at the same time.
+    // We can change this later.
     pub region: String,
     pub proxy_port: String,
     pub akid: String,
@@ -12,6 +27,12 @@ pub struct LoadSecretRequest {
     pub dek_id: String,
     pub ciphertext: String,
     pub cmk_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LoadIntegrityKeyRequest {
+    pub request: KmsRequest,
+    pub use_test_key: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -63,7 +84,7 @@ pub struct CreatedKey {
     pub xpub: ExtendedPubKey,
     pub dpub: String,
     #[serde(default)]
-    pub dpub_sig: String,
+    pub xpub_sig: String,
     pub wrapped_xprv: String,
     pub wrapped_xprv_nonce: String,
 }
@@ -79,7 +100,18 @@ pub struct DerivedKey {
     pub xpub: ExtendedPubKey,
     pub dpub: String,
     #[serde(default)]
-    pub dpub_sig: String,
+    pub xpub_sig: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeriveResponse(pub DerivedKey);
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveSignWithIntegrityKeyRequest {
+    pub data: String,
+    pub dek_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EnclaveSignWithIntegrityKeyResponse {
+    pub signature: String,
+}

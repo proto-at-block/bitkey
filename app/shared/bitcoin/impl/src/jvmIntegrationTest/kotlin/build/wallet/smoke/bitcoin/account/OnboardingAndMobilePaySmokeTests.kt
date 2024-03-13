@@ -8,7 +8,6 @@ import build.wallet.money.FiatMoney
 import build.wallet.testing.launchNewApp
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.ServerSmoke
-import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 
@@ -60,17 +59,7 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
           appSignedPsbt
         ).getOrThrow()
 
-      bitcoinBlockchain.broadcast(serverSigned).fold(
-        success = { /* broadcast succeeded */ },
-        failure = { error ->
-          if (error.toString().contains("rejecting replacement")) {
-            println("F8e won publishing race, continue... Error: ${error.message}")
-          } else {
-            println("DEBUG: error: $error: ${error.message}")
-            throw error
-          }
-        }
-      )
+      bitcoinBlockchain.broadcast(serverSigned).getOrThrow()
 
       println("\uD83C\uDF89 success! \uD83C\uDF89")
     }

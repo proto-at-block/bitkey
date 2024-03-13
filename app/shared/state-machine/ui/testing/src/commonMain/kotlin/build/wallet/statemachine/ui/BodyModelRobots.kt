@@ -1,81 +1,90 @@
 package build.wallet.statemachine.ui
 
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.ui.matchers.shouldBeEnabled
+import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
+import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeTypeOf
 
-suspend fun FormBodyModel.clickPrimaryButton() {
-  requireNotNull(primaryButton)
-  primaryButton!!.onClick()
+fun FormBodyModel.clickPrimaryButton() {
+  primaryButton
+    .shouldNotBeNull()
+    .shouldBeEnabled()
+    .shouldNotBeLoading()
+    .onClick()
 }
 
-suspend fun FormBodyModel.clickSecondaryButton() {
-  requireNotNull(secondaryButton)
-  secondaryButton!!.onClick()
+fun FormBodyModel.clickSecondaryButton() {
+  secondaryButton
+    .shouldNotBeNull()
+    .shouldBeEnabled()
+    .shouldNotBeLoading()
+    .onClick()
 }
 
-suspend fun FormBodyModel.clickTrailingAccessoryButton() {
+fun FormBodyModel.shouldHaveTrailingAccessoryButton(): ButtonModel {
   requireNotNull(toolbar)
   requireNotNull(toolbar!!.trailingAccessory)
-  val accessory = toolbar!!.trailingAccessory!!.shouldBeTypeOf<ButtonAccessory>()
-  accessory.model.onClick()
+  return toolbar!!.trailingAccessory!!.shouldBeTypeOf<ButtonAccessory>().model
 }
 
-suspend fun PairNewHardwareBodyModel.clickPrimaryButton() {
-  primaryButton.onClick()
+fun FormBodyModel.clickTrailingAccessoryButton() {
+  shouldHaveTrailingAccessoryButton()
+    .shouldBeEnabled()
+    .shouldNotBeLoading()
+    .onClick()
 }
 
-suspend fun FormBodyModel.getMainContentListItemAtIndex(index: Int): ListItemModel {
+fun PairNewHardwareBodyModel.clickPrimaryButton() {
+  primaryButton
+    .shouldBeEnabled()
+    .shouldNotBeLoading()
+    .onClick()
+}
+
+fun FormBodyModel.getMainContentListItemAtIndex(index: Int): ListItemModel {
   val listGroup = mainContentList.firstNotNullOf { it as? FormMainContentModel.ListGroup }
   return listGroup.listGroupModel.items[index]
 }
 
-suspend fun FormBodyModel.findMainContentListItem(
-  predicate: (ListItemModel) -> Boolean,
-): ListItemModel {
+fun FormBodyModel.findMainContentListItem(predicate: (ListItemModel) -> Boolean): ListItemModel {
   val listGroup = mainContentList.firstNotNullOf { it as? FormMainContentModel.ListGroup }
   return listGroup.listGroupModel.items.first(predicate)
 }
 
-suspend fun FormBodyModel.clickMainContentListItemAtIndex(index: Int) {
+fun FormBodyModel.clickMainContentListItemAtIndex(index: Int) {
   getMainContentListItemAtIndex(index).onClick.shouldNotBeNull().invoke()
 }
 
-suspend fun FormBodyModel.clickMainContentListItemTrailingButtonAtIndex(index: Int) {
+fun FormBodyModel.clickMainContentListItemTrailingButtonAtIndex(index: Int) {
   getMainContentListItemAtIndex(index)
     .trailingAccessory.shouldNotBeNull().shouldBeTypeOf<ListItemAccessory.ButtonAccessory>()
     .model.onClick()
 }
 
-suspend fun FormBodyModel.inputTextToMainContentTextInputItem(text: String): FormBodyModel {
+fun FormBodyModel.inputTextToMainContentTextInputItem(text: String): FormBodyModel {
   val inputItem = mainContentList.firstNotNullOf { it as? FormMainContentModel.TextInput }
   inputItem.fieldModel.onValueChange(text, 0..0)
   return this
 }
 
-suspend fun FormBodyModel.clickMainContentListFooterButton() {
-  val footerButton =
-    mainContentList.firstNotNullOf { it as? FormMainContentModel.ListGroup }
-      .listGroupModel
-      .footerButton
-      .shouldNotBeNull()
-      .onClick()
+fun FormBodyModel.clickMainContentListFooterButton() {
+  mainContentList.firstNotNullOf { it as? FormMainContentModel.ListGroup }
+    .listGroupModel
+    .footerButton
+    .shouldNotBeNull()
+    .onClick()
 }
 
-suspend fun FormBodyModel.inputTextToMainContentVerificationCodeInputItem(
-  text: String,
-): FormBodyModel {
-  val inputItem = mainContentList.firstNotNullOf { it as? FormMainContentModel.VerificationCodeInput }
+fun FormBodyModel.inputTextToMainContentVerificationCodeInputItem(text: String): FormBodyModel {
+  val inputItem =
+    mainContentList.firstNotNullOf { it as? FormMainContentModel.VerificationCodeInput }
   inputItem.fieldModel.onValueChange(text, 0..0)
   return this
-}
-
-fun SuccessBodyModel.clickPrimaryButton() {
-  (style as SuccessBodyModel.Style.Explicit).primaryButton.onClick()
 }

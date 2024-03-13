@@ -2,18 +2,21 @@
 
 package build.wallet.analytics.events
 
+import build.wallet.account.AccountRepositoryFake
+import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_ACCOUNT_CREATED
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
-import build.wallet.bitkey.f8e.FullAccountIdMock
-import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.keybox.config.TemplateKeyboxConfigDaoFake
+import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.platform.config.AppVariant.Customer
@@ -27,6 +30,7 @@ import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldBeEmpty
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -35,7 +39,6 @@ class EventTrackerImplTests : FunSpec({
   val eventProcessor = ProcessorMock<QueueAnalyticsEvent>(turbines::create)
 
   val sessionId = "session-id"
-  val keyboxDao = KeyboxDaoMock(turbines::create, defaultActiveKeybox = KeyboxMock)
   val clock = ClockFake()
   val countryCodeProvider = LocaleCountryCodeProviderMock()
   val appInstallationDao = AppInstallationDaoMock()
@@ -43,6 +46,7 @@ class EventTrackerImplTests : FunSpec({
   val platformInfoProvider = PlatformInfoProviderMock()
   val appDeviceIdDao = AppDeviceIdDaoMock()
   val deviceInfoProvider = DeviceInfoProviderMock()
+  val accountRepository = AccountRepositoryFake()
   val eventStore = EventStoreMock()
   val featureFlagDao = FeatureFlagDaoMock()
   val analyticsTrackingEnabledFeatureFlag =
@@ -50,7 +54,7 @@ class EventTrackerImplTests : FunSpec({
       appVariant = Customer,
       featureFlagDao = featureFlagDao
     )
-  val templateKeyboxConfigDao = TemplateKeyboxConfigDaoFake()
+  val templateFullAccountConfigDao = TemplateFullAccountConfigDaoFake()
 
   val appScope = TestScope()
 
@@ -59,8 +63,8 @@ class EventTrackerImplTests : FunSpec({
       appCoroutineScope = appScope,
       appDeviceIdDao = appDeviceIdDao,
       deviceInfoProvider = deviceInfoProvider,
-      keyboxDao = keyboxDao,
-      templateKeyboxConfigDao = templateKeyboxConfigDao,
+      accountRepository = accountRepository,
+      templateFullAccountConfigDao = templateFullAccountConfigDao,
       clock = clock,
       countryCodeProvider = countryCodeProvider,
       eventProcessor = eventProcessor,
@@ -80,28 +84,108 @@ class EventTrackerImplTests : FunSpec({
   }
 
   afterTest {
-    keyboxDao.reset()
+    accountRepository.reset()
     eventProcessor.reset()
   }
 
-  test("Track doesn’t throw an exception with proper inputs") {
-    eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
-    appScope.runCurrent()
-    val persistedEvent = (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+  context("happy path") {
+    val accounts = listOf(FullAccountMock, LiteAccountMock)
+    accounts.forEach { account ->
+      test("has active account - ${account::class.simpleName}") {
+        accountRepository.setActiveAccount(account)
+        eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
+        appScope.runCurrent()
+        val persistedEvent =
+          (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
 
-    persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
-    persistedEvent.event.session_id.shouldBe(sessionId)
-    persistedEvent.event.account_id.shouldBe(FullAccountIdMock.serverId)
-    persistedEvent.event.country.shouldBe(countryCodeProvider.countryCode())
-    persistedEvent.event.platform_info.shouldBe(platformInfoProvider.getPlatformInfo())
-    persistedEvent.event.hw_info.shouldBe(hardWareInfoProvider.getHardwareInfo())
-    persistedEvent.event.app_installation_id.shouldBe(
-      appInstallationDao.appInstallation!!.localId
-    )
-    persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
-    persistedEvent.event.keyset_id.shouldBe(
-      keyboxDao.activeKeybox.value.component1()?.activeSpendingKeyset?.localId
-    )
+        persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
+        persistedEvent.event.session_id.shouldBe(sessionId)
+        persistedEvent.event.account_id.shouldBe(account.accountId.serverId)
+        persistedEvent.event.country.shouldBe(countryCodeProvider.countryCode())
+        persistedEvent.event.platform_info.shouldBe(platformInfoProvider.getPlatformInfo())
+        persistedEvent.event.hw_info.shouldBe(hardWareInfoProvider.getHardwareInfo())
+        persistedEvent.event.app_installation_id.shouldBe(
+          appInstallationDao.appInstallation!!.localId
+        )
+        persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
+        if (account is FullAccount) {
+          persistedEvent.event.keyset_id.shouldBe(SpendingKeysetMock.localId)
+        } else {
+          persistedEvent.event.keyset_id.shouldBeEmpty()
+        }
+      }
+    }
+
+    test("no active account") {
+      accountRepository.clear()
+      eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
+      appScope.runCurrent()
+      val persistedEvent =
+        (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+
+      persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
+      persistedEvent.event.session_id.shouldBe(sessionId)
+      persistedEvent.event.account_id.shouldBeEmpty()
+      persistedEvent.event.country.shouldBe(countryCodeProvider.countryCode())
+      persistedEvent.event.platform_info.shouldBe(platformInfoProvider.getPlatformInfo())
+      persistedEvent.event.hw_info.shouldBe(hardWareInfoProvider.getHardwareInfo())
+      persistedEvent.event.app_installation_id.shouldBe(
+        appInstallationDao.appInstallation!!.localId
+      )
+      persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
+      persistedEvent.event.keyset_id.shouldBeEmpty()
+    }
+
+    accounts.forEach { account ->
+      test("onboarding account - ${account::class.simpleName}") {
+        accountRepository.saveAccountAndBeginOnboarding(account)
+        eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
+        appScope.runCurrent()
+        val persistedEvent =
+          (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+
+        persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
+        persistedEvent.event.session_id.shouldBe(sessionId)
+        persistedEvent.event.account_id.shouldBe(account.accountId.serverId)
+        persistedEvent.event.country.shouldBe(countryCodeProvider.countryCode())
+        persistedEvent.event.platform_info.shouldBe(platformInfoProvider.getPlatformInfo())
+        persistedEvent.event.hw_info.shouldBe(hardWareInfoProvider.getHardwareInfo())
+        persistedEvent.event.app_installation_id.shouldBe(
+          appInstallationDao.appInstallation!!.localId
+        )
+        persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
+        if (account is FullAccount) {
+          persistedEvent.event.keyset_id.shouldBe(SpendingKeysetMock.localId)
+        } else {
+          persistedEvent.event.keyset_id.shouldBeEmpty()
+        }
+      }
+    }
+
+    test("lite account upgrading to full account") {
+      val account = FullAccountMock
+      accountRepository.accountState.value = Ok(
+        AccountStatus.LiteAccountUpgradingToFullAccount(account)
+      )
+
+      accountRepository.saveAccountAndBeginOnboarding(account)
+      eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
+      appScope.runCurrent()
+      val persistedEvent =
+        (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+
+      persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
+      persistedEvent.event.session_id.shouldBe(sessionId)
+      persistedEvent.event.account_id.shouldBe(account.accountId.serverId)
+      persistedEvent.event.country.shouldBe(countryCodeProvider.countryCode())
+      persistedEvent.event.platform_info.shouldBe(platformInfoProvider.getPlatformInfo())
+      persistedEvent.event.hw_info.shouldBe(hardWareInfoProvider.getHardwareInfo())
+      persistedEvent.event.app_installation_id.shouldBe(
+        appInstallationDao.appInstallation!!.localId
+      )
+      persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
+      persistedEvent.event.keyset_id.shouldBe(SpendingKeysetMock.localId)
+    }
   }
 
   test("Tracks screen events as expected") {
@@ -113,7 +197,8 @@ class EventTrackerImplTests : FunSpec({
     )
     appScope.runCurrent()
 
-    val persistedEvent = (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+    val persistedEvent =
+      (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
 
     persistedEvent.event.action.shouldBe(ACTION_APP_SCREEN_IMPRESSION)
     persistedEvent.event.screen_id.shouldBe("HW_PAIR_INSTRUCTIONS_ACCOUNT_CREATION")
@@ -129,7 +214,8 @@ class EventTrackerImplTests : FunSpec({
     )
     appScope.runCurrent()
 
-    val persistedEvent = (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+    val persistedEvent =
+      (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
     persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
   }
 
@@ -143,7 +229,8 @@ class EventTrackerImplTests : FunSpec({
     )
     appScope.runCurrent()
 
-    val persistedEvent = (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+    val persistedEvent =
+      (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
     persistedEvent.event.app_device_id.shouldBe(appDeviceIdDao.appDeviceId)
   }
 })

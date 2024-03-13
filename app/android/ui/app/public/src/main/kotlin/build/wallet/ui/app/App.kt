@@ -15,15 +15,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.platform.config.AppVariant
-import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
@@ -142,29 +138,21 @@ private fun NavigatorModelEffect(
   updatePresentationStyle: (ScreenPresentationStyle) -> Unit,
 ) {
   LaunchedEffect(model) {
-    if (
-      navigator.shouldClearStack(model)
-    ) {
-      // this pops the entire stack and places this model as the root of the stack
-      navigator.replaceAll(
-        item = UiModelContentScreen(model = model)
-      )
-    } else if (
-      navigator.isTransitioningFromLoadingToLoading() ||
-      navigator.isTransitioningFromPairHwToPairHw(model)
-    ) {
-      navigator.replace(
-        item = UiModelContentScreen(model = model)
-      )
-    } else if (navigator.lastItem.key != model.body.key) {
-      if (navigator.items.any { it.key == model.body.key }) {
-        navigator.popUntil { it.key == model.body.key }
+    if (navigator.shouldReplaceModel(model)) {
+      // Don't perform any animation if the model should just be directly replaced.
+      navigator.currentScreen().model = model
+    } else if (navigator.lastItem.key != model.key) {
+      // The new model to present has a different key than the current item
+      // Check if we've seen the screen before
+      if (navigator.items.any { it.key == model.key }) {
+        // Pop back to the screen with the first version of the model we saw
+        // and update the model to the current given one
+        navigator.popUntil { it.key == model.key }
         navigator.currentScreen().model = model
         updatePresentationStyle(model.presentationStyle)
       } else {
-        navigator.push(
-          item = UiModelContentScreen(model = model)
-        )
+        // Push the new model
+        navigator.push(item = UiModelContentScreen(model = model))
         updatePresentationStyle(model.presentationStyle)
       }
     } else {
@@ -224,6 +212,13 @@ private fun BitkeyTransition(
     label = "Screen Transform"
   ) { screen ->
     content(screen)
+
+    // Check for animation to complete and then clear the stack
+    if (this.transition.currentState == this.transition.targetState) {
+      if ((screen as UiModelContentScreen).model.shouldClearStack()) {
+        navigator.replaceAll(item = screen)
+      }
+    }
   }
 }
 
@@ -301,51 +296,36 @@ private fun Navigator.pushContentTransform(
   }
 }
 
-private fun Navigator.shouldClearStack(model: ScreenModel): Boolean {
-  return isTransitioningFromOnboarding() ||
-    isTransitioningFromDebugKeyboxDeletion(model) ||
-    isTransitioningToCloudBackupInstructions(model) ||
-    isTransitioningToNotificationSetup(model)
+/**
+ * Screen models that should clear the navigation stack after they are
+ * presented.
+ */
+private fun ScreenModel.shouldClearStack(): Boolean {
+  // Always clear the stack on Money Home and Choose Account Access
+  return body.eventTrackerScreenInfo?.eventTrackerScreenId == MoneyHomeEventTrackerScreenId.MONEY_HOME ||
+    body.eventTrackerScreenInfo?.eventTrackerScreenId == GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS
+}
+
+/**
+ * Instead of showing an entirely new screen, in these cases we should
+ * just update the model of the current screen
+ */
+private fun Navigator.shouldReplaceModel(model: ScreenModel): Boolean {
+  return isTransitioningFromLoadingToLoading(model) ||
+    isTransitioningFromPairHwToPairHw(model)
 }
 
 private fun Navigator.isTransitioningFromSplashScreen(): Boolean {
   return previousModel()?.body is SplashBodyModel
 }
 
-private fun Navigator.isTransitioningFromOnboarding(): Boolean {
-  val previousId = previousModel()?.body?.eventTrackerScreenInfo?.eventTrackerScreenId
-  val currentId = currentModel().body.eventTrackerScreenInfo?.eventTrackerScreenId
-  // For Full Accounts, the end of onboarding is LOADING_SAVING_KEYBOX
-  return previousId == GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX ||
-    // For Lite Accounts, the end is the transition from TC_ENROLLMENT_SUCCESS -> MONEY_HOME
-    (
-      previousId == SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS &&
-        currentId == MoneyHomeEventTrackerScreenId.MONEY_HOME
-    )
-}
-
-private fun Navigator.isTransitioningFromDebugKeyboxDeletion(currentModel: ScreenModel): Boolean {
-  return previousModel()?.body?.eventTrackerScreenInfo?.eventTrackerScreenId ==
-    GeneralEventTrackerScreenId.LOADING_APP && currentModel.body is ChooseAccountAccessModel
-}
-
-private fun Navigator.isTransitioningFromLoadingToLoading(): Boolean {
-  return previousModel()?.body is LoadingBodyModel && currentModel().body is LoadingBodyModel
+private fun Navigator.isTransitioningFromLoadingToLoading(newModel: ScreenModel): Boolean {
+  return newModel.body is LoadingSuccessBodyModel && currentModel().body is LoadingSuccessBodyModel
 }
 
 private fun Navigator.isTransitioningFromPairHwToPairHw(newModel: ScreenModel): Boolean {
   return currentModel().body is PairNewHardwareBodyModel &&
     newModel.body is PairNewHardwareBodyModel
-}
-
-private fun isTransitioningToCloudBackupInstructions(currentModel: ScreenModel): Boolean {
-  return currentModel.body.eventTrackerScreenInfo?.eventTrackerScreenId ==
-    CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
-}
-
-private fun isTransitioningToNotificationSetup(currentModel: ScreenModel): Boolean {
-  return currentModel.body.eventTrackerScreenInfo?.eventTrackerScreenId ==
-    NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP
 }
 
 private fun Navigator.previousModel(): ScreenModel? {

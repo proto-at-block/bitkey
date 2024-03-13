@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_full_path=$(dirname "$0")
+
+echo "Getting GitHub token"
+GH_TOKEN=$("$script_full_path/GetGHToken")
+export GH_TOKEN
+
+release_version="${GIT_BRANCH##*/}"
+release_type="$1"
+
+echo "Downloading reproducible-build-variables-$release_type.json from app/$release_type/$release_version"
+gh release download "app/$release_type/$release_version" \
+    --pattern "build-variables-$release_type-$release_version.json" \
+    -O - > "reproducible-build-variables.json"

@@ -20,8 +20,6 @@ import build.wallet.encrypt.SealedDataMock
 import build.wallet.encrypt.SymmetricKeyEncryptorMock
 import build.wallet.encrypt.XCiphertextMock
 import build.wallet.recovery.socrec.SocRecCryptoFake
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
-import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -38,13 +36,13 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   val csekDao = CsekDaoFake()
   val trustedContacts = listOf(TrustedContactFake1, TrustedContactFake2)
 
+  val socRecCrypto = SocRecCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
   val fullAccountFieldsCreator =
     FullAccountFieldsCreatorImpl(
       appPrivateKeyDao = appPrivateKeyDao,
       csekDao = csekDao,
       symmetricKeyEncryptor = symmetricKeyEncryptor,
-      socRecKeysRepository = SocRecKeysRepository(SocRecCryptoFake(), SocRecKeysDaoFake()),
-      socRecCrypto = SocRecCryptoFake()
+      socRecCrypto = socRecCrypto
     )
 
   afterTest {
@@ -76,14 +74,14 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
 
     val backupWithoutSocRec =
       backup.copy(
-        socRecEncryptionKeyCiphertextMap = mapOf(),
-        socRecFullAccountKeysCiphertext = XCiphertextMock
+        socRecSealedDekMap = mapOf(),
+        socRecSealedFullAccountKeys = XCiphertextMock
       )
     backupWithoutSocRec.shouldBeEqual(
-      FullAccountFieldsMock.copy(socRecEncryptionKeyCiphertextMap = mapOf())
+      FullAccountFieldsMock.copy(socRecSealedDekMap = mapOf())
     )
 
-    backup.socRecEncryptionKeyCiphertextMap.shouldHaveSize(2)
+    backup.socRecSealedDekMap.shouldHaveSize(2)
   }
 
   test("create full account backup fails with PkekRetrievalError from exception") {

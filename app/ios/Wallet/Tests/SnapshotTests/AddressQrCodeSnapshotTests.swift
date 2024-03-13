@@ -29,12 +29,14 @@ final class AddressSnapshotTests: XCTestCase {
 private extension AddressQrCodeBodyModel {
 
     static var snapshotTest: AddressQrCodeBodyModel {
+        let address = "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
         return .init(
             onBack: {},
             onRefreshClick: {},
             content: AddressQrCodeBodyModelContentQrCode(
-                address: "bc1q...6pcc",
-                addressQrCode: .init(data: "bitcoin:bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"),
+                addressQrImageUrl: nil,
+                address: address,
+                fallbackAddressQrCodeModel: .init(data: "bitcoin:\(address)"),
                 copyButtonIcon: .smalliconcopy,
                 copyButtonLabelText: "Copy",
                 onCopyClick: {},
@@ -59,8 +61,9 @@ private extension AddressQrCodeBodyModel {
             onBack: {},
             onRefreshClick: {},
             content: AddressQrCodeBodyModelContentQrCode(
+                addressQrImageUrl: nil,
                 address: nil,
-                addressQrCode: nil,
+                fallbackAddressQrCodeModel: nil,
                 copyButtonIcon: .smalliconcopy,
                 copyButtonLabelText: "Copy",
                 onCopyClick: {},

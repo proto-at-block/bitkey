@@ -1,9 +1,9 @@
 package build.wallet.recovery
 
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import io.kotest.assertions.assertSoftly
 import io.kotest.assertions.throwables.shouldNotThrow
@@ -22,7 +22,7 @@ class RecoveryEventTrackerScreenIdMappingKtTest : FunSpec({
         LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E,
         LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS
       )
-    AppRecoveryEventTrackerScreenId.entries
+    DelayNotifyRecoveryEventTrackerScreenId.entries
       .filter { !excluded.contains(it) }
       .forEach {
         assertSoftly {

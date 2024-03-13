@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.gms:google-services",
+    "components": [
+        {
+            "version": "4.3.15",
+            "variants": [
+                {
+                    "artifacts": {
+                        "google-services-4.3.15.jar": "b4263c25d149d6632b0af9c5dd6cfbe18d9f68d65a1cb4c3ce9d51148cf4fd8b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

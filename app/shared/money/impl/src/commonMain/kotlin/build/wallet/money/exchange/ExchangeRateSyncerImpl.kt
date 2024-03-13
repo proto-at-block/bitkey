@@ -3,7 +3,6 @@ package build.wallet.money.exchange
 import build.wallet.f8e.ActiveF8eEnvironmentRepository
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,9 +18,7 @@ import kotlin.time.Duration
 
 class ExchangeRateSyncerImpl(
   private val exchangeRateDao: ExchangeRateDao,
-  private val bitstampExchangeRateService: BitstampExchangeRateService,
   private val f8eExchangeRateService: F8eExchangeRateService,
-  private val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag,
   private val activeF8eEnvironmentRepository: ActiveF8eEnvironmentRepository,
 ) : ExchangeRateSyncer {
   private val internalFlow = MutableStateFlow<List<ExchangeRate>>(emptyList())
@@ -59,27 +56,18 @@ class ExchangeRateSyncerImpl(
     }
 
   private suspend fun updateExchangeRates() {
-    if (this.multipleFiatCurrencyEnabledFeatureFlag.flagValue().value.value) {
-      activeF8eEnvironmentRepository.activeF8eEnvironment().first()
-        .onSuccess { f8eEnvironment ->
-          f8eEnvironment?.let {
-            // Get exchange rates from F8e and store them all
-            // Ignore any failures
-            f8eExchangeRateService.getExchangeRates(f8eEnvironment)
-              .onSuccess { rates ->
-                log(Debug) { "Fetched exchange rates: $rates" }
-                rates.forEach { exchangeRateDao.storeExchangeRate(it) }
-              }
-          }
+    activeF8eEnvironmentRepository.activeF8eEnvironment()
+      .first()
+      .onSuccess { f8eEnvironment ->
+        f8eEnvironment?.let {
+          // Get exchange rates from F8e and store them all
+          // Ignore any failures
+          f8eExchangeRateService.getExchangeRates(f8eEnvironment)
+            .onSuccess { rates ->
+              log(Debug) { "Fetched exchange rates: $rates" }
+              rates.forEach { exchangeRateDao.storeExchangeRate(it) }
+            }
         }
-    } else {
-      // Get exchange rates from www.bitstamp.net and store them all
-      // Ignore any failures
-      bitstampExchangeRateService.getExchangeRates()
-        .onSuccess { rates ->
-          log(Debug) { "Fetched exchange rates: $rates" }
-          rates.forEach { exchangeRateDao.storeExchangeRate(it) }
-        }
-    }
+      }
   }
 }

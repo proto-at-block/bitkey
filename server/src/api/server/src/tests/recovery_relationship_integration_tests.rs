@@ -23,14 +23,14 @@ use super::requests::CognitoAuthentication;
 
 const TRUSTED_CONTACT_ALIAS: &str = "Trusty";
 const CUSTOMER_ALIAS: &str = "Custy";
-const CUSTOMER_ENROLLMENT_PUBKEY: &str = "CustyEnrollmentPubkey";
-const TRUSTED_CONTACT_IDENTITY_PUBKEY: &str = "TrustyIdentityPubkey";
-const TRUSTED_CONTACT_ENROLLMENT_PUBKEY: &str = "TrustyEnrollmentPubkey";
+const PROTECTED_CUSTOMER_ENROLLMENT_PAKE_PUBKEY: &str =
+    "003abf297a64bac071986e41c4dddf8160fe245f9f889699c9c57c35fa6d56f3";
+const TRUSTED_CONTACT_ENROLLMENT_PAKE_PUBKEY: &str =
+    "004abf297a64bac071986e41c4dddf8160fe245f9f889699c9c57c35fa6d56f4";
 
 #[derive(Debug)]
 pub(super) enum CodeOverride {
     None,
-    HumanError,
     Mismatch,
 }
 
@@ -38,11 +38,7 @@ impl CodeOverride {
     pub(super) fn apply(&self, code: &str) -> String {
         match self {
             Self::None => code.to_string(),
-            Self::HumanError => {
-                let lower = code.to_lowercase();
-                lower.replace('0', "o").replace('1', "l")
-            }
-            Self::Mismatch => "BADC0DEE".to_string(),
+            Self::Mismatch => "deadbeef".to_string(),
         }
     }
 }
@@ -81,8 +77,8 @@ async fn assert_relationship_counts(
 
     get_body.unendorsed_trusted_contacts.iter().for_each(|tc| {
         assert_eq!(
-            tc.info.trusted_contact_identity_pubkey,
-            TRUSTED_CONTACT_IDENTITY_PUBKEY
+            tc.trusted_contact_enrollment_pake_pubkey,
+            TRUSTED_CONTACT_ENROLLMENT_PAKE_PUBKEY
         );
     });
 }
@@ -100,7 +96,8 @@ pub(super) async fn try_create_recovery_relationship(
             &customer_account_id.to_string(),
             &CreateRecoveryRelationshipRequest {
                 trusted_contact_alias: TRUSTED_CONTACT_ALIAS.to_string(),
-                customer_enrollment_pubkey: CUSTOMER_ENROLLMENT_PUBKEY.to_string(),
+                protected_customer_enrollment_pake_pubkey:
+                    PROTECTED_CUSTOMER_ENROLLMENT_PAKE_PUBKEY.to_string(),
             },
             auth,
         )
@@ -143,6 +140,7 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
     invitation: &OutboundInvitation,
     code_override: CodeOverride,
     expected_status_code: StatusCode,
+    tc_expected_num_customers: usize,
 ) -> Option<UpdateRecoveryRelationshipResponse> {
     let accept_response = client
         .update_recovery_relationship(
@@ -151,10 +149,10 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
             &UpdateRecoveryRelationshipRequest::Accept {
                 code: code_override.apply(&invitation.code),
                 customer_alias: CUSTOMER_ALIAS.to_string(),
-                trusted_contact_identity_pubkey: TRUSTED_CONTACT_IDENTITY_PUBKEY.to_string(),
-                trusted_contact_enrollment_pubkey: TRUSTED_CONTACT_ENROLLMENT_PUBKEY.to_string(),
-                trusted_contact_identity_pubkey_mac: "RANDOM_MAC".to_string(),
-                enrollment_key_confirmation: "RANDOM_KEY_CONFIRMATION".to_string(),
+                trusted_contact_enrollment_pake_pubkey: TRUSTED_CONTACT_ENROLLMENT_PAKE_PUBKEY
+                    .to_string(),
+                enrollment_pake_confirmation: "RANDOM_PAKE_CONFIRMATION".to_string(),
+                sealed_delegated_decryption_pubkey: "SEALED_PUBKEY".to_string(),
             },
             auth,
         )
@@ -176,7 +174,15 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
         assert_eq!(customer.customer_alias, CUSTOMER_ALIAS);
 
         assert_relationship_counts(client, customer_account_id, 0, 1, 0, 0).await;
-        assert_relationship_counts(client, trusted_contact_account_id, 0, 0, 0, 1).await;
+        assert_relationship_counts(
+            client,
+            trusted_contact_account_id,
+            0,
+            0,
+            0,
+            tc_expected_num_customers,
+        )
+        .await;
 
         return Some(accept_body);
     }
@@ -197,7 +203,8 @@ pub(super) async fn try_endorse_recovery_relationship(
             &EndorseRecoveryRelationshipsRequest {
                 endorsements: vec![RecoveryRelationshipEndorsement {
                     recovery_relationship_id: recovery_relationship_id.to_owned(),
-                    endorsement_key_certificate: endorsement_key_certificate.to_string(),
+                    delegated_decryption_pubkey_certificate: endorsement_key_certificate
+                        .to_string(),
                 }],
             },
         )
@@ -264,12 +271,12 @@ tests! {
     test_create_recovery_relationship_no_app_signature: CreateRecoveryRelationshipTestVector {
         customer_account_type: AccountType::Full,
         auth: CognitoAuthentication::Wallet{ is_app_signed: false, is_hardware_signed: true },
-        expected_status_code: StatusCode::BAD_REQUEST,
+        expected_status_code: StatusCode::FORBIDDEN,
     },
     test_create_recovery_relationship_no_hw_signature: CreateRecoveryRelationshipTestVector {
         customer_account_type: AccountType::Full,
         auth: CognitoAuthentication::Wallet{ is_app_signed: true, is_hardware_signed: false },
-        expected_status_code: StatusCode::BAD_REQUEST,
+        expected_status_code: StatusCode::FORBIDDEN,
     },
     test_create_recovery_relationship_lite_account: CreateRecoveryRelationshipTestVector {
         customer_account_type: AccountType::Lite,
@@ -399,6 +406,7 @@ async fn test_reissue_recovery_relationship_invitation() {
         &invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await;
 
@@ -518,6 +526,7 @@ async fn accept_recovery_relationship_invitation_test(
         &create_body.invitation,
         vector.code_override,
         vector.expected_status_code,
+        1,
     )
     .await;
 }
@@ -537,14 +546,6 @@ tests! {
         customer_is_tc: false,
         tc_auth: CognitoAuthentication::Recovery,
         code_override: CodeOverride::None,
-        override_expires_at: None,
-        expected_status_code: StatusCode::OK,
-    },
-    test_accept_recovery_relationship_invitation_with_human_error: AcceptRecoveryRelationshipInvitationTestVector {
-        tc_account_type: AccountType::Lite,
-        customer_is_tc: false,
-        tc_auth: CognitoAuthentication::Recovery,
-        code_override: CodeOverride::HumanError,
         override_expires_at: None,
         expected_status_code: StatusCode::OK,
     },
@@ -577,6 +578,7 @@ tests! {
 #[derive(Debug)]
 struct EndorseRecoveryRelationshipTestVector {
     accept_recovery_relationship: bool,
+    redo_endorsed_relationship: bool,
     expected_status_code: StatusCode,
 }
 
@@ -610,6 +612,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
             &create_body.invitation,
             CodeOverride::None,
             vector.expected_status_code,
+            1,
         )
         .await;
     }
@@ -622,16 +625,63 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
         vector.expected_status_code,
     )
     .await;
+    let get_response = client
+        .get_recovery_relationships(&customer_account.id.to_string())
+        .await;
+    assert_eq!(
+        get_response.status_code,
+        StatusCode::OK,
+        "{:?}",
+        get_response.body_string
+    );
+
+    let get_body = get_response.body.unwrap();
+    get_body.endorsed_trusted_contacts.iter().for_each(|tc| {
+        assert_eq!(tc.delegated_decryption_pubkey_certificate, "RANDOM_CERT");
+    });
+
+    if vector.redo_endorsed_relationship {
+        try_endorse_recovery_relationship(
+            &client,
+            &customer_account.id,
+            &create_body.invitation.recovery_relationship_id,
+            "RANDOM_CERT_2",
+            vector.expected_status_code,
+        )
+        .await;
+        let get_response = client
+            .get_recovery_relationships(&customer_account.id.to_string())
+            .await;
+
+        assert_eq!(
+            get_response.status_code,
+            StatusCode::OK,
+            "{:?}",
+            get_response.body_string
+        );
+
+        let get_body = get_response.body.unwrap();
+        get_body.endorsed_trusted_contacts.iter().for_each(|tc| {
+            assert_eq!(tc.delegated_decryption_pubkey_certificate, "RANDOM_CERT_2");
+        });
+    }
 }
 
 tests! {
     runner = endorse_recovery_relationship_test,
     test_endorse_recovery_relationship: EndorseRecoveryRelationshipTestVector {
         accept_recovery_relationship: true,
+        redo_endorsed_relationship: false,
+        expected_status_code: StatusCode::OK,
+    },
+    test_redo_endorsement_recovery_relationship: EndorseRecoveryRelationshipTestVector {
+        accept_recovery_relationship: true,
+        redo_endorsed_relationship: true,
         expected_status_code: StatusCode::OK,
     },
     test_endorse_recovery_relationship_invitation: EndorseRecoveryRelationshipTestVector {
         accept_recovery_relationship: false,
+        redo_endorsed_relationship: false,
         expected_status_code: StatusCode::BAD_REQUEST,
     },
 }
@@ -691,6 +741,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             &create_body.invitation,
             CodeOverride::None,
             StatusCode::OK,
+            1,
         )
         .await;
     }
@@ -917,6 +968,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await
     .unwrap();
@@ -928,6 +980,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await
     .unwrap();
@@ -943,6 +996,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::CONFLICT,
+        1,
     )
     .await;
 }
@@ -978,6 +1032,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await
     .unwrap();
@@ -1012,6 +1067,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::CONFLICT,
+        1,
     )
     .await;
 }
@@ -1046,6 +1102,7 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await;
 
@@ -1071,6 +1128,7 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::CONFLICT,
+        1,
     )
     .await;
 }
@@ -1119,6 +1177,7 @@ async fn test_get_recovery_relationship_invitation_for_code() {
         &create_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await;
 
@@ -1135,4 +1194,65 @@ async fn test_get_recovery_relationship_invitation_for_code() {
         "{:?}",
         get_response.body_string
     );
+}
+
+#[tokio::test]
+async fn test_relationships_count_caps() {
+    let bootstrap = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    for i in 0..=3 {
+        try_create_recovery_relationship(
+            &client,
+            &customer_account.id,
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            if i != 3 {
+                StatusCode::OK
+            } else {
+                StatusCode::CONFLICT
+            },
+            i + 1,
+            0,
+        )
+        .await;
+    }
+
+    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
+    for i in 0..=10 {
+        let customer_account =
+            create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+        let create_body = try_create_recovery_relationship(
+            &client,
+            &customer_account.id,
+            &CognitoAuthentication::Wallet {
+                is_app_signed: true,
+                is_hardware_signed: true,
+            },
+            StatusCode::OK,
+            1,
+            0,
+        )
+        .await
+        .unwrap();
+
+        try_accept_recovery_relationship_invitation(
+            &client,
+            &customer_account.id,
+            &tc_account.id,
+            &CognitoAuthentication::Recovery,
+            &create_body.invitation,
+            CodeOverride::None,
+            if i != 10 {
+                StatusCode::OK
+            } else {
+                StatusCode::CONFLICT
+            },
+            i + 1,
+        )
+        .await;
+    }
 }

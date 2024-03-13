@@ -23,10 +23,10 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
             transactionDetailModelType =
               TransactionDetailModelType.Regular(
                 transferAmountText = "transferFiatAmountText",
-                feeAmountText = "feeFiatAmountText"
-              ),
-            totalAmountPrimaryText = "totalFiatAmountText",
-            totalAmountSecondaryText = "totalBitcoinAmountText"
+                feeAmountText = "feeFiatAmountText",
+                totalAmountPrimaryText = "totalFiatAmountText",
+                totalAmountSecondaryText = "totalBitcoinAmountText"
+              )
           )
       ) {}
 
@@ -82,10 +82,10 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
           TransactionDetailModelType.SpeedUp(
             transferAmountText = "transferAmountText",
             oldFeeAmountText = "oldFeeAmountText",
-            feeDifferenceText = "feeDifferenceText"
+            feeDifferenceText = "feeDifferenceText",
+            totalAmountPrimaryText = "totalAmountPrimaryText",
+            totalAmountSecondaryText = "totalAmountSecondaryText"
           ),
-        totalAmountPrimaryText = "totalAmountPrimaryText",
-        totalAmountSecondaryText = "totalAmountSecondaryText",
         transactionSpeedText = "transactionSpeedText"
       )
     )

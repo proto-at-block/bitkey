@@ -19,6 +19,8 @@ buildscript {
 plugins {
   id("build.wallet.scans")
   id("build.wallet.dependency-locking")
+  id("build.wallet.dependency-locking.common-group-configuration")
+  id("build.wallet.dependency-locking.dependency-configuration")
   alias(libs.plugins.detekt) apply false
   alias(libs.plugins.kotlin.coroutines.native) apply false
   alias(libs.plugins.kotlin.serialization) apply false

@@ -2,7 +2,7 @@ import kotlin.Boolean;
 
 CREATE TABLE booleanFeatureFlagEntity(
   featureFlagId   TEXT NOT NULL PRIMARY KEY,
-  value           INTEGER AS Boolean
+  value           INTEGER AS Boolean NOT NULL
 );
 
 setFlag:

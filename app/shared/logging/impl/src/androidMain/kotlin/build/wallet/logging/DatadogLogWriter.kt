@@ -36,6 +36,8 @@ class DatadogLogWriter(
     tag: String,
     throwable: Throwable?,
   ) {
+    if (SensitiveDataValidator.isSensitiveData(LogEntry(tag, message))) return
+
     val defaultAttributes =
       mapOf(
         "tag" to tag

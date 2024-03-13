@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.okhttp3:okhttp-coroutines-jvm",
+    "components": [
+        {
+            "version": "5.0.0-alpha.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okhttp-coroutines-jvm-5.0.0-alpha.11.jar": "1452873e0cc9637b7e1a717f2cca0cbccebd00c05aaaf67b8adb06777bf4f461"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

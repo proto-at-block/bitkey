@@ -7,7 +7,8 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
 fun ProtectedCustomerBottomSheetModel(
@@ -34,14 +35,14 @@ fun ProtectedCustomerBottomSheetModel(
         ButtonModel(
           text = "Help with Recovery",
           size = ButtonModel.Size.Footer,
-          onClick = Click.sheetClosingClick { onHelpWithRecovery() },
+          onClick = SheetClosingClick(onHelpWithRecovery),
           treatment = ButtonModel.Treatment.Secondary
         ),
       secondaryButton =
         ButtonModel(
           text = "Remove Myself as Trusted Contact",
           size = ButtonModel.Size.Footer,
-          onClick = Click.standardClick { onRemoveSelfAsTrustedContact() },
+          onClick = StandardClick { onRemoveSelfAsTrustedContact() },
           treatment = ButtonModel.Treatment.SecondaryDestructive,
           isLoading = isRemoveSelfAsTrustedContactButtonLoading
         ),

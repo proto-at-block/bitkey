@@ -22,6 +22,8 @@ import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.sync.PlaceholderElectrumServerDataMock
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.notifications.NotificationPreferencesProps
+import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
@@ -39,6 +41,8 @@ import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiProp
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachine
 import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsProps
 import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsUiStateMachine
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.statemachine.status.StatusBannerModelMock
@@ -77,7 +81,9 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
     stateMachine =
       SettingsHomeUiStateMachineImpl(
         mobilePaySettingsUiStateMachine = object : MobilePaySettingsUiStateMachine, ScreenStateMachineMock<MobilePaySettingsUiProps>("mobile-txn") {},
+        notificationPreferencesUiStateMachine = object : NotificationPreferencesUiStateMachine, ScreenStateMachineMock<NotificationPreferencesProps>("notifications-preferences") {},
         notificationsSettingsUiStateMachine = object : NotificationsSettingsUiStateMachine, ScreenStateMachineMock<NotificationsSettingsProps>("notifications") {},
+        recoveryChannelSettingsUiStateMachine = object : RecoveryChannelSettingsUiStateMachine, ScreenStateMachineMock<RecoveryChannelSettingsProps>("recovery-channel-settings") {},
         currencyPreferenceUiStateMachine = object : CurrencyPreferenceUiStateMachine, ScreenStateMachineMock<CurrencyPreferenceProps>("currency-preference") {},
         customElectrumServerSettingUiStateMachine = object : CustomElectrumServerSettingUiStateMachine, ScreenStateMachineMock<CustomElectrumServerProps>("custom-electrum-server") {},
         deviceSettingsUiStateMachine = object : DeviceSettingsUiStateMachine, ScreenStateMachineMock<DeviceSettingsProps>("device-settings") {},
@@ -111,8 +117,10 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.CurrencyPreference::class,
               SettingsListUiProps.SettingsListRow.HelpCenter::class,
               SettingsListUiProps.SettingsListRow.MobilePay::class,
+              SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
+              SettingsListUiProps.SettingsListRow.RecoveryChannels::class,
               SettingsListUiProps.SettingsListRow.Notifications::class,
-              SettingsListUiProps.SettingsListRow.SendFeedback::class,
+              SettingsListUiProps.SettingsListRow.ContactUs::class,
               SettingsListUiProps.SettingsListRow.TrustedContacts::class,
               SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
               SettingsListUiProps.SettingsListRow.RotateAuthKey::class
@@ -139,9 +147,17 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.Notifications }.onClick()
       }
+
+//      if (onboardVersionFeatureFlagProvider.isV2Enabled) {
+//        awaitScreenWithBodyModelMock<NotificationPreferencesProps> {
+//          onBack()
+//        }
+//      } else {
       awaitScreenWithBodyModelMock<NotificationsSettingsProps> {
         onBack()
       }
+//      }
+
       awaitScreenWithBodyModelMock<SettingsListUiProps>()
     }
   }

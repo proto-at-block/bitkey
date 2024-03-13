@@ -3,8 +3,8 @@ package build.wallet.statemachine.data.keybox
 import build.wallet.account.AccountRepositoryFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.bitkey.factor.PhysicalFactor.App
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.KeyboxConfigMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.display.CurrencyPreferenceDataMock
@@ -21,7 +21,7 @@ import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountDa
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachine
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineDataProps
@@ -87,9 +87,9 @@ class AccountDataStateMachineImplTests : FunSpec({
 
   val props =
     AccountDataProps(
-      templateKeyboxConfigData =
-        LoadedTemplateKeyboxConfigData(
-          config = KeyboxConfigMock,
+      templateFullAccountConfigData =
+        LoadedTemplateFullAccountConfigData(
+          config = FullAccountConfigMock,
           updateConfig = {}
         ),
       currencyPreferenceData = CurrencyPreferenceDataMock

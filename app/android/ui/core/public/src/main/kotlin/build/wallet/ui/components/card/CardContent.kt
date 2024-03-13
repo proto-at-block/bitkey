@@ -15,12 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
-import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
@@ -29,7 +25,6 @@ import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
-import build.wallet.ui.components.label.toWalletTheme
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.progress.CircularProgressIndicator
@@ -69,27 +64,7 @@ fun CardContent(
         }
         Column(verticalArrangement = Arrangement.SpaceAround) {
           Label(
-            text =
-              buildAnnotatedString {
-                append(model.title.string)
-                model.title.styledSubstrings.forEach { styledSubstring ->
-                  addStyle(
-                    style =
-                      when (val substringStyle = styledSubstring.style) {
-                        is LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle ->
-                          SpanStyle(
-                            color = substringStyle.color.toWalletTheme()
-                          )
-                        is LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle ->
-                          SpanStyle(
-                            fontWeight = FontWeight.W600
-                          )
-                      },
-                    start = styledSubstring.range.first,
-                    end = styledSubstring.range.last + 1
-                  )
-                }
-              },
+            model = model.title,
             type = LabelType.Title2
           )
 

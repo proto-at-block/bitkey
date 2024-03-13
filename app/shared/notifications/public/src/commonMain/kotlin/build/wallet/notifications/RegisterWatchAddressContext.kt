@@ -1,6 +1,7 @@
 package build.wallet.notifications
 
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.f8e.F8eEnvironment
 
 /**
@@ -9,7 +10,7 @@ import build.wallet.f8e.F8eEnvironment
  */
 data class RegisterWatchAddressContext(
   val address: BitcoinAddress,
-  val spendingKeysetId: String,
+  val f8eSpendingKeyset: F8eSpendingKeyset,
   val accountId: String,
   val f8eEnvironment: F8eEnvironment,
 )

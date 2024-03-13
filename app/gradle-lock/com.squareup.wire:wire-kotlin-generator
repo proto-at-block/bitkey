@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-kotlin-generator",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-kotlin-generator-4.9.5.jar": "4d5ec5031af7bb962d855dd76d7be86dacf65387c3f75b14c42ce3e07b8dd377"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -11,8 +11,7 @@ data class SocRecRelationships(
   val invitations: List<Invitation>,
   val trustedContacts: List<TrustedContact>,
   val protectedCustomers: ImmutableList<ProtectedCustomer>,
-  // TODO(BKR-853) Make non-optional
-  val unendorsedTrustedContacts: List<UnendorsedTrustedContact> = emptyList(),
+  val unendorsedTrustedContacts: List<UnendorsedTrustedContact>,
 ) {
   companion object {
     val EMPTY =

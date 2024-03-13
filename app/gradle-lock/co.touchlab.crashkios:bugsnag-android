@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab.crashkios:bugsnag-android",
+    "components": [
+        {
+            "version": "0.8.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bugsnag-release.aar": "a122e3b26bf341e7b4c388281ae295e24eff501e76ee4e832e99cdc7c8a4489b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

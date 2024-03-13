@@ -1,5 +1,6 @@
 package build.wallet.notifications
 
+import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.queueprocessor.Queue
 import build.wallet.sqldelight.awaitAsListResult
@@ -14,7 +15,7 @@ class RegisterWatchAddressQueueImpl(
     return databaseProvider.database().awaitTransaction {
       registerWatchAddressQueueQueries.append(
         item.address,
-        item.spendingKeysetId,
+        item.f8eSpendingKeyset.keysetId,
         item.accountId,
         item.f8eEnvironment
       )
@@ -31,7 +32,10 @@ class RegisterWatchAddressQueueImpl(
         items.map {
           RegisterWatchAddressContext(
             it.address,
-            it.spendingKeysetId,
+            F8eSpendingKeyset(
+              keysetId = it.spendingKeysetId,
+              spendingPublicKey = it.serverKey
+            ),
             it.accountId,
             it.f8eEnvironment
           )

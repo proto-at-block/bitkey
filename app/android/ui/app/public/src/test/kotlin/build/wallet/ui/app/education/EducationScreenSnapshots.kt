@@ -8,7 +8,7 @@ import androidx.compose.runtime.setValue
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.education.EducationBodyModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.coroutines.delay
@@ -35,13 +35,13 @@ class EducationScreenSnapshots : FunSpec({
             primaryButton =
               ButtonModel(
                 text = "Primary",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 size = ButtonModel.Size.Footer
               ),
             secondaryButton =
               ButtonModel(
                 text = "Secondary",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 treatment = ButtonModel.Treatment.Secondary,
                 size = ButtonModel.Size.Footer
               ),
@@ -53,13 +53,13 @@ class EducationScreenSnapshots : FunSpec({
             primaryButton =
               ButtonModel(
                 text = "Primary",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 size = ButtonModel.Size.Footer
               ),
             secondaryButton =
               ButtonModel(
                 text = "Secondary",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 treatment = ButtonModel.Treatment.Secondary,
                 size = ButtonModel.Size.Footer
               ),
@@ -71,7 +71,7 @@ class EducationScreenSnapshots : FunSpec({
             primaryButton =
               ButtonModel(
                 text = "Primary",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 size = ButtonModel.Size.Footer
               ),
             onClick = null

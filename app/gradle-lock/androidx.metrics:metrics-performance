@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.metrics:metrics-performance",
+    "components": [
+        {
+            "version": "1.0.0-alpha04",
+            "variants": [
+                {
+                    "artifacts": {
+                        "metrics-performance-1.0.0-alpha04.aar": "f878c63cf62f913404fb988dd662997586efbb5e19b85d8d849ae0a43338c360"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

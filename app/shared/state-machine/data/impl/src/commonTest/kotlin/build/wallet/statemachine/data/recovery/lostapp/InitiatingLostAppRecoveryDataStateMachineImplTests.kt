@@ -1,8 +1,9 @@
 package build.wallet.statemachine.data.recovery.lostapp
 
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.bitkey.keybox.KeyboxConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -12,6 +13,7 @@ import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryServiceMock
 import build.wallet.f8e.recovery.InitiateHardwareAuthServiceMock
 import build.wallet.f8e.recovery.ListKeysetsServiceMock
+import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.platform.random.UuidFake
@@ -24,9 +26,9 @@ import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppKeysData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndSpendingKeyData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
@@ -50,19 +52,22 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
 
   val keyBundleMock = HwKeyBundleMock
-  val keyboxConfig = KeyboxConfigMock
+  val fullAccountConfig = FullAccountConfigMock
+  val appKeysGenerator = AppKeysGeneratorMock()
   val initiateHardwareAuthService = InitiateHardwareAuthServiceMock(turbines::create)
   val lostAppRecoveryInitiator = LostAppRecoveryInitiatorMock(turbines::create)
   val lostAppRecoveryAuthenticator = LostAppRecoveryAuthenticatorMock(turbines::create)
   val cancelDelayNotifyService = CancelDelayNotifyRecoveryServiceMock(turbines::create)
   val recoveryNotificationVerificationDataStateMachine =
-    object : RecoveryNotificationVerificationDataStateMachine, StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
-      initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
-    ) {}
+    object : RecoveryNotificationVerificationDataStateMachine,
+      StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
+        initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
+      ) {}
   val uuid = UuidFake()
 
   val stateMachine =
     InitiatingLostAppRecoveryDataStateMachineImpl(
+      appKeysGenerator = appKeysGenerator,
       initiateHardwareAuthService = initiateHardwareAuthService,
       listKeysetsService = ListKeysetsServiceMock(),
       lostAppRecoveryInitiator = lostAppRecoveryInitiator,
@@ -83,7 +88,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = { }
         )
     ) {
@@ -100,11 +105,10 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   }
 
   test("initiating lost app recovery -- auth initiation service initiation failure/retry") {
-
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = {}
         )
     ) {
@@ -132,11 +136,12 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = {}
         )
     ) {
-      lostAppRecoveryAuthenticator.authenticationResult = Err(F8eAccountAuthenticationFailed(Error()))
+      lostAppRecoveryAuthenticator.authenticationResult =
+        Err(F8eAccountAuthenticationFailed(Error()))
 
       getHardwareKeys(keyBundleMock)
       signChallenge()
@@ -147,7 +152,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
         it.retry()
         awaitItem().shouldBeTypeOf<AuthenticatingWithF8EViaAppData>()
         awaitItem().shouldBeTypeOf<ListingKeysetsFromF8eData>()
-        awaitItem().shouldBeTypeOf<AwaitingHardwareProofOfPossessionAndSpendingKeyData>()
+        awaitItem().shouldBeTypeOf<AwaitingHardwareProofOfPossessionAndKeysData>()
       }
     }
     initiateHardwareAuthService.startCalls.awaitItem()
@@ -161,7 +166,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = {}
         )
     ) {
@@ -196,7 +201,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = { }
         )
     ) {
@@ -231,7 +236,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = { }
         )
     ) {
@@ -244,7 +249,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
         it.onRetreat()
       }
       awaitItem().let {
-        it.shouldBeTypeOf<AwaitingAppKeysData>()
+        it.shouldBeTypeOf<AwaitingHwKeysData>()
       }
 
       initiateHardwareAuthService.startCalls.awaitItem()
@@ -255,7 +260,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = { }
         )
     ) {
@@ -297,7 +302,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
     stateMachine.test(
       props =
         InitiatingLostAppRecoveryProps(
-          keyboxConfig = keyboxConfig,
+          fullAccountConfig = fullAccountConfig,
           onRollback = { }
         )
     ) {
@@ -342,7 +347,7 @@ private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, Initiatin
   keybundleMock: HwKeyBundle,
 ) {
   awaitItem().let {
-    it.shouldBeTypeOf<AwaitingAppKeysData>()
+    it.shouldBeTypeOf<AwaitingHwKeysData>()
     it.addHardwareAuthKey(keybundleMock.authKey)
   }
   awaitItem().shouldBeTypeOf<InitiatingAppAuthWithF8eData>()
@@ -365,10 +370,11 @@ private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, Initiatin
 
 private suspend fun StateMachineTester<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>.getProofOfPossession() {
   awaitItem().let {
-    it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionAndSpendingKeyData>()
+    it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionAndKeysData>()
     it.onComplete(
       HwFactorProofOfPossession("mock-hw-proof-of-possession"),
-      HwKeyBundleMock.spendingKey
+      HwKeyBundleMock.spendingKey,
+      AppGlobalAuthKeyHwSignatureMock
     )
   }
 }

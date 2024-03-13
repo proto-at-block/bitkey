@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
@@ -34,6 +34,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  */
 fun EmailInputScreenModel(
   title: String,
+  subline: String? = null,
   value: String = "",
   primaryButton: ButtonModel,
   onValueChange: (String) -> Unit,
@@ -56,13 +57,13 @@ fun EmailInputScreenModel(
                   ButtonModel(
                     text = "Skip",
                     treatment = Tertiary,
-                    onClick = Click.standardClick { it() },
+                    onClick = StandardClick(onSkip),
                     size = Compact
                   )
               )
             }
         ),
-      header = FormHeaderModel(headline = title),
+      header = FormHeaderModel(headline = title, subline = subline),
       mainContentList =
         immutableListOf(
           TextInput(

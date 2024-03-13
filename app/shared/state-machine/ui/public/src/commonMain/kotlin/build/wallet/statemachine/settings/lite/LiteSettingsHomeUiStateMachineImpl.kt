@@ -13,12 +13,15 @@ import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementPro
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementUiStateMachine
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
+import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.model.alert.AlertModel
 
 class LiteSettingsHomeUiStateMachineImpl(
   private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
+  private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
   private val liteTrustedContactManagementUiStateMachine:
     LiteTrustedContactManagementUiStateMachine,
@@ -58,6 +61,15 @@ class LiteSettingsHomeUiStateMachineImpl(
             )
         )
 
+      is State.ShowingContactUs ->
+        feedbackUiStateMachine.model(
+          props = FeedbackUiProps(
+            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+            accountId = props.accountData.account.accountId,
+            onBack = { uiState = State.ShowingAllSettingsList }
+          )
+        )
+
       is State.ShowingHelpCenter ->
         helpCenterUiStateMachine.model(
           props =
@@ -87,6 +99,9 @@ class LiteSettingsHomeUiStateMachineImpl(
                   SettingsListUiProps.SettingsListRow.CurrencyPreference {
                     setState(State.ShowingCurrencyPreferenceSettings)
                   },
+                  SettingsListUiProps.SettingsListRow.ContactUs {
+                    setState(State.ShowingContactUs)
+                  },
                   SettingsListUiProps.SettingsListRow.HelpCenter {
                     setState(State.ShowingHelpCenter)
                   },
@@ -110,6 +125,8 @@ private sealed interface State {
   data object ShowingCurrencyPreferenceSettings : State
 
   data object ShowingTrustedContactsManagement : State
+
+  data object ShowingContactUs : State
 
   data object ShowingHelpCenter : State
 }

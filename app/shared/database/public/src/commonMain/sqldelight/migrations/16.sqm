@@ -1,8 +1,0 @@
-import build.wallet.home.HomeUiBottomSheetId;
-
-CREATE TABLE homeUiBottomSheetEntity(
-  rowId         INTEGER NOT NULL PRIMARY KEY,
-  sheetId       TEXT AS HomeUiBottomSheetId NOT NULL
-);
-
-PRAGMA foreign_key_check;

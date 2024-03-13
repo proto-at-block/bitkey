@@ -3,15 +3,15 @@ package build.wallet.onboarding
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
+import build.wallet.serialization.hex.decodeHexWithResult
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.map
+import com.github.michaelbull.result.coroutines.binding.binding
 import com.russhwolf.settings.ExperimentalSettingsApi
 import okio.ByteString
-import okio.ByteString.Companion.decodeHex
 
 /**
  * Persists sealed CSEKs in a secure store, encoded as hex string.
@@ -23,14 +23,16 @@ class OnboardingKeyboxSealedCsekDaoImpl(
   private suspend fun secureStore() =
     encryptedKeyValueStoreFactory.getOrCreate(storeName = STORE_NAME)
 
-  override suspend fun get(): Result<ByteString?, Throwable> {
-    log { "Fetching sealed CSEK" }
+  override suspend fun get(): Result<ByteString?, Throwable> =
+    binding {
+      log { "Fetching sealed CSEK" }
 
-    return secureStore()
-      .getStringOrNullWithResult(key = KEY_SEALED_CSEK)
-      .map { it?.decodeHex() }
-      .logFailure { "Failed to get $KEY_SEALED_CSEK from $STORE_NAME" }
-  }
+      secureStore()
+        .getStringOrNullWithResult(key = KEY_SEALED_CSEK)
+        .bind()
+        ?.decodeHexWithResult()
+        ?.bind()
+    }.logFailure { "Failed to get $KEY_SEALED_CSEK from $STORE_NAME" }
 
   override suspend fun set(value: SealedCsek): Result<Unit, Throwable> {
     log { "Setting sealed CSEK" }
@@ -49,7 +51,9 @@ class OnboardingKeyboxSealedCsekDaoImpl(
   }
 
   private companion object {
+    // Changing these values is a breaking change
+    // These should only be changed with a migration plan
     const val STORE_NAME = "SealedCsekStore"
-    const val KEY_SEALED_CSEK = "sealedCsek"
+    const val KEY_SEALED_CSEK = "sealed-csek-key"
   }
 }

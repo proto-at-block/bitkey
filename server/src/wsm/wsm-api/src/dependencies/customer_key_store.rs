@@ -28,6 +28,9 @@ pub struct CustomerKey {
     /// The bitcoin network type to be used with the customer's root key
     #[serde(default)]
     pub network: Option<Network>,
+    #[serde(default)]
+    /// Signature over the server public key using the WSM integrity key
+    pub integrity_signature: Option<String>,
 }
 
 impl CustomerKey {
@@ -39,6 +42,7 @@ impl CustomerKey {
         dek_id: String,
         xpubs: Vec<DomainFactoredXpub>,
         network: Network,
+        integrity_signature: String,
     ) -> Self {
         Self {
             root_key_id,
@@ -48,6 +52,7 @@ impl CustomerKey {
             dek_id,
             xpubs,
             network: Some(network),
+            integrity_signature: Some(integrity_signature),
         }
     }
 }
@@ -94,6 +99,65 @@ impl CustomerKeyStore {
             .send()
             .await
             .context("could not write new customer key to ddb")?;
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    /// TODO(W-5872) Remove after backfill. This loads all the keys into memory, but
+    /// should be fine for now as we have a small number of keys.
+    pub async fn get_all_customer_keys(&self) -> anyhow::Result<Vec<CustomerKey>> {
+        let mut customer_keys = Vec::new();
+        let mut last_evaluated_key = None;
+
+        loop {
+            let scan_output = self
+                .client
+                .scan()
+                .table_name(&self.ck_table_name)
+                .set_exclusive_start_key(last_evaluated_key)
+                .send()
+                .await?;
+
+            if let Some(items) = scan_output.items {
+                for item in items {
+                    if let Ok(customer_key) = from_item(item) {
+                        customer_keys.push(customer_key);
+                    }
+                }
+            }
+
+            if scan_output.last_evaluated_key.is_none() {
+                break;
+            }
+
+            last_evaluated_key = scan_output.last_evaluated_key;
+        }
+
+        Ok(customer_keys)
+    }
+
+    pub async fn update_integrity_signature(
+        &self,
+        root_key_id: &str,
+        new_signature: &str,
+    ) -> anyhow::Result<()> {
+        let update_expression = "SET integrity_signature = :new_signature";
+
+        let expression_attribute_values = std::collections::HashMap::from([(
+            ":new_signature".to_string(),
+            AttributeValue::S(new_signature.to_string()),
+        )]);
+
+        self.client
+            .update_item()
+            .table_name(&self.ck_table_name)
+            .key("root_key_id", AttributeValue::S(root_key_id.to_string()))
+            .update_expression(update_expression)
+            .set_expression_attribute_values(Some(expression_attribute_values))
+            .send()
+            .await
+            .context("Failed to update customer key integrity signature in DynamoDB")?;
+
         Ok(())
     }
 }

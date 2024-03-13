@@ -10,7 +10,7 @@ import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.data.firmware.FirmwareData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.dev.analytics.AnalyticsUiStateMachine
 import build.wallet.statemachine.dev.analytics.Props
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
@@ -60,7 +60,7 @@ class DebugMenuStateMachineImpl(
         f8eCustomUrlStateMachine.model(
           F8eCustomUrlStateMachineProps(
             customUrl = state.customUrl,
-            templateKeyboxConfigData = state.templateKeyboxConfigData,
+            templateFullAccountConfigData = state.templateFullAccountConfigData,
             onBack = { uiState = DebugMenuState.ShowingDebugMenu }
           )
         )
@@ -138,7 +138,7 @@ sealed interface DebugMenuState {
 
   data class ShowingF8eCustomUrl(
     val customUrl: String,
-    val templateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+    val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
   ) : DebugMenuState
 
   data object ShowingLogs : DebugMenuState

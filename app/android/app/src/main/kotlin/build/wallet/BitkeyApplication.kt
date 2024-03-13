@@ -15,6 +15,7 @@ import build.wallet.debug.StrictModeEnablerImpl
 import build.wallet.di.AppComponent
 import build.wallet.di.makeAppComponent
 import build.wallet.encrypt.MessageSignerImpl
+import build.wallet.encrypt.SignatureVerifierImpl
 import build.wallet.firmware.HardwareAttestationImpl
 import build.wallet.firmware.TeltraImpl
 import build.wallet.logging.DatadogLogWriter
@@ -63,6 +64,7 @@ class BitkeyApplication : Application() {
           )
         },
         messageSigner = MessageSignerImpl(),
+        signatureVerifier = SignatureVerifierImpl(),
         platformContext = PlatformContext(this),
         teltra = TeltraImpl(),
         hardwareAttestation = HardwareAttestationImpl()

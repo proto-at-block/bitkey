@@ -24,7 +24,6 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(libs.kmp.test.kotest.assertions.json)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.cloudBackupFake) {
           exclude(projects.shared.cloudBackupPublic)

@@ -11,7 +11,6 @@ import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.onboarding.UpgradeAccountService
 import build.wallet.f8e.onboarding.UpgradeAccountServiceMock
 import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.keybox.builder.KeyCrossBuilderMock
 import build.wallet.notifications.DeviceTokenManagerError
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.notifications.DeviceTokenManagerResult
@@ -32,7 +31,6 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
   val authTokenDao = AuthTokenDaoMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create, defaultOnboardingKeybox = null)
-  val keyCrossBuilder = KeyCrossBuilderMock()
   val upgradeAccountService = UpgradeAccountServiceMock(turbines::create)
 
   val upgrader =
@@ -41,7 +39,6 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
       authTokenDao = authTokenDao,
       deviceTokenManager = deviceTokenManager,
       keyboxDao = keyboxDao,
-      keyCrossBuilder = keyCrossBuilder,
       upgradeAccountService = upgradeAccountService,
       uuid = UuidFake()
     )
@@ -74,7 +71,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
 
     val fullAccount = upgrader.upgradeAccount(liteAccount, keys).shouldBeOk()
     fullAccount.accountId.serverId.shouldBe(liteAccount.accountId.serverId)
-    fullAccount.keybox.activeKeyBundle.recoveryAuthKey.shouldBe(liteAccount.recoveryAuthKey)
+    fullAccount.keybox.activeAppKeyBundle.recoveryAuthKey.shouldBe(liteAccount.recoveryAuthKey)
 
     upgradeAccountService.upgradeAccountCalls.awaitItem()
 

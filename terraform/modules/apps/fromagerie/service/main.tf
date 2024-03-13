@@ -98,6 +98,10 @@ locals {
   }
 }
 
+data "aws_secretsmanager_secret" "fromagerie_onboarding_demo_mode_credentials" {
+  name = "fromagerie/onboarding_demo_mode/credentials"
+}
+
 data "aws_secretsmanager_secret" "fromagerie_zendesk_credentials" {
   name = "fromagerie/zendesk/credentials"
 }
@@ -124,6 +128,10 @@ data "aws_secretsmanager_secret" "fromagerie_coinmarketcap_api_key" {
 
 data "aws_secretsmanager_secret" "fromagerie_coingecko_api_key" {
   name = "fromagerie/coingecko/api_key"
+}
+
+data "aws_secretsmanager_secret" "fromagerie_sq_sdn_s3_uri" {
+  name = "fromagerie/sq_sdn/s3_uri"
 }
 
 data "aws_acm_certificate" "external_certs" {
@@ -171,14 +179,16 @@ module "ecs_api" {
     ROCKET_PORT             = local.port
   })
   secrets = merge(local.common_secrets, {
-    ITERABLE_API_KEY      = data.aws_secretsmanager_secret.fromagerie_iterable_credentials.arn,
-    COINGECKO_API_KEY     = data.aws_secretsmanager_secret.fromagerie_coingecko_api_key.arn,
-    COINMARKETCAP_API_KEY = data.aws_secretsmanager_secret.fromagerie_coinmarketcap_api_key.arn,
-    TWILIO_ACCOUNT_SID    = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_ACCOUNT_SID::",
-    TWILIO_AUTH_TOKEN     = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_AUTH_TOKEN::",
-    TWILIO_KEY_SID        = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SID::",
-    TWILIO_KEY_SECRET     = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SECRET::",
-    ZENDESK_AUTHORIZATION = data.aws_secretsmanager_secret.fromagerie_zendesk_credentials.arn,
+    ONBOARDING_DEMO_MODE_CODE_HASH = data.aws_secretsmanager_secret.fromagerie_onboarding_demo_mode_credentials.arn,
+    ITERABLE_API_KEY               = data.aws_secretsmanager_secret.fromagerie_iterable_credentials.arn,
+    COINGECKO_API_KEY              = data.aws_secretsmanager_secret.fromagerie_coingecko_api_key.arn,
+    COINMARKETCAP_API_KEY          = data.aws_secretsmanager_secret.fromagerie_coinmarketcap_api_key.arn,
+    SQ_SDN_URI                     = data.aws_secretsmanager_secret.fromagerie_sq_sdn_s3_uri.arn,
+    TWILIO_ACCOUNT_SID             = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_ACCOUNT_SID::",
+    TWILIO_AUTH_TOKEN              = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_AUTH_TOKEN::",
+    TWILIO_KEY_SID                 = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SID::",
+    TWILIO_KEY_SECRET              = "${data.aws_secretsmanager_secret.fromagerie_twilio_credentials.arn}:TWILIO_KEY_SECRET::",
+    ZENDESK_AUTHORIZATION          = data.aws_secretsmanager_secret.fromagerie_zendesk_credentials.arn,
   })
   image_name       = var.image_name
   image_tag        = var.image_tag
@@ -620,6 +630,11 @@ resource "aws_iam_role_policy" "job_blockchain_polling_mainnet" {
 
 resource "aws_iam_role_policy" "job_metrics" {
   role   = module.ecs_job_metrics.task_role_name
+  policy = data.aws_iam_policy_document.api_iam_policy.json
+}
+
+resource "aws_iam_role_policy" "task_api_migration" {
+  role   = module.api_migration_iam.task_role_name
   policy = data.aws_iam_policy_document.api_iam_policy.json
 }
 

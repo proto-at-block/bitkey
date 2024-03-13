@@ -1,0 +1,45 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib-jdk8",
+    "components": [
+        {
+            "version": "1.6.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk8-1.6.20.jar": "fdab1bf120e2b5e7ab6d7888e9ebc024ec6b8ca729361296395dab634b213695"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]"
+            ]
+        },
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk8-1.9.10.jar": "a4c74d94d64ce1abe53760fe0389dd941f6fc558d0dab35e47c085a11ec80f28"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk8-1.9.21.jar": "0702d64baaa90e5c56e467737824c9be3ade1e51562473c143ad03581c955127"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

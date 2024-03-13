@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardImage.StaticImage
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Warning
 
@@ -23,7 +23,7 @@ fun CloudBackupHealthCardModel(
     text = "->",
     size = ButtonModel.Size.Compact,
     treatment = Warning,
-    onClick = Click.StandardClick(onActionClick)
+    onClick = StandardClick(onActionClick)
   ),
   content = null,
   style = Gradient

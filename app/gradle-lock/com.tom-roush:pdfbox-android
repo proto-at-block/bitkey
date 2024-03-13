@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.tom-roush:pdfbox-android",
+    "components": [
+        {
+            "version": "2.0.27.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "pdfbox-android-2.0.27.0.aar": "30277f879cfd571db2a137582c95516a0d4ea6778e945519bc58ca93d57d88c7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:aws-signing-common",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-signing-common-metadata-1.0.13.jar": "dd1781a0e554b709d71c95ddf8e5cd0e3ce605fa4badf62b81376d3a1f50eb93"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

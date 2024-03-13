@@ -33,8 +33,9 @@ class SupportTicketRepositoryImpl(
     accountId: AccountId,
     form: SupportTicketForm,
     data: SupportTicketData,
+    addAttachmentsEnabled: Boolean,
   ): Result<Unit, Error> {
-    val logAttachments = logAttachmentsIfEnabled(data)
+    val logAttachments = logAttachmentsIfEnabled(data, addAttachmentsEnabled)
 
     val attachmentUploadResults =
       uploadAttachments(
@@ -254,8 +255,11 @@ class SupportTicketRepositoryImpl(
     }
   }
 
-  private fun logAttachmentsIfEnabled(data: SupportTicketData): List<SupportTicketAttachment> {
-    return if (data.sendDebugData) {
+  private fun logAttachmentsIfEnabled(
+    data: SupportTicketData,
+    addAttachmentsEnabled: Boolean,
+  ): List<SupportTicketAttachment> {
+    return if (data.sendDebugData && addAttachmentsEnabled) {
       listOf(
         SupportTicketAttachment.Logs(
           name = "app.log",

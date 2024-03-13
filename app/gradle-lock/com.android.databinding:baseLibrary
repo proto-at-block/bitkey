@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.databinding:baseLibrary",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "baseLibrary-8.1.1.jar": "794113709dab21b06c262b3795e73cb708fbacae61715f34361e1af6237a1870"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.sqldelight:runtime-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-iossimulatorarm64-2.0.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime.klib": "791370d05b163542a5da0565d4342859f30053d9515543be28fbe172ed2e042f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

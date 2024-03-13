@@ -6,7 +6,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -54,7 +54,7 @@ data class FwupInstructionsBodyModel(
                       ),
                     iconTint = IconTint.OnTranslucent
                   ),
-                onClick = Click.standardClick { onClose() }
+                onClick = StandardClick(onClose)
               )
           )
       ),

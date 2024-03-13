@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import app.cash.turbine.ReceiveTurbine
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -22,14 +23,15 @@ import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScree
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
-import build.wallet.bitkey.keybox.KeyboxConfig
-import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.cloud.store.CloudStoreAccountFake.Companion
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.coroutines.actualDelay
 import build.wallet.di.ActivityComponentImpl
+import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_ABORTED
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_NOT_STARTED
+import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
@@ -40,13 +42,13 @@ import build.wallet.money.matchers.shouldBeGreaterThan
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncer
+import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
@@ -54,13 +56,15 @@ import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountDat
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
+import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachineImpl
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.launchNewApp
 import build.wallet.testing.relaunchApp
@@ -71,12 +75,14 @@ import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class LostHardwareRecoveryFunctionalTests : FunSpec({
-  data class Props(val keyboxConfig: KeyboxConfig, val originalKeyboxId: String)
+  data class Props(val fullAccountConfig: FullAccountConfig, val originalKeyboxId: String)
 
   class TestingStateMachine(
     val dsm: AccountDataStateMachineImpl,
@@ -103,7 +109,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       val accountData =
         dsm.model(
           AccountDataProps(
-            templateKeyboxConfigData = LoadedTemplateKeyboxConfigData(props.keyboxConfig) {},
+            templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(props.fullAccountConfig) {},
             currencyPreferenceData = CurrencyPreferenceData(BitcoinDisplayUnit.Satoshi, {}, USD) {}
           )
         )
@@ -114,8 +120,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         is ActiveFullAccountLoadedData -> {
           usm.model(
             LostHardwareRecoveryProps(
-              keyboxConfig = props.keyboxConfig,
-              fullAccountId = accountData.account.accountId,
+              account = accountData.account,
               lostHardwareRecoveryData = accountData.lostHardwareRecoveryData,
               fiatCurrency = USD,
               screenPresentationStyle = Root,
@@ -175,15 +180,19 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
       awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
         .clickPrimaryButton()
       awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-        .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+      awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
       cancelAndIgnoreRemainingEvents()
     }
   }
@@ -205,7 +214,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
       }
 
@@ -221,11 +232,15 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-          .signInSuccess(Companion.CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+          .signInSuccess(CloudStoreAccount1Fake)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -243,7 +258,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_NOT_STARTED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_NOT_STARTED)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY)
@@ -272,7 +287,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_NOT_STARTED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_NOT_STARTED)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY)
@@ -291,15 +306,21 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
           }
         }
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-          .signInSuccess(Companion.CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+          .signInSuccess(CloudStoreAccount1Fake)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -322,12 +343,18 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-          .signInSuccess(Companion.CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+          .signInSuccess(CloudStoreAccount1Fake)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         cancelAndIgnoreRemainingEvents()
       }
 
@@ -339,10 +366,14 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -363,7 +394,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
         cancelAndIgnoreRemainingEvents()
       }
@@ -382,7 +415,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       recoveryStateMachine.test(
         props = props,
         useVirtualTime = false,
-        testTimeout = 20.seconds,
+        testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
         startRecoveryAndAdvanceToDelayNotify()
@@ -390,20 +423,28 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
-          .signInSuccess(Companion.CloudStoreAccount1Fake)
+          .signInSuccess(CloudStoreAccount1Fake)
 
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS)
           .clickPrimaryButton()
 
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
       }
     }
 
@@ -426,10 +467,189 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
     appTester.returnFundsToTreasury(activeAccount)
   }
+
+  test("can Lost App from Cloud recovery then Lost Hardware recovery with funds") {
+    // TODO: we already create an app instance and a new account in `beforeTest`, except we don't
+    //       want to wipe hardware just yet - optimize test setup to avoid doing unnecessary account creation.
+    appTester = launchNewApp()
+    appTester.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccount1Fake
+    )
+
+    // Fund wallet with some funds
+    appTester.addSomeFunds()
+
+    // Create new blank app, persist cloud backups
+    val newApp = launchNewApp(
+      cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
+      cloudKeyValueStore = appTester.app.cloudKeyValueStore
+    )
+
+    // Lost App recovery from Cloud
+    newApp.app.appUiStateMachine.test(
+      props = Unit,
+      useVirtualTime = false,
+      testTimeout = 60.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+        .clickMoreOptionsButton()
+      awaitUntilScreenWithBody<FormBodyModel>()
+        .restoreButton.onClick.shouldNotBeNull().invoke()
+      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.CLOUD_BACKUP_FOUND)
+        .clickPrimaryButton()
+      screenDecideIfShouldRotate {
+        clickPrimaryButton()
+      }
+      newApp.waitForFunds()
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        expectedBodyContentMatch = {
+          it.balanceModel.secondaryAmount != "0 sats"
+        }
+      )
+
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    newApp.fakeNfcCommands.clearHardwareKeys()
+    recoveryStateMachine =
+      TestingStateMachine(
+        newApp.app.accountDataStateMachine,
+        newApp.app.lostHardwareRecoveryUiStateMachine,
+        newApp.app.appComponent.keyboxDao,
+        newApp.app.recoverySyncer
+      )
+
+    // Complete Lost Hardware Recovery with D&N
+    val keybox = newApp.getActiveFullAccount().keybox
+    val props = Props(keybox.config, keybox.localId)
+    newApp.app.apply {
+      recoveryStateMachine.test(
+        props = props,
+        useVirtualTime = false,
+        testTimeout = 30.seconds,
+        turbineTimeout = 5.seconds
+      ) {
+        startRecoveryAndAdvanceToDelayNotify()
+        newApp.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+          .signInSuccess(CloudStoreAccount1Fake)
+
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS)
+          .clickPrimaryButton()
+
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
+
+        newApp.waitForFunds()
+
+        cancelAndIgnoreRemainingEvents()
+      }
+    }
+  }
+
+  test("can Lost Hardware recovery then Lost App recovery from Cloud with funds") {
+    // Fund wallet with some funds
+    appTester.addSomeFunds()
+
+    // Complete Lost Hardware Recovery with D&N
+    val keybox = appTester.getActiveFullAccount().keybox
+    val props = Props(keybox.config, keybox.localId)
+    app.apply {
+      recoveryStateMachine.test(
+        props = props,
+        useVirtualTime = false,
+        testTimeout = 30.seconds,
+        turbineTimeout = 5.seconds
+      ) {
+        startRecoveryAndAdvanceToDelayNotify()
+        appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+          .signInSuccess(CloudStoreAccount1Fake)
+
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
+          .clickPrimaryButton()
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS)
+          .clickPrimaryButton()
+
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
+        cancelAndIgnoreRemainingEvents()
+      }
+    }
+
+    // Create new blank app, persist cloud backups
+    val newApp = launchNewApp(
+      cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
+      cloudKeyValueStore = appTester.app.cloudKeyValueStore
+    )
+
+    // Lost App recovery from Cloud
+    newApp.app.appUiStateMachine.test(
+      Unit,
+      useVirtualTime = false,
+      testTimeout = 60.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+        .clickMoreOptionsButton()
+      awaitUntilScreenWithBody<FormBodyModel>()
+        .restoreButton.onClick.shouldNotBeNull().invoke()
+      awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
+        .signInSuccess(CloudStoreAccount1Fake)
+      awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.CLOUD_BACKUP_FOUND)
+        .clickPrimaryButton()
+      screenDecideIfShouldRotate {
+        clickPrimaryButton()
+      }
+      newApp.waitForFunds()
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        expectedBodyContentMatch = {
+          it.balanceModel.secondaryAmount != "0 sats"
+        }
+      )
+
+      cancelAndIgnoreRemainingEvents()
+    }
+  }
 })
 
 private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNotify() {
-  awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_NOT_STARTED)
+  awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_NOT_STARTED)
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
     .clickPrimaryButton()
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY)

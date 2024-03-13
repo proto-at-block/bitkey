@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.sqlite:sqlite-framework",
+    "components": [
+        {
+            "version": "2.4.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sqlite-framework-2.4.0.aar": "ca6e503322b2e60374c2b36c95c50b16709d9388fe36e80fb23de1fbf7a6eb95"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

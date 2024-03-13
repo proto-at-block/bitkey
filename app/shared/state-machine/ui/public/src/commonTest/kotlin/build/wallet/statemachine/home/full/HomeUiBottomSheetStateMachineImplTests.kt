@@ -11,6 +11,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.mobilepay.MobilePayEnabledDataMock
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachineImpl
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -77,7 +78,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
       // Initial state
       awaitItem().shouldBeNull()
       val formModel = awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>()
-      formModel.primaryButton.shouldNotBeNull().onClick()
+      formModel.clickPrimaryButton()
       homeUiBottomSheetDao.clearHomeUiBottomSheetCalls.awaitItem()
       // Emits null while it's being cleared
       awaitItem().shouldBeNull()

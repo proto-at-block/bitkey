@@ -1,5 +1,7 @@
 package build.wallet.cloud.backup
 
+import build.wallet.auth.AuthTokenScope
+import build.wallet.auth.AuthTokensRepository
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
@@ -19,6 +21,7 @@ import kotlinx.serialization.json.Json
 class CloudBackupRepositoryImpl(
   private val cloudKeyValueStore: CloudKeyValueStore,
   private val cloudBackupDao: CloudBackupDao,
+  private val authTokensRepository: AuthTokensRepository,
 ) : CloudBackupRepository {
   // Key used to store backups in cloud key-value store
   private val cloudBackupKey = "cloud-backup"
@@ -49,6 +52,7 @@ class CloudBackupRepositoryImpl(
     accountId: AccountId,
     cloudStoreAccount: CloudStoreAccount,
     backup: CloudBackup,
+    requireAuthRefresh: Boolean,
   ): Result<Unit, CloudBackupError> =
     binding {
       // Encode backup to JSON
@@ -58,6 +62,17 @@ class CloudBackupRepositoryImpl(
         }
           .mapPossibleRectifiableErrors()
           .bind()
+
+      if (requireAuthRefresh) {
+        // Make sure the cloud backup represents an account state that can authenticate.
+        authTokensRepository.refreshAccessToken(
+          f8eEnvironment = backup.f8eEnvironment,
+          accountId = accountId,
+          scope = AuthTokenScope.Recovery
+        )
+          .mapError { UnrectifiableCloudBackupError(it) }
+          .bind()
+      }
 
       // Write backup to cloud key-value store
       cloudKeyValueStore
@@ -76,6 +91,7 @@ class CloudBackupRepositoryImpl(
 
   override suspend fun clear(
     cloudStoreAccount: CloudStoreAccount,
+    clearRemoteOnly: Boolean,
   ): Result<Unit, CloudBackupError> =
     binding {
       cloudKeyValueStore
@@ -84,11 +100,13 @@ class CloudBackupRepositoryImpl(
         .logFailure(Warn) { "Error deleting cloud backup from cloud key-value store" }
         .bind()
 
-      cloudBackupDao
-        .clear()
-        .mapPossibleRectifiableErrors()
-        .logFailure(Warn) { "Error deleting local cloud backup" }
-        .bind()
+      if (!clearRemoteOnly) {
+        cloudBackupDao
+          .clear()
+          .mapPossibleRectifiableErrors()
+          .logFailure(Warn) { "Error deleting local cloud backup" }
+          .bind()
+      }
     }
 
   private fun <T> Result<T, Throwable>.mapPossibleRectifiableErrors(): Result<T, CloudBackupError> {

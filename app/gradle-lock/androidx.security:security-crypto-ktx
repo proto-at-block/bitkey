@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.security:security-crypto-ktx",
+    "components": [
+        {
+            "version": "1.1.0-alpha06",
+            "variants": [
+                {
+                    "artifacts": {
+                        "security-crypto-ktx-1.1.0-alpha06.aar": "70d71471c36c8d2e4485bfe3f351f1b652794bb80f26caeec062d3647d1db3e0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -86,13 +86,13 @@ private extension FormBodyModel {
             variant: displayVariant,
             recipientAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
             transactionDetails: .init(
-                transactionDetailModelType: TransactionDetailModelType.Regular(
+                transactionDetailModelType: TransactionDetailModelTypeRegular(
                     transferAmountText: "$20.00",
+                    totalAmountPrimaryText: "$21.36",
+                    totalAmountSecondaryText: "(0.0010 BTC)",
                     feeAmountText: "$1.36"
                 ),
-                transactionSpeedText: "~30 minutes",
-                totalAmountPrimaryText: "$21.36",
-                totalAmountSecondaryText: "(0.0010 BTC)"
+                transactionSpeedText: "~30 minutes"
             ),
             requiresHardware: requiresHardware,
             confirmButtonEnabled: confirmButtonEnabled,

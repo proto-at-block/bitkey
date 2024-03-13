@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.ui:ui-text",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-text-metadata-1.5.4.jar": "56968bd3be7d2bac45fd75252ac9b5f390601b44243d2a410926e6c0cd4f151f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

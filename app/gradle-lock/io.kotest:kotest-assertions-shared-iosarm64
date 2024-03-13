@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.kotest:kotest-assertions-shared-iosarm64",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-assertions-shared-iosarm64-5.8.0-metadata.jar": "0290cab333fef05df61b61f6d0218fc5604b10ff95d7bbcdb32f0610f28da470"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotest-assertions-shared.klib": "cfe3b9c38ec66a4942144fb9c4b17672a5eda599f0d67e9c84cf776aa86015c0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

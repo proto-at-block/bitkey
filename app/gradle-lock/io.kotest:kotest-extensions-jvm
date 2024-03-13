@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-extensions-jvm",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-extensions-jvm-5.8.0.jar": "b7b649b01ab0b50c7f855721b1cd90ceb93b7ec790c9e0d454eacd89f1822c31"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

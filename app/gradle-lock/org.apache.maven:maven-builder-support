@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.apache.maven:maven-builder-support",
+    "components": [
+        {
+            "version": "3.9.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "maven-builder-support-3.9.1.jar": "ffe515d3aebba2e5dbe5581b8effec41cb034f409e3dc1784fda680bdc46031b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

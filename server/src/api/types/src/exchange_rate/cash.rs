@@ -5,7 +5,7 @@ use serde_json::json;
 
 #[derive(Deserialize)]
 pub struct CashAppRate {
-    pub change_cents: u64,
+    pub change_cents: i64,
     pub base_value_cents: u64,
     pub currency_code: CurrencyCode,
 }

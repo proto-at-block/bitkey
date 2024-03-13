@@ -1,9 +1,11 @@
 package build.wallet.cloud.backup
 
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import com.github.michaelbull.result.Result
@@ -39,21 +41,25 @@ interface FullAccountCloudBackupRestorer {
   data class AccountRestoration(
     val activeSpendingKeyset: SpendingKeyset,
     val inactiveKeysets: ImmutableList<SpendingKeyset>,
-    val activeKeyBundle: AppKeyBundle,
-    val config: KeyboxConfig,
+    val activeAppKeyBundle: AppKeyBundle,
+    val activeHwKeyBundle: HwKeyBundle,
+    val config: FullAccountConfig,
     /** To be saved in CloudBackupDao */
     val cloudBackupForLocalStorage: CloudBackup,
+    val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ) {
     fun asKeybox(
-      localId: String,
+      keyboxId: String,
       fullAccountId: FullAccountId,
     ) = Keybox(
-      localId = localId,
+      localId = keyboxId,
       fullAccountId = fullAccountId,
       activeSpendingKeyset = activeSpendingKeyset,
       inactiveKeysets = inactiveKeysets,
-      activeKeyBundle = activeKeyBundle,
-      config = config
+      activeAppKeyBundle = activeAppKeyBundle,
+      activeHwKeyBundle = activeHwKeyBundle,
+      config = config,
+      appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
     )
   }
 }

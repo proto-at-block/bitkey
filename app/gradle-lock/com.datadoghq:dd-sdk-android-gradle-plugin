@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.datadoghq:dd-sdk-android-gradle-plugin",
+    "components": [
+        {
+            "version": "1.12.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dd-sdk-android-gradle-plugin-1.12.0.jar": "2cf6bc6137995ce6b130d8fcf592fa312c5ec7c30352b343ac6a340b72791f9b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]"
+            ]
+        }
+    ]
+}

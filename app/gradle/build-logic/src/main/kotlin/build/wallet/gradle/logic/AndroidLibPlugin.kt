@@ -1,5 +1,6 @@
 package build.wallet.gradle.logic
 
+import build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigurationPlugin
 import build.wallet.gradle.dependencylocking.DependencyLockingPlugin
 import build.wallet.gradle.logic.gradle.apply
 import build.wallet.gradle.logic.structure.namespace
@@ -19,6 +20,8 @@ internal class AndroidLibPlugin : Plugin<Project> {
       pluginManager.apply<BasePlugin>()
       pluginManager.apply<KotlinBasePlugin>()
       pluginManager.apply<DependencyLockingPlugin>()
+      pluginManager.apply<DependencyLockingCommonGroupConfigurationPlugin>()
+      pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
 
       android {
         namespace = "build.wallet.${project.namespace}"

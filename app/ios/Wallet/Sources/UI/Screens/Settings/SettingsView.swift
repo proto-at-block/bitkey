@@ -18,20 +18,22 @@ public struct SettingsView: View {
     // MARK: - View
 
     public var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
+        FixedToolbarAndScrollableContentView(
+            toolbar: {
                 ToolbarView(viewModel: viewModel.toolbarModel)
-
+                    .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
+            },
+            content: {
                 VStack(spacing: 32) {
                     ForEach(viewModel.sectionModels, id: \.self.sectionHeaderTitle) { sectionModel in
                         SectionView(model: sectionModel)
                     }
-                }.padding(.top, 16)
-
-                Spacer()
+                    Spacer()
+                        .layoutPriority(1)
+                }
+                .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
             }
-            .padding(.horizontal, 20)
-        }
+        )
         .navigationBarHidden(true)
     }
 
@@ -53,9 +55,12 @@ private struct SectionView: View {
                 VStack {
                     RowView(model: rowModel)
                         .padding(.top, 16)
+
+                    Spacer()
+                        .layoutPriority(0)
+
                     // Manually add a separator since it behaves differently in iOS 15.0 (extra divider at top)
                     // and 16.0 and doesn't extend to the edges of the cell
-                    Spacer()
                     Rectangle()
                         .fill(Color.foreground10)
                         .frame(height: 1)

@@ -65,12 +65,6 @@ class SocRecKeysDaoImpl(
   ) = binding {
     val appKey = key.key as AppKeyImpl
     val db = databaseProvider.database()
-    db.socRecKeysQueries
-      .awaitTransactionWithResult {
-        insertKey(purpose, key.publicKey)
-      }
-      .mapError { SocRecKeyError.UnableToPersistKey(it) }
-      .bind()
 
     if (appKey.privateKey != null) {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
@@ -80,6 +74,13 @@ class SocRecKeysDaoImpl(
         .mapError { SocRecKeyError.UnableToPersistKey(it) }
         .bind()
     }
+
+    db.socRecKeysQueries
+      .awaitTransactionWithResult {
+        insertKey(purpose, key.publicKey)
+      }
+      .mapError { SocRecKeyError.UnableToPersistKey(it) }
+      .bind()
   }
 
   private suspend fun getPublicKey(purpose: SocRecKeyPurpose): Result<PublicKey, SocRecKeyError> {

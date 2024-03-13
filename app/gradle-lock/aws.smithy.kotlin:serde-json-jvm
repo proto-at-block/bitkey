@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:serde-json-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "serde-json-jvm-1.0.13.jar": "2f12ed8fbd53e91cb3b2a163b5d06ae2c39f538bd74f23a678889f5be02e8675"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

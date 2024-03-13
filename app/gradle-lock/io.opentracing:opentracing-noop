@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.opentracing:opentracing-noop",
+    "components": [
+        {
+            "version": "0.32.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "opentracing-noop-0.32.0.jar": "3c58e14c2aceeb62505fb8742f03a509bcbafe46c1a2f5bee1f5e167e326b4b6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -79,10 +79,12 @@ class AppContext {
                 OSLogWriter()
             ] },
             messageSigner: MessageSignerImpl(),
+            signatureVerifier: SignatureVerifierImpl(),
             secp256k1KeyGenerator: secp256k1KeyGenerator,
             teltra: TeltraImpl(),
             hardwareAttestation: HardwareAttestationImpl(),
-            deviceOs: DeviceOs.ios
+            deviceOs: DeviceOs.ios,
+            wsmVerifier: WsmVerifierImpl()
         )
 
         self.notificationManager = NotificationManagerImpl(
@@ -141,11 +143,10 @@ class AppContext {
             inAppBrowserNavigator: InAppBrowserNavigatorImpl(appViewController: appViewController),
             nfcCommandsProvider: nfcCommandsProvider,
             nfcSessionProvider: NfcSessionProviderImpl(),
-            secp256k1KeyGenerator: Secp256k1KeyGeneratorImpl(),
             xChaCha20Poly1305: XChaCha20Poly1305Impl(),
-            secp256k1SharedSecret: Secp256k1SharedSecretImpl(),
-            hkdf: HkdfImpl(),
             xNonceGenerator: XNonceGeneratorImpl(),
+            spake2: Spake2Impl(),
+            cryptoBox: CryptoBoxImpl(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl()
         )
 

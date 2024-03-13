@@ -44,7 +44,7 @@ abstract class JvmRustTargetConfiguration
     override fun onFirstTarget() {
       configureJvmMainSourceSet {
         dependencies {
-          api(project.libs.jvm.jna.get())
+          api(project.libs.jvm.jna.asProvider().get())
         }
       }
     }

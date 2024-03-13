@@ -64,7 +64,6 @@ fun Screen(
       alertModel = model.alertModel,
       bottomSheetModel = model.bottomSheetModel,
       onTwoFingerDoubleTap = model.onTwoFingerDoubleTap,
-      onTwoFingerTripleTap = model.onTwoFingerTripleTap,
       systemUiModel = model.systemUIModel
     )
   }

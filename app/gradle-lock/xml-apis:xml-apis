@@ -1,0 +1,19 @@
+{
+    "module-identifier": "xml-apis:xml-apis",
+    "components": [
+        {
+            "version": "1.4.01",
+            "variants": [
+                {
+                    "artifacts": {
+                        "xml-apis-1.4.01.jar": "a840968176645684bb01aed376e067ab39614885f9eee44abe35a5f20ebe7fad"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -2,13 +2,10 @@ package build.wallet.ui.app.transactions
 
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
-import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
-import build.wallet.statemachine.core.Icon.LargeIconEllipsisFilled
-import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.transactions.TransactionDetailModel
+import build.wallet.statemachine.transactions.TxStatusModel
 import build.wallet.ui.app.core.form.FormScreen
 import io.kotest.core.spec.style.FunSpec
 
@@ -21,9 +18,11 @@ class TransactionDetailScreenSnapshots : FunSpec({
         model =
           TransactionDetailModel(
             feeBumpEnabled = false,
-            recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            headerIcon = LargeIconEllipsisFilled,
-            headerTitle = "Transaction pending",
+            txStatusModel = TxStatusModel.Pending(
+              recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+              isIncoming = true,
+              isLate = false
+            ),
             isLoading = false,
             onLoaded = {},
             onViewTransaction = {},
@@ -72,9 +71,11 @@ class TransactionDetailScreenSnapshots : FunSpec({
         model =
           TransactionDetailModel(
             feeBumpEnabled = true,
-            recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            headerIcon = LargeIconWarningFilled,
-            headerTitle = "Transaction delayed",
+            txStatusModel = TxStatusModel.Pending(
+              recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+              isIncoming = false,
+              isLate = true
+            ),
             isLoading = false,
             onLoaded = {},
             onViewTransaction = {},
@@ -133,9 +134,10 @@ class TransactionDetailScreenSnapshots : FunSpec({
         model =
           TransactionDetailModel(
             feeBumpEnabled = false,
-            recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            headerIcon = LargeIconCheckFilled,
-            headerTitle = "Transaction",
+            txStatusModel = TxStatusModel.Confirmed(
+              recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+              isIncoming = false
+            ),
             isLoading = false,
             onLoaded = {},
             onViewTransaction = {},
@@ -186,9 +188,10 @@ class TransactionDetailScreenSnapshots : FunSpec({
         model =
           TransactionDetailModel(
             feeBumpEnabled = false,
-            recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            headerIcon = Bitcoin,
-            headerTitle = "Transaction",
+            txStatusModel = TxStatusModel.Confirmed(
+              recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
+              isIncoming = true
+            ),
             isLoading = false,
             onLoaded = {},
             onViewTransaction = {},

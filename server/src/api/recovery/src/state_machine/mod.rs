@@ -3,7 +3,6 @@ use account::service::FetchAccountInput;
 use account::service::Service as AccountService;
 use async_trait::async_trait;
 use authn_authz::key_claims::KeyClaims;
-use authn_authz::userpool::UserPoolService;
 use comms_verification::Service as CommsVerificationService;
 use errors::ApiError;
 use notification::service::Service as NotificationService;
@@ -13,9 +12,11 @@ use time::serde::rfc3339;
 use time::OffsetDateTime;
 use tracing::{event, Level};
 use types::account::identifiers::AccountId;
+use userpool::userpool::UserPoolService;
 use utoipa::ToSchema;
 
 use crate::entities::{RecoveryStatus, RecoveryType};
+use crate::service::social::challenge::Service as SocialChallengeService;
 use crate::{
     entities::RecoveryDestination, error::RecoveryError,
     repository::Repository as RecoveryRepository,
@@ -37,6 +38,7 @@ pub struct RecoveryServices<'a> {
     pub account: &'a AccountService,
     pub recovery: &'a RecoveryRepository,
     pub notification: &'a NotificationService,
+    pub challenge: &'a SocialChallengeService,
     pub comms_verification: &'a CommsVerificationService,
 }
 
@@ -129,6 +131,7 @@ pub async fn run_recovery_fsm(
     account_service: &AccountService,
     recovery_service: &RecoveryRepository,
     notification_service: &NotificationService,
+    challenge: &SocialChallengeService,
     comms_verification_service: &CommsVerificationService,
 ) -> Result<BoxedRecoveryState, ApiError> {
     let mut state: BoxedRecoveryState = Box::new(StartRecoveryState { account_id });
@@ -137,6 +140,7 @@ pub async fn run_recovery_fsm(
         account: account_service,
         recovery: recovery_service,
         notification: notification_service,
+        challenge,
         comms_verification: comms_verification_service,
     };
 

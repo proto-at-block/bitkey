@@ -1,20 +1,18 @@
-use authn_authz::{
-    key_claims::{APP_SIG_HEADER, HW_SIG_HEADER},
-    userpool::cognito_user::CognitoUser,
-};
+use authn_authz::key_claims::{APP_SIG_HEADER, HW_SIG_HEADER};
 use http::{header, request::Builder};
-use types::account::identifiers::AccountId;
+use types::{account::identifiers::AccountId, authn_authz::cognito::CognitoUser};
+use userpool::test_utils::get_test_access_token_for_cognito_user;
 
 pub trait AuthenticatedRequest {
     fn authenticated(self, account_id: &AccountId, app_signed: bool, hw_signed: bool) -> Self;
+    fn authenticated_with_access_token(self, access_token: &str) -> Self;
     fn recovery_authenticated(self, account_id: &AccountId) -> Self;
 }
 
 impl AuthenticatedRequest for Builder {
     fn authenticated(mut self, account_id: &AccountId, app_signed: bool, hw_signed: bool) -> Self {
-        let access_token = authn_authz::test_utils::get_test_access_token_for_cognito_user(
-            &CognitoUser::Wallet(account_id.to_owned()),
-        );
+        let access_token =
+            get_test_access_token_for_cognito_user(&CognitoUser::Wallet(account_id.to_owned()));
         let headers = self.headers_mut().unwrap();
         headers.insert(
             header::AUTHORIZATION,
@@ -39,10 +37,18 @@ impl AuthenticatedRequest for Builder {
         self
     }
 
-    fn recovery_authenticated(mut self, account_id: &AccountId) -> Self {
-        let access_token = authn_authz::test_utils::get_test_access_token_for_cognito_user(
-            &CognitoUser::Recovery(account_id.to_owned()),
+    fn authenticated_with_access_token(mut self, access_token: &str) -> Self {
+        let headers = self.headers_mut().unwrap();
+        headers.insert(
+            header::AUTHORIZATION,
+            format!("Bearer {access_token}").parse().unwrap(),
         );
+        self
+    }
+
+    fn recovery_authenticated(mut self, account_id: &AccountId) -> Self {
+        let access_token =
+            get_test_access_token_for_cognito_user(&CognitoUser::Recovery(account_id.to_owned()));
         let headers = self.headers_mut().unwrap();
         headers.insert(
             header::AUTHORIZATION,

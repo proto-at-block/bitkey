@@ -2,7 +2,6 @@ package build.wallet.auth
 
 import app.cash.turbine.Turbine
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -14,7 +13,7 @@ class FullAccountCreatorMock(
     Ok(
       FullAccount(
         accountId = FullAccountId("account-id"),
-        config = FullAccountConfig.fromKeyboxConfig(KeyboxMock.config),
+        config = KeyboxMock.config,
         keybox = KeyboxMock
       )
     ),

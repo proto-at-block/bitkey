@@ -10,7 +10,7 @@ class InactiveDeviceIsEnabledFeatureFlag(
     identifier = "inactive-device-enabled",
     title = "Inactive Device",
     description = "Enables apps to log out other devices, making them inactive. Shows special UI when a device determines it is inactive.",
-    defaultFlagValue = FeatureFlagValue.BooleanFlag(value = false),
+    defaultFlagValue = FeatureFlagValue.BooleanFlag(value = true),
     featureFlagDao = featureFlagDao,
     type = FeatureFlagValue.BooleanFlag::class
   )

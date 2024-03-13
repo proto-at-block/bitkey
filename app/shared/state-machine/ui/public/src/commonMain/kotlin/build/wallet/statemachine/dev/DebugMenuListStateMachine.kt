@@ -1,5 +1,6 @@
 package build.wallet.statemachine.dev
 
+import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData
@@ -8,7 +9,7 @@ import build.wallet.statemachine.data.keybox.AccountData
  * State machine for the main debug menu list UI. The parent state machine ([DebugMenuStateMachine])
  * handles showing the list or various other screens from actions from the list.
  */
-interface DebugMenuListStateMachine : StateMachine<DebugMenuListProps, DebugMenuBodyModel>
+interface DebugMenuListStateMachine : StateMachine<DebugMenuListProps, BodyModel>
 
 /**
  * @property onSetState callback that sets the state on the parent state machine,

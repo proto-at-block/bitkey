@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-websockets-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-websockets-iossimulatorarm64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-websockets.klib": "84477c0c315d397c69160c05657fc026766baea610ec17b70c5813e8213c85a4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

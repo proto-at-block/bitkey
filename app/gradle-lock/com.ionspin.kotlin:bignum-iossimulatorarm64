@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.ionspin.kotlin:bignum-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bignum-iossimulatorarm64-0.3.8-metadata.jar": "508379cd1a4675c71ba1ee85fe219110028165e9351761901f237d72351e5d40"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "bignum.klib": "abc5de0b0d727cbecdd546037fe7b06f3f2c91a4ac1eef37f8e500530ac27d87"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -15,14 +15,15 @@ enum class GeneralEventTrackerScreenId : EventTrackerScreenId {
 
   /**
    * The customer is deciding how to access an account, either by creating a new one or
-   * recovering an existing one.
+   * choosing "More Options".
    */
   CHOOSE_ACCOUNT_ACCESS,
 
   /**
-   * We are showing the very first screen with a button for the customer to 'Get Started'.
+   * The customer is deciding how to access an account after "More Options", either by
+   * being a trusted contact or restoring a wallet.
    */
-  BITKEY_GET_STARTED,
+  ACCOUNT_ACCESS_MORE_OPTIONS,
 
   /**
    * Showing introduction for Being a Trusted Contact.

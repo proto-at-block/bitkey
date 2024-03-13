@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.lostapp
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -25,7 +25,7 @@ interface LostAppRecoveryHaveNotStartedUiStateMachine : StateMachine<LostAppReco
 
 data class LostAppRecoveryHaveNotStartedUiProps(
   val notUndergoingRecoveryData: LostAppRecoveryData.LostAppRecoveryHaveNotStartedData,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val eakAssociation: EmergencyAccessKitAssociation,
 )
 
@@ -63,7 +63,7 @@ class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
             fullAccountCloudBackupRestorationUiStateMachine.model(
               props =
                 FullAccountCloudBackupRestorationUiProps(
-                  keyboxConfig = props.keyboxConfig,
+                  fullAccountConfig = props.fullAccountConfig,
                   backup = recoveringFromCloudBackupData.cloudBackup,
                   onExit = recoveringFromCloudBackupData.rollback
                 )
@@ -75,7 +75,7 @@ class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
       is InitiatingLostAppRecoveryData ->
         initiatingLostAppRecoveryUiStateMachine.model(
           InitiatingLostAppRecoveryUiProps(
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             initiatingLostAppRecoveryData = props.notUndergoingRecoveryData
           )
         )

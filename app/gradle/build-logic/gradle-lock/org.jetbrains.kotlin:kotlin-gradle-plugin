@@ -1,0 +1,31 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-gradle-plugin-1.9.10-gradle81.jar": "02e89edf5c0c5c76458945f7cd2c692151f004392466782e8f7c0f83954b031d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        },
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-gradle-plugin-1.9.21-gradle82.jar": "464eabbe0f13121fba47d0dd77db78e04cc711418ef1fa38e059fbad740174d5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -50,7 +50,9 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
         "{}",
         response.body_string
     );
-    assert_eq!(response.body.unwrap().limit, spend_limit.clone());
+    let resp_body = response.body.unwrap();
+    let mobile_pay_config = resp_body.mobile_pay().unwrap();
+    assert_eq!(mobile_pay_config.limit, spend_limit.clone());
 
     let disable_spend_limit = SpendingLimit {
         active: false,
@@ -83,7 +85,9 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
         .await
         .unwrap();
     let get_response = client.get_mobile_pay(&account.id).await;
-    assert_eq!(get_response.status_code, StatusCode::NOT_FOUND)
+    assert_eq!(get_response.status_code, StatusCode::OK);
+    let resp_body = get_response.body.unwrap();
+    assert!(resp_body.mobile_pay().is_none());
 }
 
 struct SetupMobilePayWithTimezoneTestVector {
@@ -373,14 +377,15 @@ mod get_mobile_pay_tests {
             .await;
 
         let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
-        let response_body = get_mobile_pay_response.body.unwrap();
-        assert!(response_body.limit.active);
+        let resp_body = get_mobile_pay_response.body.unwrap();
+        let mobile_pay_config = resp_body.mobile_pay().unwrap();
+        assert!(mobile_pay_config.limit.active);
         assert_eq!(
-            response_body.available.amount,
+            mobile_pay_config.available.amount,
             SPENDING_LIMIT_SATS - PAYEE_AMOUNT_SATS
         );
-        assert_eq!(response_body.spent.amount, PAYEE_AMOUNT_SATS);
-        assert_eq!(response_body.limit, vector.spending_limit);
+        assert_eq!(mobile_pay_config.spent.amount, PAYEE_AMOUNT_SATS);
+        assert_eq!(mobile_pay_config.limit, vector.spending_limit);
     }
 
     #[tokio::test]
@@ -446,11 +451,12 @@ mod get_mobile_pay_tests {
         assert_eq!(mobile_pay_setup_response.status_code, StatusCode::OK);
 
         let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
-        let response_body = get_mobile_pay_response.body.unwrap();
-        assert!(response_body.limit.active);
-        assert_eq!(response_body.available.amount, 0);
-        assert_eq!(response_body.spent.amount, 1_100);
-        assert_eq!(response_body.limit, limit);
+        let resp_body = get_mobile_pay_response.body.unwrap();
+        let mobile_pay_config = resp_body.mobile_pay().unwrap();
+        assert!(mobile_pay_config.limit.active);
+        assert_eq!(mobile_pay_config.available.amount, 0);
+        assert_eq!(mobile_pay_config.spent.amount, 1_100);
+        assert_eq!(mobile_pay_config.limit, limit);
     }
 
     #[tokio::test]
@@ -519,8 +525,9 @@ mod get_mobile_pay_tests {
         assert_eq!(response.body.unwrap(), MobilePaySetupResponse {});
 
         let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
-        let response_body = get_mobile_pay_response.body.unwrap();
-        let spent_amount_sats = response_body.spent.amount;
+        let resp_body = get_mobile_pay_response.body.unwrap();
+        let mobile_pay_config = resp_body.mobile_pay().unwrap();
+        let spent_amount_sats = mobile_pay_config.spent.amount;
 
         // Simulate mobile pay config deletion when changing currencies.
         let response = client.delete_mobile_pay(&account.id).await;
@@ -551,12 +558,26 @@ mod get_mobile_pay_tests {
 
         // Check that we persist the spent amount in sats.
         let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
-        let response_body = get_mobile_pay_response.body.unwrap();
-        assert!(response_body.limit.active);
-        assert_eq!(response_body.spent.amount, spent_amount_sats);
+        let resp_body = get_mobile_pay_response.body.unwrap();
+        let mobile_pay_config = resp_body.mobile_pay().unwrap();
+        assert!(mobile_pay_config.limit.active);
+        assert_eq!(mobile_pay_config.spent.amount, spent_amount_sats);
         assert_eq!(
-            response_body.limit.amount.currency_code,
+            mobile_pay_config.limit.amount.currency_code,
             destination_currency_code
         )
+    }
+
+    #[tokio::test]
+    async fn returns_200_with_none_if_customer_never_set_up_mobile_pay() {
+        let bootstrap = gen_services().await;
+        let client = TestClient::new(bootstrap.router).await;
+        let (account, ..) =
+            create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+
+        let response = client.get_mobile_pay(&account.id).await;
+        assert_eq!(response.status_code, StatusCode::OK);
+        let resp_body = response.body.unwrap();
+        assert!(resp_body.mobile_pay().is_none());
     }
 }

@@ -15,7 +15,7 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
@@ -40,14 +40,16 @@ internal fun DataHero(
       )
     }
     Spacer(modifier = Modifier.height(16.dp))
-    Label(
-      text = model.title,
-      type = LabelType.Title3
-    )
-    model.subtitle?.let {
+    model.title?.let { title ->
+      Label(
+        text = title,
+        type = LabelType.Title3
+      )
+    }
+    model.subtitle?.let { subtitle ->
       Spacer(modifier = Modifier.height(4.dp))
       Label(
-        text = it,
+        text = subtitle,
         type = LabelType.Body3Bold,
         treatment = Secondary
       )
@@ -107,7 +109,7 @@ fun PreviewDataHeroWithButton() {
               leadingIcon = null,
               treatment = Primary,
               size = Footer,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             )
         )
     )

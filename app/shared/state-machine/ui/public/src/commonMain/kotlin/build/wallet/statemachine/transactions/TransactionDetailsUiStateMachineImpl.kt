@@ -20,8 +20,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
 import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.feature.FeatureFlag
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
@@ -31,9 +29,6 @@ import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
-import build.wallet.statemachine.core.Icon.LargeIconEllipsisFilled
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
@@ -69,7 +64,6 @@ class TransactionDetailsUiStateMachineImpl(
   private val clock: Clock,
   private val durationFormatter: DurationFormatter,
   private val eventTracker: EventTracker,
-  private val feeBumpEnabled: FeatureFlag<FeatureFlagValue.BooleanFlag>,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -90,8 +84,7 @@ class TransactionDetailsUiStateMachineImpl(
     val fiatString = moneyDisplayFormatter.format(fiatAmount)
     val feeBumpEnabled by remember {
       mutableStateOf(
-        feeBumpEnabled.flagValue().value.value &&
-          !props.transaction.incoming &&
+        !props.transaction.incoming &&
           props.transaction.confirmationStatus == Pending
       )
     }
@@ -226,7 +219,7 @@ class TransactionDetailsUiStateMachineImpl(
             bitcoinTransactionFeeEstimator.getFeesForTransaction(
               priorities = EstimatedTransactionPriority.entries,
               keyset = props.accountData.account.keybox.activeSpendingKeyset,
-              keyboxConfig = props.accountData.account.keybox.config,
+              fullAccountConfig = props.accountData.account.keybox.config,
               recipientAddress = recipientAddress,
               amount = BitcoinTransactionSendAmount.ExactAmount(sendAmount)
             )
@@ -244,27 +237,21 @@ class TransactionDetailsUiStateMachineImpl(
 
     return TransactionDetailModel(
       feeBumpEnabled = feeBumpEnabled,
-      recipientAddress = props.transaction.chunkedRecipientAddress(),
-      headerIcon =
-        when (props.transaction.confirmationStatus) {
-          is Confirmed ->
-            when {
-              props.transaction.incoming -> Bitcoin
-              else -> LargeIconCheckFilled
-            }
-
-          is Pending -> LargeIconEllipsisFilled
-        },
-      headerTitle =
-        when (props.transaction.confirmationStatus) {
-          is Confirmed ->
-            when {
-              props.transaction.incoming -> "Transaction received"
-              else -> "Transaction sent"
-            }
-
-          is Pending -> "Transaction pending"
-        },
+      txStatusModel = when (props.transaction.confirmationStatus) {
+        is Pending -> TxStatusModel.Pending(
+          isIncoming = props.transaction.incoming,
+          recipientAddress = props.transaction.chunkedRecipientAddress(),
+          // Some transactions may not have an estimate confirmation time, if they don't, we don't
+          // attempt to show "Transaction delayed", just "Transaction pending".
+          isLate = props.transaction.estimatedConfirmationTime?.let { estimatedTime ->
+            clock.now() > estimatedTime
+          } ?: false
+        )
+        is Confirmed -> TxStatusModel.Confirmed(
+          isIncoming = props.transaction.incoming,
+          recipientAddress = props.transaction.chunkedRecipientAddress()
+        )
+      },
       isLoading = isLoadingRates,
       onLoaded = onLoaded,
       onViewTransaction = onViewTransaction,

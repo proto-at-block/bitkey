@@ -1,6 +1,7 @@
 package build.wallet.statemachine.home.full.card
 
 import build.wallet.availability.AppFunctionalityStatus
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -25,9 +26,12 @@ import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiP
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMachine
+import build.wallet.statemachine.ui.matchers.shouldHaveSubtitle
+import build.wallet.statemachine.ui.matchers.shouldHaveTitle
+import build.wallet.statemachine.ui.matchers.shouldNotHaveSubtitle
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.shouldBe
 import kotlinx.collections.immutable.ImmutableList
 
@@ -89,7 +93,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         HardwareRecoveryStatusCardUiProps(
           lostHardwareRecoveryData =
             AwaitingNewHardwareData(
-              addHardwareKeys = { _, _ -> }
+              newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+              addHardwareKeys = { _, _, _ -> }
             ),
           onClick = {}
         ),
@@ -102,7 +107,10 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         ReplaceHardwareCardUiProps(
           onReplaceDevice = {}
         ),
-      cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(onActionClick = {})
+      cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
+        appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
+        onActionClick = {}
+      )
     )
 
   afterTest {
@@ -120,21 +128,21 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
   test("card list should have length 1 when there is a getting started card") {
     gettingStartedCardStateMachine.emitModel(TEST_CARD_MODEL)
     stateMachine.test(props) {
-      awaitItem().cards.size.shouldBe(1)
+      awaitItem().cards.shouldBeSingleton()
     }
   }
 
   test("card list should have length 1 when there is a device update card") {
     deviceUpdateCardUiStateMachine.emitModel(TEST_CARD_MODEL)
     stateMachine.test(props) {
-      awaitItem().cards.size.shouldBe(1)
+      awaitItem().cards.shouldBeSingleton()
     }
   }
 
   test("card list should have length 1 when there is a hw status card") {
     hardwareRecoveryStatusCardUiStateMachine.emitModel(TEST_CARD_MODEL)
     stateMachine.test(props) {
-      awaitItem().cards.size.shouldBe(1)
+      awaitItem().cards.shouldBeSingleton()
     }
   }
 
@@ -151,11 +159,11 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitItem().cards.let {
         it.size.shouldBe(5)
-        it[0].subtitle.shouldBeNull()
-        it[1].subtitle.shouldBe("first invitation")
-        it[2].subtitle.shouldBe("second invitation")
-        it[3].subtitle.shouldBe("third invitation")
-        it[4].subtitle.shouldBeNull()
+        it[0].shouldNotHaveSubtitle()
+        it[1].shouldHaveSubtitle("first invitation")
+        it[2].shouldHaveSubtitle("second invitation")
+        it[3].shouldHaveSubtitle("third invitation")
+        it[4].shouldNotHaveSubtitle()
       }
     }
   }
@@ -183,10 +191,9 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       )
     )
     stateMachine.test(props) {
-      with(awaitItem()) {
-        cards.size.shouldBe(1)
-        cards.first().title.string.shouldBe("HW CARD")
-      }
+      awaitItem().cards
+        .single()
+        .shouldHaveTitle("HW CARD")
     }
   }
 })

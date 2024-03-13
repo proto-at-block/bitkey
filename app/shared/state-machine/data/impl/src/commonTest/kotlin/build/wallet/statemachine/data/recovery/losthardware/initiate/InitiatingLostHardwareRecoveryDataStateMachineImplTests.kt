@@ -1,6 +1,7 @@
 package build.wallet.statemachine.data.recovery.losthardware.initiate
 
 import build.wallet.bitcoin.recovery.LostHardwareRecoveryStarterMock
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
@@ -8,13 +9,14 @@ import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryServiceMock
-import build.wallet.keybox.builder.KeyCrossBuilderMock
+import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
@@ -28,8 +30,7 @@ import okio.ByteString.Companion.encodeUtf8
 
 class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
-  val keyCrossBuilder = KeyCrossBuilderMock()
-
+  val appKeysGenerator = AppKeysGeneratorMock()
   val lostHardwareRecoveryStarter =
     LostHardwareRecoveryStarterMock(
       turbine = turbines::create
@@ -46,24 +47,26 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
 
   val stateMachine =
     InitiatingLostHardwareRecoveryDataStateMachineImpl(
-      keyCrossBuilder = keyCrossBuilder,
+      appKeysGenerator = appKeysGenerator,
       lostHardwareRecoveryStarter = lostHardwareRecoveryStarter,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       cancelDelayNotifyRecoveryService = cancelDelayNotifyRecoveryService
     )
 
   beforeTest {
+    appKeysGenerator.reset()
     lostHardwareRecoveryStarter.reset()
+    cancelDelayNotifyRecoveryService.reset()
   }
 
   test("initiating lost hardware recovery -- success") {
     stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+      awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
+
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingNewHardwareData>()
-        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock)
+        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
       }
-
-      awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
@@ -81,12 +84,12 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+      awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
+
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingNewHardwareData>()
-        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock)
+        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
       }
-
-      awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
@@ -105,12 +108,13 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(props = InitiatingLostHardwareRecoveryProps(account = FullAccountMock)) {
+      awaitItem().shouldBeTypeOf<GeneratingNewAppKeysData>()
+
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingNewHardwareData>()
-        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock)
+        it.addHardwareKeys(sealedCsekMock, HwKeyBundleMock, AppGlobalAuthKeyHwSignatureMock)
       }
 
-      awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
       awaitItem().shouldBeTypeOf<InitiatingRecoveryWithF8eData>()
 
       lostHardwareRecoveryStarter.initiateCalls.awaitItem()

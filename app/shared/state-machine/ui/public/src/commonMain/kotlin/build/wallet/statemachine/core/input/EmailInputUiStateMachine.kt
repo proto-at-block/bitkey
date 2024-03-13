@@ -26,6 +26,7 @@ data class EmailInputUiProps(
   val dataInputStyle: DataInputStyle,
   val onClose: () -> Unit,
   val previousEmail: Email? = null,
+  val subline: String? = null,
   val onEmailEntered: (
     email: Email,
     onError: (error: F8eError<AddTouchpointClientErrorCode>) -> Unit,

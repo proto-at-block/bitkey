@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.accompanist:accompanist-drawablepainter",
+    "components": [
+        {
+            "version": "0.32.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "accompanist-drawablepainter-0.32.0.aar": "680d27950f91ba186aa14522ad019dad92c702248d110ebdd6c497734abd7da0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,13 +1,12 @@
 package build.wallet.statemachine.trustedcontact
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
-import build.wallet.f8e.error.F8eError
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
-import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
+import build.wallet.recovery.socrec.AcceptInvitationCodeError
+import build.wallet.recovery.socrec.RetrieveInvitationCodeError
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -37,12 +36,13 @@ data class TrustedContactEnrollmentUiProps(
   val inviteCode: String?,
   val retrieveInvitation: suspend (
     String,
-  ) -> Result<Invitation, F8eError<RetrieveTrustedContactInvitationErrorCode>>,
+  ) -> Result<IncomingInvitation, RetrieveInvitationCodeError>,
   val acceptInvitation: suspend (
-    Invitation,
+    IncomingInvitation,
     ProtectedCustomerAlias,
-    TrustedContactIdentityKey,
-  ) -> Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>>,
+    DelegatedDecryptionKey,
+    String,
+  ) -> Result<ProtectedCustomer, AcceptInvitationCodeError>,
   val screenPresentationStyle: ScreenPresentationStyle,
   val onDone: () -> Unit,
 )

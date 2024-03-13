@@ -19,19 +19,9 @@ enum class OnboardingKeyboxStep {
   /**
    * STEP 2
    *
-   * The step of setting up notifications – push, sms and email.
+   * The step of setting up recovery methods and notifications – push, sms and email.
    *
-   * Marked as complete when all channels are acknowledged in some way
-   * (skipped or completed), and at least one of (sms, email) was completed.
+   * After recovery channels, select available channels for notifications.
    */
   NotificationPreferences,
-
-  /**
-   * STEP 3
-   *
-   * The step of setting up currency preference for fiat (and BTC - TODO(W-4764))
-   *
-   * Marked as complete when customer taps 'Done' on the preference screen.
-   */
-  CurrencyPreference,
 }

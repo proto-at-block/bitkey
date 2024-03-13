@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'sq/githubapp/client'
+token_json = Sq::GitHubApp::AccessToken.get_access_token
+puts token_json['token']

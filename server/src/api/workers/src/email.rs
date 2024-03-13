@@ -32,6 +32,7 @@ impl SendEmail {
         payload: &EmailPayload,
     ) -> Result<(), WorkerError> {
         let Touchpoint::Email {
+            id: touchpoint_id,
             email_address,
             active,
             ..
@@ -60,7 +61,13 @@ impl SendEmail {
                 let recipient_user_id = if *active {
                     IterableUserId::Account(account_id)
                 } else {
-                    IterableUserId::Touchpoint(account_id)
+                    // The only time we target an inactive touchpoint is if we're sending the initial
+                    // OTP. Since occasionally Iterable hasn't caught up with the user's subscription
+                    // status, we ensure the user is properly subscribed here before sending.
+                    self.iterable
+                        .wait_for_touchpoint_user(IterableUserId::Touchpoint(touchpoint_id))
+                        .await?;
+                    IterableUserId::Touchpoint(touchpoint_id)
                 };
 
                 self.iterable

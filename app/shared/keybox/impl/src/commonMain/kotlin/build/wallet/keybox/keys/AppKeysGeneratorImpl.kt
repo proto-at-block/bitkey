@@ -64,7 +64,7 @@ class AppKeysGeneratorImpl(
       appPrivateKeyDao.storeAppAuthKeyPair(appGlobalAuthKeypair).bind()
 
       appGlobalAuthKeypair.publicKey
-    }.logFailure { "Error generating new global app authentication key" }
+    }.logFailure { "Error generating new app global auth key" }
 
   override suspend fun generateRecoveryAuthKey(): Result<AppRecoveryAuthPublicKey, Throwable> =
     binding {
@@ -77,5 +77,5 @@ class AppKeysGeneratorImpl(
       appPrivateKeyDao.storeAppAuthKeyPair(appRecoveryAuthKeypair).bind()
 
       appRecoveryAuthKeypair.publicKey
-    }.logFailure { "Error generating new recovery app authentication key" }
+    }.logFailure { "Error generating new recovery app auth key" }
 }

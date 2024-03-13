@@ -18,7 +18,6 @@ import okio.ByteString.Companion.decodeHex
  */
 @Serializable
 internal data class AppKeySurrogate(
-  val curveType: CurveType,
   val publicKey: String,
   val privateKeyHex: String,
 )
@@ -30,7 +29,8 @@ internal object AppKeySerializer : KSerializer<AppKey> {
   override fun deserialize(decoder: Decoder): AppKey {
     val surrogate = decoder.decodeSerializableValue(AppKeySurrogate.serializer())
     return AppKeyImpl(
-      curveType = surrogate.curveType,
+      // TODO: Move curve type into generics
+      curveType = CurveType.SECP256K1,
       publicKey = PublicKey(surrogate.publicKey),
       privateKey = PrivateKey(surrogate.privateKeyHex.decodeHex())
     )
@@ -43,7 +43,6 @@ internal object AppKeySerializer : KSerializer<AppKey> {
     require(value is AppKeyImpl)
     val surrogate =
       AppKeySurrogate(
-        curveType = value.curveType,
         publicKey = value.publicKey.value,
         privateKeyHex = value.privateKey!!.bytes.hex()
       )

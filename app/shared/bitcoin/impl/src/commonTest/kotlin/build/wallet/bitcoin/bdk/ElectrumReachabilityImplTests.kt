@@ -37,7 +37,8 @@ class ElectrumReachabilityImplTests : FunSpec({
         BdkBlockchainMock(
           blockHeightResult = Err(BdkError.Electrum(null, null)),
           blockHashResult = Err(BdkError.Electrum(null, null)),
-          broadcastResult = Err(BdkError.Electrum(null, null))
+          broadcastResult = Err(BdkError.Electrum(null, null)),
+          feeRateResult = Err(BdkError.Electrum(null, null))
         )
 
       bdkBlockchainProvider.blockchainResult = Ok(blockchain)
@@ -60,7 +61,8 @@ class ElectrumReachabilityImplTests : FunSpec({
         BdkBlockchainMock(
           blockHashResult = Ok("abc"),
           broadcastResult = Err(BdkError.Electrum(null, null)),
-          blockHeightResult = Err(BdkError.Electrum(null, null))
+          blockHeightResult = Err(BdkError.Electrum(null, null)),
+          feeRateResult = Err(BdkError.Electrum(null, null))
         )
 
       bdkBlockchainProvider.blockchainResult = Ok(blockchain)

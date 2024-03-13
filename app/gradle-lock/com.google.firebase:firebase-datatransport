@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-datatransport",
+    "components": [
+        {
+            "version": "18.1.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-datatransport-18.1.7.aar": "5f23d5750ae248dca2312c5963aa89f851be36132fb89f15114c3585e605ff08"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

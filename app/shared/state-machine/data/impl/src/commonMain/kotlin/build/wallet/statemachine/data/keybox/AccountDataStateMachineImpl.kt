@@ -37,7 +37,7 @@ import build.wallet.statemachine.data.account.create.OnboardConfigDataStateMachi
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoLongerRecoveringFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.SomeoneElseIsRecoveringFullAccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachine
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
@@ -87,7 +87,7 @@ class AccountDataStateMachineImpl(
                   account = account,
                   currencyPreferenceData = props.currencyPreferenceData,
                   accountUpgradeOnboardConfigData = onboardConfigData,
-                  accountUpgradeTemplateKeyboxConfigData = props.templateKeyboxConfigData
+                  accountUpgradeTemplateFullAccountConfigData = props.templateFullAccountConfigData
                 )
             )
 
@@ -96,7 +96,7 @@ class AccountDataStateMachineImpl(
             when (activeRecoveryResult) {
               is Ok -> {
                 maybePollRecoveryStatus(
-                  templateKeyboxConfigData = props.templateKeyboxConfigData,
+                  templateFullAccountConfigData = props.templateFullAccountConfigData,
                   activeKeybox = account?.keybox,
                   activeRecovery = activeRecoveryResult.value
                 )
@@ -113,12 +113,12 @@ class AccountDataStateMachineImpl(
 
               is Err -> {
                 maybePollRecoveryStatus(
-                  templateKeyboxConfigData = props.templateKeyboxConfigData,
+                  templateFullAccountConfigData = props.templateFullAccountConfigData,
                   activeKeybox = account?.keybox,
                   activeRecovery = NoActiveRecovery
                 )
                 NoActiveAccountData(
-                  templateKeyboxConfigData = props.templateKeyboxConfigData,
+                  templateFullAccountConfigData = props.templateFullAccountConfigData,
                   activeRecovery = null,
                   currencyPreferenceData = props.currencyPreferenceData,
                   onboardConfigData = onboardConfigData
@@ -129,7 +129,7 @@ class AccountDataStateMachineImpl(
 
           else -> {
             NoActiveAccountData(
-              templateKeyboxConfigData = props.templateKeyboxConfigData,
+              templateFullAccountConfigData = props.templateFullAccountConfigData,
               activeRecovery = null,
               currencyPreferenceData = props.currencyPreferenceData,
               onboardConfigData = onboardConfigData
@@ -140,7 +140,7 @@ class AccountDataStateMachineImpl(
 
       is Err ->
         NoActiveAccountData(
-          templateKeyboxConfigData = props.templateKeyboxConfigData,
+          templateFullAccountConfigData = props.templateFullAccountConfigData,
           activeRecovery = null,
           currencyPreferenceData = props.currencyPreferenceData,
           onboardConfigData = onboardConfigData
@@ -197,7 +197,7 @@ class AccountDataStateMachineImpl(
                     fullAccountId = activeAccount.accountId
                   )
               ),
-            keyboxConfig = activeAccount.keybox.config,
+            fullAccountConfig = activeAccount.keybox.config,
             fullAccountId = activeAccount.accountId
           )
         } else {
@@ -233,7 +233,7 @@ class AccountDataStateMachineImpl(
     return when (activeAccount) {
       null -> {
         NoActiveAccountData(
-          templateKeyboxConfigData = props.templateKeyboxConfigData,
+          templateFullAccountConfigData = props.templateFullAccountConfigData,
           activeRecovery = activeRecovery as? StillRecovering,
           currencyPreferenceData = props.currencyPreferenceData,
           onboardConfigData = onboardConfigData
@@ -282,7 +282,7 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun NoActiveAccountData(
-    templateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     activeRecovery: StillRecovering?,
     currencyPreferenceData: CurrencyPreferenceData,
     onboardConfigData: LoadedOnboardConfigData,
@@ -290,7 +290,7 @@ class AccountDataStateMachineImpl(
     val scope = rememberStableCoroutineScope()
     return noActiveAccountDataStateMachine.model(
       NoActiveAccountDataProps(
-        templateKeyboxConfigData = templateKeyboxConfigData,
+        templateFullAccountConfigData = templateFullAccountConfigData,
         existingRecovery = activeRecovery,
         currencyPreferenceData = currencyPreferenceData,
         newAccountOnboardConfigData = onboardConfigData,
@@ -305,7 +305,7 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun maybePollRecoveryStatus(
-    templateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     activeKeybox: Keybox?,
     activeRecovery: Recovery,
   ) {
@@ -322,7 +322,7 @@ class AccountDataStateMachineImpl(
       is ServerDependentRecovery ->
         pollRecoveryStatus(
           fullAccountId = activeRecovery.serverRecovery.fullAccountId,
-          f8eEnvironment = templateKeyboxConfigData.config.f8eEnvironment
+          f8eEnvironment = templateFullAccountConfigData.config.f8eEnvironment
         )
 
       else -> {}

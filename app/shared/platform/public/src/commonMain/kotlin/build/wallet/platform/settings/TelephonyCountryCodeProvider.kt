@@ -14,3 +14,10 @@ interface TelephonyCountryCodeProvider {
    */
   fun countryCode(): String
 }
+
+/**
+ * Compares supplied countryCode with the value returned from the device. Ignore case, as we
+ * don't know if this is guaranteed.
+ */
+fun TelephonyCountryCodeProvider.isCountry(countryCode: String) =
+  countryCode().equals(other = countryCode, ignoreCase = true)

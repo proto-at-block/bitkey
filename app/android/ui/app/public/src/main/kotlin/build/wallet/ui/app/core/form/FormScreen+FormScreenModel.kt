@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import build.wallet.android.ui.core.R
 import build.wallet.platform.web.BrowserNavigator
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
@@ -54,7 +55,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.FormMainContentModel.Timer
 import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
 import build.wallet.statemachine.core.form.FormMainContentModel.WebView
-import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.app.account.toWalletTheme
 import build.wallet.ui.app.core.fadingEdge
@@ -78,6 +78,7 @@ import build.wallet.ui.compose.thenIf
 import build.wallet.ui.data.DataGroup
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
+import build.wallet.ui.model.label.CallToActionModel
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -126,11 +127,7 @@ fun FormScreen(model: FormBodyModel) {
           {
             Header(
               model = header,
-              headlineLabelType =
-                when (model.renderContext) {
-                  Screen -> LabelType.Title1
-                  RenderContext.Sheet -> LabelType.Title2
-                }
+              headlineLabelType = LabelType.Title1
             )
           }
         },
@@ -170,19 +167,17 @@ fun FormScreen(model: FormBodyModel) {
           model.primaryButton != null || model.secondaryButton != null -> {
             {
               model.ctaWarning?.let {
-                Label(
-                  modifier = Modifier.fillMaxWidth(),
-                  text = it,
-                  type = LabelType.Body4Regular,
-                  treatment = LabelTreatment.Secondary,
-                  alignment = TextAlign.Center
-                )
+                CallToActionLabel(model = it)
                 Spacer(Modifier.height(12.dp))
               }
               model.primaryButton?.toFooterButton()
               model.secondaryButton?.let { secondaryButton ->
                 Spacer(Modifier.height(16.dp))
                 secondaryButton.toFooterButton()
+              }
+              model.tertiaryButton?.let { tertiaryButton ->
+                Spacer(Modifier.height(16.dp))
+                tertiaryButton.toFooterButton()
               }
             }
           }
@@ -200,6 +195,15 @@ private fun Explainer(statements: ImmutableList<Statement>) {
       Statement(
         icon = item.leadingIcon,
         title = item.title,
+        onClick = (item.body as? LabelModel.LinkSubstringModel)?.let { linkedLabelModel ->
+          { clickPosition ->
+            linkedLabelModel.linkedSubstrings.find { ls ->
+              ls.range.contains(clickPosition)
+            }?.let { matchedLs ->
+              matchedLs.onClick()
+            }
+          }
+        },
         body =
           when (val body = item.body) {
             is StringModel -> AnnotatedString(body.string)
@@ -218,6 +222,18 @@ private fun Explainer(statements: ImmutableList<Statement>) {
                   )
                 }
               }
+            is LabelModel.LinkSubstringModel -> {
+              buildAnnotatedString {
+                append(body.string)
+                body.linkedSubstrings.forEach { linkedSubstring ->
+                  addStyle(
+                    style = SpanStyle(color = WalletTheme.colors.primary),
+                    start = linkedSubstring.range.first,
+                    end = linkedSubstring.range.last + 1
+                  )
+                }
+              }
+            }
           },
         tint =
           when (item.treatment) {
@@ -392,6 +408,20 @@ private fun Picker(model: Picker) {
       model = model.fieldModel
     )
   }
+}
+
+@Composable
+private fun CallToActionLabel(model: CallToActionModel) {
+  Label(
+    modifier = Modifier.fillMaxWidth(),
+    text = model.text,
+    type = LabelType.Body4Regular,
+    treatment = when (model.treatment) {
+      CallToActionModel.Treatment.SECONDARY -> LabelTreatment.Secondary
+      CallToActionModel.Treatment.WARNING -> LabelTreatment.Warning
+    },
+    alignment = TextAlign.Center
+  )
 }
 
 @SuppressLint("ComposableNaming")

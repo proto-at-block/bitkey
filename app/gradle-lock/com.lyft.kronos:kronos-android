@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.lyft.kronos:kronos-android",
+    "components": [
+        {
+            "version": "0.0.1-alpha11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kronos-android-0.0.1-alpha11.aar": "8875e0260e770116e8b49a7c3856de8faa3d14c343d80279b27a748300937360"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,8 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.inviteflow
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
@@ -43,10 +41,4 @@ class InviteTrustedContactFlowUiStateMachineImpl(
         )
     )
   }
-}
-
-private sealed interface UiState {
-  data object AddingTrustedContact : UiState
-
-  data object Failure : UiState
 }

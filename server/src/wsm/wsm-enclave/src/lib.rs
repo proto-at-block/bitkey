@@ -17,11 +17,10 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use bdk::bitcoin::hashes::hex::ToHex;
-use bdk::bitcoin::hashes::Hash;
+use bdk::bitcoin::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
+use bdk::bitcoin::hashes::{sha256, Hash};
+use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::secp256k1::{ecdsa::Signature, All, Message, Secp256k1, SecretKey};
-use bdk::bitcoin::util::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
-use bdk::bitcoin::util::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::Network;
 use bdk::database::MemoryDatabase;
 use bdk::descriptor::Segwitv0;
@@ -36,11 +35,15 @@ use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
+use bdk::bitcoin::base58::from_check;
+use wsm_common::bitcoin::Network::Signet;
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::SignedPsbt;
 use wsm_common::messages::enclave::{
     CreateResponse, CreatedKey, DeriveResponse, DerivedKey, EnclaveCreateKeyRequest,
-    EnclaveDeriveKeyRequest, EnclaveSignRequest, LoadSecretRequest, LoadedSecret,
+    EnclaveDeriveKeyRequest, EnclaveSignRequest, EnclaveSignWithIntegrityKeyRequest,
+    EnclaveSignWithIntegrityKeyResponse, KmsRequest, LoadIntegrityKeyRequest, LoadSecretRequest,
+    LoadedSecret,
 };
 use wsm_common::messages::TEST_KEY_IDS;
 use wsm_common::{
@@ -49,17 +52,18 @@ use wsm_common::{
 };
 
 use crate::aad::Aad;
+use crate::compat::{BitcoinDerivationPath, BitcoinNetwork, BitcoinV30ExtendedPubKey};
 use crate::kms_tool::{KmsTool, KmsToolError};
 use crate::settings::Settings;
 
 mod aad;
+mod compat;
 mod kms_tool;
 mod settings;
 
-// The WSM test integrity key is not encrypted, and is not used in production.
-const TEST_INTEGRITY_KEY_B64: &str = include_str!("test_integrity_key.b64");
-
 const GLOBAL_CONTEXT: &[u8] = b"WsmIntegrityV1";
+const INTEGRITY_KEY_ID: &str = "integrity";
+const TEST_INTEGRITY_KEY_B64: &str = include_str!("../../keys/test_integrity_key.b64");
 
 type KeyStore = Arc<RwLock<HashMap<String, KeySpec>>>;
 
@@ -93,6 +97,7 @@ pub enum WsmError {
         message: String,
         log_buffer: LogBuffer,
     },
+    IntegrityKeyNotLoaded(String, LogBuffer),
 }
 
 #[derive(Serialize)]
@@ -141,6 +146,13 @@ impl IntoResponse for WsmError {
                 message,
                 log_buffer,
             },
+            WsmError::IntegrityKeyNotLoaded(message, log_buffer) => {
+                ErrorReponse::GenericErrorResponse {
+                    code: StatusCode::PRECONDITION_REQUIRED,
+                    message,
+                    log_buffer,
+                }
+            }
             WsmError::ServerError {
                 message,
                 log_buffer,
@@ -201,12 +213,7 @@ pub fn sign_with_integrity_key(
     hash_input.extend_from_slice(context);
     hash_input.extend_from_slice(data);
 
-    let digest = bitcoin::hashes::sha256::Hash::hash(&hash_input);
-    let message = Message::from_slice(&digest).map_err(|e| WsmError::ServerError {
-        message: format!("Failed to create secp256k1 message: {}", e),
-        log_buffer: log_buffer.clone(),
-    })?;
-
+    let message = Message::from_hashed_data::<sha256::Hash>(&hash_input);
     Ok(secp.sign_ecdsa(&message, &secret_key))
 }
 
@@ -225,7 +232,19 @@ async fn load_secret(
     Json(request): Json<LoadSecretRequest>,
 ) -> Result<Json<LoadedSecret>, WsmError> {
     let mut log_buffer = LogBuffer::new();
-    let decrypted_key = kms_tool.fetch_dek_from_kms(&request, &mut log_buffer)?;
+
+    // See note in LoadSecretRequest about why this is bit redundant.
+    let kms_request = KmsRequest {
+        region: request.region.clone(),
+        proxy_port: request.proxy_port.clone(),
+        akid: request.akid.clone(),
+        skid: request.skid.clone(),
+        session_token: request.session_token.clone(),
+        ciphertext: request.ciphertext.clone(),
+        cmk_id: request.cmk_id.clone(),
+    };
+
+    let decrypted_key = kms_tool.fetch_secret_from_kms(&kms_request, &mut log_buffer)?;
     let mut ks = keystore.write().await;
     if let Some(oldval) = ks.get(&request.dek_id) {
         if oldval != &decrypted_key {
@@ -255,25 +274,87 @@ async fn load_secret(
     }))
 }
 
+async fn load_integrity_key(
+    State(keystore): State<KeyStore>,
+    State(kms_tool): State<Arc<KmsTool>>,
+    Json(request): Json<LoadIntegrityKeyRequest>,
+) -> Result<Json<LoadedSecret>, WsmError> {
+    let mut ks = keystore.write().await;
+
+    // Check keystore to see if the key is already loaded.
+    if ks.contains_key(INTEGRITY_KEY_ID) {
+        return Ok(Json(LoadedSecret {
+            status: "Ok!".to_string(),
+        }));
+    }
+
+    let mut log_buffer = LogBuffer::new();
+
+    let key = if request.use_test_key {
+        BASE64
+            .decode(TEST_INTEGRITY_KEY_B64)
+            .expect("Could not decode test integrity key")
+    } else {
+        let der_encoded = kms_tool.fetch_secret_from_kms(&request.request, &mut log_buffer)?;
+        decode_der_secp256k1_private_key(&der_encoded, log_buffer.clone())?
+    };
+
+    ks.insert(INTEGRITY_KEY_ID.to_string(), key);
+
+    Ok(Json(LoadedSecret {
+        status: "Ok!".to_string(),
+    }))
+}
+
+async fn get_integrity_key(
+    keystore: &KeyStore,
+    log_buffer: &mut LogBuffer,
+) -> Result<Vec<u8>, WsmError> {
+    keystore
+        .read()
+        .await
+        .get(INTEGRITY_KEY_ID)
+        .cloned()
+        .ok_or_else(|| {
+            WsmError::IntegrityKeyNotLoaded(
+                "Integrity key not found in keystore".to_string(),
+                log_buffer.clone(),
+            )
+        })
+}
+
 async fn sign_psbt(
     State(keystore): State<KeyStore>,
     Json(request): Json<EnclaveSignRequest>,
 ) -> Result<Json<SignedPsbt>, WsmError> {
     let mut log_buffer = LogBuffer::new();
+
+    // Read request from WSM API and coerce to v30 Network.
+    let network = request
+        .network
+        .map(|n| BitcoinNetwork::from(n).as_v30_network());
+
     let xprv = decode_wrapped_xprv(
         keystore,
         &request.wrapped_xprv,
         &request.key_nonce,
         &request.dek_id,
         &request.root_key_id,
-        request.network,
+        network,
         &mut log_buffer,
     )
     .await?;
     let secp = Secp256k1::new();
-    let derivation_path = DerivationPath::from(WSMSupportedDomain::Spend(
-        request.network.unwrap_or(Network::Signet).into(),
-    ));
+
+    let derivation_path = BitcoinDerivationPath::from(
+        // DerivationPath::from is only supported from wsm-common, which expects a 0.29
+        // DerivationPath, so we initialize one here.
+        wsm_common::bitcoin::util::bip32::DerivationPath::from(WSMSupportedDomain::Spend(
+            request.network.unwrap_or(Signet).into(),
+        )),
+    )
+    .as_v30_path();
+
     let derived_xprv = try_with_log_and_error!(
         log_buffer,
         WsmError::ServerError,
@@ -322,7 +403,7 @@ async fn sign_psbt(
         Wallet::new(
             request.descriptor.as_str(),
             Some(request.change_descriptor.as_str()),
-            request.network.unwrap_or(Network::Signet),
+            network.unwrap_or(Network::Signet),
             MemoryDatabase::default(),
         )
     )?;
@@ -364,6 +445,7 @@ fn descriptor_key_to_signer(
                 Arc::new(SignerWrapper::new(dsp.key, signer_context))
             }
             DescriptorSecretKey::XPrv(xkey) => Arc::new(SignerWrapper::new(xkey, signer_context)),
+            _ => unimplemented!("Multisig descriptors not yet supported"),
         },
     };
     Ok(signer)
@@ -374,40 +456,42 @@ async fn create_key(
     Json(request): Json<EnclaveCreateKeyRequest>,
 ) -> Result<Json<CreateResponse>, WsmError> {
     let keystore = route_state.keystore.clone();
-
     let mut log_buffer = LogBuffer::new();
+
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await;
+
     let secp = Secp256k1::new();
-    let (xprv, xpub) = create_root_key_internal(
-        &request.root_key_id,
-        request.network,
-        &secp,
-        &mut log_buffer,
-    )
-    .await?;
+
+    // Read request from WSM API and coerce to v30 Network.
+    let network = BitcoinNetwork::from(request.network).as_v30_network();
+
+    let (xprv, xpub) =
+        create_root_key_internal(&request.root_key_id, network, &secp, &mut log_buffer).await?;
     let datakey = get_dek(&request.dek_id, keystore, &mut log_buffer).await?;
     let (wrapped_xprv, wrapped_xprv_nonce) = encrypt_root_key(
         &request.root_key_id,
         &datakey,
         &xprv,
-        Some(request.network),
+        Some(network),
         &mut log_buffer,
     )?;
+
     let keysource = (xpub.fingerprint(), DerivationPath::master());
     let dpub = calculate_descriptor_pubkey(keysource, &xpub, &mut log_buffer)?;
-    let dpub_sig = sign_with_integrity_key(
-        secp,
-        &mut log_buffer,
-        &route_state.integrity_key,
-        b"CreateKeyV1",
-        dpub.as_bytes(),
-    )?
-    .serialize_compact()
-    .to_hex();
+
+    let xpub_sig = if let Ok(key) = integrity_key {
+        hex::encode(
+            sign_with_integrity_key(secp, &mut log_buffer, &key, b"CreateKeyV1", &xpub.encode())?
+                .serialize_compact(),
+        )
+    } else {
+        "".to_string()
+    };
 
     Ok(Json(CreateResponse::Single(CreatedKey {
-        xpub,
+        xpub: BitcoinV30ExtendedPubKey(xpub).into(),
         dpub,
-        dpub_sig,
+        xpub_sig,
         wrapped_xprv,
         wrapped_xprv_nonce,
     })))
@@ -418,44 +502,59 @@ async fn derive_key(
     Json(request): Json<EnclaveDeriveKeyRequest>,
 ) -> Result<Json<DeriveResponse>, WsmError> {
     let keystore = route_state.keystore.clone();
-
     let mut log_buffer = LogBuffer::new();
+
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await;
+
     let secp = Secp256k1::new();
+    // Read request from WSM API and coerce to v30 Network.
+    let network = request
+        .network
+        .map(|n| BitcoinNetwork::from(n).as_v30_network());
+
     let xprv = decode_wrapped_xprv(
         keystore.clone(),
         &request.wrapped_xprv,
         &request.key_nonce,
         &request.dek_id,
         &request.key_id,
-        request.network,
+        network,
         &mut log_buffer,
     )
     .await?;
     let root_xpub = ExtendedPubKey::from_priv(&secp, &xprv);
 
+    // Read request from WSM API and coerce to v30 DerivationPath.
+    let derivation_path = BitcoinDerivationPath::from(request.derivation_path).as_v30_path();
     let derived_xprv = try_with_log_and_error!(
         log_buffer,
         WsmError::ServerError,
-        xprv.derive_priv(&secp, &request.derivation_path)
+        xprv.derive_priv(&secp, &derivation_path)
     )?;
     let derived_xpub = ExtendedPubKey::from_priv(&secp, &derived_xprv);
 
-    let keysource = (root_xpub.fingerprint(), request.derivation_path.clone());
+    let keysource = (root_xpub.fingerprint(), derivation_path.clone());
     let dpub = calculate_descriptor_pubkey(keysource, &derived_xpub, &mut log_buffer)?;
-    let dpub_sig = sign_with_integrity_key(
-        secp,
-        &mut log_buffer,
-        &route_state.integrity_key,
-        b"DeriveKeyV1",
-        dpub.as_bytes(),
-    )?
-    .serialize_compact()
-    .to_hex();
+
+    let xpub_sig = if let Ok(key) = integrity_key {
+        hex::encode(
+            sign_with_integrity_key(
+                secp,
+                &mut log_buffer,
+                &key,
+                b"DeriveKeyV1",
+                &derived_xpub.encode(),
+            )?
+            .serialize_compact(),
+        )
+    } else {
+        "".to_string()
+    };
 
     Ok(Json(DeriveResponse(DerivedKey {
-        xpub: derived_xpub,
+        xpub: BitcoinV30ExtendedPubKey(derived_xpub).into(),
         dpub,
-        dpub_sig,
+        xpub_sig,
     })))
 }
 
@@ -471,6 +570,45 @@ async fn create_root_key_internal(
     wsm_log!(log_buffer, "Generated new root xpub");
 
     Ok((xprv, xpub))
+}
+
+/// Temporary endpoint to sign a hash with the integrity key to backfill the DDB.
+async fn backfill_sign(
+    State(route_state): State<RouteState>,
+    Json(request): Json<EnclaveSignWithIntegrityKeyRequest>,
+) -> Result<Json<EnclaveSignWithIntegrityKeyResponse>, WsmError> {
+    let mut log_buffer = LogBuffer::new();
+
+    wsm_log!(log_buffer, "About to backfill sign");
+
+    // Base58-check decode
+    let xpub_bytes = from_check(&request.data).map_err(|_| {
+        WsmError::BadRequest(
+            "failed to base58 check decode".to_string(),
+            log_buffer.clone(),
+        )
+    })?;
+    if xpub_bytes.len() != 78 {
+        return Err(WsmError::BadRequest(
+            format!("xpub bytes was the wrong length {}", xpub_bytes.len()),
+            log_buffer.clone(),
+        ));
+    }
+
+    let secp = Secp256k1::new();
+    let keystore = route_state.keystore.clone();
+    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await?;
+
+    let signature = sign_with_integrity_key(
+        secp,
+        &mut log_buffer,
+        &integrity_key,
+        b"CreateKeyV1",
+        &xpub_bytes,
+    )?;
+    Ok(Json(EnclaveSignWithIntegrityKeyResponse {
+        signature: hex::encode(signature.serialize_compact()),
+    }))
 }
 
 fn encrypt_root_key(
@@ -620,20 +758,56 @@ fn get_nonce_bytes(msg_seed: &str) -> [u8; NONCE_SIZE] {
     rng.fill_bytes(&mut random_junk);
     // nonce <- h(seed || random)
     let nonce = bitcoin::hashes::sha256::Hash::hash(
-        format!("{}{}", msg_seed, random_junk.to_hex()).as_ref(),
+        format!("{}{}", msg_seed, hex::encode(random_junk)).as_ref(),
     );
     // aes256-gcm nonces are 96 bits = 12 bytes
     let mut nonce_bytes = [0u8; NONCE_SIZE];
-    let read_bytes = nonce.as_ref().take(12).read(&mut nonce_bytes).unwrap();
+    let nonce_slice: &[u8] = nonce.as_ref();
+    let read_bytes = nonce_slice.take(12).read(&mut nonce_bytes).unwrap();
     assert_eq!(read_bytes, NONCE_SIZE);
     nonce_bytes
+}
+
+fn decode_der_secp256k1_private_key(
+    der_bytes: &[u8],
+    log_buffer: LogBuffer,
+) -> Result<Vec<u8>, WsmError> {
+    // ASN.1 like this:
+    //      PrivateKeyInfo SEQUENCE (3 elem)
+    //       version Version INTEGER 0
+    //       privateKeyAlgorithm AlgorithmIdentifier SEQUENCE (2 elem)
+    //         algorithm OBJECT IDENTIFIER 1.2.840.10045.2.1 ecPublicKey (ANSI X9.62 public key type)
+    //         parameters ANY OBJECT IDENTIFIER 1.3.132.0.10 secp256k1 (SECG (Certicom) named elliptic curve)
+    //       privateKey PrivateKey OCTET STRING (118 byte) 30740201010420A0A444B1E7E9FE764261FF4B318F22E50B7E70F7BDA6864DF24F691…
+    //         SEQUENCE (4 elem)
+    //           INTEGER 1
+    //           OCTET STRING (32 byte) A0A444B1E7E9FE764261FF4B318F22E50B7E70F7BDA6864DF24F6914F981551D
+    //           [0] (1 elem)
+    //             OBJECT IDENTIFIER 1.3.132.0.10 secp256k1 (SECG (Certicom) named elliptic curve)
+    //      [1] (1 elem)
+
+    // https://lapo.it/asn1js/#MIGNAgEAMBAGByqGSM49AgEGBSuBBAAKBHYwdAIBAQQgoKREsefp_nZCYf9LMY8i5Qt-cPe9poZN8k9pFPmBVR2gBwYFK4EEAAqhRANCAARr8ZChHCFZ82wDdFtbxG2HD90n7DaTrbp1Hw0LgwxM7dGiURhoj8ZSTI46yPclkrG40lsBMSOqGwstyvr0cjZ3
+
+    let expected_prefix: [u8; 33] = [
+        0x30, 0x81, 0x8D, 0x02, 0x01, 0x00, 0x30, 0x10, 0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D,
+        0x02, 0x01, 0x06, 0x05, 0x2B, 0x81, 0x04, 0x00, 0x0A, 0x04, 0x76, 0x30, 0x74, 0x02, 0x01,
+        0x01, 0x04, 0x20,
+    ];
+
+    if der_bytes[0..33] != expected_prefix {
+        return Err(WsmError::ServerError {
+            message: "Invalid DER prefix".to_string(),
+            log_buffer,
+        });
+    }
+
+    Ok(der_bytes[33..(32 + 33)].to_vec())
 }
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState {
     keystore: KeyStore,
     kms_tool: Arc<KmsTool>,
-    integrity_key: Vec<u8>,
 }
 
 impl From<RouteState> for Router {
@@ -642,9 +816,11 @@ impl From<RouteState> for Router {
             .route("/", get(index))
             .route("/health-check", get(health_check))
             .route("/load-secret", post(load_secret))
+            .route("/load-integrity-key", post(load_integrity_key))
             .route("/sign-psbt", post(sign_psbt))
             .route("/create-key", post(create_key))
             .route("/derive-key", post(derive_key))
+            .route("/backfill-sign", post(backfill_sign))
             .with_state(state)
     }
 }
@@ -653,21 +829,9 @@ pub async fn axum() -> (TcpListener, Router) {
     let settings = Settings::new().unwrap();
     let kms_tool = KmsTool::new(settings.run_mode);
 
-    let integrity_key = if settings.use_test_integrity_key {
-        BASE64
-            .decode(TEST_INTEGRITY_KEY_B64)
-            .expect("Could not decode test integrity key")
-    } else {
-        // TODO(W-5884): Replace with real key
-        BASE64
-            .decode(TEST_INTEGRITY_KEY_B64)
-            .expect("Could not decode production integrity key")
-    };
-
     let router = Router::from(RouteState {
         keystore: new_keystore(),
         kms_tool: Arc::new(kms_tool),
-        integrity_key,
     });
 
     let addr = SocketAddr::from((settings.address, settings.port));
@@ -685,15 +849,20 @@ mod tests {
     use axum::routing::get;
     use axum::{http, Router};
     use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-    use bdk::bitcoin::Network;
+
+    use bdk::bitcoin::hashes::{sha256, Hash};
+    use bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
+
     use http_body_util::BodyExt;
-    use tower::ServiceExt; // for `collect`
+    use tower::ServiceExt;
+    use wsm_common::bitcoin::Network::Signet; // for `collect`
 
     use wsm_common::bitcoin::util::bip32::DerivationPath;
     use wsm_common::derivation::{CoinType, WSMSupportedDomain};
     use wsm_common::enclave_log::LogBuffer;
     use wsm_common::messages::enclave::{
-        CreatedKey, DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, LoadSecretRequest,
+        CreatedKey, DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, KmsRequest,
+        LoadIntegrityKeyRequest, LoadSecretRequest,
     };
     use wsm_common::messages::{
         TEST_CMK_ID, TEST_DEK_ID, TEST_DPUB_SPEND, TEST_KEY_ID, TEST_XPUB, TEST_XPUB_SPEND,
@@ -701,7 +870,8 @@ mod tests {
     use wsm_common::wsm_log;
 
     use crate::{
-        kms_tool::KmsTool, new_keystore, settings::RunMode, RouteState, TEST_INTEGRITY_KEY_B64,
+        decode_der_secp256k1_private_key, kms_tool::KmsTool, new_keystore, settings::RunMode,
+        RouteState,
     };
 
     fn get_client() -> Router {
@@ -710,9 +880,6 @@ mod tests {
         Router::from(RouteState {
             keystore: new_keystore(),
             kms_tool: Arc::new(kms_tool),
-            integrity_key: BASE64
-                .decode(TEST_INTEGRITY_KEY_B64)
-                .expect("Could not decode test integrity key"),
         })
     }
 
@@ -739,6 +906,30 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    async fn load_test_integrity_key(client: Router) {
+        client
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/load-integrity-key")
+                    .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref())
+                    .body(Body::from(
+                        serde_json::to_vec(&LoadIntegrityKeyRequest {
+                            request: KmsRequest {
+                                ciphertext: "doesntmatter".to_owned(),
+                                cmk_id: TEST_CMK_ID.to_owned(),
+                                ..Default::default()
+                            },
+                            use_test_key: true,
+                        })
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
     }
 
     async fn load_empty_secret(client: Router) -> Response {
@@ -778,6 +969,7 @@ mod tests {
     async fn test_create_key() {
         let client = get_client();
         load_empty_secret(client.clone()).await;
+        load_test_integrity_key(client.clone()).await;
         let response = client
             .oneshot(
                 Request::builder()
@@ -788,7 +980,7 @@ mod tests {
                         serde_json::to_vec(&EnclaveCreateKeyRequest {
                             root_key_id: TEST_KEY_ID.to_string(),
                             dek_id: TEST_DEK_ID.to_string(),
-                            network: Network::Signet,
+                            network: Signet,
                         })
                         .unwrap(),
                     ))
@@ -810,6 +1002,7 @@ mod tests {
     async fn test_derive_keys() {
         let client = get_client();
         load_empty_secret(client.clone()).await;
+        load_test_integrity_key(client.clone()).await;
         let response = client
             .clone()
             .oneshot(
@@ -821,7 +1014,7 @@ mod tests {
                         serde_json::to_vec(&EnclaveCreateKeyRequest {
                             root_key_id: TEST_KEY_ID.to_string(),
                             dek_id: TEST_DEK_ID.to_string(),
-                            network: Network::Signet,
+                            network: Signet,
                         })
                         .unwrap(),
                     ))
@@ -850,7 +1043,7 @@ mod tests {
                             derivation_path: DerivationPath::from(WSMSupportedDomain::Spend(
                                 CoinType::Testnet,
                             )),
-                            network: Some(Network::Signet),
+                            network: Some(Signet),
                         })
                         .unwrap(),
                     ))
@@ -868,6 +1061,7 @@ mod tests {
     #[tokio::test]
     async fn test_errors_return_enclave_logs() {
         let client = get_client();
+        load_test_integrity_key(client.clone()).await;
         let response = client
             .oneshot(
                 Request::builder()
@@ -878,7 +1072,7 @@ mod tests {
                         serde_json::to_vec(&EnclaveCreateKeyRequest {
                             root_key_id: TEST_KEY_ID.to_string(),
                             dek_id: TEST_DEK_ID.to_string(),
-                            network: Network::Signet,
+                            network: Signet,
                         })
                         .unwrap(),
                     ))
@@ -946,5 +1140,25 @@ mod tests {
                 .unwrap(),
             "1023"
         );
+    }
+
+    #[test]
+    fn test_parse_wrapped_key() {
+        let b64_der_key = "MIGNAgEAMBAGByqGSM49AgEGBSuBBAAKBHYwdAIBAQQgoKREsefp/nZCYf9LMY8i5Qt+cPe9poZN8k9pFPmBVR2gBwYFK4EEAAqhRANCAARr8ZChHCFZ82wDdFtbxG2HD90n7DaTrbp1Hw0LgwxM7dGiURhoj8ZSTI46yPclkrG40lsBMSOqGwstyvr0cjZ3";
+        let der_key = BASE64.decode(b64_der_key).unwrap();
+
+        let key = decode_der_secp256k1_private_key(&der_key, LogBuffer::new());
+        assert!(key.is_ok());
+        let key = key.unwrap_or_else(|_| vec![]);
+
+        let secp = Secp256k1::new();
+
+        let secret_key = SecretKey::from_slice(&key).unwrap();
+
+        let hash_input = vec![1, 2, 3];
+
+        let message = Message::from_hashed_data::<sha256::Hash>(hash_input.as_ref());
+
+        secp.sign_ecdsa(&message, &secret_key);
     }
 }

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-io-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-io-iossimulatorarm64-2.3.8-metadata.jar": "015ba598eb70a4dc715cd588847d5995d0ea405941691d9db88e2394a07a072c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-io.klib": "da07063321da444a1e9ce96cbb40bd26ddd0202a3e5a0fb6c8f44376e83c10ba"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

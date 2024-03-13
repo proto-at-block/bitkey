@@ -25,6 +25,10 @@ dependencies {
   implementation(libs.android.camera.lifecycle)
   implementation(libs.android.camera.view)
   implementation(libs.android.compose.ui.material3)
+  implementation(libs.android.io.coil.compose)
+  implementation(libs.android.io.coil.svg)
   implementation(libs.android.lottie.compose)
   implementation(libs.jvm.zxing)
+
+  testImplementation(projects.shared.bitkeyPrimitivesFake)
 }

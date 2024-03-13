@@ -15,7 +15,7 @@ name = "server"
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-tracing-opentelemetry = { workspace = true }
-clap = { version = "4.5.0", features = ["derive", "env"] }
+clap = { version = "4.5.1", features = ["derive", "env"] }
 hex = { workspace = true }
 http = { workspace = true }
 isocountry = { workspace = true }
@@ -58,12 +58,14 @@ partnerships = { workspace = true, optional = true }
 queue = { workspace = true }
 recovery = { workspace = true }
 repository = { workspace = true, features = ["recovery"] }
-types = { workspace = true, features = ["account", "recovery"] }
+screener = { workspace = true }
+types = { workspace = true, features = ["account", "currencies", "recovery"] }
+userpool = { workspace = true }
 workers = { workspace = true }
 
 [dev-dependencies]
 aws-sdk-sqs = { workspace = true }
-env_logger = "0.11.1"
+env_logger = "0.11.2"
 http-body-util = "0.1.0"
 httpmock = "0.7"
 mockall = "0.12.1"

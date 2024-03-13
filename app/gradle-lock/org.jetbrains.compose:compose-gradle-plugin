@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose:compose-gradle-plugin",
+    "components": [
+        {
+            "version": "1.5.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compose-gradle-plugin-1.5.11.jar": "70c894e672d39b9b0d1be9bc22e770b812c7116e4c85dbb753a28d4af9bcf70e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

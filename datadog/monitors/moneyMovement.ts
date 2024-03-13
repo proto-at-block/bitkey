@@ -8,14 +8,14 @@ import {
     rum_query
 } from "./common/queries";
 import { HttpStatusCompositeMonitor } from "./common/http";
-import { getRecipients } from "./recipients";
+import { getErrorRecipients } from "./recipients";
 import {MonitorVariablesEventQuery} from "@cdktf/provider-datadog/lib/monitor";
 
 export class MoneyMovementMonitors extends Construct {
     constructor(scope: Construct, environment: Environment) {
         super(scope, `money-movement_${environment}`)
 
-        let recipients = getRecipients(environment)
+        let recipients = getErrorRecipients(environment)
         let tags = [`money-movement_${environment}`]
         let datadogLinks = {
             mobilePay4xxAPMTrace: "https://app.datadoghq.com/apm/traces?saved-view-id=2131576",

@@ -26,7 +26,13 @@ feature_flags = { workspace = true }
 http_server = { workspace = true }
 metrics = { workspace = true }
 migration = { workspace = true }
-types = { workspace = true, features = ["exchange_rate", "serde"] }
+screener = { workspace = true }
+types = { workspace = true, features = [
+  "currencies",
+  "exchange_rate",
+  "serde",
+] }
+userpool = { workspace = true }
 wsm-rust-client = { workspace = true }
 
 #[dev-dependencies]

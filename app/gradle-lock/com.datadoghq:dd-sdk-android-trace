@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.datadoghq:dd-sdk-android-trace",
+    "components": [
+        {
+            "version": "2.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dd-sdk-android-trace-2.6.2.aar": "85b849b7ac892d4044c13b05c81df34101a2327cb3aa72f3c2536060c499cd73"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

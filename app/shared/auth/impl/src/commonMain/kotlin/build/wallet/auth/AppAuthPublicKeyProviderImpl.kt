@@ -111,7 +111,7 @@ private fun Account.appAuthPublicKey(
     is FullAccount ->
       Ok(
         when (tokenScope) {
-          AuthTokenScope.Global -> keybox.activeKeyBundle.authKey
+          AuthTokenScope.Global -> keybox.activeAppKeyBundle.authKey
           AuthTokenScope.Recovery -> requireAppRecoveryAuthKey()
         }
       )

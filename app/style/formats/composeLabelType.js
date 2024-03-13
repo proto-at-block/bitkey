@@ -44,7 +44,7 @@ const labelToStyleDefinition = (style, dictionary) => {
         fontWeight = FontWeight.W400,
         fontSize = ` + dictionary.properties.font.styles[style].size.value + `.sp,
         lineHeight = ` + dictionary.properties.font.styles[style].lineHeight.value + `.sp,
-        letterSpacing = (` + dictionary.properties.font.styles[style].kerning.value + `).sp,
+        letterSpacing = (` + dictionary.properties.font.styles[style].kerning.value + `).sp
       )`
 
     default: 
@@ -53,7 +53,7 @@ const labelToStyleDefinition = (style, dictionary) => {
         fontWeight = FontWeight.W` + interNameToFontWeight(dictionary.properties.font.styles[style].name.value) + `,
         fontSize = ` + dictionary.properties.font.styles[style].size.value + `.sp,
         lineHeight = ` + dictionary.properties.font.styles[style].lineHeight.value + `.sp,
-        letterSpacing = (` + dictionary.properties.font.styles[style].kerning.value + `).sp,
+        letterSpacing = (` + dictionary.properties.font.styles[style].kerning.value + `).sp
       )`
   }
 }

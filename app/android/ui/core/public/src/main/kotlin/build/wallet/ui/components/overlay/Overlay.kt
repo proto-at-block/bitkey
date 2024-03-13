@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.compose.blurIf
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.theme.WalletTheme
@@ -60,7 +60,7 @@ private fun OverlayPreview() {
           text = "Hello!",
           treatment = Treatment.Primary,
           size = Size.Compact,
-          onClick = Click.StandardClick { }
+          onClick = StandardClick {}
         )
       }
     )

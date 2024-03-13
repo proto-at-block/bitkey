@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.okhttp3:okhttp",
+    "components": [
+        {
+            "version": "4.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okhttp-4.8.0.jar": "04d68254c5216d059504d97e2cf2f8ba7922453059701a5adc65652809dd1599"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

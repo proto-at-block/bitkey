@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-components",
+    "components": [
+        {
+            "version": "17.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-components-17.1.0.aar": "352c71f89994cb4481daeb45ed3630bbf1789bdf1be4563988e2c18618af4f60"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

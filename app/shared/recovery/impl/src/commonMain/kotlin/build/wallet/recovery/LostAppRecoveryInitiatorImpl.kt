@@ -1,14 +1,14 @@
 package build.wallet.recovery
 
-import build.wallet.bitkey.app.requireRecoveryAuthKey
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyService
-import build.wallet.keybox.builder.KeyCrossBuilder
 import build.wallet.logging.logFailure
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError
@@ -20,28 +20,27 @@ import com.github.michaelbull.result.mapError
 
 class LostAppRecoveryInitiatorImpl(
   private val initiateAccountDelayNotifyService: InitiateAccountDelayNotifyService,
-  private val keyCrossBuilder: KeyCrossBuilder,
   private val recoveryDao: RecoveryDao,
 ) : LostAppRecoveryInitiator {
   override suspend fun initiate(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     hardwareKeysForRecovery: HardwareKeysForRecovery,
+    newAppKeys: AppKeyBundle,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, InitiateDelayNotifyAppRecoveryError> =
     binding {
-      // Generate app keys
-      val newAppKeys = keyCrossBuilder.createNewKeyCross(keyboxConfig)
-
       // Persist local pending recovery state
       recoveryDao
         .setLocalRecoveryProgress(
           CreatedPendingKeybundles(
             fullAccountId = fullAccountId,
-            appKeyBundle = newAppKeys.appKeyBundle,
+            appKeyBundle = newAppKeys,
             hwKeyBundle = hardwareKeysForRecovery.newKeyBundle,
-            lostFactor = App
+            lostFactor = App,
+            appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
           )
         )
         .logFailure { "Failed to set local recovery progress when initiating DN recovery for Lost App." }
@@ -55,10 +54,10 @@ class LostAppRecoveryInitiatorImpl(
             f8eEnvironment = f8eEnvironment,
             fullAccountId = fullAccountId,
             lostFactor = App,
-            appGlobalAuthKey = newAppKeys.appKeyBundle.authKey,
-            appRecoveryAuthKey = newAppKeys.appKeyBundle.requireRecoveryAuthKey(),
+            appGlobalAuthKey = newAppKeys.authKey,
+            appRecoveryAuthKey = newAppKeys.recoveryAuthKey,
             hwFactorProofOfPossession = hwFactorProofOfPossession,
-            delayPeriod = keyboxConfig.delayNotifyDuration,
+            delayPeriod = fullAccountConfig.delayNotifyDuration,
             hardwareAuthKey = hardwareKeysForRecovery.newKeyBundle.authKey
           )
           .mapError { F8eInitiateDelayNotifyError(it) }

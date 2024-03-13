@@ -17,6 +17,7 @@ class AppDataDeleterImplComponentTests : FunSpec({
 
     appTester.app.appUiStateMachine.test(Unit) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 

@@ -20,7 +20,7 @@ public class FileManagerImpl: Shared.FileManager {
         self.fileDirectoryProvider = fileDirectoryProvider
     }
 
-    // MARK: - FileManagerUnzipHandler
+    // MARK: - FileManager
 
     public func writeFile(data kData: KotlinByteArray, fileName: String) async throws -> FileManagerResult<KotlinUnit> {
         do {
@@ -91,6 +91,16 @@ public class FileManagerImpl: Shared.FileManager {
             }
         
             return FileManagerResultOk(value: KotlinUnit())
+        } catch {
+            return error.toFileManagerResultErr()
+        }
+    }
+    
+    public func mkdirs(path: String) async throws -> FileManagerResult<KotlinBoolean> {
+        do {
+            try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true)
+            
+            return FileManagerResultOk(value: KotlinBoolean(bool: true))
         } catch {
             return error.toFileManagerResultErr()
         }

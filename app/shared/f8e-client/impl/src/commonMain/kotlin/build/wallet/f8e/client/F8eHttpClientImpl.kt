@@ -7,6 +7,7 @@ import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.networkReachabilityPlugin
 import build.wallet.bitkey.app.AppAuthPublicKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.WsmVerifier
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.url
@@ -29,6 +30,7 @@ class F8eHttpClientImpl(
   private val unauthenticatedF8eHttpClient: UnauthenticatedF8eHttpClient,
   private val f8eHttpClientProvider: F8eHttpClientProvider,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
+  override val wsmVerifier: WsmVerifier,
 ) : UnauthenticatedF8eHttpClient by unauthenticatedF8eHttpClient, F8eHttpClient {
   companion object {
     const val CONSTANT_PROOF_OF_POSSESSION_APP_HEADER = "X-App-Signature"

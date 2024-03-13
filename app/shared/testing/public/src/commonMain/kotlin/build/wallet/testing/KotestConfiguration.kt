@@ -2,7 +2,7 @@ package build.wallet.testing
 
 import build.wallet.logging.LogLevel
 import build.wallet.logging.Logger
-import co.touchlab.kermit.platformLogWriter
+import build.wallet.logging.platformLogWriter
 import io.kotest.core.config.AbstractProjectConfig
 import io.kotest.core.extensions.Extension
 

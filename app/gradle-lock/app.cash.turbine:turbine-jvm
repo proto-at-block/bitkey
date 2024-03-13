@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.turbine:turbine-jvm",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "Turbine-jvm.jar": "41984dffaf069b84b814fa787f740bf7ebdc90bf89f69d05bc4660c69874b49e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-core",
+    "components": [
+        {
+            "version": "0.13.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-core-metadata-0.13.3.jar": "d0ac653bd219a5d2cbde156e157b0626f27721a2f08ad23da5c00d413af54ae0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

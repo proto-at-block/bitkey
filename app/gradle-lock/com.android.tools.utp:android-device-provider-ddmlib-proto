@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.utp:android-device-provider-ddmlib-proto",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "android-device-provider-ddmlib-proto-31.1.1.jar": "1a288dfd22f5baa036bffdfdd3ac7504664b94c86dbf6be36630e5587c22e8fe"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

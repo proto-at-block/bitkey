@@ -2,7 +2,6 @@ package build.wallet.statemachine.recovery.cloud
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,11 +12,13 @@ import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.store.CloudStoreAccount
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
-import build.wallet.recovery.emergencyaccess.EmergencyAccessFeatureFlag
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiStateMachine
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorAccessMessages
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
@@ -25,6 +26,7 @@ import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineI
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CloudBackupNotFoundUiState
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CloudBackupRectifiableErrorState
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.CloudNotSignedInUiState
+import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.ShowingCustomerSupportUiState
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.ShowingTroubleshootingSteps
 import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachineImpl.State.SigningIntoCloudUiState
 import com.github.michaelbull.result.onFailure
@@ -34,7 +36,8 @@ class AccessCloudBackupUiStateMachineImpl(
   private val cloudBackupRepository: CloudBackupRepository,
   private val cloudSignInUiStateMachine: CloudSignInUiStateMachine,
   private val rectifiableErrorHandlingUiStateMachine: RectifiableErrorHandlingUiStateMachine,
-  private val emergencyAccessFeatureFlag: EmergencyAccessFeatureFlag,
+  private val deviceInfoProvider: DeviceInfoProvider,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : AccessCloudBackupUiStateMachine {
   @Composable
   override fun model(props: AccessCloudBackupUiProps): ScreenModel {
@@ -43,18 +46,6 @@ class AccessCloudBackupUiStateMachineImpl(
         SigningIntoCloudUiState(forceSignOut = props.forceSignOutFromCloud)
       )
     }
-
-    val eakEnabled = remember { emergencyAccessFeatureFlag.flagValue() }.collectAsState()
-    val eakBuild = remember {
-      props.eakAssociation == EmergencyAccessKitAssociation.EakBuild
-    }
-
-    val onImportEmergencyAccessKit: (() -> Unit)? =
-      if (eakEnabled.value.value || eakBuild) {
-        props.onImportEmergencyAccessKit
-      } else {
-        null
-      }
 
     return when (val currentState = state) {
       is SigningIntoCloudUiState ->
@@ -71,21 +62,46 @@ class AccessCloudBackupUiStateMachineImpl(
               eventTrackerContext = APP_RECOVERY
             )
         ).asRootScreen()
-
-      is CloudNotSignedInUiState ->
-        CloudNotSignedInBodyModel(
-          onBack = props.onExit,
-          onCannotAccessCloud = {
-            props.onCannotAccessCloudBackup(null)
-          },
-          onCheckCloudAgain = {
-            state = SigningIntoCloudUiState(forceSignOut = true)
-          },
-          onImportEmergencyAccessKit = onImportEmergencyAccessKit,
-          onShowTroubleshootingSteps = {
-            state = ShowingTroubleshootingSteps(fromState = currentState)
+      is ShowingCustomerSupportUiState ->
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = currentState.urlString,
+              onClose = {
+                state = CloudNotSignedInUiState
+              }
+            )
           }
-        ).asRootScreen()
+        ).asModalScreen()
+      is CloudNotSignedInUiState ->
+        if (props.showErrorOnBackupMissing) {
+          CloudNotSignedInBodyModel(
+            onBack = props.onExit,
+            onCannotAccessCloud = {
+              props.onCannotAccessCloudBackup(null)
+            },
+            onCheckCloudAgain = {
+              state = SigningIntoCloudUiState(forceSignOut = true)
+            },
+            onImportEmergencyAccessKit = props.onImportEmergencyAccessKit,
+            onShowTroubleshootingSteps = {
+              state = ShowingTroubleshootingSteps(fromState = currentState)
+            }
+          ).asRootScreen()
+        } else {
+          CloudSignInFailedScreenModel(
+            onContactSupport = {
+              state = ShowingCustomerSupportUiState(
+                urlString = "https://support.bitkey.world/hc/en-us"
+              )
+            },
+            onBack = props.onExit,
+            onTryAgain = {
+              state = SigningIntoCloudUiState(forceSignOut = true)
+            },
+            devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+          ).asRootScreen()
+        }
 
       is CheckingCloudBackupUiState -> {
         LaunchedEffect("check cloud account for backup") {
@@ -137,7 +153,7 @@ class AccessCloudBackupUiStateMachineImpl(
           onCheckCloudAgain = {
             state = SigningIntoCloudUiState(forceSignOut = true)
           },
-          onImportEmergencyAccessKit = onImportEmergencyAccessKit,
+          onImportEmergencyAccessKit = props.onImportEmergencyAccessKit,
           onShowTroubleshootingSteps = {
             state = ShowingTroubleshootingSteps(fromState = currentState)
           }
@@ -203,5 +219,7 @@ class AccessCloudBackupUiStateMachineImpl(
       val cloudStoreAccount: CloudStoreAccount,
       val rectifiableCloudBackupError: RectifiableCloudBackupError,
     ) : State
+
+    data class ShowingCustomerSupportUiState(val urlString: String) : State
   }
 }

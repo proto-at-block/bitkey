@@ -43,6 +43,8 @@ async fn event_tracking_request_succeeds_with_valid_request_non_empty_events() {
             screen_id: String::from("screen_id"),
             fiat_currency_preference: String::from("test-fiat-currency-preference"),
             bitcoin_display_preference: String::from("test-bitcoin-display-preference"),
+            counter_id: String::from("counter_id"),
+            counter_count: 0,
         }],
     };
 

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-auth-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-auth-iosx64-2.3.8-metadata.jar": "13c6c61e1a41882dec6c6b11b842a629e9eb66dd73b54d2de47772e2f07ba8e9"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-auth.klib": "f20ecd07c6d9f77ac14e7eb33c387b3dcbd0244647b4fa9969ab941799e52c9e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

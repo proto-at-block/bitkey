@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.squareup.okio:okio-iosx64",
+    "components": [
+        {
+            "version": "3.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-iosx64-3.7.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "okio.klib": "3c5df659fda1ffd7714e648f91b512ee998c0268a4af111f5010f4455629ffd0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

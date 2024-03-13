@@ -1,11 +1,12 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.ProtectedCustomerEphemeralKey
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
-import build.wallet.bitkey.socrec.SocialChallenge
+import build.wallet.bitkey.socrec.ChallengeWrapper
+import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
+import kotlinx.collections.immutable.ImmutableList
 
 /**
  * Wraps the Social Challenge repository with an account to provide the
@@ -18,25 +19,25 @@ class SocRecChallengeActions(
   private val isUsingSocRecFakes: Boolean,
 ) {
   suspend fun startChallenge(
-    protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-  ): Result<SocialChallenge, Error> =
+    trustedContacts: ImmutableList<TrustedContact>,
+    sealedDekMap: Map<String, XCiphertext>,
+  ): Result<ChallengeWrapper, Error> =
     repository.startChallenge(
       accountId = accountId,
       f8eEnvironment = f8eEnvironment,
-      isUsingSocRecFakes = isUsingSocRecFakes,
-      protectedCustomerEphemeralKey = protectedCustomerEphemeralKey,
-      protectedCustomerIdentityKey = protectedCustomerIdentityKey
+      trustedContacts = trustedContacts,
+      sealedDekMap = sealedDekMap,
+      isUsingSocRecFakes = isUsingSocRecFakes
     )
 
-  suspend fun getCurrentChallenge(): Result<SocialChallenge?, Error> =
+  suspend fun getCurrentChallenge(): Result<ChallengeWrapper?, Error> =
     repository.getCurrentChallenge(
       accountId = accountId,
       f8eEnvironment = f8eEnvironment,
       isUsingSocRecFakes = isUsingSocRecFakes
     )
 
-  suspend fun getChallengeById(challengeId: String): Result<SocialChallenge, Error> =
+  suspend fun getChallengeById(challengeId: String): Result<ChallengeWrapper, Error> =
     repository.getChallengeById(
       challengeId = challengeId,
       accountId = accountId,

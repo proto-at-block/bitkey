@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.sqldelight:native-driver",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "native-driver-metadata-2.0.1.jar": "ff59098eb456496cd4ecfc605b364db3f55dee27c9fa11bc11e6d0e37260091e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

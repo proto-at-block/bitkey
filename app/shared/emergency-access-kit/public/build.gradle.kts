@@ -18,7 +18,6 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(libs.kmp.test.kotest.assertions.json)
         implementation(projects.shared.testingPublic)
       }
     }

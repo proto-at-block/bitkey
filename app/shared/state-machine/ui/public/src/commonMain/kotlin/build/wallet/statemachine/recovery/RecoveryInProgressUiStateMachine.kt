@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_LOST_APP_TAPPED_STOP
@@ -17,9 +17,9 @@ import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP
 import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_DISMISS_STOP_RECOVERY
 import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_CANCEL
 import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_DISMISS_STOP_RECOVERY
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -57,7 +57,7 @@ interface RecoveryInProgressUiStateMachine : StateMachine<RecoveryInProgressUiPr
 data class RecoveryInProgressUiProps(
   val presentationStyle: ScreenPresentationStyle,
   val recoveryInProgressData: RecoveryInProgressData,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val fiatCurrency: FiatCurrency,
   val onExit: (() -> Unit)? = null,
 )
@@ -170,7 +170,7 @@ class RecoveryInProgressUiStateMachineImpl(
             completingRecoveryData = recoveryInProgressData,
             fiatCurrency = props.fiatCurrency,
             onExit = props.onExit,
-            isHardwareFake = props.keyboxConfig.isHardwareFake
+            isHardwareFake = props.fullAccountConfig.isHardwareFake
           )
         )
 
@@ -184,7 +184,7 @@ class RecoveryInProgressUiStateMachineImpl(
                 }
               ),
             fullAccountId = recoveryInProgressData.fullAccountId,
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             appAuthKey = recoveryInProgressData.appAuthKey,
             screenPresentationStyle = Modal, // TODO Validate this is correct?
             onBack = recoveryInProgressData.rollback,
@@ -197,7 +197,7 @@ class RecoveryInProgressUiStateMachineImpl(
         LoadingBodyModel(
           id =
             recoveryInProgressData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_CANCELLATION
             )
         ).asScreen(
@@ -218,7 +218,7 @@ class RecoveryInProgressUiStateMachineImpl(
         CancelConflictingRecoveryErrorScreenModel(
           id =
             recoveryInProgressData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION_ERROR,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION_ERROR,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_CANCELLATION_ERROR
             ),
           isConnectivityError = recoveryInProgressData.isNetworkError,

@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use authn_authz::userpool::{CreateRecoveryUserInput, CreateWalletUserInput};
 use bdk_utils::flags::{
     DEFAULT_MAINNET_ELECTRUM_RPC_URI, DEFAULT_SIGNET_ELECTRUM_RPC_URI,
     DEFAULT_TESTNET_ELECTRUM_RPC_URI,
@@ -51,6 +50,7 @@ use recovery::entities::{
     RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
+use userpool::userpool::{CreateRecoveryUserInput, CreateWalletUserInput};
 
 use crate::Services;
 
@@ -397,6 +397,7 @@ pub(crate) async fn create_phone_touchpoint(
                         NotificationCategory::AccountSecurity,
                         NotificationChannel::Sms,
                     ),
+                    key_proof: None,
                 })
                 .await
                 .unwrap();
@@ -420,6 +421,7 @@ pub(crate) async fn create_push_touchpoint(
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test-device-token".to_owned(),
+            access_token: Default::default(),
         })
         .await
         .unwrap();
@@ -437,6 +439,7 @@ pub(crate) async fn create_push_touchpoint(
                 NotificationCategory::AccountSecurity,
                 NotificationChannel::Push,
             ),
+            key_proof: None,
         })
         .await
         .unwrap();
@@ -482,6 +485,7 @@ pub(crate) async fn create_email_touchpoint(
                         NotificationCategory::AccountSecurity,
                         NotificationChannel::Email,
                     ),
+                    key_proof: None,
                 })
                 .await
                 .unwrap();

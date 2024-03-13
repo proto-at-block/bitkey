@@ -3,11 +3,13 @@ package build.wallet.keybox
 import app.cash.turbine.test
 import build.wallet.LoadableValue
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock2
+import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.emptyImmutableList
@@ -23,14 +25,16 @@ class KeyboxDaoImplTests : FunSpec({
 
   lateinit var dao: KeyboxDaoImpl
 
+  val hwKeyBundle = HwKeyBundleMock
+
   val keyset1 = SpendingKeysetMock
-  val keyBundle1 =
+  val appKeyBundle1 =
     AppKeyBundleMock.copy(
       spendingKey = keyset1.appKey
     )
   val config =
-    KeyboxConfig(
-      networkType = SIGNET,
+    FullAccountConfig(
+      bitcoinNetworkType = SIGNET,
       isHardwareFake = false,
       f8eEnvironment = Development,
       isTestAccount = false,
@@ -41,13 +45,15 @@ class KeyboxDaoImplTests : FunSpec({
       localId = "keybox-1",
       fullAccountId = FullAccountIdMock,
       activeSpendingKeyset = keyset1,
-      activeKeyBundle = keyBundle1,
+      activeAppKeyBundle = appKeyBundle1,
       inactiveKeysets = emptyImmutableList(),
+      activeHwKeyBundle = hwKeyBundle,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
       config = config
     )
 
   val keyset2 = SpendingKeysetMock2
-  val keyBundle2 =
+  val appKeyBundle2 =
     AppKeyBundleMock2.copy(
       spendingKey = keyset2.appKey
     )
@@ -56,8 +62,10 @@ class KeyboxDaoImplTests : FunSpec({
       localId = "keybox-2",
       fullAccountId = FullAccountIdMock,
       activeSpendingKeyset = keyset2,
-      activeKeyBundle = keyBundle2,
+      activeAppKeyBundle = appKeyBundle2,
+      activeHwKeyBundle = hwKeyBundle,
       inactiveKeysets = emptyImmutableList(),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
       config = config
     )
 
@@ -138,9 +146,11 @@ class KeyboxDaoImplTests : FunSpec({
         Keybox(
           localId = "fake-keybox-3",
           fullAccountId = FullAccountIdMock,
+          activeHwKeyBundle = hwKeyBundle,
           activeSpendingKeyset = keyset3,
-          activeKeyBundle = keyBundle3,
+          activeAppKeyBundle = keyBundle3,
           inactiveKeysets = emptyImmutableList(),
+          appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
           config = config
         )
 
@@ -151,9 +161,11 @@ class KeyboxDaoImplTests : FunSpec({
           Keybox(
             localId = keybox3.localId,
             fullAccountId = FullAccountIdMock,
+            activeHwKeyBundle = hwKeyBundle,
             activeSpendingKeyset = keyset3,
-            activeKeyBundle = keyBundle3,
+            activeAppKeyBundle = keyBundle3,
             inactiveKeysets = emptyImmutableList(),
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             config = config
           )
         )

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.lyft.kronos:kronos-java",
+    "components": [
+        {
+            "version": "0.0.1-alpha11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kronos-java-0.0.1-alpha11.jar": "4a9eef7f94a7a9656000ea75e9fe5cbcd6082685a1e90571b6d39b031ad8dedd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

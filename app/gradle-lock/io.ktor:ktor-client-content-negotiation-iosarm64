@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-content-negotiation-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-content-negotiation-iosarm64-2.3.8-metadata.jar": "e0656f617fa177ecb9bf767619ff9ee044e3d0fe785371574aae360e4ce0651c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-content-negotiation.klib": "7288a616bd36fedcb9e07809801381f68a49e5767c8940efe755b90f385f6c84"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

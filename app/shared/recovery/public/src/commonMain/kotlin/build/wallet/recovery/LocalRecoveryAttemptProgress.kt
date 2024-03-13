@@ -4,6 +4,7 @@ import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -21,6 +22,7 @@ sealed interface LocalRecoveryAttemptProgress {
     val fullAccountId: FullAccountId,
     val appKeyBundle: AppKeyBundle,
     val hwKeyBundle: HwKeyBundle,
+    val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     val lostFactor: PhysicalFactor,
   ) : LocalRecoveryAttemptProgress
 

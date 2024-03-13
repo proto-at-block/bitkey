@@ -7,8 +7,8 @@ import kotlinx.serialization.Serializable
 data class SocialChallenge(
   @SerialName("social_challenge_id")
   val challengeId: String,
-  @SerialName("code")
-  val code: String,
+  @SerialName("counter")
+  val counter: Int,
   @SerialName("responses")
   val responses: List<SocialChallengeResponse>,
 )

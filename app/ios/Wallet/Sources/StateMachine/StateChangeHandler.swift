@@ -6,6 +6,17 @@ import UIKit
 /// when the pushes/pops are driven by model outputs from our shared state machines.
 class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
+    // MARK: - Private Types
+
+    /// Will be handled in `handleNavigationAnimationCompletion`.
+    private enum QueuedAction: Equatable {
+        /// A queued view controller to navigate to after any in progress navigation completes.
+        case pushOrPop(vc: UIViewController, stateKey: String, animation: AnimationStyle?)
+        
+        /// Clears the stack
+        case clearStack
+    }
+
     // MARK: - Public Types
 
     public enum PresentationStyle {
@@ -61,9 +72,8 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     /// Set in `pushOrPop` and cleared in `handleNavigationAnimationCompletion`
     private var currentAnimationState: NavigationAnimationState = .none
 
-    /// A queued view controller to navigate to after any in progress navigation completes.
     /// Will be handled in `handleNavigationAnimationCompletion`.
-    private var queuedViewControllerToNavigateTo: (vc: UIViewController, stateKey: String, animation: AnimationStyle?)?
+    private var queuedActions = [QueuedAction]()
 
     private let navController: UINavigationController
 
@@ -152,9 +162,12 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
         // Queue the view controller if there is currently one be animated to.
         guard currentAnimationState == .none else {
-            queuedViewControllerToNavigateTo = (newViewController, stateKey, animation)
+            queuedActions.append(.pushOrPop(vc: newViewController, stateKey: stateKey, animation: animation))
             return
         }
+
+        // We're able to handle it, make sure to clear the queue
+        queuedActions.removeAll(where: { $0 == .pushOrPop(vc: newViewController, stateKey: stateKey, animation: animation) })
 
         currentScreenModelKey = stateKey
         currentViewController = newViewController
@@ -180,21 +193,33 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
     /// Clears the back stack, setting the current view controller as the root
     public func clearBackStack() {
+        guard currentAnimationState == .none else {
+            if !queuedActions.contains(where: { $0 == .clearStack }) {
+                queuedActions.append(.clearStack)
+            }
+            return
+        }
+
         guard let currentScreenModelKey = currentScreenModelKey,
               let currentViewController = currentViewController else {
             return
         }
         viewControllersForState = [currentScreenModelKey : currentViewController]
         navController.setViewControllers([currentViewController], animated: false)
+        queuedActions.removeAll(where: { $0 == .clearStack })
     }
 
     // MARK: - Private Methods
 
     private func handleNavigationAnimationCompletion() {
         currentAnimationState = .none
-        if let queuedNavigation = queuedViewControllerToNavigateTo {
-            queuedViewControllerToNavigateTo = nil
-            pushOrPopTo(vc: queuedNavigation.vc, forStateKey: queuedNavigation.stateKey, animation: queuedNavigation.animation)
+        for queuedAction in queuedActions {
+            switch queuedAction {
+            case let .pushOrPop(vc, stateKey, animation):
+                pushOrPopTo(vc: vc, forStateKey: stateKey, animation: animation)
+            case .clearStack:
+                clearBackStack()
+            }
         }
     }
 

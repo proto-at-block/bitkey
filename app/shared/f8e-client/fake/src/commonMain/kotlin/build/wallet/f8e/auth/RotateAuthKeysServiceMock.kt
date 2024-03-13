@@ -16,6 +16,7 @@ class RotateAuthKeysServiceMock(
   val turbine: (String) -> Turbine<Any>,
 ) : RotateAuthKeysService {
   val rotateKeysetCalls = turbine("rotateKeyset calls")
+  var rotateKeysetResult: Result<Unit, NetworkingError> = Ok(Unit)
 
   override suspend fun rotateKeyset(
     f8eEnvironment: F8eEnvironment,
@@ -27,6 +28,10 @@ class RotateAuthKeysServiceMock(
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, NetworkingError> {
     rotateKeysetCalls += Unit
-    return Ok(Unit)
+    return rotateKeysetResult
+  }
+
+  fun reset() {
+    rotateKeysetResult = Ok(Unit)
   }
 }

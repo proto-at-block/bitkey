@@ -22,7 +22,7 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.forms.TextField
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
@@ -51,7 +51,7 @@ fun VerificationCodeInput(model: VerificationCodeInput) {
               treatment = Tertiary,
               isLoading = resendCodeContent.value.isLoading,
               size = Compact,
-              onClick = Click.standardClick { resendCodeContent.value.onClick() }
+              onClick = resendCodeContent.value.onClick
             )
         )
     }
@@ -72,7 +72,7 @@ fun VerificationCodeInput(model: VerificationCodeInput) {
                 text = skipForNowContent.button.text,
                 treatment = Tertiary,
                 size = Compact,
-                onClick = Click.standardClick { skipForNowContent.button.onClick() }
+                onClick = skipForNowContent.button.onClick
               )
           )
         }
@@ -98,7 +98,7 @@ internal fun PreviewPhoneVerificationCodeInputFormScreen() {
                 text = "Skip for now",
                 treatment = ButtonModel.Treatment.Tertiary,
                 size = Compact,
-                onClick = Click.StandardClick {}
+                onClick = StandardClick {}
               )
           ),
         onValueChange = {},
@@ -126,7 +126,7 @@ internal fun PreviewEmailVerificationCodeInputFormScreen() {
                 text = "Skip for now",
                 treatment = ButtonModel.Treatment.Tertiary,
                 size = Compact,
-                onClick = Click.StandardClick {}
+                onClick = StandardClick {}
               )
           ),
         onValueChange = {},

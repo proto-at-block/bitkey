@@ -19,7 +19,7 @@ axum-macros = { workspace = true }
 axum-tracing-opentelemetry = { workspace = true }
 base64 = { workspace = true }
 config = { workspace = true, features = ["toml"] }
-log = "0.4.20"
+log = "0.4.21"
 reqwest = { workspace = true, default-features = false, features = [
   "json",
   "rustls-tls",

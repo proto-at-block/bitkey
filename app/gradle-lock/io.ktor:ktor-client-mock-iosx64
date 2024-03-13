@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-mock-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-mock-iosx64-2.3.8-metadata.jar": "8933aa1736222fd921059a635c381523c4257b8f0bd21e10c5fc74ec523c2c03"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-mock.klib": "e688959e7a5c9647785908431e3c91fd883bac824e7f1fe6c8bda0b54cb91fb2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

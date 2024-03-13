@@ -1,3 +1,4 @@
+import build.wallet.gradle.logic.GenerateStateMachineDiagramTask
 import build.wallet.gradle.logic.extensions.allTargets
 
 plugins {
@@ -31,7 +32,6 @@ kotlin {
         api(projects.shared.cloudBackupPublic)
         api(projects.shared.cloudStorePublic)
         api(projects.shared.datadogPublic)
-        api(projects.shared.depositPublic)
         api(projects.shared.emergencyAccessKitPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.featureFlagPublic)
@@ -47,6 +47,7 @@ kotlin {
         api(projects.shared.phoneNumberPublic)
         api(projects.shared.platformPublic)
         api(projects.shared.platformImpl)
+        api(projects.shared.recoveryPublic)
         api(projects.shared.routerPublic)
         api(projects.shared.stateMachineDataPublic)
         api(projects.shared.stateMachineFrameworkPublic)
@@ -81,6 +82,7 @@ kotlin {
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.cloudBackupFake)
         implementation(projects.shared.cloudStoreFake)
+        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.datadogFake)
         implementation(projects.shared.emergencyAccessKitFake)
         implementation(projects.shared.emergencyAccessKitImpl)
@@ -90,6 +92,7 @@ kotlin {
         implementation(projects.shared.fwupFake)
         implementation(projects.shared.homeFake)
         implementation(projects.shared.keyboxFake)
+        implementation(projects.shared.keyValueStoreFake)
         implementation(projects.shared.ldkBindingsFake)
         implementation(projects.shared.moneyFake)
         implementation(projects.shared.notificationsFake)
@@ -104,15 +107,9 @@ kotlin {
         implementation(projects.shared.stateMachineDataFake)
         implementation(projects.shared.stateMachineFrameworkFake)
         implementation(projects.shared.stateMachineFrameworkTesting)
+        implementation(projects.shared.stateMachineUiTesting)
         implementation(projects.shared.testingPublic)
         implementation(libs.kmp.okio)
-      }
-    }
-
-    val jvmTest by getting {
-      dependencies {
-        implementation(projects.shared.cloudStoreFake)
-        implementation(projects.shared.stateMachineFrameworkTesting)
       }
     }
 
@@ -123,10 +120,35 @@ kotlin {
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.shared.moneyTesting)
         implementation(projects.shared.stateMachineFrameworkTesting)
-        implementation(projects.shared.stateMachineDataTesting)
         implementation(projects.shared.stateMachineUiTesting)
         implementation(projects.shared.encryptionFake)
+        implementation(projects.shared.cloudStoreFake)
       }
     }
   }
+}
+
+tasks.register<GenerateStateMachineDiagramTask>("generateStateMachineDiagram") {
+  directory = projectDir
+
+  val permanentExcludes = setOf(
+    "ProofOfPossessionNfc",
+    "NfcSessionUI"
+  ).takeUnless {
+    project.hasProperty("overridePermanentExcludes")
+  } ?: emptySet()
+  val configuredExcludes = (project.findProperty("excludingMachineNames") as? String)
+    ?.split(",")
+    ?.map { it.trim() }
+    ?.filter { it.isNotBlank() }
+    ?.toSet()
+    ?: emptySet()
+  machineName = (project.findProperty("machineName") as? String)
+    ?.trim()
+    ?.takeIf { it.isNotBlank() }
+  excludes = permanentExcludes + configuredExcludes
+  outputFile = (project.findProperty("outputFile") as? String)
+    ?.trim()
+    ?.takeIf { it.isNotBlank() }
+    ?.let { file(it) }
 }

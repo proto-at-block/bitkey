@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.arch.core:core-runtime",
+    "components": [
+        {
+            "version": "2.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-runtime-2.2.0.aar": "a1be5e0caa2b07623862af6ae21b3ab0718123245184d0e30dea81b53f990a47"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,8 +1,8 @@
 package build.wallet.statemachine.data.recovery.sweep
 
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.money.BitcoinMoney
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
@@ -58,7 +58,7 @@ sealed interface SweepData {
    */
   data class AwaitingHardwareSignedSweepsData(
     val recoveredFactor: PhysicalFactor,
-    val keyboxConfig: KeyboxConfig,
+    val fullAccountConfig: FullAccountConfig,
     val needsHwSign: ImmutableMap<SpendingKeyset, Psbt>,
     val addHwSignedSweeps: (ImmutableList<Psbt>) -> Unit,
   ) : SweepData

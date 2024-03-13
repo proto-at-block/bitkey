@@ -46,7 +46,7 @@ import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Truncate
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
@@ -307,7 +307,7 @@ internal fun TextFieldNoTextWithTrailingButtonPreview() {
           leadingIcon = Icon.SmallIconClipboard,
           treatment = Secondary,
           size = Compact,
-          onClick = Click.StandardClick { }
+          onClick = StandardClick {}
         )
     )
   }

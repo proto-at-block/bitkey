@@ -12,7 +12,7 @@ impl Service {
         &self,
         input: ActivateTouchpointForAccountInput,
     ) -> Result<(), AccountError> {
-        let mut account = self.repo.fetch(&input.account_id).await?;
+        let mut account = self.account_repo.fetch(&input.account_id).await?;
 
         let new_touchpoint = if let Some(existing_touchpoint) =
             account.get_touchpoint_by_id(input.touchpoint_id.to_owned())
@@ -63,7 +63,7 @@ impl Service {
             Account::Full(full_account) => full_account.common_fields.touchpoints = touchpoints,
             Account::Lite(lite_account) => lite_account.common_fields.touchpoints = touchpoints,
         };
-        self.repo.persist(&account).await?;
+        self.account_repo.persist(&account).await?;
 
         Ok(())
     }

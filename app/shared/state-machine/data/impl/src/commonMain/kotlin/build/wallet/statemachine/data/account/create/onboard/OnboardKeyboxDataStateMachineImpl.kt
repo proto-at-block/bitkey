@@ -9,10 +9,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
-import build.wallet.onboarding.OnboardingKeyboxStep.CurrencyPreference
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.onboarding.OnboardingKeyboxStepState
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
@@ -21,10 +19,8 @@ import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.BackingUpKeyboxToCloudDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCurrencyPreferenceDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingNotificationsDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.FailedCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingCurrencyPreferenceDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
@@ -33,7 +29,6 @@ import com.github.michaelbull.result.onSuccess
 class OnboardKeyboxDataStateMachineImpl(
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
-  private val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag,
 ) : OnboardKeyboxDataStateMachine {
   @Composable
   override fun model(props: OnboardKeyboxDataProps): OnboardKeyboxDataFull {
@@ -45,11 +40,7 @@ class OnboardKeyboxDataStateMachineImpl(
       rememberNotificationPreferencesState()
         ?: return OnboardKeyboxDataFull.LoadingInitialStepDataFull
 
-    val currencyPreferenceState =
-      rememberCurrencyPreferenceState()
-        ?: return OnboardKeyboxDataFull.LoadingInitialStepDataFull
-
-    // Steps are: CloudBackup, NotificationPreferences, CurrencyPreference.
+    // Steps are: CloudBackup, NotificationPreferences.
     // Check for Incomplete in that order.
     when (cloudBackupState) {
       Incomplete ->
@@ -58,25 +49,11 @@ class OnboardKeyboxDataStateMachineImpl(
         Unit
     }
 
-    when (notificationPreferencesState) {
+    return when (notificationPreferencesState) {
       Incomplete ->
-        return NotificationPreferencesData(props)
+        NotificationPreferencesData(props)
       Complete ->
-        Unit
-    }
-
-    return if (multipleFiatCurrencyEnabledFeatureFlag.flagValue().value.value) {
-      when (currencyPreferenceState) {
-        Incomplete ->
-          CurrencyPreferenceData(props)
-
-        Complete ->
-          // Nothing else to do. This is the last step of onboarding (when currency flag is on).
-          CompletingCurrencyPreferenceDataFull
-      }
-    } else {
-      // Nothing else to do. This is the last step of onboarding (when currency flag is off).
-      CompletingNotificationsDataFull
+        CompletingNotificationsDataFull
     }
   }
 
@@ -158,41 +135,9 @@ class OnboardKeyboxDataStateMachineImpl(
   }
 
   @Composable
-  private fun CurrencyPreferenceData(props: OnboardKeyboxDataProps): OnboardKeyboxDataFull {
-    // Local variables to keep track of state
-    var stepIsCompleting by remember {
-      // Start off completing if the CurrencyPreference step is configured to be skipped
-      mutableStateOf(props.onboardConfig.stepsToSkip.contains(CurrencyPreference))
-    }
-
-    return if (stepIsCompleting) {
-      LaunchedEffect("complete-currency-step") {
-        onboardingKeyboxStepStateDao
-          .setStateForStep(CurrencyPreference, Complete)
-          .onSuccess {
-            stepIsCompleting = false
-          }
-      }
-      CompletingCurrencyPreferenceDataFull
-    } else {
-      SettingCurrencyPreferenceDataFull(
-        currencyPreferenceData = props.currencyPreferenceData,
-        onComplete = { stepIsCompleting = true }
-      )
-    }
-  }
-
-  @Composable
   private fun rememberCloudBackupState(): OnboardingKeyboxStepState? {
     return remember {
       onboardingKeyboxStepStateDao.stateForStep(CloudBackup)
-    }.collectAsState(null).value
-  }
-
-  @Composable
-  private fun rememberCurrencyPreferenceState(): OnboardingKeyboxStepState? {
-    return remember {
-      onboardingKeyboxStepStateDao.stateForStep(CurrencyPreference)
     }.collectAsState(null).value
   }
 

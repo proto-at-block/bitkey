@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.apis:google-api-services-drive",
+    "components": [
+        {
+            "version": "v3-rev20240123-2.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "google-api-services-drive-v3-rev20240123-2.0.0.jar": "648efe4f868106eed14e7052860ab48f7f49324db011457f7d87549b5c2064fa"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

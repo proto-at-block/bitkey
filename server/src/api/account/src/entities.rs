@@ -14,6 +14,7 @@ use strum_macros::{Display as StrumDisplay, EnumString};
 use time::{serde::rfc3339, OffsetDateTime};
 use types::account::identifiers::TouchpointId;
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
+use types::account::PubkeysToAccount;
 use types::notification::{NotificationChannel, NotificationsPreferences};
 use utoipa::ToSchema;
 
@@ -606,15 +607,6 @@ impl From<SpendingKeyset> for DescriptorKeyset {
 pub struct Keyset {
     pub auth: FullAccountAuthKeys,
     pub spending: SpendingKeyset,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PubkeysToAccount {
-    pub application_auth_pubkey: Option<PublicKey>,
-    pub hardware_auth_pubkey: Option<PublicKey>,
-    pub recovery_auth_pubkey: Option<PublicKey>,
-    #[serde(rename = "partition_key")]
-    pub id: AccountId,
 }
 
 impl From<Account> for PubkeysToAccount {

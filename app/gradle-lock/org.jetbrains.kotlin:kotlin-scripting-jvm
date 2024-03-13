@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-jvm",
+    "components": [
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-scripting-jvm-1.9.21.jar": "0918e29ee815441d5943b9a8e51a48fc7ff08f17abaa52443ab71c0c8eab0da7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

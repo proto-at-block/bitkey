@@ -16,7 +16,7 @@ import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import build.wallet.onboarding.OnboardingKeyboxHwAuthPublicKeyDao
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.ActivateKeyboxDataFull.ActivatingKeyboxDataFull
@@ -33,7 +33,7 @@ class ActivateFullAccountDataStateMachineImpl(
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val onboardingService: OnboardingService,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
-  private val onboardingKeyboxHwAuthPublicKeyDao: OnboardingKeyboxHwAuthPublicKeyDao,
+  private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
 ) : ActivateFullAccountDataStateMachine {
   @Composable
   override fun model(
@@ -75,7 +75,7 @@ class ActivateFullAccountDataStateMachineImpl(
       onboardingAppKeyKeystore.clear()
 
       // clear the hw auth public key that was stored for upgrading a lite account backup
-      onboardingKeyboxHwAuthPublicKeyDao.clear()
+      onboardingKeyboxHardwareKeysDao.clear()
 
       // Tell the server that onboarding has been completed.
       onboardingService.completeOnboarding(
@@ -91,7 +91,7 @@ class ActivateFullAccountDataStateMachineImpl(
             buildList {
               add(
                 GettingStartedTask(
-                  GettingStartedTask.TaskId.EnableSpendingLimit,
+                  GettingStartedTask.TaskId.AddBitcoin,
                   GettingStartedTask.TaskState.Incomplete
                 )
               )
@@ -105,7 +105,7 @@ class ActivateFullAccountDataStateMachineImpl(
 
               add(
                 GettingStartedTask(
-                  GettingStartedTask.TaskId.AddBitcoin,
+                  GettingStartedTask.TaskId.EnableSpendingLimit,
                   GettingStartedTask.TaskState.Incomplete
                 )
               )

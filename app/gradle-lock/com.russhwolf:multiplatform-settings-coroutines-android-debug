@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-coroutines-android-debug",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines-debug.aar": "d2a4cb522298c9175bf075c8a22255cafc687f5c7977831c7ce6162ee40496f7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

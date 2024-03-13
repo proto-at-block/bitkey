@@ -1,5 +1,6 @@
 package build.wallet.f8e.onboarding
 
+import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -19,7 +20,9 @@ import build.wallet.f8e.onboarding.model.FullCreateAccountRequestBody
 import build.wallet.f8e.onboarding.model.FullCreateAccountResponseBody
 import build.wallet.f8e.onboarding.model.LiteCreateAccountRequestBody
 import build.wallet.f8e.onboarding.model.LiteCreateAccountResponseBody
+import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.bodyResult
+import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -39,10 +42,32 @@ class CreateAccountServiceImpl(
         FullCreateAccountRequestBody(
           appKeyBundle = keyCrossDraft.appKeyBundle,
           hardwareKeyBundle = keyCrossDraft.hardwareKeyBundle,
-          network = keyCrossDraft.config.networkType,
+          network = keyCrossDraft.config.bitcoinNetworkType,
           isTestAccount = if (keyCrossDraft.config.isTestAccount) true else null
         )
     ).map { response ->
+      val verified = runCatching {
+        f8eHttpClient.wsmVerifier.verify(
+          base58Message = DescriptorPublicKey(response.spending).xpub,
+          signature = response.spendingSig,
+          keyVariant = keyCrossDraft.config.f8eEnvironment.wsmIntegrityKeyVariant
+        ).isValid
+      }.getOrElse {
+        false
+      }
+
+      if (!verified) {
+        // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
+        log {
+          "[wsm_integrity_failure] WSM integrity signature verification failed: " +
+            "${response.spendingSig} : " +
+            "${response.spending} : " +
+            "${response.accountId} : " +
+            response.keysetId
+        }
+        // Just log, don't fail the call.
+      }
+
       CreateFullAccountService.Success(
         f8eSpendingKeyset =
           F8eSpendingKeyset(

@@ -7,10 +7,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.socrec.Invitation
+import build.wallet.home.GettingStartedTask
+import build.wallet.home.GettingStartedTaskDao
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
@@ -20,6 +24,7 @@ import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.Succe
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
+import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
@@ -39,6 +44,7 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SetSpendingLimi
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewHardwareRecoveryStatusUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingAllTransactionActivityUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.MobilePay
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.TrustedContact
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState
@@ -57,15 +63,18 @@ import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.statemachine.transactions.TransactionListUiProps
 import build.wallet.statemachine.transactions.TransactionListUiStateMachine
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.button.ButtonModel
+import com.github.michaelbull.result.onSuccess
 
 class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val addBitcoinUiStateMachine: AddBitcoinUiStateMachine,
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
   private val deepLinkHandler: DeepLinkHandler,
+  private val eventTracker: EventTracker,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val moneyHomeCardsUiStateMachine: MoneyHomeCardsUiStateMachine,
   private val transactionListUiStateMachine: TransactionListUiStateMachine,
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,
@@ -127,7 +136,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                   treatment = ButtonModel.Treatment.Secondary,
                   size = ButtonModel.Size.Footer,
                   onClick =
-                    Click.StandardClick {
+                    StandardClick {
                       props.setState(ViewingAllTransactionActivityUiState)
                     }
                 )
@@ -188,6 +197,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       props =
         MoneyHomeCardsProps(
           cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
+            appFunctionalityStatus = appFunctionalityStatus,
             onActionClick = { status ->
               props.setState(FixingCloudBackupState(status))
             }
@@ -209,10 +219,14 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               onAddBitcoin = {
                 props.setState(ViewingBalanceUiState(bottomSheetDisplayState = Partners()))
               },
-              onEnableSpendingLimit = { props.setState(SetSpendingLimitFlowUiState) },
+              onEnableSpendingLimit = {
+                props.setState(
+                  ViewingBalanceUiState(bottomSheetDisplayState = MobilePay(skipped = false))
+                )
+              },
               onInviteTrustedContact = {
                 props.setState(
-                  ViewingBalanceUiState(bottomSheetDisplayState = TrustedContact)
+                  ViewingBalanceUiState(bottomSheetDisplayState = TrustedContact(skipped = false))
                 )
               },
               onShowAlert = onShowAlert,
@@ -345,9 +359,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             addBitcoinUiStateMachine.model(
               props =
                 AddBitcoinUiProps(
-                  account = props.accountData.account,
+                  keybox = props.accountData.account.keybox,
                   fiatCurrency = props.fiatCurrency,
                   purchaseAmount = currentState.purchaseAmount,
+                  generateAddress = props.accountData.addressData.generateAddress,
                   onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
                   onPartnerRedirected = {
                     handlePartnerRedirected(method = it, props, onShowAlert, onDismissAlert)
@@ -360,11 +375,58 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                   }
                 )
             )
-          TrustedContact ->
-            ViewingAddTrustedContactSheetModel(
+          is MobilePay -> {
+            if (currentState.skipped) {
+              LaunchedEffect("skipping-saving-spending-limit") {
+                gettingStartedTaskDao.updateTask(
+                  id = GettingStartedTask.TaskId.EnableSpendingLimit,
+                  state = GettingStartedTask.TaskState.Complete
+                ).onSuccess { eventTracker.track(Action.ACTION_APP_MOBILE_TRANSACTION_SKIP) }
+                props.setState(props.state.copy(bottomSheetDisplayState = null))
+              }
+            }
+            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+            MobilePayOnboardingScreenModel(
+              onContinue = { props.setState(SetSpendingLimitFlowUiState) },
+              onSetUpLater = {
+                props.setState(
+                  props.state.copy(
+                    bottomSheetDisplayState = MobilePay(skipped = true)
+                  )
+                )
+              },
+              onClosed = onClosed
+            ).asSheetModalScreen(onClosed)
+          }
+          is TrustedContact -> {
+            // This has been done here instead of InviteTrustedContactFlowUiStateMachineImpl
+            // It's because when done inside there, due to race condition where
+            // returning ScreenModel shows up first instead of MoneyHomeViewingBalance screen
+            // Maybe due to how long the "gettingStartedTaskDao.updateTask" operation takes
+            if (currentState.skipped) {
+              LaunchedEffect("skipping-invite-task") {
+                gettingStartedTaskDao.updateTask(
+                  id = GettingStartedTask.TaskId.InviteTrustedContact,
+                  state = GettingStartedTask.TaskState.Complete
+                )
+                props.setState(props.state.copy(bottomSheetDisplayState = null))
+              }
+            }
+            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+            ViewingAddTrustedContactFormBodyModel(
               onAddTrustedContact = { props.setState(MoneyHomeUiState.InviteTrustedContactFlow) },
-              onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
-            )
+              onSkip = {
+                props.setState(
+                  props.state.copy(
+                    bottomSheetDisplayState = TrustedContact(
+                      skipped = true
+                    )
+                  )
+                )
+              },
+              onClosed = onClosed
+            ).asSheetModalScreen(onClosed)
+          }
           null -> null
         }
       }

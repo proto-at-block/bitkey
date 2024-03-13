@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.moshi:moshi-adapters",
+    "components": [
+        {
+            "version": "1.15.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "moshi-adapters-1.15.0.jar": "b747d391b59b58ae4f6ae157f67084645d5ad3e4d5d2cbb9f24e00772c06e34e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

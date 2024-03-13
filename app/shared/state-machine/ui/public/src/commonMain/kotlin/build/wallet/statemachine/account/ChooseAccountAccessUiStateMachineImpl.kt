@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
@@ -13,6 +12,8 @@ import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
+import build.wallet.statemachine.demo.DemoModeConfigUiProps
+import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.ui.model.alert.AlertModel
@@ -20,6 +21,7 @@ import build.wallet.ui.model.alert.AlertModel
 class ChooseAccountAccessUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugMenuStateMachine: DebugMenuStateMachine,
+  private val demoModeConfigUiStateMachine: DemoModeConfigUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
@@ -27,9 +29,13 @@ class ChooseAccountAccessUiStateMachineImpl(
     var uiState: State by remember { mutableStateOf(State.ShowingChooseAccountAccess) }
     var alert by remember { mutableStateOf<AlertModel?>(null) }
 
-    val onBeTrustedContact: (() -> Unit) = {
-      uiState = State.ShowingBeTrustedContactIntroduction
-    }
+    val onBeTrustedContact: (() -> Unit)? =
+      remember(props.eakAssociation) {
+        when (props.eakAssociation) {
+          EmergencyAccessKitAssociation.EakBuild -> null
+          else -> ({ uiState = State.ShowingBeTrustedContactIntroduction })
+        }
+      }
 
     val onRestoreEmergencyAccessKit: (() -> Unit)? =
       remember(props.eakAssociation) {
@@ -40,9 +46,13 @@ class ChooseAccountAccessUiStateMachineImpl(
         }
       }
 
-    val showDisabledAlert = {
-      alert = DisabledForEakAlert(onDismiss = { alert = null })
-    }
+    val onRestoreYourWallet: (() -> Unit)? =
+      remember(props.eakAssociation) {
+        when (props.eakAssociation) {
+          EmergencyAccessKitAssociation.EakBuild -> null
+          else -> props.chooseAccountAccessData.startRecovery
+        }
+      }
 
     return when (uiState) {
       is State.ShowingChooseAccountAccess ->
@@ -50,7 +60,10 @@ class ChooseAccountAccessUiStateMachineImpl(
           onLogoClick = {
             // Only show the debug menu in non-customer builds
             when (appVariant) {
-              AppVariant.Beta, AppVariant.Customer, AppVariant.Emergency ->
+              AppVariant.Customer ->
+                uiState = State.ShowingDemoMode
+
+              AppVariant.Beta, AppVariant.Emergency ->
                 Unit
 
               AppVariant.Team, AppVariant.Development ->
@@ -67,12 +80,8 @@ class ChooseAccountAccessUiStateMachineImpl(
           body =
             AccountAccessMoreOptionsFormBodyModel(
               onBack = { uiState = State.ShowingChooseAccountAccess },
-              onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
-              onBeTrustedContactClick =
-                onBeTrustedContact.disableForEak(
-                  props.eakAssociation,
-                  showDisabledAlert
-                ),
+              onRestoreYourWalletClick = onRestoreYourWallet,
+              onBeTrustedContactClick = onBeTrustedContact,
               onRestoreEmergencyAccessKit = onRestoreEmergencyAccessKit
             ),
           presentationStyle = Root,
@@ -89,6 +98,12 @@ class ChooseAccountAccessUiStateMachineImpl(
 
       is State.ShowingDebugMenu ->
         DebugMenuScreen(
+          props = props,
+          onClose = { uiState = State.ShowingChooseAccountAccess }
+        )
+
+      is State.ShowingDemoMode ->
+        DemoModeConfigScreen(
           props = props,
           onClose = { uiState = State.ShowingChooseAccountAccess }
         )
@@ -131,6 +146,19 @@ class ChooseAccountAccessUiStateMachineImpl(
           accountData = props.chooseAccountAccessData,
           firmwareData = props.firmwareData,
           onClose = onClose
+        )
+    )
+
+  @Composable
+  private fun DemoModeConfigScreen(
+    props: ChooseAccountAccessUiProps,
+    onClose: () -> Unit,
+  ): ScreenModel =
+    demoModeConfigUiStateMachine.model(
+      props =
+        DemoModeConfigUiProps(
+          accountData = props.chooseAccountAccessData,
+          onBack = onClose
         )
     )
 
@@ -180,7 +208,12 @@ private sealed interface State {
   data object ShowingBeTrustedContactIntroduction : State
 
   /**
-   * Showing debug menu which allows updating initial default [KeyboxConfig].
+   * Showing debug menu which allows updating initial default [FullAccountConfig].
    */
   data object ShowingDebugMenu : State
+
+  /**
+   * Showing demo mode configuration screen which allows to use the app without physical hardware
+   */
+  data object ShowingDemoMode : State
 }

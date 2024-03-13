@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.netty:netty-common",
+    "components": [
+        {
+            "version": "4.1.72.Final",
+            "variants": [
+                {
+                    "artifacts": {
+                        "netty-common-4.1.72.Final.jar": "8adb4c291260ceb2859a68c49f0adeed36bf49587608e2b81ecff6aaf06025e9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

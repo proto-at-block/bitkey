@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-annotations-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.13.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-annotations-iossimulatorarm64-0.13.3-metadata.jar": "623bd6b2ea19f127572ba65006f1625ceac40e4a5e7c078136240c0b5fa46c19"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-annotations.klib": "f4d0520b898fa7666047aa018704eea7a2af821bbcf48fe0c552d780b6383cfa"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

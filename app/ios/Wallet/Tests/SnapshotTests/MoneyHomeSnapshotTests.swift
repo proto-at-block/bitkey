@@ -18,17 +18,22 @@ final class MoneyHomeSnapshotTests: XCTestCase {
     }
 
     func test_money_home_lite() {
-        let view = MoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice"]))
+        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice"]))
         assertBitkeySnapshots(view: view)
     }
 
     func test_money_home_lite_with_status_banner() {
-        let view = MoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice"]))
+        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice"]))
         assertBitkeySnapshots(view: view, screenModel: .snapshotTest(statusBannerModel: .snapshotTest()))
+    }
+    
+    func test_money_home_lite_with_no_protected_customers() {
+        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: []))
+        assertBitkeySnapshots(view: view)
     }
 
     func test_money_home_lite_with_two_protected_customers() {
-        let view = MoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice", "Bob"]))
+        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice", "Bob"]))
         assertBitkeySnapshots(view: view)
     }
 
@@ -97,6 +102,24 @@ final class MoneyHomeSnapshotTests: XCTestCase {
 }
 
 // MARK: -
+private extension LiteMoneyHomeBodyModel {
+    
+    static func snapshotTestLite(
+        protectedCustomers: [String] = []
+    ) -> LiteMoneyHomeBodyModel {
+        return LiteMoneyHomeBodyModel(
+            onSettings: {},
+            buttonModel: MoneyHomeButtonsModelSingleButtonModel(
+                onSetUpBitkeyDevice: {}
+            ),
+            protectedCustomers: protectedCustomers.map {
+                ProtectedCustomer(recoveryRelationshipId: "", alias: $0)
+            },
+            onProtectedCustomerClick: { ProtectedCustomer in },
+            onBuyOwnBitkeyClick: {},
+            onAcceptInviteClick: {})
+    }
+}
 
 private extension MoneyHomeBodyModel {
 
@@ -122,24 +145,6 @@ private extension MoneyHomeBodyModel {
             isRefreshing: false
         )
     }
-
-    static func snapshotTestLite(
-        protectedCustomers: [String] = []
-    ) -> MoneyHomeBodyModel {
-        return LiteMoneyHomeBodyModelKt.LiteMoneyHomeBodyModel(
-            onSettings: {},
-            primaryAmountString: "$0",
-            secondaryAmountString: "0 sats",
-            onSetUpBitkeyDevice: {},
-            protectedCustomers: protectedCustomers.map { 
-                ProtectedCustomer(recoveryRelationshipId: "", alias: $0)
-            },
-            onProtectedCustomerClick: { _ in }, 
-            onBuyOwnBitkeyClick: {},
-            onAcceptInviteClick: {}
-        )
-    }
-
 }
 
 // MARK: -
@@ -177,7 +182,8 @@ private extension CardModel {
         contact: Invitation(
             recoveryRelationshipId: "foo",
             trustedContactAlias: "Alice",
-            token: "bar",
+            code: "bar",
+            codeBitLength: 20,
             expiresAt: Kotlinx_datetimeInstant.companion.DISTANT_FUTURE
         ),
         buttonText: "Pending",
@@ -190,7 +196,8 @@ private extension CardModel {
         contact: Invitation(
             recoveryRelationshipId: "foo",
             trustedContactAlias: "Alice",
-            token: "bar",
+            code: "bar",
+            codeBitLength: 20,
             expiresAt: Kotlinx_datetimeInstant.companion.DISTANT_PAST
         ),
         buttonText: "Expired",

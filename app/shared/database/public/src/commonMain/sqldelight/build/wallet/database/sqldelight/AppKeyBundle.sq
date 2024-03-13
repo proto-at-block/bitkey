@@ -6,9 +6,7 @@ CREATE TABLE appKeyBundleEntity(
   id              TEXT NOT NULL PRIMARY KEY,
   globalAuthKey   TEXT AS AppGlobalAuthPublicKey NOT NULL,
   spendingKey     TEXT AS AppSpendingPublicKey NOT NULL,
-  -- Note that App Recovery Auth key is optional to ensure backwards compatability with existing accounts.
-  -- TODO(BKR-573): generate and backfill the App Recovery Auth Key for existing customers.
-  recoveryAuthKey TEXT AS AppRecoveryAuthPublicKey
+  recoveryAuthKey TEXT AS AppRecoveryAuthPublicKey NOT NULL
 );
 
 insertKeyBundle:

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.android.tools.ddms:ddmlib",
+    "components": [
+        {
+            "version": "31.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ddmlib-31.1.2.jar": "8c2fb144e61ca79aab8edc7c3ffe2c2b74bc6b23cb0cac6c8b7e066b5151e8ed"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

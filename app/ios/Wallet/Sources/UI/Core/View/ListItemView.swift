@@ -54,21 +54,79 @@ struct ListItemContentView: View {
                 ListItemAccessoryView(viewModel: leadingAccessory)
             }
 
-            if (!viewModel.title.isEmpty) {
-                let titleAlignment = switch viewModel.titleAlignment{
-                    case .left: TextAlignment.leading
-                    case .center: TextAlignment.center
-                    default: TextAlignment.leading
+            if(viewModel.titleLabel == nil){
+                if (!viewModel.title.isEmpty) {
+                    let titleAlignment = switch viewModel.titleAlignment{
+                        case .left: TextAlignment.leading
+                        case .center: TextAlignment.center
+                        default: TextAlignment.leading
+                    }
+                    TitleSubtitleView(
+                        alignment: titleAlignment,
+                        title: viewModel.title,
+                        titleColor: viewModel.titleColor,
+                        titleFont: viewModel.titleFont,
+                        subtitle: viewModel.secondaryText,
+                        subtitleColor: viewModel.subtitleColor,
+                        enabled: viewModel.enabled
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .if(viewModel.listItemTitleBackgroundTreatment != nil) { title in
+                        title
+                        .padding(16)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.foreground10)
+                        .cornerRadius(12)
+                    }
                 }
-                TitleSubtitleView(
-                    alignment: titleAlignment,
-                    title: viewModel.title,
-                    titleColor: viewModel.titleColor,
-                    titleFont: viewModel.titleFont,
-                    subtitle: viewModel.secondaryText,
-                    subtitleColor: viewModel.subtitleColor,
-                    enabled: viewModel.enabled
-                ).frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                switch viewModel.titleLabel {
+                case let model as LabelModelStringModel:
+                    if (!model.string.isEmpty) {
+                        let titleAlignment = switch viewModel.titleAlignment{
+                        case .left: TextAlignment.leading
+                        case .center: TextAlignment.center
+                        default: TextAlignment.leading
+                        }
+                        TitleSubtitleView(
+                            alignment: titleAlignment,
+                            title: model.string,
+                            titleColor: viewModel.titleColor,
+                            titleFont: viewModel.titleFont,
+                            subtitle: viewModel.secondaryText,
+                            subtitleColor: viewModel.subtitleColor,
+                            enabled: viewModel.enabled
+                        )
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .if(viewModel.listItemTitleBackgroundTreatment != nil) { title in
+                            title
+                            .padding(16)
+                            .frame(maxWidth: .infinity)
+                            .background(Color.foreground10)
+                            .cornerRadius(12)
+                        }
+                    }
+
+
+                case let model as LabelModelStringWithStyledSubstringModel:
+                    ModeledText(
+                        model: .standard(
+                            .stringWithSubstring(model, font: .body2Regular),
+                            font: .body2Regular
+                        )
+                    )
+
+                case let model as LabelModelLinkSubstringModel:
+                    ModeledText(
+                        model: .linkedText(
+                            textContent: .linkedText(string: model.markdownString(), links: model.linkedSubstrings),
+                            font: FontTheme.body2Regular
+                        )
+                    )
+
+                default:
+                    fatalError("Unexpected Kotlin LabelModel")
+                }
             }
 
             if (viewModel.sideText != nil || viewModel.secondarySideText != nil) {
@@ -173,6 +231,8 @@ private extension Shared.ListItemModel {
             return FontTheme.body2Regular
         case .tertiary:
             return FontTheme.body3Regular
+        case .jumbo:
+            return FontTheme.title1
         default:
             return FontTheme.body2Medium
 
@@ -198,6 +258,7 @@ struct ListItemView_Preview: PreviewProvider {
                     .init(
                         title: "Primary",
                         titleAlignment: .left,
+                        listItemTitleBackgroundTreatment: nil,
                         secondaryText: "Seconday Text",
                         sideText: "Side Text",
                         secondarySideText: "Secondary Side Text",
@@ -210,7 +271,8 @@ struct ListItemView_Preview: PreviewProvider {
                         selected: false,
                         onClick: {},
                         pickerMenu: nil, 
-                        testTag: nil
+                        testTag: nil,
+                        titleLabel: nil
                     )
         )
         ListItemView(
@@ -218,6 +280,7 @@ struct ListItemView_Preview: PreviewProvider {
                     .init(
                         title: "Disabled",
                         titleAlignment: .left,
+                        listItemTitleBackgroundTreatment: nil,
                         secondaryText: "Seconday Text",
                         sideText: "Side Text",
                         secondarySideText: "Secondary Side Text",
@@ -230,7 +293,8 @@ struct ListItemView_Preview: PreviewProvider {
                         selected: false,
                         onClick: {},
                         pickerMenu: nil,
-                        testTag: nil
+                        testTag: nil,
+                        titleLabel: nil
                     )
         )
         ListItemView(
@@ -238,6 +302,7 @@ struct ListItemView_Preview: PreviewProvider {
                     .init(
                         title: "Secondary",
                         titleAlignment: .left,
+                        listItemTitleBackgroundTreatment: nil,
                         secondaryText: "Seconday Text",
                         sideText: "Side Text",
                         secondarySideText: "Secondary Side Text",
@@ -250,7 +315,8 @@ struct ListItemView_Preview: PreviewProvider {
                         selected: false,
                         onClick: {},
                         pickerMenu: nil,
-                        testTag: nil
+                        testTag: nil,
+                        titleLabel: nil
                     )
         )
         ListItemView(
@@ -258,6 +324,7 @@ struct ListItemView_Preview: PreviewProvider {
                     .init(
                         title: "Seconday Disabled",
                         titleAlignment: .left,
+                        listItemTitleBackgroundTreatment: nil,
                         secondaryText: "Seconday Text",
                         sideText: "Side Text",
                         secondarySideText: "Secondary Side Text",
@@ -270,7 +337,31 @@ struct ListItemView_Preview: PreviewProvider {
                         selected: false,
                         onClick: {},
                         pickerMenu: nil,
-                        testTag: nil
+                        testTag: nil,
+                        titleLabel: nil
+                    )
+        )
+        
+        ListItemView(
+            viewModel:
+                    .init(
+                        title: "1234-ABCD-EF",
+                        titleAlignment: .center,
+                        listItemTitleBackgroundTreatment: .recovery,
+                        secondaryText: nil,
+                        sideText: nil,
+                        secondarySideText: nil,
+                        leadingAccessoryAlignment: .center,
+                        leadingAccessory: nil,
+                        trailingAccessory: nil,
+                        treatment: .jumbo,
+                        sideTextTint: .primary,
+                        enabled: true,
+                        selected: false,
+                        onClick: {},
+                        pickerMenu: nil,
+                        testTag: nil,
+                        titleLabel: nil
                     )
         )
     }

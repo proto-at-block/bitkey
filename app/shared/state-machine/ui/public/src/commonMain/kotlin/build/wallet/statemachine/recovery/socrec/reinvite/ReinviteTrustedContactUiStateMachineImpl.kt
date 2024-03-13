@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.socrec.reinvite
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
@@ -64,7 +64,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
                 }
               ),
             fullAccountId = props.account.accountId,
-            keyboxConfig = props.account.keybox.config,
+            fullAccountConfig = props.account.keybox.config,
             onBack = {
               state =
                 State.SaveWithBitkeyRequestState(
@@ -121,14 +121,14 @@ class ReinviteTrustedContactUiStateMachineImpl(
 
       is State.ShareState ->
         ShareInviteBodyModel(
-          trustedContactName = current.invitation.trustedContactAlias.alias,
+          trustedContactName = current.invitation.invitation.trustedContactAlias.alias,
           onShareComplete = {
             // We need to watch the clipboard on Android because we don't get
             // a callback from the share sheet when they use the copy action
             scope.launch {
               clipboard.plainTextItemAndroid().drop(1).collect { content ->
                 content.let {
-                  if (it.toString().contains(current.invitation.token)) {
+                  if (it.toString().contains(current.invitation.inviteCode)) {
                     state = State.Success
                   }
                 }
@@ -136,7 +136,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
             }
 
             sharingManager.shareInvitation(
-              inviteCode = current.invitation.token,
+              inviteCode = current.invitation.inviteCode,
               onCompletion = {
                 state = State.Success
               }
@@ -151,17 +151,8 @@ class ReinviteTrustedContactUiStateMachineImpl(
       State.Success ->
         SuccessBodyModel(
           id = null,
-          style =
-            SuccessBodyModel.Style.Explicit(
-              primaryButton =
-                ButtonDataModel(
-                  text = "Got it",
-                  onClick = {
-                    props.onExit()
-                  }
-                )
-            ),
-          title = "That's it!",
+          primaryButtonModel = ButtonDataModel("Got it", onClick = props.onExit),
+          title = "You're all set.",
           message =
             """
             You’ll get a notification when your Trusted Contact accepts your invite.
@@ -193,7 +184,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
     ) : State
 
     data class ShareState(
-      val invitation: Invitation,
+      val invitation: OutgoingInvitation,
     ) : State
 
     data object Success : State

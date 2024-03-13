@@ -29,7 +29,6 @@ fun CloudBackupHealthDashboardScreen(model: CloudBackupHealthDashboardBodyModel)
     mainContent = {
       CloudBackupHealthStatusCard(model = model.mobileKeyBackupStatusCard)
       Spacer(modifier = Modifier.height(20.dp))
-      // TODO: implement EAK card UI
       model.eakBackupStatusCard?.let {
         CloudBackupHealthStatusCard(model = it)
       }

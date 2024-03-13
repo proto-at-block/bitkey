@@ -9,6 +9,7 @@ import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.label.CallToActionModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 
@@ -26,6 +27,7 @@ import kotlinx.collections.immutable.ImmutableList
  * arranged in a vertical column.
  * @property primaryButton: The primary button in the footer area of the screen.
  * @property secondaryButton: Optional secondary button shown below the primary button.
+ * @property tertiaryButton: Optional tertiary button shown below the secondary button.
  * @property ctaWarning If specified, show a warning text above button stack.
  * @property renderContext [RenderContext]: how the model will be displayed to the user, defaults to
  * [Screen]
@@ -40,7 +42,8 @@ data class FormBodyModel(
   val mainContentList: ImmutableList<FormMainContentModel> = emptyImmutableList(),
   val primaryButton: ButtonModel?,
   val secondaryButton: ButtonModel? = null,
-  val ctaWarning: String? = null,
+  val tertiaryButton: ButtonModel? = null,
+  val ctaWarning: CallToActionModel? = null,
   /** Prevent screen dimming from inactivity. */
   val keepScreenOn: Boolean = false,
   val renderContext: RenderContext = Screen,

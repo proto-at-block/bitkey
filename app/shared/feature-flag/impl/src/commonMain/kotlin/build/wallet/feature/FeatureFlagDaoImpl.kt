@@ -26,9 +26,9 @@ class FeatureFlagDaoImpl(
           .getFlag(featureFlagId)
           .awaitAsOneOrNullResult()
           .map { getFlagValue ->
-            getFlagValue?.value_?.let {
+            getFlagValue?.let {
               @Suppress("UNCHECKED_CAST")
-              BooleanFlag(value = it) as? T
+              BooleanFlag(value = it) as T
             }
           }
       else -> TODO("Not yet implemented")

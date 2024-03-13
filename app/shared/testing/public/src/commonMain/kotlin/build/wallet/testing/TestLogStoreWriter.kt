@@ -1,5 +1,6 @@
 package build.wallet.testing
 
+import build.wallet.logging.LogEntry
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 
@@ -26,8 +27,3 @@ internal object TestLogStoreWriter : LogWriter() {
       )
   }
 }
-
-internal data class LogEntry(
-  val tag: String,
-  val message: String,
-)

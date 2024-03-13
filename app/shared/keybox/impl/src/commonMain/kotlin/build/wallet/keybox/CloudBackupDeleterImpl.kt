@@ -24,7 +24,10 @@ class CloudBackupDeleterImpl(
     cloudStoreAccountRepository.currentAccount(cloudStoreServiceProvider)
       .onSuccess { cloudAccount ->
         cloudAccount?.let {
-          cloudBackupRepository.clear(it).logFailure { "Error deleting cloud backup" }
+          cloudBackupRepository.clear(
+            it,
+            clearRemoteOnly = true
+          ).logFailure { "Error deleting cloud backup" }
         }
       }
       .onFailure { error ->

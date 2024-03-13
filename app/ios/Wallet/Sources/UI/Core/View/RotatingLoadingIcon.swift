@@ -15,8 +15,6 @@ public struct RotatingLoadingIcon: View {
 
     // MARK: - Private Properties
 
-    @SwiftUI.State
-    private var rotationEffectDegrees = 0.0
     private let size: IconSize
     private let tint: Tint
     private var animation: LottieAnimation {
@@ -37,11 +35,20 @@ public struct RotatingLoadingIcon: View {
     }
 
     public var body: some View {
-        LottieView(animation: animation)
-            .playing(loopMode: .loop)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(iconSize: size)
+        // We need to manually pause the animation when performing snapshot tests to avoid flakes
+        if ProcessInfo.isTesting {
+            LottieView(animation: animation)
+                .paused(at: .progress(0.5))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(iconSize: size)
+        } else {
+            LottieView(animation: animation)
+                .playing(loopMode: .loop)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(iconSize: size)
+        }
     }
 
 }

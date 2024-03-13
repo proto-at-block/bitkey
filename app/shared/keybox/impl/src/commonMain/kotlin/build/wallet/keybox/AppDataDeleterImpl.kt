@@ -3,6 +3,7 @@ package build.wallet.keybox
 import build.wallet.account.AccountRepository
 import build.wallet.auth.AuthKeyRotationAttemptDao
 import build.wallet.auth.AuthTokenDao
+import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.transactions.TransactionDetailDao
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
@@ -19,11 +20,12 @@ import build.wallet.logging.log
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.notifications.NotificationTouchpointDao
-import build.wallet.onboarding.OnboardingKeyboxHwAuthPublicKeyDao
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
+import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.SocRecKeysDao
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
@@ -39,7 +41,7 @@ class AppDataDeleterImpl(
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
-  private val onboardingKeyboxHwAuthPublicKeyDao: OnboardingKeyboxHwAuthPublicKeyDao,
+  private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val spendingLimitDao: SpendingLimitDao,
   private val transactionDetailDao: TransactionDetailDao,
   private val fwupDataDao: FwupDataDao,
@@ -56,6 +58,8 @@ class AppDataDeleterImpl(
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val csekDao: CsekDao,
   private val authKeyRotationAttemptDao: AuthKeyRotationAttemptDao,
+  private val recoveryDao: RecoveryDao,
+  private val authSignatureStatusProvider: F8eAuthSignatureStatusProvider,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     binding {
@@ -67,7 +71,7 @@ class AppDataDeleterImpl(
       notificationTouchpointDao.clear()
       onboardingKeyboxSealedCsekDao.clear()
       onboardingKeyboxStepStateDao.clear()
-      onboardingKeyboxHwAuthPublicKeyDao.clear()
+      onboardingKeyboxHardwareKeysDao.clear()
       spendingLimitDao.disableSpendingLimit()
       spendingLimitDao.removeAllLimits()
       transactionDetailDao.clear()
@@ -86,6 +90,8 @@ class AppDataDeleterImpl(
       csekDao.clear()
       socRecStartedChallengeDao.clear()
       authKeyRotationAttemptDao.clear()
+      recoveryDao.clear()
+      authSignatureStatusProvider.clear()
 
       // Make sure we clear Account data last because this will transition the UI
       accountRepository.clear().bind()

@@ -5,10 +5,70 @@ package build.wallet.statemachine.core
  * or attributed / annotated strings.
  */
 sealed interface LabelModel {
+  val string: String
+
   /**
    * Model for a regular string
    */
-  data class StringModel(val string: String) : LabelModel
+  data class StringModel(override val string: String) : LabelModel
+
+  data class LinkSubstringModel internal constructor(
+    override val string: String,
+    val linkedSubstrings: List<LinkSubstring>,
+  ) : LabelModel {
+    data class LinkSubstring(
+      val range: IntRange,
+      val onClick: () -> Unit,
+    )
+
+    @Suppress("unused") // Used in iOS
+    fun markdownString(): String {
+      val mdStringBuilder = StringBuilder()
+      return if (linkedSubstrings.isEmpty()) {
+        string
+      } else {
+        if (linkedSubstrings[0].range.first > 0) {
+          mdStringBuilder.append(string.substring(0, linkedSubstrings[0].range.first))
+        }
+        for (sub in linkedSubstrings.indices) {
+          val theRange = linkedSubstrings[sub].range
+
+          mdStringBuilder.append("[${string.substring(theRange)}](ls:$sub)")
+
+          if (linkedSubstrings.size > sub + 1) {
+            mdStringBuilder.append(
+              string.substring(theRange.last + 1, linkedSubstrings[sub + 1].range.first)
+            )
+          }
+        }
+        val endIndex = linkedSubstrings.last().range.last + 1
+        if (string.length > endIndex) {
+          mdStringBuilder.append(string.substring(endIndex))
+        }
+
+        mdStringBuilder.toString()
+      }
+    }
+
+    companion object {
+      fun from(
+        string: String,
+        substringToOnClick: Map<String, () -> Unit>,
+      ): LinkSubstringModel {
+        return LinkSubstringModel(
+          string = string,
+          linkedSubstrings =
+            substringToOnClick.entries.map { entry ->
+              val indexOfSubstring = string.indexOf(entry.key)
+              LinkSubstring(
+                range = indexOfSubstring..<indexOfSubstring + entry.key.length,
+                onClick = entry.value
+              )
+            }
+        )
+      }
+    }
+  }
 
   /**
    * Model for a string that should have a different treatment in a substring.
@@ -17,7 +77,7 @@ sealed interface LabelModel {
    * and [AttributedString] on iOS
    */
   data class StringWithStyledSubstringModel internal constructor(
-    val string: String,
+    override val string: String,
     val styledSubstrings: List<StyledSubstring>,
   ) : LabelModel {
     enum class Color {

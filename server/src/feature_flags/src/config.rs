@@ -14,7 +14,23 @@ struct Asset;
 #[derive(Deserialize)]
 pub struct Config {
     launchdarkly: Mode,
-    feature_flag_overrides: Option<String>,
+    feature_flag_overrides: Option<OverrideMode>,
+}
+
+impl Config {
+    pub fn new_with_overrides(overrides: HashMap<String, String>) -> Self {
+        Self {
+            launchdarkly: Mode::Test,
+            feature_flag_overrides: Some(OverrideMode::Object(overrides)),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OverrideMode {
+    File(String),
+    Object(HashMap<String, String>),
 }
 
 #[derive(Deserialize)]
@@ -44,8 +60,9 @@ impl Config {
         }
 
         let overrides: HashMap<String, String> = match self.feature_flag_overrides {
-            Some(file) => parse_toml_overrides(file)?,
-            None => HashMap::new(),
+            Some(OverrideMode::File(file_name)) => parse_toml_overrides(file_name)?,
+            Some(OverrideMode::Object(map)) => map,
+            _ => HashMap::new(),
         };
 
         Ok(Service::new(client, overrides))

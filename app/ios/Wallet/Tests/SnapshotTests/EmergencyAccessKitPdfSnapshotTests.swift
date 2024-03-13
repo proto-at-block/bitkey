@@ -10,6 +10,11 @@ import XCTest
 class EmergencyAccessKitPdfSnapshotTests: XCTestCase {
     
     func test_eak_pdf() async throws {
+        // For some unknown reasons our custom PDF diffing in SnapshotTestHelpers.swift always records a snapshot
+        // change even when the PDF is unchanged. For now we skip this test and manually run it when changing the
+        // EAK contents.
+        throw XCTSkip("BKR-1052 iOS EAK PDF snapshot always changes when recording")
+        
         let pdfDocument = try await EmergencyAccessKitPdfGeneratorImpl.generatedPDFDocument()
 
         assertBitkeySnapshot(pdf: pdfDocument)
@@ -49,30 +54,4 @@ extension EmergencyAccessKitPdfGeneratorImpl {
         return generatedPDFDocument
     }
     
-}
-
-fileprivate extension PDFDocument {
-    
-    var pageImages: [UIImage] {
-        var images: [UIImage] = []
-        
-        for pageIndex in 0..<pageCount {
-            guard let page = page(at: pageIndex) else { continue }
-            
-            let pageRect = page.bounds(for: .mediaBox)
-            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
-            let pageImage = renderer.image { context in
-                UIColor.white.set()
-                context.fill(pageRect)
-                context.cgContext.translateBy(x: 0.0, y: pageRect.size.height)
-                context.cgContext.scaleBy(x: 1.0, y: -1.0)
-                context.cgContext.drawPDFPage(page.pageRef!)
-            }
-            
-            images.append(pageImage)
-        }
-        
-        return images
-    }
-
 }

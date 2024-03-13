@@ -2,7 +2,7 @@ package build.wallet.statemachine.dev
 
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 
 /**
@@ -14,6 +14,6 @@ interface AccountConfigUiStateMachine : StateMachine<AccountConfigProps, ListGro
 
 data class AccountConfigProps(
   val accountData: AccountData,
-  // TODO (TODO: BKR-490): Make this AccountConfig
-  val templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData?,
+  val templateFullAccountConfigData:
+    TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData?,
 )

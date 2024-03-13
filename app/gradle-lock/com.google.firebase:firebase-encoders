@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-encoders",
+    "components": [
+        {
+            "version": "17.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-encoders-17.0.0.jar": "282a5a703f9b7eb56508dde97ea918e95d73318b157050f457f7a86dca750150"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

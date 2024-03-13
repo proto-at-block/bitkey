@@ -59,17 +59,17 @@ fun haptics(nfcHaptics: NfcHaptics) =
  *
  * @param timeout The timeout to use. (defaults to 60 seconds)
  */
-@Suppress("UnusedParameter")
-fun timeoutSession(timeout: Duration = 60.seconds) =
-  NfcTransactionInterceptor { next ->
-    { session, commands ->
-      // iOS both does its own timeout *and* blocks, despite claiming to be suspend
-      // [W-5082]: Disabled due to toxic reaction with integration tests!
-      // withTimeout(timeout) {
-      next(session, commands)
-      // }
-    }
+fun timeoutSession(
+  @Suppress("UNUSED_PARAMETER") timeout: Duration = 60.seconds,
+) = NfcTransactionInterceptor { next ->
+  { session, commands ->
+    // iOS both does its own timeout *and* blocks, despite claiming to be suspend
+    // [W-5082]: Disabled due to toxic reaction with integration tests!
+    // withTimeout(timeout) {
+    next(session, commands)
+    // }
   }
+}
 
 /**
  * Locks the device after any transaction that wasn't cancelled or invalidated.

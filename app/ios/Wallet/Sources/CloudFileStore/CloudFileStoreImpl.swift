@@ -96,6 +96,6 @@ public enum CloudFileStoreError : Error {
 
 extension Swift.Error {
     func toCloudFileStoreResultErr<V: AnyObject>() -> CloudFileStoreResultErr<V> {
-        return CloudFileStoreResultErr(error: .init(rectificationData: localizedDescription))
+        return CloudFileStoreResultErr(error: .init(rectificationData: nil))
     }
 }

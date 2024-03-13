@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-test",
+    "components": [
+        {
+            "version": "1.7.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-test-metadata-1.7.3.jar": "2ddfad185b7cc7e3a2e4707c916525d37ce62cf6572ad5fcac2b9f4ba70e010a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

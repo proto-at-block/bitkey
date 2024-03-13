@@ -2,6 +2,7 @@
 
 package build.wallet.ui.components.list
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,14 +24,16 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.LabelTreatment.Disabled
+import build.wallet.ui.components.label.LabelTreatment.Jumbo
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.label.LabelTreatment.Tertiary
 import build.wallet.ui.compose.resId
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.icon.IconModel
@@ -41,6 +45,8 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.list.ListItemTitleAlignment
+import build.wallet.ui.model.list.ListItemTitleBackgroundTreatment
+import build.wallet.ui.model.list.ListItemTreatment.JUMBO
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
 import build.wallet.ui.model.list.ListItemTreatment.SECONDARY
 import build.wallet.ui.model.list.ListItemTreatment.TERTIARY
@@ -59,6 +65,7 @@ fun ListItem(
     ListItem(
       modifier = modifier,
       title = AnnotatedString(title),
+      titleLabel = titleLabel,
       contentAlignment =
         when (titleAlignment) {
           ListItemTitleAlignment.LEFT -> Alignment.Start
@@ -71,6 +78,7 @@ fun ListItem(
               PRIMARY -> Primary
               SECONDARY -> Secondary
               TERTIARY -> Tertiary
+              JUMBO -> Jumbo
             }
           false -> Disabled
         },
@@ -79,7 +87,9 @@ fun ListItem(
           PRIMARY -> LabelType.Body2Medium
           SECONDARY -> LabelType.Body2Regular
           TERTIARY -> LabelType.Body3Regular
+          JUMBO -> LabelType.Title1
         },
+      listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
         secondaryText?.let { secondaryText ->
           buildAnnotatedString {
@@ -167,6 +177,7 @@ fun ListItem(
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   titleTreatment: LabelTreatment = Primary,
   titleType: LabelType = LabelType.Body2Medium,
+  listItemTitleBackgroundTreatment: ListItemTitleBackgroundTreatment? = null,
   secondaryText: String? = null,
   sideText: String? = null,
   secondarySideText: String? = null,
@@ -176,6 +187,7 @@ fun ListItem(
   onClick: (() -> Unit)? = null,
   pickerMenu: ListItemPickerMenu<*>? = null,
   testTag: String? = null,
+  titleLabel: LabelModel? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -183,6 +195,7 @@ fun ListItem(
     contentAlignment = contentAlignment,
     titleTreatment = titleTreatment,
     titleType = titleType,
+    listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
     secondaryText = secondaryText?.let(::AnnotatedString),
     sideText = sideText?.let(::AnnotatedString),
     secondarySideText = secondarySideText?.let(::AnnotatedString),
@@ -191,7 +204,8 @@ fun ListItem(
     trailingAccessory = trailingAccessory,
     onClick = onClick,
     pickerMenu = pickerMenu,
-    testTag = testTag
+    testTag = testTag,
+    titleLabel = titleLabel
   )
 }
 
@@ -215,6 +229,7 @@ fun ListItem(
   contentAlignment: Alignment.Horizontal = Alignment.Start,
   titleTreatment: LabelTreatment = Primary,
   titleType: LabelType = LabelType.Body2Medium,
+  listItemTitleBackgroundTreatment: ListItemTitleBackgroundTreatment? = null,
   secondaryText: AnnotatedString? = null,
   sideText: AnnotatedString? = null,
   secondarySideText: AnnotatedString? = null,
@@ -224,6 +239,7 @@ fun ListItem(
   onClick: (() -> Unit)? = null,
   pickerMenu: ListItemPickerMenu<*>? = null,
   testTag: String? = null,
+  titleLabel: LabelModel? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -236,11 +252,37 @@ fun ListItem(
       },
     leadingAccessoryAlignment = leadingAccessoryAlignment,
     primaryContent = {
-      Label(
-        text = title,
-        treatment = titleTreatment,
-        type = titleType
-      )
+      Box(
+        modifier = listItemTitleBackgroundTreatment?.let {
+          when (it) {
+            ListItemTitleBackgroundTreatment.RECOVERY ->
+              Modifier
+                .background(WalletTheme.colors.foreground10, RoundedCornerShape(12.dp))
+                .fillMaxWidth()
+                .padding(16.dp)
+          }
+        } ?: modifier,
+        contentAlignment = listItemTitleBackgroundTreatment?.let {
+          when (it) {
+            ListItemTitleBackgroundTreatment.RECOVERY ->
+              Alignment.Center
+          }
+        } ?: Alignment.TopStart
+      ) {
+        if (titleLabel == null) {
+          Label(
+            text = title,
+            treatment = titleTreatment,
+            type = titleType
+          )
+        } else {
+          Label(
+            model = titleLabel,
+            treatment = titleTreatment,
+            type = titleType
+          )
+        }
+      }
     },
     contentAlignment = contentAlignment,
     secondaryContent =
@@ -511,7 +553,7 @@ internal fun ListItemWithTrailingButton() {
               text = "Text",
               leadingIcon = Icon.SmallIconCheckFilled,
               size = Compact,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             )
         ),
       onClick = {}
@@ -588,10 +630,25 @@ internal fun ListItemWithTrailingAndLongSecondaryPreview() {
               text = "Text",
               leadingIcon = Icon.SmallIconCheckFilled,
               size = Compact,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             )
         ),
       onClick = {}
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun ListItemRecoveryCode() {
+  PreviewWalletTheme {
+    ListItem(
+      model =
+        ListItemModel(
+          title = "1234-ABCD-EF",
+          treatment = JUMBO,
+          listItemTitleBackgroundTreatment = ListItemTitleBackgroundTreatment.RECOVERY
+        )
     )
   }
 }

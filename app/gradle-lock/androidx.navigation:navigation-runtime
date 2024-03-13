@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.navigation:navigation-runtime",
+    "components": [
+        {
+            "version": "2.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigation-runtime-2.3.0.aar": "3d842eb5cba89dd86a56e4032392dec065f2054f93d4a1eb409cc79b48671c50"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

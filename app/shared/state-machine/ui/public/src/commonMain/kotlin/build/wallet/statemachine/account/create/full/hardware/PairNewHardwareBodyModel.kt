@@ -5,7 +5,7 @@ import build.wallet.platform.random.UuidImpl
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
@@ -26,6 +26,7 @@ data class PairNewHardwareBodyModel(
   val header: FormHeaderModel,
   val primaryButton: ButtonModel,
   val backgroundVideo: BackgroundVideo,
+  val isNavigatingBack: Boolean,
   /** Prevent screen dimming from inactivity. */
   val keepScreenOn: Boolean = false,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?,
@@ -74,7 +75,7 @@ data class PairNewHardwareBodyModel(
               ),
             iconTint = IconTint.OnTranslucent
           ),
-        onClick = Click.standardClick { onClick() }
+        onClick = StandardClick(onClick)
       )
   )
 }

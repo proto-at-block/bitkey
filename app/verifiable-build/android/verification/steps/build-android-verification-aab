@@ -31,10 +31,10 @@ mkdir -p "$2"
 
 docker build -f "$1/app/verifiable-build/android/Dockerfile" \
   -t bitkey-android-verification-builder \
-  --target verification \
+  --target build \
   --build-arg REPRODUCIBLE_BUILD_VARIABLES="$3" \
   "$1" || exit $?
 
-buildAabUsingDockerContainer bitkey-android-verification-builder "$ANDROID_FLAVOR" "$2"
+buildAabUsingDockerContainer bitkey-android-verification-builder "$ANDROID_FLAVOR" "$2" "$DERIVED_BUGSNAG_UUID_VARIANT"
 
 cleanUpDockerResources bitkey-android-verification-builder

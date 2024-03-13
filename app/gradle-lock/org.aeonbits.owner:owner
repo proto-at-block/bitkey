@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.aeonbits.owner:owner",
+    "components": [
+        {
+            "version": "1.0.12",
+            "variants": [
+                {
+                    "artifacts": {
+                        "owner-1.0.12.jar": "62c6e0e126430f15f5a2ed22625cae19413d3838e724bbe947f444d86c490645"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

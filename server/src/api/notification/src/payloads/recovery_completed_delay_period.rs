@@ -45,7 +45,10 @@ impl
             composite_key,
             account_id,
             email_payload: Some(EmailPayload::Iterable {
-                campaign_type: IterableCampaignType::RecoveryCompletedDelayPeriod,
+                campaign_type: match payload.lost_factor {
+                    Factor::App => IterableCampaignType::RecoveryCompletedDelayPeriodLostApp,
+                    Factor::Hw => IterableCampaignType::RecoveryCompletedDelayPeriodLostHw,
+                },
                 data_fields: HashMap::from([(
                     LOST_FACTOR_FIELD.to_string(),
                     payload.lost_factor.to_string(),

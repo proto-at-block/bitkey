@@ -42,9 +42,10 @@ public struct FwupInstructionsView: View {
             .background {
                 VStack {
                     Spacer()
-                    VideoView(videoPlayer: .init(url: .bitkeyPairVideoUrl))
+                    VideoView(viewModel: .init(videoUrl: .bitkeyPairVideoUrl))
                         .frame(height: 640)
                         .padding(.horizontal, -100) // Let the video width extend beyond the edges a bit
+                        .clipped()
                     Spacer(minLength: 250) // The minLength ensures enough space on smaller devices
                 }
             }

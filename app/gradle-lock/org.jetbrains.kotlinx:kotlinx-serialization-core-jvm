@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm",
+    "components": [
+        {
+            "version": "1.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-core-jvm-1.6.2.jar": "8e6fc04e1a2efd2acbbc5503a1dc9d988166f99e4f1f51ef6b91c3a52077bdb1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

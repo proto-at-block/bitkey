@@ -33,5 +33,9 @@ interface CloudBackupV2Restorer {
     data class SocRecTrustedContactIdentityKeyStorageError(
       override val cause: Throwable,
     ) : CloudBackupV2RestorerError()
+
+    data class AccountBackupDecryptionError(
+      override val cause: Throwable,
+    ) : CloudBackupV2RestorerError()
   }
 }

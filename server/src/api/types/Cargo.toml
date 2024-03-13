@@ -21,19 +21,24 @@ urn = { workspace = true }
 utoipa = { workspace = true }
 
 # path dependencies
+bdk_utils = { workspace = true }
 external_identifier = { workspace = true }
 
 [features]
 account = []
 all = [
   "account",
+  "authn_authz",
   "consent",
+  "currencies",
   "exchange_rate",
   "notification",
   "recovery",
   "serde",
 ]
+authn_authz = []
 consent = []
+currencies = []
 exchange_rate = []
 notification = []
 recovery = []

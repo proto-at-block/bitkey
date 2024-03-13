@@ -1,5 +1,6 @@
 package build.wallet.cloud.store
 
+import android.accounts.Account
 import build.wallet.catching
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
@@ -21,13 +22,17 @@ import okio.ByteString
 class GoogleDriveFileStoreImpl(
   private val googleDriveService: GoogleDriveService,
 ) : GoogleDriveFileStore {
+  private fun drive(androidAccount: Account): Result<Drive, GoogleDriveError> {
+    return googleDriveService.drive(androidAccount, listOf(GoogleDriveScope.File))
+  }
+
   override suspend fun exists(
     account: GoogleAccount,
     fileName: String,
   ): CloudFileStoreResult<Boolean> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val bitkeyFolderId = driveService.getBitkeyFolderId().bind()
 
@@ -45,7 +50,7 @@ class GoogleDriveFileStoreImpl(
   ): CloudFileStoreResult<ByteString> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val fileId = getFileIdInBitkeyFolder(account, fileName).bind()
 
@@ -60,7 +65,7 @@ class GoogleDriveFileStoreImpl(
   ): CloudFileStoreResult<Unit> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val fileId = getFileIdInBitkeyFolder(account, fileName).bind()
 
@@ -77,7 +82,7 @@ class GoogleDriveFileStoreImpl(
   ): CloudFileStoreResult<Unit> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val bitkeyFolderId =
         driveService.getBitkeyFolderId()
@@ -226,7 +231,7 @@ class GoogleDriveFileStoreImpl(
   ): Result<String, GoogleDriveError> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val bitkeyFolderId =
         driveService.getBitkeyFolderId()

@@ -5,7 +5,7 @@ package build.wallet.statemachine.nfc
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -27,7 +27,7 @@ internal fun EnableNfcInstructionsModel(
   primaryButton =
     ButtonModel(
       text = "Enable",
-      onClick = Click.standardClick { onEnableClick() },
+      onClick = StandardClick(onEnableClick),
       size = Footer
     ),
   id = NfcEventTrackerScreenId.NFC_ENABLE_INSTRUCTIONS

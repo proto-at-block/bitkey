@@ -13,8 +13,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
@@ -35,13 +35,6 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.painter
 import build.wallet.ui.tooling.PreviewWalletTheme
-import coil.compose.AsyncImagePainter.State
-import coil.compose.AsyncImagePainter.State.Empty
-import coil.compose.AsyncImagePainter.State.Loading
-import coil.compose.AsyncImagePainter.State.Success
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
-import coil.size.Size
 import androidx.compose.material3.Icon as MaterialIcon
 
 @Composable
@@ -51,6 +44,7 @@ fun Icon(
   size: IconSize,
   color: Color = Color.Unspecified,
   tint: IconTint? = null,
+  opacity: Float? = null,
   text: String? = null,
 ) {
   val style =
@@ -65,7 +59,8 @@ fun Icon(
       IconModel(
         LocalImage(icon),
         iconSize = size,
-        text = text
+        text = text,
+        iconOpacity = opacity
       ),
     style = style
   )
@@ -86,6 +81,7 @@ fun IconImage(
       background = iconBackgroundType,
       color = color,
       tint = iconTint,
+      opacity = iconOpacity,
       text = text
     )
   }
@@ -99,6 +95,7 @@ fun IconImage(
   background: IconBackgroundType = Transient,
   color: Color = Color.Unspecified,
   tint: IconTint? = null,
+  opacity: Float? = null,
   text: String? = null,
 ) {
   val style =
@@ -114,7 +111,8 @@ fun IconImage(
         iconImage = iconImage,
         iconBackgroundType = background,
         iconSize = size,
-        text = text
+        text = text,
+        iconOpacity = opacity
       ),
     style = style
   )
@@ -131,6 +129,7 @@ fun IconImage(
       modifier
         .background(
           foreground10 = WalletTheme.colors.foreground10,
+          primary = WalletTheme.colors.primary,
           type = model.iconBackgroundType
         ).thenIf(model.iconBackgroundType is Circle) {
           Modifier.size(model.totalSize.dp)
@@ -140,53 +139,19 @@ fun IconImage(
     when (val image = model.iconImage) {
       is LocalImage ->
         MaterialIcon(
-          modifier = Modifier.size(model.iconSize.dp),
+          modifier = Modifier.size(model.iconSize.dp).alpha(model.iconOpacity ?: 1f),
           painter = image.icon.painter(),
           contentDescription = model.text,
           tint = style.color
         )
 
-      is UrlImage -> {
-        val asyncImagePainter =
-          rememberAsyncImagePainter(
-            model =
-              ImageRequest.Builder(LocalContext.current)
-                .data(image.url)
-                .size(
-                  Size(
-                    width = model.iconSize.dp.value.toInt(),
-                    height = model.iconSize.dp.value.toInt()
-                  )
-                )
-                .build()
-          )
-
-        when (asyncImagePainter.state) {
-          is Empty,
-          is Loading,
-          ->
-            LoadingIndicator(
-              modifier = Modifier.size(model.iconSize.dp),
-              color = style.color
-            )
-
-          is Success ->
-            MaterialIcon(
-              modifier = Modifier.size(model.iconSize.dp),
-              painter = asyncImagePainter,
-              contentDescription = model.text,
-              tint = style.color
-            )
-
-          is State.Error ->
-            MaterialIcon(
-              modifier = Modifier.size(model.iconSize.dp),
-              painter = image.fallbackIcon.painter(),
-              contentDescription = model.text,
-              tint = style.color
-            )
-        }
-      }
+      is UrlImage ->
+        UrlImage(
+          image = image,
+          iconSize = model.iconSize,
+          imageAlpha = model.iconOpacity,
+          contentDescription = model.text
+        )
 
       is IconImage.Loader ->
         LoadingIndicator(
@@ -199,6 +164,7 @@ fun IconImage(
 
 private fun Modifier.background(
   foreground10: Color,
+  primary: Color,
   type: IconBackgroundType,
 ): Modifier {
   return when (type) {
@@ -211,6 +177,7 @@ private fun Modifier.background(
           color =
             when (type.color) {
               Circle.CircleColor.Foreground10 -> foreground10
+              Circle.CircleColor.PrimaryBackground20 -> primary.copy(alpha = .2f)
               Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
               Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
             },
@@ -218,6 +185,34 @@ private fun Modifier.background(
         )
       )
   }
+}
+
+@Preview
+@Composable
+internal fun IconImageWithCircleBackground() {
+  IconImage(
+    model = IconModel(
+      icon = Icon.SmallIconPhone,
+      iconTint = IconTint.Primary,
+      iconSize = IconSize.Large,
+      iconBackgroundType = IconBackgroundType.Circle(
+        circleSize = IconSize.Avatar,
+        color = Circle.CircleColor.PrimaryBackground20
+      )
+    )
+  )
+}
+
+@Preview
+@Composable
+internal fun IconImageWithAlphaPreview() {
+  IconImage(
+    model = IconModel(
+      icon = Icon.BitkeyDevice3D,
+      iconSize = IconSize.XLarge,
+      iconOpacity = 0.5f
+    )
+  )
 }
 
 @Preview

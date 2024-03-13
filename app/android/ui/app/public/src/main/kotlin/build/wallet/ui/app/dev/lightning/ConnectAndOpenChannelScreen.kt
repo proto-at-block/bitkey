@@ -26,7 +26,7 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.icon.IconModel
@@ -108,7 +108,7 @@ fun ConnectAndOpenChannelScreen(model: ConnectAndOpenChannelBodyModel) {
         text = "Connect and Open Channel",
         treatment = Primary,
         size = Footer,
-        onClick = Click.StandardClick { model.onConnectPressed() }
+        onClick = StandardClick(model.onConnectPressed)
       )
 
       Spacer(Modifier.height(24.dp))

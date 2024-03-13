@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.android.tools.analytics-library:protos",
+    "components": [
+        {
+            "version": "31.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "protos-31.1.2.jar": "04dc44183b4a2b7f141590ac1b2dc53d6be615723a181a4818fd9550ad1d0263"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

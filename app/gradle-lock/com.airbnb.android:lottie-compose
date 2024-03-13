@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.airbnb.android:lottie-compose",
+    "components": [
+        {
+            "version": "6.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lottie-compose-6.1.0.aar": "4e24cd2701f70d83fc2e2bf9e30d8277e5e076c1308ceed2bc505310afd7aeb9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

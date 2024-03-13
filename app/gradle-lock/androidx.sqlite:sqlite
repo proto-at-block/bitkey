@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.sqlite:sqlite",
+    "components": [
+        {
+            "version": "2.4.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sqlite-2.4.0.aar": "bb7fa113112f7e4857496e222e3051d73a910add74bf40761e1bdae55b0216af"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -17,6 +17,7 @@ interface CreateLiteAccountUiStateMachine :
 
 data class CreateLiteAccountUiProps(
   val onBack: () -> Unit,
+  val showBeTrustedContactIntroduction: Boolean,
   val accountConfig: LiteAccountConfig,
   val inviteCode: String?,
   val onAccountCreated: (LiteAccount) -> Unit,

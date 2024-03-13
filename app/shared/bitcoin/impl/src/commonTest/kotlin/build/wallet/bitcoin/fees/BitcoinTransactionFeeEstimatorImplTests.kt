@@ -53,7 +53,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
       estimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
         keyset = SpendingKeysetMock,
-        keyboxConfig = KeyboxMock.config,
+        fullAccountConfig = KeyboxMock.config,
         recipientAddress = BitcoinAddress(address = ""),
         amount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
       ).unwrap()
@@ -75,7 +75,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
       estimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
         keyset = SpendingKeysetMock,
-        keyboxConfig = KeyboxMock.config,
+        fullAccountConfig = KeyboxMock.config,
         recipientAddress = BitcoinAddress(address = ""),
         amount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
       )

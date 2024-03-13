@@ -2,8 +2,10 @@ package build.wallet.recovery
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -18,8 +20,10 @@ class LostAppRecoveryInitiatorMock(
   val initiateCalls = turbine("LostAppRecoveryInitiatorMock initiate calls")
 
   override suspend fun initiate(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     hardwareKeysForRecovery: HardwareKeysForRecovery,
+    newAppKeys: AppKeyBundle,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     hwFactorProofOfPossession: HwFactorProofOfPossession,

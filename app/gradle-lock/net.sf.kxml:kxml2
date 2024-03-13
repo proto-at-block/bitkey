@@ -1,0 +1,19 @@
+{
+    "module-identifier": "net.sf.kxml:kxml2",
+    "components": [
+        {
+            "version": "2.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kxml2-2.3.0.jar": "f264dd9f79a1fde10ce5ecc53221eff24be4c9331c830b7d52f2f08a7b633de2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

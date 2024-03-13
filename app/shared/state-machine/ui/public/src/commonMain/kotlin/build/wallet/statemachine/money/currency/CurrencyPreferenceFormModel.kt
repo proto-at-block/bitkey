@@ -5,7 +5,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
@@ -73,7 +73,7 @@ fun CurrencyPreferenceFormModel(
       ButtonModel(
         text = "Done",
         size = ButtonModel.Size.Footer,
-        onClick = Click.standardClick { onDone() }
+        onClick = StandardClick(onDone)
       )
     }
 )

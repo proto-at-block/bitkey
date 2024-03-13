@@ -9,7 +9,7 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.auth.AccessToken
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
-import build.wallet.nfc.transaction.SignAccessTokensAndAccountId
+import build.wallet.nfc.transaction.SignAccountIdAndAuthData
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachineImpl.State.RefreshingAuthTokensState
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachineImpl.State.ShowingNfcState
 import build.wallet.statemachine.core.ScreenModel
@@ -36,7 +36,7 @@ class ProofOfPossessionNfcStateMachineImpl(
         refreshAuthTokensUiStateMachine.model(
           RefreshAuthTokensProps(
             fullAccountId = props.fullAccountId,
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             appAuthKey = props.appAuthKey,
             onSuccess = { uiState = ShowingNfcState(it.accessToken) },
             onBack = props.onBack,
@@ -68,25 +68,27 @@ class ProofOfPossessionNfcStateMachineImpl(
             session = { session, commands -> commands.signAccessToken(session, accessToken) },
             onSuccess = { request.onSuccess(HwFactorProofOfPossession(it)) },
             onCancel = props.onBack,
-            isHardwareFake = props.keyboxConfig.isHardwareFake,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
           )
 
         is Request.HwKeyProofAndAccountSignature -> {
           val nfcTransaction =
-            SignAccessTokensAndAccountId(
+            SignAccountIdAndAuthData(
+              appAuthGlobalAuthPublicKey = request.appAuthGlobalKey,
               accessToken = accessToken,
               fullAccountId = request.accountId,
               success = { signedAccessTokensAndAccountId ->
                 request.onSuccess(
                   signedAccessTokensAndAccountId.signedAccountId,
                   signedAccessTokensAndAccountId.hwAuthPublicKey,
-                  HwFactorProofOfPossession(signedAccessTokensAndAccountId.signedAccessToken)
+                  HwFactorProofOfPossession(signedAccessTokensAndAccountId.signedAccessToken),
+                  signedAccessTokensAndAccountId.appGlobalAuthKeyHwSignature
                 )
               },
               failure = props.onBack,
-              isHardwareFake = props.keyboxConfig.isHardwareFake,
+              isHardwareFake = props.fullAccountConfig.isHardwareFake,
               needsAuthentication = true,
               shouldLock = false
             )
@@ -95,7 +97,7 @@ class ProofOfPossessionNfcStateMachineImpl(
             session = nfcTransaction::session,
             onSuccess = nfcTransaction::onSuccess,
             onCancel = nfcTransaction::onCancel,
-            isHardwareFake = props.keyboxConfig.isHardwareFake,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
           )

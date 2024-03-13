@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.crypto.tink:tink",
+    "components": [
+        {
+            "version": "1.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "tink-1.7.0.jar": "88970a456a08ba4c66b01b23e5846ca1095cc14e54cb48363e5d2e15a1307308"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

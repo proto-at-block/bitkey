@@ -1,0 +1,31 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-util-klib",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-util-klib-1.9.10.jar": "d72f34ed2a7bd1cf10c00a832de90f61861299bf08d1e017450ee7d5be015349"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        },
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-util-klib-1.9.21.jar": "ecf40f6c6b255dc65e836183f58ad7aa15cc05d7314b3e59a2fe58d6317b0483"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

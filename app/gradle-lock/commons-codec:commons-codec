@@ -1,0 +1,31 @@
+{
+    "module-identifier": "commons-codec:commons-codec",
+    "components": [
+        {
+            "version": "1.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-codec-1.11.jar": "e599d5318e97aa48f42136a2927e6dfa4e8881dff0e6c8e3109ddbbff51d7b7d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.15",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-codec-1.15.jar": "b3e9f6d63a790109bf0d056611fbed1cf69055826defeb9894a71369d246ed63"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

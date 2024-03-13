@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-datastore-android-debug",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-datastore-debug.aar": "7e5e474a8265d0947c3f24807a85c1c08c047b9f04517edd979bc4605b0ae960"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

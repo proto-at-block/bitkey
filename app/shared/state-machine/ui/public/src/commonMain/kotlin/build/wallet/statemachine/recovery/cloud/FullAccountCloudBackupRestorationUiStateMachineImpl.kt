@@ -11,16 +11,14 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
 import build.wallet.auth.AccountAuthenticator
+import build.wallet.auth.AuthKeyRotationManager
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppAuthPublicKey
-import build.wallet.bitkey.app.requireRecoveryAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
@@ -33,7 +31,6 @@ import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.SocRecV1AccountFeatures
-import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.keybox.KeyboxDao
@@ -78,7 +75,6 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.coroutines.launch
 
 internal const val START_SOCIAL_RECOVERY_MESSAGE = "Starting Recovery..."
 
@@ -103,7 +99,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val uuid: Uuid,
-  private val rotateAuthKeyUIStateMachine: RotateAuthKeyUIStateMachine,
+  private val authKeyRotationManager: AuthKeyRotationManager,
   private val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
@@ -111,8 +107,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     var uiState: CloudBackupRestorationUiState by remember {
       mutableStateOf(CloudBackupFoundUiState)
     }
-
-    val scope = rememberStableCoroutineScope()
 
     // Reusable model for a loading screen while completing multiple restoration steps.
     val loadingRestoringFromBackupModel =
@@ -149,16 +143,10 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 state.isUsingSocRecFakes
               ),
             trustedContacts = state.contacts,
-            protectedCustomerIdentityKey =
-              ProtectedCustomerIdentityKey(
-                AppKey.fromPublicKey(
-                  state.accountFeatures.protectedCustomerIdentityPublicKey.value
-                )
-              ),
             relationshipIdToSocRecPkekMap =
-              state.accountFeatures.socRecEncryptionKeyCiphertextMap
+              state.accountFeatures.socRecSealedDekMap
                 .mapValues { it.value },
-            sealedPrivateKeyMaterial = state.accountFeatures.socRecFullAccountKeysCiphertext,
+            sealedPrivateKeyMaterial = state.accountFeatures.socRecSealedFullAccountKeys,
             onExit = { uiState = CloudBackupFoundUiState },
             onKeyRecovered = {
               uiState =
@@ -211,7 +199,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       is UnsealingCsek -> {
         val sealedCsek =
           when (props.backup) {
-            is CloudBackupV2 -> (props.backup.fullAccountFields as FullAccountFields).hwEncryptionKeyCiphertext
+            is CloudBackupV2 -> (props.backup.fullAccountFields as FullAccountFields).sealedHwEncryptionKey
           }
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
@@ -231,7 +219,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 RestoringFromBackupUiState
             },
             onCancel = { uiState = CloudBackupFoundUiState },
-            isHardwareFake = props.keyboxConfig.isHardwareFake,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = Root,
             eventTrackerContext = UNSEAL_CLOUD_BACKUP
           )
@@ -246,7 +234,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       }
 
       is CompletingCloudRecoveryUiState -> {
-        CompleteCloudRecoveryEffect(props, state, setState = { uiState = it })
+        CompleteCloudRecoveryEffect(props, state)
         loadingRestoringFromBackupModel
       }
 
@@ -280,26 +268,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             ),
           eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP
         ).asRootScreen()
-
-      is CloudBackupRestorationUiState.CompletedCloudRecoveryUiState -> {
-        val uuid by remember { mutableStateOf(uuid.random()) }
-        rotateAuthKeyUIStateMachine.model(
-          RotateAuthKeyUIStateMachineProps(
-            keybox =
-              state.accountRestoration.asKeybox(
-                localId = uuid,
-                fullAccountId = state.fullAccountId
-              ),
-            origin = RotateAuthKeyUIOrigin.CloudRestore(
-              onComplete = {
-                scope.launch {
-                  keyboxDao.saveKeyboxAsActive(it)
-                }
-              }
-            )
-          )
-        )
-      }
     }
   }
 
@@ -325,20 +293,13 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private fun CompleteCloudRecoveryEffect(
     props: FullAccountCloudBackupRestorationUiProps,
     state: CompletingCloudRecoveryUiState,
-    setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("completing-cloud-recovery") {
       handleCloudKeyRecovered(props, state.accountRestoration).onSuccess {
         if (inactiveDeviceIsEnabledFeatureFlag.flagValue().value.value) {
-          setState(
-            CloudBackupRestorationUiState.CompletedCloudRecoveryUiState(
-              state.accountRestoration,
-              fullAccountId = it
-            )
-          )
-        } else {
-          keyboxDao.saveKeyboxAsActive(state.accountRestoration.asKeybox(uuid.random(), it))
+          authKeyRotationManager.recommendKeyRotation()
         }
+        keyboxDao.saveKeyboxAsActive(state.accountRestoration.asKeybox(uuid.random(), it))
       }
     }
   }
@@ -367,9 +328,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
         // Put us into a state where we can start the hardware recovery flow
         handleCloudKeyRecovered(props, restoration)
-          .onSuccess {
+          .onSuccess { accountId ->
             keyboxDao
-              .saveKeyboxAsActive(restoration.asKeybox(uuid.random(), it))
+              .saveKeyboxAsActive(
+                restoration.asKeybox(
+                  keyboxId = uuid.random(),
+                  fullAccountId = accountId
+                )
+              )
           }
           .bind()
       }.onFailure {
@@ -388,16 +354,16 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       // Authenticate with f8e using recovered app [Global] authentication key.
       val globalAuthData =
         authenticateWithF8eAndStoreAuthTokens(
-          f8eEnvironment = props.keyboxConfig.f8eEnvironment,
-          appAuthPublicKey = accountRestoration.activeKeyBundle.authKey,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          appAuthPublicKey = accountRestoration.activeAppKeyBundle.authKey,
           tokenScope = AuthTokenScope.Global
         ).bind()
       val accountId = FullAccountId(globalAuthData.accountId)
 
       // Authenticate with f8e using recovered app [Recovery] authentication key.
       authenticateWithF8eAndStoreAuthTokens(
-        f8eEnvironment = props.keyboxConfig.f8eEnvironment,
-        appAuthPublicKey = accountRestoration.activeKeyBundle.requireRecoveryAuthKey(),
+        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+        appAuthPublicKey = accountRestoration.activeAppKeyBundle.recoveryAuthKey,
         tokenScope = AuthTokenScope.Recovery
       ).bind()
 
@@ -405,7 +371,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       deviceTokenManager
         .addDeviceTokenIfPresentForAccount(
           fullAccountId = accountId,
-          f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           authTokenScope = AuthTokenScope.Global
         )
 
@@ -417,6 +383,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       recoverySyncer
         .clear()
         .bind()
+
+      // Attempt to sync social relationships before completing the recovery to ensure that
+      // the background refresh doesn't delete existing TCs. But don't bind any failures.
+      // We do not verify because the keybox isn't active yet.
+      socialRelationshipsRepository.syncRelationshipsWithoutVerification(accountId, props.fullAccountConfig.f8eEnvironment)
 
       // Attempt to sync the new wallet before completing the recovery and showing
       // Money Home (saving the keybox as active will complete and update UI), but
@@ -473,9 +444,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         appAuthPublicKey = state.backupFeatures.appRecoveryAuthKeypair.publicKey,
         tokenScope = AuthTokenScope.Recovery
       ).flatMap { authData ->
-        socialRelationshipsRepository.syncRelationships(
-          FullAccountId(authData.accountId),
-          state.f8eEnvironment
+        socialRelationshipsRepository.syncRelationshipsWithoutVerification(
+          accountId = FullAccountId(authData.accountId),
+          f8eEnvironment = state.f8eEnvironment
         ).map {
           Pair(authData, it)
         }
@@ -530,15 +501,6 @@ private sealed interface CloudBackupRestorationUiState {
   ) : CloudBackupRestorationUiState
 
   data object SocialRecoveryExplanationState : CloudBackupRestorationUiState
-
-  /**
-   * Used at the end of the Cloud restoration flow
-   * to redirect to the auth key rotation UI option
-   */
-  data class CompletedCloudRecoveryUiState(
-    val accountRestoration: AccountRestoration,
-    val fullAccountId: FullAccountId,
-  ) : CloudBackupRestorationUiState
 
   /**
    * Uses the recovery key to authenticate and restore an account from

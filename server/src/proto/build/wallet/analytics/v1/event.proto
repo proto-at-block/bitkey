@@ -26,6 +26,11 @@ message Event {
     /** Preferences */
     string          fiat_currency_preference    = 13;
     string          bitcoin_display_preference  = 14;
+
+    /** Optional information for the ACTION_REGISTER_COUNT event */
+    string          counter_id                 = 15;
+    int32           counter_count              = 16;
+
 }
 
 enum Action {
@@ -160,7 +165,44 @@ enum Action {
     /** [App] Customer taps "Speed Up" on the "Transaction Details" screen */
     ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION = 40;
 
-    // Next tag is 41
+    /** [App] Customer enabled transactions push notifications */
+    ACTION_APP_TRANSACTION_PUSH_NOTIFICATIONS_ENABLED = 41;
+
+    /** [App] Customer enabled marketing push notifications */
+    ACTION_APP_MARKETING_PUSH_NOTIFICATIONS_ENABLED = 42;
+
+    /** [App] Customer enabled marketing email notifications */
+    ACTION_APP_MARKETING_EMAIL_NOTIFICATIONS_ENABLED = 43;
+
+    /** [App] Customer failed the auth signature when trying to re-authenticate after refresh token failure. This indicates they're now in the inactive app status */
+    ACTION_APP_BECAME_INACTIVE = 44;
+
+    /** [App] Customer failed the auth signature when trying to re-authenticate after refresh token failure. This indicates they're now in the inactive app status */
+    ACTION_APP_SOCREC_REMOVED_TC = 45;
+
+    /** [App] Customer tapped the button to open the share sheet when creating a trusted contact invite */
+    ACTION_APP_SOCREC_TC_INVITE_TAPPED_SHARE = 46;
+
+    /** [App] Customer tapped the button to open the share sheet but closed without sharing. */
+    ACTION_APP_SOCREC_TC_INVITE_DISMISSED_SHEET_WITHOUT_SHARING = 47;
+
+    /** [App] A trusted contact accepted an invite from a deep link */
+    ACTION_APP_SOCREC_ENTERED_INVITE_VIA_DEEPLINK = 48;
+
+    /** [App] A trusted contact accepted an invite from a deep link */
+    ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY = 49;
+
+    /** [App] A generic counter that can be used to keep track of incremental metrics. */
+    ACTION_APP_COUNT = 50;
+
+    /** [App] Customer grants request for push notifications from initial Bitkey prompt before the OS */
+    ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_ENABLED = 51;
+
+    /** [App] Customer denies request for push notifications from initial Bitkey prompt before the OS */
+    ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED = 52;
+
+    // Next tag is 53
+
 }
 
 message PlatformInfo {

@@ -1,21 +1,23 @@
 package build.wallet.statemachine.partnerships.purchase
 
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.FiatMoney
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTitleAlignment
+import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -39,7 +41,6 @@ fun selectPurchaseAmountModel(
   onSelectAmount: (FiatMoney) -> Unit,
   onSelectCustomAmount: () -> Unit,
   onNext: (FiatMoney) -> Unit,
-  onBack: () -> Unit,
   onExit: () -> Unit,
 ): SheetModel {
   val items =
@@ -64,14 +65,12 @@ fun selectPurchaseAmountModel(
   return SheetModel(
     body =
       FormBodyModel(
-        id = null,
-        header =
-          FormHeaderModel(
-            headline = "Choose an amount",
-            alignment = FormHeaderModel.Alignment.CENTER
-          ),
-        onBack = onBack,
-        toolbar = null,
+        id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS,
+        header = null,
+        onBack = {},
+        toolbar = ToolbarModel(
+          middleAccessory = ToolbarMiddleAccessoryModel(title = "Choose an amount")
+        ),
         mainContentList =
           immutableListOf(
             FormMainContentModel.ListGroup(
@@ -87,16 +86,14 @@ fun selectPurchaseAmountModel(
             text = "Next",
             isEnabled = selectedAmount != null,
             size = Footer,
-            onClick =
-              Click.standardClick {
-                selectedAmount?.let { onNext(selectedAmount) }
-              }
+            onClick = StandardClick {
+              selectedAmount?.let { onNext(selectedAmount) }
+            }
           ),
         secondaryButton = null,
         keepScreenOn = false,
         onLoaded = {},
         eventTrackerScreenIdContext = null,
-        eventTrackerShouldTrack = false,
         renderContext = RenderContext.Sheet
       ),
     onClosed = onExit,

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab.crashkios:bugsnag",
+    "components": [
+        {
+            "version": "0.8.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bugsnag-metadata-0.8.5.jar": "3a4d0f62dd883b8140fb35e12b17665167818993c57ea967045bfca34db9611d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

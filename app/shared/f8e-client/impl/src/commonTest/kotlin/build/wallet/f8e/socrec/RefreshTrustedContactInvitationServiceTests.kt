@@ -24,7 +24,8 @@ class RefreshTrustedContactInvitationServiceTests : FunSpec({
         "invitation": {
           "recovery_relationship_id": "123",
           "trusted_contact_alias": "test-alias",
-          "code": "test-token",
+          "code": "F00D",
+          "code_bit_length": 20,
           "expires_at": "1970-01-01T00:02:03Z"
         }
       }
@@ -38,7 +39,8 @@ class RefreshTrustedContactInvitationServiceTests : FunSpec({
           CreateTrustedContactInvitation(
             recoveryRelationshipId = "123",
             trustedContactAlias = TrustedContactAlias("test-alias"),
-            token = "test-token",
+            code = "F00D",
+            codeBitLength = 20,
             expiresAt = Instant.fromEpochSeconds(123)
           )
       )

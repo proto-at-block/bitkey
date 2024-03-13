@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.databinding:databinding-compiler-common",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "databinding-compiler-common-8.1.1.jar": "5ace145c7e06289714877151339c55d9ffb6863517bdf5bcf3b9555f8c8d943e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

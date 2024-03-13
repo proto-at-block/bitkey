@@ -1,15 +1,17 @@
 package build.wallet.statemachine.account.create.full.keybox.create
 
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
+import build.wallet.bitkey.keybox.WithAppKeysMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 
 class CreateKeyboxUiStateMachineImplTests : FunSpec({
 
@@ -25,7 +27,7 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
     CreateKeyboxUiProps(
       createKeyboxData =
         CreateKeyboxData.CreatingAppKeysData(
-          keyboxConfig = KeyboxConfigMock,
+          fullAccountConfig = FullAccountConfigMock,
           rollback = {}
         ),
       isHardwareFake = true
@@ -36,7 +38,7 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
       props.copy(
         createKeyboxData =
           CreateKeyboxData.CreatingAppKeysData(
-            keyboxConfig = KeyboxConfigMock,
+            fullAccountConfig = FullAccountConfigMock,
             rollback = {}
           )
       )
@@ -55,8 +57,9 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
         props.copy(
           createKeyboxData =
             CreateKeyboxData.HasAppKeysData(
+              appKeys = WithAppKeysMock,
               rollback = {},
-              keyboxConfig = KeyboxConfigMock,
+              fullAccountConfig = FullAccountConfigMock,
               onPairHardwareComplete = {}
             )
         )
@@ -75,7 +78,9 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
       )
 
       // Pairing with Server
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       updateProps(props.copy(createKeyboxData = CreateKeyboxData.PairingWithServerData))
     }

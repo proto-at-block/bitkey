@@ -1,5 +1,7 @@
 package build.wallet.emergencyaccesskit
 
+import build.wallet.bitkey.app.AppSpendingPrivateKey
+import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup.EmergencyAccessKitBackupV1
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1
@@ -13,7 +15,9 @@ import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.string.shouldNotContain
 import io.ktor.utils.io.core.toByteArray
+import okio.ByteString.Companion.EMPTY
 import okio.ByteString.Companion.toByteString
 
 class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
@@ -25,7 +29,7 @@ class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
 
     val sourcePayload =
       EmergencyAccessKitPayloadV1(
-        hwEncryptionKeyCiphertext = ciphertext,
+        sealedHwEncryptionKey = ciphertext,
         sealedActiveSpendingKeys =
           build.wallet.encrypt.SealedData(
             ciphertext = spendingKey,
@@ -69,7 +73,7 @@ class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
     val source =
       EmergencyAccessKitBackupV1(
         spendingKeyset = SpendingKeysetMock,
-        appSpendingKeyXprv = "KeyXprv"
+        appSpendingKeyXprv = AppSpendingPrivateKeyMock
       )
 
     val encoded = decoder.encodeBackup(source)
@@ -81,7 +85,12 @@ class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
               source.spendingKeyset.f8eSpendingKeyset.copy(
                 keysetId = "FAKE_KEYSET_ID"
               )
+          ),
+        appSpendingKeyXprv = AppSpendingPrivateKey(
+          key = source.appSpendingKeyXprv.key.copy(
+            mnemonic = "MNEMONIC REMOVED DURING EMERGENCY ACCESS"
           )
+        )
       )
 
     decoder.decodeDecryptedBackup(encoded)
@@ -92,7 +101,7 @@ class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
     val source =
       EmergencyAccessKitBackupV1(
         spendingKeyset = SpendingKeysetMock,
-        appSpendingKeyXprv = "KeyXprv"
+        appSpendingKeyXprv = AppSpendingPrivateKeyMock
       )
 
     val intermediate =
@@ -109,5 +118,50 @@ class EmergencyAccessKitPayloadDecoderImplTests : FunSpec({
 
     decoder.decodeDecryptedBackup(keysetData = "AABB".toByteArray().toByteString())
       .shouldBeErrOfType<InvalidProtoData>()
+  }
+
+  test("payload with whitespace or invalid base58 characters is still decoded") {
+    val payload = EmergencyAccessKitPayloadV1(
+      sealedHwEncryptionKey = "sealedCsek".toByteArray().toByteString(),
+      sealedActiveSpendingKeys =
+        build.wallet.encrypt.SealedData(
+          ciphertext = "sealedActiveSpendingKeys".toByteArray().toByteString(),
+          nonce = "nonce".toByteArray().toByteString(),
+          tag = EMPTY
+        )
+    )
+
+    val encoded = decoder.encode(payload)
+
+    var lines = arrayOf<String>()
+    var currentLine = ""
+    for ((index, ch) in encoded.withIndex()) {
+      if (index > 0 && index % 10 == 0) {
+        currentLine += ch
+        lines += currentLine
+        currentLine = ""
+      } else {
+        currentLine += ch
+      }
+    }
+    if (currentLine.isNotEmpty()) {
+      lines += currentLine
+    }
+
+    decoder.decode(lines.joinToString("\n"))
+      .shouldBeOk(payload)
+  }
+
+  test("Private key is redacted in generated protos") {
+    val backup = EmergencyAccessKitBackupV1(
+      spendingKeyset = SpendingKeysetMock,
+      appSpendingKeyXprv = AppSpendingPrivateKeyMock
+    )
+
+    val encoded = decoder.encodeBackup(backup)
+    val asProto = ActiveSpendingKeysetV1.ADAPTER.decode(encoded)
+
+    asProto.app_key.toString()
+      .shouldNotContain(AppSpendingPrivateKeyMock.key.xprv)
   }
 })

@@ -1,18 +1,22 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentKey
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
+import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.crypto.CurveType
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
@@ -20,11 +24,15 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.Instant
+import okio.ByteString.Companion.encodeUtf8
 
 class SocRecRelationshipsDaoImplTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
 
   lateinit var dao: SocRecRelationshipsDao
+
+  val momKey = DelegatedDecryptionKey(AppKey.fromPublicKey("momKey"))
+  val sisKey = DelegatedDecryptionKey(AppKey.fromPublicKey("sisKey"))
 
   val socRecRelationships =
     SocRecRelationships(
@@ -33,19 +41,22 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
           Invitation(
             recoveryRelationshipId = "c",
             trustedContactAlias = TrustedContactAlias("Dad"),
-            token = "dadToken",
+            code = "dadToken",
+            codeBitLength = 10,
             expiresAt = Instant.DISTANT_FUTURE
           ),
           Invitation(
             recoveryRelationshipId = "d",
             trustedContactAlias = TrustedContactAlias("Bro"),
-            token = "broToken",
+            code = "broToken",
+            codeBitLength = 10,
             expiresAt = Instant.DISTANT_FUTURE
           ),
           Invitation(
             recoveryRelationshipId = "f",
             trustedContactAlias = TrustedContactAlias("Gramps"),
-            token = "grampsToken",
+            code = "grampsToken",
+            codeBitLength = 10,
             expiresAt = Instant.fromEpochMilliseconds(0)
           )
         ),
@@ -54,12 +65,14 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
           TrustedContact(
             recoveryRelationshipId = "a",
             trustedContactAlias = TrustedContactAlias("Mom"),
-            identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("momKey"))
+            authenticationState = AWAITING_VERIFY,
+            keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = momKey)
           ),
           TrustedContact(
             recoveryRelationshipId = "b",
             trustedContactAlias = TrustedContactAlias("Sis"),
-            identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("sisKey"))
+            authenticationState = AWAITING_VERIFY,
+            keyCertificate = TrustedContactKeyCertificateFake2.copy(delegatedDecryptionKey = sisKey)
           )
         ),
       protectedCustomers =
@@ -78,13 +91,12 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
           UnendorsedTrustedContact(
             recoveryRelationshipId = "g",
             trustedContactAlias = TrustedContactAlias("Cousin"),
-            identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("cousinKey")),
-            identityPublicKeyMac = "cousinKeyMac",
-            enrollmentKey =
-              TrustedContactEnrollmentKey(
+            enrollmentPakeKey =
+              TrustedContactEnrollmentPakeKey(
                 AppKey.fromPublicKey("cousinEnrollmentKey", CurveType.Curve25519)
               ),
-            enrollmentKeyConfirmation = "cousinEnrollmentKeyConfirmation"
+            enrollmentKeyConfirmation = "cousinEnrollmentKeyConfirmation".encodeUtf8(),
+            sealedDelegatedDecryptionKey = XCiphertext("cipher")
           )
         )
     )
@@ -116,11 +128,13 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
     dao.setSocRecRelationships(socRecRelationships)
 
     val invitationToAccept = socRecRelationships.invitations[0]
+    val newKey = DelegatedDecryptionKey(AppKey.fromPublicKey("newKey"))
     val newTrustedContact =
       TrustedContact(
         recoveryRelationshipId = invitationToAccept.recoveryRelationshipId,
         trustedContactAlias = invitationToAccept.trustedContactAlias,
-        identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("newKey"))
+        authenticationState = AWAITING_VERIFY,
+        keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = newKey)
       )
 
     val socRecRelationshipsWithAcceptedInvite =
@@ -143,7 +157,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
 
     val endorsedTc =
       socRecRelationships.unendorsedTrustedContacts[0].copy(
-        authenticationState = TrustedContactAuthenticationState.ENDORSED
+        authenticationState = VERIFIED
       )
     val relationshipsWithEndorsedTc =
       socRecRelationships.copy(
@@ -158,7 +172,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
 
     dao.setUnendorsedTrustedContactAuthenticationState(
       endorsedTc.recoveryRelationshipId,
-      TrustedContactAuthenticationState.ENDORSED
+      VERIFIED
     )
     // The authentication state should have changed after setting the state directly.
     dao.socRecRelationships().first().shouldBeEqual(

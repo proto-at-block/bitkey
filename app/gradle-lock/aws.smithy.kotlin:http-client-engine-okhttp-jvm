@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:http-client-engine-okhttp-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "http-client-engine-okhttp-jvm-1.0.13.jar": "4bfb91b4c6373ac2b1d94a085c69935ca1b56b7b27b21c5228c5bc5da6f7e2dc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

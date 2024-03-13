@@ -1,0 +1,18 @@
+{
+    "module-identifier": "commons-lang:commons-lang",
+    "components": [
+        {
+            "version": "1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-lang-1.0.jar": "d327c033f798997b9ad85b33242e2e88b49bbb1369cfe23e10b2686bd4cf3218"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -82,6 +82,7 @@ impl<'a> Migration for InitialNotificationsPreferences<'a> {
                     .update_notifications_preferences(UpdateNotificationsPreferencesInput {
                         account_id: account.get_id(),
                         notifications_preferences,
+                        key_proof: None,
                     })
                     .await;
 
@@ -117,6 +118,7 @@ impl<'a> Migration for InitialNotificationsPreferences<'a> {
                         .update_notifications_preferences(UpdateNotificationsPreferencesInput {
                             account_id: account.get_id(),
                             notifications_preferences,
+                            key_proof: None,
                         })
                         .await
                         .map_err(|err| {

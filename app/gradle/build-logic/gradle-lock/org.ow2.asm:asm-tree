@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.ow2.asm:asm-tree",
+    "components": [
+        {
+            "version": "5.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "asm-tree-5.0.3.jar": "347a7a9400f9964e87c91d3980e48eebdc8d024bc3b36f7f22189c662853a51c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

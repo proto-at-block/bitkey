@@ -29,7 +29,7 @@ data class AuthKeypairBody(
    * once the recovery is complete
    */
   @SerialName("recovery")
-  val appRecovery: String?,
+  val appRecovery: String,
   /**
    * [hardwareAuthPubKey] the hardware auth pub key that will be used for the account
    * once the recovery is complete
@@ -75,10 +75,7 @@ internal fun ServerResponseBody.toServerRecovery(
         AppGlobalAuthPublicKey(
           Secp256k1PublicKey(authKeyPair.appGlobal)
         ),
-      destinationAppRecoveryAuthPubKey =
-        authKeyPair.appRecovery?.let {
-          AppRecoveryAuthPublicKey(Secp256k1PublicKey(it))
-        },
+      destinationAppRecoveryAuthPubKey = AppRecoveryAuthPublicKey(Secp256k1PublicKey(authKeyPair.appRecovery)),
       destinationHardwareAuthPubKey = HwAuthPublicKey(Secp256k1PublicKey(authKeyPair.hardware))
     )
   }

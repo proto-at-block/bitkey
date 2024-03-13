@@ -168,7 +168,7 @@ class SpendingLimitPickerUiStateMachineImpl(
               }
             ),
           fullAccountId = props.accountData.account.accountId,
-          keyboxConfig = props.accountData.account.keybox.config,
+          fullAccountConfig = props.accountData.account.keybox.config,
           onBack = onBack,
           screenPresentationStyle = ScreenPresentationStyle.Modal,
           onTokenRefresh = {

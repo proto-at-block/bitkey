@@ -20,7 +20,7 @@ import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelStateMachine
 import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelStateMachineImpl.UiState.OpeningChannelUiState
 import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelStateMachineImpl.UiState.RefreshingUiState
 import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelStateMachineImpl.UiState.WaitingUiState
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
@@ -177,7 +177,7 @@ class ConnectAndOpenChannelStateMachineImpl(
             text = "Close Channel",
             treatment = TertiaryDestructive,
             size = Compact,
-            onClick = Click.standardClick { handleDeleteChannel() }
+            onClick = StandardClick(handleDeleteChannel)
           )
       )
     }

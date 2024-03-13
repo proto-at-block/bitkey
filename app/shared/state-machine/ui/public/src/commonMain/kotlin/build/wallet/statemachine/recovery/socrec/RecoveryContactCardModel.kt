@@ -4,7 +4,7 @@ import build.wallet.bitkey.socrec.RecoveryContact
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 
@@ -25,7 +25,7 @@ fun RecoveryContactCardModel(
     ButtonModel(
       text = buttonText,
       size = Compact,
-      onClick = Click.standardClick(onClick),
+      onClick = StandardClick(onClick),
       treatment = buttonTreatment
     ),
   onClick = onClick,

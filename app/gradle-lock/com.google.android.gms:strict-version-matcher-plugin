@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.gms:strict-version-matcher-plugin",
+    "components": [
+        {
+            "version": "1.2.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "strict-version-matcher-plugin-1.2.4.jar": "df1b48b67a3c5fea7267e9e51d20de4757818b6e8ed576484c74c96ea2951200"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

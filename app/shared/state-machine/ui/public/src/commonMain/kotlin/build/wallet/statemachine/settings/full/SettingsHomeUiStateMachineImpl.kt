@@ -11,6 +11,9 @@ import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateM
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.notifications.NotificationPreferencesProps
+import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Settings
+import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
 import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
@@ -25,7 +28,9 @@ import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.St
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCustomElectrumServerSettingsUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingHelpCenterUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingMobilePaySettingsUiState
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingNotificationPreferencesUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingNotificationsSettingsUiState
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingRecoveryChannelsUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingRotateAuthKeyUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingSendFeedbackUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingTrustedContactsUiState
@@ -39,6 +44,8 @@ import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiProp
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachine
 import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsProps
 import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsUiStateMachine
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
+import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 import build.wallet.ui.model.alert.AlertModel
@@ -46,6 +53,8 @@ import build.wallet.ui.model.alert.AlertModel
 class SettingsHomeUiStateMachineImpl(
   private val mobilePaySettingsUiStateMachine: MobilePaySettingsUiStateMachine,
   private val notificationsSettingsUiStateMachine: NotificationsSettingsUiStateMachine,
+  private val notificationPreferencesUiStateMachine: NotificationPreferencesUiStateMachine,
+  private val recoveryChannelSettingsUiStateMachine: RecoveryChannelSettingsUiStateMachine,
   private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
   private val customElectrumServerSettingUiStateMachine: CustomElectrumServerSettingUiStateMachine,
   private val deviceSettingsUiStateMachine: DeviceSettingsUiStateMachine,
@@ -90,13 +99,19 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.HelpCenter {
                         state = ShowingHelpCenterUiState
                       },
+                      SettingsListUiProps.SettingsListRow.NotificationPreferences {
+                        state = ShowingNotificationPreferencesUiState
+                      },
                       SettingsListUiProps.SettingsListRow.Notifications {
                         state = ShowingNotificationsSettingsUiState
+                      },
+                      SettingsListUiProps.SettingsListRow.RecoveryChannels {
+                        state = ShowingRecoveryChannelsUiState
                       },
                       SettingsListUiProps.SettingsListRow.MobilePay {
                         state = ShowingMobilePaySettingsUiState
                       },
-                      SettingsListUiProps.SettingsListRow.SendFeedback {
+                      SettingsListUiProps.SettingsListRow.ContactUs {
                         state = ShowingSendFeedbackUiState
                       },
                       SettingsListUiProps.SettingsListRow.TrustedContacts {
@@ -138,6 +153,25 @@ class SettingsHomeUiStateMachineImpl(
             )
         )
 
+      is ShowingNotificationPreferencesUiState ->
+        notificationPreferencesUiStateMachine.model(
+          NotificationPreferencesProps(
+            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+            fullAccountId = props.accountData.account.accountId,
+            onBack = { state = ShowingAllSettingsUiState },
+            source = Settings,
+            onComplete = { state = ShowingAllSettingsUiState }
+          )
+        )
+
+      is ShowingRecoveryChannelsUiState ->
+        recoveryChannelSettingsUiStateMachine.model(
+          RecoveryChannelSettingsProps(
+            props.accountData,
+            onBack = { state = ShowingAllSettingsUiState }
+          )
+        )
+
       is ShowingCustomElectrumServerSettingsUiState ->
         customElectrumServerSettingUiStateMachine.model(
           props =
@@ -172,9 +206,7 @@ class SettingsHomeUiStateMachineImpl(
               accountData = props.accountData,
               firmwareData = props.firmwareData,
               fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference,
-              onBack = {
-                state = ShowingAllSettingsUiState
-              }
+              onBack = { state = ShowingAllSettingsUiState }
             )
         )
 
@@ -182,7 +214,7 @@ class SettingsHomeUiStateMachineImpl(
         feedbackUiStateMachine.model(
           props =
             FeedbackUiProps(
-              keyboxConfig = props.accountData.account.keybox.config,
+              f8eEnvironment = props.accountData.account.config.f8eEnvironment,
               accountId = props.accountData.account.accountId,
               onBack = { state = ShowingAllSettingsUiState }
             )
@@ -219,7 +251,7 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingRotateAuthKeyUiState ->
         rotateAuthKeyUIStateMachine.model(
           RotateAuthKeyUIStateMachineProps(
-            keybox = props.accountData.account.keybox,
+            account = props.accountData.account,
             origin = RotateAuthKeyUIOrigin.Settings(
               onBack = { state = ShowingAllSettingsUiState }
             )
@@ -243,6 +275,16 @@ class SettingsHomeUiStateMachineImpl(
      * Showing settings for notification touchpoints (sms and email).
      */
     data object ShowingNotificationsSettingsUiState : State()
+
+    /**
+     * Showing notification preferences for transactions and marketing
+     */
+    data object ShowingNotificationPreferencesUiState : State()
+
+    /**
+     * Showing recovery channel configuration
+     */
+    data object ShowingRecoveryChannelsUiState : State()
 
     /**
      * Showing settings for custom Electrum server

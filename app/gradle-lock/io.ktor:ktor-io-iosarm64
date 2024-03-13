@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-io-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-io-iosarm64-2.3.8-metadata.jar": "015ba598eb70a4dc715cd588847d5995d0ea405941691d9db88e2394a07a072c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-io.klib": "2312e6826c3c31265c064fc63aa4f8614fbf590b5f26bf0d797ea04a790784bd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

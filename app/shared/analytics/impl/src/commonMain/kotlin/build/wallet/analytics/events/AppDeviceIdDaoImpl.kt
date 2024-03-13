@@ -38,7 +38,9 @@ class AppDeviceIdDaoImpl(
   }
 
   private companion object {
+    // Changing these values is a breaking change
+    // These should only be changed with a migration plan otherwise data will be lost or app could crash
     const val STORE_NAME = "AppDeviceIdStore"
-    const val KEY = "app-device-id"
+    const val KEY = "app-device-id-key"
   }
 }

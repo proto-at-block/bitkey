@@ -1,0 +1,18 @@
+{
+    "module-identifier": "net.sf.jopt-simple:jopt-simple",
+    "components": [
+        {
+            "version": "4.9",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jopt-simple-4.9.jar": "26c5856e954b5f864db76f13b86919b59c6eecf9fd930b96baa8884626baf2f5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

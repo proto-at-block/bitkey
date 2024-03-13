@@ -1,0 +1,31 @@
+{
+    "module-identifier": "org.apache.commons:commons-lang3",
+    "components": [
+        {
+            "version": "3.12.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-lang3-3.12.0.jar": "d919d904486c037f8d193412da0c92e22a9fa24230b9d67a57855c5c31c7e94e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "3.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-lang3-3.8.1.jar": "dac807f65b07698ff39b1b07bfef3d87ae3fd46d91bbf8a2bc02b2a831616f68"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

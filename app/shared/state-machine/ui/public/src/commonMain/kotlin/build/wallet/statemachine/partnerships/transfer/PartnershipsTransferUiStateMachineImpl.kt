@@ -6,12 +6,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.LOADING_TRANSFER_PARTNERS
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.LOADING_TRANSFER_PARTNER_REDIRECT
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNERS_LIST
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNERS_NOT_AVAILABLE
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNERS_NOT_FOUND_ERROR
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNER_REDIRECTING
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNER_REDIRECT_ERROR
-import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.GetTransferPartnerListService
 import build.wallet.f8e.partnerships.GetTransferRedirectService
@@ -19,8 +21,9 @@ import build.wallet.f8e.partnerships.PartnerInfo
 import build.wallet.f8e.partnerships.RedirectInfo
 import build.wallet.f8e.partnerships.RedirectUrlType.DEEPLINK
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -33,6 +36,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.partnerships.PartnerRedirectionMethod.Deeplink
 import build.wallet.statemachine.partnerships.PartnerRedirectionMethod.Web
 import build.wallet.ui.model.icon.IconImage.LocalImage
@@ -55,7 +59,6 @@ import kotlinx.collections.immutable.toImmutableList
 class PartnershipsTransferUiStateMachineImpl(
   private val getTransferPartnerListService: GetTransferPartnerListService,
   private val getTransferRedirectService: GetTransferRedirectService,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
 ) : PartnershipsTransferUiStateMachine {
   @Composable
   override fun model(props: PartnershipsTransferUiProps): SheetModel {
@@ -66,8 +69,8 @@ class PartnershipsTransferUiStateMachineImpl(
         LaunchedEffect("load-transfer-partners") {
           getTransferPartnerListService
             .getTransferPartners(
-              fullAccountId = props.account.accountId,
-              f8eEnvironment = props.account.config.f8eEnvironment
+              fullAccountId = props.keybox.fullAccountId,
+              f8eEnvironment = props.keybox.config.f8eEnvironment
             )
             .onSuccess {
               val transferPartners = it.partnerList.toImmutableList()
@@ -98,6 +101,7 @@ class PartnershipsTransferUiStateMachineImpl(
       is State.LoadingPartnershipsTransferFailure ->
         return TransferErrorModel(
           id = TRANSFER_PARTNERS_NOT_FOUND_ERROR,
+          error = currentState.error,
           errorMessage = "Could not load partners at this time.",
           onBack = props.onBack,
           onExit = props.onExit
@@ -105,10 +109,11 @@ class PartnershipsTransferUiStateMachineImpl(
       is State.ChoosingPartnershipsTransfer -> {
         when {
           currentState.transferPartners.isEmpty() -> {
-            // TODO(W-4119): Optimize null state for when there are no transfer partners
             return TransferErrorModel(
-              id = TRANSFER_PARTNERS_NOT_FOUND_ERROR,
-              errorMessage = "No partners to display at this time",
+              id = TRANSFER_PARTNERS_NOT_AVAILABLE,
+              error = null,
+              title = "New Partners Coming Soon",
+              errorMessage = "Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin transfers. Until then, you can add bitcoin using the receive button.",
               onBack = props.onBack,
               onExit = props.onExit
             )
@@ -126,13 +131,12 @@ class PartnershipsTransferUiStateMachineImpl(
       }
       is State.LoadingPartnerRedirect -> {
         LaunchedEffect("load-transfer-partner-redirect-info") {
-          appSpendingWalletProvider.getSpendingWallet(props.account.keybox.activeSpendingKeyset)
-            .flatMap { it.getNewAddress() }
+          props.generateAddress()
             .flatMap { address ->
               getTransferRedirectService
                 .getTransferRedirect(
-                  fullAccountId = props.account.keybox.fullAccountId,
-                  f8eEnvironment = props.account.keybox.config.f8eEnvironment,
+                  fullAccountId = props.keybox.fullAccountId,
+                  f8eEnvironment = props.keybox.config.f8eEnvironment,
                   partner = currentState.partnerInfo.partner,
                   address = address
                 )
@@ -155,13 +159,16 @@ class PartnershipsTransferUiStateMachineImpl(
             }
         }
         return Loading(
-          id = LOADING_TRANSFER_PARTNERS,
+          id = LOADING_TRANSFER_PARTNER_REDIRECT,
+          context = PartnerEventTrackerScreenIdContext(currentState.partnerInfo),
           onExit = props.onExit
         )
       }
       is State.LoadingPartnerRedirectFailure ->
         return TransferErrorModel(
           id = TRANSFER_PARTNER_REDIRECT_ERROR,
+          context = PartnerEventTrackerScreenIdContext(currentState.partnerInfo),
+          error = currentState.error,
           errorMessage = "Could not redirect to ${currentState.partnerInfo.name}",
           onBack = currentState.rollback,
           onExit = props.onExit
@@ -190,7 +197,8 @@ class PartnershipsTransferUiStateMachineImpl(
           }
         }
         return Loading(
-          id = LOADING_TRANSFER_PARTNER_REDIRECT,
+          id = TRANSFER_PARTNER_REDIRECTING,
+          context = PartnerEventTrackerScreenIdContext(currentState.partnerInfo),
           onExit = props.onExit
         )
       }
@@ -199,16 +207,22 @@ class PartnershipsTransferUiStateMachineImpl(
 
   @Composable
   private fun TransferErrorModel(
-    id: EventTrackerScreenId,
+    id: DepositEventTrackerScreenId,
+    context: PartnerEventTrackerScreenIdContext? = null,
+    title: String = "Error",
+    error: Throwable?,
     errorMessage: String,
     onBack: () -> Unit,
     onExit: () -> Unit,
   ): SheetModel {
+    val logLevel = if (error != null) LogLevel.Error else LogLevel.Warn
+    log(level = logLevel, throwable = error) { errorMessage }
     return SheetModel(
       body =
         ErrorFormBodyModel(
           eventTrackerScreenId = id,
-          title = "Error",
+          eventTrackerScreenIdContext = context,
+          title = title,
           subline = errorMessage,
           primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = onBack),
           renderContext = Sheet,
@@ -222,7 +236,7 @@ class PartnershipsTransferUiStateMachineImpl(
 
   @Composable
   private fun ListTransferPartnersModel(
-    id: EventTrackerScreenId,
+    id: DepositEventTrackerScreenId,
     props: PartnershipsTransferUiProps,
     partners: ImmutableList<PartnerInfo>,
     onPartnerSelected: (PartnerInfo) -> Unit,
@@ -282,7 +296,7 @@ class PartnershipsTransferUiStateMachineImpl(
 
   @Composable
   private fun TransferPartnersModel(
-    id: EventTrackerScreenId,
+    id: DepositEventTrackerScreenId,
     content: FormMainContentModel,
     onBack: () -> Unit,
     onExit: () -> Unit,
@@ -302,20 +316,21 @@ class PartnershipsTransferUiStateMachineImpl(
           renderContext = Sheet
         ),
       dragIndicatorVisible = true,
-      size = MIN40,
       onClosed = onExit
     )
   }
 
   @Composable
   private fun Loading(
-    id: EventTrackerScreenId,
+    id: DepositEventTrackerScreenId,
+    context: PartnerEventTrackerScreenIdContext? = null,
     onExit: () -> Unit,
   ): SheetModel {
     return SheetModel(
       body =
         FormBodyModel(
           id = id,
+          eventTrackerScreenIdContext = context,
           onBack = {},
           toolbar = null,
           header = null,

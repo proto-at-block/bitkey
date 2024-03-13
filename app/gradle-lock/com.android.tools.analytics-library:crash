@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.analytics-library:crash",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "crash-31.1.1.jar": "cc5f028ac4fd037d57c0bb0cdc84ca37671852ea2370216b5ce6f45479f03261"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

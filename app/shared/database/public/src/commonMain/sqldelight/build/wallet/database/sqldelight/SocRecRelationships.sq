@@ -1,15 +1,17 @@
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias;
 import build.wallet.bitkey.socrec.TrustedContactAlias;
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentKey;
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey;
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState;
+import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey;
+import build.wallet.bitkey.socrec.TrustedContactIdentityKey;
 import kotlinx.datetime.Instant;
+import okio.ByteString;
 
 CREATE TABLE socRecTrustedContactEntity(
   rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   recoveryRelationshipId  TEXT UNIQUE NOT NULL,
-  publicKey               TEXT AS TrustedContactIdentityKey NOT NULL,
-  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  authenticationState     TEXT AS TrustedContactAuthenticationState NOT NULL CHECK (authenticationState IN ('AWAITING_VERIFY', 'VERIFIED', 'TAMPERED')),
+  certificate             TEXT NOT NULL
 );
 
 CREATE TABLE socRecProtectedCustomerEntity(
@@ -23,23 +25,23 @@ CREATE TABLE socRecTrustedContactInvitationEntity(
   recoveryRelationshipId  TEXT UNIQUE NOT NULL,
   trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
   token                   TEXT NOT NULL,
+  tokenBitLength          INTEGER NOT NULL,
   expiresAt               INTEGER AS Instant NOT NULL
 );
 
 CREATE TABLE socRecUnendorsedTrustedContactEntity(
-  rowId                     INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  recoveryRelationshipId    TEXT UNIQUE NOT NULL,
-  publicKey                 TEXT AS TrustedContactIdentityKey NOT NULL,
-  trustedContactAlias       TEXT AS TrustedContactAlias NOT NULL,
-  identityPublicKeyMac      TEXT NOT NULL,
-  enrollmentKey             TEXT AS TrustedContactEnrollmentKey NOT NULL,
-  enrollmentKeyConfirmation TEXT NOT NULL,
-  authenticationState       TEXT AS TrustedContactAuthenticationState NOT NULL
+  rowId                        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  recoveryRelationshipId       TEXT UNIQUE NOT NULL,
+  trustedContactAlias          TEXT AS TrustedContactAlias NOT NULL,
+  enrollmentPakeKey            TEXT AS TrustedContactEnrollmentPakeKey NOT NULL,
+  enrollmentKeyConfirmation    BLOB AS ByteString NOT NULL,
+  sealedDelegatedDecryptionKey TEXT NOT NULL,
+  authenticationState          TEXT AS TrustedContactAuthenticationState NOT NULL
 );
 
 insertSocRecTrustedContactInvitation:
-INSERT OR REPLACE INTO socRecTrustedContactInvitationEntity(recoveryRelationshipId, trustedContactAlias, token, expiresAt)
-VALUES(?, ?, ?, ?);
+INSERT OR REPLACE INTO socRecTrustedContactInvitationEntity(recoveryRelationshipId, trustedContactAlias, token, tokenBitLength, expiresAt)
+VALUES(?, ?, ?, ?, ?);
 
 getSocRecTrustedContactInvitations:
 SELECT * FROM socRecTrustedContactInvitationEntity
@@ -47,8 +49,8 @@ SELECT * FROM socRecTrustedContactInvitationEntity
 ORDER BY recoveryRelationshipId;
 
 insertSocRecTrustedContact:
-  INSERT OR REPLACE INTO socRecTrustedContactEntity(recoveryRelationshipId, publicKey, trustedContactAlias)
-    VALUES(:recoveryRelationshipId, :publicKey, :trustedContactAlias);
+INSERT OR REPLACE INTO socRecTrustedContactEntity(recoveryRelationshipId, trustedContactAlias, authenticationState, certificate)
+VALUES(:recoveryRelationshipId, :trustedContactAlias, :authenticationState, :certificate);
 
 getSocRecTrustedContacts:
 SELECT * FROM socRecTrustedContactEntity
@@ -67,14 +69,13 @@ ORDER BY recoveryRelationshipId;
 insertSocRecUnendorsedTrustedContact:
 INSERT OR REPLACE INTO socRecUnendorsedTrustedContactEntity(
     recoveryRelationshipId,
-    publicKey,
     trustedContactAlias,
-    identityPublicKeyMac,
-    enrollmentKey,
+    enrollmentPakeKey,
     enrollmentKeyConfirmation,
+    sealedDelegatedDecryptionKey,
     authenticationState
 )
-VALUES(?, ?, ?, ?, ?, ?, ?);
+VALUES(?, ?, ?, ?, ?, ?);
 
 getSocRecUnendorsedTrustedContacts:
 SELECT * FROM socRecUnendorsedTrustedContactEntity

@@ -7,17 +7,19 @@ import dev.zacsweers.redacted.annotations.Redacted
 data class TransactionDetailsModel(
   val transactionDetailModelType: TransactionDetailModelType,
   val transactionSpeedText: String,
-  val totalAmountPrimaryText: String,
-  val totalAmountSecondaryText: String?,
 ) : Model()
 
 /**
  * Transaction detail display type for transaction confirmation and initiated screens.
  *
  * @property transferAmountText the "Recipient receives" amount.
+ * @property totalAmountPrimaryText the net total amount (with fees) that the customer will be spending, in fiat.
+ * @property totalAmountSecondaryText the net total amount (with fees) that the customer will be spending, in sats.
  */
-sealed class TransactionDetailModelType {
-  abstract val transferAmountText: String
+sealed interface TransactionDetailModelType {
+  val transferAmountText: String
+  val totalAmountPrimaryText: String
+  val totalAmountSecondaryText: String?
 
   /**
    * For a "regular" bitcoin send/receive transaction.
@@ -26,8 +28,10 @@ sealed class TransactionDetailModelType {
    */
   data class Regular(
     override val transferAmountText: String,
+    override val totalAmountPrimaryText: String,
+    override val totalAmountSecondaryText: String?,
     val feeAmountText: String,
-  ) : TransactionDetailModelType()
+  ) : TransactionDetailModelType
 
   /**
    * For a bitcoin send transaction to be sped up via replace-by-fee (RBF).
@@ -37,7 +41,9 @@ sealed class TransactionDetailModelType {
    */
   data class SpeedUp(
     override val transferAmountText: String,
+    override val totalAmountPrimaryText: String,
+    override val totalAmountSecondaryText: String?,
     val oldFeeAmountText: String,
     val feeDifferenceText: String,
-  ) : TransactionDetailModelType()
+  ) : TransactionDetailModelType
 }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-client-okhttp-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-okhttp-jvm-2.3.8.jar": "c709ae50870234ffd47687f8afcb04d41982538ee4af8c4c91fd0b1c23719f89"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

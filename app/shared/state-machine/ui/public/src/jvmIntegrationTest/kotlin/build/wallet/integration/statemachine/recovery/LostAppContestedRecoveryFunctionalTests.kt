@@ -1,13 +1,14 @@
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.turbineScope
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_VERIFICATION_ENTRY
 import build.wallet.analytics.events.screen.id.ChooseRecoveryNotificationVerificationMethodScreenId.CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_VERIFICATION_ENTRY
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
@@ -20,7 +21,6 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.integration.statemachine.create.moreOptionsButton
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
@@ -38,6 +38,7 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.clickTrailingAccessoryButton
+import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.launchNewApp
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
@@ -231,11 +232,14 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.verifyCommsForLostHard
 
 private suspend fun StateMachineTester<Unit, ScreenModel>.navigateToLostAppRecovery() {
   awaitUntilScreenWithBody<ChooseAccountAccessModel>()
-    .moreOptionsButton.onClick()
+    .clickMoreOptionsButton()
   awaitUntilScreenWithBody<FormBodyModel>()
     .restoreButton.onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
     .signInSuccess(CloudStoreAccount1Fake)
+  // Cloud sign in missing backup
+  awaitUntilScreenWithBody<FormBodyModel>(CLOUD_BACKUP_NOT_FOUND)
+    .restoreButton.onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<FormBodyModel>(
     LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
   )

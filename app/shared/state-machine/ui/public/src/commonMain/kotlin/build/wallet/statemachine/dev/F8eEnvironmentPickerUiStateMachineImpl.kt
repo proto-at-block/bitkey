@@ -12,7 +12,7 @@ import build.wallet.f8e.name
 import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -33,7 +33,7 @@ class F8eEnvironmentPickerUiStateMachineImpl(
     val configData =
       when (val accountData = props.accountData) {
         is AccountData.NoActiveAccountData.GettingStartedData ->
-          accountData.templateKeyboxConfigData
+          accountData.templateFullAccountConfigData
         else -> return null
       }
     val f8eEnvironment = configData.config.f8eEnvironment
@@ -56,7 +56,8 @@ class F8eEnvironmentPickerUiStateMachineImpl(
   @Composable
   private fun F8eEnvironmentOptionModel(
     props: F8eEnvironmentPickerUiProps,
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
     environment: F8eEnvironment,
   ) = ListItemModel(
     title = environment.name,
@@ -65,10 +66,10 @@ class F8eEnvironmentPickerUiStateMachineImpl(
       ListItemAccessory.SwitchAccessory(
         model =
           SwitchModel(
-            checked = templateKeyboxConfigData.config.f8eEnvironment == environment,
+            checked = templateFullAccountConfigData.config.f8eEnvironment == environment,
             onCheckedChange = { isChecked ->
               if (isChecked) {
-                templateKeyboxConfigData.updateConfig {
+                templateFullAccountConfigData.updateConfig {
                   it.copy(f8eEnvironment = environment)
                 }
               }
@@ -77,7 +78,7 @@ class F8eEnvironmentPickerUiStateMachineImpl(
       ),
     onClick = {
       if (environment is Custom) {
-        props.openCustomUrlInput(environment.url, templateKeyboxConfigData)
+        props.openCustomUrlInput(environment.url, templateFullAccountConfigData)
       }
     }
   )

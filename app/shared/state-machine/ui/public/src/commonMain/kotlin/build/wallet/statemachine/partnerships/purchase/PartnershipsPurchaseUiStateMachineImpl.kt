@@ -6,17 +6,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.GetPurchaseOptionsService
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListService
 import build.wallet.f8e.partnerships.GetPurchaseRedirectService
+import build.wallet.f8e.partnerships.NoPurchaseOptionsError
 import build.wallet.f8e.partnerships.PartnerInfo
 import build.wallet.f8e.partnerships.PurchaseMethodAmounts
 import build.wallet.f8e.partnerships.Quote
 import build.wallet.f8e.partnerships.RedirectInfo
 import build.wallet.f8e.partnerships.RedirectUrlType
 import build.wallet.f8e.partnerships.toPurchaseMethodAmounts
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.formatter.MoneyDisplayFormatter
@@ -28,6 +31,7 @@ import build.wallet.statemachine.core.SheetSize.MIN40
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
+import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.statemachine.partnerships.PartnerRedirectionMethod
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.PurchaseAmountsState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.QuotesState
@@ -50,10 +54,10 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val getPurchaseOptionsService: GetPurchaseOptionsService,
   private val getPurchaseQuoteListService: GetPurchaseQuoteListService,
   private val getPurchaseRedirectService: GetPurchaseRedirectService,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
 ) : PartnershipsPurchaseUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseUiProps): SheetModel {
+    val initialState = PurchaseAmountsState.Loading(preSelectedAmount = null)
     var state: PartnershipsPurchaseState by remember {
       mutableStateOf(PurchaseAmountsState.Loading(preSelectedAmount = props.selectedAmount))
     }
@@ -81,38 +85,50 @@ class PartnershipsPurchaseUiStateMachineImpl(
           onNext = {
             state = QuotesState.Loading(it)
           },
-          onBack = props.onBack,
           onExit = props.onExit
         )
       }
       is PurchaseAmountsState.LoadingFailure ->
-        failureModel(props, title = "Error", subline = "Failed to load purchase amounts.")
+        if (currentState.error is NoPurchaseOptionsError) {
+          failureModel(
+            id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS_NOT_AVAILABLE,
+            error = currentState.error,
+            title = "New Partners Coming Soon",
+            errorMessage = "Bitkey is actively seeking partnerships with local exchanges to facilitate bitcoin purchases. Until then, you can add bitcoin using the receive button.",
+            onBack = props.onBack,
+            onExit = props.onExit
+          )
+        } else {
+          failureModel(
+            id = DepositEventTrackerScreenId.PARTNER_PURCHASE_OPTIONS_ERROR,
+            error = currentState.error,
+            errorMessage = "Failed to load purchase amounts.",
+            onBack = props.onBack,
+            onExit = props.onExit
+          )
+        }
       is PurchaseAmountsState.Loading -> {
         LaunchedEffect("load-partnerships-purchase-amount") {
           purchaseMethodAmounts(props)
             .onFailure { error ->
-              state =
-                PurchaseAmountsState.LoadingFailure(
-                  error = error,
-                  retry = { state = PurchaseAmountsState.Loading(preSelectedAmount = null) }
-                )
+              state = PurchaseAmountsState.LoadingFailure(error)
             }
             .onSuccess {
               state =
-                if (isValidPurchaseAmount(props.selectedAmount, props.fiatCurrency, it.min, it.max)) {
-                  QuotesState.Loading(props.selectedAmount)
+                if (isValidPurchaseAmount(currentState.preSelectedAmount, props.fiatCurrency, it.min, it.max)) {
+                  QuotesState.Loading(currentState.preSelectedAmount)
                 } else {
                   val displayOptions = it.displayOptions.take(MAX_DISPLAY_OPTIONS).toImmutableList()
                   PurchaseAmountsState.Loaded(it.min, it.max, displayOptions, it.default)
                 }
             }
         }
-        loadingModel(props)
+        loadingModel(id = DepositEventTrackerScreenId.LOADING_PARTNER_PURCHASE_OPTIONS, onExit = props.onExit)
       }
 
       is QuotesState.Loaded -> {
         return selectPartnerQuoteModel(
-          title = "Choose a partner",
+          title = "Select a partner",
           subTitle = "Quotes include price and fees",
           moneyDisplayFormatter = moneyDisplayFormatter,
           quotes = currentState.quotes,
@@ -124,25 +140,27 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 paymentMethod = SUPPORTED_PAYMENT_METHOD
               )
           },
-          onBack = props.onBack
+          onClosed = props.onExit
         )
       }
       is QuotesState.LoadingFailure ->
-        failureModel(props, title = "Error", subline = "Failed to load partner quotes.")
+        failureModel(
+          id = DepositEventTrackerScreenId.PARTNER_QUOTES_LIST_ERROR,
+          error = currentState.error,
+          errorMessage = "Failed to load partner quotes.",
+          onBack = { state = initialState },
+          onExit = props.onExit
+        )
       is QuotesState.Loading -> {
         LaunchedEffect("load-partnerships-quotes") {
           getPurchaseQuoteListService
             .purchaseQuotes(
-              fullAccountId = props.account.accountId,
-              f8eEnvironment = props.account.config.f8eEnvironment,
+              fullAccountId = props.keybox.fullAccountId,
+              f8eEnvironment = props.keybox.config.f8eEnvironment,
               fiatAmount = currentState.amount,
               paymentMethod = SUPPORTED_PAYMENT_METHOD
             ).onFailure { error ->
-              state =
-                QuotesState.LoadingFailure(
-                  error = error,
-                  retry = { state = PurchaseAmountsState.Loading(preSelectedAmount = null) }
-                )
+              state = QuotesState.LoadingFailure(error = error)
             }.onSuccess {
               state =
                 QuotesState.Loaded(
@@ -152,11 +170,15 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 )
             }
         }
-        loadingModel(props)
+        loadingModel(id = DepositEventTrackerScreenId.LOADING_PARTNER_QUOTES_LIST, onExit = props.onExit)
       }
       is RedirectState.Loaded -> {
         handleRedirect(currentState, props)
-        loadingModel(props)
+        loadingModel(
+          id = DepositEventTrackerScreenId.PURCHASE_PARTNER_REDIRECTING,
+          context = PartnerEventTrackerScreenIdContext(currentState.partner),
+          onExit = props.onExit
+        )
       }
       is RedirectState.Loading -> {
         LaunchedEffect("load-purchase-partner-redirect-info") {
@@ -164,10 +186,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
             state =
               RedirectState.LoadingFailure(
                 partner = currentState.quote.partnerInfo,
-                error = error,
-                retry = {
-                  state = RedirectState.Loading(currentState.amount, currentState.quote, currentState.paymentMethod)
-                }
+                error = error
               )
           }.onSuccess {
             state =
@@ -177,11 +196,22 @@ class PartnershipsPurchaseUiStateMachineImpl(
               )
           }
         }
-        loadingModel(props)
+        loadingModel(
+          id = DepositEventTrackerScreenId.LOADING_PURCHASE_PARTNER_REDIRECT,
+          context = PartnerEventTrackerScreenIdContext(currentState.quote.partnerInfo),
+          onExit = props.onExit
+        )
       }
       is RedirectState.LoadingFailure -> {
         val partnerName = currentState.partner.name
-        failureModel(props, title = "Error", subline = "Failed to redirect to $partnerName.")
+        failureModel(
+          id = DepositEventTrackerScreenId.PURCHASE_PARTNER_REDIRECT_ERROR,
+          context = PartnerEventTrackerScreenIdContext(currentState.partner),
+          error = currentState.error,
+          errorMessage = "Failed to redirect to $partnerName.",
+          onBack = { state = initialState },
+          onExit = props.onExit
+        )
       }
     }
   }
@@ -190,13 +220,12 @@ class PartnershipsPurchaseUiStateMachineImpl(
     props: PartnershipsPurchaseUiProps,
     redirectLoadingState: RedirectState.Loading,
   ): Result<GetPurchaseRedirectService.Success, Throwable> {
-    return appSpendingWalletProvider.getSpendingWallet(props.account.keybox.activeSpendingKeyset)
-      .flatMap { it.getNewAddress() }
+    return props.generateAddress()
       .flatMap { address ->
         getPurchaseRedirectService.purchaseRedirect(
-          fullAccountId = props.account.accountId,
+          fullAccountId = props.keybox.fullAccountId,
           address = address,
-          f8eEnvironment = props.account.config.f8eEnvironment,
+          f8eEnvironment = props.keybox.config.f8eEnvironment,
           fiatAmount = redirectLoadingState.amount,
           partner = redirectLoadingState.quote.partnerInfo.partner,
           paymentMethod = redirectLoadingState.paymentMethod,
@@ -255,8 +284,8 @@ class PartnershipsPurchaseUiStateMachineImpl(
   ): Result<PurchaseMethodAmounts, Error> {
     return getPurchaseOptionsService
       .purchaseOptions(
-        fullAccountId = props.account.accountId,
-        f8eEnvironment = props.account.config.f8eEnvironment,
+        fullAccountId = props.keybox.fullAccountId,
+        f8eEnvironment = props.keybox.config.f8eEnvironment,
         currency = props.fiatCurrency
       ).flatMap {
         it.toPurchaseMethodAmounts(props.fiatCurrency, SUPPORTED_PAYMENT_METHOD)
@@ -266,41 +295,54 @@ class PartnershipsPurchaseUiStateMachineImpl(
 
 @Composable
 private fun failureModel(
-  props: PartnershipsPurchaseUiProps,
-  title: String,
-  subline: String,
-) = SheetModel(
-  body =
-    ErrorFormBodyModel(
-      eventTrackerScreenId = null,
-      title = title,
-      subline = subline,
-      primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = props.onBack),
-      renderContext = Sheet,
-      onBack = props.onBack
-    ),
-  onClosed = props.onExit,
-  size = MIN40,
-  dragIndicatorVisible = true
-)
-
-@Composable
-private fun loadingModel(props: PartnershipsPurchaseUiProps) =
-  SheetModel(
+  id: DepositEventTrackerScreenId,
+  context: PartnerEventTrackerScreenIdContext? = null,
+  title: String = "Error",
+  error: Throwable?,
+  errorMessage: String,
+  onBack: () -> Unit,
+  onExit: () -> Unit,
+): SheetModel {
+  val logLevel = if (error != null) LogLevel.Error else LogLevel.Warn
+  log(level = logLevel, throwable = error) { errorMessage }
+  return SheetModel(
     body =
-      FormBodyModel(
-        id = null,
-        onBack = props.onBack,
-        toolbar = null,
-        header = null,
-        mainContentList = immutableListOf(Loader),
-        primaryButton = null,
-        renderContext = Sheet
+      ErrorFormBodyModel(
+        eventTrackerScreenId = id,
+        eventTrackerScreenIdContext = context,
+        title = title,
+        subline = errorMessage,
+        primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = onBack),
+        renderContext = Sheet,
+        onBack = onBack
       ),
-    onClosed = props.onExit,
+    onClosed = onExit,
     size = MIN40,
     dragIndicatorVisible = true
   )
+}
+
+@Composable
+private fun loadingModel(
+  id: DepositEventTrackerScreenId,
+  context: PartnerEventTrackerScreenIdContext? = null,
+  onExit: () -> Unit,
+) = SheetModel(
+  body =
+    FormBodyModel(
+      id = id,
+      eventTrackerScreenIdContext = context,
+      onBack = {},
+      toolbar = null,
+      header = null,
+      mainContentList = immutableListOf(Loader),
+      primaryButton = null,
+      renderContext = Sheet
+    ),
+  onClosed = onExit,
+  size = MIN40,
+  dragIndicatorVisible = true
+)
 
 /**
  * Describes state of the data used for the Partnerships purchase flow
@@ -326,11 +368,9 @@ private sealed interface PartnershipsPurchaseState {
 
     /**
      * Failure in loading the purchase amounts
-     * @param retry - will trigger the loading of purchase amounts again
      */
     data class LoadingFailure(
       val error: Error,
-      val retry: () -> Unit,
     ) : PurchaseAmountsState
   }
 
@@ -354,11 +394,9 @@ private sealed interface PartnershipsPurchaseState {
 
     /**
      * Failure in loading quotes
-     * @param retry - will trigger the loading of quotes again
      */
     data class LoadingFailure(
       val error: Error,
-      val retry: () -> Unit,
     ) : QuotesState
   }
 
@@ -392,12 +430,10 @@ private sealed interface PartnershipsPurchaseState {
      * Failure in loading partner redirect info
      * @param partner - partner to purchase from
      * @param error - error that occurred
-     * @param retry - will load quotes again
      */
     data class LoadingFailure(
       val partner: PartnerInfo,
       val error: Throwable,
-      val retry: () -> Unit,
     ) : RedirectState
   }
 }

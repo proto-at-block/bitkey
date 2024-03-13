@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.jakewharton.crossword:crossword-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "crossword-iossimulatorarm64-metadata.jar": "a15ee415f9acf376b968050f563a26be7bb8f72e687ba857a96ba00ebdd47926"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "crossword.klib": "2e9fae72550cecc8c150a176d4fc1f59532cf68f9858803435089e64e5c6c9bd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

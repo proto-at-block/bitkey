@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.alecstrong.sql.psi:core",
+    "components": [
+        {
+            "version": "0.4.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-0.4.8.jar": "37297c98f9bd618aacc2855142dba03a5e6129a0e4efc2ca31a9d3d0b669c4f1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "SQLDelight-DialectClasspath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

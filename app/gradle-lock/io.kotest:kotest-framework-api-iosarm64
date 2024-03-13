@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-api-iosarm64",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-api-iosarm64-5.8.0-metadata.jar": "6795c49f37353bb07e65b136629de60b5ae08e8539e70085a17f5598a3305b2e"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotest-framework-api.klib": "308278ed77be96f65dc8cb2c862e7c7b74f2e9d7b33c258505d986ab20feb968"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

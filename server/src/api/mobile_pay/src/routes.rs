@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
+use account::entities::FullAccount;
 use axum::routing::delete;
 use axum::{
     extract::{Path, State},
@@ -10,19 +11,17 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 use tracing::{error, event, instrument, Level};
+use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::FetchAndUpdateSpendingLimitInput;
 use account::service::{FetchAccountInput, Service as AccountService};
 use account::spend_limit::{Money, SpendingLimit};
 use authn_authz::key_claims::KeyClaims;
-use authn_authz::userpool::UserPoolService;
+use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
 use bdk_utils::bdk::SignOptions;
 use bdk_utils::generate_electrum_rpc_uris;
-use bdk_utils::{
-    bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt, is_psbt_addressed_to_wallet,
-};
-use bdk_utils::{AttributableWallet, DescriptorKeyset, TransactionBroadcasterTrait};
+use bdk_utils::{DescriptorKeyset, TransactionBroadcasterTrait};
 use errors::ErrorCode::NoSpendingLimitExists;
 use errors::{ApiError, RouteError};
 use exchange_rate::currency_conversion::sats_for;
@@ -31,6 +30,7 @@ use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use metrics::KeyValue;
+use screener::service::Service as ScreenerService;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::currencies::CurrencyCode;
 use types::currencies::CurrencyCode::BTC;
@@ -42,10 +42,10 @@ use wsm_rust_client::{SigningService, WsmClient};
 use crate::daily_spend_record::entities::{DailySpendingRecord, SpendingEntry};
 use crate::daily_spend_record::service::Service as DailySpendRecordService;
 use crate::entities::{Features, Settings};
-use crate::metrics as mobile_pay_metrics;
 use crate::signed_psbt_cache::service::Service as SignedPsbtCacheService;
 use crate::spend_rules::SpendRuleSet;
 use crate::util::total_sats_spent_today;
+use crate::{metrics as mobile_pay_metrics, FLAG_MOBILE_PAY_ENABLED};
 
 #[derive(Clone, Deserialize)]
 pub struct Config {
@@ -63,6 +63,7 @@ pub struct RouteState(
     pub ExchangeRateService,
     pub SignedPsbtCacheService,
     pub FeatureFlagsService,
+    pub Arc<ScreenerService>,
 );
 
 impl From<RouteState> for Router {
@@ -136,19 +137,20 @@ pub struct SignTransactionResponse {
 
 #[instrument(
     skip(
-        account_service,
         wsm_client,
         config,
         daily_spend_record_service,
         signed_psbt_cache_service,
         exchange_rate_service,
-        feature_flags_service
+        feature_flags_service,
+        screener_service,
+        transaction_broadcaster
     ),
     fields(keyset_id, active_keyset_id)
 )]
 async fn sign_transaction_maybe_broadcast_impl(
-    account_keyset: (AccountId, Option<KeysetId>),
-    account_service: AccountService,
+    full_account: &FullAccount,
+    keyset_id: &KeysetId,
     wsm_client: WsmClient,
     config: Config,
     request: SignTransactionData,
@@ -157,10 +159,25 @@ async fn sign_transaction_maybe_broadcast_impl(
     exchange_rate_service: ExchangeRateService,
     signed_psbt_cache_service: SignedPsbtCacheService,
     feature_flags_service: FeatureFlagsService,
+    screener_service: Arc<ScreenerService>,
 ) -> Result<SignTransactionResponse, ApiError> {
-    let (account_id, keyset_id) = account_keyset;
+    // At the earliest opportunity, we block the request if mobile pay is disabled by feature flag.
+    let is_mobile_pay_enabled = FLAG_MOBILE_PAY_ENABLED
+        .resolver(&feature_flags_service)
+        .resolve();
+
+    if !is_mobile_pay_enabled {
+        let msg = "Signing with Bitkey's servers is currently disabled.";
+        error!("{msg}");
+        return Err(ApiError::GenericForbidden(msg.to_string()));
+    }
 
     let signing_start_time = OffsetDateTime::now_utc();
+    tracing::Span::current().record(
+        "active_keyset_id",
+        &full_account.active_keyset_id.to_string(),
+    );
+    tracing::Span::current().record("keyset_id", &keyset_id.to_string());
 
     let psbt = Psbt::from_str(&request.psbt)
         .map_err(|err| RouteError::InvalidPsbt(err.to_string(), request.psbt.clone()))?;
@@ -177,52 +194,22 @@ async fn sign_transaction_maybe_broadcast_impl(
         });
     }
 
-    let full_account = account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await?;
-    tracing::Span::current().record(
-        "active_keyset_id",
-        &full_account.active_keyset_id.to_string(),
-    );
-
-    let active_descriptor: DescriptorKeyset = full_account
-        .active_spending_keyset()
-        .ok_or(RouteError::NoActiveSpendKeyset)?
-        .to_owned()
-        .into();
-
-    let (is_not_active_keyset, keyset_id) = match keyset_id {
-        Some(k_id) => (k_id != full_account.active_keyset_id.clone(), k_id),
-        None => (false, full_account.active_keyset_id.clone()),
-    };
-    tracing::Span::current().record("keyset_id", &keyset_id.to_string());
+    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service)?;
 
     let requested_descriptor: DescriptorKeyset = full_account
         .spending_keysets
-        .get(&keyset_id)
+        .get(keyset_id)
         .ok_or_else(|| RouteError::NoSpendKeysetError(keyset_id.to_string()))?
         .to_owned()
         .into();
 
-    let rpc_uris = generate_electrum_rpc_uris(&feature_flags_service)?;
     // don't need to sync the wallet since we keep track of outflows in the spending records
-    let wallet = requested_descriptor.generate_wallet(false, &rpc_uris)?;
 
-    // Enforce spending conditions on any transaction not moving into the active keyset (in other words, it's not a self-spend)
-    let bypass_mobile_spend_limit = if is_not_active_keyset {
-        let active_wallet = active_descriptor.generate_wallet(true, &rpc_uris)?;
-        is_psbt_addressed_to_wallet(&active_wallet, &psbt)
-    } else {
-        let is_self_spend = active_descriptor
-            .generate_wallet(false, &rpc_uris)?
-            .is_addressed_to_self(&psbt)
-            .unwrap_or(false); // If there are malformed or invalid data in the PSBT, dont bypass checks
-        Ok(is_self_spend)
-    }?;
+    let unsynced_source_wallet = requested_descriptor.generate_wallet(false, &rpc_uris)?;
 
-    let updated_spending_record = if !bypass_mobile_spend_limit {
+    let is_mobile_pay = *keyset_id == full_account.active_keyset_id;
+
+    let updated_spending_record = if is_mobile_pay {
         // TODO [W-4400]: Move limit enforcement here to its own rule for SpendRuleSet, and clean-up
         // duplicated access to spending limit.
         if !full_account.is_spending_limit_active() {
@@ -232,6 +219,7 @@ async fn sign_transaction_maybe_broadcast_impl(
         }
         let limit = full_account
             .spending_limit
+            .clone()
             .ok_or(RouteError::MissingMobilePaySettings)?;
 
         let daily_limit_sats = sats_for_limit(
@@ -243,7 +231,7 @@ async fn sign_transaction_maybe_broadcast_impl(
         .await?;
 
         let mobile_pay_spending_record =
-            get_mobile_pay_spending_record(&account_id, &daily_spend_record_service).await?;
+            get_mobile_pay_spending_record(&full_account.id, &daily_spend_record_service).await?;
 
         // bundle up yesterday and today's spending records for spend rule checking
         let spending_entries = mobile_pay_spending_record.spending_entries();
@@ -253,23 +241,50 @@ async fn sign_transaction_maybe_broadcast_impl(
             daily_limit_sats,
         };
 
-        SpendRuleSet::default()
-            .check_spend_rules(&wallet, &psbt, &features, &spending_entries)
+        SpendRuleSet::mobile_pay(
+            &unsynced_source_wallet,
+            &features,
+            &spending_entries,
+            screener_service,
+        )
+        .check_spend_rules(&psbt)
+        .map_err(|reasons| {
+            let error_message = format!(
+                "Transaction failed to pass mobile pay spend rules: {}",
+                reasons.first().expect("should be at least one error")
+            );
+            event!(Level::INFO, error_message);
+            ApiError::GenericBadRequest(error_message)
+        })?;
+
+        let mut today_spending_record = mobile_pay_spending_record.today;
+        today_spending_record.update_with_psbt(&unsynced_source_wallet, &psbt);
+
+        Some(today_spending_record)
+    } else {
+        // !is_mobile_pay
+
+        let active_descriptor: DescriptorKeyset = full_account
+            .active_spending_keyset()
+            .ok_or(RouteError::NoActiveSpendKeyset)?
+            .to_owned()
+            .into();
+
+        // A full sync is required here, because we don't have derivation path information in
+        // the PSBT for sweep outputs so we need to generate addresses and check one-by-one.
+        let active_wallet = active_descriptor.generate_wallet(true, &rpc_uris)?;
+
+        SpendRuleSet::sweep(&unsynced_source_wallet, &active_wallet, screener_service)
+            .check_spend_rules(&psbt)
             .map_err(|reasons| {
                 let error_message = format!(
-                    "Transaction failed to pass spend rules: {}",
+                    "Transaction failed to pass sweep spend rules: {}",
                     reasons.first().expect("should be at least one error")
                 );
                 event!(Level::INFO, error_message);
                 ApiError::GenericBadRequest(error_message)
             })?;
 
-        let mut today_spending_record = mobile_pay_spending_record.today;
-        today_spending_record.update_with_psbt(&wallet, &psbt);
-
-        Some(today_spending_record)
-    } else {
-        // If the transaction is spending to the active keyset (it's a self-spend), we don't do rules checking on it
         None
     };
 
@@ -303,11 +318,11 @@ async fn sign_transaction_maybe_broadcast_impl(
         (OffsetDateTime::now_utc() - signing_start_time).whole_milliseconds() as u64,
         &[KeyValue::new(
             mobile_pay_metrics::IS_MOBILE_PAY,
-            !bypass_mobile_spend_limit,
+            is_mobile_pay,
         )],
     );
 
-    let psbt_fully_signed = wallet
+    let psbt_fully_signed = unsynced_source_wallet
         .finalize_psbt(&mut signed_psbt, SignOptions::default())
         .map_err(|err| RouteError::InvalidPsbt(err.to_string(), result.psbt.clone()))?;
 
@@ -328,12 +343,12 @@ async fn sign_transaction_maybe_broadcast_impl(
 
     if psbt_fully_signed {
         let broadcast_start_time = OffsetDateTime::now_utc();
-        transaction_broadcaster.broadcast(wallet, &mut signed_psbt, &rpc_uris)?;
+        transaction_broadcaster.broadcast(unsynced_source_wallet, &mut signed_psbt, &rpc_uris)?;
         mobile_pay_metrics::MOBILE_PAY_F8E_TIME_TO_BROADCAST.record(
             (OffsetDateTime::now_utc() - broadcast_start_time).whole_milliseconds() as u64,
             &[KeyValue::new(
                 mobile_pay_metrics::IS_MOBILE_PAY,
-                !bypass_mobile_spend_limit,
+                is_mobile_pay,
             )],
         );
     }
@@ -352,7 +367,8 @@ async fn sign_transaction_maybe_broadcast_impl(
         exchange_rate_service,
         signed_psbt_cache_service,
         request,
-        feature_flags_service
+        feature_flags_service,
+        screener_service
     )
 )]
 #[utoipa::path(
@@ -379,11 +395,18 @@ async fn sign_transaction_with_keyset(
     State(exchange_rate_service): State<ExchangeRateService>,
     State(signed_psbt_cache_service): State<SignedPsbtCacheService>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    State(screener_service): State<Arc<ScreenerService>>,
     Json(request): Json<SignTransactionData>,
 ) -> Result<Json<SignTransactionResponse>, ApiError> {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
     let response = sign_transaction_maybe_broadcast_impl(
-        (account_id, Some(keyset_id)),
-        account_service,
+        &full_account,
+        &keyset_id,
         wsm_client,
         config,
         request,
@@ -392,8 +415,10 @@ async fn sign_transaction_with_keyset(
         exchange_rate_service,
         signed_psbt_cache_service,
         feature_flags_service,
+        screener_service,
     )
     .await?;
+
     Ok(Json(response))
 }
 
@@ -408,6 +433,7 @@ async fn sign_transaction_with_keyset(
         exchange_rate_service,
         signed_psbt_cache_service,
         request,
+        screener_service,
         feature_flags_service
     )
 )]
@@ -435,11 +461,18 @@ async fn sign_transaction_with_active_keyset(
     State(exchange_rate_service): State<ExchangeRateService>,
     State(signed_psbt_cache_service): State<SignedPsbtCacheService>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    State(screener_service): State<Arc<ScreenerService>>,
     Json(request): Json<SignTransactionData>,
 ) -> Result<Json<SignTransactionResponse>, ApiError> {
+    let full_account = account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
     let response = sign_transaction_maybe_broadcast_impl(
-        (account_id, None),
-        account_service,
+        &full_account,
+        &full_account.active_keyset_id.clone(),
         wsm_client,
         config,
         request,
@@ -448,6 +481,7 @@ async fn sign_transaction_with_active_keyset(
         exchange_rate_service,
         signed_psbt_cache_service,
         feature_flags_service,
+        screener_service,
     )
     .await?;
     Ok(Json(response))
@@ -491,23 +525,12 @@ async fn setup_mobile_pay(
     key_proof: KeyClaims,
     request: MobilePaySetupRequest,
 ) -> Result<Json<MobilePaySetupResponse>, ApiError> {
-    if account_id.to_string() != key_proof.account_id {
-        event!(
-            Level::ERROR,
-            "Account id in path does not match account id in access token"
-        );
-
-        return Err(ApiError::GenericBadRequest(
-            "Account id in path does not match account id in access token".to_string(),
-        ));
-    }
-
     if !(key_proof.hw_signed && key_proof.app_signed) {
         event!(
             Level::WARN,
             "valid signature over access token required by both app and hw auth keys"
         );
-        return Err(ApiError::GenericBadRequest(
+        return Err(ApiError::GenericForbidden(
             "valid signature over access token required by both app and hw auth keys".to_string(),
         ));
     }
@@ -525,7 +548,59 @@ async fn setup_mobile_pay(
 /// Response body representing the current state of the user's Mobile Pay setup.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct MobilePayResponse {
+pub struct GetMobilePayResponse {
+    // TODO [W-6166]: Remove extraneous fields here kept for EXT beta backward-compatibility.
+    spent: Money,
+    available: Money,
+    limit: SpendingLimit,
+    mobile_pay: Option<MobilePayConfiguration>,
+}
+
+impl GetMobilePayResponse {
+    pub fn new(mobile_pay: Option<MobilePayConfiguration>) -> Self {
+        match mobile_pay {
+            None => Self::default(),
+            Some(config) => Self {
+                spent: config.clone().spent,
+                available: config.clone().available,
+                limit: config.clone().limit,
+                mobile_pay: Some(config),
+            },
+        }
+    }
+
+    pub fn mobile_pay(&self) -> Option<&MobilePayConfiguration> {
+        self.mobile_pay.as_ref()
+    }
+}
+
+impl Default for GetMobilePayResponse {
+    fn default() -> Self {
+        Self {
+            spent: Money {
+                amount: 0,
+                currency_code: BTC,
+            },
+            available: Money {
+                amount: 0,
+                currency_code: BTC,
+            },
+            limit: SpendingLimit {
+                active: false,
+                amount: Money {
+                    amount: 0,
+                    currency_code: BTC,
+                },
+                time_zone_offset: time::UtcOffset::UTC,
+            },
+            mobile_pay: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct MobilePayConfiguration {
     /// Amount the user has spent so far.
     pub spent: Money,
     /// Amount that is available for the user to spend using Mobile Pay today.
@@ -562,16 +637,18 @@ async fn get_mobile_pay_for_account(
     State(daily_spend_record_service): State<DailySpendRecordService>,
     State(exchange_rate_service): State<ExchangeRateService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-) -> Result<Json<MobilePayResponse>, ApiError> {
+) -> Result<Json<GetMobilePayResponse>, ApiError> {
     let full_account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
 
-    let limit = full_account.spending_limit.clone().ok_or_else(|| {
-        ApiError::GenericNotFound("Account does not have mobile pay set up.".into())
-    })?;
+    // If limit doesn't exist, return GetMobilePayResponse with None.
+    let Some(limit) = full_account.spending_limit else {
+        return Ok(Json(GetMobilePayResponse::default()));
+    };
+
     let limit_in_sats = match limit.amount.currency_code {
         BTC => limit.clone(),
         _ => SpendingLimit {
@@ -599,7 +676,7 @@ async fn get_mobile_pay_for_account(
     )
     .map_err(ApiError::GenericBadRequest)?;
 
-    let response = MobilePayResponse {
+    let response = GetMobilePayResponse::new(Some(MobilePayConfiguration {
         spent: Money {
             amount: total_spent,
             currency_code: BTC,
@@ -609,7 +686,8 @@ async fn get_mobile_pay_for_account(
             currency_code: BTC,
         },
         limit,
-    };
+    }));
+
     Ok(Json(response))
 }
 

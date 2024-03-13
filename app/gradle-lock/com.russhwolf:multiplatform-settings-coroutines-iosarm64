@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-coroutines-iosarm64",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines-iosarm64-1.1.1-metadata.jar": "8d2347512e44c93533e87a193ba27868350cb5e43c0aad375a6971bb2d717eb4"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines.klib": "a8ed45d8fa6d502b73ed54c78dd442158f92ed8a83a9b9943aac2a2392a9a0a9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

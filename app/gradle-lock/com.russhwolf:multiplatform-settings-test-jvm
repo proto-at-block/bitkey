@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-test-jvm",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test-jvm-1.1.1.jar": "ece48665a23ae12ccfa99389270affa310e2c74e135cb8df095462b6df9ecbd4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

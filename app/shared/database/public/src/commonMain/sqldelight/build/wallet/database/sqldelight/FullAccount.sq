@@ -1,8 +1,4 @@
-import build.wallet.bitcoin.BitcoinNetworkType;
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
 import build.wallet.bitkey.f8e.FullAccountId;
-import build.wallet.f8e.F8eEnvironment;
-import kotlin.Boolean;
 
 -- Table for Full Account data. This can be an active or an onboarding account, if any.
 CREATE TABLE fullAccountEntity(
@@ -76,6 +72,7 @@ SELECT
   keyboxEntity.isTestAccount,
   keyboxEntity.isUsingSocRecFakes,
   keyboxEntity.delayNotifyDuration,
+  keyboxEntity.appGlobalAuthKeyHwSignature,
   spendingKeysetEntity.id AS spendingPublicKeysetId,
   spendingKeysetEntity.serverId AS spendingPublicKeysetServerId,
   spendingKeysetEntity.appKey,
@@ -83,7 +80,10 @@ SELECT
   spendingKeysetEntity.serverKey,
   appKeyBundleEntity.id AS appKeyBundleId,
   appKeyBundleEntity.globalAuthKey,
-  appKeyBundleEntity.recoveryAuthKey
+  appKeyBundleEntity.recoveryAuthKey,
+  hwKeyBundleEntity.id AS hwKeyBundleId,
+  hwKeyBundleEntity.authKey AS hwAuthKey,
+  hwKeyBundleEntity.spendingKey AS hwSpendingKey
 FROM fullAccountEntity
 -- keybox
 INNER JOIN keyboxEntity
@@ -91,6 +91,9 @@ ON keyboxEntity.id = fullAccountEntity.keyboxId
 -- spending public keyset
 INNER JOIN spendingKeysetEntity
 ON keyboxEntity.activeSpendingKeysetId = spendingKeysetEntity.id
--- bundle
+-- app key bundle
 INNER JOIN appKeyBundleEntity
-ON keyboxEntity.activeKeyBundleId = appKeyBundleEntity.id;
+ON keyboxEntity.activeKeyBundleId = appKeyBundleEntity.id
+-- hw key bundle
+INNER JOIN hwKeyBundleEntity
+ON keyboxEntity.activeHwKeyBundleId = hwKeyBundleEntity.id;

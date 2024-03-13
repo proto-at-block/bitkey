@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-test-android",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test-release.aar": "0a039228ef9d510158429551ad06dcf54d830c20162b4c8b4a92f50e194e9b5d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

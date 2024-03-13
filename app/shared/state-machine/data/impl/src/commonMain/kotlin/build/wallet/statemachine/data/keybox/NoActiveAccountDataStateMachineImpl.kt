@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.LoadableValue
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
@@ -48,8 +49,8 @@ class NoActiveAccountDataStateMachineImpl(
 ) : NoActiveAccountDataStateMachine {
   @Composable
   override fun model(props: NoActiveAccountDataProps): NoActiveAccountData {
-    LaunchedEffect("log-template-config", props.templateKeyboxConfigData.config) {
-      log { "No active keybox, template config used: ${props.templateKeyboxConfigData.config}" }
+    LaunchedEffect("log-template-config", props.templateFullAccountConfigData.config) {
+      log { "No active keybox, template config used: ${props.templateFullAccountConfigData.config}" }
     }
 
     LaunchedEffect("no-app-keybox-analytics-event") {
@@ -107,9 +108,10 @@ class NoActiveAccountDataStateMachineImpl(
       Router.onRouteChange { route ->
         when (route) {
           is Route.TrustedContactInvite ->
-            when (state) {
+            when (val s = state) {
               is CreateLiteAccountState -> {
-                state = (state as CreateLiteAccountState).copy(inviteCode = route.inviteCode)
+                eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_VIA_DEEPLINK)
+                state = s.copy(inviteCode = route.inviteCode)
                 return@onRouteChange true
               }
               is GettingStartedState -> {
@@ -130,7 +132,7 @@ class NoActiveAccountDataStateMachineImpl(
     return when (val dataState = state) {
       is GettingStartedState ->
         GettingStartedData(
-          templateKeyboxConfigData = props.templateKeyboxConfigData,
+          templateFullAccountConfigData = props.templateFullAccountConfigData,
           newAccountOnboardConfigData = props.newAccountOnboardConfigData,
           startFullAccountCreation = { state = CreateFullAccountState },
           startLiteAccountCreation = {
@@ -147,13 +149,13 @@ class NoActiveAccountDataStateMachineImpl(
 
       is CreateFullAccountState ->
         CreatingFullAccountData(
-          templateKeyboxConfig = props.templateKeyboxConfigData.config,
+          templateFullAccountConfig = props.templateFullAccountConfigData.config,
           createFullAccountData =
             createFullAccountDataStateMachine.model(
               props =
                 CreateFullAccountDataProps(
                   onboardConfig = props.newAccountOnboardConfigData.config,
-                  templateKeyboxConfig = props.templateKeyboxConfigData.config,
+                  templateFullAccountConfig = props.templateFullAccountConfigData.config,
                   onboardingKeybox = onboardingKeybox,
                   currencyPreferenceData = props.currencyPreferenceData,
                   context = CreateFullAccountContext.NewFullAccount,
@@ -208,7 +210,7 @@ class NoActiveAccountDataStateMachineImpl(
 
       is EmergencyAccessAccountRecoveryState ->
         NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit(
-          templateKeyboxConfig = props.templateKeyboxConfigData.config,
+          templateFullAccountConfig = props.templateFullAccountConfigData.config,
           onExit = { state = GettingStartedState(isNavigatingBack = true) }
         )
 
@@ -217,7 +219,7 @@ class NoActiveAccountDataStateMachineImpl(
           onRollback = {
             state = GettingStartedState()
           },
-          templateKeyboxConfig = props.templateKeyboxConfigData.config,
+          templateFullAccountConfig = props.templateFullAccountConfigData.config,
           inviteCode = dataState.inviteCode,
           onAccountCreated = props.onAccountCreated
         )
@@ -231,12 +233,12 @@ class NoActiveAccountDataStateMachineImpl(
     onRollback: () -> Unit,
     onRetryCloudRecovery: () -> Unit,
   ) = RecoveringAccountData(
-    templateKeyboxConfig = props.templateKeyboxConfigData.config,
+    templateFullAccountConfig = props.templateFullAccountConfigData.config,
     lostAppRecoveryData =
       lostAppRecoveryDataStateMachine.model(
         LostAppRecoveryProps(
           cloudBackup = cloudBackup,
-          keyboxConfig = props.templateKeyboxConfigData.config,
+          fullAccountConfig = props.templateFullAccountConfigData.config,
           activeRecovery = props.existingRecovery,
           onRollback = onRollback,
           onRetryCloudRecovery = onRetryCloudRecovery

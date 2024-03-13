@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.gms:play-services-fido",
+    "components": [
+        {
+            "version": "20.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "play-services-fido-20.0.1.aar": "b3526f0caedaa96c526cc4c9ba94b229dad5afe31f32f46f6cd668a03624fd42"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

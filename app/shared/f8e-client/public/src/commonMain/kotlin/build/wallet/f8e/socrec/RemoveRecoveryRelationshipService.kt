@@ -1,7 +1,8 @@
 package build.wallet.f8e.socrec
 
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.f8e.AccountId
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
@@ -17,7 +18,8 @@ interface RemoveRecoveryRelationshipService {
    * expected.
    */
   suspend fun removeRelationship(
-    account: Account,
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,

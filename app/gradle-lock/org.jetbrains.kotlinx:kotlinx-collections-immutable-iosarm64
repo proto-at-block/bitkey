@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-collections-immutable-iosarm64",
+    "components": [
+        {
+            "version": "0.3.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-collections-immutable-iosarm64-0.3.5-metadata.jar": "51190f3791feee92f30db8a8b015d3d2722e0219a44906b9085dad0ab4deae25"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-collections-immutable.klib": "e0d6c9adec2fed089e2ea5a3ed8f1e168070e2b0af805beb3bbd4719b752dc6e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

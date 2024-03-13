@@ -31,7 +31,7 @@ class MobilePayBalanceServiceImpl(
     fullAccountId: FullAccountId,
   ): Result<MobilePayBalance, MobilePayBalanceFailure> {
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
-      .bodyResult<MobilePayBalanceDTO> {
+      .bodyResult<MobilePayBalanceResponseDTO> {
         get("/api/accounts/${fullAccountId.serverId}/mobile-pay")
       }
       .logNetworkFailure { "Failed to get mobile pay balance" }
@@ -52,6 +52,25 @@ class MobilePayBalanceServiceImpl(
         timezone = TimeZone.of(timeZoneOffset)
       )
     }
+
+  private suspend fun MobilePayBalanceResponseDTO.toMobilePayBalance(): MobilePayBalance? {
+    return when (mobilePay) {
+      null -> {
+        if (limit != null && spent != null && available != null) {
+          limit.toSpendingLimit()?.let { spendingLimit ->
+            MobilePayBalance(
+              spent = spent.toBitcoinMoney(),
+              available = available.toBitcoinMoney(),
+              limit = spendingLimit
+            )
+          }
+        } else {
+          null
+        }
+      }
+      else -> mobilePay.toMobilePayBalance()
+    }
+  }
 
   private suspend fun MobilePayBalanceDTO.toMobilePayBalance(): MobilePayBalance? =
     limit.toSpendingLimit()?.let { spendingLimit ->
@@ -90,6 +109,14 @@ private data class SpendingLimitDTO(
   val amount: MoneyDTO,
   @SerialName("time_zone_offset")
   val timeZoneOffset: String,
+)
+
+@Serializable
+private data class MobilePayBalanceResponseDTO(
+  val spent: MoneyDTO?,
+  val available: MoneyDTO?,
+  val limit: SpendingLimitDTO?,
+  val mobilePay: MobilePayBalanceDTO?,
 )
 
 @Serializable

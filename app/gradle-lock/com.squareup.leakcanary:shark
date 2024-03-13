@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.leakcanary:shark",
+    "components": [
+        {
+            "version": "2.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "shark-2.13.jar": "b1570b8ddcb1960b4b77220efff3b323963323dd196bfe6eee5f00b013be7066"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

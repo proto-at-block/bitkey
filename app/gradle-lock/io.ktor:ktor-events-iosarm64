@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-events-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-events-iosarm64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-events.klib": "530a23fed02e791327173bfd2d807801fa6fcfef79f68e2b703d98e81164bc96"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

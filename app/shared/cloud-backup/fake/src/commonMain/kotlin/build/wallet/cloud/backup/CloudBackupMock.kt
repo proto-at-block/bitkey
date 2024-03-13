@@ -6,14 +6,14 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.f8e.LiteAccountIdMock
 import build.wallet.cloud.backup.v2.FullAccountFieldsMock
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.recovery.socrec.TrustedContactIdentityKeyFake
+import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
 
 val CloudBackupV2WithFullAccountMock =
   CloudBackupV2(
     accountId = FullAccountIdMock.serverId,
     f8eEnvironment = F8eEnvironment.Development,
     isTestAccount = true,
-    trustedContactIdentityKeypair = TrustedContactIdentityKeyFake,
+    delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
     fullAccountFields = FullAccountFieldsMock,
     appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
     isUsingSocRecFakes = false,
@@ -25,7 +25,7 @@ val CloudBackupV2WithLiteAccountMock =
     accountId = LiteAccountIdMock.serverId,
     f8eEnvironment = F8eEnvironment.Development,
     isTestAccount = true,
-    trustedContactIdentityKeypair = TrustedContactIdentityKeyFake,
+    delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
     fullAccountFields = null,
     appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
     isUsingSocRecFakes = true,
@@ -37,8 +37,7 @@ const val CLOUD_BACKUP_V2_WITH_FULL_ACCOUNT_FIELDS_JSON = """
     "accountId":"server-id",
     "f8eEnvironment":"Development",
     "isTestAccount":true,
-    "trustedContactIdentityKeypair": {
-      "curveType":"SECP256K1",
+    "delegatedDecryptionKeypair": {
       "publicKey": "02cf4da9af6606b4ba78d3be2d59dcd7813b3dbdeb028e8ab1f64e9ef0fe3d3967",
       "privateKeyHex": "2cc2b48c50aefe53b3974ed91e6b4ea924f9baa8e77bcc2f537f0b02efe86030"
     },
@@ -49,19 +48,20 @@ const val CLOUD_BACKUP_V2_WITH_FULL_ACCOUNT_FIELDS_JSON = """
     "isUsingSocRecFakes":false,
     "bitcoinNetworkType":"SIGNET",
     "fullAccountFields": {
-      "hwEncryptionKeyCiphertext":"b8ef0c208d341bf262638a7ecf142bea",
-      "socRecEncryptionKeyCiphertextMap": {
+      "sealedHwEncryptionKey":"b8ef0c208d341bf262638a7ecf142bea",
+      "socRecSealedDekMap": {
         "someRelationshipId": "cipherText-1.nonce-1",
         "someOtherRelationshipId": "cipherText-2.nonce-2"
       },
-      "protectedCustomerIdentityPublicKey": "02cf4da9af6606b4ba78d3be2d59dcd7813b3dbdeb028e8ab1f64e9ef0fe3d3967",
       "isFakeHardware":false,
       "hwFullAccountKeysCiphertext":{
         "ciphertext":"deadbeef",
         "nonce":"abcdef",
         "tag":"123456"
       },
-      "socRecFullAccountKeysCiphertext": "eyJhbGciOiJ1bnJlYWwifQ.Y2lwaGVydGV4dA.bm9uY2U"
+      "socRecSealedFullAccountKeys": "eyJhbGciOiJ1bnJlYWwifQ.Y2lwaGVydGV4dA.bm9uY2U",
+      "rotationAppRecoveryAuthKeypair": null,
+      "appGlobalAuthKeyHwSignature":"app-global-auth-key-hw-signature"
     }
   }
 """

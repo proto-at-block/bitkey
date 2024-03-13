@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:kermit-bugsnag-android-debug",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kermit-bugsnag-debug.aar": "1b35ac94e05f61dfecda3fad0433a6957757cc094d853479bf9f829813f4ff9e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

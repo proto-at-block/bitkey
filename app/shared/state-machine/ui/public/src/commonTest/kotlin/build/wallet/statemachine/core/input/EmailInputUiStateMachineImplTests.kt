@@ -12,10 +12,12 @@ import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.matchers.shouldBeDisabled
+import build.wallet.statemachine.ui.matchers.shouldBeEnabled
+import build.wallet.statemachine.ui.matchers.shouldBeLoading
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -64,7 +66,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
         header.shouldNotBeNull().headline.shouldBe("Enter your email address")
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBeEmpty()
-          primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+          primaryButton.shouldNotBeNull().shouldBeDisabled()
           fieldModel.onValueChange(newValue)
         }
       }
@@ -72,14 +74,14 @@ class EmailInputUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newValue)
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
       }
 
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newValue)
-          primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+          primaryButton.shouldNotBeNull().shouldBeLoading()
         }
       }
 
@@ -108,7 +110,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
     emailValidator.isValid = true
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isEnabled.shouldBeTrue()
+        primaryButton.shouldNotBeNull().shouldBeEnabled()
       }
     }
   }
@@ -155,7 +157,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
         body.shouldBeInstanceOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       // Submitting
@@ -193,7 +195,7 @@ class EmailInputUiStateMachineImplTests : FunSpec({
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
         body.shouldBeInstanceOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       // Submitting

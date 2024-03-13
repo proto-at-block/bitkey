@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.apache.commons:commons-compress",
+    "components": [
+        {
+            "version": "1.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-compress-1.21.jar": "6aecfd5459728a595601cfa07258d131972ffc39b492eb48bdd596577a2f244a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

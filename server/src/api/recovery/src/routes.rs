@@ -10,15 +10,18 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use time::serde::rfc3339;
 use time::{Duration, OffsetDateTime};
 use tracing::{event, instrument, Level};
+use types::authn_authz::cognito::CognitoUser;
 use types::recovery::social::challenge::{
     SocialChallenge, SocialChallengeId, SocialChallengeResponse, TrustedContactChallengeRequest,
 };
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
+use types::recovery::social::PAKE_PUBLIC_KEY_STRING_LENGTH;
+use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
 use account::{
@@ -30,7 +33,6 @@ use account::{
     },
 };
 use authn_authz::key_claims::KeyClaims;
-use authn_authz::userpool::{cognito_user::CognitoUser, UserPoolService};
 use bdk_utils::{bdk::bitcoin::secp256k1::PublicKey, signature::check_signature};
 use comms_verification::{
     error::CommsVerificationError, InitiateVerificationForScopeInput,
@@ -43,6 +45,7 @@ use notification::{entities::NotificationTouchpoint, service::Service as Notific
 use types::account::identifiers::{AccountId, TouchpointId};
 use wsm_rust_client::WsmClient;
 
+use crate::ensure_pubkeys_unique;
 use crate::flags::FLAG_SOCIAL_RECOVERY_ENABLE;
 use crate::service::social::challenge::create_social_challenge::CreateSocialChallengeInput;
 use crate::service::social::challenge::fetch_social_challenge::{
@@ -147,7 +150,7 @@ impl RouteState {
             )
             .route(
                 "/api/accounts/:account_id/recovery/verify-social-challenge",
-                post(verify_social_challenge_code),
+                post(verify_social_challenge),
             )
             .route(
                 "/api/accounts/:account_id/recovery/social-challenges/:social_challenge_id",
@@ -212,7 +215,7 @@ impl From<RouteState> for SwaggerEndpoint {
         start_social_challenge,
         update_recovery_relationship,
         verify_code,
-        verify_social_challenge_code,
+        verify_social_challenge,
     ),
     components(
         schemas(
@@ -261,8 +264,8 @@ impl From<RouteState> for SwaggerEndpoint {
             UpdateRecoveryRelationshipResponse,
             VerifyAccountVerificationCodeRequest,
             VerifyAccountVerificationCodeResponse,
-            VerifySocialChallengeCodeRequest,
-            VerifySocialChallengeCodeResponse,
+            VerifySocialChallengeRequest,
+            VerifySocialChallengeResponse,
             WalletRecovery,
         )
     ),
@@ -271,6 +274,23 @@ impl From<RouteState> for SwaggerEndpoint {
     )
 )]
 struct ApiDoc;
+
+fn deserialize_pake_pubkey<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = match Deserialize::deserialize(deserializer) {
+        Ok(s) => s,
+        Err(_) => {
+            return Ok(String::default());
+        }
+    };
+    hex::decode(&s).map_err(|_| serde::de::Error::custom("Invalid PAKE public key format"))?;
+    if s.len() != PAKE_PUBLIC_KEY_STRING_LENGTH {
+        return Err(serde::de::Error::custom("Invalid PAKE public key length"));
+    }
+    Ok(s)
+}
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
@@ -286,6 +306,7 @@ pub struct CreateAccountDelayNotifyRequest {
         account_service,
         notification_service,
         recovery_service,
+        social_challenge_service,
         comms_verification_service
     )
 )]
@@ -306,6 +327,7 @@ pub async fn create_delay_notify(
     State(account_service): State<AccountService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
+    State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     key_proof: KeyClaims,
     Json(request): Json<CreateAccountDelayNotifyRequest>,
@@ -337,6 +359,7 @@ pub async fn create_delay_notify(
         &account_service,
         &recovery_service,
         &notification_service,
+        &social_challenge_service,
         &comms_verification_service,
     )
     .await
@@ -351,6 +374,7 @@ pub async fn create_delay_notify(
             account_service,
             notification_service,
             recovery_service,
+            social_challenge_service,
             comms_verification_service,
             UpdateDelayForTestRecoveryRequest {
                 delay_period_num_sec: request.delay_period_num_sec,
@@ -373,6 +397,7 @@ async fn update_recovery_delay_for_test_account(
     account_service: AccountService,
     notification_service: NotificationService,
     recovery_service: RecoveryRepository,
+    social_challenge_service: SocialChallengeService,
     comms_verification_service: CommsVerificationService,
     request: UpdateDelayForTestRecoveryRequest,
 ) -> Result<Json<Value>, ApiError> {
@@ -388,6 +413,7 @@ async fn update_recovery_delay_for_test_account(
         &account_service,
         &recovery_service,
         &notification_service,
+        &social_challenge_service,
         &comms_verification_service,
     )
     .await
@@ -400,6 +426,7 @@ async fn update_recovery_delay_for_test_account(
         account_service,
         notification_service,
         recovery_service,
+        social_challenge_service,
         comms_verification_service
     )
 )]
@@ -421,6 +448,7 @@ pub async fn update_delay_for_test_account(
     State(account_service): State<AccountService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
+    State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     key_proof: KeyClaims,
     Json(request): Json<UpdateDelayForTestRecoveryRequest>,
@@ -430,6 +458,7 @@ pub async fn update_delay_for_test_account(
         account_service,
         notification_service,
         recovery_service,
+        social_challenge_service,
         comms_verification_service,
         request,
     )
@@ -442,6 +471,7 @@ pub async fn update_delay_for_test_account(
         account_service,
         notification_service,
         recovery_service,
+        social_challenge_service,
         comms_verification_service
     )
 )]
@@ -461,6 +491,7 @@ pub async fn cancel_delay_notify(
     State(account_service): State<AccountService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
+    State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     key_proof: KeyClaims,
 ) -> Result<(), ApiError> {
@@ -474,6 +505,7 @@ pub async fn cancel_delay_notify(
         &account_service,
         &recovery_service,
         &notification_service,
+        &social_challenge_service,
         &comms_verification_service,
     )
     .await?;
@@ -487,6 +519,7 @@ pub async fn cancel_delay_notify(
         account_service,
         notification_service,
         recovery_service,
+        social_challenge_service,
         comms_verification_service
     )
 )]
@@ -506,6 +539,7 @@ pub async fn get_recovery_status(
     State(account_service): State<AccountService>,
     State(notification_service): State<NotificationService>,
     State(recovery_service): State<RecoveryRepository>,
+    State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
 ) -> Result<Json<Value>, ApiError> {
     let events = vec![RecoveryEvent::CheckAccountRecoveryState];
@@ -515,6 +549,7 @@ pub async fn get_recovery_status(
         &account_service,
         &recovery_service,
         &notification_service,
+        &social_challenge_service,
         &comms_verification_service,
     )
     .await
@@ -537,6 +572,7 @@ pub struct CompleteDelayNotifyResponse {}
         account_service,
         recovery_service,
         notification_service,
+        social_challenge_service,
         user_pool_service,
         comms_verification_service,
     )
@@ -559,6 +595,7 @@ pub async fn complete_delay_notify_transaction(
     State(notification_service): State<NotificationService>,
     State(account_service): State<AccountService>,
     State(recovery_service): State<RecoveryRepository>,
+    State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(user_pool_service): State<UserPoolService>,
     Json(request): Json<CompleteDelayNotifyRequest>,
@@ -578,6 +615,7 @@ pub async fn complete_delay_notify_transaction(
         &account_service,
         &recovery_service,
         &notification_service,
+        &social_challenge_service,
         &comms_verification_service,
     )
     .await
@@ -727,6 +765,7 @@ pub struct RotateAuthenticationKeysResponse {}
         notification_service,
         account_service,
         recovery_service,
+        social_challenge_service,
         comms_verification_service,
         user_pool_service,
     )
@@ -749,26 +788,18 @@ pub async fn rotate_authentication_keys(
     State(notification_service): State<NotificationService>,
     State(account_service): State<AccountService>,
     State(recovery_service): State<RecoveryRepository>,
+    State(social_challenge_service): State<SocialChallengeService>,
     State(comms_verification_service): State<CommsVerificationService>,
     State(user_pool_service): State<UserPoolService>,
     key_proof: KeyClaims,
     Json(request): Json<RotateAuthenticationKeysRequest>,
 ) -> Result<Json<RotateAuthenticationKeysResponse>, ApiError> {
-    if account_id.to_string() != key_proof.account_id {
-        event!(
-            Level::ERROR,
-            "Account id in path does not match account id in access token"
-        );
-        return Err(ApiError::GenericBadRequest(
-            "Account id in path does not match account id in access token".to_string(),
-        ));
-    }
     if !(key_proof.hw_signed && key_proof.app_signed) {
         event!(
             Level::WARN,
             "valid signature over access token required by both app and hw auth keys"
         );
-        return Err(ApiError::GenericBadRequest(
+        return Err(ApiError::GenericForbidden(
             "valid signature over access token required by both app and hw auth keys".to_string(),
         ));
     }
@@ -811,7 +842,16 @@ pub async fn rotate_authentication_keys(
         )?;
     }
 
-    //TODO: Remove this when the endpoint should rotate more than just the app key
+    ensure_pubkeys_unique(
+        &account_service,
+        &recovery_service,
+        Some(request.application.key),
+        None,
+        request.recovery.as_ref().map(|r| r.key),
+    )
+    .await?;
+
+    //TODO: Remove this when the endpoint should allow hw key rotations
     if request.hardware.key != current_auth.hardware_pubkey {
         return Err(ApiError::GenericBadRequest(
             "Hardware Authentication key mismatch".to_string(),
@@ -829,6 +869,7 @@ pub async fn rotate_authentication_keys(
         &account_service,
         &recovery_service,
         &notification_service,
+        &social_challenge_service,
         &comms_verification_service,
     )
     .await
@@ -884,6 +925,7 @@ pub struct OutboundInvitation {
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub trusted_contact_alias: String,
     pub code: String,
+    pub code_bit_length: usize,
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
 }
@@ -897,6 +939,7 @@ impl TryFrom<RecoveryRelationship> for OutboundInvitation {
                 recovery_relationship_id: invitation.common_fields.id,
                 trusted_contact_alias: invitation.common_fields.trusted_contact_alias,
                 code: invitation.code,
+                code_bit_length: invitation.code_bit_length,
                 expires_at: invitation.expires_at,
             }),
             _ => Err(RecoveryError::InvalidRecoveryRelationshipType),
@@ -909,7 +952,7 @@ pub struct InboundInvitation {
     pub recovery_relationship_id: RecoveryRelationshipId,
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
-    pub customer_enrollment_pubkey: String,
+    pub protected_customer_enrollment_pake_pubkey: String,
 }
 
 impl TryFrom<RecoveryRelationship> for InboundInvitation {
@@ -920,29 +963,27 @@ impl TryFrom<RecoveryRelationship> for InboundInvitation {
             RecoveryRelationship::Invitation(invitation) => Ok(Self {
                 recovery_relationship_id: invitation.common_fields.id,
                 expires_at: invitation.expires_at,
-                customer_enrollment_pubkey: invitation.customer_enrollment_pubkey,
+                protected_customer_enrollment_pake_pubkey: invitation
+                    .protected_customer_enrollment_pake_pubkey,
             }),
             _ => Err(RecoveryError::InvalidRecoveryRelationshipType),
         }
     }
 }
 
-//TODO(BKR-919): Remove Clone once we're no longer duplicating this for `unendorsed_trusted_contacts`
-#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct TrustedContact {
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub trusted_contact_alias: String,
-    pub trusted_contact_identity_pubkey: String,
 }
 
-//TODO(BKR-919): Remove Clone once we're no longer duplicating this for `unendorsed_trusted_contacts`
-#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct UnendorsedTrustedContact {
     #[serde(flatten)]
     pub info: TrustedContact,
-    pub trusted_contact_identity_pubkey_mac: String,
-    pub trusted_contact_enrollment_pubkey: String,
-    pub enrollment_key_confirmation: String,
+    pub sealed_delegated_decryption_pubkey: String,
+    pub trusted_contact_enrollment_pake_pubkey: String,
+    pub enrollment_pake_confirmation: String,
 }
 
 impl TryFrom<RecoveryRelationship> for UnendorsedTrustedContact {
@@ -954,13 +995,11 @@ impl TryFrom<RecoveryRelationship> for UnendorsedTrustedContact {
                 info: TrustedContact {
                     recovery_relationship_id: connection.common_fields.id,
                     trusted_contact_alias: connection.common_fields.trusted_contact_alias,
-                    trusted_contact_identity_pubkey: connection
-                        .connection_fields
-                        .trusted_contact_identity_pubkey,
                 },
-                trusted_contact_identity_pubkey_mac: connection.trusted_contact_identity_pubkey_mac,
-                trusted_contact_enrollment_pubkey: connection.trusted_contact_enrollment_pubkey,
-                enrollment_key_confirmation: connection.enrollment_key_confirmation,
+                sealed_delegated_decryption_pubkey: connection.sealed_delegated_decryption_pubkey,
+                trusted_contact_enrollment_pake_pubkey: connection
+                    .trusted_contact_enrollment_pake_pubkey,
+                enrollment_pake_confirmation: connection.enrollment_pake_confirmation,
             }),
             _ => Err(RecoveryError::InvalidRecoveryRelationshipType),
         }
@@ -971,7 +1010,7 @@ impl TryFrom<RecoveryRelationship> for UnendorsedTrustedContact {
 pub struct EndorsedTrustedContact {
     #[serde(flatten)]
     pub info: TrustedContact,
-    pub endorsement_key_certificate: String,
+    pub delegated_decryption_pubkey_certificate: String,
 }
 
 impl TryFrom<RecoveryRelationship> for EndorsedTrustedContact {
@@ -983,11 +1022,9 @@ impl TryFrom<RecoveryRelationship> for EndorsedTrustedContact {
                 info: TrustedContact {
                     recovery_relationship_id: connection.common_fields.id,
                     trusted_contact_alias: connection.common_fields.trusted_contact_alias,
-                    trusted_contact_identity_pubkey: connection
-                        .connection_fields
-                        .trusted_contact_identity_pubkey,
                 },
-                endorsement_key_certificate: connection.endorsement_key_certificate,
+                delegated_decryption_pubkey_certificate: connection
+                    .delegated_decryption_pubkey_certificate,
             }),
             _ => Err(RecoveryError::InvalidRecoveryRelationshipType),
         }
@@ -1022,9 +1059,8 @@ impl TryFrom<RecoveryRelationship> for Customer {
 #[serde(rename_all = "snake_case")]
 pub struct CreateRecoveryRelationshipRequest {
     pub trusted_contact_alias: String,
-    //TODO(BKR-919): Remove Option once mobile isn't passing up empty fields
-    #[serde(default)]
-    pub customer_enrollment_pubkey: String,
+    #[serde(deserialize_with = "deserialize_pake_pubkey")]
+    pub protected_customer_enrollment_pake_pubkey: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -1066,7 +1102,7 @@ pub async fn create_recovery_relationship(
             Level::WARN,
             "valid signature over access token required by both app and hw auth keys"
         );
-        return Err(ApiError::GenericBadRequest(
+        return Err(ApiError::GenericForbidden(
             "valid signature over access token required by both app and hw auth keys".to_string(),
         ));
     }
@@ -1090,7 +1126,8 @@ pub async fn create_recovery_relationship(
         .create_recovery_relationship_invitation(CreateRecoveryRelationshipInvitationInput {
             customer_account: &full_account,
             trusted_contact_alias: &request.trusted_contact_alias,
-            customer_enrollment_pubkey: &request.customer_enrollment_pubkey,
+            protected_customer_enrollment_pake_pubkey: &request
+                .protected_customer_enrollment_pake_pubkey,
         })
         .await?;
     Ok(Json(CreateRecoveryRelationshipResponse {
@@ -1153,8 +1190,6 @@ pub async fn delete_recovery_relationship(
 #[serde(rename_all = "snake_case")]
 pub struct GetRecoveryRelationshipsResponse {
     pub invitations: Vec<OutboundInvitation>,
-    //TODO(BKR-919): Remove `trusted_contacts` once the app expects endorsed and unendoresed
-    pub trusted_contacts: Vec<UnendorsedTrustedContact>,
     pub unendorsed_trusted_contacts: Vec<UnendorsedTrustedContact>,
     pub endorsed_trusted_contacts: Vec<EndorsedTrustedContact>,
     pub customers: Vec<Customer>,
@@ -1214,7 +1249,6 @@ pub async fn get_recovery_relationships(
             .into_iter()
             .map(|i| i.try_into())
             .collect::<Result<Vec<_>, _>>()?,
-        trusted_contacts: unendorsed_trusted_contacts.clone(),
         unendorsed_trusted_contacts,
         endorsed_trusted_contacts: result
             .endorsed_trusted_contacts
@@ -1235,14 +1269,10 @@ pub enum UpdateRecoveryRelationshipRequest {
     Accept {
         code: String,
         customer_alias: String,
-        trusted_contact_identity_pubkey: String,
-        //TODO(BKR-919): Remove Option once mobile isn't sending up None
-        #[serde(default)]
-        trusted_contact_enrollment_pubkey: String,
-        #[serde(default)]
-        trusted_contact_identity_pubkey_mac: String,
-        #[serde(default)]
-        enrollment_key_confirmation: String,
+        #[serde(deserialize_with = "deserialize_pake_pubkey")]
+        trusted_contact_enrollment_pake_pubkey: String,
+        enrollment_pake_confirmation: String,
+        sealed_delegated_decryption_pubkey: String,
     },
     Reissue,
 }
@@ -1302,10 +1332,9 @@ pub async fn update_recovery_relationship(
         UpdateRecoveryRelationshipRequest::Accept {
             code,
             customer_alias,
-            trusted_contact_identity_pubkey,
-            trusted_contact_enrollment_pubkey,
-            trusted_contact_identity_pubkey_mac,
-            enrollment_key_confirmation,
+            trusted_contact_enrollment_pake_pubkey,
+            enrollment_pake_confirmation,
+            sealed_delegated_decryption_pubkey,
         } => {
             if CognitoUser::Recovery(account_id.clone()) != cognito_user {
                 event!(
@@ -1323,10 +1352,10 @@ pub async fn update_recovery_relationship(
                         recovery_relationship_id: &recovery_relationship_id,
                         code: &code,
                         customer_alias: &customer_alias,
-                        trusted_contact_identity_pubkey: &trusted_contact_identity_pubkey,
-                        trusted_contact_enrollment_pubkey: &trusted_contact_enrollment_pubkey,
-                        trusted_contact_identity_pubkey_mac: &trusted_contact_identity_pubkey_mac,
-                        enrollment_key_confirmation: &enrollment_key_confirmation,
+                        trusted_contact_enrollment_pake_pubkey:
+                            &trusted_contact_enrollment_pake_pubkey,
+                        enrollment_pake_confirmation: &enrollment_pake_confirmation,
+                        sealed_delegated_decryption_pubkey: &sealed_delegated_decryption_pubkey,
                     },
                 )
                 .await?;
@@ -1517,21 +1546,18 @@ pub async fn get_recovery_relationship_invitation_for_code(
 #[serde(rename_all = "snake_case")]
 pub struct CustomerSocialChallengeResponse {
     pub recovery_relationship_id: RecoveryRelationshipId,
-    #[deprecated]
-    pub shared_secret_ciphertext: String,
-    pub trusted_contact_recovery_pubkey: String,
-    pub recovery_key_confirmation: String,
-    pub recovery_sealed_pkek: String,
+    pub trusted_contact_recovery_pake_pubkey: String,
+    pub recovery_pake_confirmation: String,
+    pub resealed_dek: String,
 }
 
 impl From<SocialChallengeResponse> for CustomerSocialChallengeResponse {
     fn from(value: SocialChallengeResponse) -> Self {
         Self {
             recovery_relationship_id: value.recovery_relationship_id,
-            shared_secret_ciphertext: value.shared_secret_ciphertext,
-            trusted_contact_recovery_pubkey: value.trusted_contact_recovery_pubkey,
-            recovery_key_confirmation: value.recovery_key_confirmation,
-            recovery_sealed_pkek: value.recovery_sealed_pkek,
+            trusted_contact_recovery_pake_pubkey: value.trusted_contact_recovery_pake_pubkey,
+            recovery_pake_confirmation: value.recovery_pake_confirmation,
+            resealed_dek: value.resealed_dek,
         }
     }
 }
@@ -1540,7 +1566,7 @@ impl From<SocialChallengeResponse> for CustomerSocialChallengeResponse {
 #[serde(rename_all = "snake_case")]
 pub struct CustomerSocialChallenge {
     pub social_challenge_id: SocialChallengeId,
-    pub code: String,
+    pub counter: u32,
     pub responses: Vec<CustomerSocialChallengeResponse>,
 }
 
@@ -1548,7 +1574,7 @@ impl From<SocialChallenge> for CustomerSocialChallenge {
     fn from(value: SocialChallenge) -> Self {
         Self {
             social_challenge_id: value.id,
-            code: value.code,
+            counter: value.counter,
             responses: value
                 .responses
                 .into_iter()
@@ -1562,11 +1588,8 @@ impl From<SocialChallenge> for CustomerSocialChallenge {
 #[serde(rename_all = "snake_case")]
 pub struct TrustedContactSocialChallenge {
     pub social_challenge_id: SocialChallengeId,
-    pub customer_identity_pubkey: String,
-    #[deprecated]
-    pub customer_ephemeral_pubkey: String,
-    pub customer_recovery_pubkey: String,
-    pub enrollment_sealed_pkek: String,
+    pub protected_customer_recovery_pake_pubkey: String,
+    pub sealed_dek: String,
 }
 
 impl TryFrom<(RecoveryRelationshipId, SocialChallenge)> for TrustedContactSocialChallenge {
@@ -1575,22 +1598,16 @@ impl TryFrom<(RecoveryRelationshipId, SocialChallenge)> for TrustedContactSocial
     fn try_from(
         (recovery_relationship_id, challenge): (RecoveryRelationshipId, SocialChallenge),
     ) -> Result<Self, Self::Error> {
-        //TODO(BKR-919): Switch this to return an error if the challenge request does not exist
         let info = challenge
             .trusted_contact_challenge_requests
             .get(&recovery_relationship_id)
             .map(|r| r.to_owned())
-            .unwrap_or(TrustedContactChallengeRequest {
-                customer_recovery_pubkey: "".to_string(),
-                enrollment_sealed_pkek: "".to_string(),
-            });
+            .ok_or(RecoveryError::ChallengeRequestNotFound)?;
 
         Ok(Self {
             social_challenge_id: challenge.id,
-            customer_identity_pubkey: challenge.customer_identity_pubkey,
-            customer_ephemeral_pubkey: challenge.customer_ephemeral_pubkey,
-            customer_recovery_pubkey: info.customer_recovery_pubkey,
-            enrollment_sealed_pkek: info.enrollment_sealed_pkek,
+            protected_customer_recovery_pake_pubkey: info.protected_customer_recovery_pake_pubkey,
+            sealed_dek: info.sealed_dek,
         })
     }
 }
@@ -1605,11 +1622,6 @@ pub struct StartChallengeTrustedContactRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct StartSocialChallengeRequest {
-    pub customer_identity_pubkey: String,
-    #[serde(default)]
-    #[deprecated]
-    pub customer_ephemeral_pubkey: String,
-    #[serde(default)]
     pub trusted_contacts: Vec<StartChallengeTrustedContactRequest>,
 }
 
@@ -1627,12 +1639,7 @@ pub struct StartSocialChallengeResponse {
 ///
 #[instrument(
     err,
-    skip(
-        account_service,
-        social_challenge_service,
-        recovery_relationship_service,
-        feature_flags_service
-    )
+    skip(account_service, social_challenge_service, feature_flags_service)
 )]
 #[utoipa::path(
     post,
@@ -1649,7 +1656,6 @@ pub async fn start_social_challenge(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(social_challenge_service): State<SocialChallengeService>,
-    State(recovery_relationship_service): State<RecoveryRelationshipService>,
     State(feature_flags_service): State<FeatureFlagsService>,
     Json(request): Json<StartSocialChallengeRequest>,
 ) -> Result<Json<StartSocialChallengeResponse>, ApiError> {
@@ -1679,9 +1685,7 @@ pub async fn start_social_challenge(
         .collect::<HashMap<_, _>>();
     let result = social_challenge_service
         .create_social_challenge(CreateSocialChallengeInput {
-            customer_account_id: &customer_account.id,
-            customer_identity_pubkey: &request.customer_identity_pubkey,
-            customer_ephemeral_pubkey: &request.customer_ephemeral_pubkey,
+            customer_account: &customer_account,
             requests,
         })
         .await?;
@@ -1693,14 +1697,14 @@ pub async fn start_social_challenge(
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct VerifySocialChallengeCodeRequest {
+pub struct VerifySocialChallengeRequest {
     pub recovery_relationship_id: RecoveryRelationshipId,
-    pub code: String,
+    pub counter: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct VerifySocialChallengeCodeResponse {
+pub struct VerifySocialChallengeResponse {
     pub social_challenge: TrustedContactSocialChallenge,
 }
 
@@ -1716,17 +1720,17 @@ pub struct VerifySocialChallengeCodeResponse {
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
-    request_body = VerifySocialChallengeCodeRequest,
+    request_body = VerifySocialChallengeRequest,
     responses(
-        (status = 200, description = "Social challenge code verified", body=VerifySocialChallengeCodeResponse),
+        (status = 200, description = "Social challenge code verified", body=VerifySocialChallengeResponse),
     ),
 )]
-pub async fn verify_social_challenge_code(
+pub async fn verify_social_challenge(
     Path(account_id): Path<AccountId>,
     State(social_challenge_service): State<SocialChallengeService>,
     State(feature_flags_service): State<FeatureFlagsService>,
-    Json(request): Json<VerifySocialChallengeCodeRequest>,
-) -> Result<Json<VerifySocialChallengeCodeResponse>, ApiError> {
+    Json(request): Json<VerifySocialChallengeRequest>,
+) -> Result<Json<VerifySocialChallengeResponse>, ApiError> {
     if !FLAG_SOCIAL_RECOVERY_ENABLE
         .resolver(&feature_flags_service)
         .resolve()
@@ -1740,25 +1744,20 @@ pub async fn verify_social_challenge_code(
         .fetch_social_challenge_as_trusted_contact(FetchSocialChallengeAsTrustedContactInput {
             trusted_contact_account_id: &account_id,
             recovery_relationship_id: &request.recovery_relationship_id,
-            code: &request.code,
+            counter: request.counter,
         })
         .await?;
     let social_challenge = (request.recovery_relationship_id, challenge).try_into()?;
-    Ok(Json(VerifySocialChallengeCodeResponse { social_challenge }))
+    Ok(Json(VerifySocialChallengeResponse { social_challenge }))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct RespondToSocialChallengeRequest {
-    #[serde(default)]
-    #[deprecated]
-    pub shared_secret_ciphertext: String,
-    #[serde(default)]
-    pub trusted_contact_recovery_pubkey: String,
-    #[serde(default)]
-    pub recovery_key_confirmation: String,
-    #[serde(default)]
-    pub recovery_sealed_pkek: String,
+    #[serde(deserialize_with = "deserialize_pake_pubkey")]
+    pub trusted_contact_recovery_pake_pubkey: String,
+    pub recovery_pake_confirmation: String,
+    pub resealed_dek: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -1802,10 +1801,9 @@ pub async fn respond_to_social_challenge(
         .respond_to_social_challenge(RespondToSocialChallengeInput {
             trusted_contact_account_id: &account_id,
             social_challenge_id: &social_challenge_id,
-            shared_secret_ciphertext: &request.shared_secret_ciphertext,
-            trusted_contact_recovery_pubkey: &request.trusted_contact_recovery_pubkey,
-            recovery_key_confirmation: &request.recovery_key_confirmation,
-            recovery_sealed_pkek: &request.recovery_sealed_pkek,
+            trusted_contact_recovery_pake_pubkey: &request.trusted_contact_recovery_pake_pubkey,
+            recovery_pake_confirmation: &request.recovery_pake_confirmation,
+            resealed_dek: &request.resealed_dek,
         })
         .await?;
 

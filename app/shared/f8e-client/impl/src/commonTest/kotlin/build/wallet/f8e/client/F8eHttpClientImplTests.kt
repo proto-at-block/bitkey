@@ -15,6 +15,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.datadog.DatadogSpan
 import build.wallet.datadog.DatadogTracer
 import build.wallet.datadog.TracerHeaders
+import build.wallet.encrypt.WsmVerifierMock
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POSSESSION_APP_HEADER
@@ -126,7 +127,8 @@ class F8eHttpClientImplTests : FunSpec({
           networkReachabilityProvider = networkReachabilityProvider
         ),
       f8eHttpClientProvider = f8eHttpClientProvider,
-      networkReachabilityProvider = networkReachabilityProvider
+      networkReachabilityProvider = networkReachabilityProvider,
+      wsmVerifier = WsmVerifierMock()
     )
 
   test("datadog tracer plugin is installed and headers are sent") {
@@ -204,10 +206,12 @@ class F8eHttpClientImplTests : FunSpec({
   }
 
   test("hw-factor proof of possession adds proper headers") {
-    authTokensRepository.authTokens =
-      AccountAuthTokens(
-        AccessToken("access-token"),
-        RefreshToken("refresh-token")
+    authTokensRepository.authTokensResult =
+      Ok(
+        AccountAuthTokens(
+          AccessToken("access-token"),
+          RefreshToken("refresh-token")
+        )
       )
 
     val engine =

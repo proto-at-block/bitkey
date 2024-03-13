@@ -171,7 +171,7 @@ bool bio_storage_calibration_data_retrieve(uint8_t** calibration_data, uint16_t*
   }
 
   int32_t size = fs_file_size(file);
-  if (size <= 0) {
+  if (size <= 0 || size > UINT16_MAX) {
     LOGE("Bad file size: %" PRId32, size);
     goto fail;
   }

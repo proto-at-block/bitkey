@@ -9,6 +9,9 @@
 
           "buyOwnBitkeyHero",
 
+          "cloudBackupEmergencyAccessKit",
+          "cloudBackupMobileKey",
+
           "largeIconAdd",
           "largeIconCheckFilled",
           "largeIconCheckStroked",
@@ -54,6 +57,7 @@
           "smallIconDigitTwo",
           "smallIconElectrum",
           "smallIconEmail",
+          "smallIconExternal",
           "smallIconInformation",
           "smallIconInformationFilled",
           "smallIconKey",
@@ -63,6 +67,8 @@
           "smallIconMinus",
           "smallIconMinusFilled",
           "smallIconMinusStroked",
+          "smallIconMobileKey",
+          "smallIconMobileLimit",
           "smallIconNotification",
           "smallIconPause",
           "smallIconPauseFilled",
@@ -84,6 +90,7 @@
           "smallIconShieldPerson",
           "smallIconSpeed",
           "smallIconSwap",
+          "smallIconSync",
           "smallIconTicket",
           "smallIconVideo",
           "smallIconWallet",

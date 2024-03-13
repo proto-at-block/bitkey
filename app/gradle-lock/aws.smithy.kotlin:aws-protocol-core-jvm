@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:aws-protocol-core-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-protocol-core-jvm-1.0.13.jar": "6d7028c6e695b872e0ba91679af4dbbabf8e1bfbd6f7fb52be30bb1e398d595d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

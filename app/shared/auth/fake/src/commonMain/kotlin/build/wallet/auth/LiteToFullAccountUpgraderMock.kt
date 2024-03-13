@@ -2,7 +2,6 @@ package build.wallet.auth
 
 import app.cash.turbine.Turbine
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
@@ -18,7 +17,7 @@ class LiteToFullAccountUpgraderMock(
     Ok(
       FullAccount(
         accountId = FullAccountId("account-id"),
-        config = FullAccountConfig.fromKeyboxConfig(KeyboxMock.config),
+        config = KeyboxMock.config,
         keybox = KeyboxMock
       )
     )
@@ -36,7 +35,7 @@ class LiteToFullAccountUpgraderMock(
       Ok(
         FullAccount(
           accountId = FullAccountId("account-id"),
-          config = FullAccountConfig.fromKeyboxConfig(KeyboxMock.config),
+          config = KeyboxMock.config,
           keybox = KeyboxMock
         )
       )

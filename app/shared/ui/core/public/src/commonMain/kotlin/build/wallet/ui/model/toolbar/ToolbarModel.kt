@@ -2,7 +2,7 @@ package build.wallet.ui.model.toolbar
 
 import build.wallet.statemachine.core.Icon.SmallIconArrowLeft
 import build.wallet.statemachine.core.Icon.SmallIconX
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconButtonModel
@@ -40,7 +40,7 @@ sealed class ToolbarAccessoryModel {
                   iconSize = Accessory,
                   iconBackgroundType = Circle(circleSize = Regular)
                 ),
-              onClick = Click.standardClick { onClick() }
+              onClick = StandardClick(onClick)
             )
         )
 
@@ -54,7 +54,7 @@ sealed class ToolbarAccessoryModel {
                   iconSize = Accessory,
                   iconBackgroundType = Circle(circleSize = Regular)
                 ),
-              onClick = Click.standardClick { onClick() }
+              onClick = StandardClick { onClick() }
             )
         )
     }

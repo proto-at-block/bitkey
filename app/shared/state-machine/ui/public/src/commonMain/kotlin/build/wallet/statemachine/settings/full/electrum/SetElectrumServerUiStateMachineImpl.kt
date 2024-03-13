@@ -19,13 +19,13 @@ import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel.Style.Implicit
+import build.wallet.time.Delayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 class SetElectrumServerUiStateMachineImpl(
+  private val delayer: Delayer,
   val electrumServerSettingProvider: ElectrumServerSettingProvider,
   val electrumReachability: ElectrumReachability,
 ) : SetElectrumServerUiStateMachine {
@@ -84,20 +84,19 @@ class SetElectrumServerUiStateMachineImpl(
         }
         LoadingBodyModel(
           id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_LOADING,
-          message = "Saving Custom Electrum Server...",
-          onBack = null
+          message = "Saving Custom Electrum Server..."
         ).asModalScreen()
       }
 
       is State.ElectrumServerIsSetUiState -> {
         LaunchedEffect("custom-electrum-server-save-success") {
-          delay(2.seconds)
+          delayer.delay(2.seconds)
           props.onSetServer()
         }
         SuccessBodyModel(
           id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_SUCCESS,
           title = "Success",
-          style = Implicit
+          primaryButtonModel = null
         ).asModalScreen()
       }
 

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.material:material-ripple-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-ripple-release.aar": "8a6c8b4bfc8cae9dc7e79653a5de3a482cb9b96d290f6bbdc6d3002b91ed48cb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.compiler:compiler",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compiler-1.5.4.jar": "310cbe8fd0fddb236b22dd5b2db04e42c188fdca4ec1316bef2ad9de2021b58d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

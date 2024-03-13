@@ -1,0 +1,18 @@
+{
+    "module-identifier": "junit:junit",
+    "components": [
+        {
+            "version": "3.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-3.7.jar": "170d31297cd401b6338679f393900421e64d38b542538b549f3f1a0f26bcd848"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

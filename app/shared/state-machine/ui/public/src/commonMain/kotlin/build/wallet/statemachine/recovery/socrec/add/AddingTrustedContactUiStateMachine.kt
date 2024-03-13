@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.add
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
@@ -18,7 +18,7 @@ data class AddingTrustedContactUiProps(
   val onAddTc: suspend (
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
-  ) -> Result<Invitation, Error>,
+  ) -> Result<OutgoingInvitation, Error>,
   val onInvitationShared: () -> Unit,
   val onExit: () -> Unit,
 )

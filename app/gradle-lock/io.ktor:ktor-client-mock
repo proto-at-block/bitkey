@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-client-mock",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-mock-metadata-2.3.8.jar": "e8bf26618d2eecd15cc87cea149e077b5ba8fc4adf0548aa75b5498db3690b89"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -187,7 +187,8 @@ internal fun PreviewMoneyHomeCardInvitationPending() {
           Invitation(
             recoveryRelationshipId = "foo",
             trustedContactAlias = TrustedContactAlias("Bela"),
-            token = "token",
+            code = "token",
+            codeBitLength = 20,
             expiresAt = DISTANT_FUTURE
           ),
         buttonText = "Pending",
@@ -206,7 +207,8 @@ internal fun PreviewMoneyHomeCardInvitationExpired() {
           Invitation(
             recoveryRelationshipId = "foo",
             trustedContactAlias = TrustedContactAlias("Bela"),
-            token = "token",
+            code = "token",
+            codeBitLength = 20,
             expiresAt = DISTANT_PAST
           ),
         buttonText = "Expired",

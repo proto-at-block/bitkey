@@ -1,13 +1,16 @@
 package build.wallet.cloud.backup.v2
 
 import build.wallet.bitcoin.AppPrivateKeyDao
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppSpendingKeypair
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.catching
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2Restorer
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AccountBackupDecodingError
+import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AccountBackupDecryptionError
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AppAuthKeypairStorageError
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.AppSpendingKeypairStorageError
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError.PkekMissingError
@@ -40,14 +43,17 @@ class CloudBackupV2RestorerImpl(
     val fullAccountFields = requireNotNull(cloudBackupV2.fullAccountFields)
 
     val pkek =
-      csekDao.get(fullAccountFields.hwEncryptionKeyCiphertext).get()
+      csekDao.get(fullAccountFields.sealedHwEncryptionKey).get()
         ?: return Err(PkekMissingError)
 
     val keysInfoEncoded =
-      symmetricKeyEncryptor.unseal(
-        sealedData = fullAccountFields.hwFullAccountKeysCiphertext,
-        key = pkek.key
-      ).utf8()
+      Result.catching {
+        symmetricKeyEncryptor.unseal(
+          sealedData = fullAccountFields.hwFullAccountKeysCiphertext,
+          key = pkek.key
+        )
+      }.getOrElse { return Err(AccountBackupDecryptionError(cause = it)) }
+        .utf8()
 
     val keysInfo =
       Json
@@ -88,14 +94,14 @@ class CloudBackupV2RestorerImpl(
     }
 
     // Store trusted contact identity key
-    socRecKeysDao.saveKey(cloudBackupV2.trustedContactIdentityKeypair)
+    socRecKeysDao.saveKey(cloudBackupV2.delegatedDecryptionKeypair)
       .mapError(::SocRecTrustedContactIdentityKeyStorageError)
       .bind()
 
     AccountRestoration(
       activeSpendingKeyset = keysInfo.activeSpendingKeyset,
       inactiveKeysets = keysInfo.inactiveSpendingKeysets.toImmutableList(),
-      activeKeyBundle =
+      activeAppKeyBundle =
         AppKeyBundle(
           localId = uuid.random(),
           spendingKey = keysInfo.activeSpendingKeyset.appKey,
@@ -103,15 +109,22 @@ class CloudBackupV2RestorerImpl(
           networkType = cloudBackupV2.bitcoinNetworkType,
           recoveryAuthKey = cloudBackupV2.appRecoveryAuthKeypair.publicKey
         ),
+      activeHwKeyBundle = HwKeyBundle(
+        localId = uuid.random(),
+        spendingKey = keysInfo.activeHwSpendingKey,
+        authKey = keysInfo.activeHwAuthKey,
+        networkType = cloudBackupV2.bitcoinNetworkType
+      ),
       config =
-        KeyboxConfig(
-          networkType = cloudBackupV2.bitcoinNetworkType,
+        FullAccountConfig(
+          bitcoinNetworkType = cloudBackupV2.bitcoinNetworkType,
           f8eEnvironment = cloudBackupV2.f8eEnvironment,
           isHardwareFake = fullAccountFields.isFakeHardware,
           isTestAccount = cloudBackupV2.isTestAccount,
           isUsingSocRecFakes = cloudBackupV2.isUsingSocRecFakes
         ),
-      cloudBackupForLocalStorage = cloudBackupV2
+      cloudBackupForLocalStorage = cloudBackupV2,
+      appGlobalAuthKeyHwSignature = fullAccountFields.appGlobalAuthKeyHwSignature
     )
   }
 }

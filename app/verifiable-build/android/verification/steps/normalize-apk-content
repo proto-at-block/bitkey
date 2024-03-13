@@ -23,7 +23,7 @@ mkdir -p "$2"
 
 cp -r "$1/." "$2"
 
-incomparable_files=("AndroidManifest.xml" "stamp-cert-sha256" "BNDLTOOL.RSA" "BNDLTOOL.SF" "MANIFEST.MF")
+incomparable_files=("AndroidManifest.xml" "stamp-cert-sha256" "BNDLTOOL.RSA" "BNDLTOOL.SF" "MANIFEST.MF" "EMERGENC.RSA" "EMERGENC.SF")
 
 for incomparable_file in "${incomparable_files[@]}"; do
   find "$2" -type f -name "$incomparable_file" -exec rm {} \;

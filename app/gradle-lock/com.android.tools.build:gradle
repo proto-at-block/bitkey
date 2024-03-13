@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:gradle",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gradle-8.1.1.jar": "56177736d3f1571606d6495ab64190cf03394a14526bc4c0ccbcb61785d3a298"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

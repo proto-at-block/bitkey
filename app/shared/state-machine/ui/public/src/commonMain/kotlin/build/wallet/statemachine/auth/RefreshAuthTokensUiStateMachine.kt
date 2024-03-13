@@ -11,9 +11,9 @@ import build.wallet.analytics.events.screen.id.AuthEventTrackerScreenId.REFRESHI
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.AuthTokensRepository
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachineImpl.State.AuthTokensRefreshError
@@ -33,7 +33,7 @@ interface RefreshAuthTokensUiStateMachine : StateMachine<RefreshAuthTokensProps,
 
 data class RefreshAuthTokensProps(
   val fullAccountId: FullAccountId,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val appAuthKey: AppGlobalAuthPublicKey? = null,
   val onSuccess: (AccountAuthTokens) -> Unit,
   val onBack: () -> Unit,
@@ -107,7 +107,7 @@ class RefreshAuthTokensUiStateMachineImpl(
 
   private suspend fun refreshAuthTokens(props: RefreshAuthTokensProps) =
     authTokensRepository.refreshAccessToken(
-      f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+      f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
       accountId = props.fullAccountId,
       scope = AuthTokenScope.Global
     )

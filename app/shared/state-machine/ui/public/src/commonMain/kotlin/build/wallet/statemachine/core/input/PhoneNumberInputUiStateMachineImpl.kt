@@ -19,7 +19,7 @@ import build.wallet.statemachine.core.input.PhoneNumberInputUiState.BottomSheetS
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.BottomSheetState.ShowingSkipSheet
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.EntryState.Complete
 import build.wallet.statemachine.core.input.PhoneNumberInputUiState.EntryState.Incomplete
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 
@@ -57,6 +57,7 @@ class PhoneNumberInputUiStateMachineImpl(
           Enter -> "Enter your phone number"
           Edit -> "Edit your phone number"
         },
+      subline = props.subline,
       textFieldValue = state.entryState.formattedValue,
       textFieldSelection = state.entrySelection,
       textFieldPlaceholder = state.placeholderText,
@@ -98,7 +99,7 @@ class PhoneNumberInputUiStateMachineImpl(
           isLoading = state.buttonIsLoading,
           size = Footer,
           onClick =
-            Click.standardClick {
+            StandardClick {
               handleContinueClick(
                 state = state,
                 props = props,
@@ -140,7 +141,10 @@ class PhoneNumberInputUiStateMachineImpl(
                       AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE ->
                         PhoneNumberUnsupportedCountryErrorSheetModel(
                           onBack = { state = state.copy(bottomSheetState = Hidden) },
-                          onSkip = props.onSkip
+                          primaryButtonText = props.primaryButtonText,
+                          primaryButtonOnClick = props.primaryButtonOnClick,
+                          secondaryButtonText = props.secondaryButtonText,
+                          secondaryButtonOnClick = props.secondaryButtonOnClick
                         )
 
                       AddTouchpointClientErrorCode.INVALID_EMAIL_ADDRESS ->

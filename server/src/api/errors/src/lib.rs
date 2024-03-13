@@ -91,6 +91,8 @@ pub enum ErrorCode {
     NoRecoveryExists,
     // RecoveryRelationship
     InvitationExpired,
+    MaxTrustedContactsReached,
+    MaxProtectedCustomersReached,
     // Money Movement,
     NoSpendingLimitExists,
 }
@@ -121,7 +123,9 @@ impl From<ErrorCode> for ErrorCategory {
             | ErrorCode::InvalidPhoneNumber
             | ErrorCode::InvalidEmailAddress
             | ErrorCode::InvitationExpired
-            | ErrorCode::AccountNotFound => ErrorCategory::InvalidRequestError,
+            | ErrorCode::AccountNotFound
+            | ErrorCode::MaxTrustedContactsReached
+            | ErrorCode::MaxProtectedCustomersReached => ErrorCategory::InvalidRequestError,
         }
     }
 }
@@ -147,7 +151,9 @@ impl From<ErrorCode> for StatusCode {
             | ErrorCode::RecoveryAlreadyExists
             | ErrorCode::NoRecoveryExists
             | ErrorCode::Conflict
-            | ErrorCode::InvitationExpired => StatusCode::CONFLICT,
+            | ErrorCode::InvitationExpired
+            | ErrorCode::MaxTrustedContactsReached
+            | ErrorCode::MaxProtectedCustomersReached => StatusCode::CONFLICT,
             ErrorCode::NoSpendingLimitExists => StatusCode::METHOD_NOT_ALLOWED,
             ErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
         }

@@ -11,6 +11,8 @@ kotlin {
     val commonMain by getting {
       dependencies {
         implementation(projects.shared.stdlibPublic)
+        api(libs.kmp.kotlin.result)
+        api(projects.shared.resultPublic)
       }
     }
     val commonJvmMain by getting {

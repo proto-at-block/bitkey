@@ -2,8 +2,10 @@ package build.wallet.statemachine.data.recovery.lostapp
 
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -38,7 +40,7 @@ sealed interface LostAppRecoveryData {
          *
          * @property addHardwareAuthKey should move to [InitiatingAppAuthWithF8eData].
          */
-        data class AwaitingAppKeysData(
+        data class AwaitingHwKeysData(
           val addHardwareAuthKey: (hardwareKeys: HwAuthPublicKey) -> Unit,
           val rollback: () -> Unit,
         ) : InitiatingLostAppRecoveryData
@@ -104,14 +106,21 @@ sealed interface LostAppRecoveryData {
          * Indicates that we are waiting for hardware to sign for proof of possession
          * so that we can be properly authenticated for the initiate delay and notify call.
          *
-         * @property onComplete should move to [InitiatingAppAuthWithF8eData].
+         * @property onComplete should move to [InitiatingAppAuthWithF8eData]. Provides new
+         * hardware spending key, as well as a signature of the new app global auth key, signed with
+         * the hardware auth key.
          */
-        data class AwaitingHardwareProofOfPossessionAndSpendingKeyData(
+        data class AwaitingHardwareProofOfPossessionAndKeysData(
           val authTokens: AccountAuthTokens,
           val fullAccountId: FullAccountId,
           val network: BitcoinNetworkType,
+          val newAppGlobalAuthKey: AppGlobalAuthPublicKey,
           val existingHwSpendingKeys: List<HwSpendingPublicKey>,
-          val onComplete: (HwFactorProofOfPossession, HwSpendingPublicKey) -> Unit,
+          val onComplete: (
+            hwProof: HwFactorProofOfPossession,
+            hwSpendingKey: HwSpendingPublicKey,
+            appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+          ) -> Unit,
           val rollback: () -> Unit,
         ) : InitiatingLostAppRecoveryData
 

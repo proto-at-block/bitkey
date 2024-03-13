@@ -1,11 +1,12 @@
+use crate::service::social::challenge::error::ServiceError as SocialChallengeServiceError;
 use account::error::AccountError;
-use authn_authz::userpool::UserPoolError;
 use bdk_utils::error::BdkUtilError;
 use comms_verification::error::CommsVerificationError;
 use database::ddb::DatabaseError;
 use errors::{ApiError, ErrorCode};
 use thiserror::Error;
 use tracing::{event, Level};
+use userpool::userpool::UserPoolError;
 
 #[derive(Debug, Error)]
 pub enum RecoveryError {
@@ -93,6 +94,12 @@ pub enum RecoveryError {
     RecoveryAuthPubkeyReuseRecovery,
     #[error("Invalid recovery relationship type")]
     InvalidRecoveryRelationshipType,
+    #[error("Destination recovery auth pubkey must be provided")]
+    NoDestinationRecoveryAuthPubkey,
+    #[error(transparent)]
+    SocialChallengeService(#[from] SocialChallengeServiceError),
+    #[error("Challenge request was not found")]
+    ChallengeRequestNotFound,
 }
 
 impl From<RecoveryError> for ApiError {
@@ -128,7 +135,10 @@ impl From<RecoveryError> for ApiError {
             | RecoveryError::TouchpointTypeMismatch
             | RecoveryError::InvalidRecoverySource
             | RecoveryError::InvalidRecoveryDestination
-            | RecoveryError::InvalidUpdateForNonTestAccount => ApiError::GenericBadRequest(err_msg),
+            | RecoveryError::InvalidUpdateForNonTestAccount
+            | RecoveryError::NoDestinationRecoveryAuthPubkey => {
+                ApiError::GenericBadRequest(err_msg)
+            }
             RecoveryError::AccountService(err) => match err {
                 AccountError::DDBError(err) => err.into(),
                 _ => ApiError::GenericInternalApplicationError(err_msg),
@@ -147,7 +157,9 @@ impl From<RecoveryError> for ApiError {
                 }
                 _ => err.into(),
             },
-            RecoveryError::InvalidAuthKeysId => ApiError::GenericNotFound(err_msg),
+            RecoveryError::InvalidAuthKeysId | RecoveryError::ChallengeRequestNotFound => {
+                ApiError::GenericNotFound(err_msg)
+            }
             RecoveryError::CommsVerificationError(e) => match e {
                 CommsVerificationError::StatusMismatch => ApiError::Specific {
                     code: ErrorCode::CommsVerificationRequired,
@@ -186,6 +198,7 @@ impl From<RecoveryError> for ApiError {
                 detail: Some(err_msg),
                 field: None,
             },
+            RecoveryError::SocialChallengeService(e) => e.into(),
         }
     }
 }

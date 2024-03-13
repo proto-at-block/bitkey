@@ -5,7 +5,7 @@ COPY --link Cargo.toml .
 COPY --link src src
 COPY --link vendor vendor
 
-FROM rust:alpine as toolchain
+FROM rust:alpine@sha256:def35884ff7e1e4b0eae050cbb03ca0900d70d1acbcba1d0e428147ab6786de2 as toolchain
 COPY --link rust-toolchain.toml .
 RUN cargo version
 RUN apk add --no-cache \

@@ -54,14 +54,16 @@ public struct FormHeaderView: View {
                 }
             }
 
-            ModeledText(
-                model: .standard(
-                    viewModel.headline,
-                    font: headlineFont.font,
-                    textAlignment: viewModel.alignment.textAlignment,
-                    textColor: headlineTextColor
-                )
-            ).fixedSize(horizontal: false, vertical: true)
+            viewModel.headline.map { headline in
+                ModeledText(
+                    model: .standard(
+                        headline,
+                        font: headlineFont.font,
+                        textAlignment: viewModel.alignment.textAlignment,
+                        textColor: headlineTextColor
+                    )
+                ).fixedSize(horizontal: false, vertical: true)
+            }
 
             viewModel.sublineModel.map { subline in
                 VStack {
@@ -112,6 +114,7 @@ private extension FormHeaderModel.SublineTreatment {
         switch self {
         case .regular: return .body2Regular
         case .mono: return .body2Mono
+        case .small: return .body3Regular
         default: fatalError("Unsupported subline treatment")
         }
     }

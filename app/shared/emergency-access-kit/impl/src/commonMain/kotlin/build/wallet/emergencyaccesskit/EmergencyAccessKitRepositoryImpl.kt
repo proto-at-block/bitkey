@@ -32,7 +32,7 @@ class EmergencyAccessKitRepositoryImpl(
       .write(account, emergencyAccessKitData.pdfData, FILE_NAME, MimeType.PDF)
       .result
       .mapPossibleRectifiableErrors()
-      .logFailure { "Error writing EAK to Cloud Storage." }
+      .logFailure { "Error writing EAK to Cloud Storage" }
 
   private companion object {
     const val FILE_NAME = "Emergency Access Kit.pdf"

@@ -3,7 +3,7 @@ package build.wallet.f8e.auth
 import build.wallet.auth.AccessToken
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.RefreshToken
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.auth.AuthPublicKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
@@ -28,29 +28,10 @@ class AuthenticationServiceImpl(
   ): Result<InitiateAuthenticationSuccess, NetworkingError> {
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<InitiateAuthenticationSuccess> {
-        when (authPublicKey) {
-          is AppRecoveryAuthPublicKey ->
-            // Authentication for recovery-scoped auth keys is handled by a separate endpoint
-            // from the general /authenticate endpoint
-            post("/api/recovery-auth") {
-              setBody(RecoveryAuthenticationRequest(authPublicKey))
-            }
-          else ->
-            post("/api/authenticate") {
-              setBody(AuthenticationRequest(authPublicKey))
-            }
+        post("/api/authenticate") {
+          setBody(AuthenticationRequest(authPublicKey))
         }
       }
-  }
-
-  @Serializable
-  private data class RecoveryAuthenticationRequest(
-    @SerialName("recovery_auth_pubkey")
-    val recoveryAuthPubkey: String,
-  ) {
-    constructor(
-      recoveryAuthPublicKey: AppRecoveryAuthPublicKey,
-    ) : this(recoveryAuthPublicKey.pubKey.value)
   }
 
   @Serializable
@@ -60,7 +41,8 @@ class AuthenticationServiceImpl(
   ) {
     constructor(authPublicKey: AuthPublicKey) : this(
       when (authPublicKey) {
-        is AppAuthPublicKey -> mapOf("AppPubkey" to authPublicKey.pubKey.value)
+        is AppGlobalAuthPublicKey -> mapOf("AppPubkey" to authPublicKey.pubKey.value)
+        is AppRecoveryAuthPublicKey -> mapOf("RecoveryPubkey" to authPublicKey.pubKey.value)
         is HwAuthPublicKey -> mapOf("HwPubkey" to authPublicKey.pubKey.value)
         else -> error("Unsupported AuthPublicKey type")
       }

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.cloud
 
 import app.cash.turbine.plusAssign
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_NOT_SIGNED_IN
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
@@ -10,10 +11,9 @@ import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.setFlagValue
-import build.wallet.recovery.emergencyaccess.EmergencyAccessFeatureFlag
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -30,13 +30,13 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   val fakeCloudAccount = CloudAccountMock(instanceId = "1")
   val fakeBackup = CloudBackupV2WithFullAccountMock
   val cloudBackupRepository = CloudBackupRepositoryFake()
-  val emergencyAccessFeatureFlag = EmergencyAccessFeatureFlag(FeatureFlagDaoMock())
   val stateMachine =
     AccessCloudBackupUiStateMachineImpl(
       cloudSignInUiStateMachine = CloudSignInUiStateMachineMock(),
       cloudBackupRepository = cloudBackupRepository,
       rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
-      emergencyAccessFeatureFlag = emergencyAccessFeatureFlag
+      deviceInfoProvider = DeviceInfoProviderMock(),
+      inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
     )
 
   val exitCalls = turbines.create<Unit>("exit calls")
@@ -64,18 +64,19 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
 
   afterTest {
     cloudBackupRepository.reset()
-    emergencyAccessFeatureFlag.setFlagValue(false)
   }
 
   test("successfully find backup and restore it") {
-    cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup)
+    cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
 
     stateMachine.test(props) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       backupFoundCalls.awaitItem().shouldBe(fakeBackup)
     }
@@ -87,7 +88,9 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel>()
     }
   }
@@ -100,7 +103,9 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel>()
     }
   }
@@ -111,7 +116,9 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel> {
         onBack?.invoke()
       }
@@ -129,9 +136,11 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
         onSignedIn(fakeCloudAccount)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel> {
-        cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup)
+        cloudBackupRepository.writeBackup(accountId, fakeCloudAccount, fakeBackup, true)
         mainContentList
           .first()
           .shouldNotBeNull()
@@ -145,29 +154,38 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
     }
   }
 
-  test("cloud account sign in failed - emergency access row hidden without feature flag") {
-    emergencyAccessFeatureFlag.setFlagValue(false)
-
-    stateMachine.test(props) {
+  /*
+   The "Be a Trusted Contact" flow uses this state machine to check for cloud sign in
+   and a possible backup before continuing the invite flow.
+   If sign in fails, it should not show the rest of the recovery options, but instead the generic
+   cloud sign in failure screen.
+   If cloud sign in succeeds should proceed as if a backup was found.
+   */
+  test("cloud account sign in failed from trusted contact flow - does not show recovery options") {
+    stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
         onSignInFailure()
       }
 
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList
-          .first()
-          .shouldNotBeNull()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items
-          .count()
-          .shouldBe(2)
+      awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_NOT_SIGNED_IN)
+    }
+  }
+
+  test("cloud account signed in but cloud backup not found from trusted contact flow - proceeds as if found") {
+    stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
+      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
+        onSignedIn(fakeCloudAccount)
       }
+
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+
+      cannotAccessCloudCalls.awaitItem().shouldBe(Unit)
     }
   }
 
   test("cloud account sign in failed - emergency access row always available in EAK build") {
-    emergencyAccessFeatureFlag.setFlagValue(false)
     stateMachine.test(props.copy(eakAssociation = EmergencyAccessKitAssociation.EakBuild)) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
         onSignInFailure()
@@ -188,7 +206,6 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   }
 
   test("cloud account sign in failed - start emergency access recovery") {
-    emergencyAccessFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
         onSignInFailure()

@@ -10,20 +10,20 @@ import build.wallet.bitcoin.sync.ElectrumServerSetting.UserDefined
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.keybox.config.TemplateKeyboxConfigDaoFake
+import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class ElectrumServerSettingProviderImplTests : FunSpec({
   val keyboxDaoMock = KeyboxDaoMock(turbines::create)
-  val templateKeyboxDaoFake = TemplateKeyboxConfigDaoFake()
+  val templateKeyboxDaoFake = TemplateFullAccountConfigDaoFake()
 
   val electrumServerConfigDaoMock = ElectrumServerConfigRepositoryMock(turbines::create)
 
   val electrumServerSettingProviderImpl =
     ElectrumServerSettingProviderImpl(
       keyboxDao = keyboxDaoMock,
-      templateKeyboxConfigDao = templateKeyboxDaoFake,
+      templateFullAccountConfigDao = templateKeyboxDaoFake,
       electrumServerDao = electrumServerConfigDaoMock
     )
 

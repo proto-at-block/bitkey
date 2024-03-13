@@ -2,7 +2,7 @@ package build.wallet.statemachine.dev
 
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 
 /**
@@ -14,6 +14,7 @@ data class F8eEnvironmentPickerUiProps(
   val accountData: AccountData,
   val openCustomUrlInput: (
     customUrl: String,
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
   ) -> Unit,
 )

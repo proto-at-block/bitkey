@@ -27,7 +27,7 @@ echo "🗑️ Destroying the named stack"
 terragrunt init -reconfigure
 terragrunt destroy \
   -var fromagerie_image_tag=$IMAGE_TAG \
-  -var auth_lambdas_dir=$REPO_ROOT/terraform/dev/deploy/auth/assets \
+  -var auth_lambdas_dir=$REPO_ROOT/terraform/dev/apps/auth/assets \
   --terragrunt-non-interactive \
   -auto-approve \
   -lock=false

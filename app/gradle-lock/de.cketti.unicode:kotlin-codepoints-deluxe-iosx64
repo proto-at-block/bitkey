@@ -1,0 +1,23 @@
+{
+    "module-identifier": "de.cketti.unicode:kotlin-codepoints-deluxe-iosx64",
+    "components": [
+        {
+            "version": "0.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-codepoints-deluxe-iosx64-metadata.jar": "109d7fa877d2c085528f2f54332157e11fc6ab50e9eeaab351398ea2a3802a75"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-codepoints-deluxe.klib": "77726266a742d46b0d5bec76edc1c3f59f3a20fc04c815af810ff3a0b69fe259"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

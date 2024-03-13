@@ -1,0 +1,18 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-transitions-android-debug",
+    "components": [
+        {
+            "version": "1.0.0-rc05",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-transitions-debug.aar": "86b6986057c720a013ff81ba65f993f81574f425ce6e8150feca687276250608"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

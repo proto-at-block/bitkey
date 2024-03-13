@@ -1,13 +1,11 @@
 use std::str::FromStr;
 
-use crate::{key_claims::AccessTokenClaims, userpool::cognito_user::CognitoUser};
-use jsonwebtoken::{EncodingKey, Header};
 use secp256k1::Secp256k1;
 use sha2::{Digest, Sha256};
-use types::account::identifiers::AccountId;
+use types::{account::identifiers::AccountId, authn_authz::cognito::CognitoUser};
+use userpool::test_utils::get_test_access_token_for_cognito_user;
 
 pub(crate) const TEST_USERNAME: &str = "urn:wallet-account:000000000000000000000000000";
-pub(crate) const TEST_JWT_SIGNING_SECRET: &str = "super_secret";
 const TEST_APP_AUTH_KEY: &[u8] = &[0xcd; 32];
 const TEST_HW_AUTH_KEY: &[u8] = &[0xab; 32];
 
@@ -17,25 +15,6 @@ pub fn get_test_access_token() -> String {
         AccountId::from_str(TEST_USERNAME)
             .expect("converting TEST_USERNAME to AccountId should never fail"),
     ))
-}
-
-pub fn get_test_access_token_for_cognito_user(cognito_user: &CognitoUser) -> String {
-    let key = EncodingKey::from_secret(TEST_JWT_SIGNING_SECRET.as_ref());
-    let claims = AccessTokenClaims {
-        sub: "TEST".to_string(),
-        iss: "TEST".to_string(),
-        client_id: "TEST".to_string(),
-        origin_jti: "TEST".to_string(),
-        event_id: "TEST".to_string(),
-        token_use: "access".to_string(),
-        scope: "aws.cognito.signin.user.admin".to_string(),
-        auth_time: jsonwebtoken::get_current_timestamp(),
-        exp: jsonwebtoken::get_current_timestamp() + 300, // now + 5 minutes
-        iat: jsonwebtoken::get_current_timestamp(),
-        jti: "TEST".to_string(),
-        username: cognito_user.into(),
-    };
-    jsonwebtoken::encode(&Header::default(), &claims, &key).unwrap()
 }
 
 /// Sign a message with the app key
@@ -61,8 +40,8 @@ pub fn sign_with_hw_key(message: &str) -> String {
 #[cfg(test)]
 mod tests {
     use crate::authorizer::{authorize_token_for_path, AuthorizerConfig};
-    use crate::key_claims::{verify_signature, AccessTokenClaims};
-    use crate::test_utils::{get_test_access_token, TEST_JWT_SIGNING_SECRET, TEST_USERNAME};
+    use crate::key_claims::verify_signature;
+    use crate::test_utils::{get_test_access_token, TEST_USERNAME};
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use axum::routing::get;
@@ -70,6 +49,8 @@ mod tests {
     use jsonwebtoken::{decode, DecodingKey};
     use tower::util::ServiceExt;
     use types::account::identifiers::AccountId;
+    use types::authn_authz::AccessTokenClaims;
+    use userpool::test_utils::TEST_JWT_SIGNING_SECRET;
 
     const TEST_APP_AUTH_PUBKEY: &str =
         "02b98a7fb8cc007048625b6446ad49a1b3a722df8c1ca975b87160023e14d19097";

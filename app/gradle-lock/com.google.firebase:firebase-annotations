@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-annotations",
+    "components": [
+        {
+            "version": "16.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-annotations-16.2.0.jar": "46f6d5dfdd2ccf3c40de897a14bd9779314c3319f44bfd31e7e0a20d935a5e3e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

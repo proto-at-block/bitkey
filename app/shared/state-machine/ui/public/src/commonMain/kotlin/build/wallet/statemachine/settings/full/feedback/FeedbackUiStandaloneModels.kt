@@ -15,17 +15,4 @@ object FeedbackUiStandaloneModels {
     secondaryButtonText = "Stay",
     onSecondaryButtonClick = onDismiss
   )
-
-  internal fun confirmSubmitAlertModel(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-  ) = AlertModel(
-    title = "Are you ready to submit?",
-    subline = "Make sure you've entered all the information, so we can help you quickly.",
-    onDismiss = onDismiss,
-    primaryButtonText = "Submit",
-    onPrimaryButtonClick = onConfirm,
-    secondaryButtonText = "Not yet",
-    onSecondaryButtonClick = onDismiss
-  )
 }

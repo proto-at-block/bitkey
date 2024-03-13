@@ -9,4 +9,5 @@ interface SocialRecoveryService :
   GetSocialChallengeService,
   RetrieveTrustedContactInvitationService,
   AcceptTrustedContactInvitationService,
-  VerifySocialChallengeService
+  VerifySocialChallengeService,
+  EndorseTrustedContactsService

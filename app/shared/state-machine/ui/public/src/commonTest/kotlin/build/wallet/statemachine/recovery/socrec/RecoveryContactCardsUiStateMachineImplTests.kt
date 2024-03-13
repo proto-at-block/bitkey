@@ -185,10 +185,10 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
         relationships = relationships.copy(
           unendorsedTrustedContacts = listOf(
             UnendorsedTrustedContactFake.copy(
-              authenticationState = TrustedContactAuthenticationState.UNENDORSED
+              authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED
             ),
             UnendorsedTrustedContactFake.copy(
-              authenticationState = TrustedContactAuthenticationState.ENDORSED
+              authenticationState = TrustedContactAuthenticationState.VERIFIED
             )
           )
         )

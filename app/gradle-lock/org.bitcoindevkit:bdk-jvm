@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bitcoindevkit:bdk-jvm",
+    "components": [
+        {
+            "version": "0.31.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bdk-jvm-0.31.0.jar": "4ce3b6499120f8af0aa9c4f513ef4276c3e452c6598553f824f75dce8b8f6e4e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

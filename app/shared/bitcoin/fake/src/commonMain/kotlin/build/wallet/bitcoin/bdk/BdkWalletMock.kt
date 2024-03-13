@@ -43,7 +43,6 @@ class BdkWalletMock(
   var getAddressBlockingResult: BdkResult<BdkAddressInfo>? = null
 
   override fun getAddressBlocking(addressIndex: BdkAddressIndex): BdkResult<BdkAddressInfo> {
-    println("getAddressBlocking")
     return getAddressBlockingResult ?: Ok(BdkAddressInfoMock)
   }
 

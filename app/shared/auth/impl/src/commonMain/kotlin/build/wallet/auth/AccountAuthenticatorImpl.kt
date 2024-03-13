@@ -6,6 +6,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.ktor.result.HttpError
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
@@ -22,7 +23,9 @@ class AccountAuthenticatorImpl(
     appAuthPublicKey: AppAuthPublicKey,
   ): Result<AuthData, AuthError> =
     binding {
-      log { "Attempting to authenticate with app auth public key $appAuthPublicKey" }
+      log(level = LogLevel.Debug) {
+        "Attempting to authenticate with app auth public key $appAuthPublicKey"
+      }
 
       val signInResponse =
         authenticationService

@@ -39,7 +39,8 @@ private struct FeeOptionCardView: View {
             ListItemView(
                 viewModel: .init(
                     title: viewModel.optionName,
-                    titleAlignment: .left,
+                    titleAlignment: .left, 
+                    listItemTitleBackgroundTreatment: nil,
                     secondaryText: nil,
                     sideText: viewModel.transactionTime,
                     secondarySideText: viewModel.transactionFee,
@@ -51,7 +52,8 @@ private struct FeeOptionCardView: View {
                     selected: false,
                     onClick: viewModel.onClick,
                     pickerMenu: nil,
-                    testTag: nil
+                    testTag: nil,
+                    titleLabel: nil
                 )
             )
 

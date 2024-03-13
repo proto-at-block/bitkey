@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:manifest-merger",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "manifest-merger-31.1.1.jar": "87a189681a8c6af2171bad1cccf16c5a743bf2781126ade2ef8cdd04c6e48988"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

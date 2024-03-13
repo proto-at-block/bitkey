@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:stately-concurrency",
+    "components": [
+        {
+            "version": "2.0.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "stately-concurrency-metadata-2.0.5.jar": "0d8b00cd87451f8a11677afce007421b2b19e6d5e6f7067cd6af6a7dc4be117f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

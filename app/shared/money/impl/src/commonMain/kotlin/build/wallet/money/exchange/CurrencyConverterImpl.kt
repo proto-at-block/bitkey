@@ -6,7 +6,6 @@ import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.Money
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.money.currency.Currency
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
@@ -24,10 +23,8 @@ import kotlinx.datetime.Instant
 
 class CurrencyConverterImpl(
   private val accountRepository: AccountRepository,
-  private val bitstampExchangeRateService: BitstampExchangeRateService,
   private val exchangeRateDao: ExchangeRateDao,
   private val f8eExchangeRateService: F8eExchangeRateService,
-  private val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag,
 ) : CurrencyConverter {
   override fun convert(
     fromAmount: Money,
@@ -58,71 +55,42 @@ class CurrencyConverterImpl(
         // In the meantime while we are making a network request to fetch the rate,
         // show the current rate
         emit(convert(fromAmount, toCurrency).first())
-
-        when (multipleFiatCurrencyEnabledFeatureFlag.flagValue().value.value) {
-          true -> {
-            val account =
-              when (val accountStatus = accountRepository.accountStatus().first().get()) {
-                null -> null
-                else -> AccountStatus.accountFromAccountStatus(accountStatus)
-              }
-
-            when (account) {
-              // We show values based on current rates if we do not have an account set up. This should
-              // also be unreachable for now since we do not need historical rates until after a user
-              // already exists.
-              null -> emitAll(convert(fromAmount, toCurrency))
-              else -> {
-                f8eExchangeRateService.getHistoricalBtcExchangeRates(
-                  f8eEnvironment = account.config.f8eEnvironment,
-                  accountId = account.accountId,
-                  currencyCode = toCurrency.textCode.code,
-                  timestamps = immutableListOf(atTime)
-                ).onSuccess { historicalExchangeRates ->
-                  historicalExchangeRates.forEach { historicalRate ->
-                    // If we successfully fetch the rates from F8e, store them in the db for future
-                    exchangeRateDao.storeHistoricalExchangeRate(historicalRate, atTime)
-                  }
-
-                  val convertedAmount =
-                    convert(fromAmount, toCurrency, rates = historicalExchangeRates)
-                  if (convertedAmount != null) {
-                    emit(convertedAmount)
-                  } else {
-                    // If there was an issue using the historical rates, fall back to the current rate
-                    emitAll(convert(fromAmount, toCurrency))
-                  }
-                }.onFailure {
-                  // If there was an issue getting the rate, just emit the current rate instead
-                  // TODO (W-1733): Support retrying this endpoint. Currently will only retry on subsequent app launches / txn detail screens
-                  emitAll(convert(fromAmount, toCurrency))
-                }
-              }
-            }
+        val account =
+          when (val accountStatus = accountRepository.accountStatus().first().get()) {
+            null -> null
+            else -> AccountStatus.accountFromAccountStatus(accountStatus)
           }
-          false -> {
-            // Then, fetch all historical rates
-            bitstampExchangeRateService.getHistoricalBtcExchangeRates(atTime)
-              .onSuccess { historicalExchangeRates ->
-                historicalExchangeRates.forEach { historicalRate ->
-                  // If we successfully fetch the rates from bitstamp, store them in the db for future
-                  exchangeRateDao.storeHistoricalExchangeRate(historicalRate, atTime)
-                }
 
-                val convertedAmount =
-                  convert(fromAmount, toCurrency, rates = historicalExchangeRates)
-                if (convertedAmount != null) {
-                  emit(convertedAmount)
-                } else {
-                  // If there was an issue using the historical rates, fall back to the current rate
-                  emitAll(convert(fromAmount, toCurrency))
-                }
+        when (account) {
+          // We show values based on current rates if we do not have an account set up. This should
+          // also be unreachable for now since we do not need historical rates until after a user
+          // already exists.
+          null -> emitAll(convert(fromAmount, toCurrency))
+          else -> {
+            f8eExchangeRateService.getHistoricalBtcExchangeRates(
+              f8eEnvironment = account.config.f8eEnvironment,
+              accountId = account.accountId,
+              currencyCode = toCurrency.textCode.code,
+              timestamps = immutableListOf(atTime)
+            ).onSuccess { historicalExchangeRates ->
+              historicalExchangeRates.forEach { historicalRate ->
+                // If we successfully fetch the rates from F8e, store them in the db for future
+                exchangeRateDao.storeHistoricalExchangeRate(historicalRate, atTime)
               }
-              .onFailure {
-                // If there was an issue getting the rate, just emit the current rate instead
-                // TODO (W-1733): Support retrying this endpoint. Currently will only retry on subsequent app launches / txn detail screens
+
+              val convertedAmount =
+                convert(fromAmount, toCurrency, rates = historicalExchangeRates)
+              if (convertedAmount != null) {
+                emit(convertedAmount)
+              } else {
+                // If there was an issue using the historical rates, fall back to the current rate
                 emitAll(convert(fromAmount, toCurrency))
               }
+            }.onFailure {
+              // If there was an issue getting the rate, just emit the current rate instead
+              // TODO (W-1733): Support retrying this endpoint. Currently will only retry on subsequent app launches / txn detail screens
+              emitAll(convert(fromAmount, toCurrency))
+            }
           }
         }
       }

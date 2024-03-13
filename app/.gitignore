@@ -2,6 +2,7 @@
 *.iml
 **/.idea/*
 !/.idea/codeInsightSettings.xml
+!/.idea/dictionaries/
 !/.idea/externalDependencies.xml
 !/.idea/detekt.xml
 !/.idea/vcs.xml

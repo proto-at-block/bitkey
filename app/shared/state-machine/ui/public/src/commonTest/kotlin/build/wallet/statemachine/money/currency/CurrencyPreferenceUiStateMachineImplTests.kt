@@ -13,6 +13,7 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -77,7 +78,7 @@ class CurrencyPreferenceUiStateMachineImplTests : FunSpec({
 
       // After currency conversion
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       propsOnDoneCalls.awaitItem()

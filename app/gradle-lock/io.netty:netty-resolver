@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.netty:netty-resolver",
+    "components": [
+        {
+            "version": "4.1.72.Final",
+            "variants": [
+                {
+                    "artifacts": {
+                        "netty-resolver-4.1.72.Final.jar": "6474598aab7cc9d8d6cfa06c05bd1b19adbf7f8451dbdd73070b33a6c60b1b90"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

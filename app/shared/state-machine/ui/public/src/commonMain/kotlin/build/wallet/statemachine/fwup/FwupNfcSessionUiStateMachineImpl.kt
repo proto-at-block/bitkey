@@ -47,16 +47,17 @@ import build.wallet.statemachine.nfc.EnableNfcInstructionsModel
 import build.wallet.statemachine.nfc.NfcSuccessScreenDuration
 import build.wallet.statemachine.nfc.NoNfcMessageModel
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
+import build.wallet.time.Delayer
 import build.wallet.toUByteList
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.delay
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
 
 class FwupNfcSessionUiStateMachineImpl(
   private val enableNfcNavigator: EnableNfcNavigator,
   private val eventTracker: EventTracker,
+  private val delayer: Delayer,
   private val fwupProgressCalculator: FwupProgressCalculator,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcReaderCapabilityProvider: NfcReaderCapabilityProvider,
@@ -116,7 +117,7 @@ class FwupNfcSessionUiStateMachineImpl(
             LaunchedEffect("fwup-success") {
               props.firmwareData.onUpdateComplete()
               eventTracker.track(Action.ACTION_APP_FWUP_COMPLETE)
-              delay(
+              delayer.delay(
                 NfcSuccessScreenDuration(
                   devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
                   isHardwareFake = props.isHardwareFake

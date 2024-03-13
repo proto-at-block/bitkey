@@ -23,6 +23,7 @@ interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
  * @property homeBottomSheetModel bottom sheet to show on root Money Home screen
  * @property homeStatusBannerModel status banner to show on root Money Home screen
  * @property onSettings Settings tab item clicked
+ * @property origin The origin of money home. Used to control modals that only show during launch.
  */
 data class MoneyHomeUiProps(
   val accountData: ActiveFullAccountLoadedData,
@@ -34,4 +35,10 @@ data class MoneyHomeUiProps(
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,
-)
+  val origin: Origin,
+) {
+  enum class Origin {
+    Launch,
+    Settings,
+  }
+}

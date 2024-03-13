@@ -11,9 +11,13 @@ services:
       interval: 10s # increase after start_interval supported (engine 25)
       timeout: 5s
       retries: 3
-    depends_on:
-      - wsm-api
-      - wsm-enclave
+    # depends_on is no longer supported for services that are extended from
+    # https://github.com/docker/compose/issues/11544
+    # leaving as comments for documentation.
+    # Any compose YAML files extending from this service will need to copy the "depends_on" block over
+    # depends_on:
+    #   - wsm-api
+    #   - wsm-enclave
 
   wsm-enclave:
     image: ${WSM_ENCLAVE_IMAGE_REPO:-000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-enclave}:${TAG:-latest}
@@ -50,6 +54,10 @@ services:
     command:
       - /setup_wsm_local_ddb.sh
     restart: no
-    depends_on:
-      dynamodb:
-        condition: service_healthy
+    # depends_on is no longer supported for services that are extended from
+    # https://github.com/docker/compose/issues/11544
+    # leaving as comments for documentation.
+    # Any compose YAML files extending from this service will need to copy the "depends_on" block over
+    # depends_on:
+    #   dynamodb:
+    #     condition: service_healthy

@@ -19,6 +19,7 @@ pub struct DeriveKeyRequest {
 pub struct CreatedSigningKey {
     pub root_key_id: String,
     pub xpub: String,
+    #[serde(default)]
     pub xpub_sig: String,
 }
 
@@ -46,4 +47,14 @@ pub struct SignBlobRequest {
 pub struct GenerateIntegrityKeyResponse {
     pub wrapped_privkey: String,
     pub pubkey: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GetIntegritySigRequest {
+    pub root_key_id: String,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct GetIntegritySigResponse {
+    pub signature: String,
 }

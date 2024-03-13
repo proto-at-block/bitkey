@@ -11,6 +11,8 @@ interface AppKey : AsymmetricKey {
   companion object {
     fun fromPublicKey(value: String) = AppKeyImpl(CurveType.SECP256K1, PublicKey(value), null)
 
+    fun fromPublicKey(value: PublicKey) = AppKeyImpl(CurveType.SECP256K1, value, null)
+
     fun fromPublicKey(
       value: String,
       curveType: CurveType,

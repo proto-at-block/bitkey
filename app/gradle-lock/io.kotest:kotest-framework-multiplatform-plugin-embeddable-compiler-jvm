@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-multiplatform-plugin-embeddable-compiler-jvm",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-multiplatform-plugin-embeddable-compiler-jvm-5.8.0.jar": "27ddf21a636e699aa94fd28d3b7a86f15b1624273fba69dfbd4da13880e281d4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

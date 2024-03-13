@@ -1,8 +1,0 @@
-import kotlin.Boolean;
-
-CREATE TABLE recoveryIncompleteEntity(
-    rowId       INTEGER NOT NULL PRIMARY KEY,
-    incomplete  INTEGER AS Boolean NOT NULL
-);
-
-PRAGMA foreign_key_check;

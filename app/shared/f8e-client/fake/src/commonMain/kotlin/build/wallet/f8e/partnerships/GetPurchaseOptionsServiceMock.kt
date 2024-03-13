@@ -5,6 +5,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.currency.USD
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -13,7 +14,7 @@ class GetPurchaseOptionsServiceMock(
 ) : GetPurchaseOptionsService {
   val getPurchaseOptionsServiceCall = turbine("get purchase options")
 
-  private val successResult =
+  private val successResult: Result<PurchaseOptions, NetworkingError> =
     Ok(
       PurchaseOptions(
         country = "US",
@@ -38,7 +39,14 @@ class GetPurchaseOptionsServiceMock(
       )
     )
 
-  private var purchaseOptionsResult: Result<PurchaseOptions, NetworkingError> = successResult
+  private val notAvailableResult =
+    Ok(
+      PurchaseOptions(
+        country = "GB",
+        fiatCurrency = "GBP",
+        paymentMethods = emptyMap()
+      )
+    )
 
   override suspend fun purchaseOptions(
     fullAccountId: FullAccountId,
@@ -46,10 +54,11 @@ class GetPurchaseOptionsServiceMock(
     currency: FiatCurrency,
   ): Result<PurchaseOptions, NetworkingError> {
     getPurchaseOptionsServiceCall.add(Unit)
-    return purchaseOptionsResult
-  }
 
-  fun reset() {
-    purchaseOptionsResult = successResult
+    return if (currency == USD) {
+      successResult
+    } else {
+      notAvailableResult
+    }
   }
 }

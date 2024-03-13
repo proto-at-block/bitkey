@@ -24,6 +24,7 @@ class CloudBackupRepositoryFake : CloudBackupRepository {
     accountId: AccountId,
     cloudStoreAccount: CloudStoreAccount,
     backup: CloudBackup,
+    requireAuthRefresh: Boolean,
   ): Result<Unit, CloudBackupError> {
     returnWriteError?.let { return Err(it) }
 
@@ -31,7 +32,10 @@ class CloudBackupRepositoryFake : CloudBackupRepository {
     return Ok(Unit)
   }
 
-  override suspend fun clear(cloudStoreAccount: CloudStoreAccount): Result<Unit, CloudBackupError> {
+  override suspend fun clear(
+    cloudStoreAccount: CloudStoreAccount,
+    clearRemoteOnly: Boolean,
+  ): Result<Unit, CloudBackupError> {
     returnWriteError?.let { return Err(it) }
 
     backups.clear()

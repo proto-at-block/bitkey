@@ -1,0 +1,18 @@
+{
+    "module-identifier": "fr.acinq.secp256k1:secp256k1-kmp-jni-common",
+    "components": [
+        {
+            "version": "0.13.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "secp256k1-kmp-jni-common-0.13.0.jar": "4532cc73cae7204ee77cf06168b919047e26f83657aca697071eaf18e1f0868b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

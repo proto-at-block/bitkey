@@ -46,6 +46,7 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
     EnableNotificationsUiProps(
       retreat = Retreat(style = Back, onRetreat = { onBackCalls += Unit }),
       onComplete = { onCompleteCalls += Unit },
+      rationale = NotificationRationale.Recovery,
       eventTrackerContext = PushNotificationEventTrackerScreenIdContext.APP_RECOVERY
     )
 

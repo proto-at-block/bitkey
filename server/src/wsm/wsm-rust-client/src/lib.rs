@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use url::Url;
 use wsm_common::bitcoin::Network;
-use wsm_common::messages::api::CreateRootKeyRequest;
+use wsm_common::messages::api::{
+    CreateRootKeyRequest, GetIntegritySigRequest, GetIntegritySigResponse,
+};
 
 pub use wsm_common::messages::{
     TEST_DPUB_SPEND, TEST_XPUB_CONFIG, TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN,
@@ -72,6 +74,10 @@ pub trait SigningService {
         change_descriptor: &str,
         psbt: &str,
     ) -> Result<SignedPsbt, Error>;
+    async fn get_key_integrity_sig(
+        &self,
+        root_key_id: &str,
+    ) -> Result<GetIntegritySigResponse, Error>;
 }
 
 #[derive(Clone)]
@@ -151,6 +157,22 @@ impl SigningService for WsmClient {
                 change_descriptor: change_descriptor.to_string(),
                 descriptor: descriptor.to_string(),
                 psbt: psbt.to_string(),
+            })
+            .send()
+            .await?;
+        Ok(res.json().await?)
+    }
+
+    #[instrument]
+    async fn get_key_integrity_sig(
+        &self,
+        root_key_id: &str,
+    ) -> Result<GetIntegritySigResponse, Error> {
+        let res = self
+            .client
+            .get(self.endpoint.join("integrity-sig")?)
+            .json(&GetIntegritySigRequest {
+                root_key_id: root_key_id.to_string(),
             })
             .send()
             .await?;

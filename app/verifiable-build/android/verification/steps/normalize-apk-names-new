@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Normalizes APKs names.
+# This step is necessary due to locally built APKs having a slightly different names compared to the downloaded APKs which would break their comparison.
+# The script does not modify the input directory and instead puts the result into the output directory.
+set -x
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <input-directory> <output-directory> <origin>" >&2
+    exit 1
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided output directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 2
+fi
+
+if ! which "du" > /dev/null 2>&1; then
+    echo "Cannot find 'du'. Please install it first and then rerun this command." >&2
+    exit 100
+fi
+
+mkdir -p "$2"
+
+origin=$3
+apk_files=$(find "$1" -maxdepth 1 -mindepth 1 -type f -exec basename {} \; )
+for file in $apk_files; do
+    declare new_name
+    case "$origin" in
+    "bundletool")
+        case "$file" in
+        "base-master.apk")
+            new_name=base.apk
+            ;;
+        base-*.apk)
+            new_name=${file#"base-"}
+            ;;
+        *)
+            new_name=$file
+            ;;
+        esac
+        ;;
+    "device")
+        case "$file" in
+        "base.apk")
+            new_name=base.apk
+            ;;
+        split_config.*.apk)
+            new_name=${file#"split_config."}
+            ;;
+        *)
+            new_name=$file
+            ;;
+        esac
+        ;;
+    *)
+        echo "Unsupported origin $origin"
+        exit 127
+        ;;
+    esac
+
+    cp $"$1/$file" $"$2/$new_name"
+done

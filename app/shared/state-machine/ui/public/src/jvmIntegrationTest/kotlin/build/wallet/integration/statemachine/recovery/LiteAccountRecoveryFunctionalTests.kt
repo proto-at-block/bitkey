@@ -2,17 +2,16 @@ package build.wallet.integration.statemachine.recovery
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.integration.statemachine.create.beTrustedContactButton
-import build.wallet.integration.statemachine.create.moreOptionsButton
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
+import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.testing.AppTester
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.launchNewApp
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -27,18 +26,16 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
 
     // Protected Customer onboards and sends out an invite
     val protectedCustomerApp = launchNewApp()
-    val customerAccount = protectedCustomerApp.onboardFullAccountWithFakeHardware()
-    val tcInvitation =
+    protectedCustomerApp.onboardFullAccountWithFakeHardware()
+    val (inviteCode, _) =
       protectedCustomerApp.createTcInvite(
-        account = customerAccount,
         tcName = trustedContactName
       )
 
     // Trusted Contact onboards by accepting Invitation
     val trustedContactApp = launchNewApp()
-    trustedContactApp.deleteCloudBackup()
     trustedContactApp.onboardLiteAccountFromInvitation(
-      invitation = tcInvitation,
+      inviteCode = inviteCode,
       protectedCustomerName = protectedCustomerName,
       cloudStoreAccountForBackup = CloudStoreAccountFake.CloudStoreAccount1Fake
     )
@@ -54,16 +51,16 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
       turbineTimeout = 10.seconds
     ) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
-        .moreOptionsButton.onClick()
+        .clickMoreOptionsButton()
       awaitUntilScreenWithBody<FormBodyModel>()
         .beTrustedContactButton.onClick.shouldNotBeNull().invoke()
       awaitUntilScreenWithBody<FormBodyModel>()
-        .primaryButton.shouldNotBeNull().onClick()
+        .clickPrimaryButton()
       awaitUntilScreenWithBody<CloudSignInModelFake>(
         CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
       )
         .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>()
     }
   }
 
@@ -71,18 +68,16 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
 
     // Protected Customer onboards and sends out an invite
     val protectedCustomerApp = launchNewApp()
-    val customerAccount = protectedCustomerApp.onboardFullAccountWithFakeHardware()
-    val tcInvitation =
+    protectedCustomerApp.onboardFullAccountWithFakeHardware()
+    val (inviteCode, _) =
       protectedCustomerApp.createTcInvite(
-        account = customerAccount,
         tcName = trustedContactName
       )
 
     // Trusted Contact onboards by accepting Invitation
     val trustedContactApp = launchNewApp()
-    trustedContactApp.deleteCloudBackup()
     trustedContactApp.onboardLiteAccountFromInvitation(
-      invitation = tcInvitation,
+      inviteCode = inviteCode,
       protectedCustomerName = protectedCustomerName,
       cloudStoreAccountForBackup = CloudStoreAccountFake.CloudStoreAccount1Fake
     )
@@ -98,19 +93,14 @@ class LiteAccountRecoveryFunctionalTests : FunSpec({
       turbineTimeout = 10.seconds
     ) {
       awaitUntilScreenWithBody<ChooseAccountAccessModel>()
-        .moreOptionsButton.onClick()
+        .clickMoreOptionsButton()
       awaitUntilScreenWithBody<FormBodyModel>()
         .restoreButton.onClick.shouldNotBeNull().invoke()
       awaitUntilScreenWithBody<CloudSignInModelFake>(
         CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
       )
         .signInSuccess(CloudStoreAccountFake.CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+      awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>()
     }
   }
 })
-
-private suspend fun AppTester.deleteCloudBackup() {
-  app.cloudBackupDeleter.delete(cloudServiceProvider())
-  deleteBackupsFromFakeCloud()
-}

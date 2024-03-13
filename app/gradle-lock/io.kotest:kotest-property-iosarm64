@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.kotest:kotest-property-iosarm64",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-property-iosarm64-5.8.0-metadata.jar": "4a7c3f9be640c6a0fbc4b8cc6e45da3eab0dcf35018b6c4e219f9853c972d51e"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotest-property.klib": "323355a27f97da77f1b925d1a24b80d48a49e9ad682a001044d36e7f9d283e56"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

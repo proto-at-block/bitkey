@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:kermit-android-debug",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kermit-debug.aar": "920fe5b89885d008789bf7b2f988b32b0d494d226d17ffbe3d164feed16acb08"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

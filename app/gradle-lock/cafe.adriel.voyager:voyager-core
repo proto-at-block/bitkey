@@ -1,0 +1,18 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-core",
+    "components": [
+        {
+            "version": "1.0.0-rc05",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-core-metadata-1.0.0-rc05.jar": "8654d09f6ea84a8e01a2fa3bce379e68509a000150afc79208faec1f9b076582"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

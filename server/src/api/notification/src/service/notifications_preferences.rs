@@ -47,17 +47,31 @@ impl Service {
             .await
             .map_err(ApiError::from)?;
 
-        // Update email subscriptions in Iterable if applicable
         if !account
             .get_common_fields()
             .notifications_preferences
-            .get_email_notification_categories()
-            .is_empty()
-            || !input
-                .notifications_preferences
-                .get_email_notification_categories()
-                .is_empty()
+            .account_security
+            .is_subset(&input.notifications_preferences.account_security)
+            && !input
+                .key_proof
+                .map_or(false, |kp| kp.app_signed && kp.hw_signed)
         {
+            return Err(ApiError::GenericForbidden(
+                "valid signature over access token required by both app and hw auth keys"
+                    .to_string(),
+            ));
+        }
+
+        if !account.get_common_fields().onboarding_complete {
+            self.iterable_client
+                .set_initial_subscribed_notification_categories(
+                    IterableUserId::Account(input.account_id),
+                    input
+                        .notifications_preferences
+                        .get_email_notification_categories(),
+                )
+                .await?;
+        } else {
             self.iterable_client
                 .set_subscribed_notification_categories(
                     IterableUserId::Account(input.account_id),

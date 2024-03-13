@@ -20,7 +20,7 @@ import com.github.michaelbull.result.toResultOr
 class LiteAccountBackupToFullAccountUpgraderImpl(
   private val liteAccountCloudBackupRestorer: LiteAccountCloudBackupRestorer,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
-  private val onboardingKeyboxHwAuthPublicKeyDao: OnboardingKeyboxHwAuthPublicKeyDao,
+  private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val uuid: Uuid,
   private val liteToFullAccountUpgrader: LiteToFullAccountUpgrader,
 ) : LiteAccountBackupToFullAccountUpgrader {
@@ -40,20 +40,21 @@ class LiteAccountBackupToFullAccountUpgraderImpl(
           uuid.random(),
           liteAccount.config.bitcoinNetworkType
         ).toResultOr { UpgradeError("Missing onboarding app key bundle") }.bind()
-      val hwAuthPublicKey =
-        onboardingKeyboxHwAuthPublicKeyDao.get()
+      val hwKeys =
+        onboardingKeyboxHardwareKeysDao.get()
           .mapError { UpgradeError("Failed to get onboarding keybox hw auth public key", it) }
           .toErrorIfNull { UpgradeError("Missing onboarding keybox hw auth public key") }
           .bind()
       val keyCross =
         KeyCrossDraft.WithAppKeysAndHardwareKeys(
-          appKeyBundle,
-          HwKeyBundle(
+          appKeyBundle = appKeyBundle,
+          hardwareKeyBundle = HwKeyBundle(
             localId = uuid.random(),
             spendingKey = onboardingKeybox.activeSpendingKeyset.hardwareKey,
-            authKey = hwAuthPublicKey,
+            authKey = hwKeys.hwAuthPublicKey,
             networkType = liteAccount.config.bitcoinNetworkType
           ),
+          appGlobalAuthKeyHwSignature = hwKeys.appGlobalAuthKeyHwSignature,
           config = onboardingKeybox.config
         )
       liteToFullAccountUpgrader.upgradeAccount(liteAccount, keyCross)

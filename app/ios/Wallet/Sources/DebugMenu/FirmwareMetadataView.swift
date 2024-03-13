@@ -45,7 +45,7 @@ public struct FirmwareMetadataView: View {
         NavigationView {
             List {
                 ButtonView(
-                    model: ButtonModel(text: "Refresh", isEnabled: true, isLoading: false, leadingIcon: nil, treatment: .primary, size: .footer, testTag: nil, onClick: ClickCompanion.shared.standardClick(onClick: viewModel.onFirmwareMetadataRefreshClick))
+                    model: ButtonModel(text: "Refresh", isEnabled: true, isLoading: false, leadingIcon: nil, treatment: .primary, size: .footer, testTag: nil, onClick: StandardClick(onClick: viewModel.onFirmwareMetadataRefreshClick))
                 )
                 viewModel.firmwareMetadataModel.map { FirmwareMetadataDataView(vm: $0) }
             }

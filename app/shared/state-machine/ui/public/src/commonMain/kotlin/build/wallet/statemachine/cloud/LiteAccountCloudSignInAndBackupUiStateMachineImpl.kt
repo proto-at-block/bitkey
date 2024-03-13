@@ -18,14 +18,17 @@ import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.CloudSignInFailedState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.CreatingAndSavingBackupState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.NonRectifiableFailureState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.RectifiableFailureState
+import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.ShowingCustomerSupportUiState
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.SigningIntoCloudState
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
@@ -41,6 +44,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val eventTracker: EventTracker,
   private val rectifiableErrorHandlingUiStateMachine: RectifiableErrorHandlingUiStateMachine,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : LiteAccountCloudSignInAndBackupUiStateMachine {
   @Composable
   override fun model(props: LiteAccountCloudSignInAndBackupProps): ScreenModel {
@@ -59,8 +63,24 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
           }
         )
       }
+      is ShowingCustomerSupportUiState ->
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = uiState.urlString,
+              onClose = {
+                state = CloudSignInFailedState
+              }
+            )
+          }
+        ).asModalScreen()
       CloudSignInFailedState ->
         CloudSignInFailedScreenModel(
+          onContactSupport = {
+            state = ShowingCustomerSupportUiState(
+              urlString = "https://support.bitkey.world/hc/en-us"
+            )
+          },
           onTryAgain = {
             state = SigningIntoCloudState
           },
@@ -80,7 +100,8 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
           cloudBackupRepository.writeBackup(
             props.liteAccount.accountId,
             uiState.cloudStoreAccount,
-            backup = cloudBackup
+            backup = cloudBackup,
+            requireAuthRefresh = true
           )
             .onFailure { error ->
               state =
@@ -189,4 +210,8 @@ private sealed class LiteAccountCloudSignInAndBackupState {
    * Error during the process
    */
   data object NonRectifiableFailureState : LiteAccountCloudSignInAndBackupState()
+
+  data class ShowingCustomerSupportUiState(
+    val urlString: String,
+  ) : LiteAccountCloudSignInAndBackupState()
 }

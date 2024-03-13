@@ -21,6 +21,7 @@ kotlin {
         api(projects.shared.accountPublic)
         api(projects.shared.recoveryPublic)
         api(projects.shared.cloudStorePublic)
+        api(projects.shared.authPublic)
         implementation(projects.shared.coroutinesPublic)
         implementation(projects.shared.serializationPublic)
       }
@@ -28,7 +29,6 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(libs.kmp.test.kotest.assertions.json)
         implementation(projects.shared.accountFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.recoveryFake)

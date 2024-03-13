@@ -14,7 +14,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.video.VideoStartingPosition.END
@@ -38,7 +38,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
           headline = "Set up your fingerprint",
           subline =
             "Place your finger on the sensor until you see a blue light." +
-              " Repeat this several times until the device has a solid green light." +
+              " Repeat this until the device has a solid green light." +
               " Once done, press the button below to save your fingerprint."
         ),
       primaryButton =
@@ -46,7 +46,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
           text = "Save fingerprint",
           treatment = ButtonModel.Treatment.Translucent,
           leadingIcon = Icon.SmallIconBitkey,
-          onClick = Click.standardClick { onSaveFingerprint() },
+          onClick = StandardClick(onSaveFingerprint),
           size = Footer,
           testTag = "save-fingerprint"
         ),
@@ -54,6 +54,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
         content = BitkeyFingerprint,
         startingPosition = if (isNavigatingBack) END else START
       ),
+      isNavigatingBack = isNavigatingBack,
       keepScreenOn = true,
       eventTrackerScreenInfo =
         EventTrackerScreenInfo(

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-datatest-jvm",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-datatest-jvm-5.8.0.jar": "9ed29ada5c50f0db586a53ebb3d27d1f23c4e2576714d2519b7862e424bf76eb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -15,7 +15,8 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.sheet.LocalSheetCloser
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconButtonModel
@@ -40,10 +41,10 @@ fun IconButton(
       val iconModel = model.iconModel
       val click: () -> Unit =
         when (model.onClick) {
-          is Click.StandardClick -> {
+          is StandardClick -> {
             { model.onClick.invoke() }
           }
-          is Click.SheetClosingClick -> {
+          is SheetClosingClick -> {
             val scope = rememberStableCoroutineScope()
             val sheetCloser = LocalSheetCloser.current
 

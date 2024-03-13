@@ -4,7 +4,7 @@ use std::fmt::{Debug, Display, Formatter};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use subprocess::{Popen, PopenConfig, Redirection};
 
-use wsm_common::messages::enclave::LoadSecretRequest;
+use wsm_common::messages::enclave::KmsRequest;
 use wsm_common::{
     enclave_log::{LogBuffer, MAX_LOG_EVENT_SIZE_BYTES},
     try_with_log_and_error, wsm_log,
@@ -13,7 +13,7 @@ use wsm_common::{
 use crate::settings::RunMode;
 
 pub struct KmsTool {
-    fetcher: Box<dyn DekFetcher + Send + Sync>,
+    fetcher: Box<dyn SecretFetcher + Send + Sync>,
 }
 
 #[derive(Debug)]
@@ -40,19 +40,19 @@ impl KmsTool {
         }
     }
 
-    pub fn fetch_dek_from_kms(
+    pub fn fetch_secret_from_kms(
         &self,
-        request: &LoadSecretRequest,
+        request: &KmsRequest,
         log_buffer: &mut LogBuffer,
     ) -> Result<Vec<u8>, KmsToolError> {
-        self.fetcher.fetch_dek_from_kms(request, log_buffer)
+        self.fetcher.fetch_secret_from_kms(request, log_buffer)
     }
 }
 
-trait DekFetcher {
-    fn fetch_dek_from_kms(
+trait SecretFetcher {
+    fn fetch_secret_from_kms(
         &self,
-        request: &LoadSecretRequest,
+        request: &KmsRequest,
         log_buffer: &mut LogBuffer,
     ) -> Result<Vec<u8>, KmsToolError>;
 }
@@ -62,10 +62,10 @@ struct Fetcher {}
 
 struct FakeFetcher {}
 
-impl DekFetcher for Fetcher {
-    fn fetch_dek_from_kms(
+impl SecretFetcher for Fetcher {
+    fn fetch_secret_from_kms(
         &self,
-        request: &LoadSecretRequest,
+        request: &KmsRequest,
         log_buffer: &mut LogBuffer,
     ) -> Result<Vec<u8>, KmsToolError> {
         // TODO: replace this with an async variant
@@ -146,10 +146,10 @@ impl DekFetcher for Fetcher {
     }
 }
 
-impl DekFetcher for FakeFetcher {
-    fn fetch_dek_from_kms(
+impl SecretFetcher for FakeFetcher {
+    fn fetch_secret_from_kms(
         &self,
-        _request: &LoadSecretRequest,
+        _request: &KmsRequest,
         log_buffer: &mut LogBuffer,
     ) -> Result<Vec<u8>, KmsToolError> {
         wsm_log!(

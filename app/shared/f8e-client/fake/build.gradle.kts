@@ -15,6 +15,7 @@ kotlin {
         api(projects.shared.ktorTestFake)
         api(projects.shared.notificationsFake)
         api(projects.shared.timeFake)
+        implementation(libs.kmp.test.kotest.assertions)
       }
     }
   }

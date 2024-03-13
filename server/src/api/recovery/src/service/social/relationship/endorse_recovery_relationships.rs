@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use futures::future::try_join_all;
+use tracing::instrument;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{
     RecoveryRelationship, RecoveryRelationshipEndorsed, RecoveryRelationshipEndorsement,
@@ -9,6 +10,12 @@ use types::recovery::social::relationship::{
 
 use super::{error::ServiceError, Service};
 
+/// The input for the `endorse_recovery_relationships` function
+///
+/// # Fields
+///
+/// * `customer_account_id` - The customer account that is trying to endorse the recovery relationship
+/// * `trusted_contacts_to_endorse` - The list of trusted contacts to be endorsed. They include the recovery_relationship_id and the endorsement_key_certificate
 pub struct EndorseRecoveryRelationshipsInput<'a> {
     pub customer_account_id: &'a AccountId,
     pub endorsements: Vec<RecoveryRelationshipEndorsement>,
@@ -21,8 +28,12 @@ impl Service {
     ///
     /// # Arguments
     ///
-    /// * `customer_account_id` - The customer account that is trying to endorse the recovery relationship
-    /// * `trusted_contacts_to_endorse` - The list of trusted contacts to be endorsed. They include the recovery_relationship_id and the endorsement_key_cert
+    /// * `input` - Contains the customer account id and the list of endorsements to be endorsed
+    ///
+    /// # Returns
+    ///
+    /// * The list of endorsed recovery relationships
+    #[instrument(skip(self, input))]
     pub async fn endorse_recovery_relationships(
         &self,
         input: EndorseRecoveryRelationshipsInput<'_>,
@@ -32,7 +43,7 @@ impl Service {
             .fetch_recovery_relationships_for_account(input.customer_account_id)
             .await?;
 
-        let endorsed_trusted_contacts = recovery_relationships_for_account
+        let endorsed_relationships = recovery_relationships_for_account
             .endorsed_trusted_contacts
             .clone()
             .into_iter()
@@ -53,27 +64,26 @@ impl Service {
 
         let mut to_update = Vec::new();
         for endorsement in input.endorsements {
-            if let Some(RecoveryRelationship::Endorsed(c)) =
-                endorsed_trusted_contacts.get(&endorsement.recovery_relationship_id)
-            {
-                if c.endorsement_key_certificate != endorsement.endorsement_key_certificate {
-                    return Err(ServiceError::RelationshipAlreadyEstablished);
-                }
-                // If the endorsement key certificate is the same, we can skip this relationship
-                continue;
-            }
-
-            let Some(RecoveryRelationship::Unendorsed(c)) =
-                unendorsed_relationships.get(&endorsement.recovery_relationship_id)
-            else {
-                return Err(ServiceError::InvitationNonEndorsable);
-            };
+            let (common_fields, connection_fields) =
+                if let Some(RecoveryRelationship::Endorsed(c)) =
+                    endorsed_relationships.get(&endorsement.recovery_relationship_id)
+                {
+                    (c.common_fields.to_owned(), c.connection_fields.to_owned())
+                } else if let Some(RecoveryRelationship::Unendorsed(c)) =
+                    unendorsed_relationships.get(&endorsement.recovery_relationship_id)
+                {
+                    (c.common_fields.to_owned(), c.connection_fields.to_owned())
+                } else {
+                    return Err(ServiceError::InvitationNonEndorsable);
+                };
 
             to_update.push(RecoveryRelationship::Endorsed(
                 RecoveryRelationshipEndorsed {
-                    common_fields: c.common_fields.to_owned(),
-                    connection_fields: c.connection_fields.to_owned(),
-                    endorsement_key_certificate: endorsement.endorsement_key_certificate.to_owned(),
+                    common_fields,
+                    connection_fields,
+                    delegated_decryption_pubkey_certificate: endorsement
+                        .delegated_decryption_pubkey_certificate
+                        .to_owned(),
                 },
             ));
         }

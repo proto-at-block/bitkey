@@ -10,7 +10,7 @@ public extension ButtonModel {
         text: String,
         onClick: @escaping () -> Void
     ) -> ButtonModel {
-        return ButtonModel(text: text, isEnabled: true, isLoading: false, leadingIcon: nil, treatment: .tertiarydestructive, size: .footer, testTag: nil, onClick: ClickCompanion.shared.standardClick(onClick: onClick))
+        return ButtonModel(text: text, isEnabled: true, isLoading: false, leadingIcon: nil, treatment: .tertiarydestructive, size: .footer, testTag: nil, onClick: StandardClick(onClick: onClick))
     }
 
 }
@@ -83,8 +83,8 @@ public extension ButtonModel {
 
     private var disabledBackgroundColor: Color {
         switch treatment {
-        case .black:                        return .black.opacity(0.8)
-        case .primary:                      return .primary.opacity(0.8)
+        case .black:                        return .black.opacity(0.4)
+        case .primary:                      return .primary.opacity(0.4)
         case .secondary:                    return .secondary
         case .secondarydestructive:         return .secondary
         case .tertiary:                     return .clear
@@ -94,8 +94,8 @@ public extension ButtonModel {
         case .tertiarydestructive:          return .clear
         case .translucent:                  return .translucentButton20
         case .translucent10:                return .translucentButton10
-        case .white:                        return .white.opacity(0.8)
-        case .warning:                      return .warningForeground.opacity(0.8)
+        case .white:                        return .white.opacity(0.4)
+        case .warning:                      return .warningForeground.opacity(0.4)
         default:
             fatalError("Unhandled ButtonModel for treatement \(treatment)")
         }

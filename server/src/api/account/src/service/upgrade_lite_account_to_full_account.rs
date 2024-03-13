@@ -13,7 +13,9 @@ impl Service {
             input.auth_key_id,
             input.auth_keys,
         );
-        self.repo.persist(&full_account.clone().into()).await?;
+        self.account_repo
+            .persist(&full_account.clone().into())
+            .await?;
         Ok(full_account)
     }
 }

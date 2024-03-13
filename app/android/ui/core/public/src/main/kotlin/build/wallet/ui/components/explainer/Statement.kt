@@ -48,6 +48,7 @@ fun Statement(
   body: AnnotatedString?,
   icon: Icon?,
   tint: Color = WalletTheme.colors.foreground,
+  onClick: ((Int) -> Unit)? = null,
 ) {
   Statement(
     modifier = modifier,
@@ -79,7 +80,8 @@ fun Statement(
           text = it,
           type = LabelType.Body2Regular,
           treatment = LabelTreatment.Unspecified,
-          color = tint
+          color = tint,
+          onClick = onClick
         )
       }
     }

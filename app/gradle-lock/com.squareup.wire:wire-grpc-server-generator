@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-grpc-server-generator",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-grpc-server-generator-4.9.5.jar": "82ade344ad9612b7bbd3ac58439fe30246a655435709e81d61baea37e6afa5b8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

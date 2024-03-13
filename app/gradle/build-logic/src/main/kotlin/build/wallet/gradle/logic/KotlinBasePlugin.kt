@@ -33,6 +33,10 @@ internal class KotlinBasePlugin : Plugin<Project> {
   private fun Project.configureKotlinCompilerOptions() {
     tasks.withType<KotlinCompile<*>>().configureEach {
       kotlinOptions {
+        // expect/actual classes are still in Beta: https://kotlinlang.org/docs/multiplatform-expect-actual.html#expected-and-actual-classes
+        // We use expect/actual classes extensively, so let's opt-in to suppress warnings.
+        freeCompilerArgs += "-Xexpect-actual-classes"
+
         if (project.composeCompilerMetricsEnabled()) {
           project.configureComposeCompilerMetrics(this)
         }

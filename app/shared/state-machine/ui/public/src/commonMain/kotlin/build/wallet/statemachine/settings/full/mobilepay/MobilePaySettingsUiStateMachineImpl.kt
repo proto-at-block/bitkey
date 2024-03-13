@@ -9,7 +9,6 @@ import build.wallet.limit.SpendingLimit
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
-import build.wallet.statemachine.limit.SpendingLimitEntryPoint.Settings
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachineImpl.State.SettingSpendingLimitUiState
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachineImpl.State.ShowingMobilePayStatusUiState
@@ -44,7 +43,6 @@ class MobilePaySettingsUiStateMachineImpl(
         setSpendingLimitUiStateMachine.model(
           props =
             SpendingLimitProps(
-              entryPoint = Settings,
               currentSpendingLimit = currentState.defaultSpendingLimit?.amount,
               onClose = { state = ShowingMobilePayStatusUiState },
               accountData = props.accountData,

@@ -3,7 +3,6 @@ package build.wallet.recovery
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.app.AppAuthPublicKey
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.FailedToReadRecoveryEntity
-import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.NoRecoveryAuthKey
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.NoRecoveryInProgress
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -30,9 +29,7 @@ class RecoveryAppAuthPublicKeyProviderImpl(
         is Recovery.StillRecovering -> {
           when (scope) {
             AuthTokenScope.Global -> Ok(recovery.appGlobalAuthKey)
-            AuthTokenScope.Recovery ->
-              recovery.appRecoveryAuthKey?.let { Ok(it) }
-                ?: Err(NoRecoveryAuthKey)
+            AuthTokenScope.Recovery -> Ok(recovery.appRecoveryAuthKey)
           }
         }
         else -> Err(NoRecoveryInProgress)

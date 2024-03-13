@@ -19,7 +19,7 @@ import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -64,28 +64,28 @@ fun LightningDebugScreen(model: LightningDebugBodyModel) {
         text = "Sync Wallets",
         treatment = Primary,
         size = Footer,
-        onClick = Click.StandardClick { model.onSyncWalletClicked() }
+        onClick = StandardClick(model.onSyncWalletClicked)
       )
       Spacer(Modifier.height(24.dp))
       Button(
         text = "Get Funding Address",
         treatment = Primary,
         size = Footer,
-        onClick = Click.StandardClick { model.onGetFundingAddressClicked() }
+        onClick = StandardClick(model.onGetFundingAddressClicked)
       )
       Spacer(Modifier.height(24.dp))
       Button(
         text = "Connect and Open Channel",
         treatment = Primary,
         size = Footer,
-        onClick = Click.StandardClick { model.onConnectAndOpenChannelButtonClicked() }
+        onClick = StandardClick(model.onConnectAndOpenChannelButtonClicked)
       )
       Spacer(Modifier.height(24.dp))
       Button(
         text = "Send and Receive Payment",
         treatment = Primary,
         size = Footer,
-        onClick = Click.StandardClick { model.onSendAndReceivePaymentClicked() }
+        onClick = StandardClick(model.onSendAndReceivePaymentClicked)
       )
       Spacer(Modifier.height(24.dp))
     }

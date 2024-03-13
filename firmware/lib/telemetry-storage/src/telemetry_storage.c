@@ -52,6 +52,7 @@ bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* f
 
   maybe_delete_old_coredumps();
 
+  int32_t size = 0;
   bool ret = false;
   frag->complete = false;
 
@@ -106,7 +107,11 @@ bool telemetry_coredump_read_fragment(uint32_t offset, fwpb_coredump_fragment* f
   ret = true;
 
 out:
-  frag->coredumps_remaining = (fs_file_size(file) / TELEMETRY_COREDUMP_SIZE);
+  size = fs_file_size(file);
+  if (size < 0) {
+    size = 0;
+  }
+  frag->coredumps_remaining = size / TELEMETRY_COREDUMP_SIZE;
   fs_close_global(file);
   return ret;
 }
@@ -136,7 +141,13 @@ uint32_t telemetry_coredump_count(void) {
   if (fs_open_global(&file, COREDUMPS_PATH, FS_O_RDWR) != 0) {
     return 0;
   }
-  uint32_t count = fs_file_size(file) / TELEMETRY_COREDUMP_SIZE;
+
+  int32_t size = fs_file_size(file);
+  if (size < 0) {
+    size = 0;
+  }
+
+  uint32_t count = size / TELEMETRY_COREDUMP_SIZE;
   fs_close_global(file);
   return count;
 }

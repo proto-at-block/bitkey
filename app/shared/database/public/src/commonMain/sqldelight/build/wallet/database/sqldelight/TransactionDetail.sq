@@ -3,7 +3,7 @@ import kotlinx.datetime.Instant;
 CREATE TABLE transactionDetailEntity(
   transactionId                    TEXT NOT NULL PRIMARY KEY,
   broadcastTimeInstant             INTEGER AS Instant NOT NULL,
-  estimatedConfirmationTimeInstant INTEGER AS Instant
+  estimatedConfirmationTimeInstant INTEGER AS Instant NOT NULL
 );
 
 insertTransactionDetail:

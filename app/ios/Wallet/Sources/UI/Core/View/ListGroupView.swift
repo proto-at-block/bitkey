@@ -108,7 +108,8 @@ struct ListGroupView_Preview: PreviewProvider {
             items: [
                 .init(
                     title: "Title",
-                    titleAlignment: .left,
+                    titleAlignment: .left, 
+                    listItemTitleBackgroundTreatment: nil,
                     secondaryText: "Secondary Text",
                     sideText: "Side Text",
                     secondarySideText: "Secondary Side Text",
@@ -121,11 +122,13 @@ struct ListGroupView_Preview: PreviewProvider {
                     selected: false,
                     onClick: {},
                     pickerMenu: nil,
-                    testTag: nil
+                    testTag: nil,
+                    titleLabel: nil
                 ),
                 .init(
                     title: "Title",
                     titleAlignment: .left,
+                    listItemTitleBackgroundTreatment: nil,
                     secondaryText: "Secondary Text",
                     sideText: "Side Text",
                     secondarySideText: "Secondary Side Text",
@@ -138,11 +141,13 @@ struct ListGroupView_Preview: PreviewProvider {
                     selected: false,
                     onClick: {},
                     pickerMenu: nil,
-                    testTag: nil
+                    testTag: nil,
+                    titleLabel: nil
                 ),
                 .init(
                     title: "Title",
                     titleAlignment: .left,
+                    listItemTitleBackgroundTreatment: nil,
                     secondaryText: "Secondary Text",
                     sideText: "Side Text",
                     secondarySideText: "Secondary Side Text",
@@ -155,7 +160,8 @@ struct ListGroupView_Preview: PreviewProvider {
                     selected: false,
                     onClick: {},
                     pickerMenu: nil,
-                    testTag: nil
+                    testTag: nil,
+                    titleLabel: nil
                 )
             ],
             style: style,

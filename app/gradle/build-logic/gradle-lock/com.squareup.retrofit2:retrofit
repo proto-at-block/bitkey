@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.retrofit2:retrofit",
+    "components": [
+        {
+            "version": "2.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "retrofit-2.9.0.jar": "e6ea1929c46852f5bec66ab3357da383476cef4e8d1deefdbf195b79cc4d6581"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

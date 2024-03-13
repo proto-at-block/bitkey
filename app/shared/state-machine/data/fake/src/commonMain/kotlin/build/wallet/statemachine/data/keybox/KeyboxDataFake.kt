@@ -2,14 +2,13 @@ package build.wallet.statemachine.data.keybox
 
 import app.cash.turbine.Turbine
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
-import build.wallet.onboarding.OnboardingKeyboxStep.CurrencyPreference
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.statemachine.data.account.create.onboard.BackingUpKeyboxToCloudDataMock
-import build.wallet.statemachine.data.account.create.onboard.SettingCurrencyPreferenceDataMock
 import build.wallet.statemachine.data.account.create.onboard.SettingNotificationsPreferencesDataMock
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
@@ -27,7 +26,8 @@ val ActiveKeyboxLoadedDataMock =
     mobilePayData = MobilePayEnabledDataMock,
     lostHardwareRecoveryData =
       AwaitingNewHardwareData(
-        addHardwareKeys = { _, _ -> }
+        newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+        addHardwareKeys = { _, _, _ -> }
       ),
     notificationTouchpointData = NotificationTouchpointDataMock,
     isCompletingSocialRecovery = false
@@ -37,5 +37,4 @@ fun OnboardingKeyboxDataMock(inProgressStep: OnboardingKeyboxStep = CloudBackup)
   when (inProgressStep) {
     CloudBackup -> BackingUpKeyboxToCloudDataMock
     NotificationPreferences -> SettingNotificationsPreferencesDataMock
-    CurrencyPreference -> SettingCurrencyPreferenceDataMock
   }

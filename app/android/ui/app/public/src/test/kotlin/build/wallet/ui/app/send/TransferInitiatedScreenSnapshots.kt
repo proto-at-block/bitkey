@@ -38,16 +38,18 @@ private fun TransferInitiatedScreen(speedUp: Boolean) {
               TransactionDetailModelType.SpeedUp(
                 transferAmountText = "$20.00",
                 oldFeeAmountText = "$1.00",
-                feeDifferenceText = "+$1.00"
+                feeDifferenceText = "+$1.00",
+                totalAmountPrimaryText = "$22.36",
+                totalAmountSecondaryText = "(0.0010 BTC)"
               )
             } else {
               TransactionDetailModelType.Regular(
                 transferAmountText = "$20.00",
-                feeAmountText = "$1.36"
+                feeAmountText = "$1.36",
+                totalAmountPrimaryText = "$21.36",
+                totalAmountSecondaryText = "(0.0010 BTC)"
               )
-            },
-          totalAmountPrimaryText = "$21.36",
-          totalAmountSecondaryText = "(0.0010 BTC)"
+            }
         ),
       onDone = {}
     )

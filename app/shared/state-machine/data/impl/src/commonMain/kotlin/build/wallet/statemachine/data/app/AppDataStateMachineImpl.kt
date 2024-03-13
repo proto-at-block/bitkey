@@ -30,9 +30,9 @@ import build.wallet.statemachine.data.firmware.FirmwareDataProps
 import build.wallet.statemachine.data.firmware.FirmwareDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachine
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadingTemplateKeyboxConfigData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigDataStateMachine
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadingTemplateFullAccountConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDataStateMachine
 import build.wallet.statemachine.data.lightning.LightningNodeData
 import build.wallet.statemachine.data.lightning.LightningNodeDataStateMachine
 import build.wallet.statemachine.data.money.currency.CurrencyPreferenceDataStateMachine
@@ -51,7 +51,7 @@ class AppDataStateMachineImpl(
   private val periodicFirmwareCoredumpProcessor: PeriodicProcessor,
   private val periodicRegisterWatchAddressProcessor: PeriodicProcessor,
   private val lightningNodeDataStateMachine: LightningNodeDataStateMachine,
-  private val templateKeyboxConfigDataStateMachine: TemplateKeyboxConfigDataStateMachine,
+  private val templateFullAccountConfigDataStateMachine: TemplateFullAccountConfigDataStateMachine,
   private val electrumServerDataStateMachine: ElectrumServerDataStateMachine,
   private val firmwareDataStateMachine: FirmwareDataStateMachine,
   private val currencyPreferenceDataStateMachine: CurrencyPreferenceDataStateMachine,
@@ -83,14 +83,14 @@ class AppDataStateMachineImpl(
 
     val lightningNodeData = lightningNodeDataStateMachine.model(Unit)
 
-    val templateKeyboxConfigData = templateKeyboxConfigDataStateMachine.model(Unit)
+    val templateFullAccountConfigData = templateFullAccountConfigDataStateMachine.model(Unit)
 
     val appData: AppData =
-      when (templateKeyboxConfigData) {
-        LoadingTemplateKeyboxConfigData -> LoadingAppData
-        is LoadedTemplateKeyboxConfigData -> {
+      when (templateFullAccountConfigData) {
+        LoadingTemplateFullAccountConfigData -> LoadingAppData
+        is LoadedTemplateFullAccountConfigData -> {
           SyncServerBasedRepositoriesEffect(
-            f8eEnvironment = templateKeyboxConfigData.config.f8eEnvironment
+            f8eEnvironment = templateFullAccountConfigData.config.f8eEnvironment
           )
           val blockingEffectsState = listOf(initializeFeatureFlagsEffectState)
           val allBlockingEffectsAreComplete = blockingEffectsState.all { it == COMPLETE }
@@ -98,8 +98,8 @@ class AppDataStateMachineImpl(
           val electrumServerData =
             electrumServerDataStateMachine.model(
               ElectrumServerDataProps(
-                f8eEnvironment = templateKeyboxConfigData.config.f8eEnvironment,
-                network = templateKeyboxConfigData.config.networkType
+                f8eEnvironment = templateFullAccountConfigData.config.f8eEnvironment,
+                network = templateFullAccountConfigData.config.bitcoinNetworkType
               )
             )
 
@@ -107,7 +107,7 @@ class AppDataStateMachineImpl(
             firmwareDataStateMachine.model(
               props =
                 FirmwareDataProps(
-                  isHardwareFake = templateKeyboxConfigData.config.isHardwareFake
+                  isHardwareFake = templateFullAccountConfigData.config.isHardwareFake
                 )
             )
 
@@ -124,7 +124,7 @@ class AppDataStateMachineImpl(
                   AppLoadedData(
                     appInstallation,
                     lightningNodeData,
-                    templateKeyboxConfigData,
+                    templateFullAccountConfigData,
                     electrumServerData,
                     firmwareData,
                     fiatCurrencyPreferenceData,
@@ -217,7 +217,7 @@ class AppDataStateMachineImpl(
   private fun AppLoadedData(
     appInstallation: AppInstallation,
     lightningNodeData: LightningNodeData,
-    templateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     electrumServerData: ElectrumServerData,
     firmwareData: FirmwareData,
     currencyPreferenceData: CurrencyPreferenceData,
@@ -225,7 +225,7 @@ class AppDataStateMachineImpl(
   ): AppData {
     val accountData =
       accountDataStateMachine.model(
-        props = AccountDataProps(templateKeyboxConfigData, currencyPreferenceData)
+        props = AccountDataProps(templateFullAccountConfigData, currencyPreferenceData)
       )
     return AppData.AppLoadedData(
       appInstallation = appInstallation,

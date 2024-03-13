@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:gradle-settings-api",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gradle-settings-api-8.1.1.jar": "1b35a0c9efd5fabae26c8df48c306ef4a802c56e32ad0f89ac66c322e8a561c8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

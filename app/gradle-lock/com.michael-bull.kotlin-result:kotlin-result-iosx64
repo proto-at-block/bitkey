@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-iosx64",
+    "components": [
+        {
+            "version": "1.1.18",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-result-iosx64-1.1.18-metadata.jar": "71ff4b820430c76c5c79ef62455ad3db92a30f0d5879de8614cf56be29d86a03"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-result.klib": "dfa838ab12da93a48699b10bc629131288ad3c8b73990195575319d3e6080c52"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

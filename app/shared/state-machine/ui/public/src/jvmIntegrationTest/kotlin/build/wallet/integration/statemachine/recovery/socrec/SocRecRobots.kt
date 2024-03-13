@@ -1,29 +1,37 @@
+@file:Suppress("TooManyFunctions")
+
 package build.wallet.integration.statemachine.recovery.socrec
 
 import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.BEING_TRUSTED_CONTACT_INTRODUCTION
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.integration.statemachine.create.beTrustedContactButton
-import build.wallet.integration.statemachine.create.moreOptionsButton
 import build.wallet.integration.statemachine.create.restoreButton
+import build.wallet.integration.statemachine.recovery.completeServerDelayNotifyPeriodForTesting
 import build.wallet.statemachine.account.ChooseAccountAccessModel
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
-import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.statemachine.moneyhome.lite.card.WALLETS_YOURE_PROTECTING_MESSAGE
+import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
+import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickMainContentListFooterButton
@@ -32,15 +40,27 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.findMainContentListItem
 import build.wallet.statemachine.ui.getMainContentListItemAtIndex
 import build.wallet.statemachine.ui.inputTextToMainContentTextInputItem
+import build.wallet.statemachine.ui.matchers.hasProtectedCustomers
+import build.wallet.statemachine.ui.matchers.shouldHaveId
+import build.wallet.statemachine.ui.matchers.shouldHaveMessage
+import build.wallet.statemachine.ui.robots.awaitLoadingScreen
+import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
+import build.wallet.statemachine.ui.robots.moreOptionsButton
+import build.wallet.statemachine.ui.robots.selectProtectedCustomer
 import build.wallet.testing.AppTester
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Advances through Trusted Contact invite screens starting at the Trusted Contact Management screen.
@@ -51,6 +71,12 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactInviteScreen
   )
     .clickMainContentListFooterButton()
   awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME) {
+    inputTextToMainContentTextInputItem(tcName)
+  }
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
+    expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+  ) {
     inputTextToMainContentTextInputItem(tcName)
     clickPrimaryButton()
   }
@@ -74,11 +100,11 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateLiteAccountScreens(
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.CloudStoreAccount1Fake,
 ) {
   awaitUntilScreenWithBody<ChooseAccountAccessModel>()
-    .moreOptionsButton.onClick()
+    .clickMoreOptionsButton()
   awaitUntilScreenWithBody<FormBodyModel>()
     .beTrustedContactButton.onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<FormBodyModel>(BEING_TRUSTED_CONTACT_INTRODUCTION)
-    .primaryButton.shouldNotBeNull().onClick()
+    .clickPrimaryButton()
   awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
     .signInSuccess(cloudStoreAccount)
   awaitUntilScreenWithBody<FormBodyModel>(
@@ -88,11 +114,67 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateLiteAccountScreens(
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE
   ) {
-    primaryButton.shouldNotBeNull().onClick()
+    clickPrimaryButton()
   }
-  awaitUntilScreenWithBody<LoadingBodyModel>(
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION
-  )
+  ) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
+}
+
+suspend fun ReceiveTurbine<ScreenModel>.advanceThroughFullAccountAcceptTCInviteScreens(
+  inviteCode: String,
+  protectedCustomerAlias: String,
+) {
+  awaitUntilScreenWithBody<MoneyHomeBodyModel>(MoneyHomeEventTrackerScreenId.MONEY_HOME) {
+    trailingToolbarAccessoryModel
+      .shouldNotBeNull()
+      .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
+      .model
+      .onClick()
+  }
+
+  awaitUntilScreenWithBody<SettingsBodyModel>(SettingsEventTrackerScreenId.SETTINGS) {
+    sectionModels
+      .flatMap { it.rowModels }
+      .firstOrNull { it.title == "Trusted Contacts" }
+      .shouldNotBeNull()
+      .onClick()
+  }
+
+  awaitUntilScreenWithBody<FormBodyModel> {
+    header?.headline.shouldBe("Trusted Contacts")
+    mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
+      .toList()[1]
+      .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+      .listGroupModel
+      .footerButton
+      .shouldNotBeNull()
+      .onClick()
+  }
+
+  awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE) {
+    inputTextToMainContentTextInputItem(inviteCode)
+  }
+
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE,
+    expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+  ) {
+    clickPrimaryButton()
+  }
+
+  awaitUntilScreenWithBody<FormBodyModel>(SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME) {
+    inputTextToMainContentTextInputItem(protectedCustomerAlias)
+  }
+
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME,
+    expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+  ) {
+    clickPrimaryButton()
+  }
 }
 
 /**
@@ -102,9 +184,11 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
   protectedCustomerName: String,
 ) {
   // Loading with f8e
-  awaitUntilScreenWithBody<LoadingBodyModel>(
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E
-  )
+  ) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
 
   // Enter name
   awaitUntilScreenWithBody<FormBodyModel>(
@@ -117,12 +201,14 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
     .clickPrimaryButton()
 
   // Loading with f8e
-  awaitUntilScreenWithBody<LoadingBodyModel>(
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E
-  )
+  ) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
 
   // Success
-  awaitUntilScreenWithBody<SuccessBodyModel>(
+  awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS
   )
     .clickPrimaryButton()
@@ -130,19 +216,29 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughTrustedContactEnrollmentSc
 
 /**
  * Advances to the cloud recovery screen, starting from the Money Home screen.
+ * @return the cloud recovery [FormBodyModel]
  */
-suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactList(
+suspend fun ReceiveTurbine<ScreenModel>.advanceToCloudRecovery(
   cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
 ): FormBodyModel {
   awaitUntilScreenWithBody<ChooseAccountAccessModel>()
-    .moreOptionsButton.onClick()
+    .clickMoreOptionsButton()
   awaitUntilScreenWithBody<FormBodyModel>()
     .restoreButton.onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
     .signInSuccess(cloudStoreAccount)
-  awaitUntilScreenWithBody<FormBodyModel>(
+  return awaitUntilScreenWithBody<FormBodyModel>(
     CloudEventTrackerScreenId.CLOUD_BACKUP_FOUND
   )
+}
+
+/**
+ * Advances to the social recovery challenge screen, starting from the Money Home screen
+ */
+suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactList(
+  cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
+): FormBodyModel {
+  advanceToCloudRecovery(cloudStoreAccount)
     .toolbar.shouldNotBeNull()
     .trailingAccessory.shouldNotBeNull()
     .shouldBeTypeOf<ToolbarAccessoryModel.ButtonAccessory>()
@@ -150,15 +246,17 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceToSocialChallengeTrustedContactLi
     .onClick()
   awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.SOCIAL_RECOVERY_EXPLANATION)
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<LoadingBodyModel>(
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_STARTING
-  )
+  ) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
   awaitUntilScreenWithBody<FormBodyModel>(
     NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
   )
     .clickPrimaryButton()
   return awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
+    id = RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
   )
 }
 
@@ -171,7 +269,7 @@ suspend fun ReceiveTurbine<ScreenModel>.startSocialChallenge(formBodyModel: Form
   formBodyModel
     .shouldBeTypeOf<FormBodyModel>()
     .also {
-      it.id.shouldBe(SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
+      it.id.shouldBe(RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
     }
     .clickMainContentListItemTrailingButtonAtIndex(0)
   val codeScreen =
@@ -193,35 +291,39 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceFromSocialRestoreToLostHardwareRe
   formBodyModel: FormBodyModel,
 ) {
   formBodyModel
+    .shouldHaveId(RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST)
     .primaryButton
     .shouldNotBeNull()
     .also { it.isEnabled.shouldBeTrue() }
     .onClick()
-  awaitUntilScreenWithBody<LoadingBodyModel>(
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RESTORE_APP_KEY
   )
+  awaitLoadingScreen(LOADING_RESTORING_FROM_CLOUD_BACKUP)
+    .shouldHaveMessage("Restoring from backup...")
   awaitUntilScreenWithBody<FormBodyModel>(
     HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
   ) {
   }
 }
 
-suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScreens(code: String) {
-  awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-    .cardsModel
-    .cards
-    .find { it.title.string == WALLETS_YOURE_PROTECTING_MESSAGE }
-    .shouldNotBeNull()
-    .content.shouldBeTypeOf<CardModel.CardContent.DrillList>()
-    .items.first()
-    .onClick.shouldNotBeNull().invoke()
-  awaitUntilScreenModelWithBody<MoneyHomeBodyModel>(
+suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScreensAsLiteAccount(
+  protectedCustomerName: String,
+  code: String,
+) {
+  awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>(
+    expectedBodyContentMatch = { it.hasProtectedCustomers() }
+  ) {
+    selectProtectedCustomer(protectedCustomerName)
+  }
+  awaitUntilScreenModelWithBody<LiteMoneyHomeBodyModel>(
     expectedScreenModelMatch = { screenModel ->
       screenModel.bottomSheetModel != null
     }
   ).bottomSheetModel.shouldNotBeNull()
     .body.shouldBeTypeOf<FormBodyModel>()
     .clickPrimaryButton()
+
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH
   )
@@ -240,7 +342,71 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
   )
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<SuccessBodyModel>(
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_SUCCESS
+  )
+}
+
+suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScreensAsFullAccount(
+  protectedCustomerName: String,
+  code: String,
+) {
+  awaitUntilScreenWithBody<MoneyHomeBodyModel>(MoneyHomeEventTrackerScreenId.MONEY_HOME) {
+    trailingToolbarAccessoryModel
+      .shouldNotBeNull()
+      .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
+      .model
+      .onClick()
+  }
+
+  awaitUntilScreenWithBody<SettingsBodyModel>(SettingsEventTrackerScreenId.SETTINGS) {
+    sectionModels
+      .flatMap { it.rowModels }
+      .firstOrNull { it.title == "Trusted Contacts" }
+      .shouldNotBeNull()
+      .onClick()
+  }
+
+  awaitUntilScreenWithBody<FormBodyModel> {
+    header?.headline.shouldBe("Trusted Contacts")
+    mainContentList.shouldHaveSize(2) // 1 list for TCs, 1 for protected customers
+      .toList()[1]
+      .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+      .listGroupModel
+      .items
+      .single { it.title == protectedCustomerName }
+      .onClick
+      .shouldNotBeNull()
+      .invoke()
+  }
+
+  awaitUntilScreenModelWithBody<FormBodyModel>(
+    expectedScreenModelMatch = { screenModel ->
+      screenModel.bottomSheetModel != null
+    }
+  ).bottomSheetModel.shouldNotBeNull()
+    .body.shouldBeTypeOf<FormBodyModel>()
+    .clickPrimaryButton()
+
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH
+  )
+    .findMainContentListItem { it.title == "Phone Call" }
+    .onClick.shouldNotBeNull().invoke()
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CONTACT_CONFIRMATION
+  )
+    .findMainContentListItem { it.title.contains("Yes") }
+    .onClick.shouldNotBeNull().invoke()
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
+  )
+    .inputTextToMainContentTextInputItem(code)
+  awaitUntilScreenWithBody<FormBodyModel>(
+    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
+  )
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_SUCCESS
   )
 }
@@ -249,20 +415,111 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
  * Waits for a Full Account cloud backup to contain the given relationship ID. Must be called
  * while an app is running.
  */
-suspend fun StateMachineTester<*, ScreenModel>.awaitCloudBackupRefreshed(
-  appTester: AppTester,
-  relationshipId: String,
-) {
-  var backupUpdated = false
-  while (!backupUpdated) {
-    val backup =
-      appTester.app.cloudBackupRepository.readBackup(CloudStoreAccountFake.ProtectedCustomerFake)
-        .getOrThrow()
-        .shouldNotBeNull()
-    backupUpdated = backup.socRecDataAvailable &&
-      (backup as SocRecV1BackupFeatures)
-        .fullAccountFields.shouldNotBeNull()
-        .socRecEncryptionKeyCiphertextMap.containsKey(relationshipId)
-    delay(100.milliseconds)
+suspend fun AppTester.awaitCloudBackupRefreshed(relationshipId: String) {
+  withTimeout(2.seconds) {
+    var backupUpdated = false
+    while (isActive && !backupUpdated) {
+      val backup =
+        app.cloudBackupRepository.readBackup(CloudStoreAccountFake.ProtectedCustomerFake)
+          .getOrThrow()
+          .shouldNotBeNull()
+      backupUpdated = backup.socRecDataAvailable &&
+        (backup as SocRecV1BackupFeatures)
+          .fullAccountFields.shouldNotBeNull()
+          .socRecSealedDekMap.containsKey(relationshipId)
+      delay(100.milliseconds)
+    }
   }
+}
+
+/**
+ * Advances through full Account onboarding, starting at Getting Started screen (lost app + lost cloud)
+ * @param cloudStoreAccount the cloud store account to sign in with
+ */
+suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostAppAndCloudRecoveryToMoneyHome(
+  cloudStoreAccount: CloudStoreAccount,
+) {
+  awaitUntilScreenWithBody<ChooseAccountAccessModel>()
+    .moreOptionsButton.onClick()
+  awaitUntilScreenWithBody<FormBodyModel>()
+    .restoreButton.onClick.shouldNotBeNull().invoke()
+  awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
+    .signInSuccess(cloudStoreAccount)
+  awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND)
+    .restoreButton.onClick.shouldNotBeNull().invoke()
+  awaitUntilScreenWithBody<FormBodyModel>(DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<FormBodyModel>(NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<FormBodyModel>(DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
+  awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
+    .signInSuccess(cloudStoreAccount)
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
+  awaitUntilScreenWithBody<FormBodyModel>(DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<MoneyHomeBodyModel>(MoneyHomeEventTrackerScreenId.MONEY_HOME)
+}
+
+/**
+ * Starting at the Money Home screen, advances through lost hardware and cloud recovery back to the
+ * Money Home screen.
+ */
+suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(
+  appTester: AppTester,
+  cloudStoreAccount: CloudStoreAccount = CloudStoreAccountFake.ProtectedCustomerFake,
+) {
+  awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+    .trailingToolbarAccessoryModel
+    .shouldBeTypeOf<ToolbarAccessoryModel.IconAccessory>()
+    .model.onClick.invoke()
+
+  awaitUntilScreenWithBody<SettingsBodyModel>()
+    .sectionModels.flatMap { it.rowModels }
+    .find { it.title == "Bitkey Device" }
+    .shouldNotBeNull()
+    .onClick()
+  (
+    awaitUntilScreenWithBody<FormBodyModel>()
+      .mainContentList[1] as FormMainContentModel.Button
+  )
+    .item.onClick()
+
+  awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<PairNewHardwareBodyModel>(PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_PENDING)
+
+  appTester.completeServerDelayNotifyPeriodForTesting(appTester.getActiveFullAccount().config.f8eEnvironment)
+
+  awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
+  awaitUntilScreenWithBody<FormBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS)
+    .clickPrimaryButton()
+  awaitUntilScreenWithBody<CloudSignInModelFake>(CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING)
+    .signInSuccess(cloudStoreAccount)
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+    state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+  }
+  awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
+    .clickPrimaryButton()
+  awaitUntilScreenModelWithBody<MoneyHomeBodyModel>()
+  cancelAndIgnoreRemainingEvents()
 }

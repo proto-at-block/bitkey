@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test.espresso:espresso-core",
+    "components": [
+        {
+            "version": "3.5.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "espresso-core-3.5.1.aar": "34b0493f4e002f205d961e562add0c0c31bb0acc657e89d89d4b188ac13f242c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

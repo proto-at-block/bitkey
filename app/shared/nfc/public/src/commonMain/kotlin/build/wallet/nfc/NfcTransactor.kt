@@ -8,7 +8,7 @@ import com.github.michaelbull.result.Result
  * It has the platform [NfcSession] and [NfcCommands] injected at creation.
  **/
 
-typealias TransactionFn<T> = suspend (NfcSession, NfcCommands) -> T
+typealias TransactionFn<T> = suspend (session: NfcSession, commands: NfcCommands) -> T
 
 interface NfcTransactor {
   suspend fun <T> transact(

@@ -1,3 +1,0 @@
-DROP VIEW recoveriesView;
-
-PRAGMA foreign_key_check;

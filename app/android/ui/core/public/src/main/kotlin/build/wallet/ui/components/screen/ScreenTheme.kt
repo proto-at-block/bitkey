@@ -41,7 +41,8 @@ internal fun ScreenTheme(
     )
     systemUiController.setNavigationBarColor(
       color = Color.Transparent,
-      darkIcons = style.useDarkSystemBarIcons
+      darkIcons = style.useDarkSystemBarIcons,
+      navigationBarContrastEnforced = false
     )
 
     onDispose {}

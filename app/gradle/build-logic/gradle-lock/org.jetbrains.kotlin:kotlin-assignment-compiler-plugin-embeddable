@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-assignment-compiler-plugin-embeddable",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-assignment-compiler-plugin-embeddable-1.9.10.jar": "a5a0a4d2d588de27de7e16956c14c9fce7eed381e990e06c7d9946b16993973e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

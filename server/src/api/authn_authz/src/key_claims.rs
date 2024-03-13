@@ -1,7 +1,5 @@
 use std::str::FromStr;
 
-use crate::userpool::cognito_user::{CognitoUser, CognitoUsername};
-use crate::userpool::{UserPoolError, UserPoolService};
 use async_trait::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
@@ -10,27 +8,13 @@ use jsonwebtoken::{DecodingKey, Validation};
 use secp256k1::ecdsa::Signature;
 use secp256k1::hashes::sha256;
 use secp256k1::{Message, PublicKey, Secp256k1};
-use serde::{Deserialize, Serialize};
 use types::account::identifiers::AccountId;
+use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
+use types::authn_authz::AccessTokenClaims;
+use userpool::userpool::{UserPoolError, UserPoolService};
 
 pub const APP_SIG_HEADER: &str = "X-App-Signature";
 pub const HW_SIG_HEADER: &str = "X-Hw-Signature";
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AccessTokenClaims {
-    pub(crate) sub: String,
-    pub(crate) iss: String,
-    pub(crate) client_id: String,
-    pub(crate) origin_jti: String,
-    pub(crate) event_id: String,
-    pub(crate) token_use: String,
-    pub(crate) scope: String,
-    pub(crate) auth_time: u64,
-    pub(crate) exp: u64,
-    pub(crate) iat: u64,
-    pub(crate) jti: String,
-    pub(crate) username: CognitoUsername,
-}
 
 #[derive(Debug, Clone)]
 pub struct KeyClaims {
@@ -147,15 +131,13 @@ mod tests {
     use axum::body::Body;
     use axum::extract::FromRequestParts;
     use axum::http::Request;
+    use types::authn_authz::cognito::CognitoUsername;
+    use userpool::userpool::{CognitoMode, UserPoolService};
 
     use crate::key_claims::{KeyClaims, APP_SIG_HEADER, HW_SIG_HEADER};
     use crate::test_utils::{
         get_test_access_token, sign_with_app_key, sign_with_hw_key, TEST_USERNAME,
     };
-    use crate::userpool;
-    use crate::userpool::cognito_user::CognitoUsername;
-    use crate::userpool::CognitoMode::Test;
-    use crate::userpool::UserPoolService;
 
     #[test]
     fn test_that_username_is_parsed_out_of_jwt() {
@@ -184,8 +166,13 @@ mod tests {
 
         let (mut request_parts, _) = request.into_parts();
 
-        let userpool =
-            UserPoolService::new(userpool::Config { cognito: Test }.to_connection().await);
+        let userpool = UserPoolService::new(
+            userpool::userpool::Config {
+                cognito: CognitoMode::Test,
+            }
+            .to_connection()
+            .await,
+        );
 
         let key_proof = KeyClaims::from_request_parts(&mut request_parts, &userpool)
             .await
@@ -209,8 +196,13 @@ mod tests {
 
         let (mut request_parts, _) = request.into_parts();
 
-        let userpool =
-            UserPoolService::new(userpool::Config { cognito: Test }.to_connection().await);
+        let userpool = UserPoolService::new(
+            userpool::userpool::Config {
+                cognito: CognitoMode::Test,
+            }
+            .to_connection()
+            .await,
+        );
 
         let key_proof = KeyClaims::from_request_parts(&mut request_parts, &userpool)
             .await
@@ -236,8 +228,13 @@ mod tests {
 
         let (mut request_parts, _) = request.into_parts();
 
-        let userpool =
-            UserPoolService::new(userpool::Config { cognito: Test }.to_connection().await);
+        let userpool = UserPoolService::new(
+            userpool::userpool::Config {
+                cognito: CognitoMode::Test,
+            }
+            .to_connection()
+            .await,
+        );
 
         let key_proof = KeyClaims::from_request_parts(&mut request_parts, &userpool)
             .await

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.grpc:grpc-protobuf-lite",
+    "components": [
+        {
+            "version": "1.45.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-protobuf-lite-1.45.1.jar": "874afc4cac1161fdd38121ffd56e58e8c85f5149c13954ab672d6b4ae24c8b9f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

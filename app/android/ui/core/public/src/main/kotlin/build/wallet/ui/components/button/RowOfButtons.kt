@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconArrowUp
 import build.wallet.ui.components.icon.IconButton
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
@@ -63,7 +63,7 @@ private fun RowOfTwoButtonsContainerPreview() {
               treatment = Primary,
               leadingIcon = Icon.SmallIconBitkey,
               size = ButtonModel.Size.Regular,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             )
           },
           {
@@ -71,7 +71,7 @@ private fun RowOfTwoButtonsContainerPreview() {
               text = "Second",
               treatment = Secondary,
               size = ButtonModel.Size.Regular,
-              onClick = Click.StandardClick { }
+              onClick = StandardClick {}
             )
           }
         )
@@ -95,7 +95,7 @@ private fun RowOfThreeButtonsContainerPreview() {
             ),
           text = "Send"
         ),
-      onClick = Click.StandardClick {}
+      onClick = StandardClick {}
     )
   RowOfButtons(
     buttonContents =

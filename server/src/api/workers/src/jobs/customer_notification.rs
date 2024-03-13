@@ -60,7 +60,7 @@ pub async fn handler(
                 failed_messages.push(notification);
                 event!(
                     Level::ERROR,
-                    "Failed to update push notification with id: {:?} due to error: {e}",
+                    "Failed to update notification with id: {:?} due to error: {e}",
                     composite_key
                 );
             } else {

@@ -1,5 +1,7 @@
 package build.wallet.logging.bugsnag
 
+import build.wallet.logging.LogEntry
+import build.wallet.logging.SensitiveDataValidator
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 
@@ -38,6 +40,8 @@ internal class BugsnagLogWriter(
     tag: String,
     throwable: Throwable?,
   ) {
+    if (SensitiveDataValidator.isSensitiveData(LogEntry(tag, message))) return
+
     val nonnullThrowable = throwable ?: HandledError(message)
     kermitBugsnagLogWriter.log(
       severity = severity,

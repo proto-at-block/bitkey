@@ -9,7 +9,7 @@ import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.app.AppAuthPublicKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -19,6 +19,7 @@ import build.wallet.f8e.recovery.CompleteDelayNotifyService
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
+import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
@@ -31,14 +32,16 @@ class RecoveryAuthCompleterImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val recoverySyncer: RecoverySyncer,
   private val authTokenDao: AuthTokenDao,
+  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
 ) : RecoveryAuthCompleter {
   override suspend fun rotateAuthKeys(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     challenge: ChallengeToCompleteRecovery,
     hardwareSignedChallenge: SignedChallengeToCompleteRecovery,
-    destinationAppGlobalAuthPubKey: AppGlobalAuthPublicKey,
+    destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
+    removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable> {
     log { "Rotating auth keys for recovery" }
 
@@ -59,7 +62,7 @@ class RecoveryAuthCompleterImpl(
         val signedCompleteRecoveryChallenge =
           appAuthKeyMessageSigner
             .signMessage(
-              publicKey = destinationAppGlobalAuthPubKey,
+              publicKey = destinationAppAuthPubKeys.appGlobalAuthPublicKey,
               message = challenge.bytes
             )
             .logFailure { "Error signing complete recovery challenge with app auth key." }
@@ -79,16 +82,34 @@ class RecoveryAuthCompleterImpl(
         // TODO(W-4259): Move this out of here since it should come after completion.
         authenticateWithF8eAndStoreAuthTokens(
           accountId = fullAccountId,
-          appAuthPublicKey = destinationAppGlobalAuthPubKey,
+          appAuthPublicKey = destinationAppAuthPubKeys.appRecoveryAuthPublicKey,
           f8eEnvironment = f8eEnvironment,
           tokenScope = AuthTokenScope.Recovery
         ).bind()
         authenticateWithF8eAndStoreAuthTokens(
           accountId = fullAccountId,
-          appAuthPublicKey = destinationAppGlobalAuthPubKey,
+          appAuthPublicKey = destinationAppAuthPubKeys.appGlobalAuthPublicKey,
           f8eEnvironment = f8eEnvironment,
           tokenScope = AuthTokenScope.Global
         ).bind()
+
+        if (removeProtectedCustomers) {
+          socRecRelationshipsRepository
+            .getRelationshipsWithoutSyncing(
+              fullAccountId,
+              f8eEnvironment
+            )
+            .protectedCustomers
+            .onEach {
+              socRecRelationshipsRepository.removeRelationshipWithoutSyncing(
+                accountId = fullAccountId,
+                f8eEnvironment = f8eEnvironment,
+                hardwareProofOfPossession = null,
+                AuthTokenScope.Recovery,
+                it.recoveryRelationshipId
+              ).bind()
+            }
+        }
       }
 
       recoverySyncer

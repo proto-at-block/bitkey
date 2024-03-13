@@ -1,7 +1,7 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -11,7 +11,7 @@ class SocialChallengeVerifierMock : SocialChallengeVerifier {
 
   override suspend fun verifyChallenge(
     account: Account,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
+    delegatedDecryptionKey: DelegatedDecryptionKey,
     recoveryRelationshipId: String,
     code: String,
   ): Result<Unit, SocialChallengeError> {

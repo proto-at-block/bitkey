@@ -1,0 +1,30 @@
+import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey;
+import okio.ByteString;
+
+CREATE TABLE socRecStartedChallengeAuthentication(
+    rowId                             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    relationshipId                    TEXT UNIQUE NOT NULL,
+    protectedCustomerRecoveryPakeKey  TEXT AS ProtectedCustomerRecoveryPakeKey NOT NULL,
+    pakeCode                          BLOB AS ByteString NOT NULL
+);
+
+insert:
+INSERT OR REPLACE INTO socRecStartedChallengeAuthentication(
+    relationshipId,
+    protectedCustomerRecoveryPakeKey,
+    pakeCode
+) VALUES(?, ?, ?);
+
+getAll:
+SELECT * FROM socRecStartedChallengeAuthentication;
+
+getByRelationshipId:
+SELECT * FROM socRecStartedChallengeAuthentication
+WHERE relationshipId = ?;
+
+deleteByRelationshipId:
+DELETE FROM socRecStartedChallengeAuthentication
+WHERE relationshipId = ?;
+
+clear:
+DELETE FROM socRecStartedChallengeAuthentication;

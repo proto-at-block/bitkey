@@ -21,7 +21,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.USD
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
@@ -32,6 +32,7 @@ import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN
+import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -94,7 +95,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
 
   test("option list is created and can select an option") {
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("Select a transfer speed")
         primaryButton.shouldNotBeNull().text.shouldBe("Continue")
@@ -110,7 +113,7 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
           options[2].verifyFeeOption(
             selected = false
           )
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
       }
 
@@ -121,7 +124,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   test("when no fees are estimated, onContinue is called with default") {
     bitcoinTransactionFeeEstimator.feesResult = Ok(emptyMap())
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       onContinueCalls.awaitItem().shouldBe(THIRTY_MINUTES)
     }
@@ -130,7 +135,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   test("when there is a priority preference, that value is the default selected") {
     transactionPriorityPreference.preference = FASTEST
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
           options[0].verifyFeeOption(
@@ -158,7 +165,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
           options[0].verifyFeeOption(
@@ -182,7 +191,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<FeeOptionList>()) {
           options[0].verifyFeeOption(
@@ -206,7 +217,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         sendAmount = ExactAmount(BitcoinMoney.btc(1.1))
       )
     ) {
-      awaitBody<LoadingBodyModel>() // loading state
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      } // loading state
       awaitBody<FormBodyModel> {
         id.shouldBe(FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN)
       }
@@ -215,7 +228,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
 
   test("onBack is called") {
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         onBack?.invoke()
       }
@@ -236,9 +251,11 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       onContinueCalls.awaitItem().shouldBe(FASTEST)
@@ -249,7 +266,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult = Err(CannotCreatePsbtError(null))
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         header?.headline.shouldBe("We couldn’t send this transaction")
       }
@@ -260,7 +279,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult = Err(InsufficientFundsError)
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         id.shouldBe(FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN)
       }
@@ -271,7 +292,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult = Err(SpendingBelowDustLimitError)
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         id.shouldBe(FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN)
       }
@@ -282,7 +305,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
     bitcoinTransactionFeeEstimator.feesResult = Err(CannotCreatePsbtError("generic message"))
 
     stateMachine.test(props) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         id.shouldBe(FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN)
       }
@@ -297,7 +322,9 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         sendAmount = SendAll
       )
     ) {
-      awaitBody<LoadingBodyModel>()
+      awaitBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitBody<FormBodyModel> {
         id.shouldBe(FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN)
       }

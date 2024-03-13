@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-logging-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-logging-iosarm64-2.3.8-metadata.jar": "2ed7f5a707091680c2c538701ed5d53dab9e816e871579e5da1c528fc15a310d"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-logging.klib": "cb81ed526d2fe4937691a6969f020d321aa73b4e76814629c8ed0d8549650748"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

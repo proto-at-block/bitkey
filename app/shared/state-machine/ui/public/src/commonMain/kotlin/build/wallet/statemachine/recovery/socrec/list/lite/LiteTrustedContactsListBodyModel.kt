@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.recovery.socrec.list.listItemModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -55,10 +55,10 @@ fun LiteTrustedContactsListBodyModel(
           style = ListGroupStyle.CARD_GROUP_DIVIDER,
           footerButton =
             ButtonModel(
-              text = "Accept Invite",
+              text = if (protectedCustomers.isEmpty()) "Accept invite" else "Accept another invite",
               treatment = ButtonModel.Treatment.Secondary,
               size = ButtonModel.Size.Footer,
-              onClick = Click.standardClick { onAcceptInvitePressed() }
+              onClick = StandardClick(onAcceptInvitePressed)
             )
         )
       )

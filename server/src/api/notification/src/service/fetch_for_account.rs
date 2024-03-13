@@ -34,7 +34,7 @@ impl Service {
         input: FetchForAccountInput,
     ) -> Result<Vec<CustomerNotification>, ApiError> {
         self.notification_repo
-            .fetch_customer_for_account_id(&input.account_id)
+            .fetch_customer_for_account_id_and_payload_type(&input.account_id, None)
             .await
             .map_err(|e| e.into())
     }

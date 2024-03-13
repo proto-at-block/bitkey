@@ -1,0 +1,31 @@
+{
+    "module-identifier": "com.squareup:javawriter",
+    "components": [
+        {
+            "version": "2.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "javawriter-2.1.1.jar": "f699823d0081f69cbb676c1845ea222e0ada79bc88a53e5d22d8bd02d328f57e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "2.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "javawriter-2.5.0.jar": "fcfb09fb0ea0aa97d3cfe7ea792398081348e468f126b3603cb3803f240197f0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

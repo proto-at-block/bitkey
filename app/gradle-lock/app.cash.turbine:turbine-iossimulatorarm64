@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.turbine:turbine-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "Turbine-iossimulatorarm64-metadata.jar": "632b20885e277a219ed0757e59eb6a8f08967feca6300ce3c01bc656c1dde582"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "Turbine.klib": "6dd423a1831cdaca5737f48e7b7c9d5c7c8ceffe8918262a8be48828b8b41bf4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

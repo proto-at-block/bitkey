@@ -1,7 +1,7 @@
 import {Construct} from "constructs";
 import {Monitor} from "./common/monitor";
 import {log_count_query} from "./common/queries";
-import {getRecipients} from "./recipients";
+import {getErrorRecipients} from "./recipients";
 import {Environment} from "./common/environments";
 
 export class AnalyticsMonitors extends Construct {
@@ -9,7 +9,7 @@ export class AnalyticsMonitors extends Construct {
     super(scope, `analytics_${environment}`);
 
     let log_alert_config = {
-      recipients: getRecipients(environment),
+      recipients: getErrorRecipients(environment),
       type: "log alert",
       monitorThresholds: {
         critical: "10",

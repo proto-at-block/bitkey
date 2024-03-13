@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.compiler:compiler",
+    "components": [
+        {
+            "version": "1.5.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compiler-1.5.7.jar": "b53a14a8d7fae128b830c8cf9e00af42b81701559447cc8777cc5fbb1bf36b9a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.sun.xml.fastinfoset:FastInfoset",
+    "components": [
+        {
+            "version": "1.2.16",
+            "variants": [
+                {
+                    "artifacts": {
+                        "FastInfoset-1.2.16.jar": "056f3a1e144409f21ed16afc26805f58e9a21f3fce1543c42d400719d250c511"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.sun.istack:istack-commons-runtime",
+    "components": [
+        {
+            "version": "3.0.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "istack-commons-runtime-3.0.8.jar": "4ffabb06be454a05e4398e20c77fa2b6308d4b88dfbef7ca30a76b5b7d5505ef"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

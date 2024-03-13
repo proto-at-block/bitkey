@@ -1,6 +1,6 @@
 import {Construct} from "constructs";
 import {Environment} from "../common/environments";
-import {getRecipients} from "../recipients";
+import {getErrorRecipients} from "../recipients";
 import {Monitor} from "../common/monitor";
 import {Comparator, metric_sum_query, trace_analytics_count_query} from "../common/queries";
 
@@ -8,7 +8,7 @@ export class ShopApiRevenueReportingJobMonitors extends Construct {
     constructor(scope: Construct, environment: Environment) {
         super(scope, `web-shop-api-revenue-reporting-job_${environment}`);
         const trace_alert_config = {
-            recipients: getRecipients(environment),
+            recipients: getErrorRecipients(environment),
             type: "trace-analytics alert",
             monitorThresholds: {
                 critical: "3",
@@ -53,7 +53,7 @@ export class ShopApiRevenueReportingJobMonitors extends Construct {
         const metricsHitsQuery = `sum:trace.RevenueReportingUsecase_run.hits{service:${serviceName},env:${environment}}.as_count()`;
         const executionRateWindow = "24h";
         const executionRateConfig = {
-            recipients: getRecipients(environment),
+            recipients: getErrorRecipients(environment),
             type: "metric alert",
             monitorThresholds: {
                 critical: "1",

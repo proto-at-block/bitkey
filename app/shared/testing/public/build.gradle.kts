@@ -12,6 +12,7 @@ kotlin {
       dependencies {
         api(libs.kmp.big.number)
         api(libs.kmp.test.kotest.assertions)
+        api(libs.kmp.test.kotest.assertions.json)
         api(libs.kmp.test.kotest.framework.api)
         implementation(projects.shared.loggingPublic)
       }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:http-auth-api",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "http-auth-api-metadata-1.0.13.jar": "637d4c1a3b6b3ef6a4bd0b398a8f59ecd7f4643b89dbf295c5f081a18b670fcf"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

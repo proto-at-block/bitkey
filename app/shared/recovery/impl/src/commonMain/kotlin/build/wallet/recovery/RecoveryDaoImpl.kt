@@ -2,6 +2,7 @@ package build.wallet.recovery
 
 import app.cash.sqldelight.coroutines.asFlow
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.database.BitkeyDatabaseProvider
@@ -130,6 +131,7 @@ class RecoveryDaoImpl(
           destinationHardwareAuthKey = progress.hwKeyBundle.authKey,
           destinationAppSpendingKey = progress.appKeyBundle.spendingKey,
           destinationHardwareSpendingKey = progress.hwKeyBundle.spendingKey,
+          appGlobalAuthKeyHwSignature = progress.appGlobalAuthKeyHwSignature,
           lostFactor = progress.lostFactor
         )
       }
@@ -236,7 +238,7 @@ private fun LocalRecoveryAttemptEntity.toRecovery(
   return if (serverRecovery == null) {
     serverRecoveryMissing()
   } else {
-    serverRecoveryPresent(serverRecovery)
+    serverRecoveryPresent(serverRecovery, appGlobalAuthKeyHwSignature)
   }
 }
 
@@ -245,6 +247,7 @@ private fun LocalRecoveryAttemptEntity.toRecovery(
  */
 private fun LocalRecoveryAttemptEntity.serverRecoveryPresent(
   serverRecovery: ActiveServerRecoveryEntity,
+  appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
 ): Recovery {
   val serverDependentRecovery =
     ServerDependentRecovery.InitiatedRecovery(
@@ -255,6 +258,7 @@ private fun LocalRecoveryAttemptEntity.serverRecoveryPresent(
       hardwareSpendingKey = destinationHardwareSpendingKey,
       hardwareAuthKey = destinationHardwareAuthKey,
       factorToRecover = lostFactor,
+      appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
       serverRecovery = serverRecovery.toServerRecovery()
     )
 
@@ -283,6 +287,7 @@ private fun LocalRecoveryAttemptEntity.serverRecoveryMissing(): Recovery {
       appGlobalAuthKey = destinationAppGlobalAuthKey,
       appRecoveryAuthKey = destinationAppRecoveryAuthKey,
       hardwareSpendingKey = destinationHardwareSpendingKey,
+      appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
       hardwareAuthKey = destinationHardwareAuthKey,
       factorToRecover = lostFactor,
       sealedCsek = it
@@ -329,6 +334,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
           appRecoveryAuthKey = destinationAppRecoveryAuthKey,
           hardwareSpendingKey = destinationHardwareSpendingKey,
           hardwareAuthKey = destinationHardwareAuthKey,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           factorToRecover = lostFactor
         )
       } else {
@@ -345,7 +351,8 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
           hardwareSpendingKey = destinationHardwareSpendingKey,
           hardwareAuthKey = destinationHardwareAuthKey,
           factorToRecover = lostFactor,
-          sealedCsek = sealedCsek!!
+          sealedCsek = sealedCsek!!,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
         )
       }
     } else {
@@ -356,6 +363,7 @@ private fun LocalRecoveryAttemptEntity.toServerIndependentRecovery(): ServerInde
         appRecoveryAuthKey = destinationAppRecoveryAuthKey,
         hardwareSpendingKey = destinationHardwareSpendingKey,
         hardwareAuthKey = destinationHardwareAuthKey,
+        appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
         factorToRecover = lostFactor,
         sealedCsek = sealedCsek!!
       )
@@ -377,12 +385,19 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     hardwareKey = keybox.activeSpendingKeyset.hardwareKey,
     serverKey = keybox.activeSpendingKeyset.f8eSpendingKeyset.spendingPublicKey
   )
-  // Insert the key bundle
+  // Insert the app key bundle
   appKeyBundleQueries.insertKeyBundle(
-    id = keybox.activeKeyBundle.localId,
-    globalAuthKey = keybox.activeKeyBundle.authKey,
-    spendingKey = keybox.activeKeyBundle.spendingKey,
-    recoveryAuthKey = keybox.activeKeyBundle.recoveryAuthKey
+    id = keybox.activeAppKeyBundle.localId,
+    globalAuthKey = keybox.activeAppKeyBundle.authKey,
+    spendingKey = keybox.activeAppKeyBundle.spendingKey,
+    recoveryAuthKey = keybox.activeAppKeyBundle.recoveryAuthKey
+  )
+
+  // Insert the hw key bundle
+  hwKeyBundleQueries.insertKeyBundle(
+    id = keybox.activeHwKeyBundle.localId,
+    authKey = keybox.activeHwKeyBundle.authKey,
+    spendingKey = keybox.activeHwKeyBundle.spendingKey
   )
 
   // Insert the keybox
@@ -390,9 +405,11 @@ private fun BitkeyDatabase.saveKeyboxAsActive(keybox: Keybox) {
     id = keybox.localId,
     account = keybox.fullAccountId,
     activeSpendingKeysetId = keybox.activeSpendingKeyset.localId,
-    activeKeyBundleId = keybox.activeKeyBundle.localId,
+    activeKeyBundleId = keybox.activeAppKeyBundle.localId,
+    activeHwKeyBundleId = keybox.activeHwKeyBundle.localId,
     inactiveKeysetIds = emptySet(),
-    networkType = keybox.config.networkType,
+    appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature,
+    networkType = keybox.config.bitcoinNetworkType,
     fakeHardware = keybox.config.isHardwareFake,
     f8eEnvironment = keybox.config.f8eEnvironment,
     isTestAccount = keybox.config.isTestAccount,

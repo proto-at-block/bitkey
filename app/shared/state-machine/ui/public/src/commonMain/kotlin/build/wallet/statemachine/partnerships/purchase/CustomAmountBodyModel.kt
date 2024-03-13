@@ -1,10 +1,11 @@
 package build.wallet.statemachine.partnerships.purchase
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -27,6 +28,7 @@ data class CustomAmountBodyModel(
     continueButtonEnabled: Boolean,
     onNext: () -> Unit,
   ) : this(
+    eventTrackerScreenInfo = EventTrackerScreenInfo(DepositEventTrackerScreenId.CUSTOM_PARTNER_PURCHASE_AMOUNT),
     onBack = onBack,
     toolbar =
       ToolbarModel(
@@ -44,7 +46,7 @@ data class CustomAmountBodyModel(
         text = "Next",
         isEnabled = continueButtonEnabled,
         size = Footer,
-        onClick = Click.standardClick { onNext() }
+        onClick = StandardClick(onNext)
       )
   )
 }

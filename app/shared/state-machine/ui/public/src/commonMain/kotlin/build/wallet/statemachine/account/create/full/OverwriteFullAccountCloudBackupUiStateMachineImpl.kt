@@ -39,7 +39,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
         proofOfPossessionNfcStateMachine.model(
           ProofOfPossessionNfcProps(
             fullAccountId = props.data.keybox.fullAccountId,
-            keyboxConfig = props.data.keybox.config,
+            fullAccountConfig = props.data.keybox.config,
             request =
               Request.HwKeyProof(
                 onSuccess = { proof ->

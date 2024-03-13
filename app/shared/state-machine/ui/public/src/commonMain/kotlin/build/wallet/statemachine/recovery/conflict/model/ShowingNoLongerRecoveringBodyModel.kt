@@ -6,7 +6,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -39,7 +39,7 @@ fun ShowingNoLongerRecoveringBodyModel(
     primaryButton =
       ButtonModel(
         text = "Got it",
-        onClick = Click.standardClick { onAcknowledge() },
+        onClick = StandardClick(onAcknowledge),
         size = ButtonModel.Size.Footer,
         isLoading = isLoading
       )

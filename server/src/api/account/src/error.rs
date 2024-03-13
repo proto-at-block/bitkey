@@ -28,6 +28,10 @@ pub enum AccountError {
     Unexpected,
     #[error("Account not eligible for deletion")]
     NotEligibleForDeletion,
+    #[error(transparent)]
+    UserPoolError(#[from] userpool::userpool::UserPoolError),
+    #[error("Unauthorized device token registration")]
+    UnauthorizedDeviceTokenRegistration,
 }
 
 impl From<AccountError> for ApiError {
@@ -41,7 +45,8 @@ impl From<AccountError> for ApiError {
             | AccountError::CreatePushNotificationChannel
             | AccountError::InvalidAccountType
             | AccountError::InvalidUpdateAccountProperties
-            | AccountError::Unexpected => ApiError::GenericInternalApplicationError(err_msg),
+            | AccountError::Unexpected
+            | AccountError::UserPoolError(_) => ApiError::GenericInternalApplicationError(err_msg),
             AccountError::TouchpointNotFound => ApiError::GenericNotFound(err_msg),
             AccountError::InvalidSpendingKeysetIdentifierForRotation => {
                 ApiError::GenericBadRequest(err_msg)
@@ -58,6 +63,9 @@ impl From<AccountError> for ApiError {
                 _ => ApiError::GenericInternalApplicationError(err_msg),
             },
             AccountError::NotEligibleForDeletion => Self::GenericConflict(err_msg),
+            AccountError::UnauthorizedDeviceTokenRegistration => {
+                ApiError::GenericUnauthorized(err_msg)
+            }
         }
     }
 }

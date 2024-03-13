@@ -1,14 +1,27 @@
 use crate::tests;
-use account::entities::{Account, Network};
-use http::StatusCode;
-use recovery::routes::{
-    FetchSocialChallengeResponse, RespondToSocialChallengeRequest,
-    RespondToSocialChallengeResponse, StartChallengeTrustedContactRequest,
-    StartSocialChallengeRequest, StartSocialChallengeResponse, VerifySocialChallengeCodeRequest,
-    VerifySocialChallengeCodeResponse,
+use account::{
+    entities::{Account, Network},
+    spend_limit::{Money, SpendingLimit},
 };
+use http::StatusCode;
+use mobile_pay::routes::MobilePaySetupRequest;
+use rand::Rng;
+use recovery::{
+    routes::{
+        FetchSocialChallengeResponse, RespondToSocialChallengeRequest,
+        RespondToSocialChallengeResponse, StartChallengeTrustedContactRequest,
+        StartSocialChallengeRequest, StartSocialChallengeResponse, VerifySocialChallengeRequest,
+        VerifySocialChallengeResponse,
+    },
+    service::social::challenge::{
+        clear_social_challenges::ClearSocialChallengesInput,
+        fetch_social_challenge::CountSocialChallengesInput,
+    },
+};
+use time::UtcOffset;
 use types::{
     account::identifiers::AccountId,
+    currencies::CurrencyCode,
     recovery::social::{
         challenge::{SocialChallengeId, TrustedContactChallengeRequest},
         relationship::RecoveryRelationshipId,
@@ -25,11 +38,11 @@ use super::{
     requests::{axum::TestClient, CognitoAuthentication},
 };
 
-const CUSTOMER_IDENTITY_PUBKEY: &str = "CustyIdentityPubkey";
-const CUSTOMER_EPHEMERAL_PUBKEY: &str = "CustyEphemeralPubkey";
-const CUSTOMER_RECOVERY_PUBKEY: &str = "CustyRecoveryPubkey";
-const TRUSTED_CONTACT_RECOVERY_PUBKEY: &str = "TrustedContactRecoveryPubkey";
-const SHARED_SECRET_CIPHERTEXT: &str = "SharedSecretCiphertext";
+const PROTECTED_CUSTOMER_RECOVERY_PAKE_PUBKEY: &str =
+    "005abf297a64bac071986e41c4dddf8160fe245f9f889699c9c57c35fa6d56f5";
+const TRUSTED_CONTACT_RECOVERY_PAKE_PUBKEY: &str =
+    "006abf297a64bac071986e41c4dddf8160fe245f9f889699c9c57c35fa6d56f6";
+const RECOVERY_PAKE_CONFIRMATION: &str = "RecoveryPakeConfirmation";
 
 async fn try_start_social_challenge(
     client: &TestClient,
@@ -40,11 +53,7 @@ async fn try_start_social_challenge(
     let create_resp = client
         .start_social_challenge(
             &customer_account_id.to_string(),
-            &StartSocialChallengeRequest {
-                customer_identity_pubkey: CUSTOMER_IDENTITY_PUBKEY.to_owned(),
-                customer_ephemeral_pubkey: CUSTOMER_EPHEMERAL_PUBKEY.to_owned(),
-                trusted_contacts,
-            },
+            &StartSocialChallengeRequest { trusted_contacts },
         )
         .await;
 
@@ -65,19 +74,19 @@ async fn try_start_social_challenge(
     }
 }
 
-async fn try_verify_social_challenge_code(
+async fn try_verify_social_challenge(
     client: &TestClient,
     trusted_contact_account_id: &AccountId,
     recovery_relationship_id: &RecoveryRelationshipId,
-    code: &str,
+    counter: u32,
     expected_status_code: StatusCode,
-) -> Option<VerifySocialChallengeCodeResponse> {
+) -> Option<VerifySocialChallengeResponse> {
     let verify_resp = client
-        .verify_social_challenge_code(
+        .verify_social_challenge(
             &trusted_contact_account_id.to_string(),
-            &VerifySocialChallengeCodeRequest {
+            &VerifySocialChallengeRequest {
                 recovery_relationship_id: recovery_relationship_id.to_owned(),
-                code: code.to_owned(),
+                counter,
             },
         )
         .await;
@@ -90,16 +99,12 @@ async fn try_verify_social_challenge_code(
 
     if expected_status_code.is_success() {
         let body_ref = verify_resp.body.as_ref().unwrap();
-
         assert_eq!(
-            body_ref.social_challenge.customer_identity_pubkey,
-            CUSTOMER_IDENTITY_PUBKEY
+            body_ref
+                .social_challenge
+                .protected_customer_recovery_pake_pubkey,
+            PROTECTED_CUSTOMER_RECOVERY_PAKE_PUBKEY
         );
-        assert_eq!(
-            body_ref.social_challenge.customer_ephemeral_pubkey,
-            CUSTOMER_EPHEMERAL_PUBKEY
-        );
-
         Some(verify_resp.body.unwrap())
     } else {
         None
@@ -117,10 +122,10 @@ async fn try_respond_to_social_challenge(
             &trusted_contact_account_id.to_string(),
             &social_challenge_id.to_string(),
             &RespondToSocialChallengeRequest {
-                shared_secret_ciphertext: SHARED_SECRET_CIPHERTEXT.to_owned(),
-                trusted_contact_recovery_pubkey: TRUSTED_CONTACT_RECOVERY_PUBKEY.to_owned(),
-                recovery_key_confirmation: "".to_owned(),
-                recovery_sealed_pkek: "".to_owned(),
+                trusted_contact_recovery_pake_pubkey: TRUSTED_CONTACT_RECOVERY_PAKE_PUBKEY
+                    .to_owned(),
+                recovery_pake_confirmation: RECOVERY_PAKE_CONFIRMATION.to_owned(),
+                resealed_dek: "".to_owned(),
             },
         )
         .await;
@@ -167,7 +172,11 @@ async fn try_fetch_social_challenge(
         );
 
         body_ref.social_challenge.responses.iter().for_each(|r| {
-            assert_eq!(r.shared_secret_ciphertext, SHARED_SECRET_CIPHERTEXT);
+            assert_eq!(
+                r.trusted_contact_recovery_pake_pubkey,
+                TRUSTED_CONTACT_RECOVERY_PAKE_PUBKEY
+            );
+            assert_eq!(r.recovery_pake_confirmation, RECOVERY_PAKE_CONFIRMATION);
         });
 
         Some(fetch_resp.body.unwrap())
@@ -188,7 +197,26 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
 
     let customer_account = match vector.customer_account_type {
         AccountType::Full { .. } => {
-            Account::Full(create_account(&bootstrap.services, Network::BitcoinSignet, None).await)
+            let account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+
+            let mobile_pay_resp = client
+                .put_mobile_pay(
+                    &account.id,
+                    &MobilePaySetupRequest {
+                        limit: SpendingLimit {
+                            active: true,
+                            amount: Money {
+                                amount: 100,
+                                currency_code: CurrencyCode::USD,
+                            },
+                            time_zone_offset: UtcOffset::UTC,
+                        },
+                    },
+                )
+                .await;
+            assert!(mobile_pay_resp.status_code.is_success());
+
+            Account::Full(account)
         }
         AccountType::Lite => {
             Account::Lite(create_lite_account(&bootstrap.services, None, true).await)
@@ -233,6 +261,12 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
             0,
         )
         .await;
+
+        // Mobile pay is disabled
+        let mobile_pay_resp = client.get_mobile_pay(customer_account.get_id()).await;
+        assert!(mobile_pay_resp.status_code.is_success());
+        let body = mobile_pay_resp.body.unwrap();
+        assert!(!body.mobile_pay().unwrap().limit.active);
     }
 }
 
@@ -249,14 +283,14 @@ tests! {
 }
 
 #[derive(Debug)]
-struct VerifySocialChallengeCodeTestVector<'a> {
+struct VerifySocialChallengeTestVector {
     is_trusted_contact: bool,
     is_trusted_contact_endorsed_by_customer: bool,
-    override_code: Option<&'a str>,
+    override_counter: bool,
     expected_status_code: StatusCode,
 }
 
-async fn verify_social_challenge_code_test(vector: VerifySocialChallengeCodeTestVector<'_>) {
+async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     let bootstrap = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
@@ -290,6 +324,7 @@ async fn verify_social_challenge_code_test(vector: VerifySocialChallengeCodeTest
         &create_relationship_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await;
 
@@ -304,7 +339,6 @@ async fn verify_social_challenge_code_test(vector: VerifySocialChallengeCodeTest
         .await;
     }
 
-    // TODO(BKR-919): Add endorsement of recovery relationship once it's implemented
     let start_body = try_start_social_challenge(
         &client,
         &customer_account.id,
@@ -314,63 +348,77 @@ async fn verify_social_challenge_code_test(vector: VerifySocialChallengeCodeTest
                 .recovery_relationship_id
                 .clone(),
             challenge_request: TrustedContactChallengeRequest {
-                customer_recovery_pubkey: CUSTOMER_RECOVERY_PUBKEY.to_owned(),
-                enrollment_sealed_pkek: "".to_owned(),
+                protected_customer_recovery_pake_pubkey: PROTECTED_CUSTOMER_RECOVERY_PAKE_PUBKEY
+                    .to_owned(),
+                sealed_dek: "".to_owned(),
             },
         }],
-        StatusCode::OK,
+        if vector.is_trusted_contact_endorsed_by_customer {
+            StatusCode::OK
+        } else {
+            StatusCode::BAD_REQUEST
+        },
     )
-    .await
-    .unwrap();
+    .await;
 
-    try_verify_social_challenge_code(
+    // If the trusted contact isn't endorsed, there's no point in continuing
+    if !vector.is_trusted_contact_endorsed_by_customer {
+        return;
+    }
+
+    let start_body = start_body.unwrap();
+    let mut rng = rand::thread_rng();
+    let counter = if vector.override_counter {
+        rng.gen::<u32>()
+    } else {
+        start_body.social_challenge.counter
+    };
+    try_verify_social_challenge(
         &client,
         &tc_account.id,
         &create_relationship_body.invitation.recovery_relationship_id,
-        vector
-            .override_code
-            .unwrap_or(&start_body.social_challenge.code),
+        counter,
         vector.expected_status_code,
     )
     .await;
 }
 
 tests! {
-    runner = verify_social_challenge_code_test,
-    test_verify_social_challenge_code_by_tc: VerifySocialChallengeCodeTestVector {
+    runner = verify_social_challenge_test,
+    test_verify_social_challenge_by_tc: VerifySocialChallengeTestVector {
         is_trusted_contact: true,
         is_trusted_contact_endorsed_by_customer: true,
-        override_code: None,
+        override_counter: false,
         expected_status_code: StatusCode::OK,
     },
-    test_verify_social_challenge_code_by_tc_without_endorsement: VerifySocialChallengeCodeTestVector {
+    test_verify_social_challenge_by_tc_without_endorsement: VerifySocialChallengeTestVector {
         is_trusted_contact: true,
         is_trusted_contact_endorsed_by_customer: false,
-        override_code: None,
+        override_counter: false,
         expected_status_code: StatusCode::OK,
     },
-    test_verify_social_challenge_code_by_not_tc: VerifySocialChallengeCodeTestVector {
+    test_verify_social_challenge_by_not_tc: VerifySocialChallengeTestVector {
         is_trusted_contact: false,
         is_trusted_contact_endorsed_by_customer: true,
-        override_code: None,
+        override_counter: false,
         expected_status_code: StatusCode::FORBIDDEN,
     },
-    test_verify_social_challenge_code_by_not_tc_without_endorsement: VerifySocialChallengeCodeTestVector {
+    test_verify_social_challenge_by_not_tc_without_endorsement: VerifySocialChallengeTestVector {
         is_trusted_contact: false,
         is_trusted_contact_endorsed_by_customer: false,
-        override_code: None,
+        override_counter: false,
         expected_status_code: StatusCode::FORBIDDEN,
     },
-    test_verify_social_challenge_code_wrong_code: VerifySocialChallengeCodeTestVector {
+    test_verify_social_challenge_wrong_counter: VerifySocialChallengeTestVector {
         is_trusted_contact: true,
         is_trusted_contact_endorsed_by_customer: true,
-        override_code: Some("000000"),
+        override_counter: true,
         expected_status_code: StatusCode::NOT_FOUND,
     },
-    test_verify_social_challenge_code_wrong_code_without_endorsement: VerifySocialChallengeCodeTestVector {
+    test_verify_social_challenge_wrong_counter_without_endorsement: VerifySocialChallengeTestVector {
         is_trusted_contact: true,
         is_trusted_contact_endorsed_by_customer: false,
-        override_code: Some("000000"),
+        override_counter: true,
         expected_status_code: StatusCode::NOT_FOUND,
     },
 }
@@ -416,6 +464,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         &create_relationship_body.invitation,
         CodeOverride::None,
         StatusCode::OK,
+        1,
     )
     .await;
 
@@ -439,16 +488,26 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
                 .recovery_relationship_id
                 .clone(),
             challenge_request: TrustedContactChallengeRequest {
-                customer_recovery_pubkey: CUSTOMER_RECOVERY_PUBKEY.to_owned(),
-                enrollment_sealed_pkek: "".to_owned(),
+                protected_customer_recovery_pake_pubkey: PROTECTED_CUSTOMER_RECOVERY_PAKE_PUBKEY
+                    .to_owned(),
+                sealed_dek: "".to_owned(),
             },
         }],
-        StatusCode::OK,
+        if vector.is_customer_endorsed {
+            StatusCode::OK
+        } else {
+            StatusCode::BAD_REQUEST
+        },
     )
-    .await
-    .unwrap();
+    .await;
 
-    let verify_body = try_verify_social_challenge_code(
+    // If the customer isn't endorsed, there's no point in continuing
+    if !vector.is_customer_endorsed {
+        return;
+    }
+
+    let start_body = start_body.unwrap();
+    let verify_body = try_verify_social_challenge(
         &client,
         if vector.is_trusted_contact {
             &tc_account.id
@@ -456,7 +515,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
             &other_account.id
         },
         &create_relationship_body.invitation.recovery_relationship_id,
-        &start_body.social_challenge.code,
+        start_body.social_challenge.counter,
         StatusCode::OK,
     )
     .await
@@ -499,6 +558,33 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         )
         .await;
     }
+
+    let num_social_challenges = bootstrap
+        .services
+        .social_challenge_service
+        .count_social_challenges(CountSocialChallengesInput {
+            customer_account_id: &customer_account.id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(num_social_challenges, 1);
+    bootstrap
+        .services
+        .social_challenge_service
+        .clear_social_challenges(ClearSocialChallengesInput {
+            customer_account_id: &customer_account.id,
+        })
+        .await
+        .unwrap();
+    let num_social_challenges = bootstrap
+        .services
+        .social_challenge_service
+        .count_social_challenges(CountSocialChallengesInput {
+            customer_account_id: &customer_account.id,
+        })
+        .await
+        .unwrap();
+    assert_eq!(num_social_challenges, 0);
 }
 
 tests! {
@@ -511,7 +597,7 @@ tests! {
     test_respond_to_social_challenge_by_tc_without_endorsement: RespondToSocialChallengeTestVector {
         is_trusted_contact: true,
         is_customer_endorsed: false,
-        expected_status_code: StatusCode::OK,
+        expected_status_code: StatusCode::BAD_REQUEST,
     },
     test_respond_to_social_challenge_by_not_tc: RespondToSocialChallengeTestVector {
         is_trusted_contact: false,
@@ -521,6 +607,6 @@ tests! {
     test_respond_to_social_challenge_by_not_tc_without_endorsement: RespondToSocialChallengeTestVector {
         is_trusted_contact: false,
         is_customer_endorsed: false,
-        expected_status_code: StatusCode::FORBIDDEN,
+        expected_status_code: StatusCode::BAD_REQUEST,
     },
 }

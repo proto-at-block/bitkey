@@ -1,9 +1,6 @@
 use account::{
-    entities::{
-        CommsVerificationScope, Factor, FullAccount, FullAccountAuthKeys,
-        FullAccountAuthKeysPayload,
-    },
-    service::{FetchAccountByAuthKeyInput, FetchAndUpdateSpendingLimitInput},
+    entities::{CommsVerificationScope, Factor, FullAccount, FullAccountAuthKeysPayload},
+    service::FetchAndUpdateSpendingLimitInput,
 };
 use async_trait::async_trait;
 
@@ -22,13 +19,13 @@ use notification::{
     NotificationPayloadBuilder, NotificationPayloadType,
 };
 use time::{format_description::well_known::Rfc3339, Duration};
-use types::account::identifiers::AccountId;
 
 use crate::{
+    ensure_pubkeys_unique,
     entities::{
-        DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryDestination,
-        RecoveryRequirements, RecoveryStatus, RecoveryType, RecoveryValuesPerAccountType, ToActor,
-        ToActorStrategy, WalletRecovery,
+        DelayNotifyRecoveryAction, DelayNotifyRequirements, RecoveryAction, RecoveryRequirements,
+        RecoveryStatus, RecoveryType, RecoveryValuesPerAccountType, ToActor, ToActorStrategy,
+        WalletRecovery,
     },
     helpers::validate_signatures,
     metrics,
@@ -129,12 +126,31 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
             let account_auth_keys = account
                 .active_auth_keys()
                 .ok_or(RecoveryError::NoActiveAuthKeysError)?;
-            validate_destination(
-                services,
-                &account.id,
-                account_auth_keys,
-                lost_factor,
-                &destination,
+
+            // Ensure we aren't going from having a recovery authkey to having none
+            let has_existing_recovery_key = account_auth_keys.recovery_pubkey.is_some();
+            let has_new_recovery_key = destination.recovery_auth_pubkey.is_some();
+            if has_existing_recovery_key && !has_new_recovery_key {
+                return Err(RecoveryError::NoDestinationRecoveryAuthPubkey);
+            }
+
+            // Hardware key shouldn't change for lost App
+            if lost_factor == Factor::App
+                && account_auth_keys.hardware_pubkey != destination.hardware_auth_pubkey
+            {
+                return Err(RecoveryError::InvalidRecoveryDestination);
+            }
+
+            ensure_pubkeys_unique(
+                services.account,
+                services.recovery,
+                Some(destination.app_auth_pubkey),
+                if lost_factor == Factor::Hw {
+                    Some(destination.hardware_auth_pubkey)
+                } else {
+                    None
+                },
+                destination.recovery_auth_pubkey,
             )
             .await?;
 
@@ -461,105 +477,6 @@ impl TransitioningRecoveryState for CurrentAccountRecoveryState {
             Err(RecoveryError::InvalidTransition)
         }
     }
-}
-
-async fn validate_destination(
-    services: &RecoveryServices<'_>,
-    account_id: &AccountId,
-    account_auth_keys: &FullAccountAuthKeys,
-    lost_factor: Factor,
-    destination: &RecoveryDestination,
-) -> Result<(), RecoveryError> {
-    // TODO: We should abstract these and make reusable between recovery & onboarding
-
-    // If there's an existing account with the same app auth pubkey, error
-    if services
-        .account
-        .fetch_account_by_app_pubkey(FetchAccountByAuthKeyInput {
-            pubkey: destination.app_auth_pubkey,
-        })
-        .await?
-        .is_some()
-    {
-        return Err(RecoveryError::AppAuthPubkeyReuseAccount);
-    }
-
-    // If there's an existing pending recovery with the same destination app auth pubkey, error
-    if services
-        .recovery
-        .fetch_optional_recovery_by_app_auth_pubkey(
-            destination.app_auth_pubkey,
-            RecoveryStatus::Pending,
-        )
-        .await?
-        .is_some()
-    {
-        return Err(RecoveryError::AppAuthPubkeyReuseRecovery);
-    }
-
-    if let Some(recovery_auth_pubkey) = destination.recovery_auth_pubkey {
-        // If there's an existing account with the same recovery auth pubkey, error
-        if services
-            .account
-            .fetch_account_by_recovery_pubkey(FetchAccountByAuthKeyInput {
-                pubkey: recovery_auth_pubkey,
-            })
-            .await?
-            .is_some()
-        {
-            return Err(RecoveryError::RecoveryAuthPubkeyReuseAccount);
-        }
-
-        // If there's an existing pending recovery with the same destination recovery auth pubkey, error
-        if services
-            .recovery
-            .fetch_optional_recovery_by_recovery_auth_pubkey(
-                recovery_auth_pubkey,
-                RecoveryStatus::Pending,
-            )
-            .await?
-            .is_some()
-        {
-            return Err(RecoveryError::RecoveryAuthPubkeyReuseRecovery);
-        }
-    }
-
-    // Hardware key shouldn't change for lost App
-    if lost_factor == Factor::App
-        && account_auth_keys.hardware_pubkey != destination.hardware_auth_pubkey
-    {
-        return Err(RecoveryError::InvalidRecoveryDestination);
-    }
-
-    // If there's an existing account with the same hardware auth pubkey, error
-    //   unless it's the creator's account and this is a lost App recovery, in
-    //   which case reuse of the hardware auth pubkey is expected
-    if let Some(existing_account) = services
-        .account
-        .fetch_account_by_hw_pubkey(FetchAccountByAuthKeyInput {
-            pubkey: destination.hardware_auth_pubkey,
-        })
-        .await?
-    {
-        if !(existing_account.get_id() == account_id && lost_factor == Factor::App) {
-            return Err(RecoveryError::HwAuthPubkeyReuseAccount);
-        }
-    }
-
-    // If there's an existing pending recovery with the same destination hardware auth pubkey, error
-    if services
-        .recovery
-        .fetch_optional_recovery_by_hardware_auth_pubkey(
-            destination.hardware_auth_pubkey,
-            RecoveryStatus::Pending,
-        )
-        .await?
-        .is_some()
-    {
-        return Err(RecoveryError::HwAuthPubkeyReuseRecovery);
-    }
-
-    Ok(())
 }
 
 impl TransitionTo<CanceledRecoveryState> for CurrentAccountRecoveryState {}

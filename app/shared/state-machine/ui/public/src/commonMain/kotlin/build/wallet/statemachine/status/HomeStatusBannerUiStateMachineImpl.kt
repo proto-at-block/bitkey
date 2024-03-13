@@ -1,8 +1,11 @@
 package build.wallet.statemachine.status
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.EmergencyAccessMode
@@ -22,6 +25,7 @@ class HomeStatusBannerUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
   private val clock: Clock,
+  private val eventTracker: EventTracker,
 ) : HomeStatusBannerUiStateMachine {
   @Composable
   override fun model(props: HomeStatusBannerUiProps): StatusBannerModel? {
@@ -35,10 +39,15 @@ class HomeStatusBannerUiStateMachineImpl(
         null
 
       is AppFunctionalityStatus.LimitedFunctionality -> {
+        LaunchedEffect("log-inactive-app-event") {
+          if (appFunctionalityStatus.cause is InactiveApp) {
+            eventTracker.track(Action.ACTION_APP_BECAME_INACTIVE)
+          }
+        }
         StatusBannerModel(
           title =
             when (appFunctionalityStatus.cause) {
-              is F8eUnreachable -> "Bitkey Services Unavailable"
+              is F8eUnreachable -> "Unable to reach Bitkey services"
               is InternetUnreachable -> "Offline"
               InactiveApp, EmergencyAccessMode -> "Limited Functionality"
             },

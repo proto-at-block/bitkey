@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-messaging",
+    "components": [
+        {
+            "version": "23.2.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-messaging-23.2.1.aar": "4d00a7606eaf71693f661fe375d766e1acc49932895b36ffa9875af8b6246df7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

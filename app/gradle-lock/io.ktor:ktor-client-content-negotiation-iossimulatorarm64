@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-content-negotiation-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-content-negotiation-iossimulatorarm64-2.3.8-metadata.jar": "b2683a6b4ba8c66c3791b9e3e6d15f6b502ea7044285cb70c747c392cb107404"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-content-negotiation.klib": "9320ea0896fdc86ddce9c6fcbb75e042ab8d291bcece0c1d355227039e9d0ef2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

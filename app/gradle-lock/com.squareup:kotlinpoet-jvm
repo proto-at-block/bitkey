@@ -1,0 +1,31 @@
+{
+    "module-identifier": "com.squareup:kotlinpoet-jvm",
+    "components": [
+        {
+            "version": "1.15.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinpoet-jvm-1.15.2.jar": "71d9e80f8f5ea850a899b68dead3b1c33bdfabaec364906955f4b48536d79fa1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "SQLDelight-DialectClasspath"
+            ]
+        },
+        {
+            "version": "1.16.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinpoet-jvm-1.16.0.jar": "41a506824da430c0e543a023243eae88dba1888acf255b999a51da2dbefc0bc8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

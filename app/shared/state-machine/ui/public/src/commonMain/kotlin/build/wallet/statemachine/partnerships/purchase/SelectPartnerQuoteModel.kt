@@ -9,7 +9,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.FULL
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.model.icon.IconImage
@@ -19,6 +18,9 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
@@ -29,7 +31,7 @@ import kotlinx.collections.immutable.toImmutableList
  * @param [moneyDisplayFormatter] used to format the amounts for display
  * @param [quotes] list of quotes to display to the user
  * @param [onSelectPartnerQuote] callback fired when the user selects a quote
- * @param [onBack] callback fired when the user wants to go back in the flow
+ * @param [onClosed] callback fired when the user wants to exit the flow
  */
 fun selectPartnerQuoteModel(
   title: String,
@@ -37,7 +39,7 @@ fun selectPartnerQuoteModel(
   moneyDisplayFormatter: MoneyDisplayFormatter,
   quotes: ImmutableList<Quote>,
   onSelectPartnerQuote: (Quote) -> Unit,
-  onBack: () -> Unit,
+  onClosed: () -> Unit,
 ): SheetModel {
   val listGroupModel =
     ListGroupModel(
@@ -70,9 +72,13 @@ fun selectPartnerQuoteModel(
   return SheetModel(
     body =
       FormBodyModel(
-        onBack = onBack,
-        header = FormHeaderModel(headline = title, subline = subTitle, alignment = FormHeaderModel.Alignment.CENTER),
-        toolbar = null,
+        onBack = {},
+        header = null,
+        toolbar =
+          ToolbarModel(
+            middleAccessory = ToolbarMiddleAccessoryModel(title = title, subtitle = subTitle),
+            trailingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClosed)
+          ),
         mainContentList = immutableListOf(ListGroup(listGroupModel)),
         primaryButton = null,
         id = PARTNER_QUOTES_LIST,
@@ -80,6 +86,6 @@ fun selectPartnerQuoteModel(
       ),
     size = FULL,
     dragIndicatorVisible = true,
-    onClosed = onBack
+    onClosed = onClosed
   )
 }

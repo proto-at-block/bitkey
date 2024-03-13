@@ -19,7 +19,6 @@ kotlin {
         api(projects.shared.cloudBackupPublic)
         api(projects.shared.databasePublic)
         api(projects.shared.datadogPublic)
-        api(projects.shared.depositPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.loggingPublic)

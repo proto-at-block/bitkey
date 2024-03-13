@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.kotest:kotest-property-iossimulatorarm64",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-property-iossimulatorarm64-5.8.0-metadata.jar": "abea83af7fdaa4ae3e37a371e0b1b0baeaff77d06dabe8f693975f146602c411"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotest-property.klib": "02299f546cc68cd13a2d8570857ed6d8652b686d04c6ca75ddfb4d1d49607db4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

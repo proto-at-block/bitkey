@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.zxing:core",
+    "components": [
+        {
+            "version": "3.5.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-3.5.2.jar": "fba90122b5d56bac8c947c60b5925211b0d8d40c539b3109be3774f08f74fedb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

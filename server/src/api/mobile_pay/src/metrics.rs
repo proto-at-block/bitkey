@@ -16,6 +16,16 @@ pub(crate) static MOBILE_PAY_COSIGN_OVERFLOW: Lazy<Counter<u64>> =
 pub(crate) static MOBILE_PAY_INPUTS_DO_NOT_BELONG_TO_SELF: Lazy<Counter<u64>> =
     Lazy::new(|| FACTORY.u64_counter("inputs_do_not_belong_to_self", None));
 
+// Counts the number of attempts to sign a Mobile Pay PSBT where not all the outputs belong to
+// the user's wallet. This number should *always* be 0.
+pub(crate) static MOBILE_PAY_OUTPUTS_BELONG_TO_SELF: Lazy<Counter<u64>> =
+    Lazy::new(|| FACTORY.u64_counter("outputs_belong_to_self", None));
+
+// Counts the number of attempts to sign a Sweep PSBT where the outputs belong to an external wallet.
+// This number should *always* be 0.
+pub(crate) static SWEEP_OUTPUTS_DONT_BELONG_TO_ACTIVE_KEYSET: Lazy<Counter<u64>> =
+    Lazy::new(|| FACTORY.u64_counter("outputs_dont_belong_to_active_keyset", None));
+
 // Histograms
 
 // Measures the spread of how long it takes to cosign a Mobile Pay transaction.

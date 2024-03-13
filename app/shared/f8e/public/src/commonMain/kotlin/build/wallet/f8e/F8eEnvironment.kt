@@ -1,5 +1,6 @@
 package build.wallet.f8e
 
+import build.wallet.crypto.WsmIntegrityKeyVariant
 import build.wallet.f8e.F8eEnvironment.Custom
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.F8eEnvironment.ForceOffline
@@ -75,7 +76,7 @@ val F8eEnvironment.name: String
 val F8eEnvironment.url: String
   get() =
     when (this) {
-      Production -> "https://api.bitkey.build"
+      Production -> "https://api.bitkey.world"
       Staging -> "https://api.bitkeystaging.com"
       Development -> "https://api.dev.wallet.build"
       // Android emulator puts the host device's localhost IP at 10.0.2.2
@@ -107,3 +108,10 @@ object F8eEnvironmentSerializer : KSerializer<F8eEnvironment> {
     encoder.encodeString(value.asString())
   }
 }
+
+val F8eEnvironment.wsmIntegrityKeyVariant: WsmIntegrityKeyVariant
+  get() =
+    when (this) {
+      Production -> WsmIntegrityKeyVariant.Prod
+      else -> WsmIntegrityKeyVariant.Test
+    }

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib-common",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-common-1.9.10.jar": "cde3341ba18a2ba262b0b7cf6c55b20c90e8d434e42c9a13e6a3f770db965a88"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

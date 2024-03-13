@@ -5,7 +5,8 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
 /**
@@ -48,7 +49,7 @@ fun ViewingInvitationBodyModel(
         treatment = ButtonModel.Treatment.Primary,
         size = ButtonModel.Size.Footer,
         onClick =
-          Click.standardClick {
+          StandardClick {
             onReinvite()
           }
       )
@@ -59,20 +60,16 @@ fun ViewingInvitationBodyModel(
         treatment = ButtonModel.Treatment.Primary,
         size = ButtonModel.Size.Footer,
         onClick =
-          Click.standardClick {
+          StandardClick {
             onShare()
           }
       )
     },
   secondaryButton =
     ButtonModel(
-      text = "Remove Trusted Contact",
-      treatment = ButtonModel.Treatment.SecondaryDestructive,
+      "Remove Trusted Contact", treatment = ButtonModel.Treatment.SecondaryDestructive,
       size = ButtonModel.Size.Footer,
-      onClick =
-        Click.sheetClosingClick {
-          onRemove()
-        }
+      onClick = SheetClosingClick(onRemove)
     ),
   renderContext = RenderContext.Sheet
 )

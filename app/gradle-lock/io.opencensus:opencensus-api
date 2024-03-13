@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.opencensus:opencensus-api",
+    "components": [
+        {
+            "version": "0.31.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "opencensus-api-0.31.1.jar": "f1474d47f4b6b001558ad27b952e35eda5cc7146788877fc52938c6eba24b382"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,18 +1,13 @@
 package build.wallet.statemachine.settings.helpcenter
 
-import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS_HELP_CENTER
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.equals.shouldBeEqual
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeInstanceOf
 
 class HelpCenterUiStateMachineImplTests : FunSpec({
 
@@ -32,35 +27,16 @@ class HelpCenterUiStateMachineImplTests : FunSpec({
       )
   }
 
-  test("should raise SETTING_HELP_CENTER eventTracker event") {
+  test("should render FAQ in-app browser") {
     stateMachine.test(props) {
-      with(awaitItem()) {
-        body.eventTrackerScreenInfo
-          .shouldNotBeNull()
-          .eventTrackerScreenId
-          .shouldBeEqual(SETTINGS_HELP_CENTER)
+      awaitScreenWithBody<InAppBrowserModel> {
+        open()
       }
-    }
-  }
 
-  test("should render Help Center with FAQ and Contact us") {
-    stateMachine.test(props) {
-      awaitScreenWithBody<FormBodyModel> {
-        with(mainContentList.first().shouldBeInstanceOf<ListGroup>()) {
-          with(listGroupModel.items[0]) {
-            title.shouldBe("FAQ")
-            secondaryText.shouldBeNull()
-            leadingAccessory.shouldNotBeNull()
-            trailingAccessory.shouldNotBeNull()
-          }
-          with(listGroupModel.items[1]) {
-            title.shouldBe("Contact us")
-            secondaryText.shouldBeNull()
-            leadingAccessory.shouldNotBeNull()
-            trailingAccessory.shouldNotBeNull()
-          }
-        }
-      }
+      inAppBrowserNavigator.onOpenCalls.awaitItem()
+        .shouldBe("https://support.bitkey.build/hc")
+
+      inAppBrowserNavigator.onCloseCallback.shouldNotBeNull().invoke()
     }
   }
 

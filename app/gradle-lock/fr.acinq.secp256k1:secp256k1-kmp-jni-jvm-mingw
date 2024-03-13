@@ -1,0 +1,18 @@
+{
+    "module-identifier": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-mingw",
+    "components": [
+        {
+            "version": "0.13.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "secp256k1-kmp-jni-jvm-mingw-0.13.0.jar": "27d8cf52d962068c3762afcc0eda4b281cde49ee2b396825acfc9bc66b7ec74d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

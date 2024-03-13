@@ -1,0 +1,24 @@
+{
+    "module-identifier": "com.rickclephas.kmp:nserror-kt-iosx64",
+    "components": [
+        {
+            "version": "0.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "nserror-kt-cinterop-NSErrorKtRuntime.klib": "24a783561919d0a704cf466350e60c3913c5512c65079806236b3998fcd7540a",
+                        "nserror-kt.klib": "e2a8f71a0c5a1ccd4fff41ba18acb44bd8e3a59662b4fcfdd3274df4d923b16c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "nserror-kt-iosx64-0.2.0-metadata.jar": "fd3c3cb4c9bc2ec53d763e081cb3c82835c8bee6777f636556330d9113e10fba"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

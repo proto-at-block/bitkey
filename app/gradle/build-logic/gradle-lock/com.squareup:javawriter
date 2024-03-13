@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup:javawriter",
+    "components": [
+        {
+            "version": "2.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "javawriter-2.5.0.jar": "fcfb09fb0ea0aa97d3cfe7ea792398081348e468f126b3603cb3803f240197f0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

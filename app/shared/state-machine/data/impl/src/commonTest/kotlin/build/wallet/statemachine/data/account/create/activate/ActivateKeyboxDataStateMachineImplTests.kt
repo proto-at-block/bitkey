@@ -5,6 +5,7 @@ import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action
 import build.wallet.analytics.v1.Action.ACTION_APP_GETTINGSTARTED_INITIATED
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -16,7 +17,8 @@ import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.keys.OnboardingAppKeyKeystoreFake
 import build.wallet.ktor.result.HttpError
-import build.wallet.onboarding.OnboardingKeyboxHwAuthPublicKeyDaoFake
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeys
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoFake
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData.ActivateKeyboxDataFull.ActivatingKeyboxDataFull
@@ -38,7 +40,7 @@ class ActivateKeyboxDataStateMachineImplTests : FunSpec({
     OnboardingKeyboxStepStateDaoMock(turbines::create)
   val onboardingService = OnboardingServiceMock(turbines::create)
   val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
-  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHwAuthPublicKeyDaoFake()
+  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
 
   val dataStateMachine =
     ActivateFullAccountDataStateMachineImpl(
@@ -48,7 +50,7 @@ class ActivateKeyboxDataStateMachineImplTests : FunSpec({
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
       onboardingService = onboardingService,
       onboardingAppKeyKeystore = onboardingAppKeyKeystore,
-      onboardingKeyboxHwAuthPublicKeyDao = onboardingKeyboxHwAuthPublicKeyDao
+      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao
     )
 
   val exitOnboardingCalls = turbines.create<Unit>("exitOnboarding calls")
@@ -70,7 +72,9 @@ class ActivateKeyboxDataStateMachineImplTests : FunSpec({
       recoveryAuthKey = AppKeyBundleMock.recoveryAuthKey!!,
       bitcoinNetworkType = SIGNET
     )
-    onboardingKeyboxHwAuthPublicKeyDao.set(HwAuthSecp256k1PublicKeyMock)
+    onboardingKeyboxHwAuthPublicKeyDao.set(
+      OnboardingKeyboxHardwareKeys(HwAuthSecp256k1PublicKeyMock, AppGlobalAuthKeyHwSignatureMock)
+    )
   }
 
   test("activate new keybox successfully") {
@@ -80,7 +84,7 @@ class ActivateKeyboxDataStateMachineImplTests : FunSpec({
       }
 
       onboardingAppKeyKeystore.appKeys.shouldBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.hwAuthPublicKey.shouldBeNull()
+      onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
 
       // Activating wallet and adding tasks
       onboardingService.completeOnboardingCalls.awaitItem()
@@ -99,7 +103,7 @@ class ActivateKeyboxDataStateMachineImplTests : FunSpec({
       }
 
       onboardingAppKeyKeystore.appKeys.shouldBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.hwAuthPublicKey.shouldBeNull()
+      onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
 
       onboardingService.completeOnboardingCalls.awaitItem()
 
@@ -124,7 +128,7 @@ class ActivateKeyboxDataStateMachineImplTests : FunSpec({
 private suspend fun GettingStartedTaskDao.expectOnboardingTasks() {
   getTasks().shouldContainExactly(
     GettingStartedTask(
-      GettingStartedTask.TaskId.EnableSpendingLimit,
+      GettingStartedTask.TaskId.AddBitcoin,
       GettingStartedTask.TaskState.Incomplete
     ),
     GettingStartedTask(
@@ -132,7 +136,7 @@ private suspend fun GettingStartedTaskDao.expectOnboardingTasks() {
       GettingStartedTask.TaskState.Incomplete
     ),
     GettingStartedTask(
-      GettingStartedTask.TaskId.AddBitcoin,
+      GettingStartedTask.TaskId.EnableSpendingLimit,
       GettingStartedTask.TaskState.Incomplete
     )
   )

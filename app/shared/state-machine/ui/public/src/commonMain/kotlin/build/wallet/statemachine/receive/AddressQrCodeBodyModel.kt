@@ -3,8 +3,9 @@ package build.wallet.statemachine.receive
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.qr.QrCodeModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
@@ -26,28 +27,46 @@ data class AddressQrCodeBodyModel(
 ) : BodyModel() {
   sealed interface Content {
     data class QrCode(
-      @Redacted val address: String?,
-      @Redacted val addressQrCode: QrCodeModel?,
+      /** URL of the remote image to fetch for the QR code */
+      @Redacted val addressQrImageUrl: String?,
+      /** The formatted display string for the address */
+      @Redacted val addressDisplayString: LabelModel,
+      /** Fallback QR code data to use to manually draw a QR code image if fetching the remote fails */
+      @Redacted val fallbackAddressQrCodeModel: QrCodeModel?,
       val copyButtonModel: ButtonModel,
       val shareButtonModel: ButtonModel,
     ) : Content {
       constructor(
+        addressQrImageUrl: String?,
         address: String?,
-        addressQrCode: QrCodeModel?,
+        fallbackAddressQrCodeModel: QrCodeModel?,
         copyButtonIcon: Icon,
         copyButtonLabelText: String,
         onCopyClick: () -> Unit,
         onShareClick: () -> Unit,
       ) : this(
-        address = address,
-        addressQrCode = addressQrCode,
+        addressQrImageUrl = addressQrImageUrl,
+        // Chunk the address into 4-letter size groups and then color all the odd
+        // substrings ON60 (and the even substrings will be colored with primary color)
+        addressDisplayString = address?.chunked(4)?.let { addressParts ->
+          LabelModel.StringWithStyledSubstringModel.from(
+            string = addressParts.joinToString(" "),
+            substringToColor = addressParts
+              // Filter to only the odd indices to color those substrings
+              .filterIndexed { index, _ -> index % 2 != 0 }
+              // Map to ON60 color
+              .associateWith { LabelModel.StringWithStyledSubstringModel.Color.ON60 }
+          )
+        } // Fall back on showing "..." while we are loading an address
+          ?: LabelModel.StringModel("..."),
+        fallbackAddressQrCodeModel = fallbackAddressQrCodeModel,
         copyButtonModel =
           ButtonModel(
             text = copyButtonLabelText,
             leadingIcon = copyButtonIcon,
             treatment = ButtonModel.Treatment.Secondary,
             size = ButtonModel.Size.Footer,
-            onClick = Click.StandardClick(onCopyClick)
+            onClick = StandardClick(onCopyClick)
           ),
         shareButtonModel =
           ButtonModel(
@@ -55,7 +74,7 @@ data class AddressQrCodeBodyModel(
             leadingIcon = Icon.SmallIconShare,
             treatment = ButtonModel.Treatment.Secondary,
             size = ButtonModel.Size.Footer,
-            onClick = Click.StandardClick(onShareClick)
+            onClick = StandardClick(onShareClick)
           )
       )
     }
@@ -86,7 +105,7 @@ data class AddressQrCodeBodyModel(
                     iconSize = IconSize.Accessory,
                     iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
                   ),
-                onClick = Click.StandardClick { onRefreshClick() }
+                onClick = StandardClick { onRefreshClick() }
               )
           )
       ),

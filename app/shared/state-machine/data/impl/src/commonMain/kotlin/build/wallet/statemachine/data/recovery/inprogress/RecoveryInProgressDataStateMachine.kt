@@ -1,3 +1,5 @@
+@file:Suppress("CyclomaticComplexMethod")
+
 package build.wallet.statemachine.data.recovery.inprogress
 
 import androidx.compose.runtime.Composable
@@ -10,13 +12,16 @@ import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthProtocolError
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.logAuthFailure
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
@@ -52,6 +57,7 @@ import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.SignedChallengeToCompleteRecovery
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
@@ -64,6 +70,7 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.AwaitingChallengeAndCsekSignedWithHardwareData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.FailedToRotateAuthData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
@@ -121,8 +128,9 @@ interface RecoveryInProgressDataStateMachine :
  * @param onRetryCloudRecovery
  */
 data class RecoveryInProgressProps(
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val recovery: StillRecovering,
+  val oldAppGlobalAuthKey: AppGlobalAuthPublicKey?,
   val onRetryCloudRecovery: (() -> Unit)?,
 ) {
   init {
@@ -153,12 +161,13 @@ class RecoveryInProgressDataStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
+  private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
 ) : RecoveryInProgressDataStateMachine {
   @Composable
   override fun model(props: RecoveryInProgressProps): RecoveryInProgressData {
-    var state by remember(props.keyboxConfig, props.recovery) {
+    var state by remember(props.fullAccountConfig, props.recovery) {
       mutableStateOf(
-        calculateInitialState(props.keyboxConfig, props.recovery)
+        calculateInitialState(props.fullAccountConfig, props.recovery)
       )
     }
     val scope = rememberStableCoroutineScope()
@@ -220,8 +229,14 @@ class RecoveryInProgressDataStateMachineImpl(
           delayedResult(2.seconds) {
             accountAuthenticator
               .appAuth(
-                f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+                f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
                 appAuthPublicKey = props.recovery.appGlobalAuthKey
+              )
+
+            accountAuthenticator
+              .appAuth(
+                f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+                appAuthPublicKey = requireNotNull(props.recovery.appRecoveryAuthKey)
               )
           }
             .logAuthFailure { "Error authenticating with new app auth key after recovery completed." }
@@ -252,18 +267,18 @@ class RecoveryInProgressDataStateMachineImpl(
             recoveryNotificationVerificationDataStateMachine.model(
               props =
                 RecoveryNotificationVerificationDataProps(
-                  f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+                  f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
                   fullAccountId = props.recovery.fullAccountId,
                   onRollback = {
                     // Take them back to the beginning
-                    state = calculateInitialState(props.keyboxConfig, props.recovery)
+                    state = calculateInitialState(props.fullAccountConfig, props.recovery)
                   },
                   onComplete = {
                     state =
                       getHwProofOfPossessionOrCancelDirectly(
                         props,
                         rollbackFromAwaitingProofOfPossession = {
-                          state = calculateInitialState(props.keyboxConfig, props.recovery)
+                          state = calculateInitialState(props.fullAccountConfig, props.recovery)
                         }
                       )
                   },
@@ -333,7 +348,7 @@ class RecoveryInProgressDataStateMachineImpl(
                 }
               },
               failure = { state = ReadyToCompleteRecoveryState },
-              isHardwareFake = props.keyboxConfig.isHardwareFake
+              isHardwareFake = props.fullAccountConfig.isHardwareFake
             )
         )
       }
@@ -344,8 +359,13 @@ class RecoveryInProgressDataStateMachineImpl(
         )
 
       is RotatingAuthKeysWithF8eState -> {
+        // If we are recovering the app key in this flow, we've also lost the cloud data.
+        // That means we lost the customer's Delegated Decryption Key, so they can no longer
+        // protect their Protected Customers. For now, we just remove them. The customer will
+        // get a notification that they've been removed.
+        val removeProtectedCustomers = props.recovery.factorToRecover == App
         LaunchedEffect("rotate-auth-keys") {
-          rotateAuthKeys(props, dataState)
+          rotateAuthKeys(props, dataState, removeProtectedCustomers)
             .onFailure {
               state = FailedToRotateAuthState
             }
@@ -356,7 +376,7 @@ class RecoveryInProgressDataStateMachineImpl(
       is AwaitingHardwareProofOfPossessionState ->
         AwaitingHardwareProofOfPossessionData(
           fullAccountId = props.recovery.fullAccountId,
-          keyboxConfig = props.keyboxConfig,
+          fullAccountConfig = props.fullAccountConfig,
           appAuthKey = props.recovery.appGlobalAuthKey,
           addHwFactorProofOfPossession = { hardwareProofOfPossession ->
             state =
@@ -498,6 +518,52 @@ class RecoveryInProgressDataStateMachineImpl(
             state = ReadyToCompleteRecoveryState
           }
         )
+      is State.RegeneratingTcCertificatesState -> {
+        RegenerateTcCertificatesEffect(
+          props,
+          dataState = dataState,
+          assignState = { newState -> state = newState }
+        )
+        RegeneratingTcCertificatesData
+      }
+    }
+  }
+
+  @Suppress("FunctionNaming")
+  @Composable
+  private fun RegenerateTcCertificatesEffect(
+    props: RecoveryInProgressProps,
+    dataState: State.RegeneratingTcCertificatesState,
+    assignState: (State) -> Unit,
+  ) {
+    LaunchedEffect("regenerate-tc-certificates") {
+      binding {
+        trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          accountId = props.recovery.fullAccountId,
+          contacts = dataState.trustedContacts,
+          oldAppGlobalAuthKey = props.oldAppGlobalAuthKey,
+          oldHwAuthKey = props.recovery.hardwareAuthKey,
+          newAppGlobalAuthKey = props.recovery.appGlobalAuthKey,
+          newAppGlobalAuthKeyHwSignature = props.recovery.appGlobalAuthKeyHwSignature
+        ).bind()
+
+        socRecRelationshipsRepository.syncAndVerifyRelationships(
+          accountId = props.recovery.fullAccountId,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          appAuthKey = props.recovery.appGlobalAuthKey,
+          hwAuthPublicKey = props.recovery.hardwareAuthKey,
+          hardwareProofOfPossession = null
+        ).bind()
+
+        assignState(
+          PerformingCloudBackupState(
+            dataState.sealedCsek,
+            dataState.keybox,
+            dataState.trustedContacts
+          )
+        )
+      }
     }
   }
 
@@ -509,12 +575,12 @@ class RecoveryInProgressDataStateMachineImpl(
     assignState: (State) -> Unit,
   ) {
     LaunchedEffect("get-trusted-contacts") {
-      socRecRelationshipsRepository.syncRelationships(
+      socRecRelationshipsRepository.syncRelationshipsWithoutVerification(
         accountId = props.recovery.fullAccountId,
-        f8eEnvironment = props.keyboxConfig.f8eEnvironment
+        f8eEnvironment = props.fullAccountConfig.f8eEnvironment
       ).onSuccess { relationships ->
         assignState(
-          PerformingCloudBackupState(
+          State.RegeneratingTcCertificatesState(
             sealedCsek = dataState.sealedCsek,
             keybox = dataState.keybox,
             trustedContacts = relationships.trustedContacts
@@ -533,7 +599,7 @@ class RecoveryInProgressDataStateMachineImpl(
   }
 
   private fun createNewKeybox(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     recovery: StillRecovering,
     f8eSpendingKeyset: F8eSpendingKeyset,
   ): Keybox {
@@ -541,7 +607,7 @@ class RecoveryInProgressDataStateMachineImpl(
       SpendingKeyset(
         localId = uuid.random(),
         f8eSpendingKeyset = f8eSpendingKeyset,
-        networkType = keyboxConfig.networkType,
+        networkType = fullAccountConfig.bitcoinNetworkType,
         appKey = recovery.appSpendingKey,
         hardwareKey = recovery.hardwareSpendingKey
       )
@@ -551,15 +617,22 @@ class RecoveryInProgressDataStateMachineImpl(
       activeSpendingKeyset = spendingKeyset,
       // TODO(W-3070): persist inactive keysets
       inactiveKeysets = emptyImmutableList(),
-      activeKeyBundle =
+      appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+      activeAppKeyBundle =
         AppKeyBundle(
           localId = uuid.random(),
           spendingKey = recovery.appSpendingKey,
           authKey = recovery.appGlobalAuthKey,
-          networkType = keyboxConfig.networkType,
+          networkType = fullAccountConfig.bitcoinNetworkType,
           recoveryAuthKey = recovery.appRecoveryAuthKey
         ),
-      config = keyboxConfig
+      activeHwKeyBundle = HwKeyBundle(
+        localId = uuid.random(),
+        spendingKey = recovery.hardwareSpendingKey,
+        authKey = recovery.hardwareAuthKey,
+        networkType = fullAccountConfig.bitcoinNetworkType
+      ),
+      config = fullAccountConfig
     )
   }
 
@@ -569,7 +642,7 @@ class RecoveryInProgressDataStateMachineImpl(
    * Otherwise, we are ready to complete recovery, return [ReadyToCompleteRecoveryState].
    */
   private fun calculateInitialState(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     recovery: StillRecovering,
   ): State {
     return when (recovery) {
@@ -598,13 +671,13 @@ class RecoveryInProgressDataStateMachineImpl(
       is CreatedSpendingKeys -> {
         GettingTrustedContactsState(
           sealedCsek = recovery.sealedCsek,
-          keybox = createNewKeybox(keyboxConfig, recovery, recovery.f8eSpendingKeyset)
+          keybox = createNewKeybox(fullAccountConfig, recovery, recovery.f8eSpendingKeyset)
         )
       }
 
       is BackedUpToCloud -> {
         PerformingSweepState(
-          keybox = createNewKeybox(keyboxConfig, recovery, recovery.f8eSpendingKeyset)
+          keybox = createNewKeybox(fullAccountConfig, recovery, recovery.f8eSpendingKeyset)
         )
       }
     }
@@ -623,7 +696,7 @@ class RecoveryInProgressDataStateMachineImpl(
     onError: (RecoveryCanceler.RecoveryCancelerError) -> Unit,
   ): Result<Unit, RecoveryCanceler.RecoveryCancelerError> {
     return recoveryCanceler.cancel(
-      f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+      f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
       fullAccountId = props.recovery.fullAccountId,
       hwFactorProofOfPossession = hwFactorProofOfPossession
     )
@@ -653,16 +726,24 @@ class RecoveryInProgressDataStateMachineImpl(
   private suspend fun rotateAuthKeys(
     props: RecoveryInProgressProps,
     state: RotatingAuthKeysWithF8eState,
+    removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable> =
-    recoveryAuthCompleter
-      .rotateAuthKeys(
-        f8eEnvironment = props.keyboxConfig.f8eEnvironment,
-        fullAccountId = props.recovery.fullAccountId,
-        challenge = state.challenge,
-        hardwareSignedChallenge = state.hardwareSignedChallenge,
-        destinationAppGlobalAuthPubKey = props.recovery.appGlobalAuthKey,
-        sealedCsek = state.sealedCsek
-      )
+    binding {
+      recoveryAuthCompleter
+        .rotateAuthKeys(
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          fullAccountId = props.recovery.fullAccountId,
+          challenge = state.challenge,
+          hardwareSignedChallenge = state.hardwareSignedChallenge,
+          destinationAppAuthPubKeys = AppAuthPublicKeys(
+            props.recovery.appGlobalAuthKey,
+            props.recovery.appRecoveryAuthKey,
+            props.recovery.appGlobalAuthKeyHwSignature
+          ),
+          sealedCsek = state.sealedCsek,
+          removeProtectedCustomers = removeProtectedCustomers
+        ).bind()
+    }
 
   private suspend fun rotateF8eSpendingKeyToCompleteRecovery(
     props: RecoveryInProgressProps,
@@ -672,7 +753,7 @@ class RecoveryInProgressDataStateMachineImpl(
       val f8eSpendingKeyset =
         f8eSpendingKeyRotator
           .rotateSpendingKey(
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             fullAccountId = props.recovery.fullAccountId,
             appSpendingKey = props.recovery.appSpendingKey,
             hardwareSpendingKey = props.recovery.hardwareSpendingKey,
@@ -683,7 +764,7 @@ class RecoveryInProgressDataStateMachineImpl(
 
       deviceTokenManager.addDeviceTokenIfPresentForAccount(
         fullAccountId = props.recovery.fullAccountId,
-        f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
         authTokenScope = AuthTokenScope.Recovery
       )
         .result
@@ -794,6 +875,15 @@ class RecoveryInProgressDataStateMachineImpl(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
       val error: Error,
+    ) : State
+
+    /**
+     * Generating new TC certificates using updated auth keys.
+     */
+    data class RegeneratingTcCertificatesState(
+      val sealedCsek: SealedCsek,
+      val keybox: Keybox,
+      val trustedContacts: List<TrustedContact>,
     ) : State
 
     /**

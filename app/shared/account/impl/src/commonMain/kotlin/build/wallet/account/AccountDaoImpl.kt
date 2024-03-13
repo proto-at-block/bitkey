@@ -9,8 +9,8 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
+import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.BitkeyDatabase
@@ -159,7 +159,7 @@ private suspend fun FullAccountView.toFullAccount(database: BitkeyDatabase): Ful
   val keybox = keybox(database)
   return FullAccount(
     accountId = accountId,
-    config = FullAccountConfig.fromKeyboxConfig(keybox.config),
+    config = keybox.config,
     keybox = keybox
   )
 }
@@ -187,19 +187,25 @@ private suspend fun FullAccountView.keybox(database: BitkeyDatabase): Keybox {
         hardwareKey = hardwareKey,
         networkType = networkType
       ),
-    activeKeyBundle =
+    activeAppKeyBundle =
       AppKeyBundle(
         localId = appKeyBundleId,
         spendingKey = appKey,
         authKey = globalAuthKey,
         networkType = networkType,
-        // TODO(BKR-573): generate and backfill App Recovery Auth key for existing Full Account customers.
         recoveryAuthKey = recoveryAuthKey
       ),
+    activeHwKeyBundle = HwKeyBundle(
+      localId = hwKeyBundleId,
+      spendingKey = hwSpendingKey,
+      authKey = hwAuthKey,
+      networkType = networkType
+    ),
     inactiveKeysets = inactiveKeysets.toImmutableList(),
+    appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
     config =
-      KeyboxConfig(
-        networkType = networkType,
+      FullAccountConfig(
+        bitcoinNetworkType = networkType,
         isHardwareFake = fakeHardware,
         f8eEnvironment = f8eEnvironment,
         isTestAccount = isTestAccount,

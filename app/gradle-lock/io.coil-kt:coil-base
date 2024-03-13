@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.coil-kt:coil-base",
+    "components": [
+        {
+            "version": "2.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coil-base-2.5.0.aar": "bb399f8039e8cf7f159102c85b44281be2ff7ebc58214056f8601ca43fbeabc5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:http-auth-aws-jvm",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "http-auth-aws-jvm-1.0.13.jar": "7e147f1971f05a02c65093f2024be9e561187d325ad12e22fdc8ccb89ed1725c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,5 +1,9 @@
 package build.wallet.statemachine.data.keybox
 
+import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.events.TrackedAction
+import build.wallet.analytics.events.count.id.SocialRecoveryEventTrackerCounterId
+import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.socrec.TrustedContactFake1
 import build.wallet.cloud.backup.CloudBackupError
@@ -19,9 +23,11 @@ import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.f8e.socrec.SocRecRelationshipsFake
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.testing.shouldBeOk
+import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -37,12 +43,13 @@ class CloudBackupRefresherImplTests : FunSpec({
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
   val cloudBackupRepository = CloudBackupRepositoryFake()
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
+  val eventTracker = EventTrackerMock(turbines::create)
 
   val otherBackup =
     CloudBackupV2WithFullAccountMock.copy(
       fullAccountFields =
         (CloudBackupV2WithFullAccountMock.fullAccountFields as FullAccountFields).copy(
-          socRecEncryptionKeyCiphertextMap = mapOf()
+          socRecSealedDekMap = mapOf()
         )
     )
 
@@ -54,7 +61,9 @@ class CloudBackupRefresherImplTests : FunSpec({
       cloudBackupDao = cloudBackupDao,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupRepository = cloudBackupRepository,
-      fullAccountCloudBackupCreator = fullAccountCloudBackupCreator
+      fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
+      eventTracker = eventTracker,
+      clock = ClockFake()
     )
 
   beforeTest {
@@ -76,6 +85,13 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
       fullAccountCloudBackupCreator.createCalls.awaitItem()
       cloudBackupRepository.readBackup(
         cloudAccount
@@ -88,12 +104,30 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
+
       fullAccountCloudBackupCreator.createCalls.awaitItem()
       cloudBackupRepository.readBackup(
         cloudAccount
       ).shouldBeOk(CloudBackupV2WithFullAccountMock)
       socRecRelationshipsRepository.relationshipsFlow
         .emit(SocRecRelationshipsFake.copy(trustedContacts = listOf(TrustedContactFake1)))
+
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 1
+        )
+      )
+
       fullAccountCloudBackupCreator.createCalls.awaitItem()
     }
   }
@@ -103,6 +137,15 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
+
       fullAccountCloudBackupCreator.createCalls.awaitItem()
       cloudBackupRepository.readBackup(
         cloudAccount
@@ -142,6 +185,13 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 0
+        )
+      )
       fullAccountCloudBackupCreator.createCalls.awaitItem()
       cloudBackupRepository.readBackup(
         cloudAccount
@@ -155,6 +205,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+
       runCurrent()
     }
   }
@@ -165,6 +216,13 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
       runCurrent()
     }
   }
@@ -175,6 +233,13 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
       runCurrent()
     }
   }
@@ -186,6 +251,13 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
       fullAccountCloudBackupCreator.createCalls.awaitItem()
       cloudBackupRepository.shouldBeEmpty()
     }
@@ -198,6 +270,13 @@ class CloudBackupRefresherImplTests : FunSpec({
       backgroundScope.launch {
         cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          action = Action.ACTION_APP_COUNT,
+          counterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+          count = 2
+        )
+      )
       fullAccountCloudBackupCreator.createCalls.awaitItem()
       runCurrent()
       cloudBackupRepository.shouldBeEmpty()

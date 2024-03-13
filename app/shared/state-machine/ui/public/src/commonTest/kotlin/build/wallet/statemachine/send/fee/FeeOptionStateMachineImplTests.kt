@@ -28,7 +28,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
 
   val props =
     FeeOptionProps(
-      amount = BitcoinMoney.btc(1.0),
+      feeAmount = BitcoinMoney.btc(1.0),
       selected = false,
       estimatedTransactionPriority = FASTEST,
       fiatCurrency = USD,
@@ -57,7 +57,7 @@ class FeeOptionStateMachineImplTests : FunSpec({
 
   test("onclick is null for an disabled option") {
     stateMachine.test(
-      props.copy(amount = BitcoinMoney.btc(3.0))
+      props.copy(feeAmount = BitcoinMoney.btc(3.0))
     ) {
       awaitItem().onClick.shouldBeNull()
     }

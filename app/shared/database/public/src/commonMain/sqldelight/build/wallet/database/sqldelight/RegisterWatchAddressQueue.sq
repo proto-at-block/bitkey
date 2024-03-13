@@ -6,7 +6,8 @@ CREATE TABLE registerWatchAddressEntity(
   address           TEXT AS BitcoinAddress      NOT NULL,
   spendingKeysetId  TEXT                        NOT NULL,
   accountId         TEXT                        NOT NULL,
-  f8eEnvironment    TEXT AS F8eEnvironment      NOT NULL
+  f8eEnvironment    TEXT AS F8eEnvironment      NOT NULL,
+  FOREIGN KEY (spendingKeysetId)  REFERENCES spendingKeysetEntity(id)
 );
 
 append:
@@ -14,7 +15,9 @@ INSERT INTO registerWatchAddressEntity(address, spendingKeysetId, accountId, f8e
 VALUES(?, ?, ?, ?);
 
 take:
-SELECT id, address, spendingKeysetId, accountId, f8eEnvironment FROM registerWatchAddressEntity ORDER BY id ASC LIMIT ?;
+SELECT * FROM registerWatchAddressEntity
+INNER JOIN spendingKeysetEntity ON registerWatchAddressEntity.spendingKeysetId = spendingKeysetEntity.id
+ORDER BY registerWatchAddressEntity.id ASC LIMIT ?;
 
 removeFirst:
 DELETE FROM registerWatchAddressEntity

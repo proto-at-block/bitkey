@@ -1,9 +1,9 @@
 package build.wallet.recovery
 
 import build.wallet.auth.AccountAuthTokens
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 
@@ -11,14 +11,14 @@ interface LostAppRecoveryAuthenticator {
   /**
    * Authenticates with f8e for initiating Lost App DN recovery.
    *
-   * @param keyboxConfig config to use for recovery. Mainly used to tell f8e which network type
+   * @param fullAccountConfig config to use for recovery. Mainly used to tell f8e which network type
    * we are recovering for.
    * @param fullAccountId account ID of the user authenticating, from the server
    * @param authResponseSessionToken a token that uniquely identifies the authentication session, from the server
    * @param hardwareAuthSignature f8e auth challenge signed with hardware.
    */
   suspend fun authenticate(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     fullAccountId: FullAccountId,
     authResponseSessionToken: String,
     hardwareAuthSignature: String,

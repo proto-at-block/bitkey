@@ -1,0 +1,19 @@
+{
+    "module-identifier": "commons-logging:commons-logging",
+    "components": [
+        {
+            "version": "1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-logging-1.2.jar": "daddea1ea0be0f56978ab3006b8ac92834afeefbd9b7e4e6316fca57df0fa636"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

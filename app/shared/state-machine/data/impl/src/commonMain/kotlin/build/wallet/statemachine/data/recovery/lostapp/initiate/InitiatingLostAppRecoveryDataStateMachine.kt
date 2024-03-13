@@ -7,10 +7,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.auth.AccountAuthTokens
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.factor.PhysicalFactor.App
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.coroutines.delayedResult
@@ -24,6 +26,7 @@ import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryService
 import build.wallet.f8e.recovery.InitiateHardwareAuthService
 import build.wallet.f8e.recovery.InitiateHardwareAuthService.AuthChallenge
 import build.wallet.f8e.recovery.ListKeysetsService
+import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.platform.random.Uuid
 import build.wallet.recovery.LostAppRecoveryAuthenticator
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError
@@ -31,9 +34,9 @@ import build.wallet.recovery.LostAppRecoveryInitiator
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppKeysData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndSpendingKeyData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
@@ -65,6 +68,7 @@ import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAp
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlin.time.Duration.Companion.seconds
@@ -75,17 +79,19 @@ import kotlin.time.Duration.Companion.seconds
  * Note: is not currently persistent, all states are in memory - relaunching the app during
  * initiation process will not restore latest initiation state.
  */
-interface InitiatingLostAppRecoveryDataStateMachine : StateMachine<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>
+interface InitiatingLostAppRecoveryDataStateMachine :
+  StateMachine<InitiatingLostAppRecoveryProps, InitiatingLostAppRecoveryData>
 
 /**
- * @property [keyboxConfig] keybox configuration to use for initiating Lost App recovery.
+ * @property [fullAccountConfig] keybox configuration to use for initiating Lost App recovery.
  */
 data class InitiatingLostAppRecoveryProps(
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val onRollback: () -> Unit,
 )
 
 class InitiatingLostAppRecoveryDataStateMachineImpl(
+  private val appKeysGenerator: AppKeysGenerator,
   private val initiateHardwareAuthService: InitiateHardwareAuthService,
   private val listKeysetsService: ListKeysetsService,
   private val cancelDelayNotifyRecoveryService: CancelDelayNotifyRecoveryService,
@@ -102,7 +108,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
     return state.let {
       when (val dataState = it) {
         is AwaitingHardwareKeysState -> {
-          AwaitingAppKeysData(
+          AwaitingHwKeysData(
             addHardwareAuthKey = { hardwareAuthKey ->
               state = InitiatingHardwareAuthWithF8eState(hardwareAuthKey)
             },
@@ -185,17 +191,27 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is ListingKeysetsFromF8eState -> {
           LaunchedEffect("list-keysets") {
-            listKeysetsService
-              .listKeysets(props.keyboxConfig.f8eEnvironment, dataState.authChallenge.fullAccountId)
-              .onSuccess { keysets ->
-                state =
-                  AwaitingHardwareProofOfPossessionAndSpendingKeyState(
-                    accountAuthTokens = dataState.accountAuthTokens,
-                    authChallenge = dataState.authChallenge,
-                    signedAuthChallenge = dataState.signedAuthChallenge,
-                    hardwareAuthKey = dataState.hardwareAuthKey,
-                    existingKeysets = keysets
+            // Generate new app keys
+            appKeysGenerator
+              .generateKeyBundle(props.fullAccountConfig.bitcoinNetworkType)
+              .andThen { newAppKeys ->
+                // Get existing keysets
+                listKeysetsService
+                  .listKeysets(
+                    props.fullAccountConfig.f8eEnvironment,
+                    dataState.authChallenge.fullAccountId
                   )
+                  .onSuccess { keysets ->
+                    state =
+                      AwaitingHardwareProofOfPossessionAndSpendingKeyState(
+                        accountAuthTokens = dataState.accountAuthTokens,
+                        authChallenge = dataState.authChallenge,
+                        newAppKeys = newAppKeys,
+                        signedAuthChallenge = dataState.signedAuthChallenge,
+                        hardwareAuthKey = dataState.hardwareAuthKey,
+                        existingKeysets = keysets
+                      )
+                  }
               }
               .onFailure { error ->
                 state =
@@ -226,23 +242,26 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
           )
 
         is AwaitingHardwareProofOfPossessionAndSpendingKeyState -> {
-          AwaitingHardwareProofOfPossessionAndSpendingKeyData(
+          AwaitingHardwareProofOfPossessionAndKeysData(
             authTokens = dataState.accountAuthTokens,
+            newAppGlobalAuthKey = dataState.newAppKeys.authKey,
             fullAccountId = dataState.authChallenge.fullAccountId,
-            network = props.keyboxConfig.networkType,
+            network = props.fullAccountConfig.bitcoinNetworkType,
             existingHwSpendingKeys = dataState.existingKeysets.map { it.hardwareKey },
-            onComplete = { proof, hardwareSpendingKey ->
+            onComplete = { proof, hardwareSpendingKey, newAppGlobalAuthKeyHwSignature ->
               state =
                 AwaitingPushNotificationPermissionState(
                   authChallenge = dataState.authChallenge,
                   signedAuthChallenge = dataState.signedAuthChallenge,
+                  newAppKeys = dataState.newAppKeys,
+                  newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature,
                   hardwareKeys =
                     HardwareKeysForRecovery(
-                      HwKeyBundle(
+                      newKeyBundle = HwKeyBundle(
                         localId = uuid.random(),
                         spendingKey = hardwareSpendingKey,
                         authKey = dataState.hardwareAuthKey,
-                        networkType = props.keyboxConfig.networkType
+                        networkType = props.fullAccountConfig.bitcoinNetworkType
                       )
                     ),
                   hwFactorProofOfPossession = proof
@@ -260,6 +279,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
               state =
                 InitiatingRecoveryWithF8eState(
                   hardwareKeys = dataState.hardwareKeys,
+                  newAppKeys = dataState.newAppKeys,
+                  newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                   authChallenge = dataState.authChallenge,
                   signedAuthChallenge = dataState.signedAuthChallenge,
                   hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -278,6 +299,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                   state =
                     VerifyingNotificationCommsState(
                       authChallenge = dataState.authChallenge,
+                      newAppKeys = dataState.newAppKeys,
+                      newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                       signedAuthChallenge = dataState.signedAuthChallenge,
                       hardwareKeys = dataState.hardwareKeys,
                       hwFactorProofOfPossession = dataState.hwFactorProofOfPossession,
@@ -287,6 +310,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                   state =
                     DisplayingConflictingRecoveryState(
                       authChallenge = dataState.authChallenge,
+                      newAppKeys = dataState.newAppKeys,
+                      newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                       signedAuthChallenge = dataState.signedAuthChallenge,
                       hardwareKeys = dataState.hardwareKeys,
                       hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -295,6 +320,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                   state =
                     FailedToInitiateRecoveryWithF8eState(
                       authChallenge = dataState.authChallenge,
+                      newAppKeys = dataState.newAppKeys,
+                      newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                       signedAuthChallenge = dataState.signedAuthChallenge,
                       hardwareKeys = dataState.hardwareKeys,
                       hwFactorProofOfPossession = dataState.hwFactorProofOfPossession,
@@ -314,6 +341,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
               state =
                 InitiatingRecoveryWithF8eState(
                   authChallenge = dataState.authChallenge,
+                  newAppKeys = dataState.newAppKeys,
+                  newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                   signedAuthChallenge = dataState.signedAuthChallenge,
                   hardwareKeys = dataState.hardwareKeys,
                   hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -328,7 +357,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
               recoveryNotificationVerificationDataStateMachine.model(
                 props =
                   RecoveryNotificationVerificationDataProps(
-                    f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+                    f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
                     fullAccountId = dataState.authChallenge.fullAccountId,
                     onRollback = props.onRollback,
                     onComplete = {
@@ -339,6 +368,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                           InitiateRecovery ->
                             InitiatingRecoveryWithF8eState(
                               authChallenge = dataState.authChallenge,
+                              newAppKeys = dataState.newAppKeys,
+                              newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                               signedAuthChallenge = dataState.signedAuthChallenge,
                               hardwareKeys = dataState.hardwareKeys,
                               hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -347,6 +378,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                           CancelRecovery ->
                             CancellingConflictingRecoveryWithF8eState(
                               authChallenge = dataState.authChallenge,
+                              newAppKeys = dataState.newAppKeys,
+                              newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                               signedAuthChallenge = dataState.signedAuthChallenge,
                               hardwareKeys = dataState.hardwareKeys,
                               hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -363,7 +396,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
         is CancellingConflictingRecoveryWithF8eState -> {
           LaunchedEffect("cancel-existing-recovery") {
             cancelDelayNotifyRecoveryService.cancel(
-              props.keyboxConfig.f8eEnvironment,
+              props.fullAccountConfig.f8eEnvironment,
               dataState.authChallenge.fullAccountId,
               hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
             )
@@ -371,17 +404,22 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                 state =
                   InitiatingRecoveryWithF8eState(
                     dataState.hardwareKeys,
+                    dataState.newAppKeys,
+                    dataState.newAppGlobalAuthKeyHwSignature,
                     dataState.authChallenge,
                     dataState.signedAuthChallenge,
                     dataState.hwFactorProofOfPossession
                   )
               }
               .onFailure {
-                val f8eError = it as F8eError.SpecificClientError<CancelDelayNotifyRecoveryErrorCode>
+                val f8eError =
+                  it as F8eError.SpecificClientError<CancelDelayNotifyRecoveryErrorCode>
                 state =
                   if (f8eError.errorCode == CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED) {
                     VerifyingNotificationCommsState(
                       authChallenge = dataState.authChallenge,
+                      newAppKeys = dataState.newAppKeys,
+                      newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                       signedAuthChallenge = dataState.signedAuthChallenge,
                       hardwareKeys = dataState.hardwareKeys,
                       hwFactorProofOfPossession = dataState.hwFactorProofOfPossession,
@@ -390,6 +428,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                   } else {
                     FailedToCancelConflictingRecoveryState(
                       dataState.hardwareKeys,
+                      dataState.newAppKeys,
+                      dataState.newAppGlobalAuthKeyHwSignature,
                       dataState.authChallenge,
                       dataState.signedAuthChallenge,
                       dataState.hwFactorProofOfPossession
@@ -406,6 +446,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
               state =
                 CancellingConflictingRecoveryWithF8eState(
                   hardwareKeys = dataState.hardwareKeys,
+                  newAppKeys = dataState.newAppKeys,
+                  newAppGlobalAuthKeyHwSignature = dataState.newAppGlobalAuthKeyHwSignature,
                   authChallenge = dataState.authChallenge,
                   signedAuthChallenge = dataState.signedAuthChallenge,
                   hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -428,7 +470,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
   ): Result<AuthChallenge, Error> =
     initiateHardwareAuthService
       .start(
-        f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
         currentHardwareAuthKey = state.hardwareAuthKey
       )
 
@@ -438,7 +480,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
   ): Result<AccountAuthTokens, DelayNotifyLostAppAuthError> =
     lostAppRecoveryAuthenticator
       .authenticate(
-        keyboxConfig = props.keyboxConfig,
+        fullAccountConfig = props.fullAccountConfig,
         fullAccountId = state.authChallenge.fullAccountId,
         authResponseSessionToken = state.authChallenge.session,
         hardwareAuthSignature = state.signedAuthChallenge,
@@ -450,19 +492,18 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
     state: InitiatingRecoveryWithF8eState,
   ) = lostAppRecoveryInitiator
     .initiate(
-      keyboxConfig = props.keyboxConfig,
-      hardwareKeysForRecovery =
-        HardwareKeysForRecovery(
-          newKeyBundle = state.hardwareKeys.newKeyBundle
-        ),
-      f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+      fullAccountConfig = props.fullAccountConfig,
+      newAppKeys = state.newAppKeys,
+      hardwareKeysForRecovery = HardwareKeysForRecovery(state.hardwareKeys.newKeyBundle),
+      appGlobalAuthKeyHwSignature = state.newAppGlobalAuthKeyHwSignature,
+      f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
       fullAccountId = state.authChallenge.fullAccountId,
       hwFactorProofOfPossession = state.hwFactorProofOfPossession
     )
 
   private sealed interface State {
     /**
-     * Corresponds to [AwaitingAppKeysData].
+     * Corresponds to [AwaitingHwKeysData].
      */
     data object AwaitingHardwareKeysState : State
 
@@ -509,7 +550,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
       val hardwareAuthKey: HwAuthPublicKey,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
-      val error: Error,
+      val error: Throwable,
     ) : State
 
     /**
@@ -518,6 +559,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
     data class AwaitingHardwareProofOfPossessionAndSpendingKeyState(
       val accountAuthTokens: AccountAuthTokens,
       val hardwareAuthKey: HwAuthPublicKey,
+      val newAppKeys: AppKeyBundle,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val existingKeysets: List<SpendingKeyset>,
@@ -528,6 +570,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
      */
     data class AwaitingPushNotificationPermissionState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -538,6 +582,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
      */
     data class CancellingConflictingRecoveryWithF8eState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -548,6 +594,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
      */
     data class FailedToCancelConflictingRecoveryState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -558,6 +606,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
      */
     data class InitiatingRecoveryWithF8eState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -565,6 +615,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
     data class DisplayingConflictingRecoveryState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -575,6 +627,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
      */
     data class FailedToInitiateRecoveryWithF8eState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,
@@ -583,6 +637,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
     data class VerifyingNotificationCommsState(
       val hardwareKeys: HardwareKeysForRecovery,
+      val newAppKeys: AppKeyBundle,
+      val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
       val authChallenge: AuthChallenge,
       val signedAuthChallenge: String,
       val hwFactorProofOfPossession: HwFactorProofOfPossession,

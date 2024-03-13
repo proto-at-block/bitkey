@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-json",
+    "components": [
+        {
+            "version": "1.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-json-metadata-1.6.2.jar": "e5a3e9fcb9469adc4e2542d688748c660fee70f946fa564fdde2533dc464e06b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

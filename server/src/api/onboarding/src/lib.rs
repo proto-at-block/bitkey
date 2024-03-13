@@ -1,59 +1,58 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use errors::ApiError;
 use notification::clients::iterable::{
-    IterableClient, IterableUserId, ACCOUNT_ID_KEY, PLACEHOLDER_EMAIL_ADDRESS, USER_SCOPE_KEY,
+    IterableClient, IterableUserId, ACCOUNT_ID_KEY, PLACEHOLDER_EMAIL_ADDRESS, TOUCHPOINT_ID_KEY,
+    USER_SCOPE_KEY,
 };
 use notification::service::Service as NotificationService;
 use notification::service::{
     FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput,
 };
-use types::{
-    account::identifiers::AccountId,
-    notification::{NotificationCategory, NotificationChannel},
-};
+use strum::IntoEnumIterator;
+use types::account::identifiers::TouchpointId;
+use types::notification::{NotificationCategory, NotificationsPreferences};
+use types::{account::identifiers::AccountId, notification::NotificationChannel};
 
 pub mod account_validation;
 pub(crate) mod metrics;
 pub mod routes;
 
-async fn enable_account_security_notifications(
-    notification_service: &NotificationService,
-    account_id: &AccountId,
-    notification_channel: NotificationChannel,
-) -> Result<(), ApiError> {
-    let current_notifications_preferences = notification_service
-        .fetch_notifications_preferences(FetchNotificationsPreferencesInput { account_id })
-        .await?;
-    if !current_notifications_preferences
-        .account_security
-        .contains(&notification_channel)
-    {
-        notification_service
-            .update_notifications_preferences(UpdateNotificationsPreferencesInput {
-                account_id,
-                notifications_preferences: &current_notifications_preferences
-                    .with_enabled(NotificationCategory::AccountSecurity, notification_channel),
-            })
-            .await?;
-    }
-    Ok(())
-}
-
-async fn create_account_iterable_users(
+async fn upsert_account_iterable_user(
     iterable_client: &IterableClient,
     account_id: &AccountId,
+    touchpoint_id: Option<&TouchpointId>,
+    email_address: Option<String>,
 ) -> Result<(), ApiError> {
     // Account-scoped Iterable user; this is the primary target for sending emails. The email address on
     // this user only gets updated when a new email address is activated for the account.
+
+    let email_address = email_address.unwrap_or_else(|| PLACEHOLDER_EMAIL_ADDRESS.to_string());
+
+    let mut data_fields = HashMap::from([(USER_SCOPE_KEY, "account")]);
+
+    let touchpoint_id_str = &touchpoint_id.map_or(Default::default(), |id| id.to_string());
+    if touchpoint_id.is_some() {
+        data_fields.insert(TOUCHPOINT_ID_KEY, touchpoint_id_str);
+    }
+
     iterable_client
         .update_user(
             IterableUserId::Account(account_id),
-            PLACEHOLDER_EMAIL_ADDRESS.to_string(),
-            Some(HashMap::from([(USER_SCOPE_KEY, "account")])),
+            email_address,
+            Some(data_fields),
         )
         .await?;
 
+    Ok(())
+}
+
+async fn create_touchpoint_iterable_user(
+    iterable_client: &IterableClient,
+    account_id: &AccountId,
+    touchpoint_id: &TouchpointId,
+    email_address: String,
+) -> Result<(), ApiError> {
     // Touchpoint-scoped Iterable user; this user is only used for sending the verification OTP. Since this
     // happens before an email address is activated, we can't use the account-scoped Iterable user. So this
     // operates as sort of a staging user for the account's pending email address change. This allows us to
@@ -61,12 +60,20 @@ async fn create_account_iterable_users(
     // user.
     iterable_client
         .update_user(
-            IterableUserId::Touchpoint(account_id),
-            PLACEHOLDER_EMAIL_ADDRESS.to_string(),
+            IterableUserId::Touchpoint(touchpoint_id),
+            email_address,
             Some(HashMap::from([
                 (ACCOUNT_ID_KEY, account_id.to_string().as_str()),
                 (USER_SCOPE_KEY, "touchpoint"),
             ])),
+        )
+        .await?;
+
+    // Subscribe the touchpoint user to account security so it can receive the OTP.
+    iterable_client
+        .set_initial_subscribed_notification_categories(
+            IterableUserId::Touchpoint(touchpoint_id),
+            HashSet::from([NotificationCategory::AccountSecurity]),
         )
         .await?;
 

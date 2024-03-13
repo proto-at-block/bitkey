@@ -58,7 +58,7 @@ pub trait ValidateSecretCanRotate {
 
 #[async_trait]
 impl FetchSecret for SecretsManager {
-    #[instrument(err, skip(self), level = "trace")]
+    #[instrument(skip(self), level = "trace")]
     async fn secret_value(&self, secret_name: &str) -> Result<String, Error> {
         let response = self
             .client

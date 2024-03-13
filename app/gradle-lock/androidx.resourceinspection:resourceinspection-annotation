@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.resourceinspection:resourceinspection-annotation",
+    "components": [
+        {
+            "version": "1.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "resourceinspection-annotation-1.0.1.jar": "8cff870ec6fb31db48a52f4a792335b4bf8de07e03bd37823181526433ccd5cb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

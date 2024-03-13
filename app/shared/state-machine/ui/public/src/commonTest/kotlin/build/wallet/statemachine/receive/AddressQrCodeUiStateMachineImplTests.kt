@@ -16,6 +16,7 @@ import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
+import build.wallet.time.ControlledDelayer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -33,6 +34,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val stateMachine =
     AddressQrCodeUiStateMachineImpl(
       clipboard = clipboard,
+      delayer = ControlledDelayer(),
       sharingManager = sharingManager,
       bitcoinInvoiceUrlEncoder = BitcoinInvoiceUrlEncoderMock()
     )
@@ -51,15 +53,17 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address and QR code
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<QrCode>()) {
-          address.shouldBeNull()
-          addressQrCode.shouldBeNull()
+          addressDisplayString.string.shouldBe("...")
+          addressQrImageUrl.shouldBeNull()
+          fallbackAddressQrCodeModel.shouldBeNull()
         }
       }
 
       awaitBody<AddressQrCodeBodyModel> {
         with(content.shouldBeTypeOf<QrCode>()) {
-          address.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
-          addressQrCode.shouldBe(QrCodeModel("bitcoin:${someBitcoinAddress.address}"))
+          addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+          addressQrImageUrl.shouldBe("https://api.cash.app/qr/btc/${someBitcoinAddress.address}?currency=btc&logoColor=000000&rounded=true&size=2000&errorCorrection=2")
+          fallbackAddressQrCodeModel.shouldBe(QrCodeModel("bitcoin:${someBitcoinAddress.address}"))
         }
       }
     }
@@ -73,7 +77,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Showing address from spendingKeysetAddressProvider flow
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<QrCode>()
-          .address.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
+          .addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
       }
 
       val newAddress = BitcoinAddress("new1ksdjfksljfdsklj1234")
@@ -83,7 +87,7 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
             ActiveKeyboxLoadedDataMock.copy(
               addressData =
                 KeyboxAddressDataMock.copy(
-                  generateAddress = { onResult -> onResult(Ok(newAddress)) }
+                  generateAddress = { Ok(newAddress) }
                 )
             )
         )
@@ -99,13 +103,13 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       // Loading address and QR code
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<QrCode>()
-          .address.shouldBeNull()
+          .addressDisplayString.string.shouldBe("...")
       }
 
       // Showing address from spendingKeysetAddressProvider getNewAddress
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<QrCode>()
-          .address.shouldBe("new1 ksdj fksl jfds klj1 234")
+          .addressDisplayString.string.shouldBe("new1 ksdj fksl jfds klj1 234")
       }
     }
   }
@@ -125,6 +129,11 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       }
 
       clipboard.copiedItems.awaitItem().shouldBe(PlainText(someBitcoinAddress.address))
+
+      awaitBody<AddressQrCodeBodyModel> {
+        content.shouldBeTypeOf<QrCode>()
+          .copyButtonModel.leadingIcon.shouldNotBeNull().shouldBe(Icon.SmallIconCopy)
+      }
     }
   }
 

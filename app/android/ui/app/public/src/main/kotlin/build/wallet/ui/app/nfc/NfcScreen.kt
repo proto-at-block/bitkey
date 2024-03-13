@@ -51,7 +51,7 @@ import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
 import build.wallet.ui.system.KeepScreenOn
@@ -126,14 +126,13 @@ private fun NfcScreenInternal(
         modifier = Modifier.alpha(cancelButtonAlpha),
         treatment = Translucent,
         size = Footer,
-        onClick =
-          Click.StandardClick {
-            when (val status = model.status) {
-              is Searching -> status.onCancel()
-              is Connected -> status.onCancel()
-              is Success -> Unit
-            }
+        onClick = StandardClick {
+          when (val status = model.status) {
+            is Searching -> status.onCancel()
+            is Connected -> status.onCancel()
+            is Success -> Unit
           }
+        }
       )
       Spacer(modifier = Modifier.height(24.dp))
     }

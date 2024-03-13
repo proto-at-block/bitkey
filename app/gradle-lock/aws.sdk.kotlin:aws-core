@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.sdk.kotlin:aws-core",
+    "components": [
+        {
+            "version": "1.0.55",
+            "variants": [
+                {
+                    "artifacts": {
+                        "aws-core-metadata-1.0.55.jar": "6af2f83e141a88f4a8ffe6a9c5548fac30a657d665bf41870a5cdc240db98db1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "jakarta.activation:jakarta.activation-api",
+    "components": [
+        {
+            "version": "1.2.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jakarta.activation-api-1.2.1.jar": "8b0a0f52fa8b05c5431921a063ed866efaa41dadf2e3a7ee3e1961f2b0d9645b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

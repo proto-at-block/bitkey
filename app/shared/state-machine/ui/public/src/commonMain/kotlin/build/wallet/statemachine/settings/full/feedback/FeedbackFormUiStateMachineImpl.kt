@@ -2,6 +2,7 @@ package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,7 +33,8 @@ import build.wallet.support.SupportTicketForm
 import build.wallet.support.SupportTicketFormValidator
 import build.wallet.support.SupportTicketRepository
 import build.wallet.time.DateTimeFormatter
-import build.wallet.ui.model.Click
+import build.wallet.time.Delayer
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -50,15 +52,16 @@ import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableSet
-import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 import kotlin.time.Duration.Companion.seconds
 
 class FeedbackFormUiStateMachineImpl(
+  private val delayer: Delayer,
   private val supportTicketRepository: SupportTicketRepository,
   private val supportTicketFormValidator: SupportTicketFormValidator,
   private val dateTimeFormatter: DateTimeFormatter,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val feedbackFormAddAttachments: FeedbackFormAddAttachmentsFeatureFlag,
 ) : FeedbackFormUiStateMachine {
   @Composable
   override fun model(props: FeedbackFormUiProps): ScreenModel {
@@ -71,11 +74,16 @@ class FeedbackFormUiStateMachineImpl(
         StateMapBackedSupportTicketData(props.initialData)
       }
 
+    val addAttachmentsEnabled by remember {
+      feedbackFormAddAttachments.flagValue()
+    }.collectAsState()
+
     return when (uiState) {
       is FeedbackFormUiState.FillingForm ->
         FillingForm(
           structure = props.formStructure,
           formData = formData,
+          addAttachmentsEnabled = props.addAttachmentsEnabled,
           onBack = props.onBack,
           onSubmitData = {
             uiState = FeedbackFormUiState.SubmittingFormData
@@ -87,10 +95,11 @@ class FeedbackFormUiStateMachineImpl(
 
       is FeedbackFormUiState.SubmittingFormData ->
         SubmittingFormData(
-          f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+          f8eEnvironment = props.f8eEnvironment,
           accountId = props.accountId,
           structure = props.formStructure,
           data = formData,
+          addAttachmentsEnabled = addAttachmentsEnabled.value,
           onSuccess = {
             uiState = FeedbackFormUiState.SubmitSuccessful
           },
@@ -132,6 +141,7 @@ class FeedbackFormUiStateMachineImpl(
   private fun FillingForm(
     structure: SupportTicketForm,
     formData: StateMapBackedSupportTicketData,
+    addAttachmentsEnabled: Boolean,
     onBack: () -> Unit,
     onSubmitData: (SupportTicketData) -> Unit,
     onPrivacyPolicyClick: () -> Unit,
@@ -184,6 +194,7 @@ class FeedbackFormUiStateMachineImpl(
               }
               +AttachmentsModel(
                 attachments = formData.attachments.toImmutableList(),
+                addAttachmentsEnabled,
                 addAttachment = {
                   isPickingMedia = true
                 },
@@ -201,10 +212,9 @@ class FeedbackFormUiStateMachineImpl(
               text = "Submit",
               isEnabled = isValid,
               size = ButtonModel.Size.Footer,
-              onClick =
-                Click.standardClick {
-                  alertUiState = FeedbackAlertUiState.ViewingSubmitConfirmation
-                }
+              onClick = StandardClick {
+                onSubmitData(formData.toImmutable())
+              }
             )
         ),
       alertModel =
@@ -212,17 +222,6 @@ class FeedbackFormUiStateMachineImpl(
           FeedbackAlertUiState.ViewingLeaveConfirmation ->
             FeedbackUiStandaloneModels.confirmLeaveAlertModel(
               onConfirm = onBack,
-              onDismiss = {
-                alertUiState = null
-              }
-            )
-
-          FeedbackAlertUiState.ViewingSubmitConfirmation ->
-            FeedbackUiStandaloneModels.confirmSubmitAlertModel(
-              onConfirm = {
-                alertUiState = null
-                onSubmitData(formData.toImmutable())
-              },
               onDismiss = {
                 alertUiState = null
               }
@@ -429,46 +428,51 @@ class FeedbackFormUiStateMachineImpl(
   @Composable
   private fun AttachmentsModel(
     attachments: ImmutableList<SupportTicketAttachment>,
+    addAttachmentsEnabled: Boolean,
     addAttachment: () -> Unit,
     removeAttachment: (SupportTicketAttachment) -> Unit,
-  ): FormMainContentModel {
-    return FormMainContentModel.ListGroup(
-      listGroupModel =
-        ListGroupModel(
-          header = "Attachments",
-          items =
-            attachments.mapNotNull { attachment ->
-              when (attachment) {
-                is SupportTicketAttachment.Media ->
-                  ListItemModel(
-                    attachment.name,
-                    trailingAccessory =
-                      ListItemAccessory.ButtonAccessory(
-                        model =
-                          ButtonModel(
-                            text = "Remove",
-                            treatment = ButtonModel.Treatment.TertiaryDestructive,
-                            size = ButtonModel.Size.Compact,
-                            onClick =
-                              Click.standardClick {
-                                removeAttachment(attachment)
-                              }
-                          )
-                      )
-                  )
+  ): FormMainContentModel? {
+    if (addAttachmentsEnabled) {
+      return FormMainContentModel.ListGroup(
+        listGroupModel =
+          ListGroupModel(
+            header = "Attachments",
+            items =
+              attachments.mapNotNull { attachment ->
+                when (attachment) {
+                  is SupportTicketAttachment.Media ->
+                    ListItemModel(
+                      attachment.name,
+                      trailingAccessory =
+                        ListItemAccessory.ButtonAccessory(
+                          model =
+                            ButtonModel(
+                              text = "Remove",
+                              treatment = ButtonModel.Treatment.TertiaryDestructive,
+                              size = ButtonModel.Size.Compact,
+                              onClick =
+                                StandardClick {
+                                  removeAttachment(attachment)
+                                }
+                            )
+                        )
+                    )
 
-                is SupportTicketAttachment.Logs -> null
-              }
-            }.toImmutableList(),
-          style = ListGroupStyle.CARD_GROUP,
-          footerButton =
-            ButtonModel(
-              text = "Add attachment",
-              size = ButtonModel.Size.Footer,
-              onClick = Click.standardClick(addAttachment)
-            )
-        )
-    )
+                  is SupportTicketAttachment.Logs -> null
+                }
+              }.toImmutableList(),
+            style = ListGroupStyle.CARD_GROUP,
+            footerButton =
+              ButtonModel(
+                text = "Add attachment",
+                size = ButtonModel.Size.Footer,
+                onClick = StandardClick(addAttachment)
+              )
+          )
+      )
+    } else {
+      return null
+    }
   }
 
   @Composable
@@ -477,6 +481,7 @@ class FeedbackFormUiStateMachineImpl(
     accountId: AccountId,
     structure: SupportTicketForm,
     data: SupportTicketData,
+    addAttachmentsEnabled: Boolean,
     onSuccess: () -> Unit,
     // TODO[W-5853]: Provide error
     onError: () -> Unit,
@@ -487,7 +492,8 @@ class FeedbackFormUiStateMachineImpl(
           f8eEnvironment = f8eEnvironment,
           accountId = accountId,
           form = structure,
-          data = data
+          data = data,
+          addAttachmentsEnabled = addAttachmentsEnabled
         )
       when (result) {
         is Ok -> onSuccess()
@@ -497,7 +503,6 @@ class FeedbackFormUiStateMachineImpl(
     }
 
     return LoadingBodyModel(
-      style = LoadingBodyModel.Style.Implicit,
       id = FeedbackEventTrackerScreenId.FEEDBACK_SUBMITTING
     ).asModalScreen()
   }
@@ -505,7 +510,7 @@ class FeedbackFormUiStateMachineImpl(
   @Composable
   private fun SubmitSuccessful(onClose: () -> Unit): ScreenModel {
     LaunchedEffect("feedback-submit-success") {
-      delay(2.seconds)
+      delayer.delay(2.seconds)
       onClose()
     }
 
@@ -513,7 +518,7 @@ class FeedbackFormUiStateMachineImpl(
       id = FeedbackEventTrackerScreenId.FEEDBACK_SUBMIT_SUCCESS,
       title = "Success!",
       message = "Feedback submitted successfully!",
-      style = SuccessBodyModel.Style.Implicit
+      primaryButtonModel = null
     ).asModalScreen()
   }
 
@@ -624,8 +629,8 @@ class FeedbackFormUiStateMachineImpl(
         ButtonModel(
           text = "Your information will be collected and used in accordance with our Privacy Notice",
           treatment = ButtonModel.Treatment.Tertiary,
-          size = ButtonModel.Size.Footer,
-          onClick = Click.standardClick(onClick)
+          size = ButtonModel.Size.FitContent,
+          onClick = StandardClick(onClick)
         )
     )
 }
@@ -647,9 +652,4 @@ private sealed interface FeedbackAlertUiState {
    * Viewing the main Feedback link screen
    */
   data object ViewingLeaveConfirmation : FeedbackAlertUiState
-
-  /**
-   * Viewing the Contact Us browser form screen
-   */
-  data object ViewingSubmitConfirmation : FeedbackAlertUiState
 }

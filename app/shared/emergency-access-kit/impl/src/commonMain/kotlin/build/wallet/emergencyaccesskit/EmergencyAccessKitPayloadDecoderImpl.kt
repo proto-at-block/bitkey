@@ -2,6 +2,8 @@ package build.wallet.emergencyaccesskit
 
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
+import build.wallet.bitcoin.keys.ExtendedPrivateKey
+import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
@@ -57,7 +59,10 @@ data object EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDeco
       val data =
         Result
           .runCatching {
-            encodedString.decodeBase58()
+            // The EAK payload in the PDF has line breaks to allow it to wrap appropriately.
+            // Filter for only valid base58 characters to ensure that it can be parsed.
+            val filter = Regex("[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]")
+            filter.replace(encodedString, "").decodeBase58()
           }
           .mapError { InvalidBase58Data(cause = it) }
           .bind()
@@ -103,7 +108,7 @@ private fun EmergencyAccessKitPayloadV1.toProto() =
   Payload(
     backup_v1 =
       BackupV1(
-        hw_encryption_key_ciphertext = this.hwEncryptionKeyCiphertext,
+        hw_encryption_key_ciphertext = this.sealedHwEncryptionKey,
         sealed_active_spending_keyset = this.sealedActiveSpendingKeys.toProto()
       )
   )
@@ -132,7 +137,7 @@ fun BackupV1.toEmergencyAccessKitPayload(): Result<EmergencyAccessKitPayload, De
   val proto = this
   return binding {
     EmergencyAccessKitPayloadV1(
-      hwEncryptionKeyCiphertext =
+      sealedHwEncryptionKey =
         proto.hw_encryption_key_ciphertext
           .toResultOr { InvalidProtoData() }
           .bind(),
@@ -176,7 +181,7 @@ private fun EmergencyAccessKitBackupV1.toProto() =
     app_key =
       AppSpendingKey(
         key = this.spendingKeyset.appKey.toProto(),
-        xprv = this.appSpendingKeyXprv
+        xprv = this.appSpendingKeyXprv.key.xprv
       ),
     hardware_key = this.spendingKeyset.hardwareKey.toProto(),
     f8e_key = this.spendingKeyset.f8eSpendingKeyset.spendingPublicKey.toProto()
@@ -248,7 +253,12 @@ fun ActiveSpendingKeysetV1.toEmergencyAccessKitBackupV1():
                 )
             )
         ),
-      appSpendingKeyXprv = appSpendingKey.xprv.toResultOr { InvalidProtoData() }.bind()
+      appSpendingKeyXprv = AppSpendingPrivateKey(
+        key = ExtendedPrivateKey(
+          xprv = appSpendingKey.xprv.toResultOr { InvalidProtoData() }.bind(),
+          mnemonic = "MNEMONIC REMOVED DURING EMERGENCY ACCESS"
+        )
+      )
     )
   }
 }

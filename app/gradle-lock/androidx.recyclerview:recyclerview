@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.recyclerview:recyclerview",
+    "components": [
+        {
+            "version": "1.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "recyclerview-1.1.0.aar": "f0d2b5a67d0a91ee1b1c73ef2b636a81f3563925ddd15a1d4e1c41ec28de7a4f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

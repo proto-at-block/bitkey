@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-api-jvm",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-api-jvm-5.8.0.jar": "ab32b248767a8fcdee96a3a7debc1d4bca15b4107d03a8f0ecb43f0a12a66078"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

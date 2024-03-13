@@ -6,14 +6,14 @@ use crate::tests::{
 use account::entities::FullAccount;
 use account::{entities::TouchpointPlatform, service::AddPushTouchpointToAccountInput};
 use httpmock::{prelude::*, Mock, MockExt};
+use notification::address_repo::AddressAndKeysetId;
 use notification::service::FetchForAccountInput;
 use notification::service::Service as NotificationService;
 use notification::NotificationPayloadType;
-use notification::{address_repo::AddressAndKeysetId, routes::SetNotificationsPreferencesRequest};
 use std::collections::{HashMap, HashSet};
 use types::{
     account::identifiers::{AccountId, KeysetId},
-    notification::NotificationChannel,
+    notification::{NotificationChannel, NotificationsPreferences},
 };
 
 struct ChainMockData {
@@ -140,17 +140,20 @@ async fn setup_full_accounts_and_server() -> (
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test".to_string(),
+            access_token: Default::default(),
         })
         .await
         .unwrap();
     client
         .set_notifications_preferences(
             &account_with_payment.id.to_string(),
-            &SetNotificationsPreferencesRequest {
+            &NotificationsPreferences {
                 account_security: HashSet::default(),
                 money_movement: HashSet::from([NotificationChannel::Push]),
                 product_marketing: HashSet::new(),
             },
+            false,
+            false,
         )
         .await;
     state
@@ -160,17 +163,20 @@ async fn setup_full_accounts_and_server() -> (
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test".to_string(),
+            access_token: Default::default(),
         })
         .await
         .unwrap();
     client
         .set_notifications_preferences(
             &account_without_payment.id.to_string(),
-            &SetNotificationsPreferencesRequest {
+            &NotificationsPreferences {
                 account_security: HashSet::default(),
                 money_movement: HashSet::from([NotificationChannel::Push]),
                 product_marketing: HashSet::new(),
             },
+            false,
+            false,
         )
         .await;
 

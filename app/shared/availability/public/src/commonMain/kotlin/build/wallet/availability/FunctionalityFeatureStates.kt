@@ -16,6 +16,7 @@ data class FunctionalityFeatureStates(
   val fiatExchangeRates: FeatureState,
   val notifications: FeatureState,
   val helpCenter: FeatureState,
+  val cloudBackupHealth: FeatureState,
 ) {
   /**
    * The state a feature can be in.

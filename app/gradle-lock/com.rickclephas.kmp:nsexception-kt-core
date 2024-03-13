@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.rickclephas.kmp:nsexception-kt-core",
+    "components": [
+        {
+            "version": "0.1.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "nsexception-kt-core-metadata-0.1.10.jar": "584a92e17713d27cf356ff0184bf97ea89d86f5b598269f5ca522e00bdc025e8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

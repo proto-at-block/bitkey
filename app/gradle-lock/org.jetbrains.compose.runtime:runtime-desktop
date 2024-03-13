@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.runtime:runtime-desktop",
+    "components": [
+        {
+            "version": "1.5.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-desktop-1.5.11.jar": "6e67a4ed8e1aaa9ec5d275b24c5456e82d492ad5710aa28f425da09678016033"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

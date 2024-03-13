@@ -7,7 +7,7 @@ import build.wallet.platform.device.DevicePlatform.IOS
 import build.wallet.platform.device.DevicePlatform.Jvm
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 
 private const val ANDROID_SUBLINE = "This Cloud already contains a backup for a different Bitkey account. Bitkey is designed to use only a single cloud account per Bitkey wallet, with a single backup, and creating a backup for this new account will erase the one currently in place. To recover from the existing backup, cancel setup and use \"Restore your wallet\". Otherwise, please either be certain you know the Bitkey backup currently in the connected Google Drive account is no longer needed before proceeding, or sign into a different cloud account."
@@ -33,13 +33,13 @@ fun OverwriteFullAccountCloudBackupWarningModel(
   primaryButton =
     ButtonModel(
       text = "Overwrite the existing backup",
-      onClick = Click.standardClick(onOverwriteExistingBackup),
+      onClick = StandardClick(onOverwriteExistingBackup),
       size = ButtonModel.Size.Footer
     ),
   secondaryButton =
     ButtonModel(
       text = "Cancel",
-      onClick = Click.standardClick(onCancel),
+      onClick = StandardClick(onCancel),
       size = ButtonModel.Size.Footer
     ),
   onBack = null,

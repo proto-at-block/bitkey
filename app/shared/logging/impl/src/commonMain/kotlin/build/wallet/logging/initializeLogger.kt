@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalKermitApi::class)
-
 package build.wallet.logging
 
 import build.wallet.logging.LogLevel.Debug
@@ -13,9 +11,7 @@ import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.config.AppVariant.Emergency
 import build.wallet.platform.config.AppVariant.Team
-import co.touchlab.kermit.ExperimentalKermitApi
 import co.touchlab.kermit.LogWriter
-import co.touchlab.kermit.platformLogWriter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -28,9 +24,7 @@ import kotlinx.coroutines.launch
  *
  * Additionally sync [LogWriterContext] with latest logging context that gets included on every
  * logs as attributes.
- *
  */
-
 fun initializeLogger(
   appVariant: AppVariant,
   appId: AppId,

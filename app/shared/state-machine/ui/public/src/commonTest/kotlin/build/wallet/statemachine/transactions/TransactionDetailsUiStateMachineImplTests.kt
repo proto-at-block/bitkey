@@ -12,8 +12,6 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
@@ -25,8 +23,9 @@ import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
-import build.wallet.statemachine.core.Icon.LargeIconEllipsisFilled
+import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
 import build.wallet.statemachine.core.Icon.SmallIconArrowUpRight
+import build.wallet.statemachine.core.Icon.SmallIconLightning
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -35,10 +34,10 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
@@ -49,10 +48,15 @@ import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
+import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
-import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -78,10 +82,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       estimatedConfirmationTime.toLocalDateTime(timeZoneProvider.current)
         to "estimated-confirmation-time"
     )
-  val feeBumpEnabledFeatureFlag =
-    FeeBumpIsAvailableFeatureFlag(
-      featureFlagDao = FeatureFlagDaoMock()
-    )
+
   val bitcoinTransactionFeeEstimator = BitcoinTransactionFeeEstimatorMock()
   val clock = ClockFake()
   val durationFormatter = DurationFormatterFake()
@@ -128,8 +129,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       sendUiStateMachine = sendUiStateMachine,
       clock = clock,
       durationFormatter = durationFormatter,
-      eventTracker = eventTracker,
-      feeBumpEnabled = feeBumpEnabledFeatureFlag
+      eventTracker = eventTracker
     )
 
   val onCloseCalls = turbines.create<Unit>("close-calls")
@@ -184,7 +184,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     stateMachine.test(pendingReceiveProps) {
       awaitScreenWithBody<FormBodyModel> { // before currency conversion
 
-        testButtonsAndHeader(isPending = true, isReceive = true)
+        testButtonsAndHeader(isPending = true, isReceive = true, isLate = false)
 
         mainContentList[0].shouldBeInstanceOf<DataList>()
           .items[0].expect(title = "Confirmed at", sideText = "Unconfirmed")
@@ -216,7 +216,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     stateMachine.test(receivedProps) {
       awaitScreenWithBody<FormBodyModel> { // before currency conversion
 
-        testButtonsAndHeader(isPending = false, isReceive = true)
+        testButtonsAndHeader(isPending = false, isReceive = true, isLate = false)
 
         // Time Details
         mainContentList[0].shouldBeInstanceOf<DataList>()
@@ -248,7 +248,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     stateMachine.test(pendingSentProps) {
       awaitScreenWithBody<FormBodyModel> { // before currency conversion
 
-        testButtonsAndHeader(isPending = true, isReceive = false)
+        testButtonsAndHeader(isPending = true, isReceive = false, isLate = false)
 
         // Time Details
         with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -288,7 +288,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     stateMachine.test(pendingSentPropsNoEstimatedConfirmationTime) {
       awaitScreenWithBody<FormBodyModel> { // before currency conversion
 
-        testButtonsAndHeader(isPending = true, isReceive = false)
+        testButtonsAndHeader(isPending = true, isReceive = false, isLate = false)
 
         // Time Details
         with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -305,7 +305,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     stateMachine.test(sentProps) {
       awaitScreenWithBody<FormBodyModel> { // before currency conversion
 
-        testButtonsAndHeader(isPending = false, isReceive = false)
+        testButtonsAndHeader(isPending = false, isReceive = false, isLate = false)
 
         // Time Details
         with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
@@ -362,7 +362,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel>()
 
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       browserNavigator.openUrlCalls.awaitItem()
@@ -372,46 +372,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("only show speed up for pending outgoing transaction") {
-    feeBumpEnabledFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-    stateMachine.test(receivedProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
-        secondaryButton.shouldBeNull()
-      }
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel>()
-    }
-    stateMachine.test(pendingReceiveProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
-        secondaryButton.shouldBeNull()
-      }
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel>()
-    }
-    stateMachine.test(sentProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
-        secondaryButton.shouldBeNull()
-      }
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel>()
-    }
-
-    stateMachine.test(pendingSentProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("Speed Up")
-        secondaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
-      }
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel>()
-    }
-  }
-
   test("tapping speed up should open send flow") {
-    feeBumpEnabledFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
     stateMachine.test(pendingSentProps) {
       awaitScreenWithBody<FormBodyModel> {
         primaryButton.shouldNotBeNull().text.shouldBe("Speed Up")
@@ -420,7 +381,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
       // after currency conversion
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // Ensure we log analytics event
@@ -444,8 +405,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(pendingSentProps) {
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("Speed Up")
-        secondaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
+        testButtonsAndHeader(isPending = true, isReceive = false, isLate = true)
 
         with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
           items[0].title.shouldBe("Should have arrived by")
@@ -476,7 +436,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
       // after currency conversion
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // Ensure we log analytics event
@@ -534,23 +494,49 @@ private val TEST_SEND_TXN =
 private fun FormBodyModel.testButtonsAndHeader(
   isPending: Boolean,
   isReceive: Boolean,
+  isLate: Boolean,
 ) {
-  primaryButton.shouldNotBeNull().expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
+  if (isReceive || !isPending) {
+    primaryButton.shouldNotBeNull().expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
+  } else {
+    primaryButton.shouldNotBeNull().expect(SmallIconLightning, "Speed Up", Secondary, Footer)
+    secondaryButton.shouldNotBeNull().expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
+  }
+
   header.shouldNotBeNull()
     .expect(
-      icon =
-        if (isPending) {
-          LargeIconEllipsisFilled
+      iconModel = if (isPending) {
+        if (isLate) {
+          IconModel(
+            icon = LargeIconWarningFilled,
+            iconSize = IconSize.Avatar,
+            iconTint = IconTint.Primary
+          )
         } else {
-          if (isReceive) {
+          IconModel(
+            iconImage = IconImage.Loader,
+            iconSize = IconSize.Large,
+            iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Avatar)
+          )
+        }
+      } else {
+        IconModel(
+          icon = if (isReceive) {
             Bitcoin
           } else {
             LargeIconCheckFilled
-          }
-        },
+          },
+          iconSize = IconSize.Avatar,
+          iconTint = IconTint.Primary
+        )
+      },
       headline =
         if (isPending) {
-          "Transaction pending"
+          if (isLate) {
+            "Transaction delayed"
+          } else {
+            "Transaction pending"
+          }
         } else {
           if (isReceive) {
             "Transaction received"
@@ -575,11 +561,11 @@ private fun ButtonModel.expect(
 }
 
 private fun FormHeaderModel.expect(
-  icon: Icon,
+  iconModel: IconModel,
   headline: String,
   subline: String,
 ) {
-  this.icon.shouldBe(icon)
+  this.iconModel.shouldBe(iconModel)
   this.headline.shouldBe(headline)
   this.sublineModel.shouldNotBeNull().string.shouldBe(subline)
 }

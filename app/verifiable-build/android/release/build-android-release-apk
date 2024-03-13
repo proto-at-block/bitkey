@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# Used for building new emergency APKs.
+
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <output-directory> <reproducible-build-variables>" >&2
+    exit 1
+fi
+
+if [ ! -f "$1/app/verifiable-build/android/Dockerfile" ]; then
+    echo "Cannot find the Dockerfile used for building the AAB. Ensure the path points to the root directory of the Bitkey repository." >&2
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <output-directory> <reproducible-build-variables>" >&2
+    exit 2
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided output directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 3
+fi
+
+if [ ! -f "$3" ]; then
+  echo "Provided file reproducible build variables at $3 doesn't exist." >&2
+  exit 4
+fi
+
+source "$1/app/verifiable-build/android/common/preconditions"
+source "$1/app/verifiable-build/android/common/docker-commands"
+source "$1/app/verifiable-build/android/common/utils"
+
+testDockerExists
+
+configureAndroidFlavor
+
+mkdir -p "$2"
+
+docker build -f "$1/app/verifiable-build/android/Dockerfile" \
+  -t bitkey-android-builder \
+  --target build \
+  --build-arg REPRODUCIBLE_BUILD_VARIABLES="$(cat $3)" \
+  "$1" || exit $?
+
+buildApkUsingDockerContainer bitkey-android-builder "$ANDROID_FLAVOR" "$2" "$UPLOAD_BUGSNAG_MAPPING"
+
+cleanUpDockerResources bitkey-android-builder

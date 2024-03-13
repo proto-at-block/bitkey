@@ -16,8 +16,8 @@ enum class SettingsEventTrackerScreenId : EventTrackerScreenId {
   /** The device info screen from Settings is showing  */
   SETTINGS_DEVICE_INFO,
 
-  /** Error screen shown if there was no device info when Device tab in settings was tapped */
-  SETTINGS_DEVICE_INFO_ERROR,
+  /** The device info screen from Settings is showing with empty device (device not found) state */
+  SETTINGS_DEVICE_INFO_EMPTY,
 
   /** The help center screen from Settings is showing  */
   SETTINGS_HELP_CENTER,

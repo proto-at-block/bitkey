@@ -16,68 +16,106 @@ RUN apk add --no-cache \
     zlib-dev
 
 # We keep the build artifacts in the -build directory
-WORKDIR /tmp/crt-builder
+ARG REALWORKDIR=/tmp/crt-builder
+WORKDIR ${REALWORKDIR}
 
-RUN git clone -b v1.0.2 https://github.com/awslabs/aws-lc.git aws-lc
+RUN git clone -b v1.0.2 https://github.com/awslabs/aws-lc.git
+WORKDIR aws-lc
+RUN git checkout 11b50d39cf2378703a4ca6b6fee9d76a2e9852d1
 RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-lc -B aws-lc/build .
 RUN go env -w GOPROXY=direct
 RUN cmake --build aws-lc/build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v1.3.11 https://github.com/aws/s2n-tls.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -S s2n-tls -B s2n-tls/build
-RUN cmake --build s2n-tls/build --target install
+WORKDIR s2n-tls
+RUN git checkout 0d41122bd2ca62a5de384b79c524dd48852b2071
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.6.20 https://github.com/awslabs/aws-c-common.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-common -B aws-c-common/build
-RUN cmake --build aws-c-common/build --target install
+WORKDIR aws-c-common
+RUN git checkout 68f28f8df258390744f3c5b460250f8809161041
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.1.2 https://github.com/awslabs/aws-c-sdkutils.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-sdkutils -B aws-c-sdkutils/build
-RUN cmake --build aws-c-sdkutils/build --target install
+WORKDIR aws-c-sdkutils
+RUN git checkout e3c23f4aca31d9e66df25827645f72cbcbfb657a
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.5.17 https://github.com/awslabs/aws-c-cal.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-cal -B aws-c-cal/build
-RUN cmake --build aws-c-cal/build --target install
+WORKDIR aws-c-cal
+RUN git checkout 7eb1d7360ea205ff275d2acc6cce2682063b643f
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.10.21 https://github.com/awslabs/aws-c-io.git
-RUN cmake -DUSE_VSOCK=1 -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-io -B aws-c-io/build
-RUN cmake --build aws-c-io/build --target install
+WORKDIR aws-c-io
+RUN git checkout 0457935752729d02b3ccc224205622fd275be2bb
+RUN cmake -DUSE_VSOCK=1 -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.2.14 http://github.com/awslabs/aws-c-compression.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-compression -B aws-c-compression/build
-RUN cmake --build aws-c-compression/build --target install
+WORKDIR aws-c-compression
+RUN git checkout 5fab8bc5ab5321d86f6d153b06062419080820ec
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.6.13 https://github.com/awslabs/aws-c-http.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-http -B aws-c-http/build
-RUN cmake --build aws-c-http/build --target install
+WORKDIR aws-c-http
+RUN git checkout 3f8ffda541eab815646f739cef2b350d6e7d5406
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.6.11 https://github.com/awslabs/aws-c-auth.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-c-auth -B aws-c-auth/build
-RUN cmake --build aws-c-auth/build --target install
+WORKDIR aws-c-auth
+RUN git checkout e1b95cca6f2248c28b66ddb40bcccd35a59cb8b5
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b json-c-0.16-20220414 https://github.com/json-c/json-c.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=OFF -GNinja -S json-c -B json-c/build
-RUN cmake --build json-c/build --target install
+WORKDIR json-c
+RUN git checkout 2f2ddc1f2dbca56c874e8f9c31b5b963202d80e7
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=OFF -GNinja -S . -B build
+RUN cmake --build build --target install
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.2.1 https://github.com/aws/aws-nitro-enclaves-nsm-api.git
+WORKDIR aws-nitro-enclaves-nsm-api
+RUN git checkout cfcf7a29587f5bc9338a2535221af84492f949c5
 COPY --link rust-toolchain.toml aws-nitro-enclaves-nsm-api/rust-toolchain.toml
 RUN <<EOF
     cd aws-nitro-enclaves-nsm-api
     cargo build --release -p nsm-lib
 EOF
-RUN mv aws-nitro-enclaves-nsm-api/target/release/libnsm.a /usr/lib
-RUN mv aws-nitro-enclaves-nsm-api/target/release/nsm.h /usr/include
+RUN mv target/release/libnsm.a /usr/lib
+RUN mv target/release/nsm.h /usr/include
 
+WORKDIR ${REALWORKDIR}
 RUN git clone -b v0.3.2 https://github.com/aws/aws-nitro-enclaves-sdk-c.git
-RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S aws-nitro-enclaves-sdk-c -B aws-nitro-enclaves-sdk-c/build
-RUN cmake --build aws-nitro-enclaves-sdk-c/build --target install
+WORKDIR aws-nitro-enclaves-sdk-c
+RUN git checkout e751fd8ae0fcbe635e6f177d36314978c7f99ea3
+RUN cmake -DCMAKE_PREFIX_PATH=/usr -DCMAKE_INSTALL_PREFIX=/usr -GNinja -S . -B build
+RUN cmake --build build --target install
 
 # Test
 FROM builder as test
-RUN cmake --build aws-nitro-enclaves-sdk-c/build --target test
+RUN cmake --build build --target test
+
+WORKDIR ${REALWORKDIR}
 
 # kmstool-enclave
-FROM alpine:latest as kmstool-enclave
+FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as kmstool-enclave
 COPY --from=builder /usr/bin/kmstool_enclave /kmstool_enclave
 ARG REGION
 ARG ENDPOINT
@@ -86,10 +124,10 @@ ENV ENDPOINT=${ENDPOINT}
 CMD ["/kmstool_enclave"]
 
 # kmstool-instance
-FROM alpine:latest as kmstool-instance
+FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b  as kmstool-instance
 COPY --from=builder /usr/bin/kmstool_instance /kmstool_instance
 CMD ["/kmstool_instance"]
 
 # kmstool-enclave-cli
-FROM alpine:latest as kmstool-enclave-cli
+FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b  as kmstool-enclave-cli
 COPY --from=builder /usr/bin/kmstool_enclave_cli /kmstool_enclave_cli

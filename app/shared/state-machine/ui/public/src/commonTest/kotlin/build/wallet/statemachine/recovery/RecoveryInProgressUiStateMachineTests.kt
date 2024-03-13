@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery
 
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.factor.PhysicalFactor
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.currency.USD
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -17,6 +17,7 @@ import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecove
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
 import io.kotest.core.spec.style.FunSpec
@@ -56,7 +57,7 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
           isNetworkError = false,
           onAcknowledge = { failedToCancelDoneCalls.add(Unit) }
         ),
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       fiatCurrency = USD,
       onExit = {}
     )
@@ -70,7 +71,7 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
           isNetworkError = true,
           onAcknowledge = { failedToCancelDoneCalls.add(Unit) }
         ),
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       fiatCurrency = USD,
       onExit = {}
     )
@@ -78,7 +79,7 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
   test("FailedToCancelRecoveryData model") {
     stateMachine.test(failedCancelErrorProps) {
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
         failedToCancelDoneCalls.awaitItem()
 
         onBack.shouldNotBeNull().invoke()
@@ -94,7 +95,7 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
   test("FailedToCancelRecoveryData networkError model") {
     stateMachine.test(failedCancelErrorPropsNetworkError) {
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
         failedToCancelDoneCalls.awaitItem()
 
         onBack.shouldNotBeNull().invoke()

@@ -37,6 +37,16 @@ abstract class BodyModel : Model() {
     )
 
   /**
+   * Convenience method to wrap this body model into a Sheet Modal screen model.
+   */
+  fun asSheetModalScreen(onClosed: () -> Unit) =
+    SheetModel(
+      body = this,
+      dragIndicatorVisible = true,
+      onClosed = onClosed
+    )
+
+  /**
    * Convenience method to wrap this body model into a Modal screen model.
    */
   fun asModalScreen(alertModel: AlertModel? = null) =

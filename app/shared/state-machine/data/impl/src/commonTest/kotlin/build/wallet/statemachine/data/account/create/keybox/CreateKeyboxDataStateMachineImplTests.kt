@@ -4,11 +4,13 @@ import build.wallet.auth.AccountCreationError
 import build.wallet.auth.FullAccountCreatorMock
 import build.wallet.auth.LiteToFullAccountUpgraderMock
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
+import build.wallet.bitkey.keybox.AppKeyBundleMock2
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.keybox.KeyCrossDraft
-import build.wallet.bitkey.keybox.KeyboxConfigMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError.ConnectivityError
@@ -18,7 +20,7 @@ import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.keybox.keys.OnboardingAppKeyKeystoreFake
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
-import build.wallet.onboarding.OnboardingKeyboxHwAuthPublicKeyDaoFake
+import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoFake
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.platform.random.UuidFake
 import build.wallet.statemachine.core.test
@@ -40,20 +42,21 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class CreateKeyboxDataStateMachineImplTests : FunSpec({
 
   val onboardingKeyboxSealedCsekDao = OnboardingKeyboxSealedCsekDaoMock()
-  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHwAuthPublicKeyDaoFake()
-  val extendedKeyGenerator = AppKeysGeneratorMock(turbines::create)
+  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
+  val appKeysGenerator = AppKeysGeneratorMock()
   val fullAccountCreator = FullAccountCreatorMock(turbine = turbines::create)
   val liteToFullAccountUpgrader = LiteToFullAccountUpgraderMock(turbines::create)
 
   val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
+  val uuid = UuidFake()
 
   val dataStateMachine =
     CreateKeyboxDataStateMachineImpl(
       fullAccountCreator = fullAccountCreator,
-      appKeysGenerator = extendedKeyGenerator,
+      appKeysGenerator = appKeysGenerator,
       onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
-      onboardingKeyboxHwAuthPublicKeyDao = onboardingKeyboxHwAuthPublicKeyDao,
-      uuid = UuidFake(),
+      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
+      uuid = uuid,
       onboardingAppKeyKeystore = onboardingAppKeyKeystore,
       liteToFullAccountUpgrader = liteToFullAccountUpgrader
     )
@@ -62,29 +65,30 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
 
   val props =
     CreateKeyboxDataProps(
-      templateKeyboxConfig = KeyboxConfigMock,
+      templateFullAccountConfig = FullAccountConfigMock,
       context = CreateFullAccountContext.NewFullAccount,
       rollback = { rollbackCalls.add(Unit) }
     )
 
   beforeTest {
+    appKeysGenerator.reset()
     onboardingAppKeyKeystore.clear()
     onboardingKeyboxSealedCsekDao.clear()
-    onboardingKeyboxSealedCsekDao.shouldFailToStore = false
     onboardingKeyboxHwAuthPublicKeyDao.clear()
-    extendedKeyGenerator.keyBundleResult = Ok(AppKeyBundleMock)
+    uuid.reset()
   }
 
   test("create new keybox successfully") {
     val sealedCsek = SealedCsekFake
     dataStateMachine.test(props) {
       awaitItem().shouldBeInstanceOf<CreatingAppKeysData>()
-      extendedKeyGenerator.generateKeyBundleCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<HasAppKeysData>()
+        it.appKeys.appKeyBundle.shouldBe(AppKeyBundleMock)
         it.onPairHardwareComplete(
           FingerprintEnrolled(
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             keyBundle = HwKeyBundleMock,
             sealedCsek = sealedCsek,
             serial = ""
@@ -99,7 +103,7 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<PairingWithServerData>()
 
       onboardingKeyboxSealedCsekDao.sealedCsek.shouldBe(sealedCsek)
-      onboardingKeyboxHwAuthPublicKeyDao.hwAuthPublicKey.shouldBe(HwKeyBundleMock.authKey)
+      onboardingKeyboxHwAuthPublicKeyDao.keys!!.hwAuthPublicKey.shouldBe(HwKeyBundleMock.authKey)
       fullAccountCreator.createAccountCalls.awaitItem()
     }
   }
@@ -115,12 +119,13 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
 
     dataStateMachine.test(props) {
       awaitItem().shouldBeInstanceOf<CreatingAppKeysData>()
-      extendedKeyGenerator.generateKeyBundleCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<HasAppKeysData>()
+        it.appKeys.appKeyBundle.shouldBe(AppKeyBundleMock)
         it.onPairHardwareComplete(
           FingerprintEnrolled(
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             keyBundle = HwKeyBundleMock,
             sealedCsek = sealedCsek,
             serial = ""
@@ -151,7 +156,7 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<PairingWithServerData>()
 
       onboardingKeyboxSealedCsekDao.sealedCsek.shouldNotBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.hwAuthPublicKey.shouldNotBeNull()
+      onboardingKeyboxHwAuthPublicKeyDao.keys!!.hwAuthPublicKey.shouldNotBeNull()
       fullAccountCreator.createAccountCalls.awaitItem()
     }
   }
@@ -166,12 +171,13 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
       )
     dataStateMachine.test(props) {
       awaitItem().shouldBeInstanceOf<CreatingAppKeysData>()
-      extendedKeyGenerator.generateKeyBundleCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<HasAppKeysData>()
+        it.appKeys.appKeyBundle.shouldBe(AppKeyBundleMock)
         it.onPairHardwareComplete(
           FingerprintEnrolled(
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             keyBundle = HwKeyBundleMock,
             sealedCsek = sealedCsek,
             serial = ""
@@ -208,12 +214,13 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
       )
     dataStateMachine.test(props) {
       awaitItem().shouldBeInstanceOf<CreatingAppKeysData>()
-      extendedKeyGenerator.generateKeyBundleCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<HasAppKeysData>()
+        it.appKeys.appKeyBundle.shouldBe(AppKeyBundleMock)
         it.onPairHardwareComplete(
           FingerprintEnrolled(
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             keyBundle = HwKeyBundleMock,
             sealedCsek = sealedCsek,
             serial = ""
@@ -241,11 +248,13 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBeTypeOf<PairingWithServerData>()
 
       onboardingKeyboxSealedCsekDao.sealedCsek.shouldNotBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.hwAuthPublicKey.shouldNotBeNull()
+      onboardingKeyboxHwAuthPublicKeyDao.keys!!.hwAuthPublicKey.shouldNotBeNull()
+
+      appKeysGenerator.keyBundleResult = Ok(AppKeyBundleMock2)
+
       val keyBundle2 =
         fullAccountCreator.createAccountCalls.awaitItem()
           .shouldBeTypeOf<KeyCrossDraft.WithAppKeysAndHardwareKeys>()
-      extendedKeyGenerator.generateKeyBundleCalls.awaitItem()
 
       keyBundle.shouldNotBeEqual(keyBundle2)
     }
@@ -255,16 +264,16 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
     onboardingAppKeyKeystore.persistAppKeys(
       spendingKey = AppKeyBundleMock.spendingKey,
       globalAuthKey = AppKeyBundleMock.authKey,
-      recoveryAuthKey = AppKeyBundleMock.recoveryAuthKey!!,
+      recoveryAuthKey = AppKeyBundleMock.recoveryAuthKey,
       bitcoinNetworkType = SIGNET
     )
 
     dataStateMachine.test(props) {
       awaitItem().shouldBeInstanceOf<CreatingAppKeysData>()
-      extendedKeyGenerator.generateKeyBundleCalls.expectNoEvents()
 
       awaitItem().let {
         it.shouldBeTypeOf<HasAppKeysData>()
+        it.appKeys.appKeyBundle.shouldBe(AppKeyBundleMock.copy(localId = "uuid-0"))
       }
     }
   }
@@ -274,12 +283,13 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
     onboardingKeyboxSealedCsekDao.shouldFailToStore = true
     dataStateMachine.test(props) {
       awaitItem().shouldBeInstanceOf<CreatingAppKeysData>()
-      extendedKeyGenerator.generateKeyBundleCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<HasAppKeysData>()
+        it.appKeys.appKeyBundle.shouldBe(AppKeyBundleMock)
         it.onPairHardwareComplete(
           FingerprintEnrolled(
+            appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
             keyBundle = HwKeyBundleMock,
             sealedCsek = sealedCsek,
             serial = ""

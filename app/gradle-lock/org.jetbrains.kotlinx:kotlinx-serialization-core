@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-core",
+    "components": [
+        {
+            "version": "1.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-core-metadata-1.6.2.jar": "2e530202bba633c5ab31e46f9ff9cdad9b9f4cd4c072160b2035fecbff803317"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.codehaus.plexus:plexus-utils",
+    "components": [
+        {
+            "version": "3.5.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "plexus-utils-3.5.1.jar": "86e0255d4c879c61b4833ed7f13124e8bb679df47debb127326e7db7dd49a07b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -2,7 +2,6 @@ package build.wallet.statemachine.cloud
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,11 +23,11 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryError.RectifiableCloudError
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.recovery.emergencyaccess.EmergencyAccessFeatureFlag
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.CheckingCloudBackupUiState
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.CloudSignInFailedUiState
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.CreatingAndSavingBackupUiState
@@ -37,6 +36,7 @@ import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.Re
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.SealingCsekViaNfcUiState
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.ShowingBackupInstructionsUiState
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.ShowingBackupLearnMoreUiState
+import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.ShowingCustomerSupportUiState
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.SigningIntoCloudUiState
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateFullMessages
 import build.wallet.statemachine.core.BodyModel
@@ -68,7 +68,6 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
   private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
-  private val emergencyAccessFeatureFlag: EmergencyAccessFeatureFlag,
 ) : FullAccountCloudSignInAndBackupUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudSignInAndBackupProps): ScreenModel {
@@ -100,7 +99,17 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               )
           }
         ).asScreen(props.presentationStyle)
-
+      is ShowingCustomerSupportUiState ->
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = state.urlString,
+              onClose = {
+                uiState = CloudSignInFailedUiState(sealedCsek = state.sealedCsek)
+              }
+            )
+          }
+        ).asModalScreen()
       is ShowingBackupLearnMoreUiState ->
         InAppBrowserModel(
           open = {
@@ -132,6 +141,12 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           onBack = {
             uiState = ShowingBackupInstructionsUiState(false)
           },
+          onContactSupport = {
+            uiState = ShowingCustomerSupportUiState(
+              urlString = "https://support.bitkey.world/hc/en-us",
+              sealedCsek = state.sealedCsek
+            )
+          },
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         ).asScreen(props.presentationStyle)
 
@@ -160,7 +175,10 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                     )
                 }
 
-                else -> FailureUiState
+                else -> {
+                  log(LogLevel.Warn) { "Failed to read cloud backup: $cloudBackupError" }
+                  FailureUiState
+                }
               }
             }
         }
@@ -251,7 +269,6 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
         isGeneratingCsek = false
       }
     }
-    val eakEnabled = emergencyAccessFeatureFlag.flagValue().collectAsState()
 
     return SaveBackupInstructionsBodyModel(
       requiresHardware = requiresHardware,
@@ -266,8 +283,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
       onLearnMoreClick = {
         goToLearnMore()
       },
-      devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
-      emergencyAccessKitEnabled = eakEnabled.value.value
+      devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
     )
   }
 
@@ -344,6 +360,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               sealedCsek = sealedCsek,
               trustedContacts = props.trustedContacts
             )
+            .logFailure { "Error creating cloud backup" }
             .onFailure { onFailure() }
             .bind()
 
@@ -352,7 +369,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           .writeBackup(
             accountId = props.keybox.fullAccountId,
             cloudStoreAccount = state.cloudStoreAccount,
-            backup = cloudBackup
+            backup = cloudBackup,
+            requireAuthRefresh = props.requireAuthRefreshForCloudBackup
           )
           .logFailure { "Error saving cloud backup to cloud storage" }
           .onFailure { cloudBackupFailure ->
@@ -364,33 +382,32 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           }
           .bind()
 
-        if (emergencyAccessFeatureFlag.flagValue().value.value) {
-          // Create the emergency access kit.
-          val emergencyAccessKitData =
-            emergencyAccessKitPdfGenerator
-              .generate(
-                keybox = props.keybox,
-                sealedCsek = sealedCsek
-              )
-              .onFailure { onFailure() }
-              .bind()
-
-          // Save the emergency access kit.
-          emergencyAccessKitRepository
-            .write(
-              account = state.cloudStoreAccount,
-              emergencyAccessKitData = emergencyAccessKitData
+        // Create the emergency access kit.
+        val emergencyAccessKitData =
+          emergencyAccessKitPdfGenerator
+            .generate(
+              keybox = props.keybox,
+              sealedCsek = sealedCsek
             )
-            .logFailure { "Error saving emergency access kit to cloud file store" }
-            .onFailure { writeFailure ->
-              if (writeFailure is RectifiableCloudError) {
-                onRectifiableError(writeFailure.toRectifiableCloudBackupError)
-              } else {
-                onFailure()
-              }
-            }
+            .logFailure { "Error creating emergency access kit data" }
+            .onFailure { onFailure() }
             .bind()
-        }
+
+        // Save the emergency access kit.
+        emergencyAccessKitRepository
+          .write(
+            account = state.cloudStoreAccount,
+            emergencyAccessKitData = emergencyAccessKitData
+          )
+          .logFailure { "Error saving emergency access kit to cloud file store" }
+          .onFailure { writeFailure ->
+            if (writeFailure is RectifiableCloudError) {
+              onRectifiableError(writeFailure.toRectifiableCloudBackupError)
+            } else {
+              onFailure()
+            }
+          }
+          .bind()
 
         props.onBackupSaved()
       }
@@ -414,6 +431,11 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
    */
   data class ShowingBackupInstructionsUiState(
     val generatingCsek: Boolean = false,
+  ) : FullAccountCloudSignInAndBackupUiState()
+
+  data class ShowingCustomerSupportUiState(
+    val urlString: String,
+    val sealedCsek: SealedCsek,
   ) : FullAccountCloudSignInAndBackupUiState()
 
   /**

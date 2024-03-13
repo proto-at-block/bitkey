@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.grpc:grpc-stub",
+    "components": [
+        {
+            "version": "1.60.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-stub-1.60.0.jar": "78feaeef3ebcd18a4375f317165192c9879bd77e54cee21e82623987a356cfe0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

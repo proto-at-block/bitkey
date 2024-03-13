@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.gradle:gradle-enterprise-gradle-plugin",
+    "components": [
+        {
+            "version": "3.15.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gradle-enterprise-gradle-plugin-3.15.1.jar": "a25c057eb8bf6e42e5659636d5fbe66332f5966930f3b2bd64c5dd17e45b9dc6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

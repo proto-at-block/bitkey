@@ -40,6 +40,7 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
     EnableNotificationsUiProps(
       retreat = Retreat(style = Back, onRetreat = { onBackCalls += Unit }),
       onComplete = { onCompleteCalls += Unit },
+      rationale = NotificationRationale.Recovery,
       eventTrackerContext = PushNotificationEventTrackerScreenIdContext.APP_RECOVERY
     )
 
@@ -56,7 +57,6 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_PUSH_NOTIFICATIONS_ENABLED)
       )
-      awaitItem()
 
       onCompleteCalls.awaitItem().shouldBe(Unit)
     }
@@ -72,7 +72,6 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_PUSH_NOTIFICATIONS_ENABLED)
       )
-      awaitItem()
 
       onCompleteCalls.awaitItem().shouldBe(Unit)
     }
@@ -88,7 +87,6 @@ class EnableNotificationsStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_PUSH_NOTIFICATIONS_DISABLED)
       )
-      awaitItem()
 
       onCompleteCalls.awaitItem().shouldBe(Unit)
     }

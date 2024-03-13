@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-annotations-iosx64",
+    "components": [
+        {
+            "version": "0.13.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-annotations-iosx64-0.13.3-metadata.jar": "f110cf2e002014f58faef48ff37e319586b2b20695bdcda4f89d4e618ae4f78d"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-annotations.klib": "80099f26e704769ae31d35c7a3380decaaf70c72e93f5b6d9d89893c67adb0ce"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

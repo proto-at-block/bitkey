@@ -18,6 +18,11 @@ interface F8eAuthSignatureStatusProvider {
    * Updates the [AuthSignatureStatus] of f8e authentication.
    */
   suspend fun updateAuthSignatureStatus(authSignatureStatus: AuthSignatureStatus)
+
+  /**
+   * Clears the current state of [AuthSignatureStatus] of f8e authentication.
+   */
+  suspend fun clear()
 }
 
 /**

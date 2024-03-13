@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-measurement-connector",
+    "components": [
+        {
+            "version": "19.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-measurement-connector-19.0.0.aar": "dba74d6bf94647ee397bf7afb2ab07f6fe8d13157e56785fa540a2a13ed82c99"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

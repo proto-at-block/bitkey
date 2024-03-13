@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.conflict.model
 
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -10,7 +10,7 @@ import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.SecondaryDestructive
 
@@ -49,7 +49,7 @@ fun ShowingSomeoneElseIsRecoveringBodyModel(
     ButtonModel(
       text = "Cancel conflicting recovery",
       treatment = SecondaryDestructive,
-      onClick = Click.standardClick { onCancelRecovery() },
+      onClick = StandardClick(onCancelRecovery),
       size = ButtonModel.Size.Footer,
       isLoading = isLoading
     )

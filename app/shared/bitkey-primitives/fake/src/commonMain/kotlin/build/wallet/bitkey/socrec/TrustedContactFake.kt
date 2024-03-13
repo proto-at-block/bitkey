@@ -1,17 +1,14 @@
 package build.wallet.bitkey.socrec
 
-import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 
 val TrustedContactFake1 =
   TrustedContact(
     recoveryRelationshipId = "someRelationshipId",
     trustedContactAlias = TrustedContactAlias("someContact"),
-    identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("deadbeef"))
+    authenticationState = VERIFIED,
+    keyCertificate = TrustedContactKeyCertificateFake
   )
 
 val TrustedContactFake2 =
-  TrustedContact(
-    recoveryRelationshipId = "someOtherRelationshipId",
-    trustedContactAlias = TrustedContactAlias("someContact"),
-    identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("deadbeef"))
-  )
+  TrustedContactFake1.copy(recoveryRelationshipId = "someOtherRelationshipId")

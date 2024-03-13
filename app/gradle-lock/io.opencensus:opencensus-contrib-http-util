@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.opencensus:opencensus-contrib-http-util",
+    "components": [
+        {
+            "version": "0.31.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "opencensus-contrib-http-util-0.31.1.jar": "3ea995b55a4068be22989b70cc29a4d788c2d328d1d50613a7a9afd13fdd2d0a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

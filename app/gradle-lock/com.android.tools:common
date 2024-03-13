@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.android.tools:common",
+    "components": [
+        {
+            "version": "31.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "common-31.1.2.jar": "1078adfb755d56e1d6a794ee571e7220b2e4b3ee2928330f1867c266899401a2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

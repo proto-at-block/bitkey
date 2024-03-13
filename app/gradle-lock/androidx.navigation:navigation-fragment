@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.navigation:navigation-fragment",
+    "components": [
+        {
+            "version": "2.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "navigation-fragment-2.3.0.aar": "7de48ee336f43bec4c42dcf60a36f57496dc35dc38a72ef1c0e72c3907111bb9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

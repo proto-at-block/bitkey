@@ -13,6 +13,7 @@ kotlin {
       dependencies {
         implementation(projects.shared.platformPublic)
         implementation(projects.shared.serializationPublic)
+        implementation(projects.shared.encryptionPublic)
         implementation(libs.kmp.ktor.client.core)
         api(projects.shared.ktorClientPublic)
         api(projects.shared.loggingPublic)

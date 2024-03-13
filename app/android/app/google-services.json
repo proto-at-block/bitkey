@@ -40,10 +40,19 @@
           "package_name": "world.bitkey.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "496981653612-3hav45aeu85i61lucpr7j1sg31eb1hq5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "world.bitkey.app",
+            "certificate_hash": "452e6208eea504eb2ee86e9169ca1fc74796e364"
+          }
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+          "current_key": "AIzaSyCH2YB54if-kY_yTj_meXvSABBbukohVVg"
         }
       ],
       "services": {
@@ -71,7 +80,7 @@
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+          "current_key": "AIzaSyCaoVWKelrv-ZbtWoLR7EpsVjSY9DSHot8"
         }
       ],
       "services": {
@@ -99,7 +108,7 @@
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBtWP4Ve0Iy66EVHgc_hyfrHQhQpA76SJ0"
+          "current_key": "AIzaSyBV1jabtPtKbhBKyNXgvdJCxIVY7a98V_U"
         }
       ],
       "services": {

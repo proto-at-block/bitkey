@@ -177,6 +177,7 @@ async fn test_scheduled_handler() {
             use_local_sns: true,
             platform: TouchpointPlatform::ApnsTeam,
             device_token: "test".to_string(),
+            access_token: Default::default(),
         })
         .await
         .unwrap();

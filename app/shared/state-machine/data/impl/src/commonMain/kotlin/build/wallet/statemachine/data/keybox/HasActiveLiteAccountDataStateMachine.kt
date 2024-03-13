@@ -4,7 +4,7 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.OnboardConfigData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 
 /**
  * Manages the state of the case when we have an active Lite Account ready to use.
@@ -16,6 +16,6 @@ data class HasActiveLiteAccountDataProps(
   val account: LiteAccount,
   val currencyPreferenceData: CurrencyPreferenceData,
   val accountUpgradeOnboardConfigData: OnboardConfigData.LoadedOnboardConfigData,
-  val accountUpgradeTemplateKeyboxConfigData:
-    TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+  val accountUpgradeTemplateFullAccountConfigData:
+    TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
 )

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.sqldelight:async-extensions-iosx64",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "async-extensions.klib": "f6926da587a878b4d1ee911d95d8705b6feeaebe285539a2a37da5b23300b791"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "sqldelight-async-extensions-iosx64-2.0.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

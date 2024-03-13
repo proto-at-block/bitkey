@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.rickclephas.kmp:nserror-kt",
+    "components": [
+        {
+            "version": "0.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "nserror-kt-metadata-0.2.0.jar": "8a7316be310026f5ec46bf8bc5b375b8f5fe887c413f91e01b06510033317006"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,7 +1,6 @@
 [workspace]
 members = [
   "apdu",
-  "cli",
   "ffi",
   "state",
   "teltra",
@@ -17,7 +16,7 @@ publish = false
 version = "0.1.1"
 
 [workspace.dependencies]
-anyhow = "1.0.79"
+anyhow = "1.0.80"
 bdk = "0.28.0"
 bitcoin = "0.29.2"           # bitcoin version pinned by bdk
 lightning-invoice = "0.22.0"
@@ -25,8 +24,8 @@ miniscript = "9.0"           # miniscript version pinned by bdk
 pcsc = "2.8.2"
 prost = "0.11.9"
 prost-build = "0.11.9"
-serde = "1.0.196"
-serde_json = "1.0.113"
+serde = "1.0.197"
+serde_json = "1.0.114"
 sha2 = "0.10.8"
 thiserror = "1.0.57"
 uniffi = "0.24.3"

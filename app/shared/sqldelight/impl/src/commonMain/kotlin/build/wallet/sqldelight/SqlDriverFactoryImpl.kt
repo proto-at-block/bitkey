@@ -26,8 +26,10 @@ internal fun loadDbKey(
 ): String =
   runBlocking {
     encryptedKeyValueStoreFactory
+      // Changing these values is a breaking change
+      // These should only be changed with a migration plan otherwise data will be lost
       .getOrCreate(storeName = "SqlCipherStore")
-      .getOrPutString("dbKey") {
+      .getOrPutString("db-key") {
         uuid.random()
       }
   }

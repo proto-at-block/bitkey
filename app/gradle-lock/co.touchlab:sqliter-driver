@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:sqliter-driver",
+    "components": [
+        {
+            "version": "1.3.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sqliter-driver-metadata-1.3.1.jar": "f265f80fb4455bc4e3a7b5b0246cace27e69ab432df93c46ee9cc676d0352d56"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

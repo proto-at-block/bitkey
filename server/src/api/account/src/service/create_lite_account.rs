@@ -21,7 +21,9 @@ impl Service {
                 ..AccountProperties::default()
             },
         );
-        self.repo.persist(&lite_account.clone().into()).await?;
+        self.account_repo
+            .persist(&lite_account.clone().into())
+            .await?;
         Ok(lite_account)
     }
 }

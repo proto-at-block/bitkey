@@ -1,5 +1,4 @@
 use authn_authz::authorizer::AuthorizerConfig;
-use authn_authz::userpool::{FakeCognitoConnection, UserPoolService};
 use aws_utils::secrets_manager::test::TestSecretsManager;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -10,6 +9,7 @@ use partnerships::routes::RouteState;
 use serde_json::{json, Value};
 use server::test_utils::AuthenticatedRequest;
 use std::collections::HashMap;
+use userpool::userpool::{FakeCognitoConnection, UserPoolService};
 
 use tower::ServiceExt;
 use types::account::identifiers::AccountId;

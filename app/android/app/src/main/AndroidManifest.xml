@@ -18,10 +18,22 @@
       android:fullBackupContent="false"
       android:icon="@mipmap/ic_launcher"
       android:label="@string/app_name"
-      android:networkSecurityConfig="@xml/network_security_config"
       android:roundIcon="@mipmap/ic_launcher_round"
       android:supportsRtl="true"
       android:theme="@style/Theme.AppSplash">
+
+    <!-- Allows the customer to share app files.
+         We use this allow customer share Emergency Access Kit PDF file. -->
+    <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+      <meta-data
+              android:name="android.support.FILE_PROVIDER_PATHS"
+              android:resource="@xml/provider_paths"
+      />
+    </provider>
 
     <!-- Bugsnag API key loaded by Bugsnag SDK and Bugsnag Gradle plugin. -->
     <meta-data android:name="com.bugsnag.android.API_KEY"

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.ionspin.kotlin:bignum-iosx64",
+    "components": [
+        {
+            "version": "0.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bignum-iosx64-0.3.8-metadata.jar": "508379cd1a4675c71ba1ee85fe219110028165e9351761901f237d72351e5d40"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "bignum.klib": "052f81fa04516fcbcfc08824ef29303abaed6f65dd0dadac96cf6a8e51fc8dee"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

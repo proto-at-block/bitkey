@@ -8,10 +8,13 @@ import build.wallet.bitkey.spending.SpendingPublicKey
 import dev.zacsweers.redacted.annotations.Redacted
 
 interface FakeHardwareKeyStore {
-  suspend fun getSeed(): String
+  suspend fun getSeed(): Seed
 
-  suspend fun setSeed(words: String)
+  suspend fun setSeed(words: Seed)
 
+  /**
+   * Returns the hardware auth key. If not present, will generate a new one and return it.
+   */
   suspend fun getAuthKeypair(): FakeHwAuthKeypair
 
   suspend fun getInitialSpendingKeypair(network: BitcoinNetworkType): SpendingKeypair
@@ -38,4 +41,8 @@ interface FakeHardwareKeyStore {
   data class FakeHwSpendingPrivateKey(
     override val key: ExtendedPrivateKey,
   ) : SpendingPrivateKey
+
+  data class Seed(
+    val words: String,
+  )
 }

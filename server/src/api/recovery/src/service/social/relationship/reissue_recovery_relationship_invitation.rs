@@ -1,9 +1,16 @@
 use account::entities::FullAccount;
+use tracing::instrument;
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 
 use super::{error::ServiceError, Service};
 use super::{gen_code, gen_expiration};
 
+/// The input for the `reissue_recovery_relationship_invitation` function
+///
+/// # Fields
+///
+/// * `customer_account` - The account for the customer that is trying to reissue the invitation
+/// * `recovery_relationship_id` - The ID of the invitation that requires reissuing.
 pub struct ReissueRecoveryRelationshipInvitationInput<'a> {
     pub customer_account: &'a FullAccount,
     pub recovery_relationship_id: &'a RecoveryRelationshipId,
@@ -15,8 +22,12 @@ impl Service {
     ///
     /// # Arguments
     ///
-    /// * `customer_account` - The account for the customer that is trying to reissue the invitation
-    /// * `recovery_relationship_id` - The ID of the invitation that requires reissuing.
+    /// * `input` - Contains the customer account and the recovery relationship id
+    ///
+    /// # Returns
+    ///
+    /// * The recovery relationship corresponding to the code
+    #[instrument(skip(self, input))]
     pub async fn reissue_recovery_relationship_invitation(
         &self,
         input: ReissueRecoveryRelationshipInvitationInput<'_>,
@@ -37,11 +48,14 @@ impl Service {
         }
 
         let account_properties = &input.customer_account.common_fields.properties;
-        let code = gen_code();
+        let (code, code_bit_length) = gen_code();
         let expires_at = gen_expiration(account_properties);
 
-        let mut relationship =
-            RecoveryRelationship::Invitation(invitation.reissue(&code, &expires_at));
+        let mut relationship = RecoveryRelationship::Invitation(invitation.reissue(
+            &code,
+            code_bit_length,
+            &expires_at,
+        ));
 
         relationship = self
             .repository

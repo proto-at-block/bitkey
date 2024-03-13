@@ -3,6 +3,8 @@ use axum::Router;
 use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use tracing::{error, instrument};
+use types::authn_authz::cognito::{CognitoUser, CognitoUsername};
+use userpool::userpool::{AuthTokens, UserPoolError, UserPoolService};
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::{FetchAccountByAuthKeyInput, Service as AccountService};
@@ -10,9 +12,6 @@ use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use errors::ApiError;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
-
-use crate::userpool::cognito_user::{CognitoUser, CognitoUsername};
-use crate::userpool::{AuthTokens, UserPoolError, UserPoolService};
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub UserPoolService, pub AccountService);

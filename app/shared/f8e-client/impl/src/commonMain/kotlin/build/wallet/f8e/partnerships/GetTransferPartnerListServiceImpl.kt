@@ -6,6 +6,7 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.partnerships.GetTransferPartnerListService.Success
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
+import build.wallet.logging.logNetworkFailure
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -36,7 +37,7 @@ class GetTransferPartnerListServiceImpl(
         }
       }
       .map { body -> Success(body.partners) }
-    // W-4117 - we do not log on failure as partnerships activity should not be logged
+      .logNetworkFailure { "Failed to get partnerships transfer partners" }
   }
 }
 

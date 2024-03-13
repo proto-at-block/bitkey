@@ -57,6 +57,7 @@ class GettingStartedTaskDaoImpl(
     state: TaskState,
   ) = databaseProvider.database().gettingStartedTaskQueries
     .awaitTransaction { updateGettingStartedTask(taskId = id, taskState = state) }
+    .logFailure { "Error updating Getting Started task $id with state $state" }
 
   override suspend fun clearTasks() =
     databaseProvider.database().gettingStartedTaskQueries

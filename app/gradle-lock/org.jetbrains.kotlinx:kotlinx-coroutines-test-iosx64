@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-test-iosx64",
+    "components": [
+        {
+            "version": "1.7.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-test-iosx64-1.7.3-metadata.jar": "cea161e9ab605e583246f0cef872f05359b06178f52c776ea1510546611e5330"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-test.klib": "c08f8834442b418194f5de71e55174d3b0bc8896e49aeed60a0622025e474ebe"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

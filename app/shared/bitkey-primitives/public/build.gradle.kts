@@ -26,5 +26,11 @@ kotlin {
         implementation(projects.shared.serializationPublic)
       }
     }
+
+    commonTest {
+      dependencies {
+        implementation(projects.shared.bitkeyPrimitivesFake)
+      }
+    }
   }
 }

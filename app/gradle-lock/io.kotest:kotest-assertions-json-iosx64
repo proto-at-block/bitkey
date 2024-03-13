@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.kotest:kotest-assertions-json-iosx64",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-assertions-json-iosx64-5.8.0-metadata.jar": "f54eade13a7827782e9c3f57c00fcfd02a2a276c5cab2cfdd1aca9de9bfe5d6f"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotest-assertions-json.klib": "7355a3ef2bb2e5922fc4546930c8fd4977215499ee7bef2094ac81e488c28ff6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

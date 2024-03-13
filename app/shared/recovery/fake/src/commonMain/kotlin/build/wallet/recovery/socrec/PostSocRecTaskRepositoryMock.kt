@@ -10,7 +10,7 @@ class PostSocRecTaskRepositoryMock : PostSocRecTaskRepository {
   val mutableState = MutableStateFlow(PostSocialRecoveryTaskState.None)
   override val taskState: Flow<PostSocialRecoveryTaskState> = mutableState
 
-  override suspend fun setHardwareReplacementNeeded(incomplete: Boolean): Result<Unit, DbError> {
+  override suspend fun setHardwareReplacementNeeded(value: Boolean): Result<Unit, DbError> {
     return Ok(Unit)
   }
 }

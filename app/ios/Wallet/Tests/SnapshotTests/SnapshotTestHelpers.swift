@@ -123,7 +123,6 @@ extension ScreenModel {
             alertModel: nil,
             statusBannerModel: statusBannerModel,
             bottomSheetModel: nil,
-            onTwoFingerTripleTap: nil,
             systemUIModel: nil
         )
     }
@@ -156,7 +155,7 @@ extension ButtonModel {
             treatment: treatment,
             size: size,
             testTag: nil,
-            onClick: ClickCompanion().standardClick { }
+            onClick: StandardClick { }
         )
     }
 }
@@ -221,14 +220,46 @@ fileprivate extension Snapshotting where Value == PDFDocument, Format == PDFDocu
                 toData: { $0.dataRepresentation()! },
                 fromData: { PDFDocument(data: $0)! },
                 diff: { old, new in
-                    if old.string != new.string {
-                        // In the future we can improve this with more detailed diffing that checks for layout, attributes, etc (comparing the raw data bytes did not work as expected as they change with each creation).
-                        return ("PDF string representations different", [])
-                    } else {
-                        return nil
+                    let oldImages = old.pageImages
+                    let newImages = new.pageImages
+                    
+                    if oldImages.count != newImages.count {
+                        return ("Different number of pages", [])
                     }
+                    
+                    for (oldImage, newImage) in zip(oldImages, newImages) {
+                        if let imageDiff = Diffing.image.diff(oldImage, newImage) {
+                            return imageDiff
+                        }
+                    }
+                    
+                    return nil
                 }
             )
         )
+    }
+}
+
+extension PDFDocument {
+    var pageImages: [UIImage] {
+        var images: [UIImage] = []
+        
+        for pageIndex in 0..<pageCount {
+            guard let page = page(at: pageIndex) else { continue }
+            
+            let pageRect = page.bounds(for: .mediaBox)
+            let renderer = UIGraphicsImageRenderer(size: pageRect.size)
+            let pageImage = renderer.image { context in
+                UIColor.white.set()
+                context.fill(pageRect)
+                context.cgContext.translateBy(x: 0.0, y: pageRect.size.height)
+                context.cgContext.scaleBy(x: 1.0, y: -1.0)
+                context.cgContext.drawPDFPage(page.pageRef!)
+            }
+            
+            images.append(pageImage)
+        }
+        
+        return images
     }
 }

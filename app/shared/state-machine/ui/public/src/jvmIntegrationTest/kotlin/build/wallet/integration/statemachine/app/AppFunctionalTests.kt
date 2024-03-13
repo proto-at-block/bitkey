@@ -50,7 +50,10 @@ class AppFunctionalTests : FunSpec({
     }
   }
 
-  test("App re-launches with limited access to BDK or F8e") {
+  // Disabled because we are now parallelizing tests and this test changes global state.
+  // Specifically it uses ToxiProxy to break the connection to f8e.
+  // See https://linear.app/squareup/issue/BKR-1034
+  xtest("BKR-1034 App re-launches with limited access to BDK or F8e") {
     val appTester = launchNewApp()
 
     appTester.onboardFullAccountWithFakeHardware()

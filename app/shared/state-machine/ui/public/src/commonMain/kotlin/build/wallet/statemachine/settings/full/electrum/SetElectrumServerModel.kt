@@ -5,7 +5,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.input.TextFieldModel
@@ -59,7 +59,7 @@ fun SetElectrumServerModel(
     ButtonModel(
       text = "Save",
       isEnabled = setServerButtonEnabled,
-      onClick = Click.standardClick { onSetServerClick() },
+      onClick = StandardClick(onSetServerClick),
       size = Footer
     ),
   toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClick = onClose))

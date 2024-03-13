@@ -10,7 +10,7 @@ import kotlin.reflect.KClass
 enum class SocRecKeyPurpose {
   ProtectedCustomerEphemeral,
   ProtectedCustomerIdentity,
-  TrustedContactIdentity,
+  DelegatedDecryption,
   ;
 
   companion object {
@@ -18,7 +18,7 @@ enum class SocRecKeyPurpose {
       when (keyClass) {
         ProtectedCustomerEphemeralKey::class -> ProtectedCustomerEphemeral
         ProtectedCustomerIdentityKey::class -> ProtectedCustomerIdentity
-        TrustedContactIdentityKey::class -> TrustedContactIdentity
+        DelegatedDecryptionKey::class -> DelegatedDecryption
         else -> error("Unknown SocRecKey type: $keyClass")
       }
   }

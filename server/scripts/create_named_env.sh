@@ -49,6 +49,16 @@ terragrunt apply \
   -auto-approve
 popd
 
+# Copy sanctions list from development to named-stack bucket. We intentionally make this a requirement to ensure that
+# we do not accidentally deploy anything to the public internet that we do not intend to.
+echo "🚀 Copying sanctions list to named stack bucket"
+# Get dev bucket uri from secrets manager
+export AWS_PROFILE=w1-development--admin
+DEV_BUCKET_URI=$(aws secretsmanager get-secret-value --secret-id fromagerie/sq_sdn/s3_uri --query SecretString --output text)
+NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
+echo "Copying from $DEV_BUCKET_URI to $NAMED_STACK_S3_BUCKET_URI"
+aws s3 cp $DEV_BUCKET_URI $NAMED_STACK_S3_BUCKET_URI
+
 if [[ -z "$IS_CI_RUN" ]] ; then
   if [[ -n "$BUILD_WSM" ]]; then
     echo "🏗 building WSM"

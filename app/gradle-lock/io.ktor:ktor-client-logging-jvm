@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-client-logging-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-logging-jvm-2.3.8.jar": "72a53791d56febd909991132e8409c0abbfe96786c637b44465a5818d95d232a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

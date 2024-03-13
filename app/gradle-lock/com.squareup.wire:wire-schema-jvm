@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-schema-jvm",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-schema-jvm-4.9.5.jar": "59d15ccb8b26b45ff521188c4bbf3c9b70d2cc50b5601626d1ddeb8b93a379a0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

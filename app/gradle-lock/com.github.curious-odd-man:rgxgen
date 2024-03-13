@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.curious-odd-man:rgxgen",
+    "components": [
+        {
+            "version": "1.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "rgxgen-1.4.jar": "b13b074bf04578a39100417087446648a079e2d626cd841f9794e34e68a6e8ec"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

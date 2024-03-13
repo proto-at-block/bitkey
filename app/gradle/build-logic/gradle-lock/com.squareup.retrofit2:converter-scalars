@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.retrofit2:converter-scalars",
+    "components": [
+        {
+            "version": "2.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "converter-scalars-2.9.0.jar": "8ed09e0b4a7c8ea602c03f5f3def9c0f6672dfad66201d642908dca818a990af"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

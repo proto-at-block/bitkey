@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.material:material-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-release.aar": "6ff3b19950724e44348fd122765efdb7f9f58e4c607ca0439f0e15048766b993"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -28,7 +28,7 @@ class RegisterWatchAddressSenderImpl(
     return registerWatchAddressService.register(
       addressAndKeysetIds =
         batch.map {
-          AddressAndKeysetId(it.address.address, it.spendingKeysetId)
+          AddressAndKeysetId(it.address.address, it.f8eSpendingKeyset.keysetId)
         },
       fullAccountId = FullAccountId(accountId),
       f8eEnvironment = f8eEnvironment

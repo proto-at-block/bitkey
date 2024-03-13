@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-datetime-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-datetime-iossimulatorarm64-0.5.0-metadata.jar": "55c192cbe47292df21c4b33b99e97050212fb51b6b6f49d5625ac8f07868fbd6"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-datetime.klib": "e8e9085fe1035350f996fcc5ef28507bcd0d8ca0f53af1b930b6c47d40b7027e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

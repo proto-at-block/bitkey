@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:kermit-core-jvm",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kermit-core-jvm-2.0.3.jar": "05b3f56473122ab3545727449428bb55cc98dc0150aba4b04e4030ee8db71405"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

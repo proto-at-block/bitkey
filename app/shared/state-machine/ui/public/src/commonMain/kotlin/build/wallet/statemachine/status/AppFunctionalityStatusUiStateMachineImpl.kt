@@ -1,10 +1,6 @@
 package build.wallet.statemachine.status
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import build.wallet.availability.ConnectivityCause
 import build.wallet.availability.EmergencyAccessMode
 import build.wallet.availability.F8eUnreachable
@@ -16,7 +12,6 @@ import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.time.isThisYear
 import build.wallet.time.isToday
-import build.wallet.ui.model.alert.AlertModel
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
@@ -27,20 +22,11 @@ class AppFunctionalityStatusUiStateMachineImpl(
 ) : AppFunctionalityStatusUiStateMachine {
   @Composable
   override fun model(props: AppFunctionalityStatusUiProps): ScreenModel {
-    var alertModel: AlertModel? by remember { mutableStateOf(null) }
-
     val bodyModel =
       when (props.status.cause) {
         is InactiveApp ->
           InactiveAppInfoBodyModel(
-            onClose = props.onClose,
-            onSetUpNewWallet = {
-              alertModel =
-                SetUpNewWalletAlert(
-                  onOverwrite = { alertModel = null },
-                  onCancel = { alertModel = null }
-                )
-            }
+            onClose = props.onClose
           )
         is F8eUnreachable, is InternetUnreachable, is EmergencyAccessMode ->
           AppFunctionalityStatusBodyModel(
@@ -60,7 +46,6 @@ class AppFunctionalityStatusUiStateMachineImpl(
 
     return ScreenModel(
       body = bodyModel,
-      alertModel = alertModel,
       presentationStyle = ScreenPresentationStyle.Modal
     )
   }

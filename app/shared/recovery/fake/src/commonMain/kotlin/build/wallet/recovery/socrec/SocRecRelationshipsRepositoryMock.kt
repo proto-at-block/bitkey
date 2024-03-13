@@ -1,27 +1,27 @@
 package build.wallet.recovery.socrec
 
 import app.cash.turbine.Turbine
+import app.cash.turbine.plusAssign
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.InvitationFake
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.IncomingInvitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.error.F8eError
-import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
-import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.f8e.socrec.SocRecRelationshipsFake
-import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class SocRecRelationshipsRepositoryMock(
@@ -30,18 +30,30 @@ class SocRecRelationshipsRepositoryMock(
   val launchSyncCalls = turbine("SocRecRelationshipsRepository launchSync calls")
   val syncCalls = turbine("SocRecRelationshipsRepository syncRelationships calls")
 
-  var getSyncedSocRecRelationshipsResult: Result<SocRecRelationships, Error> =
-    Ok(SocRecRelationshipsFake)
-
-  override suspend fun syncLoop(account: Account) {
+  override fun syncLoop(
+    scope: CoroutineScope,
+    account: Account,
+  ) {
     launchSyncCalls.add(Unit)
   }
 
-  override suspend fun syncRelationships(
+  override suspend fun syncAndVerifyRelationships(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-  ): Result<SocRecRelationships, NetworkingError> {
+    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    appAuthKey: AppGlobalAuthPublicKey?,
+    hwAuthPublicKey: HwAuthPublicKey?,
+  ): Result<SocRecRelationships, Error> {
     syncCalls.add(Unit)
+
+    return Ok(SocRecRelationshipsFake)
+  }
+
+  override suspend fun syncRelationshipsWithoutVerification(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+  ): Result<SocRecRelationships, Error> {
+    syncCalls += Unit
 
     return Ok(SocRecRelationshipsFake)
   }
@@ -52,6 +64,26 @@ class SocRecRelationshipsRepositoryMock(
     )
 
   override val relationships = relationshipsFlow
+
+  override suspend fun getRelationshipsWithoutSyncing(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+  ): SocRecRelationships {
+    return relationshipsFlow.value
+  }
+
+  val removeRelationshipWithoutSyncingCalls = turbine("removeRelationshipWithoutSyncing calls")
+
+  override suspend fun removeRelationshipWithoutSyncing(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    authTokenScope: AuthTokenScope,
+    relationshipId: String,
+  ): Result<Unit, Error> {
+    removeRelationshipWithoutSyncingCalls.add(relationshipId)
+    return Ok(Unit)
+  }
 
   val removeRelationshipCalls = turbine("removeRelationship calls")
 
@@ -71,48 +103,48 @@ class SocRecRelationshipsRepositoryMock(
     account: FullAccount,
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Invitation, Error> {
+  ): Result<OutgoingInvitation, Error> {
     createInvitationCalls.add(Unit)
-    return Ok(InvitationFake)
+    return Ok(OutgoingInvitationFake)
   }
 
   override suspend fun refreshInvitation(
     account: FullAccount,
     relationshipId: String,
     hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Invitation, Error> {
-    return Ok(InvitationFake)
+  ): Result<OutgoingInvitation, Error> {
+    return Ok(OutgoingInvitationFake)
   }
 
   private val defaultRetrieveInvitationResult:
-    Result<Invitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> =
-    Ok(InvitationFake)
+    Result<IncomingInvitation, RetrieveInvitationCodeError> =
+    Ok(IncomingInvitationFake)
 
   var retrieveInvitationResult = defaultRetrieveInvitationResult
 
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
-  ): Result<Invitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
+  ): Result<IncomingInvitation, RetrieveInvitationCodeError> {
     return retrieveInvitationResult
   }
 
   private val defaultAcceptInvitationResult:
-    Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> =
+    Result<ProtectedCustomer, AcceptInvitationCodeError> =
     Ok(ProtectedCustomerFake)
   var acceptInvitationResult = defaultAcceptInvitationResult
 
   override suspend fun acceptInvitation(
     account: Account,
-    invitation: Invitation,
+    invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-  ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
+    delegatedDecryptionKey: DelegatedDecryptionKey,
+    inviteCode: String,
+  ): Result<ProtectedCustomer, AcceptInvitationCodeError> {
     return acceptInvitationResult
   }
 
   override suspend fun clear(): Result<Unit, Error> {
-    getSyncedSocRecRelationshipsResult = Ok(SocRecRelationshipsFake)
     acceptInvitationResult = defaultAcceptInvitationResult
     retrieveInvitationResult = defaultRetrieveInvitationResult
     return Ok(Unit)

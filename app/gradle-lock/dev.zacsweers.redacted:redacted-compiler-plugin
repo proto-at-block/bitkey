@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin",
+    "components": [
+        {
+            "version": "1.7.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-1.7.1.jar": "5d280590213648982dccff84950c592e281c651b52fea59c4c6fd63f7eb9a670"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

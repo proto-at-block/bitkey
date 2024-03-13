@@ -2,7 +2,7 @@ package build.wallet.recovery
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.f8e.F8eEnvironment
@@ -21,8 +21,9 @@ class RecoveryAuthCompleterMock(
     fullAccountId: FullAccountId,
     challenge: ChallengeToCompleteRecovery,
     hardwareSignedChallenge: SignedChallengeToCompleteRecovery,
-    destinationAppAuthPubKey: AppGlobalAuthPublicKey,
+    destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
+    removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable> {
     rotateAuthKeysCalls += Unit
     return rotateAuthKeysResult

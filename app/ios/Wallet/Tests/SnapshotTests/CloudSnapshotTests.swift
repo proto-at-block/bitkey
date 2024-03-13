@@ -10,6 +10,7 @@ final class CloudSnapshotTests: XCTestCase {
     func test_cloud_sign_in_fail() {
         let view = FormView(
             viewModel: CloudSignInFailedScreenModelKt.CloudSignInFailedScreenModel(
+                onContactSupport: {},
                 onTryAgain: {},
                 onBack: {},
                 devicePlatform: .ios
@@ -26,23 +27,7 @@ final class CloudSnapshotTests: XCTestCase {
                 isLoading: false,
                 onBackupClick: {},
                 onLearnMoreClick: {},
-                devicePlatform: .ios,
-                emergencyAccessKitEnabled: false
-            )
-        )
-
-        assertBitkeySnapshots(view: view)
-    }
-
-    func test_cloud_save_instructions_eak_enabled() {
-        let view = FormView(
-            viewModel: SaveBackupInstructionsBodyModelKt.SaveBackupInstructionsBodyModel(
-                requiresHardware: false,
-                isLoading: false,
-                onBackupClick: {},
-                onLearnMoreClick: {},
-                devicePlatform: .ios,
-                emergencyAccessKitEnabled: true
+                devicePlatform: .ios
             )
         )
 

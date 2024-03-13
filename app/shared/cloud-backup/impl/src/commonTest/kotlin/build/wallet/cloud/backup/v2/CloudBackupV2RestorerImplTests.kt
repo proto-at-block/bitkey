@@ -2,12 +2,14 @@ package build.wallet.cloud.backup.v2
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
-import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.keybox.AppKeyBundleMock
+import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.socrec.SocRecKeyPurpose
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
@@ -26,11 +28,11 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.encrypt.SymmetricKeyEncryptorMock
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.random.UuidFake
+import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
 import build.wallet.recovery.socrec.SocRecKeysDaoFake
-import build.wallet.recovery.socrec.TrustedContactIdentityKeyFake
 import build.wallet.testing.shouldBeErrOfType
+import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import kotlinx.serialization.encodeToString
@@ -48,23 +50,22 @@ class CloudBackupV2RestorerImplTests : FunSpec({
     AccountRestoration(
       activeSpendingKeyset = SpendingKeysetMock,
       inactiveKeysets = immutableListOf(SpendingKeysetMock2),
-      activeKeyBundle =
-        AppKeyBundle(
-          localId = UuidFake().random(),
-          spendingKey = AppSpendingPublicKeyMock,
-          authKey = AppGlobalAuthPublicKeyMock,
-          networkType = SIGNET,
-          recoveryAuthKey = AppRecoveryAuthPublicKeyMock
-        ),
+      activeAppKeyBundle = AppKeyBundleMock.copy(
+        localId = "uuid-0"
+      ),
+      activeHwKeyBundle = HwKeyBundleMock.copy(
+        localId = "uuid-1"
+      ),
       config =
-        KeyboxConfig(
-          networkType = SIGNET,
+        FullAccountConfig(
+          bitcoinNetworkType = SIGNET,
           f8eEnvironment = Development,
           isHardwareFake = false,
           isTestAccount = true,
           isUsingSocRecFakes = false
         ),
-      cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock
+      cloudBackupForLocalStorage = CloudBackupV2WithFullAccountMock,
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
     )
 
   afterTest {
@@ -85,7 +86,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
     csekDao.set(SealedCsekFake, CsekFake)
     symmetricKeyEncryptor.unsealResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     val accountRestorationResult = restorer.restore(CloudBackupV2WithFullAccountMock)
-    accountRestorationResult.shouldBeEqual(Ok(accountRestoration))
+    accountRestorationResult.shouldBeOk(accountRestoration)
     appPrivateKeyDao.appAuthKeys.shouldBeEqual(
       mapOf(
         AppGlobalAuthPublicKeyMock to AppGlobalAuthPrivateKeyMock,
@@ -99,7 +100,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
     )
     socRecKeysDao.keys.shouldBeEqual(
       mapOf(
-        SocRecKeyPurpose.TrustedContactIdentity to TrustedContactIdentityKeyFake.key
+        SocRecKeyPurpose.DelegatedDecryption to DelegatedDecryptionKeyFake.key
       )
     )
   }

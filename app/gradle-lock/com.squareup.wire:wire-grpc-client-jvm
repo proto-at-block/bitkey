@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-grpc-client-jvm",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-grpc-client-jvm-4.9.5.jar": "062aa3fc374976e4dd38c4f5f871e520bb4a10e9449259a73e0cfd4f98ec4356"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

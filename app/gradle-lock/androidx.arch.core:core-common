@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.arch.core:core-common",
+    "components": [
+        {
+            "version": "2.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-common-2.2.0.jar": "65308a06b1c00ee186cb9e19321383f043b993813f1522c47f4a3e3303bdba41"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

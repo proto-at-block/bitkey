@@ -92,6 +92,18 @@ class FileManagerImpl(
       .toFileManagerResult()
   }
 
+  override suspend fun mkdirs(path: String): FileManagerResult<Boolean> {
+    return Result.catching {
+      withContext(Dispatchers.IO) {
+        val filePath = (fileDirectoryProvider.filesDir().join(path)).toPath()
+        File(path).mkdirs()
+      }
+    }
+      .mapError { FileManagerError(it) }
+      .logFailure { "Failed to make directories for dir [$path]" }
+      .toFileManagerResult()
+  }
+
   @Suppress("NestedBlockDepth")
   private fun unzip(
     zipPath: String,

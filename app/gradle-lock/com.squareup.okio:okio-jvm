@@ -1,0 +1,32 @@
+{
+    "module-identifier": "com.squareup.okio:okio-jvm",
+    "components": [
+        {
+            "version": "3.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-jvm-3.2.0.jar": "b642baef4c570055de4cb3d1667b2b16dced901ff8066345a063691aa06025a4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]"
+            ]
+        },
+        {
+            "version": "3.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-jvm-3.7.0.jar": "d8b35adc28768f43ae5afe6a7d1aa2a878ba51e0b96a4f308811f3b1f5b13e55"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

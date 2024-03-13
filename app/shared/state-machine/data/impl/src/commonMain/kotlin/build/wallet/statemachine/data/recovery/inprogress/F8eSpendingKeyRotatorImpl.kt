@@ -1,11 +1,11 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.onboarding.CreateAccountKeysetService
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetService
@@ -18,7 +18,7 @@ class F8eSpendingKeyRotatorImpl(
   private val setActiveSpendingKeysetService: SetActiveSpendingKeysetService,
 ) : F8eSpendingKeyRotator {
   override suspend fun rotateSpendingKey(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     fullAccountId: FullAccountId,
     appAuthKey: AppGlobalAuthPublicKey,
     hardwareProofOfPossession: HwFactorProofOfPossession,
@@ -31,11 +31,11 @@ class F8eSpendingKeyRotatorImpl(
       val f8eSpendingKeyset =
         createAccountKeysetService
           .createKeyset(
-            f8eEnvironment = keyboxConfig.f8eEnvironment,
+            f8eEnvironment = fullAccountConfig.f8eEnvironment,
             fullAccountId = fullAccountId,
             appSpendingKey = appSpendingKey,
             hardwareSpendingKey = hardwareSpendingKey,
-            network = keyboxConfig.networkType,
+            network = fullAccountConfig.bitcoinNetworkType,
             appAuthKey = appAuthKey,
             hardwareProofOfPossession = hardwareProofOfPossession
           )
@@ -43,7 +43,7 @@ class F8eSpendingKeyRotatorImpl(
 
       setActiveSpendingKeysetService
         .set(
-          f8eEnvironment = keyboxConfig.f8eEnvironment,
+          f8eEnvironment = fullAccountConfig.f8eEnvironment,
           fullAccountId = fullAccountId,
           keysetId = f8eSpendingKeyset.keysetId,
           appAuthKey = appAuthKey,

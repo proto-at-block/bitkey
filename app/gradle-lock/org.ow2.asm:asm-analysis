@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.ow2.asm:asm-analysis",
+    "components": [
+        {
+            "version": "9.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "asm-analysis-9.2.jar": "878fbe521731c072d14d2d65b983b1beae6ad06fda0007b6a8bae81f73f433c4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

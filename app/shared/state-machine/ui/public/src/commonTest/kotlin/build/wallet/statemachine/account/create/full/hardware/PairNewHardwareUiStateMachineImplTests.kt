@@ -8,8 +8,10 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_HW_FINGERPRINT_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_FINGERPRINT
 import build.wallet.analytics.v1.Action.ACTION_HW_ONBOARDING_OPEN
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.bitkey.keybox.KeyboxConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.nfc.transaction.PairingTransactionProviderFake
 import build.wallet.nfc.transaction.PairingTransactionResponse
@@ -27,6 +29,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -50,44 +53,39 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
     object : HelpCenterUiStateMachine,
       ScreenStateMachineMock<HelpCenterUiProps>("help-center") {}
 
-  val stateMachine =
-    PairNewHardwareUiStateMachineImpl(
-      eventTracker = eventTracker,
-      pairingTransactionProvider = pairingTransactionProvider,
-      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      startFingerprintEnrollmentTransactionProvider =
-        StartFingerprintEnrollmentTransactionProviderFake(),
-      helpCenterUiStateMachine = helpCenterUiStateMachine
-    )
+  val stateMachine = PairNewHardwareUiStateMachineImpl(
+    eventTracker = eventTracker,
+    pairingTransactionProvider = pairingTransactionProvider,
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    startFingerprintEnrollmentTransactionProvider = StartFingerprintEnrollmentTransactionProviderFake(),
+    helpCenterUiStateMachine = helpCenterUiStateMachine
+  )
 
-  val onSuccessCalls =
-    turbines.create<PairingTransactionResponse.FingerprintEnrolled>(
-      "on success calls"
-    )
+  val onSuccessCalls = turbines.create<FingerprintEnrolled>("on success calls")
 
   val onExitCalls = turbines.create<Unit>("on exit calls")
 
   val sealedCsekMock = "sealedCsek".encodeUtf8()
 
-  val fingerprintEnrolled =
-    FingerprintEnrolled(
-      keyBundle = HwKeyBundleMock,
-      sealedCsek = sealedCsekMock,
-      serial = "123"
-    )
+  val fingerprintEnrolled = FingerprintEnrolled(
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+    keyBundle = HwKeyBundleMock,
+    sealedCsek = sealedCsekMock,
+    serial = "123"
+  )
 
-  val props =
-    PairNewHardwareProps(
-      keyboxConfig = KeyboxConfigMock,
-      screenPresentationStyle = Modal,
-      onExit = {
-        onExitCalls += Unit
-      },
-      eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
-      onSuccess = {
-        onSuccessCalls.add(it)
-      }
-    )
+  val props = PairNewHardwareProps(
+    request = PairNewHardwareProps.Request.Ready(
+      appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
+      fullAccountConfig = FullAccountConfigMock,
+      onSuccess = onSuccessCalls::add
+    ),
+    screenPresentationStyle = Modal,
+    onExit = {
+      onExitCalls += Unit
+    },
+    eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+  )
 
   test("pairing new wallet ui -- success") {
     stateMachine.test(props) {
@@ -248,7 +246,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
           )
         bottomSheetModel.shouldNotBeNull()
           .body.shouldBeTypeOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       with(awaitItem()) {
@@ -374,7 +372,7 @@ class PairNewHardwareUiStateMachineImplTests : FunSpec({
           )
         bottomSheetModel.shouldNotBeNull()
           .body.shouldBeTypeOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       with(awaitItem()) {

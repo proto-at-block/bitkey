@@ -51,16 +51,14 @@ class LostHardwareRecoveryUiStateMachineImpl(
           ).asScreen(props.screenPresentationStyle)
         } else {
           initiatingLostHardwareRecoveryUiStateMachine.model(
-            props =
-              InitiatingLostHardwareRecoveryProps(
-                keyboxConfig = props.keyboxConfig,
-                fullAccountId = props.fullAccountId,
-                screenPresentationStyle = props.screenPresentationStyle,
-                initiatingLostHardwareRecoveryData = lostHardwareRecoveryData,
-                instructionsStyle = props.instructionsStyle,
-                onFoundHardware = props.onFoundHardware,
-                onExit = props.onExit
-              )
+            props = InitiatingLostHardwareRecoveryProps(
+              account = props.account,
+              screenPresentationStyle = props.screenPresentationStyle,
+              initiatingLostHardwareRecoveryData = lostHardwareRecoveryData,
+              instructionsStyle = props.instructionsStyle,
+              onFoundHardware = props.onFoundHardware,
+              onExit = props.onExit
+            )
           )
         }
       }
@@ -70,14 +68,13 @@ class LostHardwareRecoveryUiStateMachineImpl(
           recoveryWasInProgress = true
         }
         recoveryInProgressUiStateMachine.model(
-          props =
-            RecoveryInProgressUiProps(
-              presentationStyle = Modal,
-              recoveryInProgressData = lostHardwareRecoveryData.recoveryInProgressData,
-              keyboxConfig = props.keyboxConfig,
-              onExit = props.onExit,
-              fiatCurrency = props.fiatCurrency
-            )
+          props = RecoveryInProgressUiProps(
+            presentationStyle = Modal,
+            recoveryInProgressData = lostHardwareRecoveryData.recoveryInProgressData,
+            fullAccountConfig = props.account.keybox.config,
+            onExit = props.onExit,
+            fiatCurrency = props.fiatCurrency
+          )
         )
       }
     }

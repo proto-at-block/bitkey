@@ -1,0 +1,24 @@
+{
+    "module-identifier": "io.ktor:ktor-utils-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-utils-cinterop-threadUtils.klib": "389ed84f36882a503c68bb457a2fe4bd34b21e9f3c0523920d789a764ce73b5a",
+                        "ktor-utils.klib": "98651edda5858a6e8e1343bbb68f26a6f095ff292839d04eef1020f9bdb20ad1"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-utils-iossimulatorarm64-2.3.8-metadata.jar": "cc253bb30173c1b2a67fdb00e374ae8bc96ae87e4cb2d9f5ed17a97937a35344"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

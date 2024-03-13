@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.reinvite
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -16,6 +16,6 @@ data class ReinviteTrustedContactUiProps(
   val account: FullAccount,
   val trustedContactAlias: String,
   val relationshipId: String,
-  val onReinviteTc: suspend (HwFactorProofOfPossession) -> Result<Invitation, Error>,
+  val onReinviteTc: suspend (HwFactorProofOfPossession) -> Result<OutgoingInvitation, Error>,
   val onExit: () -> Unit,
 )

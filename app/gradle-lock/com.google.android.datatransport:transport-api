@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.datatransport:transport-api",
+    "components": [
+        {
+            "version": "3.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "transport-api-3.0.0.aar": "4e6983c0703b357df6f1c6ceacb1b5dfc2c5006a789c799fec2298b2b5337466"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

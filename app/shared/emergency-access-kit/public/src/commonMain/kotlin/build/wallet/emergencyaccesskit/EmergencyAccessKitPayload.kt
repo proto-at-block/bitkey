@@ -1,5 +1,6 @@
 package build.wallet.emergencyaccesskit
 
+import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.encrypt.SealedData
@@ -10,7 +11,7 @@ sealed interface EmergencyAccessKitPayload {
    * then encoded in Base58.
    */
   data class EmergencyAccessKitPayloadV1(
-    val hwEncryptionKeyCiphertext: SealedCsek,
+    val sealedHwEncryptionKey: SealedCsek,
     val sealedActiveSpendingKeys: SealedData,
   ) : EmergencyAccessKitPayload
 }
@@ -26,6 +27,6 @@ sealed interface EmergencyAccessKitBackup {
    */
   data class EmergencyAccessKitBackupV1(
     val spendingKeyset: SpendingKeyset,
-    val appSpendingKeyXprv: String,
+    val appSpendingKeyXprv: AppSpendingPrivateKey,
   ) : EmergencyAccessKitBackup
 }

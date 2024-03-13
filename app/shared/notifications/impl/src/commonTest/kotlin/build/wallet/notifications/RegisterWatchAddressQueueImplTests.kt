@@ -1,6 +1,10 @@
 package build.wallet.notifications
 
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
+import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
+import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.F8eEnvironment.Production
@@ -15,13 +19,22 @@ import io.kotest.matchers.shouldBe
 class RegisterWatchAddressQueueImplTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
   lateinit var q: RegisterWatchAddressQueueImpl
-  val one = RegisterWatchAddressContext(BitcoinAddress("1"), "1", "1", Development)
-  val two = RegisterWatchAddressContext(BitcoinAddress("2"), "2", "2", Production)
-  val three = RegisterWatchAddressContext(BitcoinAddress("3"), "3", "2", Staging)
+  val one = RegisterWatchAddressContext(BitcoinAddress("1"), F8eSpendingKeysetMock, "1", Development)
+  val two = RegisterWatchAddressContext(BitcoinAddress("2"), F8eSpendingKeysetMock, "2", Production)
+  val three = RegisterWatchAddressContext(BitcoinAddress("3"), F8eSpendingKeysetMock, "2", Staging)
 
   beforeTest {
     val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
     q = RegisterWatchAddressQueueImpl(databaseProvider)
+    databaseProvider.database()
+      .spendingKeysetQueries
+      .insertKeyset(
+        "f8e-spending-keyset-id",
+        FullAccountIdMock.serverId,
+        AppSpendingPublicKeyMock,
+        HwSpendingPublicKeyMock,
+        F8eSpendingKeysetMock.spendingPublicKey
+      )
   }
 
   test("passing negative num to take throws") {

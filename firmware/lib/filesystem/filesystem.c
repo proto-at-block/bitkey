@@ -272,7 +272,12 @@ int fs_remove(const char* path) {
     return -1;
   }
 
-  return LOCK_UNLOCK(lfs_remove(lfs, path));
+  int ret = LOCK_UNLOCK(lfs_remove(lfs, path));
+  if (ret < 0) {
+    LOGE("Failed to remove file: %s", path);
+  }
+
+  return ret;
 }
 
 int fs_rename(const char* oldpath, const char* newpath) {

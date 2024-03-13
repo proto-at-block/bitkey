@@ -7,6 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.router.Route
@@ -32,6 +34,7 @@ class LiteHomeUiStateMachineImpl(
   private val liteTrustedContactManagementUiStateMachine:
     LiteTrustedContactManagementUiStateMachine,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
+  private val eventTracker: EventTracker,
 ) : LiteHomeUiStateMachine {
   @Composable
   override fun model(props: LiteHomeUiProps): ScreenModel {
@@ -51,6 +54,7 @@ class LiteHomeUiStateMachineImpl(
       Router.onRouteChange { route ->
         when (route) {
           is Route.TrustedContactInvite -> {
+            eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_VIA_DEEPLINK)
             uiState =
               uiState.copy(
                 presentedScreen =
@@ -86,7 +90,6 @@ class LiteHomeUiStateMachineImpl(
               props =
                 LiteMoneyHomeUiProps(
                   accountData = props.accountData,
-                  fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference,
                   protectedCustomers = socRecRelationships.protectedCustomers,
                   homeStatusBannerModel = homeStatusBannerModel,
                   onRemoveRelationship = socRecLiteAccountActions::removeProtectedCustomer,
@@ -137,12 +140,12 @@ class LiteHomeUiStateMachineImpl(
 
   @Composable
   private fun syncRelationships(props: LiteHomeUiProps): SocRecRelationships {
-    LaunchedEffect("sync-socrec-relationships") {
-      socRecRelationshipsRepository.syncLoop(props.accountData.account)
+    LaunchedEffect(props.accountData.account) {
+      socRecRelationshipsRepository.syncLoop(scope = this, props.accountData.account)
     }
     return remember {
       socRecRelationshipsRepository.relationships
-    }.collectAsState().value
+    }.collectAsState(SocRecRelationships.EMPTY).value
   }
 }
 

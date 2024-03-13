@@ -1,11 +1,9 @@
 package build.wallet.statemachine.data.account.create
 
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.keybox.AppDataDeleterMock
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
@@ -39,7 +37,7 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
       StateMachineMock<CreateKeyboxDataProps, CreateKeyboxData>(
         initialModel =
           CreateKeyboxData.CreatingAppKeysData(
-            keyboxConfig = KeyboxConfigMock,
+            fullAccountConfig = FullAccountConfigMock,
             rollback = {}
           )
       ) {}
@@ -52,26 +50,20 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
       initialModel = ActivateKeyboxDataFull.ActivatingKeyboxDataFull
     ) {}
 
-  val multipleFiatCurrencyEnabledFeatureFlag =
-    MultipleFiatCurrencyEnabledFeatureFlag(
-      featureFlagDao = FeatureFlagDaoMock()
-    )
-
   val dataStateMachine =
     CreateFullAccountDataStateMachineImpl(
       activateFullAccountDataStateMachine = activateKeyboxDataStateMachine,
       createKeyboxDataStateMachine = createKeyboxDataStateMachine,
       onboardKeyboxDataStateMachine = onboardKeyboxDataStateMachine,
       appDataDeleter = keyboxDeleter,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      multipleFiatCurrencyEnabledFeatureFlag = multipleFiatCurrencyEnabledFeatureFlag
+      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
     )
 
   val rollbackCalls = turbines.create<Unit>("rollback calls")
 
   val props =
     CreateFullAccountDataProps(
-      templateKeyboxConfig = KeyboxConfigMock,
+      templateFullAccountConfig = FullAccountConfigMock,
       onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
       onboardingKeybox = null,
       currencyPreferenceData = CurrencyPreferenceDataMock,

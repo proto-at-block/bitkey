@@ -1,8 +1,8 @@
 package build.wallet.statemachine.data.account.create
 
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.CreateFullAccountData
@@ -14,7 +14,7 @@ import build.wallet.statemachine.data.account.OnboardConfig
 interface CreateFullAccountDataStateMachine : StateMachine<CreateFullAccountDataProps, CreateFullAccountData>
 
 /**
- * @property templateKeyboxConfig [KeyboxConfig] to be used for creating account, unless provided by
+ * @property templateFullAccountConfig [FullAccountConfig] to be used for creating account, unless provided by
  * an existing onboarding data .
  * @property onboardConfig Configuration for the onboarding flow. Currently only used for debug
  * purposes.
@@ -24,7 +24,7 @@ interface CreateFullAccountDataStateMachine : StateMachine<CreateFullAccountData
  * @property rollback Rolls the data state back to [ChoosingCreateOrRecoverState].
  */
 data class CreateFullAccountDataProps(
-  val templateKeyboxConfig: KeyboxConfig,
+  val templateFullAccountConfig: FullAccountConfig,
   val onboardConfig: OnboardConfig,
   val onboardingKeybox: Keybox?,
   val currencyPreferenceData: CurrencyPreferenceData,

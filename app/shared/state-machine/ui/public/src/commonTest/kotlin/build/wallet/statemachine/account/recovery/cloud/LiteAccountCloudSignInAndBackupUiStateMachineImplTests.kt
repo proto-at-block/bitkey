@@ -15,11 +15,12 @@ import build.wallet.cloud.backup.LiteAccountCloudBackupCreatorMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.device.DeviceInfoProviderMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachineImpl
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -28,12 +29,12 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachineMock
 import build.wallet.statemachine.recovery.cloud.RectifiableErrorHandlingUiStateMachineMock
+import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.equals.shouldBeEqual
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
@@ -48,7 +49,8 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       liteAccountCloudBackupCreator = liteAccountCloudBackupCreator,
       deviceInfoProvider = DeviceInfoProviderMock(),
       eventTracker = eventTracker,
-      rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock()
+      rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
+      inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
     )
 
   val onBackupFailedCalls = turbines.create<Unit>("onBackupFailed calls")
@@ -79,7 +81,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
       onBackupSavedCalls.awaitItem()
     }
   }
@@ -95,9 +97,9 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
       awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT) {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onBackupFailedCalls.awaitItem()
     }
@@ -114,14 +116,18 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBodyModelMock<RectifiableErrorHandlingProps> {
         messages.shouldBeEqual(RectifiableErrorCreateLiteMessages)
         // Unset this error, so we don't loop back.
         cloudBackupRepository.returnWriteError = null
         onReturn()
       }
-      awaitScreenWithBody<LoadingBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       onBackupSavedCalls.awaitItem()
     }
   }
@@ -137,7 +143,9 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBodyModelMock<RectifiableErrorHandlingProps> {
         messages.shouldBeEqual(RectifiableErrorCreateLiteMessages)
         onFailure()
@@ -158,9 +166,11 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE)
       )
-      awaitScreenWithBody<LoadingBodyModel>(SAVE_CLOUD_BACKUP_LOADING)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(SAVE_CLOUD_BACKUP_LOADING) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT) {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onBackupFailedCalls.awaitItem()
     }

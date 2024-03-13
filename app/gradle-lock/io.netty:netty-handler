@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.netty:netty-handler",
+    "components": [
+        {
+            "version": "4.1.72.Final",
+            "variants": [
+                {
+                    "artifacts": {
+                        "netty-handler-4.1.72.Final.jar": "9cb6012af7e06361d738ac4e3bdc49a158f8cf87d9dee0f2744056b7d99c28d5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

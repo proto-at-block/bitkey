@@ -10,10 +10,21 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
 import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.partnerships.purchase.CustomAmountBodyModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel
+import build.wallet.statemachine.send.TransferAmountBodyModel
 import build.wallet.ui.theme.SystemColorMode
 import build.wallet.ui.theme.SystemColorMode.LIGHT
 import build.wallet.ui.theme.systemColorMode
+
+// These body models are sometimes presented as full screen, but they have toolbars,
+// so they need system bar padding to their toolbar.
+private val bodyModelsRequiringPadding = setOf(
+  FormBodyModel::class,
+  AddressQrCodeBodyModel::class,
+  TransferAmountBodyModel::class,
+  CustomAmountBodyModel::class
+)
 
 /**
  * Describes style of the system UI components.
@@ -48,9 +59,7 @@ internal fun screenStyle(
   return ScreenStyle(
     useDarkSystemBarIcons = actualColorMode == LIGHT,
     addSystemBarsPadding =
-      // These body models are sometimes presented as full screen, but they have toolbars,
-      // so they need system bar padding to their toolbar.
-      bodyModel is FormBodyModel || bodyModel is AddressQrCodeBodyModel ||
+      bodyModel::class in bodyModelsRequiringPadding ||
         // For all other body models, add / don't add padding based on the presentation style
         presentationStyle !in setOf(RootFullScreen, FullScreen, ModalFullScreen)
   )

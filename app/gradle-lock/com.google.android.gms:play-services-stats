@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.gms:play-services-stats",
+    "components": [
+        {
+            "version": "17.0.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "play-services-stats-17.0.2.aar": "dd4314a53f49a378ec146103d36232b96c75454d29526336ccbdf132941764d3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

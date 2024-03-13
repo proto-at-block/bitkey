@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
@@ -62,7 +63,7 @@ class RemoveTrustedContactUiStateMachineImpl(
                 }
               ),
             fullAccountId = props.account.accountId,
-            keyboxConfig = props.account.keybox.config,
+            fullAccountConfig = props.account.keybox.config,
             onBack = {
               state = State.RemoveRequestState
             },
@@ -84,12 +85,12 @@ class RemoveTrustedContactUiStateMachineImpl(
               )
           }
         }
-        LoadingBodyModel(id = null).asModalScreen()
+        LoadingBodyModel(id = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_REMOVAL_LOADING).asModalScreen()
       }
 
       is State.FailedToRemoveState ->
         NetworkErrorFormBodyModel(
-          eventTrackerScreenId = null,
+          eventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_REMOVAL_FAILED,
           title = "Unable to remove contact",
           isConnectivityError = current.error is HttpError.NetworkError,
           onRetry = {

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-websocket-serialization-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-websocket-serialization-jvm-2.3.8.jar": "f66f962638b9c6a71b3f0ce71dc2e0b2066cd6092df5fb06591a2fe5764913f5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

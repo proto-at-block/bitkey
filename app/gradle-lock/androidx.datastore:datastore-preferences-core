@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.datastore:datastore-preferences-core",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "datastore-preferences-core-1.0.0.jar": "ad54de334ad0f4a53a5ba41876f91684319a8cf3396315b767b51102a4138bd1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

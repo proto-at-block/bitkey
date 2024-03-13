@@ -240,40 +240,24 @@ private extension FormBodyModel {
         isFeeBumpEnabled: Bool,
         content: [FormMainContentModelDataList]
     ) -> FormBodyModel {
-        
-        let headerTitle = if (isPending) {
-            if (isDelayed) {
-                "Transaction delayed"
-            } else {
-                "Transaction pending"
-            }
+        let recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"
+        let txStatusModel: TxStatusModel
+        if (isPending) {
+            txStatusModel = TxStatusModelPending(
+                isIncoming: isReceive,
+                recipientAddress: recipientAddress,
+                isLate: isDelayed
+            )
         } else {
-            if (isReceive) {
-                "Transaction received"
-            } else {
-                "Transaction sent"
-            }
-        }
-        
-        let headerIcon: Icon = if (isPending) {
-            if (isDelayed) {
-                Icon.largeiconcheckfilled
-            } else {
-                Icon.largeiconellipsisfilled
-            }
-        } else {
-            if (isReceive) {
-                Icon.bitcoin
-            } else {
-                Icon.largeiconcheckfilled
-            }
+            txStatusModel = TxStatusModelConfirmed(
+                isIncoming: isReceive,
+                recipientAddress: recipientAddress
+            )
         }
         
         return TransactionDetailModelKt.TransactionDetailModel(
-            feeBumpEnabled: isFeeBumpEnabled,
-            recipientAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            headerTitle: headerTitle,
-            headerIcon: headerIcon,
+            feeBumpEnabled: isFeeBumpEnabled, 
+            txStatusModel: txStatusModel,
             isLoading: false,
             onLoaded: { _ in },
             onViewTransaction: {},

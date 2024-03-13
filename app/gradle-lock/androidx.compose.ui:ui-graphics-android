@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.ui:ui-graphics-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-graphics-release.aar": "8f7811d34f178e2de66399e8b0fd747db3502a9b844a4e2d946a711e75655cbc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,8 +1,6 @@
 package build.wallet.statemachine.account.create.full.keybox.create
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareProps
@@ -55,31 +53,29 @@ class CreateKeyboxUiStateMachineImpl(
 
   @Composable
   private fun CreatingAppKeysUiModel(dataState: CreatingAppKeysData): ScreenModel {
-    // CreatingAppKeysData is a loading state, so don't handle onSuccess. We should transition to
-    // [HasAppKeysData] before we need to handle it, we'll log an error if that assumption is wrong.
     return pairNewHardwareUiStateMachine.model(
-      props =
-        PairNewHardwareProps(
-          keyboxConfig = dataState.keyboxConfig,
-          screenPresentationStyle = RootFullScreen,
-          onExit = dataState.rollback,
-          onSuccess = null,
-          eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
-        )
+      props = PairNewHardwareProps(
+        request = PairNewHardwareProps.Request.Preparing,
+        screenPresentationStyle = RootFullScreen,
+        onExit = dataState.rollback,
+        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+      )
     )
   }
 
   @Composable
   private fun HasAppKeysUiModel(dataState: HasAppKeysData): ScreenModel {
     return pairNewHardwareUiStateMachine.model(
-      props =
-        PairNewHardwareProps(
-          keyboxConfig = dataState.keyboxConfig,
-          screenPresentationStyle = Root,
-          onExit = dataState.rollback,
-          onSuccess = { dataState.onPairHardwareComplete(it) },
-          eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
-        )
+      props = PairNewHardwareProps(
+        request = PairNewHardwareProps.Request.Ready(
+          fullAccountConfig = dataState.fullAccountConfig,
+          appGlobalAuthPublicKey = dataState.appKeys.appKeyBundle.authKey,
+          onSuccess = { dataState.onPairHardwareComplete(it) }
+        ),
+        screenPresentationStyle = Root,
+        onExit = dataState.rollback,
+        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+      )
     )
   }
 

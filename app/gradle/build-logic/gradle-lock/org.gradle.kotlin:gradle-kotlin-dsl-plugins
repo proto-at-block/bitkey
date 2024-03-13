@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.gradle.kotlin:gradle-kotlin-dsl-plugins",
+    "components": [
+        {
+            "version": "4.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "gradle-kotlin-dsl-plugins-4.1.2.jar": "1e78b41faa412fb7d153b947c6f3a0ee4fd2815f5d17dfb38dbecc64d79ae366"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

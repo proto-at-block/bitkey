@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jdom:jdom2",
+    "components": [
+        {
+            "version": "2.0.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jdom2-2.0.6.jar": "1345f11ba606d15603d6740551a8c21947c0215640770ec67271fe78bea97cf5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

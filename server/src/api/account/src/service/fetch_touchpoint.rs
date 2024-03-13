@@ -16,7 +16,7 @@ impl Service {
         &self,
         input: FetchTouchpointByIdInput,
     ) -> Result<Touchpoint, AccountError> {
-        let account = self.repo.fetch(&input.account_id).await?;
+        let account = self.account_repo.fetch(&input.account_id).await?;
 
         if let Some(touchpoint) = account.get_touchpoint_by_id(input.touchpoint_id) {
             Ok(touchpoint.to_owned())
@@ -30,7 +30,7 @@ impl Service {
         &self,
         input: FetchOrCreateEmailTouchpointInput,
     ) -> Result<Touchpoint, AccountError> {
-        let account = self.repo.fetch(&input.account_id).await?;
+        let account = self.account_repo.fetch(&input.account_id).await?;
 
         if let Some(existing_touchpoint) =
             account.get_touchpoint_by_email_address(input.email_address.to_owned())
@@ -54,7 +54,7 @@ impl Service {
             touchpoints,
             ..common_fields
         })?;
-        self.repo.persist(&updated_account).await?;
+        self.account_repo.persist(&updated_account).await?;
 
         Ok(new_touchpoint)
     }
@@ -63,7 +63,7 @@ impl Service {
         &self,
         input: FetchOrCreatePhoneTouchpointInput,
     ) -> Result<Touchpoint, AccountError> {
-        let account = self.repo.fetch(&input.account_id).await?;
+        let account = self.account_repo.fetch(&input.account_id).await?;
 
         if let Some(existing_touchpoint) =
             account.get_touchpoint_by_phone_number(input.phone_number.to_owned())
@@ -93,7 +93,7 @@ impl Service {
             touchpoints,
             ..common
         })?;
-        self.repo.persist(&updated_account).await?;
+        self.account_repo.persist(&updated_account).await?;
 
         Ok(new_touchpoint)
     }

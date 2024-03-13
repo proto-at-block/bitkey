@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.okio:okio",
+    "components": [
+        {
+            "version": "3.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-metadata-3.7.0.jar": "6ef3a725936e225241d4ad126af9a7c9680e4b4afc1bc5ed9e7dd35f0689a4dc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

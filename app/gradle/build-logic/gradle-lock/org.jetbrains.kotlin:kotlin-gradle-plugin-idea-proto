@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-idea-proto",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-gradle-plugin-idea-proto-1.9.10.jar": "d76fb94b8bf3dd113c476e298b0a2d17972abf349887cd159bf4d29b4be7e69d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

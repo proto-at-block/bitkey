@@ -71,7 +71,7 @@ private struct ButtonContentView: View {
                     }
             }
         }
-        .foregroundColor(model.isEnabled ? model.titleColor : .foreground30)
+        .foregroundColor(model.titleColor)
         .ifNonnull(model.testTag) { view, testTag in
             view.accessibilityIdentifier(testTag)
          }
@@ -95,6 +95,9 @@ public extension View {
         case .compact:
             frame(height: 32)
 
+        case .fitcontent:
+            frame(maxWidth: .infinity, maxHeight: .infinity)
+            
         default:
             fatalError("Unexpected button size")
         }

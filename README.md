@@ -36,8 +36,17 @@ To protect our customers, we ask that you report vulnerabilities to us as soon a
 
 ## Verifying Bitkey Mobile Applications
 
-We want to enable anyone with sufficient technical skills to match the application built using the code in this repository to the application distributed to customer on the app stores. Stay tuned for more on this topic when the Bitkey mobile application is available to the public.
- 
+We want to enable anyone with sufficient technical skills,
+to match the application built using the code in this repository
+to the application distributed to customer on the app stores.
+
+We currently have the Android verification process available.
+Stay tuned for iOS verification, coming soon.
+
+Head to [app/verifiable-build/android/README.md](app/verifiable-build/android/README.md)
+to learn more about the verification process
+and how to do do it yourself.
+
 ## Notes
 
 * This document (including Software and schematics) is current as of 2024-02-22. Our goal is to make sure the code we publish is up to date with what is available in the App Store. We may publish other items on a less real time basis (e.g. server code and schematics) and so what is published may not always map to what is in production or design.

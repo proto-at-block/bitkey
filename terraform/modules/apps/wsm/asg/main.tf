@@ -161,10 +161,14 @@ module "wsm-asg" {
   iam_role_use_name_prefix    = false
   iam_role_path               = "/"
   iam_role_description        = "WSM ASG Instance Role"
-  iam_role_policies = {
-    AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-    WSMInstance                  = aws_iam_policy.wsm_instance.arn
-  }
+  iam_role_policies = merge(
+    var.enable_ssm ? {
+      AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+    } : {},
+    {
+      WSMInstance = aws_iam_policy.wsm_instance.arn
+    }
+  )
 
   vpc_zone_identifier = module.vpc.private_subnets
   security_groups     = [aws_security_group.wsm_sg.id]

@@ -5,7 +5,6 @@ import build.wallet.bitkey.app.AppGlobalAuthKeypair
 import build.wallet.bitkey.app.AppRecoveryAuthKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
-import build.wallet.bitkey.app.requireRecoveryAuthKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -21,7 +20,7 @@ import com.github.michaelbull.result.toErrorIfNull
 internal suspend fun Keybox.appGlobalAuthKeypair(
   appPrivateKeyDao: AppPrivateKeyDao,
 ): Result<AppGlobalAuthKeypair, Throwable> {
-  val appAuthPublicKey = activeKeyBundle.authKey
+  val appAuthPublicKey = activeAppKeyBundle.authKey
   return appPrivateKeyDao
     .getGlobalAuthKey(appAuthPublicKey)
     .toErrorIfNull { IllegalStateException("Active global app auth private key not found.") }
@@ -31,8 +30,7 @@ internal suspend fun Keybox.appGlobalAuthKeypair(
 internal suspend fun Keybox.appRecoveryAuthKeypair(
   appPrivateKeyDao: AppPrivateKeyDao,
 ): Result<AppRecoveryAuthKeypair, Throwable> {
-  // TODO: BKR-573 - backfill recovery key for existing customers.
-  val appAuthPublicKey = activeKeyBundle.requireRecoveryAuthKey()
+  val appAuthPublicKey = activeAppKeyBundle.recoveryAuthKey
   return appPrivateKeyDao
     .getRecoveryAuthKey(appAuthPublicKey)
     .toErrorIfNull { IllegalStateException("Active recovery app auth private key not found.") }

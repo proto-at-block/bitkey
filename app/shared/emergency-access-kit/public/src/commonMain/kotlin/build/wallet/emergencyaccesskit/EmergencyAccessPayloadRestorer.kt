@@ -1,10 +1,14 @@
 package build.wallet.emergencyaccesskit
 
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.encrypt.Secp256k1PublicKey
@@ -26,23 +30,33 @@ interface EmergencyAccessPayloadRestorer {
 
   data class AccountRestoration(
     val activeSpendingKeyset: SpendingKeyset,
-    val keyboxConfig: KeyboxConfig,
+    val fullAccountConfig: FullAccountConfig,
   ) {
-    fun asKeybox(localId: String) =
-      Keybox(
-        localId = localId,
-        fullAccountId = FullAccountId("EAK Recovery, no server ID: $localId"),
-        activeSpendingKeyset = activeSpendingKeyset,
-        inactiveKeysets = immutableListOf(),
-        activeKeyBundle = AppKeyBundle(
-          localId = localId,
-          spendingKey = activeSpendingKeyset.appKey,
-          authKey = AppGlobalAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid key")),
-          networkType = activeSpendingKeyset.networkType,
-          recoveryAuthKey = null
-        ),
-        config = keyboxConfig
-      )
+    fun asKeybox(
+      keyboxId: String,
+      appKeyBundleId: String,
+      hwKeyBundleId: String,
+    ) = Keybox(
+      localId = keyboxId,
+      fullAccountId = FullAccountId("EAK Recovery, no server ID: $keyboxId"),
+      activeSpendingKeyset = activeSpendingKeyset,
+      inactiveKeysets = immutableListOf(),
+      appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("EAK Recovery: Invalid key"),
+      activeAppKeyBundle = AppKeyBundle(
+        localId = appKeyBundleId,
+        spendingKey = activeSpendingKeyset.appKey,
+        authKey = AppGlobalAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid key")),
+        networkType = activeSpendingKeyset.networkType,
+        recoveryAuthKey = AppRecoveryAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid recovery key"))
+      ),
+      activeHwKeyBundle = HwKeyBundle(
+        localId = hwKeyBundleId,
+        spendingKey = activeSpendingKeyset.hardwareKey,
+        authKey = HwAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid key")),
+        networkType = activeSpendingKeyset.networkType
+      ),
+      config = fullAccountConfig
+    )
   }
 
   sealed class EmergencyAccessPayloadRestorerError : Error() {

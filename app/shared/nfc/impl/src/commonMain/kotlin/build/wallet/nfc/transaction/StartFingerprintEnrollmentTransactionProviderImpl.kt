@@ -41,17 +41,22 @@ class StartFingerprintEnrollmentTransactionProviderImpl(
     session: NfcSession,
     commands: NfcCommands,
   ) {
+    // Don't put these calls in the runCatching below, because if NFC flakes, we don't want to
+    // propagate that as InauthenticHardware
     val identityCert = commands.getCert(session, FirmwareCertType.IDENTITY)
+    val batchCert = commands.getCert(session, FirmwareCertType.BATCH)
 
+    // NOTE: Do not remove '[hardware_attestation_failure]' from the message. We alert
+    // on this string in Datadog.
     val serial =
       Result.runCatching {
         hardwareAttestation.verifyCertChain(
           identityCert = identityCert,
-          batchCert = commands.getCert(session, FirmwareCertType.BATCH)
+          batchCert = batchCert
         )
       }.getOrElse {
         throw NfcException.InauthenticHardware(
-          message = "Failed to verify cert chain",
+          message = "[hardware_attestation_failure] Failed to verify cert chain",
           cause = it
         )
       }
@@ -61,7 +66,7 @@ class StartFingerprintEnrollmentTransactionProviderImpl(
         hardwareAttestation.generateChallenge()
       }.getOrElse {
         throw NfcException.InauthenticHardware(
-          message = "Failed to generate challenge for $serial",
+          message = "[hardware_attestation_failure] Failed to generate challenge for $serial",
           cause = it
         )
       }
@@ -75,10 +80,16 @@ class StartFingerprintEnrollmentTransactionProviderImpl(
         )
       )
     }.getOrElse {
-      throw NfcException.InauthenticHardware(
-        message = "Failed to verify challenge for $serial",
-        cause = it
-      )
+      // TODO(W-6045): Don't look at the message string.
+      if (it.cause?.message?.contains("signature invalid") == true) {
+        throw NfcException.InauthenticHardware(
+          message = "[hardware_attestation_failure] Failed to verify challenge for $serial",
+          cause = it
+        )
+      } else {
+        // Throw the exception as-is so that NFC flakes don't show up as InauthenticHardware
+        throw it
+      }
     }
 
     log { "Hardware attestation successful: $serial" }

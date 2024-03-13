@@ -25,5 +25,11 @@ kotlin {
         api(libs.kmp.ktor.client.core)
       }
     }
+
+    commonTest {
+      dependencies {
+        implementation(projects.shared.bitkeyPrimitivesFake)
+      }
+    }
   }
 }

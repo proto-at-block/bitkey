@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-io-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-io-jvm-2.3.8.jar": "4c33dd51a1d6d734c8c127cea96a1cfa024dc1d451ed1e2a86c297fa05f1dc29"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

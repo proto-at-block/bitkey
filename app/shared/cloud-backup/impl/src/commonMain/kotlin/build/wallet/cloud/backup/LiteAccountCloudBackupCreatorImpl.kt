@@ -3,7 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.app.AppRecoveryAuthKeypair
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
 import build.wallet.recovery.socrec.SocRecKeysRepository
@@ -20,8 +20,8 @@ class LiteAccountCloudBackupCreatorImpl(
     account: LiteAccount,
   ): Result<CloudBackupV2, LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError> =
     binding {
-      val trustedContactIdentityKeypair =
-        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate(::TrustedContactIdentityKey)
+      val delegatedDecryptionKeypair =
+        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate(::DelegatedDecryptionKey)
           .mapError { SocRecKeysRetrievalError(it) }
           .bind()
 
@@ -46,7 +46,7 @@ class LiteAccountCloudBackupCreatorImpl(
         isTestAccount = account.config.isTestAccount,
         fullAccountFields = null,
         appRecoveryAuthKeypair = appRecoveryAuthKeypair,
-        trustedContactIdentityKeypair = trustedContactIdentityKeypair,
+        delegatedDecryptionKeypair = delegatedDecryptionKeypair,
         isUsingSocRecFakes = account.config.isUsingSocRecFakes,
         bitcoinNetworkType = account.config.bitcoinNetworkType
       )

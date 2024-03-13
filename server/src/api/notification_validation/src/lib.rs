@@ -4,6 +4,7 @@ use notification::{
     entities::NotificationCompositeKey,
     payloads::{
         comms_verification::CommsVerificationPayload, payment::PaymentPayload,
+        push_blast::PushBlastPayload,
         recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
         recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
         recovery_pending_delay_period::RecoveryPendingDelayPeriodPayload,
@@ -79,6 +80,10 @@ pub fn to_validator(
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::SocialChallengeResponseReceived => payload
                 .social_challenge_response_received_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::PushBlast => payload
+                .push_blast_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
         };
@@ -210,6 +215,17 @@ impl ValidateNotificationDelivery for SocialChallengeResponseReceivedPayload {
         &self,
         _state: &NotificationValidationState,
         _composite_key: &NotificationCompositeKey,
+    ) -> bool {
+        true
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for PushBlastPayload {
+    async fn validate_delivery(
+        &self,
+        _state: &NotificationValidationState,
+        _: &NotificationCompositeKey,
     ) -> bool {
         true
     }

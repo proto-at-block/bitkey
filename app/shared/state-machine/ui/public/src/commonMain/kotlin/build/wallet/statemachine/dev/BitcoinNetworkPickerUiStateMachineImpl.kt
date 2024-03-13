@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
@@ -20,21 +20,22 @@ class BitcoinNetworkPickerUiStateMachineImpl(
     // Do not allow changing network type for Customers.
     if (appVariant == Customer) return null
 
-    val templateKeyboxConfigData = props.templateKeyboxConfigData ?: return null
+    val templateFullAccountConfigData = props.templateFullAccountConfigData ?: return null
 
     return ListGroupModel(
       header = "Bitcoin network",
       style = ListGroupStyle.DIVIDER,
       items =
         BitcoinNetworkType.entries.map { networkType ->
-          BitcoinNetworkTypeOptionModel(templateKeyboxConfigData, network = networkType)
+          BitcoinNetworkTypeOptionModel(templateFullAccountConfigData, network = networkType)
         }.toImmutableList()
     )
   }
 
   @Composable
   private fun BitcoinNetworkTypeOptionModel(
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
     network: BitcoinNetworkType,
   ) = ListItemModel(
     title = network.name.lowercase(),
@@ -42,11 +43,11 @@ class BitcoinNetworkPickerUiStateMachineImpl(
       SwitchAccessory(
         model =
           SwitchModel(
-            checked = network == templateKeyboxConfigData.config.networkType,
+            checked = network == templateFullAccountConfigData.config.bitcoinNetworkType,
             onCheckedChange = { isChecked ->
               if (isChecked) {
-                templateKeyboxConfigData.updateConfig {
-                  it.copy(networkType = network)
+                templateFullAccountConfigData.updateConfig {
+                  it.copy(bitcoinNetworkType = network)
                 }
               }
             }

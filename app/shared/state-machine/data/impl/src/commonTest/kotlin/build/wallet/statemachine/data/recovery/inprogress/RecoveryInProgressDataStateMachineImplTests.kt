@@ -7,7 +7,7 @@ import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.cloud.backup.csek.SealedCsekFake
@@ -39,6 +39,7 @@ import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
+import build.wallet.recovery.socrec.TrustedContactKeyAuthenticatorMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
@@ -51,6 +52,7 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.AwaitingChallengeAndCsekSignedWithHardwareData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.FailedToRotateAuthData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
@@ -100,6 +102,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val deviceInfoProvider = DeviceInfoProviderMock()
   val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
+  val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorMock(turbines::create)
 
   val stateMachine =
     RecoveryInProgressDataStateMachineImpl(
@@ -118,7 +121,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       deviceTokenManager = deviceTokenManager,
       deviceInfoProvider = deviceInfoProvider,
       socRecRelationshipsRepository = socRecRelationshipsRepository,
-      postSocRecTaskRepository = postSocRecTaskRepository
+      postSocRecTaskRepository = postSocRecTaskRepository,
+      trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
     )
 
   beforeTest {
@@ -142,8 +146,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
   fun props(recovery: StillRecovering = recovery()) =
     RecoveryInProgressProps(
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       recovery = recovery,
+      oldAppGlobalAuthKey = null,
       onRetryCloudRecovery =
         when (recovery.factorToRecover) {
           App -> {
@@ -457,6 +462,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
@@ -484,6 +490,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
@@ -497,6 +504,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -517,6 +529,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock
@@ -570,6 +583,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
@@ -597,6 +611,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
@@ -609,6 +624,11 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -629,6 +649,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock
@@ -693,6 +714,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
@@ -723,6 +745,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
@@ -735,6 +758,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -794,6 +821,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
@@ -822,6 +850,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
@@ -834,6 +863,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -855,6 +888,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock
           )
@@ -910,6 +944,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             sealedCsek = SealedCsekFake
           )
         )
@@ -935,6 +970,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
@@ -947,6 +983,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -968,6 +1008,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock
           )
@@ -1033,6 +1074,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
           )
@@ -1063,6 +1105,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
           )
@@ -1074,6 +1117,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -1131,6 +1178,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
           )
@@ -1159,6 +1207,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
           )
@@ -1170,6 +1219,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -1190,6 +1243,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock
@@ -1241,6 +1295,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appGlobalAuthKey = recovery.appGlobalAuthKey,
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
@@ -1268,6 +1323,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
@@ -1280,6 +1336,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -1301,6 +1361,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             f8eSpendingKeyset = F8eSpendingKeysetMock
           )
@@ -1363,6 +1424,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             appRecoveryAuthKey = recovery.appRecoveryAuthKey,
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             factorToRecover = recovery.factorToRecover,
             sealedCsek = SealedCsekFake
           )
@@ -1393,6 +1455,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             f8eSpendingKeyset = F8eSpendingKeysetMock,
             sealedCsek = SealedCsekFake
           )
@@ -1404,6 +1467,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
         socRecRelationshipsRepository.syncCalls.awaitItem()
       }
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -1465,6 +1532,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
             hardwareSpendingKey = recovery.hardwareSpendingKey,
             hardwareAuthKey = recovery.hardwareAuthKey,
             factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
             sealedCsek = SealedCsekFake
           )
         )

@@ -44,7 +44,7 @@ fun AppFunctionalityStatusBodyModel(
         icon = Icon.LargeIconNetworkError,
         headline =
           when (cause) {
-            is F8eUnreachable -> "We’re having trouble reaching our Bitkey servers."
+            is F8eUnreachable -> "We’re having trouble reaching Bitkey services."
             is InternetUnreachable -> "It looks like you’re offline."
             EmergencyAccessMode -> "You're using the Emergency Access Kit."
           },

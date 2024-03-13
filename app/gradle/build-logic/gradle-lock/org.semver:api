@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.semver:api",
+    "components": [
+        {
+            "version": "0.9.33",
+            "variants": [
+                {
+                    "artifacts": {
+                        "api-0.9.33.jar": "31c6d3d6a3a0794cdcf9e7551c62468e96649c40ef7ece45839b495ae7c62df2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

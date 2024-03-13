@@ -430,6 +430,25 @@ interface SecretKey {
   PublicKey as_public();
 };
 
+enum WsmContext {
+  "DeriveKeyV1",
+  "CreateKeyV1",
+};
+
+[Error]
+enum WsmIntegrityVerifierError {
+  "MalformedSignature",
+  "MalformedPublicKey",
+  "Base58DecodeFailure",
+  "Base16DecodeFailure",
+};
+
+interface WsmIntegrityVerifier {
+  constructor(PublicKey pubkey);
+  [Throws=WsmIntegrityVerifierError]
+  boolean verify(string base58_message, string signature);
+};
+
 [Error]
 enum TeltraError {
   "ParsingError",
@@ -548,14 +567,18 @@ interface Hkdf {
 };
 
 enum ChaCha20Poly1305Error {
+  "XChaCha20InstantiationError",
   "EncryptError",
   "DecryptError",
 };
 
 interface XChaCha20Poly1305 {
+  [Throws=ChaCha20Poly1305Error]
   constructor([ByRef] bytes key);
+
   [Throws=ChaCha20Poly1305Error]
   bytes encrypt([ByRef] bytes nonce, [ByRef] bytes plaintext, [ByRef] bytes aad);
+
   [Throws=ChaCha20Poly1305Error]
   bytes decrypt([ByRef] bytes nonce, [ByRef] bytes ciphertext, [ByRef] bytes aad);
 };
@@ -587,6 +610,13 @@ interface Spake2Context {
 
   [Throws=Spake2Error]
   void process_key_conf_msg(bytes received_mac, [ByRef] Spake2Keys keys);
+
+  bytes read_private_key();
+
+  bytes read_public_key();
+
+  [Throws=Spake2Error]
+  void write_key_pair(bytes private_key, bytes public_key);
 };
 
 dictionary Spake2Keys {
@@ -599,4 +629,43 @@ dictionary Spake2Keys {
 enum Spake2Role {
   "Alice",
   "Bob",
+};
+
+[Error]
+enum SignatureVerifierError {
+  "Secp256k1Error",
+};
+
+interface SignatureVerifier {
+  [Throws=SignatureVerifierError]
+  constructor([ByRef] bytes signature);
+
+  [Throws=SignatureVerifierError]
+  void verify_ecdsa([ByRef] bytes message, [ByRef] bytes pubkey);
+};
+
+[Error]
+enum CryptoBoxError {
+  "CryptoBoxInstantiationError",
+  "EncryptError",
+  "DecryptError",
+};
+
+interface CryptoBox {
+  [Throws=CryptoBoxError]
+  constructor([ByRef] bytes public_key, [ByRef] bytes secret_key);
+
+  [Throws=CryptoBoxError]
+  bytes encrypt([ByRef] bytes nonce, [ByRef] bytes plaintext);
+
+  [Throws=CryptoBoxError]
+  bytes decrypt([ByRef] bytes nonce, [ByRef] bytes ciphertext);
+};
+
+interface CryptoBoxKeyPair {
+  constructor();
+
+  bytes public_key();
+
+  bytes secret_key();
 };

@@ -1,6 +1,6 @@
 package build.wallet.statemachine.core
 
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -33,7 +33,7 @@ data class Retreat(
               iconSize = IconSize.Accessory,
               iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
             ),
-          onClick = Click.standardClick { onRetreat() }
+          onClick = StandardClick(onRetreat)
         )
     )
 }

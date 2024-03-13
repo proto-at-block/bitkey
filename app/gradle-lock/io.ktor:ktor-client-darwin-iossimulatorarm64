@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-darwin-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-darwin-iossimulatorarm64-2.3.8-metadata.jar": "3f6c8d917ddd00c78eb450458010c21b69f14504abd5d6003cd90283540b8ea9"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-darwin.klib": "970ba92b6100b961e1020c1edc88afdab0cfe74c0708efde0604c46e41290e8f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

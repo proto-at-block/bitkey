@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test.services:storage",
+    "components": [
+        {
+            "version": "1.4.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "storage-1.4.2.aar": "b34861f0cd920cb1089f08c3f27e5865b7f920284cc45f4ed12ef8d6980dac48"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

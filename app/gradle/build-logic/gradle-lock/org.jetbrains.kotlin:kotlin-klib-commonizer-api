@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-klib-commonizer-api",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-klib-commonizer-api-1.9.10.jar": "ebaf4a4ecad2cef8ffdfec20a5e72c9a1b6f6036fda0849f3a45243391663e5a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]"
+            ]
+        }
+    ]
+}

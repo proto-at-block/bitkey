@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.gms:play-services-tasks",
+    "components": [
+        {
+            "version": "18.0.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "play-services-tasks-18.0.2.aar": "03465cf53680da23d3d4a3995c0329b7f73b211d38791ecb36e591febb896664"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

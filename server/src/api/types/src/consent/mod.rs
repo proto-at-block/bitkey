@@ -75,9 +75,18 @@ pub struct NotificationConsent {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+pub struct OnboardingTosAcceptanceConsent {
+    #[serde(flatten)]
+    pub common_fields: ConsentCommonFields,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email_address: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 #[serde(tag = "_Consent_type")]
 pub enum Consent {
     Notification(NotificationConsent),
+    OnboardingTosAcceptance(OnboardingTosAcceptanceConsent),
 }
 
 impl Consent {
@@ -122,12 +131,31 @@ impl Consent {
             action: NotificationConsentAction::OptOut,
         })
     }
+
+    pub fn new_onboarding_tos_acceptance(
+        account_id: &AccountId,
+        email_address: Option<String>,
+    ) -> Self {
+        let now = OffsetDateTime::now_utc();
+        Consent::OnboardingTosAcceptance(OnboardingTosAcceptanceConsent {
+            common_fields: ConsentCommonFields {
+                account_id: account_id.to_owned(),
+                consent_id: ConsentId::gen().unwrap(),
+                created_at: now,
+                updated_at: now,
+            },
+            email_address,
+        })
+    }
 }
 
 impl Consent {
     pub fn get_common_fields(&self) -> &ConsentCommonFields {
         match self {
             Consent::Notification(notification_consent) => &notification_consent.common_fields,
+            Consent::OnboardingTosAcceptance(onboarding_tos_acceptance_consent) => {
+                &onboarding_tos_acceptance_consent.common_fields
+            }
         }
     }
 
@@ -137,6 +165,12 @@ impl Consent {
                 Consent::Notification(NotificationConsent {
                     common_fields,
                     ..notification_consent.to_owned()
+                })
+            }
+            Consent::OnboardingTosAcceptance(onboarding_tos_acceptance_consent) => {
+                Consent::OnboardingTosAcceptance(OnboardingTosAcceptanceConsent {
+                    common_fields,
+                    ..onboarding_tos_acceptance_consent.to_owned()
                 })
             }
         }

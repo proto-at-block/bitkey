@@ -1,0 +1,24 @@
+[package]
+edition = { workspace = true }
+name = "userpool"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+async-trait = { workspace = true }
+aws-config = { workspace = true }
+aws-sdk-cognitoidentityprovider = { workspace = true }
+aws-types = { workspace = true }
+dyn-clone = { workspace = true }
+hex = { workspace = true }
+jsonwebtoken = "9.2.0"
+rand = { workspace = true }
+secp256k1 = { version = "0.27.0", features = ["bitcoin_hashes", "serde"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# path dependencies
+errors = { workspace = true }
+migration = { workspace = true }
+types = { workspace = true, features = ["account", "authn_authz"] }

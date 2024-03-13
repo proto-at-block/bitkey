@@ -24,5 +24,5 @@ for apk in "$1"/*.apk; do
   file_name="${apk##*/}"
   file_name_without_extension="${file_name%.apk}"
 
-  unzip -d "$2/$file_name_without_extension" "$apk"
+  unzip -B -d "$2/$file_name_without_extension" "$apk"
 done

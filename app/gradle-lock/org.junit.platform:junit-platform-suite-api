@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.junit.platform:junit-platform-suite-api",
+    "components": [
+        {
+            "version": "1.8.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-platform-suite-api-1.8.2.jar": "94ef343b05b875bb2e4ef94a7cc62e610e1b9cd78247e2b2ec43ed618a1ed0a7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

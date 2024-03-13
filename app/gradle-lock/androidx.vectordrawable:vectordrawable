@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.vectordrawable:vectordrawable",
+    "components": [
+        {
+            "version": "1.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "vectordrawable-1.1.0.aar": "46fd633ac01b49b7fcabc263bf098c5a8b9e9a69774d234edcca04fb02df8e26"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

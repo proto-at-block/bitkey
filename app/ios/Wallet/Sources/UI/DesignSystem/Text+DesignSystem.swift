@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Shared
 
 // MARK: -
 
@@ -66,4 +67,21 @@ public extension TextModel {
         )
     }
 
+    static func linkedText(
+        textContent: TextModel.Content,
+        font: FontTheme,
+        textAlignment: TextAlignment = .leading,
+        textColor: Color = .foreground
+    ) -> TextModel {
+        return .init(
+            content: textContent,
+            font: font.font,
+            kerning: font.kerning,
+            baselineOffset: font.baselineOffset,
+            lineSpacing: font.lineSpacing,
+            textAlignment: textAlignment,
+            textColor: textColor,
+            treatment: .unspecified
+        )
+    }
 }

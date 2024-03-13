@@ -6,6 +6,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -38,9 +39,10 @@ sealed interface Recovery {
 
     val appSpendingKey: AppSpendingPublicKey
     val appGlobalAuthKey: AppGlobalAuthPublicKey
-    val appRecoveryAuthKey: AppRecoveryAuthPublicKey?
+    val appRecoveryAuthKey: AppRecoveryAuthPublicKey
     val hardwareSpendingKey: HwSpendingPublicKey
     val hardwareAuthKey: HwAuthPublicKey
+    val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature
 
     /**
      * A local recovery that has yet to complete on the server so its success depends
@@ -62,9 +64,10 @@ sealed interface Recovery {
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
         override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey?,
+        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         override val serverRecovery: ServerRecovery,
       ) : ServerDependentRecovery
@@ -84,9 +87,10 @@ sealed interface Recovery {
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
         override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey?,
+        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
       ) : ServerIndependentRecovery
@@ -98,9 +102,10 @@ sealed interface Recovery {
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
         override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey?,
+        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
       ) : ServerIndependentRecovery
@@ -113,9 +118,10 @@ sealed interface Recovery {
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
         override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey?,
+        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
         val sealedCsek: SealedCsek,
       ) : ServerIndependentRecovery
@@ -128,9 +134,10 @@ sealed interface Recovery {
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
         override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey?,
+        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
+        override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
         override val factorToRecover: PhysicalFactor,
       ) : ServerIndependentRecovery
     }

@@ -31,13 +31,14 @@ import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVer
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
+import build.wallet.time.Delayer
 import build.wallet.ui.model.alert.AlertModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.time.Duration.Companion.seconds
 
 class NotificationPreferencesSetupUiStateMachineImpl(
   private val eventTracker: EventTracker,
+  private val delayer: Delayer,
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
@@ -137,7 +138,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
           }
 
           // Complete!
-          delay(1.seconds)
+          delayer.delay(1.seconds)
           // This will transition the UI
           onboardingKeyboxStepStateDao
             .setStateForStep(NotificationPreferences, Complete)
@@ -197,7 +198,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
           props =
             NotificationTouchpointInputAndVerificationProps(
               fullAccountId = props.fullAccountId,
-              keyboxConfig = props.keyboxConfig,
+              fullAccountConfig = props.fullAccountConfig,
               touchpointType = NotificationTouchpointType.PhoneNumber,
               entryPoint =
                 Onboarding(
@@ -240,7 +241,7 @@ class NotificationPreferencesSetupUiStateMachineImpl(
           props =
             NotificationTouchpointInputAndVerificationProps(
               fullAccountId = props.fullAccountId,
-              keyboxConfig = props.keyboxConfig,
+              fullAccountConfig = props.fullAccountConfig,
               touchpointType = NotificationTouchpointType.Email,
               entryPoint =
                 Onboarding(

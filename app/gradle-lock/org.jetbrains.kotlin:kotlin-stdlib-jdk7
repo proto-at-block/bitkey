@@ -1,0 +1,45 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
+    "components": [
+        {
+            "version": "1.6.20",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk7-1.6.20.jar": "aa2fa2e81355c4d98dd97da2169bf401f842261378f5b1cbea1aa11855d67620"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]"
+            ]
+        },
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk7-1.9.10.jar": "ac6361bf9ad1ed382c2103d9712c47cdec166232b4903ed596e8876b0681c9b7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.9.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-jdk7-1.9.21.jar": "bfe21f4246c8bca350b1840406ffbcd376b05eda37eb2a64b011de18c2ca7818"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

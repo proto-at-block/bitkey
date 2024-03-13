@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.caverock:androidsvg-aar",
+    "components": [
+        {
+            "version": "1.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "androidsvg-aar-1.4.aar": "02a5b08a2b35d2d58eb2eaca9d84ac00fb341da725fdbd653ea3ed130437e95a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

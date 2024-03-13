@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.api-client:google-api-client-android",
+    "components": [
+        {
+            "version": "2.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "google-api-client-android-2.2.0.jar": "dd17c99e1f5d5b51cb489294536b507df7ecc4d1fb9c7fdae34d6286fc550cd2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.datatransport:transport-runtime",
+    "components": [
+        {
+            "version": "3.1.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "transport-runtime-3.1.8.aar": "cb9353ef1791ae17097d878ca711e25a9c32cec9042adc49b00cadfee1a7290b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

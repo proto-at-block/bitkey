@@ -1,7 +1,3 @@
-use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
-use isocountry::CountryCode;
-use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
-
 use crate::entities::{
     CommsVerificationClaim, CommsVerificationScope, FullAccountAuthKeys, LiteAccount,
     LiteAccountAuthKeys, SpendingKeyset, TouchpointPlatform,
@@ -11,6 +7,11 @@ use crate::{
     entities::{Keyset, Network},
     repository::Repository,
 };
+use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+use isocountry::CountryCode;
+use repository::consent::Repository as ConsentRepository;
+use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
+use userpool::userpool::UserPoolService;
 
 mod activate_touchpoint_for_account;
 mod add_push_touchpoint_to_account;
@@ -32,12 +33,22 @@ mod upgrade_lite_account_to_full_account;
 
 #[derive(Clone)]
 pub struct Service {
-    repo: Repository,
+    account_repo: Repository,
+    consent_repo: ConsentRepository,
+    userpool_service: UserPoolService,
 }
 
 impl Service {
-    pub fn new(repo: Repository) -> Self {
-        Self { repo }
+    pub fn new(
+        account_repo: Repository,
+        consent_repo: ConsentRepository,
+        userpool_service: UserPoolService,
+    ) -> Self {
+        Self {
+            account_repo,
+            consent_repo,
+            userpool_service,
+        }
     }
 }
 
@@ -97,6 +108,7 @@ pub struct AddPushTouchpointToAccountInput {
     pub use_local_sns: bool,
     pub platform: TouchpointPlatform,
     pub device_token: String,
+    pub access_token: String,
 }
 
 #[derive(Debug, Clone)]

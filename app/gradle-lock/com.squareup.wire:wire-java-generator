@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-java-generator",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-java-generator-4.9.5.jar": "c6858182cd0baf6a9efcb021c4c99094bd5eb6739b5eed042899f24fbcaee5f4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

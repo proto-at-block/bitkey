@@ -42,7 +42,6 @@ class XChaCha20Poly1305Impl : XChaCha20Poly1305 {
     ).toByteString()
   }
 
-  @Throws(Error::class)
   override fun encryptNoMetadata(
     key: SymmetricKey,
     plaintext: ByteString,
@@ -68,7 +67,6 @@ class XChaCha20Poly1305Impl : XChaCha20Poly1305 {
     )
   }
 
-  @Throws(Error::class)
   override fun decryptNoMetadata(
     key: SymmetricKey,
     sealedData: SealedData,

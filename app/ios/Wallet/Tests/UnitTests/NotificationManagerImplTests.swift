@@ -214,6 +214,9 @@ fileprivate class EventTrackerMock : EventTracker {
         trackCalls.append(action)
     }
 
+    func track(eventTrackerCountInfo: EventTrackerCountInfo) { fatalError() }
+
+    
     func track(eventTrackerScreenInfo: EventTrackerScreenInfo) { fatalError() }
 
     func reset() {

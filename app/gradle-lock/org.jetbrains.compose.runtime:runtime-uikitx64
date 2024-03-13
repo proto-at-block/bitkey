@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.runtime:runtime-uikitx64",
+    "components": [
+        {
+            "version": "1.5.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-uikitx64-1.5.11-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime.klib": "d0c2a0d34c56d43f051e9a004e3829f61fd2a63109070684e1a2f716c5a64bb0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

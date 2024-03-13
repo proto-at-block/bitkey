@@ -7,9 +7,11 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.recovery.socrec.syncAndVerifyRelationships
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
@@ -33,6 +35,9 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
       cloudKeyValueStore = appTester.app.cloudKeyValueStore
     )
+
+    onboardApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
+
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.app.cloudBackupRepository
       .readBackup(
@@ -58,9 +63,11 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
       // Expect the lite account backup to be found and we transition to the
       // [ReplaceWithLiteAccountRestoreUiStateMachine]
-      awaitUntilScreenWithBody<LoadingBodyModel>(
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
-      )
+      ) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       onboardApp.app.onboardingKeyboxHwAuthPublicKeyDao.get().getOrThrow().shouldNotBeNull()
       advanceThroughOnboardKeyboxScreens(
         listOf(
@@ -71,7 +78,9 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
         // completely transparent to the user
         isCloudBackupSkipSignIn = true
       )
-      awaitUntilScreenWithBody<LoadingBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
@@ -88,6 +97,9 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
       cloudKeyValueStore = appTester.app.cloudKeyValueStore
     )
+
+    onboardApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
+
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.app.cloudBackupRepository
       .readBackup(
@@ -107,12 +119,16 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
       // Expect the lite account backup to be found and we transition to the
       // [ReplaceWithLiteAccountRestoreUiStateMachine]
-      awaitUntilScreenWithBody<LoadingBodyModel>(
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
-      )
-      awaitUntilScreenWithBody<LoadingBodyModel>(
+      ) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
         CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
-      )
+      ) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       // Cancel and exit the app before attempting cloud backup
       // This might be flaky...?
       cancelAndIgnoreRemainingEvents()
@@ -139,7 +155,9 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
           OnboardingKeyboxStep.NotificationPreferences
         )
       )
-      awaitUntilScreenWithBody<LoadingBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }
@@ -152,21 +170,26 @@ private const val PROTECTED_CUSTOMER_NAME = "protected customer"
 
 private suspend fun createLiteAccountWithInvite(): Triple<AppTester, LiteAccount, CloudBackupV2> {
   val fullApp = launchNewApp()
+  fullApp.onboardFullAccountWithFakeHardware()
   val liteApp = launchNewApp()
 
-  val fullAccount = fullApp.onboardFullAccountWithFakeHardware()
-  val invite = fullApp.createTcInvite(fullAccount, "trusted contact")
+  liteApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
+  fullApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
+
+  val (inviteCode, _) = fullApp.createTcInvite("trusted contact")
   val liteAccount =
     liteApp.onboardLiteAccountFromInvitation(
-      invite,
+      inviteCode,
       PROTECTED_CUSTOMER_NAME
     )
+
   val liteBackup = liteApp.app.liteAccountCloudBackupCreator.create(liteAccount).getOrThrow()
   // Note the cloud backup is written to shared settings.
   liteApp.app.cloudBackupRepository.writeBackup(
     liteAccount.accountId,
     CloudStoreAccountFake.CloudStoreAccount1Fake,
-    liteBackup
+    liteBackup,
+    requireAuthRefresh = true
   ).getOrThrow()
 
   return Triple(liteApp, liteAccount, liteBackup)
@@ -180,10 +203,8 @@ private suspend fun verifyAccountDataIsPreserved(
   val onboardedAccount = onboardApp.getActiveFullAccount()
   onboardedAccount.accountId.serverId.shouldBe(liteAccount.accountId.serverId)
   val socRecRelationships =
-    onboardApp.app.socRecRelationshipsRepository.syncRelationships(
-      onboardedAccount.accountId,
-      onboardedAccount.config.f8eEnvironment
-    ).getOrThrow()
+    onboardApp.app.socRecRelationshipsRepository.syncAndVerifyRelationships(onboardedAccount)
+      .getOrThrow()
   // Expect the protected customer to have been preserved
   socRecRelationships.protectedCustomers.shouldHaveSize(1)
   socRecRelationships.protectedCustomers.first().alias

@@ -17,7 +17,7 @@ class FeeOptionUiStateMachineMock : FeeOptionUiStateMachine {
         FeeOption(
           optionName = "Priority",
           transactionTime = "~10 mins",
-          transactionFee = props.amount.toString(),
+          transactionFee = props.feeAmount.toString(),
           selected = props.selected,
           onClick = props.onClick,
           enabled = true
@@ -27,7 +27,7 @@ class FeeOptionUiStateMachineMock : FeeOptionUiStateMachine {
         FeeOption(
           optionName = "Standard",
           transactionTime = "~30 mins",
-          transactionFee = props.amount.toString(),
+          transactionFee = props.feeAmount.toString(),
           selected = props.selected,
           onClick = props.onClick,
           enabled = true
@@ -37,7 +37,7 @@ class FeeOptionUiStateMachineMock : FeeOptionUiStateMachine {
         FeeOption(
           optionName = "Slow",
           transactionTime = "~60 mins",
-          transactionFee = props.amount.toString(),
+          transactionFee = props.feeAmount.toString(),
           selected = props.selected,
           onClick = props.onClick,
           enabled = true

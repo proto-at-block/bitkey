@@ -19,7 +19,6 @@ pub struct Settings {
     pub run_mode: RunMode,
     pub address: IpAddr,
     pub port: u16,
-    pub use_test_integrity_key: bool,
 }
 
 impl Settings {
@@ -37,7 +36,6 @@ impl Settings {
             .set_default("runMode", run_mode)?
             .set_default("port", port)?
             .set_default("address", address)?
-            .set_default("useTestIntegrityKey", true)?
             .build()?;
         s.try_deserialize()
     }

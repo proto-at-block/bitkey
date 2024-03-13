@@ -11,35 +11,43 @@ use crate::util::{get_total_outflow_for_psbt, total_sats_spent_today};
 
 use super::Rule;
 
-trait DailySpendingLimitRuleTrait {}
+pub(crate) struct DailySpendingLimitRule<'a> {
+    wallet: &'a Wallet<AnyDatabase>,
+    features: &'a Features,
+    spending_history: &'a Vec<&'a SpendingEntry>,
+    now_utc: OffsetDateTime,
+}
 
-pub(crate) struct DailySpendingLimitRule;
+impl<'a> DailySpendingLimitRule<'a> {
+    pub fn new(
+        wallet: &'a Wallet<AnyDatabase>,
+        features: &'a Features,
+        spending_history: &'a Vec<&'a SpendingEntry>,
+        now_utc: OffsetDateTime,
+    ) -> Self {
+        DailySpendingLimitRule {
+            wallet,
+            features,
+            spending_history,
+            now_utc,
+        }
+    }
+}
 
-impl DailySpendingLimitRuleTrait for DailySpendingLimitRule {}
-
-struct FakeDailySpendingLimitRule {}
-
-impl DailySpendingLimitRuleTrait for FakeDailySpendingLimitRule {}
-
-impl<T> Rule for T
-where
-    T: DailySpendingLimitRuleTrait,
-{
+impl<'a> Rule for DailySpendingLimitRule<'a> {
     /// Ensure that the total outflows for this PSBT plus the outflows so far today do not exceed
     /// the set spending limit
-    fn check_transaction(
-        &self,
-        wallet: &Wallet<AnyDatabase>,
-        psbt: &PartiallySignedTransaction,
-        features: &Features,
-        spending_history: &Vec<&SpendingEntry>,
-        now_utc: OffsetDateTime,
-    ) -> Result<(), String> {
-        let total_spent =
-            total_sats_spent_today(spending_history, &features.settings.limit, now_utc)?;
+    fn check_transaction(&self, psbt: &PartiallySignedTransaction) -> Result<(), String> {
+        let total_spent = total_sats_spent_today(
+            self.spending_history,
+            &self.features.settings.limit,
+            self.now_utc,
+        )?;
 
-        let total_spend_for_unsigned_transaction_sats = get_total_outflow_for_psbt(wallet, psbt);
-        if features.daily_limit_sats >= total_spend_for_unsigned_transaction_sats + total_spent {
+        let total_spend_for_unsigned_transaction_sats =
+            get_total_outflow_for_psbt(self.wallet, psbt);
+        if self.features.daily_limit_sats >= total_spend_for_unsigned_transaction_sats + total_spent
+        {
             Ok(())
         } else {
             metrics::MOBILE_PAY_COSIGN_OVERFLOW.add(1, &[]);
@@ -68,9 +76,7 @@ mod tests {
 
     use crate::daily_spend_record::entities::SpendingEntry;
     use crate::entities::{Features, Settings};
-    use crate::spend_rules::daily_spend_limit_rule::{
-        DailySpendingLimitRule, FakeDailySpendingLimitRule,
-    };
+    use crate::spend_rules::daily_spend_limit_rule::DailySpendingLimitRule;
     use crate::spend_rules::Rule;
 
     fn generate_test_wallets_and_address() -> (Wallet<AnyDatabase>, AddressInfo) {
@@ -214,16 +220,15 @@ mod tests {
             daily_limit_sats,
             ..Default::default()
         };
-        let rule = DailySpendingLimitRule {};
-        assert!(rule
-            .check_transaction(
-                &alice_wallet,
-                &psbt,
-                &features,
-                &Vec::new(),
-                OffsetDateTime::now_utc(),
-            )
-            .is_ok());
+
+        let spending_entries = Vec::new();
+        let rule = DailySpendingLimitRule::new(
+            &alice_wallet,
+            &features,
+            &spending_entries,
+            OffsetDateTime::now_utc(),
+        );
+        assert!(rule.check_transaction(&psbt).is_ok());
     }
 
     #[tokio::test]
@@ -262,16 +267,15 @@ mod tests {
             daily_limit_sats,
             ..Default::default()
         };
-        let rule = DailySpendingLimitRule {};
-        assert!(rule
-            .check_transaction(
-                &alice_wallet,
-                &psbt,
-                &features,
-                &Vec::new(),
-                OffsetDateTime::now_utc(),
-            )
-            .is_err());
+
+        let spending_entries = Vec::new();
+        let rule = DailySpendingLimitRule::new(
+            &alice_wallet,
+            &features,
+            &spending_entries,
+            OffsetDateTime::now_utc(),
+        );
+        assert!(rule.check_transaction(&psbt).is_err());
     }
 
     #[tokio::test]
@@ -331,16 +335,11 @@ mod tests {
             ..Default::default()
         };
 
-        let rule = FakeDailySpendingLimitRule {};
-        assert!(rule
-            .check_transaction(
-                &alice_wallet,
-                &psbt,
-                &features,
-                &transaction_history.iter().collect(),
-                midnight_utc,
-            )
-            .is_err());
+        let spending_entries = transaction_history.iter().collect();
+
+        let rule =
+            DailySpendingLimitRule::new(&alice_wallet, &features, &spending_entries, midnight_utc);
+        assert!(rule.check_transaction(&psbt).is_err());
     }
 
     #[tokio::test]
@@ -401,16 +400,14 @@ mod tests {
             ..Default::default()
         };
 
-        let rule = FakeDailySpendingLimitRule {};
-        assert!(rule
-            .check_transaction(
-                &alice_wallet,
-                &psbt,
-                &features,
-                &transaction_history.iter().collect(),
-                midnight_est_in_utc,
-            )
-            .is_ok());
+        let spending_entries = transaction_history.iter().collect();
+        let rule = DailySpendingLimitRule::new(
+            &alice_wallet,
+            &features,
+            &spending_entries,
+            midnight_est_in_utc,
+        );
+        assert!(rule.check_transaction(&psbt).is_ok());
 
         // These transactions fall into the window starting at 3 am so they'll count towards the limit
         let transaction_history = generate_daily_spend_entries_for_tx_history(vec![
@@ -431,15 +428,15 @@ mod tests {
             )
             .await,
         ]);
-        assert!(rule
-            .check_transaction(
-                &alice_wallet,
-                &psbt,
-                &features,
-                &transaction_history.iter().collect(),
-                midnight_est_in_utc,
-            )
-            .is_err());
+
+        let spending_entries = transaction_history.iter().collect();
+        let rule = DailySpendingLimitRule::new(
+            &alice_wallet,
+            &features,
+            &spending_entries,
+            midnight_est_in_utc,
+        );
+        assert!(rule.check_transaction(&psbt).is_err());
 
         // These transactions fall into the window starting at 3 am so they'll count towards the limit
         let transaction_history = generate_daily_spend_entries_for_tx_history(vec![
@@ -460,14 +457,14 @@ mod tests {
             )
             .await,
         ]);
-        assert!(rule
-            .check_transaction(
-                &alice_wallet,
-                &psbt,
-                &features,
-                &transaction_history.iter().collect(),
-                midnight_est_in_utc,
-            )
-            .is_ok());
+
+        let spending_entries = transaction_history.iter().collect();
+        let rule = DailySpendingLimitRule::new(
+            &alice_wallet,
+            &features,
+            &spending_entries,
+            midnight_est_in_utc,
+        );
+        assert!(rule.check_transaction(&psbt).is_ok());
     }
 }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "net.bytebuddy:byte-buddy-agent",
+    "components": [
+        {
+            "version": "1.14.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "byte-buddy-agent-1.14.5.jar": "55f19862b870f5d85890ba5386b1b45e9bbc88d5fe1f819abe0c788b4929fa6b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

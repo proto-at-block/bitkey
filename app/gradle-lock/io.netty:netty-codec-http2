@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.netty:netty-codec-http2",
+    "components": [
+        {
+            "version": "4.1.72.Final",
+            "variants": [
+                {
+                    "artifacts": {
+                        "netty-codec-http2-4.1.72.Final.jar": "c89a70500f59e8563e720aaa808263a514bd9e2bd91ba84eab8c2ccb45f234b2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

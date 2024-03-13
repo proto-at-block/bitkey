@@ -1,4 +1,3 @@
-use authn_authz::userpool::UserPoolService;
 use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
 use axum::extract::Query;
 use axum::routing::get;
@@ -9,6 +8,7 @@ use partnerships_lib::{
     Partnerships,
 };
 use serde::{Deserialize, Serialize};
+use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
 use http_server::swagger::{SwaggerEndpoint, Url};

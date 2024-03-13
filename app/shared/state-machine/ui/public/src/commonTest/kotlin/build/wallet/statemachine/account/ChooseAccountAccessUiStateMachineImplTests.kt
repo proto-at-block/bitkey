@@ -1,6 +1,6 @@
 package build.wallet.statemachine.account
 
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
@@ -15,9 +15,12 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
 import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
+import build.wallet.statemachine.demo.DemoModeConfigUiProps
+import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
@@ -32,6 +35,10 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       debugMenuStateMachine =
         object : DebugMenuStateMachine, ScreenStateMachineMock<DebugMenuProps>(
           id = "debug-menu"
+        ) {},
+      demoModeConfigUiStateMachine =
+        object : DemoModeConfigUiStateMachine, ScreenStateMachineMock<DemoModeConfigUiProps>(
+          id = "demo-mode"
         ) {},
       deviceInfoProvider = DeviceInfoProviderMock()
     )
@@ -49,9 +56,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       chooseAccountAccessData =
         GettingStartedData(
           newAccountOnboardConfigData = LoadedOnboardConfigDataMock,
-          templateKeyboxConfigData =
-            LoadedTemplateKeyboxConfigData(
-              config = KeyboxConfigMock,
+          templateFullAccountConfigData =
+            LoadedTemplateFullAccountConfigData(
+              config = FullAccountConfigMock,
               updateConfig = {}
             ),
           startRecovery = { startRecoveryCalls.add(Unit) },
@@ -102,7 +109,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
       // Click through the BeTrustedContactIntroductionModel
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick.invoke()
+        clickPrimaryButton()
       }
 
       startLiteAccountCreationCalls.awaitItem()
@@ -144,7 +151,7 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
         mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()
           .listGroupModel
-          .items[2]
+          .items[0]
           .also {
             it.title.shouldBe("Import using Emergency Access Kit")
           }
@@ -167,13 +174,16 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("does not show debug menu in customer build") {
+  test("shows demo mode in customer build") {
     val customerStateMachine = buildStateMachine(AppVariant.Customer)
     customerStateMachine.test(props) {
       awaitScreenWithBody<ChooseAccountAccessModel> {
         onLogoClick()
       }
-      expectNoEvents()
+      awaitScreenWithBodyModelMock<DemoModeConfigUiProps> {
+        onBack()
+      }
+      awaitScreenWithBody<ChooseAccountAccessModel>()
     }
   }
 
@@ -192,22 +202,17 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
           .buttons[1].onClick()
       }
       awaitScreenWithBody<FormBodyModel> {
+        // Only "Import using Emergency Access Kit" is included in the EAK build.
         mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()
           .listGroupModel
           .items[0]
+          .also {
+            it.title.shouldBe("Import using Emergency Access Kit")
+          }
           .onClick.shouldNotBeNull().invoke()
       }
-      awaitItem().should {
-        it.alertModel.shouldNotBeNull()
-        it.body.shouldBeTypeOf<FormBodyModel>()
-          .mainContentList.first()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[1]
-          .onClick.shouldNotBeNull().invoke()
-      }
-      startRecoveryCalls.awaitItem()
+      startEmergencyAccessRecoveryCalls.awaitItem()
     }
   }
 })

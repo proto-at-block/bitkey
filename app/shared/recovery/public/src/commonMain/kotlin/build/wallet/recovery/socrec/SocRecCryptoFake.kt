@@ -1,33 +1,45 @@
 package build.wallet.recovery.socrec
 
+import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppGlobalAuthKeypair
+import build.wallet.bitkey.app.AppGlobalAuthPrivateKey
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.keys.app.AppKeyImpl
-import build.wallet.bitkey.socrec.KeyCertificate
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.PrivateKeyEncryptionKey
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentKey
-import build.wallet.bitkey.socrec.ProtectedCustomerEphemeralKey
+import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
-import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryKey
+import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.SocRecKey
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentKey
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
-import build.wallet.bitkey.socrec.TrustedContactRecoveryKey
+import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
+import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.CurveType
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
+import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1PrivateKey
 import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.XCiphertext
 import build.wallet.encrypt.XNonce
 import build.wallet.encrypt.XSealedData
 import build.wallet.encrypt.toXSealedData
+import build.wallet.encrypt.verifyEcdsaResult
+import build.wallet.recovery.socrec.SocRecCryptoError.ErrorGettingPrivateKey
+import build.wallet.recovery.socrec.SocRecCryptoError.PublicKeyMissing
+import build.wallet.recovery.socrec.SocRecCryptoError.UnsupportedXCiphertextVersion
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.toErrorIfNull
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import com.ionspin.kotlin.bignum.modular.ModularBigInteger
@@ -36,6 +48,7 @@ import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 import kotlin.random.Random
+import com.github.michaelbull.result.coroutines.binding.binding as suspendBinding
 
 /**
  * This implementation uses simplified crypto operations to simulate the real
@@ -45,53 +58,58 @@ import kotlin.random.Random
  *
  * The default randomness generator has a fixed seed, ensuring that key
  * generation is deterministic in tests.
+ *
+ * @param messageSigner used to create a key certificate. Note that if this is `null`,
+ *  then [generateKeyCertificate] and [sign] will crash.
+ * @param signatureVerifier used to verify a key certificate. Note that if this is `null`,
+ *  then [verifyKeyCertificate] and [verifySig] will crash.
  */
-class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
+class SocRecCryptoFake(
+  private val messageSigner: MessageSigner? = null,
+  private val signatureVerifier: SignatureVerifier? = null,
+  private val appPrivateKeyDao: AppPrivateKeyDao? = null,
+  private val random: Random = Random(0),
+) : SocRecCrypto {
   private val g = Secp256k1.g()
   private val q = ModularBigInteger.creatorForModulo(Secp256k1.Q)
 
   /** Generates a usable but insecure key pair */
-  override fun generateProtectedCustomerIdentityKey():
+  private fun generateProtectedCustomerIdentityKey():
     Result<ProtectedCustomerIdentityKey, SocRecCryptoError> =
     Ok(ProtectedCustomerIdentityKey(generateAsymmetricKey()))
 
-  override fun generateProtectedCustomerEphemeralKey():
-    Result<ProtectedCustomerEphemeralKey, SocRecCryptoError> =
-    Ok(ProtectedCustomerEphemeralKey(generateAsymmetricKey()))
-
   /** Generates a usable but insecure key pair */
-  override fun generateTrustedContactIdentityKey():
-    Result<TrustedContactIdentityKey, SocRecCryptoError> =
-    Ok(TrustedContactIdentityKey(generateAsymmetricKey()))
+  override fun generateDelegatedDecryptionKey(): Result<DelegatedDecryptionKey, SocRecCryptoError> =
+    Ok(DelegatedDecryptionKey(generateAsymmetricKey()))
 
-  override fun generateProtectedCustomerEnrollmentKey(
-    password: ByteString,
-  ): Result<ProtectedCustomerEnrollmentKey, SocRecCryptoError> {
+  override fun generateProtectedCustomerEnrollmentPakeKey(
+    password: PakeCode,
+  ): Result<ProtectedCustomerEnrollmentPakeKey, SocRecCryptoError> {
     return Ok(
-      ProtectedCustomerEnrollmentKey(
+      ProtectedCustomerEnrollmentPakeKey(
         generatePakeKey(password)
       )
     )
   }
 
-  override fun generateProtectedCustomerRecoveryKey(
-    password: ByteString,
-  ): Result<ProtectedCustomerRecoveryKey, SocRecCryptoError> {
+  override fun generateProtectedCustomerRecoveryPakeKey(
+    password: PakeCode,
+  ): Result<ProtectedCustomerRecoveryPakeKey, SocRecCryptoError> {
     return Ok(
-      ProtectedCustomerRecoveryKey(
+      ProtectedCustomerRecoveryPakeKey(
         generatePakeKey(password)
       )
     )
   }
 
-  private fun generatePakeKey(password: ByteString): AppKey {
+  private fun generatePakeKey(password: PakeCode): AppKey {
     // x ⭠ ℤ_q
     val privKey = randomBytes()
     val x = q.parseString(privKey.hex(), 16)
     // 'X = xG
     val basePubKey = g * x
     // X = 'X * H(password)
-    val pubKey = basePubKey * q.parseString(password.sha256().hex(), 16)
+    val pubKey = basePubKey * q.parseString(password.bytes.sha256().hex(), 16)
 
     return AppKeyImpl(
       CurveType.SECP256K1,
@@ -100,17 +118,17 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
     )
   }
 
-  override fun encryptTrustedContactIdentityKey(
-    password: ByteString,
-    protectedCustomerEnrollmentKey: ProtectedCustomerEnrollmentKey,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-  ): Result<EncryptTrustedContactIdentityKeyOutput, SocRecCryptoError> {
-    val trustedContactIdentityKeyBytes = trustedContactIdentityKey.publicKey.value.decodeHex()
+  override fun encryptDelegatedDecryptionKey(
+    password: PakeCode,
+    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    delegatedDecryptionKey: DelegatedDecryptionKey,
+  ): Result<EncryptDelegatedDecryptionKeyOutput, SocRecCryptoError> {
+    val trustedContactIdentityKeyBytes = delegatedDecryptionKey.publicKey.value.decodeHex()
     // Generate PAKE keys
     val secureChannelOutput =
       establishSecureChannel(
         password,
-        protectedCustomerEnrollmentKey.publicKey,
+        protectedCustomerEnrollmentPakeKey.publicKey,
         trustedContactIdentityKeyBytes.size
       )
     // Encrypt TC Identity Key
@@ -118,15 +136,15 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
       trustedContactIdentityKeyBytes.xorWith(secureChannelOutput.sharedSecretKey)
 
     return Ok(
-      EncryptTrustedContactIdentityKeyOutput(
-        sealedTrustedContactIdentityKey =
+      EncryptDelegatedDecryptionKeyOutput(
+        sealedDelegatedDecryptionKey =
           XSealedData(
             XSealedData.Header(algorithm = "SocRecCryptoFake"),
             ciphertext = trustedContactIdentityKeyCiphertext,
             nonce = XNonce(ByteString.EMPTY)
           ).toOpaqueCiphertext(),
-        trustedContactEnrollmentKey =
-          TrustedContactEnrollmentKey(
+        trustedContactEnrollmentPakeKey =
+          TrustedContactEnrollmentPakeKey(
             secureChannelOutput.trustedContactPasswordAuthenticatedKey
           ),
         keyConfirmation = secureChannelOutput.keyConfirmation
@@ -134,22 +152,22 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
     )
   }
 
-  override fun decryptTrustedContactIdentityKey(
-    password: ByteString,
-    protectedCustomerEnrollmentKey: ProtectedCustomerEnrollmentKey,
-    encryptTrustedContactIdentityKeyOutput: EncryptTrustedContactIdentityKeyOutput,
-  ): Result<TrustedContactIdentityKey, SocRecCryptoError> =
+  override fun decryptDelegatedDecryptionKey(
+    password: PakeCode,
+    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    encryptDelegatedDecryptionKeyOutput: EncryptDelegatedDecryptionKeyOutput,
+  ): Result<DelegatedDecryptionKey, SocRecCryptoError> =
     binding {
       val trustedContactIdentityKey =
         decryptSecureChannel(
           password,
-          (protectedCustomerEnrollmentKey.key as AppKeyImpl).privateKey!!,
-          encryptTrustedContactIdentityKeyOutput.trustedContactEnrollmentKey.publicKey,
-          encryptTrustedContactIdentityKeyOutput.keyConfirmation,
-          encryptTrustedContactIdentityKeyOutput.sealedTrustedContactIdentityKey
+          (protectedCustomerEnrollmentPakeKey.key as AppKeyImpl).privateKey!!,
+          encryptDelegatedDecryptionKeyOutput.trustedContactEnrollmentPakeKey.publicKey,
+          encryptDelegatedDecryptionKeyOutput.keyConfirmation,
+          encryptDelegatedDecryptionKeyOutput.sealedDelegatedDecryptionKey
         ).bind()
 
-      TrustedContactIdentityKey(
+      DelegatedDecryptionKey(
         AppKeyImpl(
           CurveType.SECP256K1,
           PublicKey(trustedContactIdentityKey.hex()),
@@ -158,93 +176,98 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
       )
     }
 
-  override fun verifyKeyCertificate(
-    keyCertificate: KeyCertificate,
-    trustedHwEndorsementKey: HwAuthPublicKey?,
-    trustedAppEndorsementKey: AppGlobalAuthPublicKey?,
-  ): Result<TrustedContactIdentityKey, SocRecCryptoError> {
-    val hwEndorsementKey = keyCertificate.hwEndorsementKey
-    val appEndorsementKey = keyCertificate.appEndorsementKey
-    // Check for presence of at least one trusted key parameter
-    if (trustedHwEndorsementKey == null && trustedAppEndorsementKey == null) {
-      return Err(
-        SocRecCryptoError.KeyCertificateVerificationFailed(
-          IllegalArgumentException("No trusted key provided")
-        )
-      )
-    }
-    // Check for mismatch between the trusted keys and the key certificate
-    if (trustedHwEndorsementKey != null && hwEndorsementKey != trustedHwEndorsementKey.pubKey) {
-      return Err(
-        SocRecCryptoError.KeyCertificateVerificationFailed(
-          IllegalArgumentException("HwEndorsementKey does not match the trusted key")
-        )
-      )
-    }
-    if (trustedAppEndorsementKey != null && appEndorsementKey != trustedAppEndorsementKey.pubKey) {
-      return Err(
-        SocRecCryptoError.KeyCertificateVerificationFailed(
-          IllegalArgumentException("AppEndorsementKey does not match the trusted key")
-        )
-      )
-    }
-    // Check if the hwEndorsementKey matches the trusted key
-    val isHwKeyTrusted = hwEndorsementKey == trustedHwEndorsementKey?.pubKey
-    // Check if the appEndorsementKey matches the trusted key
-    val isAppKeyTrusted = appEndorsementKey == trustedAppEndorsementKey?.pubKey
+  // Key certificates to automatically reject. For testing purposes.
+  val invalidCertificates = mutableSetOf<TrustedContactKeyCertificate>()
 
-    // Ensure at least one key matches a trusted key
-    if (isHwKeyTrusted || isAppKeyTrusted) {
-      if (verifySig(
-          keyCertificate.hwSignature,
-          hwEndorsementKey,
-          appEndorsementKey.value.decodeHex()
-        ) &&
-        verifySig(
-          keyCertificate.appSignature,
-          appEndorsementKey,
-          keyCertificate.trustedContactIdentityKey.publicKey.value.decodeHex()
+  // Key certificates to automatically accept. For testing purposes.
+  val validCertificates = mutableSetOf<TrustedContactKeyCertificate>()
+
+  override fun verifyKeyCertificate(
+    keyCertificate: TrustedContactKeyCertificate,
+    hwAuthKey: HwAuthPublicKey?,
+    appGlobalAuthKey: AppGlobalAuthPublicKey?,
+  ): Result<DelegatedDecryptionKey, SocRecCryptoError> {
+    if (hwAuthKey == null && appGlobalAuthKey == null) {
+      return Err(SocRecCryptoError.AuthKeysNotPresent)
+    }
+
+    return binding {
+      if (keyCertificate in invalidCertificates) {
+        Err(
+          SocRecCryptoError.KeyCertificateVerificationFailed(
+            IllegalArgumentException("Invalid key certificate")
+          )
+        ).bind<SocRecCryptoError>()
+      }
+
+      val hwEndorsementKey = keyCertificate.hwAuthPublicKey
+      val appEndorsementKey = keyCertificate.appGlobalAuthPublicKey
+      // Check if the hwEndorsementKey matches the trusted key
+      val isHwKeyTrusted = hwEndorsementKey == hwAuthKey
+      // Check if the appEndorsementKey matches the trusted key
+      val isAppKeyTrusted = appEndorsementKey == appGlobalAuthKey
+
+      // Ensure at least one key matches a trusted key
+      if (!isHwKeyTrusted && !isAppKeyTrusted) {
+        Err(
+          SocRecCryptoError.KeyCertificateVerificationFailed(
+            IllegalArgumentException("None of the keys match the trusted keys provided")
+          )
+        ).bind<SocRecCryptoError>()
+      }
+
+      // Ensure at least one key matches a trusted key
+      if ((keyCertificate !in validCertificates) && (
+          !signatureVerifier!!.verifyEcdsaResult(
+            signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
+            publicKey = hwEndorsementKey.pubKey,
+            message = keyCertificate.appGlobalAuthPublicKey.pubKey.value.encodeUtf8()
+          ).mapError { SocRecCryptoError.KeyCertificateVerificationFailed(it) }.bind() ||
+            !signatureVerifier.verifyEcdsaResult(
+              signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
+              publicKey = appEndorsementKey.pubKey,
+              message = keyCertificate.delegatedDecryptionKey.publicKey.value.encodeUtf8()
+            ).mapError { SocRecCryptoError.KeyCertificateVerificationFailed(it) }.bind()
         )
       ) {
-        return Ok(keyCertificate.trustedContactIdentityKey)
-      } else {
-        return Err(
+        Err(
           SocRecCryptoError.KeyCertificateVerificationFailed(
             IllegalArgumentException("Key certificate verification failed")
           )
-        )
+        ).bind<SocRecCryptoError>()
       }
-    } else {
-      return Err(
-        SocRecCryptoError.KeyCertificateVerificationFailed(
-          IllegalArgumentException("None of the keys match the trusted keys provided")
-        )
-      )
+
+      keyCertificate.delegatedDecryptionKey
     }
   }
 
-  override fun generateKeyCertificate(
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-    hwEndorsementKey: HwAuthPublicKey,
-    appEndorsementKey: AppGlobalAuthKeypair,
-    hwSignature: ByteString,
-  ): Result<KeyCertificate, SocRecCryptoError> {
-    val appSignature =
-      sign(
-        appEndorsementKey.privateKey.key,
-        appEndorsementKey.publicKey.pubKey,
-        trustedContactIdentityKey.publicKey.value.decodeHex()
+  override suspend fun generateKeyCertificate(
+    delegatedDecryptionKey: DelegatedDecryptionKey,
+    hwAuthKey: HwAuthPublicKey,
+    appGlobalAuthKey: AppGlobalAuthPublicKey,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+  ): Result<TrustedContactKeyCertificate, SocRecCryptoError> =
+    suspendBinding {
+      val appAuthPrivateKey = appPrivateKeyDao!!
+        .getGlobalAuthKey(appGlobalAuthKey)
+        .mapError(::ErrorGettingPrivateKey)
+        .toErrorIfNull { SocRecCryptoError.PrivateKeyMissing }
+        .bind()
+
+      val appSignature =
+        sign(
+          privateKey = appAuthPrivateKey.key,
+          message = delegatedDecryptionKey.publicKey.value.encodeUtf8()
+        ).hex().let(::TcIdentityKeyAppSignature)
+
+      TrustedContactKeyCertificate(
+        delegatedDecryptionKey = delegatedDecryptionKey,
+        hwAuthPublicKey = hwAuthKey,
+        appGlobalAuthPublicKey = appGlobalAuthKey,
+        appAuthGlobalKeyHwSignature = appGlobalAuthKeyHwSignature,
+        trustedContactIdentityKeyAppSignature = appSignature
       )
-    return Ok(
-      KeyCertificate(
-        trustedContactIdentityKey = trustedContactIdentityKey,
-        hwEndorsementKey = hwEndorsementKey.pubKey,
-        appEndorsementKey = appEndorsementKey.publicKey.pubKey,
-        hwSignature = hwSignature,
-        appSignature = appSignature
-      )
-    )
-  }
+    }
 
   override fun <T : SocRecKey> generateAsymmetricKey(
     factory: (AppKey) -> T,
@@ -291,108 +314,65 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
    * insecure encryption algorithm (i.e. naive key expansion and XOR).
    */
   override fun encryptPrivateKeyEncryptionKey(
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
+    delegatedDecryptionKey: DelegatedDecryptionKey,
     privateKeyEncryptionKey: PrivateKeyEncryptionKey,
-  ): Result<XCiphertext, SocRecCryptoError> {
-    require(privateKeyEncryptionKey.key is SymmetricKeyFake)
-    val keyMat = (privateKeyEncryptionKey.key as SymmetricKeyFake).raw
-    val deserializedPubKey =
-      Point.secDeserialize(
-        trustedContactIdentityKey.publicKey.value.decodeHex()
-      )
-    val deserializedPrivKey =
-      q.parseString(
-        (protectedCustomerIdentityKey.key as AppKeyImpl).privateKey!!.bytes.hex(),
-        16
-      )
-    val sharedSecret = deserializedPubKey * deserializedPrivKey
+  ): Result<XCiphertext, SocRecCryptoError> =
+    binding {
+      require(privateKeyEncryptionKey.key is SymmetricKeyFake)
+      val protectedCustomerIdentityKey = generateProtectedCustomerIdentityKey().bind()
+      val keyMat = (privateKeyEncryptionKey.key as SymmetricKeyFake).raw
+      val deserializedPubKey =
+        Point.secDeserialize(
+          delegatedDecryptionKey.publicKey.value.decodeHex()
+        )
+      val deserializedPrivKey =
+        q.parseString(
+          (protectedCustomerIdentityKey.key as AppKeyImpl).privateKey!!.bytes.hex(),
+          16
+        )
+      val sharedSecret = deserializedPubKey * deserializedPrivKey
 
-    val expandedKey =
-      expandKey(
-        sharedSecret.secSerialize(),
-        privateKeyEncryptionKey.length
-      )
-    val privateKeyEncryptionKeyCiphertext = keyMat.xorWith(expandedKey)
+      val expandedKey =
+        expandKey(
+          sharedSecret.secSerialize(),
+          privateKeyEncryptionKey.length
+        )
+      val privateKeyEncryptionKeyCiphertext = keyMat.xorWith(expandedKey)
 
-    return Ok(
       XSealedData(
-        header = XSealedData.Header(algorithm = "SocRecCryptoFake"),
+        header = XSealedData.Header(algorithm = "SocRecCryptoFake", version = 2),
         ciphertext = privateKeyEncryptionKeyCiphertext,
-        nonce = XNonce(ByteString.EMPTY)
+        nonce = XNonce(ByteString.EMPTY),
+        publicKey = protectedCustomerIdentityKey.publicKey
       ).toOpaqueCiphertext()
-    )
-  }
-
-  /**
-   * Derives a shared secret and encrypts it with an insecure Diffie-Hellman
-   * derivation and an insecure encryption algorithm (i.e. naive key expansion
-   * and XOR).
-   */
-  override fun deriveAndEncryptSharedSecret(
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-    protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-  ): Result<XCiphertext, SocRecCryptoError> {
-    val deserializedIdentityPubKey =
-      Point.secDeserialize(
-        protectedCustomerIdentityKey.publicKey.value.decodeHex()
-      )
-    val deserializedIdentityPrivKey =
-      q.parseString(
-        (trustedContactIdentityKey.key as AppKeyImpl).privateKey!!.bytes.hex(),
-        16
-      )
-    val identitySharedSecret = deserializedIdentityPubKey * deserializedIdentityPrivKey
-    val identitySharedSecretKey =
-      expandKey(
-        // Expand the shared secret to the size of the private key encryption key
-        identitySharedSecret.secSerialize(),
-        32
-      )
-    val deserializedEphemeralPubKey =
-      Point.secDeserialize(
-        protectedCustomerEphemeralKey.publicKey.value.decodeHex()
-      )
-    val ephemeralSharedSecret = deserializedEphemeralPubKey * deserializedIdentityPrivKey
-    val ephemeralSharedSecretKey =
-      expandKey(
-        ephemeralSharedSecret.secSerialize(),
-        identitySharedSecretKey.size
-      )
-    val sharedSecretKeyCipherText =
-      identitySharedSecretKey.xorWith(ephemeralSharedSecretKey)
-
-    return Ok(
-      XSealedData(
-        header = XSealedData.Header(algorithm = "SocRecCryptoFake"),
-        ciphertext = sharedSecretKeyCipherText,
-        nonce = XNonce(ByteString.EMPTY)
-      ).toOpaqueCiphertext()
-    )
-  }
+    }
 
   override fun decryptPrivateKeyEncryptionKey(
-    password: ByteString,
-    protectedCustomerRecoveryKey: ProtectedCustomerRecoveryKey,
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
+    password: PakeCode,
+    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
+    delegatedDecryptionKey: DelegatedDecryptionKey,
     sealedPrivateKeyEncryptionKey: XCiphertext,
   ): Result<DecryptPrivateKeyEncryptionKeyOutput, SocRecCryptoError> {
+    val sealedPrivateKeyEncryptionKeyData = sealedPrivateKeyEncryptionKey.toXSealedData()
+    if (sealedPrivateKeyEncryptionKeyData.header.version != 2) {
+      return Err(UnsupportedXCiphertextVersion)
+    }
     // Generate PAKE keys
     val secureChannelOutput =
       establishSecureChannel(
         password,
-        protectedCustomerRecoveryKey.publicKey,
+        protectedCustomerRecoveryPakeKey.publicKey,
         sealedPrivateKeyEncryptionKey.toXSealedData().ciphertext.size
       )
+    val protectedCustomerIdentityPubKey = sealedPrivateKeyEncryptionKeyData.publicKey
+      ?: return Err(PublicKeyMissing)
     val deserializedIdentityPubKey =
       Point.secDeserialize(
-        protectedCustomerIdentityKey.publicKey.value.decodeHex()
+        protectedCustomerIdentityPubKey.value.decodeHex()
       )
     val deserializedIdentityPrivKey =
       q.parseString(
-        (trustedContactIdentityKey.key as AppKeyImpl).privateKey!!.bytes.hex(),
+        (delegatedDecryptionKey.key as AppKeyImpl).privateKey!!.bytes.hex(),
         16
       )
     val identitySharedSecret = deserializedIdentityPubKey * deserializedIdentityPrivKey
@@ -413,8 +393,8 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
 
     return Ok(
       DecryptPrivateKeyEncryptionKeyOutput(
-        trustedContactRecoveryKey =
-          TrustedContactRecoveryKey(
+        trustedContactRecoveryPakeKey =
+          TrustedContactRecoveryPakeKey(
             secureChannelOutput.trustedContactPasswordAuthenticatedKey
           ),
         keyConfirmation = secureChannelOutput.keyConfirmation,
@@ -429,77 +409,8 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
   }
 
   override fun decryptPrivateKeyMaterial(
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-    sealedPrivateKeyMaterial: XCiphertext,
-    secureChannelData: DecryptPrivateKeyMaterialParams,
-  ): Result<ByteString, SocRecCryptoError> {
-    return when (secureChannelData) {
-      is DecryptPrivateKeyMaterialParams.V1 -> {
-        decryptPrivateKeyMaterialV1(
-          secureChannelData.sharedSecretCipherText,
-          secureChannelData.protectedCustomerEphemeralKey,
-          trustedContactIdentityKey,
-          secureChannelData.sealedPrivateKeyEncryptionKey,
-          sealedPrivateKeyMaterial
-        )
-      }
-      is DecryptPrivateKeyMaterialParams.V2 -> {
-        decryptPrivateKeyMaterialV2(
-          secureChannelData.password,
-          secureChannelData.protectedCustomerRecoveryKey,
-          secureChannelData.decryptPrivateKeyEncryptionKeyOutput,
-          sealedPrivateKeyMaterial
-        )
-      }
-    }
-  }
-
-  /**
-   * Decrypts the shared secret, private key encryption key, and private key
-   * material with an insecure Diffie-Hellman derivation and an insecure
-   * decryption algorithm (i.e. naive key expansion and XOR).
-   */
-  private fun decryptPrivateKeyMaterialV1(
-    sharedSecretCipherText: XCiphertext,
-    protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-    sealedPrivateKeyEncryptionKey: XCiphertext,
-    sealedPrivateKeyMaterial: XCiphertext,
-  ): Result<ByteString, SocRecCryptoError> {
-    val sharedSecretSealedData = sharedSecretCipherText.toXSealedData()
-    val sealedPrivateKeyEncryptionKeyData = sealedPrivateKeyEncryptionKey.toXSealedData()
-    val sealedPrivateKeyMaterialData = sealedPrivateKeyMaterial.toXSealedData()
-
-    val deserializedIdentityPubKey =
-      Point.secDeserialize(
-        trustedContactIdentityKey.publicKey.value.decodeHex()
-      )
-    val deserializedEphemeralPrivKey =
-      q.parseString(
-        (protectedCustomerEphemeralKey.key as AppKeyImpl).privateKey!!.bytes.hex(),
-        16
-      )
-    val ephemeralSharedSecret = deserializedIdentityPubKey * deserializedEphemeralPrivKey
-    val ephemeralSharedSecretKey =
-      expandKey(
-        ephemeralSharedSecret.secSerialize(),
-        sharedSecretSealedData.ciphertext.size
-      )
-    val sharedSecretKey = sharedSecretSealedData.ciphertext.xorWith(ephemeralSharedSecretKey)
-    val privateKeyEncryptionKey =
-      sealedPrivateKeyEncryptionKeyData.ciphertext.xorWith(
-        sharedSecretKey
-      )
-    val expandedKey =
-      expandKey(privateKeyEncryptionKey, sealedPrivateKeyMaterialData.ciphertext.size)
-
-    return Ok(sealedPrivateKeyMaterialData.ciphertext.xorWith(expandedKey))
-  }
-
-  private fun decryptPrivateKeyMaterialV2(
-    password: ByteString,
-    protectedCustomerRecoveryKey: ProtectedCustomerRecoveryKey,
+    password: PakeCode,
+    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
     decryptPrivateKeyEncryptionKeyOutput: DecryptPrivateKeyEncryptionKeyOutput,
     sealedPrivateKeyMaterial: XCiphertext,
   ): Result<ByteString, SocRecCryptoError> =
@@ -508,8 +419,8 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
       val privateKeyEncryptionKey =
         decryptSecureChannel(
           password,
-          (protectedCustomerRecoveryKey.key as AppKeyImpl).privateKey!!,
-          decryptPrivateKeyEncryptionKeyOutput.trustedContactRecoveryKey.publicKey,
+          (protectedCustomerRecoveryPakeKey.key as AppKeyImpl).privateKey!!,
+          decryptPrivateKeyEncryptionKeyOutput.trustedContactRecoveryPakeKey.publicKey,
           decryptPrivateKeyEncryptionKeyOutput.keyConfirmation,
           decryptPrivateKeyEncryptionKeyOutput.sealedPrivateKeyEncryptionKey
         ).bind()
@@ -527,7 +438,7 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
   )
 
   private fun establishSecureChannel(
-    password: ByteString,
+    password: PakeCode,
     protectedCustomerPasswordAuthenticatedKey: PublicKey,
     length: Int,
   ): EstablishSecureChannelOutput {
@@ -538,7 +449,8 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
     // 'X = xG
     val basePubKey = g * x
     // X = X * H(password)
-    val pubKey = basePubKey * q.parseString(password.sha256().hex(), 16)
+    val (passwordHashInt, invPasswordHashInt) = derivePasswordHashIntegers(password.bytes)
+    val pubKey = basePubKey * passwordHashInt
     val trustedContactPasswordAuthenticatedKey =
       AppKeyImpl(
         CurveType.SECP256K1,
@@ -551,13 +463,7 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
         protectedCustomerPasswordAuthenticatedKey.value.decodeHex()
       )
     val tweakedProtectedCustomerPasswordAuthenticatedKey =
-      deserializedProtectedCustomerPasswordAuthenticatedKey *
-        -(
-          q.parseString(
-            password.sha256().hex(),
-            16
-          )
-        )
+      deserializedProtectedCustomerPasswordAuthenticatedKey * invPasswordHashInt
     // Derive PAKE shared secret
     val sharedSecret = tweakedProtectedCustomerPasswordAuthenticatedKey * x
     // Generate key confirmation
@@ -578,14 +484,14 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
   }
 
   private fun decryptSecureChannel(
-    password: ByteString,
+    password: PakeCode,
     protectedCustomerPasswordAuthenticatedKey: PrivateKey,
     trustedContactPasswordAuthenticatedKey: PublicKey,
     keyConfirmation: ByteString,
     sealedData: XCiphertext,
   ): Result<ByteString, SocRecCryptoError> {
     // Tweak TC PAKE Key
-    val deserializedTweakedTrustedContactPasswordAuthenticatedKey =
+    val deserializedTrustedContactPasswordAuthenticatedKey =
       Point.secDeserialize(
         trustedContactPasswordAuthenticatedKey.value.decodeHex()
       )
@@ -594,14 +500,9 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
         protectedCustomerPasswordAuthenticatedKey.bytes.hex(),
         16
       )
+    val (_, invPasswordHashInt) = derivePasswordHashIntegers(password.bytes)
     val tweakedTrustedContactPasswordAuthenticatedKey =
-      deserializedTweakedTrustedContactPasswordAuthenticatedKey *
-        -(
-          q.parseString(
-            password.sha256().hex(),
-            16
-          )
-        )
+      deserializedTrustedContactPasswordAuthenticatedKey * invPasswordHashInt
     // Generate PAKE shared secret
     val sharedSecret =
       tweakedTrustedContactPasswordAuthenticatedKey *
@@ -817,47 +718,21 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
     return randomBytes.toByteString()
   }
 
+  private fun derivePasswordHashIntegers(
+    password: ByteString,
+  ): Pair<ModularBigInteger, ModularBigInteger> {
+    val passwordHash = password.sha256().hex()
+    val passwordHashInt = q.parseString(passwordHash, 16)
+    // Compute modular multiplicative inverse of the password hash using Fermat's Little Theorem
+    val invPasswordHashInt = passwordHashInt.pow(Secp256k1.Q - 2)
+
+    return Pair(passwordHashInt, invPasswordHashInt)
+  }
+
   fun sign(
     privateKey: Secp256k1PrivateKey,
-    publicKey: Secp256k1PublicKey,
     message: ByteString,
-  ): ByteString {
-    val (noncePrivKey, noncePubKey) = generateKeyPair()
-    // c = H(R || X || m)
-    val nonceSer = noncePubKey.value.decodeHex().toByteArray()
-    val publicKeySer = publicKey.value.decodeHex().toByteArray()
-    val messageSer = message.toByteArray()
-    val challenge = (nonceSer + publicKeySer + messageSer).toByteString().sha256()
-    // s = r + cx mod q
-    val r = q.parseString(noncePrivKey.bytes.hex(), 16)
-    val c = q.parseString(challenge.hex(), 16)
-    val x = q.parseString(privateKey.bytes.hex(), 16)
-    val s = r + c * x
-
-    // σ = (R, s)
-    return (nonceSer + s.toByteArray()).toByteString()
-  }
-
-  fun verifySig(
-    signature: ByteString,
-    publicKey: Secp256k1PublicKey,
-    message: ByteString,
-  ): Boolean {
-    val deserializedPubKey = Point.secDeserialize(publicKey.value.decodeHex())
-    // (R, s) = σ
-    val noncePubKey = Point.secDeserialize(signature.substring(0, 33))
-    val s = q.parseString(signature.substring(33).hex(), 16)
-    // c = H(R || X || m)
-    val nonceSer = noncePubKey.secSerialize().toByteArray()
-    val publicKeySer = publicKey.value.decodeHex().toByteArray()
-    val messageSer = message.toByteArray()
-    val challenge = (nonceSer + publicKeySer + messageSer).toByteString().sha256()
-
-    // sG == R + cX
-    val sG = g * s
-    val c = q.parseString(challenge.hex(), 16)
-    return sG == noncePubKey + deserializedPubKey * c
-  }
+  ): ByteString = messageSigner!!.sign(message, privateKey).decodeHex()
 
   fun generateKeyPair(): Pair<Secp256k1PrivateKey, Secp256k1PublicKey> {
     // x ⭠ ℤ_q
@@ -870,5 +745,20 @@ class SocRecCryptoFake(private val random: Random = Random(0)) : SocRecCrypto {
       Secp256k1PrivateKey(x.toByteArray().toByteString()),
       Secp256k1PublicKey(pubKey.secSerialize().hex())
     )
+  }
+
+  suspend fun generateAppAuthKeypair(): AppGlobalAuthKeypair {
+    val (privKey, pubKey) = generateKeyPair()
+    return AppGlobalAuthKeypair(
+      publicKey = AppGlobalAuthPublicKey(pubKey),
+      privateKey = AppGlobalAuthPrivateKey(privKey)
+    ).also {
+      appPrivateKeyDao!!.storeAppAuthKeyPair(it)
+    }
+  }
+
+  fun reset() {
+    validCertificates.clear()
+    invalidCertificates.clear()
   }
 }

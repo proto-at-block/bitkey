@@ -13,6 +13,8 @@ kotlin {
         api(projects.shared.databasePublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.coroutinesPublic)
+        api(projects.shared.serializationPublic)
+        implementation(projects.shared.queueProcessorPublic)
       }
     }
 
@@ -26,18 +28,32 @@ kotlin {
         implementation(projects.shared.ktorTestFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.recoveryFake)
-        implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.f8eClientImpl)
         implementation(projects.shared.encryptionImpl)
+        implementation(projects.shared.queueProcessorFake)
+        implementation(projects.shared.encryptionFake)
+      }
+    }
+
+    jvmTest {
+      dependencies {
+        implementation(projects.shared.authImpl)
+        implementation(projects.shared.encryptionFake)
       }
     }
 
     val jvmIntegrationTest by getting {
       dependencies {
+        implementation(projects.shared.bitcoinFake)
+        implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.f8eClientFake)
+        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.integrationTestingPublic)
+        implementation(projects.shared.platformFake)
+        implementation(projects.shared.sqldelightTesting)
       }
     }
   }

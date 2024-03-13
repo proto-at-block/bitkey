@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.ajalt:colormath",
+    "components": [
+        {
+            "version": "1.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "colormath-1.2.0.jar": "86a51f7dbb32abe410d54331ec61ac0684a543b24ee97967bbac0a4e6729f031"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

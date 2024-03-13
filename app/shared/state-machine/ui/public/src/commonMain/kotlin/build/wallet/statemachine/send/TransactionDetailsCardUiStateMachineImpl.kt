@@ -1,7 +1,6 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
@@ -39,30 +38,36 @@ class TransactionDetailsCardUiStateMachineImpl(
 
     val totalBitcoinAmount =
       props.transactionDetail.transferBitcoinAmount + props.transactionDetail.feeBitcoinAmount
-    val totalFiatAmount: FiatMoney? =
-      props.exchangeRates?.let {
-        convertedOrZeroWithRates(
-          converter = currencyConverter,
-          fromAmount = totalBitcoinAmount,
-          toCurrency = props.fiatCurrency,
-          rates = it
-        )
-      } as FiatMoney?
 
     val formattedTransferAmountText =
       formattedAmountText(props.transactionDetail.transferBitcoinAmount, transferFiatAmount)
 
     val transactionDetailModelType =
       when (props.transactionDetail) {
-        is TransactionDetailType.Regular ->
+        is TransactionDetailType.Regular -> {
+          val totalFiatAmount: FiatMoney? =
+            props.exchangeRates?.let {
+              convertedOrZeroWithRates(
+                converter = currencyConverter,
+                fromAmount = totalBitcoinAmount,
+                toCurrency = props.fiatCurrency,
+                rates = it
+              )
+            } as FiatMoney?
+
           TransactionDetailModelType.Regular(
             transferAmountText = formattedTransferAmountText,
-            feeAmountText =
-              formattedAmountText(
-                props.transactionDetail.feeBitcoinAmount,
-                feeFiatAmount
-              )
+            totalAmountPrimaryText = formattedAmountText(totalBitcoinAmount, totalFiatAmount),
+            totalAmountSecondaryText = formattedSecondaryAmountText(
+              totalBitcoinAmount,
+              totalFiatAmount
+            ),
+            feeAmountText = formattedAmountText(
+              props.transactionDetail.feeBitcoinAmount,
+              feeFiatAmount
+            )
           )
+        }
         is TransactionDetailType.SpeedUp -> {
           val oldFeeFiatAmount: FiatMoney? =
             props.exchangeRates?.let {
@@ -86,17 +91,37 @@ class TransactionDetailsCardUiStateMachineImpl(
               )
             } as FiatMoney?
 
+          // We calculate totalFiatMoney separately  from regular transactions because we may get
+          // some rounding errors from calculating the fee difference with subtraction and division.
+          // It is likely OK for our fiat value to be a little off.
+          //
+          // If all the conversions above were successful, we compute. Else, we leave the value as
+          // null which will fall back to sats in [formattedAmountText].
+          val totalFiatMoney: FiatMoney? =
+            if (transferFiatAmount != null && oldFeeFiatAmount != null && feeDifferenceFiatAmount != null) {
+              transferFiatAmount + oldFeeFiatAmount + feeDifferenceFiatAmount
+            } else {
+              null
+            }
+
           TransactionDetailModelType.SpeedUp(
             transferAmountText = formattedTransferAmountText,
+            totalAmountPrimaryText = formattedAmountText(totalBitcoinAmount, totalFiatMoney),
+            totalAmountSecondaryText = formattedSecondaryAmountText(
+              totalBitcoinAmount,
+              totalFiatMoney
+            ),
             oldFeeAmountText =
               formattedAmountText(
                 props.transactionDetail.oldFeeBitcoinAmount,
                 oldFeeFiatAmount
               ),
-            feeDifferenceText = "+${formattedAmountText(
-              feeDifferenceBitcoinAmount,
-              feeDifferenceFiatAmount
-            )}"
+            feeDifferenceText = "+${
+              formattedAmountText(
+                feeDifferenceBitcoinAmount,
+                feeDifferenceFiatAmount
+              )
+            }"
           )
         }
       }
@@ -112,9 +137,7 @@ class TransactionDetailsCardUiStateMachineImpl(
             }
           is TransactionDetailType.SpeedUp -> "~10 minutes"
         },
-      transactionDetailModelType = transactionDetailModelType,
-      totalAmountPrimaryText = formattedAmountText(totalBitcoinAmount, totalFiatAmount),
-      totalAmountSecondaryText = formattedSecondaryAmountText(totalBitcoinAmount, totalFiatAmount)
+      transactionDetailModelType = transactionDetailModelType
     )
   }
 

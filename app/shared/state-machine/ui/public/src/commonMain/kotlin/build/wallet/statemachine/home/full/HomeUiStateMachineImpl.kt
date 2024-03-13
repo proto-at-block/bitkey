@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
+import build.wallet.availability.AppFunctionalityStatusProvider
+import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
+import build.wallet.availability.InactiveApp
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -30,7 +33,6 @@ import build.wallet.statemachine.home.full.bottomsheet.CurrencyChangeMobilePayBo
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
-import build.wallet.statemachine.limit.SpendingLimitEntryPoint
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiStateMachine
@@ -58,6 +60,7 @@ class HomeUiStateMachineImpl(
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
+  private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
 ) : HomeUiStateMachine {
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
@@ -67,11 +70,19 @@ class HomeUiStateMachineImpl(
       mutableStateOf(
         HomeUiState(
           convertedFiatBalance = FiatMoney.zero(fiatCurrency),
-          rootScreen = MoneyHome,
+          rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Launch),
           presentedScreen = null
         )
       )
     }
+
+    val appFunctionalityStatus =
+      remember {
+        appFunctionalityStatusProvider
+          .appFunctionalityStatus(
+            props.accountData.account.config.f8eEnvironment
+          )
+      }.collectAsState(LimitedFunctionality(InactiveApp)).value
 
     LaunchedEffect("deep-link-routing") {
       Router.onRouteChange { route ->
@@ -123,7 +134,9 @@ class HomeUiStateMachineImpl(
       )
     }
 
-    SyncCloudBackupHealthEffect(props)
+    if (appFunctionalityStatus.featureStates.cloudBackupHealth == Available) {
+      SyncCloudBackupHealthEffect(props)
+    }
 
     SyncFiatBalanceEquivalentEffect(
       props
@@ -136,8 +149,8 @@ class HomeUiStateMachineImpl(
 
     return when (val presentedScreen = uiState.presentedScreen) {
       null ->
-        when (uiState.rootScreen) {
-          MoneyHome ->
+        when (val rootScreen = uiState.rootScreen) {
+          is MoneyHome ->
             MoneyHomeScreenModel(
               props = props,
               state = uiState,
@@ -147,7 +160,8 @@ class HomeUiStateMachineImpl(
               homeStatusBannerModel = homeStatusBannerModel,
               onSettingsButtonClicked = {
                 uiState = uiState.copy(rootScreen = Settings)
-              }
+              },
+              origin = rootScreen.origin
             )
 
           Settings ->
@@ -158,7 +172,7 @@ class HomeUiStateMachineImpl(
               homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
               onBack = {
-                uiState = uiState.copy(rootScreen = MoneyHome)
+                uiState = uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Settings))
               }
             )
         }
@@ -167,7 +181,6 @@ class HomeUiStateMachineImpl(
         setSpendingLimitUiStateMachine.model(
           props =
             SpendingLimitProps(
-              entryPoint = SpendingLimitEntryPoint.Settings,
               // This is always null here because we are setting a limit after a currency change
               // (so the old limit is a different currency and cannot be used as a starting point).
               currentSpendingLimit = null,
@@ -220,6 +233,7 @@ class HomeUiStateMachineImpl(
     homeBottomSheetModel: SheetModel?,
     homeStatusBannerModel: StatusBannerModel?,
     onSettingsButtonClicked: () -> Unit,
+    origin: MoneyHomeUiProps.Origin,
   ) = moneyHomeUiStateMachine.model(
     props =
       MoneyHomeUiProps(
@@ -231,7 +245,8 @@ class HomeUiStateMachineImpl(
         socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel,
-        onSettings = onSettingsButtonClicked
+        onSettings = onSettingsButtonClicked,
+        origin = origin
       )
   )
 
@@ -260,13 +275,13 @@ class HomeUiStateMachineImpl(
 
   @Composable
   private fun SyncRelationshipsEffect(account: FullAccount): SocRecRelationships {
-    LaunchedEffect("sync-socrec-relationships") {
-      socRecRelationshipsRepository.syncLoop(account)
+    LaunchedEffect(account) {
+      socRecRelationshipsRepository.syncLoop(scope = this, account)
     }
     return remember {
       socRecRelationshipsRepository
         .relationships
-    }.collectAsState().value
+    }.collectAsState(SocRecRelationships.EMPTY).value
   }
 
   @Composable
@@ -310,16 +325,16 @@ private data class HomeUiState(
  * Represents a specific "home" screen. These are special screens managed by this state
  * machine that share the ability to present certain content, [PresentedScreen]
  */
-private enum class HomeScreen {
+private sealed interface HomeScreen {
   /**
    * Indicates that money home is shown.
    */
-  MoneyHome,
+  data class MoneyHome(val origin: MoneyHomeUiProps.Origin) : HomeScreen
 
   /**
    * Indicates that settings are shown.
    */
-  Settings,
+  data object Settings : HomeScreen
 }
 
 /**

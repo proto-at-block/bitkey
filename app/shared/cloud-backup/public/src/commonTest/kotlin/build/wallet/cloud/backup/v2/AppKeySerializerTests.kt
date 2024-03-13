@@ -11,7 +11,7 @@ import okio.ByteString.Companion.encodeUtf8
 
 class AppKeySerializerTests : FunSpec({
   val serializer = AppKeySerializer
-  val encodedString = """{"curveType":"SECP256K1","publicKey":"foo","privateKeyHex":"626172"}"""
+  val encodedString = """{"publicKey":"foo","privateKeyHex":"626172"}"""
   val decodedObject =
     AppKeyImpl(CurveType.SECP256K1, PublicKey("foo"), PrivateKey("bar".encodeUtf8()))
 

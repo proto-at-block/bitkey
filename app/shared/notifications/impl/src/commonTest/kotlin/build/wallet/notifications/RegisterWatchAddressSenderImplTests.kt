@@ -1,6 +1,7 @@
 package build.wallet.notifications
 
 import build.wallet.bitcoin.address.someBitcoinAddress
+import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.F8eEnvironment.Staging
@@ -21,7 +22,7 @@ class RegisterWatchAddressSenderImplTests : FunSpec({
   val ctx1 =
     RegisterWatchAddressContext(
       someBitcoinAddress,
-      "321",
+      F8eSpendingKeysetMock,
       "123",
       Development
     )
@@ -55,7 +56,7 @@ class RegisterWatchAddressSenderImplTests : FunSpec({
 
     registerWatchAddressSender.processBatch(listOf(ctx1))
     registerWatchAddressServiceMock.registerCalls.awaitItem().shouldBe(
-      listOf(AddressAndKeysetId(ctx1.address.address, ctx1.spendingKeysetId))
+      listOf(AddressAndKeysetId(ctx1.address.address, ctx1.f8eSpendingKeyset.keysetId))
     )
   }
 
@@ -65,7 +66,7 @@ class RegisterWatchAddressSenderImplTests : FunSpec({
 
     registerWatchAddressSender.processBatch(listOf(ctx1)).shouldBe(error)
     registerWatchAddressServiceMock.registerCalls.awaitItem().shouldBe(
-      listOf(AddressAndKeysetId(ctx1.address.address, ctx1.spendingKeysetId))
+      listOf(AddressAndKeysetId(ctx1.address.address, ctx1.f8eSpendingKeyset.keysetId))
     )
   }
 })

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "eu.rekawek.toxiproxy:toxiproxy-java",
+    "components": [
+        {
+            "version": "2.1.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "toxiproxy-java-2.1.7.jar": "e5c98f993472b2c38e9124f17eba48c30cc6d4da5116bbfb9bc0939fa5121251"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

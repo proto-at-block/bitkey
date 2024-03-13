@@ -7,13 +7,15 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.statemachine.account.ChooseAccountAccessModel
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.testing.launchNewApp
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
@@ -36,11 +38,13 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
       awaitUntilScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING) {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // Uploading cloud backup
-      awaitUntilScreenWithBody<LoadingBodyModel>(CLOUD_SIGN_IN_LOADING)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // Cloud backup uploaded
       awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SETUP)
@@ -68,7 +72,7 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
       awaitUntilScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING) {
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
       }
 
       // Uploading cloud backup

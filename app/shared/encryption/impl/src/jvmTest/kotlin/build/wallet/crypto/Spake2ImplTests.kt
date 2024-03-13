@@ -5,29 +5,31 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
-import okio.ByteString.Companion.toByteString
+import okio.ByteString
+import okio.ByteString.Companion.encodeUtf8
 
 class Spake2ImplTests : FunSpec({
+  val spake2 = Spake2Impl()
 
   fun performKeyExchange(
-    alicePassword: ByteArray,
-    bobPassword: ByteArray,
-  ): Pair<Spake2Keys, Spake2Keys> {
-    val alice = Spake2Impl(Spake2Role.Alice, "Alice", "Bob")
-    val bob = Spake2Impl(Spake2Role.Bob, "Bob", "Alice")
+    alicePassword: ByteString,
+    bobPassword: ByteString,
+  ): Pair<Spake2SymmetricKeys, Spake2SymmetricKeys> {
+    val aliceParams = Spake2Params(Spake2Role.Alice, "Alice", "Bob", alicePassword)
+    val bobParams = Spake2Params(Spake2Role.Bob, "Bob", "Alice", bobPassword)
 
-    val aliceMsg = alice.generateMsg(alicePassword.toByteString())
-    val bobMsg = bob.generateMsg(bobPassword.toByteString())
+    val aliceKeyPair = spake2.generateKeyPair(aliceParams)
+    val bobKeyPair = spake2.generateKeyPair(bobParams)
 
-    val aliceKeys = alice.processMsg(bobMsg, null)
-    val bobKeys = bob.processMsg(aliceMsg, null)
+    val aliceSymmetricKeys = spake2.processTheirPublicKey(aliceParams, aliceKeyPair, bobKeyPair.publicKey, null)
+    val bobSymmetricKeys = spake2.processTheirPublicKey(bobParams, bobKeyPair, aliceKeyPair.publicKey, null)
 
-    return Pair(aliceKeys, bobKeys)
+    return Pair(aliceSymmetricKeys, bobSymmetricKeys)
   }
 
   fun assertKeysMatch(
-    aliceKeys: Spake2Keys,
-    bobKeys: Spake2Keys,
+    aliceKeys: Spake2SymmetricKeys,
+    bobKeys: Spake2SymmetricKeys,
     shouldMatch: Boolean,
   ) {
     aliceKeys.aliceEncryptionKey.toByteArray()
@@ -43,8 +45,8 @@ class Spake2ImplTests : FunSpec({
   test("good round trip no confirmation") {
     val (aliceKeys, bobKeys) =
       performKeyExchange(
-        "password".toByteArray(),
-        "password".toByteArray()
+        "password".encodeUtf8(),
+        "password".encodeUtf8()
       )
     assertKeysMatch(aliceKeys, bobKeys, true)
   }
@@ -52,17 +54,17 @@ class Spake2ImplTests : FunSpec({
   test("bob has wrong password no confirmation") {
     val (aliceKeys, bobKeys) =
       performKeyExchange(
-        "password".toByteArray(),
-        "passworf".toByteArray()
+        "password".encodeUtf8(),
+        "passworf".encodeUtf8()
       )
     assertKeysMatch(aliceKeys, bobKeys, false)
   }
-
+//
   test("alice has wrong password no confirmation") {
     val (aliceKeys, bobKeys) =
       performKeyExchange(
-        "passworf".toByteArray(),
-        "password".toByteArray()
+        "passworf".encodeUtf8(),
+        "password".encodeUtf8()
       )
     assertKeysMatch(aliceKeys, bobKeys, false)
   }
@@ -70,57 +72,51 @@ class Spake2ImplTests : FunSpec({
   test("good round trip with confirmation") {
     val (aliceKeys, bobKeys) =
       performKeyExchange(
-        "password".toByteArray(),
-        "password".toByteArray()
+        "password".encodeUtf8(),
+        "password".encodeUtf8()
       )
     assertKeysMatch(aliceKeys, bobKeys, true)
 
-    val alice = Spake2Impl(Spake2Role.Alice, "Alice", "Bob")
-    val bob = Spake2Impl(Spake2Role.Bob, "Bob", "Alice")
+    val aliceKeyConfMsg = spake2.generateKeyConfMsg(Spake2Role.Alice, aliceKeys)
+    val bobKeyConfMsg = spake2.generateKeyConfMsg(Spake2Role.Bob, bobKeys)
 
-    val aliceKeyConfMsg = alice.generateKeyConfMsg(aliceKeys)
-    val bobKeyConfMsg = bob.generateKeyConfMsg(bobKeys)
-
-    alice.processKeyConfMsg(bobKeyConfMsg, aliceKeys)
-    bob.processKeyConfMsg(aliceKeyConfMsg, bobKeys)
+    spake2.processKeyConfMsg(Spake2Role.Alice, bobKeyConfMsg, aliceKeys)
+    spake2.processKeyConfMsg(Spake2Role.Bob, aliceKeyConfMsg, bobKeys)
   }
 
   test("confirmation fails when password is wrong") {
     val (aliceKeys, bobKeys) =
       performKeyExchange(
-        "password".toByteArray(),
-        "passworf".toByteArray()
+        "password".encodeUtf8(),
+        "passworf".encodeUtf8()
       )
     assertKeysMatch(aliceKeys, bobKeys, false)
 
-    val alice = Spake2Impl(Spake2Role.Alice, "Alice", "Bob")
-    val bob = Spake2Impl(Spake2Role.Bob, "Bob", "Alice")
-
-    val aliceKeyConfMsg = alice.generateKeyConfMsg(aliceKeys)
-    val bobKeyConfMsg = bob.generateKeyConfMsg(bobKeys)
+    val aliceKeyConfMsg = spake2.generateKeyConfMsg(Spake2Role.Alice, aliceKeys)
+    val bobKeyConfMsg = spake2.generateKeyConfMsg(Spake2Role.Bob, bobKeys)
 
     shouldThrow<Spake2Exception.MacException> {
-      alice.processKeyConfMsg(bobKeyConfMsg, aliceKeys)
+      spake2.processKeyConfMsg(Spake2Role.Alice, bobKeyConfMsg, aliceKeys)
     }
     shouldThrow<Spake2Exception.MacException> {
-      bob.processKeyConfMsg(aliceKeyConfMsg, bobKeys)
+      spake2.processKeyConfMsg(Spake2Role.Bob, aliceKeyConfMsg, bobKeys)
     }
   }
-
+//
   test("same password results in different keys across sessions") {
     // First run
     val (aliceKeysFirst, bobKeysFirst) =
       performKeyExchange(
-        "password".toByteArray(),
-        "password".toByteArray()
+        "password".encodeUtf8(),
+        "password".encodeUtf8()
       )
     assertKeysMatch(aliceKeysFirst, bobKeysFirst, true)
 
     // Second run
     val (aliceKeysSecond, bobKeysSecond) =
       performKeyExchange(
-        "password".toByteArray(),
-        "password".toByteArray()
+        "password".encodeUtf8(),
+        "password".encodeUtf8()
       )
     assertKeysMatch(aliceKeysSecond, bobKeysSecond, true)
 

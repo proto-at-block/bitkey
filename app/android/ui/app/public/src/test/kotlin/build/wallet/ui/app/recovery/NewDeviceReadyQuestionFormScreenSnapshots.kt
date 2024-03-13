@@ -6,7 +6,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionModel
 import build.wallet.ui.app.core.form.FormScreen
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
@@ -27,13 +27,13 @@ class NewDeviceReadyQuestionFormScreenSnapshots : FunSpec({
             primaryAction =
               ButtonModel(
                 text = "Yes",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 size = ButtonModel.Size.Footer
               ),
             secondaryAction =
               ButtonModel(
                 text = "No",
-                onClick = Click.StandardClick { },
+                onClick = StandardClick {},
                 treatment = ButtonModel.Treatment.Secondary,
                 size = ButtonModel.Size.Footer
               ),

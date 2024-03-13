@@ -13,4 +13,5 @@ terraform {
 inputs = {
   name         = "wsm"
   asg_min_size = 2
+  enable_ssm   = true
 }

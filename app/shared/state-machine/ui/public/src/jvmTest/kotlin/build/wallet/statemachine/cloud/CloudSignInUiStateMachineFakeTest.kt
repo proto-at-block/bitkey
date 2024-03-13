@@ -6,7 +6,7 @@ import build.wallet.cloud.store.CloudStoreServiceProviderFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.CloudSignInUiStateMachineFake
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import io.kotest.core.spec.style.FunSpec
@@ -40,27 +40,32 @@ class CloudSignInUiStateMachineFakeTest : FunSpec({
   test("already signed in") {
     cloudStoreAccountRepository.set(fakeAccount)
     stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<LoadingBodyModel>()
+      awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
+        .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       onSignedInCalled.awaitItem().shouldBe(fakeAccount)
     }
   }
 
   test("sign in") {
     stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<LoadingBodyModel>()
+      awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
+        .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       awaitItem().shouldBeTypeOf<CloudSignInModelFake>()
         .signInSuccess(fakeAccount)
-      awaitItem().shouldBeTypeOf<LoadingBodyModel>()
+      awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
+        .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       onSignedInCalled.awaitItem().shouldBe(fakeAccount)
     }
   }
 
   test("force sign out") {
     stateMachine.test(props.copy(forceSignOut = true)) {
-      awaitItem().shouldBeTypeOf<LoadingBodyModel>()
+      awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
+        .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       awaitItem().shouldBeTypeOf<CloudSignInModelFake>()
         .signInSuccess(fakeAccount)
-      awaitItem().shouldBeTypeOf<LoadingBodyModel>()
+      awaitItem().shouldBeTypeOf<LoadingSuccessBodyModel>()
+        .state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       onSignedInCalled.awaitItem().shouldBe(fakeAccount)
     }
   }

@@ -1,0 +1,3 @@
+packages:
+  - url: "https://github.com/airbnb/lottie-spm"
+    reason: "This is an SPM repo, main repo is lottie-ios. Also belongs to a reputable company hence why it's less risky."

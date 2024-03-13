@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.android.tools.analytics-library:shared",
+    "components": [
+        {
+            "version": "31.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "shared-31.1.2.jar": "1c0059475ddac544e9f8f43ae018092dbb446c86970e2b5fe1e65931c780d42a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

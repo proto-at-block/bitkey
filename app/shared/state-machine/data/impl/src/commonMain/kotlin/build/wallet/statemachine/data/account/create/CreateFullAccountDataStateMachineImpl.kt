@@ -11,9 +11,7 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.keybox.AppDataDeleter
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
-import build.wallet.onboarding.OnboardingKeyboxStep.CurrencyPreference
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.onboarding.OnboardingKeyboxStepState
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
@@ -38,7 +36,6 @@ class CreateFullAccountDataStateMachineImpl(
   private val onboardKeyboxDataStateMachine: OnboardKeyboxDataStateMachine,
   private val appDataDeleter: AppDataDeleter,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
-  private val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag,
 ) : CreateFullAccountDataStateMachine {
   @Suppress("NestedBlockDepth")
   @Composable
@@ -79,9 +76,9 @@ class CreateFullAccountDataStateMachineImpl(
             CreateKeyboxDataProps(
               // Reuse keybox configuration used for ongoing onboarding,
               // otherwise fall back on current template.
-              templateKeyboxConfig =
+              templateFullAccountConfig =
                 props.onboardingKeybox?.config
-                  ?: props.templateKeyboxConfig,
+                  ?: props.templateFullAccountConfig,
               context = props.context,
               rollback = props.rollback
             )
@@ -194,20 +191,13 @@ class CreateFullAccountDataStateMachineImpl(
     // Listen to onboarding steps completion
     val cloudBackupStepState = rememberCloudBackupStepState()
     val notificationsStepState = rememberNotificationsStepState()
-    val currencyPreferenceState = rememberCurrencyPreferenceStepState()
 
     LaunchedEffect(
       "transition-to-activate",
       cloudBackupStepState,
-      notificationsStepState,
-      currencyPreferenceState
+      notificationsStepState
     ) {
       val stepStates = mutableListOf(cloudBackupStepState, notificationsStepState)
-
-      // Add currency as a step that needs to be completed based on the feature flag
-      if (multipleFiatCurrencyEnabledFeatureFlag.flagValue().value.value) {
-        stepStates.add(currencyPreferenceState)
-      }
 
       if (stepStates.all { it == OnboardingKeyboxStepState.Complete }) {
         // Transition to [ActivateKeyboxState] if all are complete
@@ -227,13 +217,6 @@ class CreateFullAccountDataStateMachineImpl(
   private fun rememberNotificationsStepState(): OnboardingKeyboxStepState? {
     return remember {
       onboardingKeyboxStepStateDao.stateForStep(NotificationPreferences)
-    }.collectAsState(null).value
-  }
-
-  @Composable
-  private fun rememberCurrencyPreferenceStepState(): OnboardingKeyboxStepState? {
-    return remember {
-      onboardingKeyboxStepStateDao.stateForStep(CurrencyPreference)
     }.collectAsState(null).value
   }
 }

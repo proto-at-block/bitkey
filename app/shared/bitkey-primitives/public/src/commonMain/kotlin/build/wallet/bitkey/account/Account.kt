@@ -1,7 +1,6 @@
 package build.wallet.bitkey.account
 
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
-import build.wallet.bitkey.app.requireRecoveryAuthKey
 import build.wallet.bitkey.f8e.AccountId
 
 sealed interface Account {
@@ -18,6 +17,6 @@ sealed interface Account {
 
 fun Account.requireAppRecoveryAuthKey(): AppRecoveryAuthPublicKey =
   when (this) {
-    is FullAccount -> keybox.activeKeyBundle.requireRecoveryAuthKey()
+    is FullAccount -> keybox.activeAppKeyBundle.recoveryAuthKey
     is LiteAccount -> recoveryAuthKey
   }

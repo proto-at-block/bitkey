@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines",
+    "components": [
+        {
+            "version": "1.1.18",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-result-coroutines-metadata-1.1.18.jar": "88d386973076e3d670a6deb301cc6d7c20c43aaf242ee06e1000f717d15cf324"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

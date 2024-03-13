@@ -4,11 +4,12 @@ import androidx.compose.runtime.Composable
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILED
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
-import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId.SAVE_CURRENCY_PREFERENCE_LOADING
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
-import build.wallet.money.BitcoinMoney
+import build.wallet.feature.isEnabled
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiPropsV2
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -17,20 +18,20 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.BackingUpKeyboxToCloudDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCurrencyPreferenceDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingNotificationsDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.FailedCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingCurrencyPreferenceDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
-import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Onboarding
+import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
 
 class OnboardKeyboxUiStateMachineImpl(
   private val fullAccountCloudSignInAndBackupUiStateMachine:
     FullAccountCloudSignInAndBackupUiStateMachine,
-  private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
+  private val notificationsFlowV2EnabledFeatureFlag: NotificationsFlowV2EnabledFeatureFlag,
   private val notificationPreferencesSetupUiStateMachine:
     NotificationPreferencesSetupUiStateMachine,
+  private val notificationPreferencesSetupUiStateMachineV2:
+    NotificationPreferencesSetupUiStateMachineV2,
 ) : OnboardKeyboxUiStateMachine {
   @Composable
   override fun model(props: OnboardKeyboxUiProps): ScreenModel {
@@ -47,17 +48,16 @@ class OnboardKeyboxUiStateMachineImpl(
       is CompletingCloudBackupDataFull ->
         LoadingBodyModel(id = SAVE_CLOUD_BACKUP_LOADING).asRootScreen()
 
-      is SettingNotificationsPreferencesDataFull ->
-        SettingNotificationsPreferencesScreen(props.onboardKeyboxData)
+      is SettingNotificationsPreferencesDataFull -> {
+        if (notificationsFlowV2EnabledFeatureFlag.isEnabled()) {
+          SettingNotificationsPreferencesScreenV2(props.onboardKeyboxData)
+        } else {
+          SettingNotificationsPreferencesScreen(props.onboardKeyboxData)
+        }
+      }
 
       is CompletingNotificationsDataFull ->
         LoadingBodyModel(id = SAVE_NOTIFICATIONS_LOADING).asRootScreen()
-
-      is SettingCurrencyPreferenceDataFull ->
-        SettingCurrencyPreferenceScreen(props.onboardKeyboxData)
-
-      is CompletingCurrencyPreferenceDataFull ->
-        LoadingBodyModel(id = SAVE_CURRENCY_PREFERENCE_LOADING).asRootScreen()
     }
   }
 
@@ -73,7 +73,8 @@ class OnboardKeyboxUiStateMachineImpl(
           onBackupSaved = data.onBackupSaved,
           onExistingCloudBackupFound = data.onExistingCloudBackupFound,
           presentationStyle = ScreenPresentationStyle.Root,
-          isSkipCloudBackupInstructions = data.isSkipCloudBackupInstructions
+          isSkipCloudBackupInstructions = data.isSkipCloudBackupInstructions,
+          requireAuthRefreshForCloudBackup = true
         )
     )
   }
@@ -94,25 +95,23 @@ class OnboardKeyboxUiStateMachineImpl(
       props =
         NotificationPreferencesSetupUiProps(
           fullAccountId = data.keybox.fullAccountId,
-          keyboxConfig = data.keybox.config,
+          fullAccountConfig = data.keybox.config,
           onComplete = data.onComplete
         )
     )
   }
 
   @Composable
-  private fun SettingCurrencyPreferenceScreen(
-    data: SettingCurrencyPreferenceDataFull,
+  private fun SettingNotificationsPreferencesScreenV2(
+    data: SettingNotificationsPreferencesDataFull,
   ): ScreenModel {
-    return currencyPreferenceUiStateMachine.model(
+    return notificationPreferencesSetupUiStateMachineV2.model(
       props =
-        CurrencyPreferenceProps(
-          onBack = null,
-          // Use hard-coded 0 amount to display because we're in onboarding
-          // (post-onboarding we use balance amount)
-          btcDisplayAmount = BitcoinMoney.zero(),
-          currencyPreferenceData = data.currencyPreferenceData,
-          onDone = data.onComplete
+        NotificationPreferencesSetupUiPropsV2(
+          fullAccountId = data.keybox.fullAccountId,
+          fullAccountConfig = data.keybox.config,
+          source = Onboarding,
+          onComplete = data.onComplete
         )
     )
   }

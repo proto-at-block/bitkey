@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-client-content-negotiation-jvm",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-content-negotiation-jvm-2.3.8.jar": "b4c4b30af8e851c992b18470b3f1ecb8361922d465f5e75f1b2dff4979bda935"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

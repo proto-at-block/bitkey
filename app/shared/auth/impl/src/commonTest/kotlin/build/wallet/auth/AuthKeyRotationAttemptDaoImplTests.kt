@@ -1,10 +1,7 @@
 package build.wallet.auth
 
 import app.cash.turbine.test
-import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
-import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
-import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
+import build.wallet.bitkey.auth.AppAuthPublicKeysMock
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.sqldelight.inMemorySqlDriver
 import com.github.michaelbull.result.Ok
@@ -23,26 +20,20 @@ class AuthKeyRotationAttemptDaoImplTests : FunSpec({
   }
 
   test("setAuthKeysWritten() should set the AuthKeyRotationAttemptDaoState to AuthKeysWritten") {
-    val keys = AppAuthPublicKeys(
-      appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
-      appRecoveryAuthPublicKey = AppRecoveryAuthPublicKeyMock
-    )
-    dao.getAuthKeyRotationAttemptState().test {
-      dao.setAuthKeysWritten(
-        appAuthPublicKeys = keys,
-        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock
-      )
-
-      dao.setServerRotationAttemptComplete()
+    val keys = AppAuthPublicKeysMock
+    dao.observeAuthKeyRotationAttemptState().test {
+      dao.setKeyRotationProposal()
 
       dao.setAuthKeysWritten(
-        appAuthPublicKeys = keys,
-        hwAuthPublicKey = HwAuthSecp256k1PublicKeyMock
+        appAuthPublicKeys = keys
       )
+
+      dao.clear()
 
       awaitItem().shouldBe(Ok(AuthKeyRotationAttemptDaoState.NoAttemptInProgress))
-      awaitItem().shouldBe(Ok(AuthKeyRotationAttemptDaoState.AuthKeysWritten(keys, HwAuthSecp256k1PublicKeyMock)))
-      awaitItem().shouldBe(Ok(AuthKeyRotationAttemptDaoState.ServerRotationAttemptComplete(keys)))
+      awaitItem().shouldBe(Ok(AuthKeyRotationAttemptDaoState.KeyRotationProposalWritten))
+      awaitItem().shouldBe(Ok(AuthKeyRotationAttemptDaoState.AuthKeysWritten(keys)))
+      awaitItem().shouldBe(Ok(AuthKeyRotationAttemptDaoState.NoAttemptInProgress))
     }
   }
 })

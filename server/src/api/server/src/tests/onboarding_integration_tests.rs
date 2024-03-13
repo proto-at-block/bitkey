@@ -1,9 +1,13 @@
-use std::collections::HashSet;
 use std::str::FromStr;
 use std::vec;
 
+use authn_authz::routes::{
+    AuthRequestKey, AuthenticationRequest, ChallengeResponseParameters, GetTokensRequest,
+};
 use axum::response::IntoResponse;
-use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+use bdk_utils::bdk::bitcoin::hashes::sha256;
+use bdk_utils::bdk::bitcoin::key::Secp256k1;
+use bdk_utils::bdk::bitcoin::secp256k1::{Message, PublicKey};
 use errors::ApiError;
 use http::StatusCode;
 use http_body_util::BodyExt;
@@ -11,7 +15,9 @@ use http_body_util::BodyExt;
 use onboarding::account_validation::error::AccountValidationError;
 use recovery::entities::{RecoveryDestination, RecoveryStatus};
 use time::Duration;
-use types::notification::{NotificationChannel, NotificationsPreferences};
+
+use types::consent::Consent;
+
 use ulid::Ulid;
 
 use account::entities::{
@@ -32,7 +38,7 @@ use types::account::identifiers::TouchpointId;
 
 use crate::tests;
 use crate::tests::gen_services;
-use crate::tests::lib::{create_account, create_descriptor_keys, create_pubkey};
+use crate::tests::lib::{create_account, create_descriptor_keys, create_keypair, create_pubkey};
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::{CognitoAuthentication, Response};
 
@@ -262,6 +268,20 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                 .await
                 .status_code,
             200,
+        );
+
+        let consents = bootstrap
+            .services
+            .consent_repository
+            .fetch_for_account_id(&account.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            consents
+                .iter()
+                .filter(|c| matches!(c, Consent::OnboardingTosAcceptance(_)))
+                .count(),
+            1
         );
     }
 
@@ -1422,86 +1442,116 @@ async fn test_delete_account() {
 }
 
 #[tokio::test]
-async fn test_notifications_preferences() {
+async fn test_revoked_access_token_add_push_touchpoint() {
     let bootstrap = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = create_account(&bootstrap.services, Network::Signet.into(), None).await;
-
-    let get_response = client
-        .get_notifications_preferences(&account.id.to_string())
-        .await;
-    assert_eq!(get_response.status_code, StatusCode::OK);
-    assert_eq!(
-        get_response.body.unwrap(),
-        NotificationsPreferences::default()
+    let (app_privkey, app_pubkey) = create_keypair();
+    let ((_, app_xpub), (_, hw_xpub)) = (
+        create_descriptor_keys(Network::Signet.into()),
+        create_descriptor_keys(Network::Signet.into()),
     );
 
-    let add_phone_response = client
-        .add_touchpoint(
-            &account.id.to_string(),
-            &AccountAddTouchpointRequest::Phone {
-                phone_number: "+15555555555".to_string(),
-            },
-        )
-        .await;
-    assert_eq!(add_phone_response.status_code, StatusCode::OK);
-
-    let touchpoint_id = add_phone_response.body.unwrap().touchpoint_id.to_string();
-    let verify_phone_response = client
-        .verify_touchpoint(
-            &account.id.to_string(),
-            &touchpoint_id,
-            &AccountVerifyTouchpointRequest {
-                verification_code: "123456".to_string(),
-            },
-        )
-        .await;
-    assert_eq!(verify_phone_response.status_code, StatusCode::OK);
-
-    let activate_phone_response = client
-        .activate_touchpoint(
-            &account.id.to_string(),
-            &touchpoint_id,
-            &AccountActivateTouchpointRequest {},
-            false,
-            false,
-        )
-        .await;
-    assert_eq!(activate_phone_response.status_code, StatusCode::OK);
-
-    let get_response = client
-        .get_notifications_preferences(&account.id.to_string())
-        .await;
-    assert_eq!(get_response.status_code, StatusCode::OK);
+    // First, make an account
+    let request = CreateAccountRequest::Full {
+        auth: FullAccountAuthKeysPayload {
+            app: app_pubkey,
+            hardware: create_pubkey(),
+            recovery: None,
+        },
+        spending: SpendingKeysetRequest {
+            network: Network::Signet,
+            app: app_xpub,
+            hardware: hw_xpub,
+        },
+        is_test_account: true,
+    };
+    let actual_response = client.create_account(&request).await;
     assert_eq!(
-        get_response.body.unwrap(),
-        NotificationsPreferences {
-            account_security: HashSet::from([NotificationChannel::Sms]),
-            ..Default::default()
-        }
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
     );
 
-    let add_device_token_response = client
-        .add_device_token(
-            &account.id.to_string(),
+    // Authenticate
+    let request = AuthenticationRequest {
+        auth_request_key: AuthRequestKey::AppPubkey(app_pubkey),
+    };
+    let actual_response = client.authenticate(&request).await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+    let auth_resp = actual_response.body.unwrap();
+    let challenge = auth_resp.challenge;
+    let secp = Secp256k1::new();
+    let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_ref());
+    let signature = secp.sign_ecdsa(&message, &app_privkey);
+    let request = GetTokensRequest {
+        challenge: Some(ChallengeResponseParameters {
+            username: auth_resp.username,
+            challenge_response: signature.to_string(),
+            session: auth_resp.session,
+        }),
+        refresh_token: None,
+    };
+    let actual_response = client.get_tokens(&request).await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+
+    let account_id = auth_resp.account_id;
+    let access_token = actual_response.body.unwrap().access_token;
+
+    let response = client
+        .add_device_token_with_access_token(
+            &account_id.to_string(),
             &AccountAddDeviceTokenRequest {
-                device_token: "".to_string(),
+                device_token: "test-token-1".to_string(),
                 platform: TouchpointPlatform::ApnsTeamAlpha,
             },
+            &access_token,
         )
         .await;
-    assert_eq!(add_device_token_response.status_code, StatusCode::OK);
+    assert_eq!(StatusCode::OK, response.status_code);
 
-    let get_response = client
-        .get_notifications_preferences(&account.id.to_string())
+    // Rotate keys, which logs user out
+    bootstrap
+        .services
+        .userpool_service
+        .rotate_account_auth_keys(&account_id, create_pubkey(), create_pubkey(), None)
+        .await
+        .unwrap();
+
+    // Adding new token errors
+    let response = client
+        .add_device_token_with_access_token(
+            &account_id.to_string(),
+            &AccountAddDeviceTokenRequest {
+                device_token: "test-token-2".to_string(),
+                platform: TouchpointPlatform::ApnsTeamAlpha,
+            },
+            &access_token,
+        )
         .await;
-    assert_eq!(get_response.status_code, StatusCode::OK);
-    assert_eq!(
-        get_response.body.unwrap(),
-        NotificationsPreferences {
-            account_security: HashSet::from([NotificationChannel::Sms, NotificationChannel::Push]),
-            ..Default::default()
-        }
-    );
+    assert_eq!(StatusCode::UNAUTHORIZED, response.status_code);
+
+    // Adding existing token doesn't error
+    let response = client
+        .add_device_token_with_access_token(
+            &account_id.to_string(),
+            &AccountAddDeviceTokenRequest {
+                device_token: "test-token-1".to_string(),
+                platform: TouchpointPlatform::ApnsTeamAlpha,
+            },
+            &access_token,
+        )
+        .await;
+    assert_eq!(StatusCode::OK, response.status_code);
 }

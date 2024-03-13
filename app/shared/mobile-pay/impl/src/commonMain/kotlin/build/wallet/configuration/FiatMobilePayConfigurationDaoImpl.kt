@@ -62,7 +62,7 @@ private fun GetAllFiatCurrencyMobilePayConfigurations.toFiatMobilePayConfigurati
   minimumLimit = FiatMoney(currency, fractionalUnitAmount = minimumLimit.toBigInteger()),
   maximumLimit = FiatMoney(currency, fractionalUnitAmount = maximumLimit.toBigInteger()),
   snapValues =
-    snapValues.orEmpty()
+    snapValues
       .mapKeys { FiatMoney(currency, it.key.toBigInteger()) }
       .mapValues {
         FiatMobilePayConfiguration.SnapTolerance(FiatMoney(currency, it.value.toBigInteger()))

@@ -48,6 +48,11 @@ object Router {
       }
     }
   }
+
+  fun reset() {
+    route = null
+    callback = null
+  }
 }
 
 /**
@@ -70,8 +75,11 @@ sealed class Route {
       // return a valid route or null
       return when {
         parsedUrl.encodedPath == "/links/downloads/trusted-contact" -> {
-          val inviteCode = parsedUrl.parameters["code"] ?: return null
-          TrustedContactInvite(inviteCode)
+          if (parsedUrl.fragment.isEmpty()) {
+            null
+          } else {
+            TrustedContactInvite(parsedUrl.fragment)
+          }
         }
         else -> null
       }

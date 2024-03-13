@@ -7,7 +7,7 @@ import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.keybox.KeyboxDao
-import build.wallet.keybox.config.TemplateKeyboxConfigDao
+import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.zip
 
 class ElectrumServerSettingProviderImpl(
   private val keyboxDao: KeyboxDao,
-  private val templateKeyboxConfigDao: TemplateKeyboxConfigDao,
+  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
   private val electrumServerDao: ElectrumServerConfigRepository,
 ) : ElectrumServerSettingProvider {
   override fun get(): Flow<ElectrumServerSetting> {
@@ -32,7 +32,7 @@ class ElectrumServerSettingProviderImpl(
           is Ok ->
             when (val keybox = activeKeyboxResult.value) {
               null -> null
-              else -> keybox.config.networkType
+              else -> keybox.config.bitcoinNetworkType
             }
         }
       }
@@ -41,7 +41,7 @@ class ElectrumServerSettingProviderImpl(
         // able to infer the network they are connected to, since Block-provided Electrum endpoints
         // would be network-aware for development purposes.
         val defaultNetwork =
-          templateKeyboxConfigDao.config().first().get()?.networkType ?: BITCOIN
+          templateFullAccountConfigDao.config().first().get()?.bitcoinNetworkType ?: BITCOIN
         val networkToUse = activeNetwork ?: defaultNetwork
 
         electrumServerDao.getF8eDefinedElectrumServer()

@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.socrec.view
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.bitkey.socrec.RecoveryContact
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
@@ -20,7 +21,7 @@ data class ViewingInvitationProps(
   val onRefreshInvitation: suspend (
     Invitation,
     HwFactorProofOfPossession,
-  ) -> Result<Invitation, Error>,
+  ) -> Result<OutgoingInvitation, Error>,
   val onRemoveInvitation: suspend (
     RecoveryContact,
     HwFactorProofOfPossession?,

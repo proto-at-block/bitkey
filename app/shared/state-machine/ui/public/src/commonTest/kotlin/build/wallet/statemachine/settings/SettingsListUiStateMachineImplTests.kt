@@ -10,22 +10,22 @@ import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.setFlagValue
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
-import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CloudBackupHealth
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.ContactUs
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CurrencyPreference
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CustomElectrumServer
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Notifications
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RotateAuthKey
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.SendFeedback
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.TrustedContacts
+import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -39,17 +39,16 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
   val featureFlagDao = FeatureFlagDaoMock()
-  val multipleFiatCurrencyEnabledFeatureFlag =
-    MultipleFiatCurrencyEnabledFeatureFlag(featureFlagDao)
-  val cloudBackupHealthFeatureFlag = CloudBackupHealthFeatureFlag(featureFlagDao, Customer)
+  val cloudBackupHealthFeatureFlag = CloudBackupHealthFeatureFlag(featureFlagDao)
   val inactiveDeviceIsEnabledFeatureFlag = InactiveDeviceIsEnabledFeatureFlag(featureFlagDao)
+  val v2FeatureFlag = NotificationsFlowV2EnabledFeatureFlag(FeatureFlagDaoMock())
 
   val stateMachine =
     SettingsListUiStateMachineImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
-      multipleFiatCurrencyEnabledFeatureFlag = multipleFiatCurrencyEnabledFeatureFlag,
       cloudBackupHealthFeatureFlag = cloudBackupHealthFeatureFlag,
-      inactiveDeviceIsEnabledFeatureFlag = inactiveDeviceIsEnabledFeatureFlag
+      inactiveDeviceIsEnabledFeatureFlag = inactiveDeviceIsEnabledFeatureFlag,
+      notificationsFlowV2EnabledFeatureFlag = v2FeatureFlag
     )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -61,7 +60,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       HelpCenter::class to turbines.create("HelpCenter onClick calls"),
       MobilePay::class to turbines.create("MobilePay onClick calls"),
       Notifications::class to turbines.create("Notifications onClick calls"),
-      SendFeedback::class to turbines.create("SendFeedback onClick calls"),
+      ContactUs::class to turbines.create("SendFeedback onClick calls"),
       TrustedContacts::class to turbines.create("TrustedContacts onClick calls"),
       CloudBackupHealth::class to turbines.create("CloudBackupHealth onClick calls"),
       RotateAuthKey::class to turbines.create("RotateAuthKey onClick calls")
@@ -79,7 +78,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           HelpCenter { propsOnClickCalls[HelpCenter::class]?.add(Unit) },
           MobilePay { propsOnClickCalls[MobilePay::class]?.add(Unit) },
           Notifications { propsOnClickCalls[Notifications::class]?.add(Unit) },
-          SendFeedback { propsOnClickCalls[SendFeedback::class]?.add(Unit) },
+          ContactUs { propsOnClickCalls[ContactUs::class]?.add(Unit) },
           TrustedContacts { propsOnClickCalls[TrustedContacts::class]?.add(Unit) },
           CloudBackupHealth { propsOnClickCalls[CloudBackupHealth::class]?.add(Unit) },
           RotateAuthKey { propsOnClickCalls[RotateAuthKey::class]?.add(Unit) }
@@ -88,11 +87,14 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       onDismissAlert = {}
     )
 
+  beforeEach {
+    v2FeatureFlag.apply {
+      setFlagValue(FeatureFlagValue.BooleanFlag(false))
+    }
+  }
+
   afterEach {
     appFunctionalityStatusProvider.reset()
-    multipleFiatCurrencyEnabledFeatureFlag.apply {
-      setFlagValue(defaultFlagValue)
-    }
     cloudBackupHealthFeatureFlag.apply {
       setFlagValue(defaultFlagValue)
     }
@@ -109,24 +111,6 @@ class SettingsListUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("list with multiple fiat currency enabled") {
-    multipleFiatCurrencyEnabledFeatureFlag.setFlagValue(true)
-    stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
-        sectionModels
-          .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
-          .shouldBe(
-            listOf(
-              "General" to listOf("Mobile Pay", "Bitkey Device", "Currency", "Notifications"),
-              "Security & Recovery" to listOf("Trusted Contacts"),
-              "Advanced" to listOf("Custom Electrum Server"),
-              "Support" to listOf("Send Feedback", "Help Center")
-            )
-          )
-      }
-    }
-  }
-
   test("list default") {
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
@@ -134,10 +118,10 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
           .shouldBe(
             listOf(
-              "General" to listOf("Mobile Pay", "Bitkey Device", "Notifications"),
-              "Security & Recovery" to listOf("Trusted Contacts"),
+              "General" to listOf("Mobile Pay", "Bitkey Device", "Currency", "Notifications"),
+              "Security & Recovery" to listOf("Mobile Devices", "Cloud Backup", "Trusted Contacts"),
               "Advanced" to listOf("Custom Electrum Server"),
-              "Support" to listOf("Send Feedback", "Help Center")
+              "Support" to listOf("Contact Us", "Help Center")
             )
           )
       }
@@ -160,7 +144,6 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("key rotation setting when feature flag is enabled") {
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
         sectionModels
@@ -185,7 +168,6 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("Currency updates state") {
-    multipleFiatCurrencyEnabledFeatureFlag.setFlagValue(true)
     stateMachine
       .testRowOnClickCallsProps<CurrencyPreference>("Currency", props, propsOnClickCalls)
   }
@@ -209,9 +191,9 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       )
   }
 
-  test("Send Feedback updates state") {
+  test("Contact Us updates state") {
     stateMachine
-      .testRowOnClickCallsProps<SendFeedback>("Send Feedback", props, propsOnClickCalls)
+      .testRowOnClickCallsProps<ContactUs>("Contact Us", props, propsOnClickCalls)
   }
 
   test("Help Center updates state") {
@@ -220,14 +202,11 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   }
 
   test("Mobile Devices updates state") {
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(true)
     stateMachine
       .testRowOnClickCallsProps<RotateAuthKey>("Mobile Devices", props, propsOnClickCalls)
   }
 
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
-    multipleFiatCurrencyEnabledFeatureFlag.setFlagValue(true)
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitItem()
       appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
@@ -242,15 +221,15 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Notifications",
           "Trusted Contacts",
           "Help Center",
-          "Mobile Devices"
+          "Mobile Devices",
+          "Cloud Backup",
+          "Contact Us"
         )
       )
     }
   }
 
   test("Disabled rows in LimitedFunctionality.InternetUnreachable") {
-    multipleFiatCurrencyEnabledFeatureFlag.setFlagValue(true)
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(true)
     stateMachine.test(props) {
       awaitItem()
       appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
@@ -270,7 +249,9 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           "Trusted Contacts",
           "Custom Electrum Server",
           "Help Center",
-          "Mobile Devices"
+          "Mobile Devices",
+          "Cloud Backup",
+          "Contact Us"
         )
       )
     }

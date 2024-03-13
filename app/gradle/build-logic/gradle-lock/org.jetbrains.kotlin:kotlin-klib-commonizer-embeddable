@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-klib-commonizer-embeddable",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-klib-commonizer-embeddable-1.9.10.jar": "78e3b8992617ca1c595f849160d8ae17885ea92ef2d26c68d84b38a141665979"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-datetime",
+    "components": [
+        {
+            "version": "0.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-datetime-metadata-0.5.0.jar": "c68fc909255622768621df6cec116929fdf9fabd09d70260e4c56058a1113e20"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

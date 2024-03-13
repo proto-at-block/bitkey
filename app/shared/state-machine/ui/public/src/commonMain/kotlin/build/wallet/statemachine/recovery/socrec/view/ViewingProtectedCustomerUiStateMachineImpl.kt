@@ -46,7 +46,10 @@ class ViewingProtectedCustomerUiStateMachineImpl : ViewingProtectedCustomerUiSta
                 RemoveMyselfAsTrustedContactAlertModel(
                   alias = props.protectedCustomer.alias.alias,
                   onDismiss = { alertModel = null },
-                  onRemove = { uiState = state.copy(isRemoving = true) }
+                  onRemove = {
+                    alertModel = null
+                    uiState = state.copy(isRemoving = true)
+                  }
                 )
             },
             onClosed = props.onExit

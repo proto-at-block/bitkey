@@ -6,6 +6,9 @@ interface PushNotificationPermissionStatusProvider {
   /**
    * A flow of [PermissionStatus] specifically for [PushNotification] permissions.
    * Sends updated values when updated via [updatePushNotificationStatus]
+   *
+   * Note!!! If Android permissions are changed from settings, this flow will not be updated.
+   * Use [PermissionChecker] to check directly if current status is required.
    */
   fun pushNotificationStatus(): StateFlow<PermissionStatus>
 

@@ -19,7 +19,7 @@ impl Service {
         }
         .into();
 
-        self.repo.persist(&updated_account).await?;
+        self.account_repo.persist(&updated_account).await?;
         Ok(())
     }
 }

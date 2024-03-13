@@ -1,34 +1,31 @@
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey;
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
-import build.wallet.bitkey.hardware.HwAuthPublicKey;
-import kotlin.Boolean;
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 
 CREATE TABLE authKeyRotationAttemptEntity(
-  rowId                           INTEGER NOT NULL PRIMARY KEY,
-  destinationAppGlobalAuthKey     TEXT AS AppGlobalAuthPublicKey NOT NULL,
-  destinationAppRecoveryAuthKey   TEXT AS AppRecoveryAuthPublicKey NOT NULL,
-  destinationHardwareAuthKey      TEXT AS HwAuthPublicKey NOT NULL,
-  succeededServerRotation         INTEGER AS Boolean NOT NULL
+  rowId                                     INTEGER NOT NULL PRIMARY KEY,
+  destinationAppGlobalAuthKey               TEXT AS AppGlobalAuthPublicKey,
+  destinationAppRecoveryAuthKey             TEXT AS AppRecoveryAuthPublicKey,
+  destinationAppGlobalAuthKeyHwSignature    TEXT AS AppGlobalAuthKeyHwSignature
 );
+
+setKeyRotationProposal:
+INSERT INTO authKeyRotationAttemptEntity(
+    rowId, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationAppGlobalAuthKeyHwSignature
+)
+VALUES (0, NULL, NULL, NULL);
 
 setAuthKeyCreated:
 INSERT INTO authKeyRotationAttemptEntity(
-    rowId, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey,
-    destinationHardwareAuthKey, succeededServerRotation
-   )
-VALUES(0, ?, ?, ?, 0);
-
-setSucceededServerRotation:
-UPDATE authKeyRotationAttemptEntity
-SET succeededServerRotation = 1
-WHERE rowId = 0;
+    rowId, destinationAppGlobalAuthKey, destinationAppRecoveryAuthKey, destinationAppGlobalAuthKeyHwSignature
+)
+VALUES(0, ?, ?, ?);
 
 getAuthKeyRotationAttempt:
 SELECT
      destinationAppGlobalAuthKey,
      destinationAppRecoveryAuthKey,
-     destinationHardwareAuthKey,
-     succeededServerRotation
+     destinationAppGlobalAuthKeyHwSignature
 FROM authKeyRotationAttemptEntity
 WHERE rowId = 0;
 

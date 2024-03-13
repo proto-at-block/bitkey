@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.molecule:molecule-runtime-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "molecule-runtime-iossimulatorarm64-0.9.0-metadata.jar": "201e953665430f0404ef04acad3204b3c1a06ba753d35631c0f9b900840ace88"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "molecule-runtime.klib": "355edd4384f5899beeb348f039c6d14150065ff470a9ec3a91eac72a1b23542c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -8,13 +8,17 @@ import build.wallet.bdk.bindings.BdkMnemonicGenerator
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
 import build.wallet.bdk.bindings.BdkTxBuilderFactory
 import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.crypto.WsmVerifier
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
+import build.wallet.encrypt.SignatureVerifier
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.firmware.Teltra
 import build.wallet.logging.LogWriterContextStore
+import build.wallet.logging.dev.LogStoreInMemoryImpl
+import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -23,6 +27,7 @@ import build.wallet.platform.config.DeviceTokenConfigProvider
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileDirectoryProviderImpl
 import build.wallet.platform.data.FileManager
+import build.wallet.time.Delayer
 import co.touchlab.kermit.LogWriter
 import platform.Foundation.NSBundle
 
@@ -43,10 +48,12 @@ fun makeAppComponent(
   fileManagerProvider: (FileDirectoryProvider) -> FileManager,
   logWritersProvider: (LogWriterContextStore) -> List<LogWriter>,
   messageSigner: MessageSigner,
+  signatureVerifier: SignatureVerifier,
   secp256k1KeyGenerator: Secp256k1KeyGenerator,
   teltra: Teltra,
   hardwareAttestation: HardwareAttestation,
   deviceOs: DeviceOs,
+  wsmVerifier: WsmVerifier,
 ): AppComponent {
   val appId = AppId(NSBundle.mainBundle.bundleIdentifier!!)
   val appVersion =
@@ -59,6 +66,14 @@ fun makeAppComponent(
   val platformContext = PlatformContext()
   val fileDirectoryProvider = FileDirectoryProviderImpl(platformContext)
   val fileManager = fileManagerProvider(fileDirectoryProvider)
+
+  val logStore = when (appVariant) {
+    AppVariant.Development -> LogStoreInMemoryImpl()
+    AppVariant.Team -> LogStoreInMemoryImpl()
+    AppVariant.Beta -> LogStoreInMemoryImpl()
+    AppVariant.Customer -> BoundedInMemoryLogStoreImpl()
+    AppVariant.Emergency -> BoundedInMemoryLogStoreImpl()
+  }
 
   return AppComponentImpl(
     appId = appId,
@@ -75,14 +90,18 @@ fun makeAppComponent(
     bdkWalletFactory = bdkWalletFactory,
     datadogRumMonitor = datadogRumMonitor,
     datadogTracer = datadogTracer,
+    delayer = Delayer.Default,
     deviceTokenConfigProvider = deviceTokenConfigProvider,
     fileDirectoryProvider = fileDirectoryProvider,
     fileManager = fileManager,
+    logStore = logStore,
     logWritersProvider = logWritersProvider,
     messageSigner = messageSigner,
+    signatureVerifier = signatureVerifier,
     platformContext = platformContext,
     secp256k1KeyGenerator = secp256k1KeyGenerator,
     teltra = teltra,
-    hardwareAttestation = hardwareAttestation
+    hardwareAttestation = hardwareAttestation,
+    wsmVerifier = wsmVerifier
   )
 }

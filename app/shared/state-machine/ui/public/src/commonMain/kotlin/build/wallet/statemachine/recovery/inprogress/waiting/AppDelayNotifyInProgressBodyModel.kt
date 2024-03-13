@@ -1,12 +1,12 @@
 package build.wallet.statemachine.recovery.inprogress.waiting
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Timer
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
@@ -27,7 +27,7 @@ data class AppDelayNotifyInProgressBodyModel(
   val onExit: (() -> Unit)?,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
-      eventTrackerScreenId = AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_PENDING
+      eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_PENDING
     ),
 ) : BodyModel() {
   constructor(
@@ -50,7 +50,7 @@ data class AppDelayNotifyInProgressBodyModel(
                 text = "Cancel recovery",
                 treatment = TertiaryDestructive,
                 size = Compact,
-                onClick = Click.standardClick { onStopRecovery() }
+                onClick = StandardClick { onStopRecovery() }
               )
           )
       ),
@@ -65,7 +65,7 @@ data class AppDelayNotifyInProgressBodyModel(
             appendLine()
             appendLine()
             appendLine(
-              "If you didn’t authorize this replacement, press “Cancel Recovery” above."
+              "If you didn’t authorize this replacement, press “Cancel recovery” above."
             )
           }
       ),

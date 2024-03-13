@@ -1,14 +1,14 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.currency.USD
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -22,6 +22,7 @@ import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHa
 import build.wallet.statemachine.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 
 class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
 
@@ -47,11 +48,11 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
 
   val initiatingProps =
     LostHardwareRecoveryProps(
-      keyboxConfig = KeyboxConfigMock,
-      fullAccountId = FullAccountIdMock,
+      account = FullAccountMock,
       lostHardwareRecoveryData =
         AwaitingNewHardwareData(
-          addHardwareKeys = { _, _ -> }
+          newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+          addHardwareKeys = { _, _, _ -> }
         ),
       screenPresentationStyle = Modal,
       fiatCurrency = USD,
@@ -107,7 +108,9 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
 
       updateProps(initiatingProps)
 
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       onExitCalls.awaitItem()
     }
   }

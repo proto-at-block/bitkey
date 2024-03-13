@@ -8,11 +8,10 @@ import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EakDataFake
-import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryFake
 import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -37,7 +36,7 @@ import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.keybox.OnboardingKeyboxDataMock
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.lightning.LightningNodeData.LightningNodeDisabledData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
@@ -52,6 +51,8 @@ import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
+import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
+import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
@@ -63,6 +64,7 @@ import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachineImpl
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
+import build.wallet.time.Delayer
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.test.TestScope
@@ -104,6 +106,11 @@ class AppUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<EmergencyAccessKitRecoveryUiStateMachineProps>(
         id = "emergencey-access-kit-recovery"
       ) {}
+  val authKeyRotationUiStateMachine =
+    object : RotateAuthKeyUIStateMachine,
+      ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>(
+        id = "rotate-auth-key"
+      ) {}
   lateinit var stateMachine: AppUiStateMachineImpl
   val testScope = TestScope()
 
@@ -113,6 +120,7 @@ class AppUiStateMachineImplTests : FunSpec({
     stateMachine =
       AppUiStateMachineImpl(
         appVariant = AppVariant.Development,
+        delayer = Delayer.Default,
         debugMenuStateMachine =
           object : DebugMenuStateMachine, ScreenStateMachineMock<DebugMenuProps>(
             id = "debug-menu"
@@ -131,8 +139,7 @@ class AppUiStateMachineImplTests : FunSpec({
         liteAccountCloudBackupRestorationUiStateMachine =
         liteAccountCloudBackupRestorationUiStateMachine,
         emergencyAccessKitRecoveryUiStateMachine = emergencyAccessKitRecoveryUiStateMachine,
-        networkingDebugConfigRepository = NetworkingDebugConfigRepositoryFake(),
-        appCoroutineScope = testScope
+        authKeyRotationUiStateMachine = authKeyRotationUiStateMachine
       )
   }
 
@@ -147,6 +154,7 @@ class AppUiStateMachineImplTests : FunSpec({
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
+      cancelAndIgnoreRemainingEvents()
     }
   }
 
@@ -177,7 +185,7 @@ class AppUiStateMachineImplTests : FunSpec({
         accountData =
           AccountData.NoActiveAccountData.CreatingFullAccountData(
             createFullAccountData = OnboardingKeyboxDataMock(),
-            templateKeyboxConfig = KeyboxConfigMock
+            templateFullAccountConfig = FullAccountConfigMock
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
@@ -203,9 +211,9 @@ class AppUiStateMachineImplTests : FunSpec({
             startRecovery = {},
             startEmergencyAccessRecovery = {},
             newAccountOnboardConfigData = LoadedOnboardConfigDataMock,
-            templateKeyboxConfigData =
-              LoadedTemplateKeyboxConfigData(
-                config = KeyboxConfigMock,
+            templateFullAccountConfigData =
+              LoadedTemplateFullAccountConfigData(
+                config = FullAccountConfigMock,
                 updateConfig = {}
               ),
             isNavigatingBack = false
@@ -229,7 +237,7 @@ class AppUiStateMachineImplTests : FunSpec({
         appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoActiveAccountData.RecoveringAccountData(
-            templateKeyboxConfig = KeyboxConfigMock,
+            templateFullAccountConfig = FullAccountConfigMock,
             lostAppRecoveryData =
               LostAppRecoveryData.LostAppRecoveryInProgressData(
                 recoveryInProgressData =
@@ -284,7 +292,7 @@ class AppUiStateMachineImplTests : FunSpec({
         appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit(
-            templateKeyboxConfig = KeyboxConfigMock,
+            templateFullAccountConfig = FullAccountConfigMock,
             onExit = {}
           ),
         lightningNodeData = LightningNodeDisabledData,
@@ -328,7 +336,7 @@ class AppUiStateMachineImplTests : FunSpec({
         accountData =
           AccountData.SomeoneElseIsRecoveringFullAccountData(
             data = SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {}),
-            keyboxConfig = KeyboxConfigMock,
+            fullAccountConfig = FullAccountConfigMock,
             fullAccountId = FullAccountIdMock
           ),
         lightningNodeData = LightningNodeDisabledData,

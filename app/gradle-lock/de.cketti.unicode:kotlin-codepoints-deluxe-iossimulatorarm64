@@ -1,0 +1,23 @@
+{
+    "module-identifier": "de.cketti.unicode:kotlin-codepoints-deluxe-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-codepoints-deluxe-iossimulatorarm64-metadata.jar": "109d7fa877d2c085528f2f54332157e11fc6ab50e9eeaab351398ea2a3802a75"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-codepoints-deluxe.klib": "b40bcfc84a7d53fdfba442039a829ff5adaeab8df5e363aa1abbe7450e93d89d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

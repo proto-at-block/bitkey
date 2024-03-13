@@ -27,7 +27,7 @@ class FeeOptionListUiStateMachineImplTests : FunSpec({
     FeeOptionListProps(
       accountData = ActiveKeyboxLoadedDataMock,
       fiatCurrency = USD,
-      transactionAmount = BitcoinMoney.btc(1.0),
+      transactionBaseAmount = BitcoinMoney.btc(1.0),
       fees =
         persistentMapOf(
           FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),

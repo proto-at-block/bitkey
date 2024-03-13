@@ -21,6 +21,8 @@ pub enum MigrationError {
     UpdateAccount(String),
     #[error("Could not update notifications preferences due to error: {0}")]
     UpdateNotificationsPreferences(String),
+    #[error("Could not send ext beta push blast due to error: {0}")]
+    ExtBetaPushBlast(String),
     #[error("Could not write item to database: {0}")]
     DbPersist(DatabaseError),
     #[error("Could not read database: {0}")]

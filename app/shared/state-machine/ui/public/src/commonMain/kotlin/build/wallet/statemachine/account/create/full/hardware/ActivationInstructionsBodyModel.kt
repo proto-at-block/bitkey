@@ -5,7 +5,7 @@ import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel.BackgroundVideo.VideoContent.BitkeyActivate
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.video.VideoStartingPosition.END
 import build.wallet.ui.model.video.VideoStartingPosition.START
@@ -27,7 +27,7 @@ fun ActivationInstructionsBodyModel(
   primaryButton =
     ButtonModel(
       text = "Continue",
-      onClick = Click.standardClick { onContinue?.invoke() },
+      onClick = StandardClick { onContinue?.invoke() },
       treatment = ButtonModel.Treatment.White,
       size = ButtonModel.Size.Footer,
       isLoading = onContinue == null
@@ -36,6 +36,7 @@ fun ActivationInstructionsBodyModel(
     content = BitkeyActivate,
     startingPosition = if (isNavigatingBack) END else START
   ),
+  isNavigatingBack = isNavigatingBack,
   eventTrackerScreenInfo =
     EventTrackerScreenInfo(
       eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS,

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.utp:android-test-plugin-host-coverage-proto",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "android-test-plugin-host-coverage-proto-31.1.1.jar": "9ebc9c6279a32a453c90cf6b732b3a3f88a80498e746400850f2c66ea7933580"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

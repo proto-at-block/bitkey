@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.grpc:grpc-netty",
+    "components": [
+        {
+            "version": "1.45.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-netty-1.45.1.jar": "0fef3ca6747242624cad219fdd13b5dbca121de04ea122f5cb1cb5082d998313"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

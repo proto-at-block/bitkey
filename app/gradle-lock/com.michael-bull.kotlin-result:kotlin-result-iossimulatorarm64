@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.1.18",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-result-iossimulatorarm64-1.1.18-metadata.jar": "eac3ab501ad276d4ff1320040596eae634e9bf24f0c9561710b7a7dcc91590f5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-result.klib": "e24186bf0005e5991e27425ae2ff8e73cc1fe71d1234aaeef39325af96daff29"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

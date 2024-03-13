@@ -42,7 +42,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
                 }
               ),
             fullAccountId = onboardingKeybox.fullAccountId,
-            keyboxConfig = onboardingKeybox.config,
+            fullAccountConfig = onboardingKeybox.config,
             onBack = props.data.onBack,
             screenPresentationStyle = ScreenPresentationStyle.Modal
           )

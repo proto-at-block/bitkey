@@ -42,7 +42,7 @@ static struct {
   uint8_t mac_key_buf[AES_128_LENGTH_BYTES];
   uint8_t* calibration_data;
   uint32_t calibration_data_size;
-} fpc_priv SHARED_TASK_DATA = {
+} fpc_priv = {
   .bep_sensor = &SENSOR,    // SENSOR is defined at compile time
   .algorithm = &ALGORITHM,  // ditto
   .spi_state = {0},

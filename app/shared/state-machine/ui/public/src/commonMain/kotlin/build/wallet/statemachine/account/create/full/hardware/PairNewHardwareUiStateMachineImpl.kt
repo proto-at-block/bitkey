@@ -18,6 +18,12 @@ import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnroll
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentRestarted
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
 import build.wallet.nfc.transaction.StartFingerprintEnrollmentTransactionProvider
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.CompleteFingerprintEnrollmentViaNfcUiState
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingActivationInstructionsUiState
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingCompleteFingerprintEnrollmentInstructionsUiState
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingHelpCenter
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingStartFingerprintEnrollmentInstructionsUiState
+import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.StartFingerprintEnrollmentViaNfcUiState
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -36,7 +42,7 @@ class PairNewHardwareUiStateMachineImpl(
 ) : PairNewHardwareUiStateMachine {
   @Composable
   override fun model(props: PairNewHardwareProps): ScreenModel {
-    var state: State by remember { mutableStateOf(State.ShowingActivationInstructionsUiState()) }
+    var state: State by remember { mutableStateOf(ShowingActivationInstructionsUiState()) }
 
     // Always show the [PairNewHardwareBodyModel] as full screens
     val pairNewHardwareBodyModelPresentationStyle =
@@ -46,71 +52,83 @@ class PairNewHardwareUiStateMachineImpl(
       }
 
     return when (val s = state) {
-      is State.ShowingActivationInstructionsUiState ->
+      is ShowingActivationInstructionsUiState ->
         ScreenModel(
-          body =
-            ActivationInstructionsBodyModel(
-              onContinue =
-                props.onSuccess?.let {
-                  // Only continue if the props gave us a success callback, otherwise we're still loading.
-                  { state = State.ShowingStartFingerprintEnrollmentInstructionsUiState() }
-                },
-              onBack = props.onExit,
-              isNavigatingBack = s.isNavigatingBack,
-              eventTrackerScreenIdContext = props.eventTrackerContext
-            ),
+          body = ActivationInstructionsBodyModel(
+            onContinue = when (props.request) {
+              // Only continue if the props gave us a ready request
+              is PairNewHardwareProps.Request.Ready -> {
+                {
+                  state = ShowingStartFingerprintEnrollmentInstructionsUiState(props.request)
+                }
+              }
+              // Otherwise we're still loading
+              else -> null
+            },
+            onBack = props.onExit,
+            isNavigatingBack = s.isNavigatingBack,
+            eventTrackerScreenIdContext = props.eventTrackerContext
+          ),
           presentationStyle = pairNewHardwareBodyModelPresentationStyle,
           colorMode = ScreenColorMode.Dark
         )
 
-      is State.ShowingStartFingerprintEnrollmentInstructionsUiState ->
+      is ShowingStartFingerprintEnrollmentInstructionsUiState ->
         ScreenModel(
-          body =
-            StartFingerprintEnrollmentInstructionsBodyModel(
-              onButtonClick = { state = State.StartFingerprintEnrollmentViaNfcUiState },
-              onBack = { state = State.ShowingActivationInstructionsUiState(isNavigatingBack = true) },
-              isNavigatingBack = s.isNavigatingBack,
-              eventTrackerScreenIdContext = props.eventTrackerContext
-            ),
+          body = StartFingerprintEnrollmentInstructionsBodyModel(
+            onButtonClick = { state = StartFingerprintEnrollmentViaNfcUiState(s.request) },
+            onBack = {
+              state = ShowingActivationInstructionsUiState(isNavigatingBack = true)
+            },
+            isNavigatingBack = s.isNavigatingBack,
+            eventTrackerScreenIdContext = props.eventTrackerContext
+          ),
           presentationStyle = pairNewHardwareBodyModelPresentationStyle,
           colorMode = ScreenColorMode.Dark
         )
 
-      is State.StartFingerprintEnrollmentViaNfcUiState -> {
+      is StartFingerprintEnrollmentViaNfcUiState -> {
         LaunchedEffect("pairing-event") {
           eventTracker.track(action = ACTION_HW_ONBOARDING_OPEN)
         }
+
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
-            transaction =
-              startFingerprintEnrollmentTransactionProvider(
-                onCancel = {
-                  state = State.ShowingStartFingerprintEnrollmentInstructionsUiState(isNavigatingBack = true)
-                },
-                onSuccess = { state = State.ShowingCompleteFingerprintEnrollmentInstructionsUiState() },
-                isHardwareFake = props.keyboxConfig.isHardwareFake
-              ),
+            transaction = startFingerprintEnrollmentTransactionProvider(
+              onCancel = {
+                state =
+                  ShowingStartFingerprintEnrollmentInstructionsUiState(
+                    s.request,
+                    isNavigatingBack = true
+                  )
+              },
+              onSuccess = {
+                state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(s.request)
+              },
+              isHardwareFake = s.request.fullAccountConfig.isHardwareFake
+            ),
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_ACTIVATION,
-            onInauthenticHardware = { state = State.ShowingHelpCenter }
+            onInauthenticHardware = { state = ShowingHelpCenter }
           )
         )
       }
 
-      is State.ShowingCompleteFingerprintEnrollmentInstructionsUiState ->
+      is ShowingCompleteFingerprintEnrollmentInstructionsUiState ->
         HardwareFingerprintEnrollmentScreenModel(
           showingIncompleteEnrollmentError = s.showingIncompleteEnrollmentError,
           incompleteEnrollmentErrorOnPrimaryButtonClick = {
             state = s.copy(showingIncompleteEnrollmentError = false)
           },
           onSaveFingerprint = {
-            state = State.CompleteFingerprintEnrollmentViaNfcUiState
+            state = CompleteFingerprintEnrollmentViaNfcUiState(s.request)
           },
           onErrorOverlayClosed = {
             state = s.copy(showingIncompleteEnrollmentError = false)
           },
           onBack = {
-            state = State.ShowingStartFingerprintEnrollmentInstructionsUiState(
+            state = ShowingStartFingerprintEnrollmentInstructionsUiState(
+              s.request,
               isNavigatingBack = true
             )
           },
@@ -119,47 +137,44 @@ class PairNewHardwareUiStateMachineImpl(
           presentationStyle = pairNewHardwareBodyModelPresentationStyle
         )
 
-      is State.CompleteFingerprintEnrollmentViaNfcUiState -> {
+      is CompleteFingerprintEnrollmentViaNfcUiState -> {
         LaunchedEffect("fingerprint-event") {
           eventTracker.track(action = ACTION_HW_ONBOARDING_FINGERPRINT)
         }
         // activate hardware
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
-            transaction =
-              pairingTransactionProvider(
-                networkType = props.keyboxConfig.networkType,
-                onSuccess = { response ->
-                  when (response) {
-                    is FingerprintEnrolled -> {
-                      eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
-                      props.onSuccess?.let {
-                        it(response)
-                      } ?: run {
-                        log(Error) { "Unexpected null onSuccess when pairing hardware" }
-                      }
-                    }
-
-                    FingerprintNotEnrolled -> {
-                      state =
-                        State.ShowingCompleteFingerprintEnrollmentInstructionsUiState(
-                          showingIncompleteEnrollmentError = true
-                        )
-                    }
-
-                    FingerprintEnrollmentRestarted -> {
-                      state =
-                        State.ShowingCompleteFingerprintEnrollmentInstructionsUiState(
-                          showingIncompleteEnrollmentError = true
-                        )
-                    }
+            transaction = pairingTransactionProvider(
+              networkType = s.request.fullAccountConfig.bitcoinNetworkType,
+              appGlobalAuthPublicKey = s.request.appGlobalAuthPublicKey,
+              onSuccess = { response ->
+                when (response) {
+                  is FingerprintEnrolled -> {
+                    eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
+                    s.request.onSuccess(response)
                   }
-                },
-                onCancel = {
-                  state = State.ShowingCompleteFingerprintEnrollmentInstructionsUiState()
-                },
-                isHardwareFake = props.keyboxConfig.isHardwareFake
-              ),
+
+                  FingerprintNotEnrolled -> {
+                    state =
+                      ShowingCompleteFingerprintEnrollmentInstructionsUiState(
+                        s.request,
+                        showingIncompleteEnrollmentError = true
+                      )
+                  }
+
+                  FingerprintEnrollmentRestarted -> {
+                    state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(
+                      s.request,
+                      showingIncompleteEnrollmentError = true
+                    )
+                  }
+                }
+              },
+              onCancel = {
+                state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(s.request)
+              },
+              isHardwareFake = s.request.fullAccountConfig.isHardwareFake
+            ),
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_FINGERPRINT,
             onInauthenticHardware = {
@@ -170,13 +185,13 @@ class PairNewHardwareUiStateMachineImpl(
                 "Detected inauthentic hardware in CompleteFingerprintEnrollmentViaNfcUiState," +
                   "which shouldn't happen"
               }
-              state = State.ShowingHelpCenter
+              state = ShowingHelpCenter
             }
           )
         )
       }
 
-      is State.ShowingHelpCenter -> {
+      is ShowingHelpCenter -> {
         helpCenterUiStateMachine.model(
           props =
             HelpCenterUiProps(
@@ -199,18 +214,22 @@ class PairNewHardwareUiStateMachineImpl(
      * Showing instructions for how to start fingerprint enrollment.
      */
     data class ShowingStartFingerprintEnrollmentInstructionsUiState(
+      val request: PairNewHardwareProps.Request.Ready,
       val isNavigatingBack: Boolean = false,
     ) : State
 
     /**
      * Showing NFC screen to start fingerprint enrollment.
      */
-    data object StartFingerprintEnrollmentViaNfcUiState : State
+    data class StartFingerprintEnrollmentViaNfcUiState(
+      val request: PairNewHardwareProps.Request.Ready,
+    ) : State
 
     /**
      * Showing instructions for how to complete hardware fingerprint enrollment using NFC.
      */
     data class ShowingCompleteFingerprintEnrollmentInstructionsUiState(
+      val request: PairNewHardwareProps.Request.Ready,
       val showingIncompleteEnrollmentError: Boolean = false,
       val isNavigatingBack: Boolean = false,
     ) : State
@@ -219,7 +238,9 @@ class PairNewHardwareUiStateMachineImpl(
      * Showing NFC screen, waiting for customer to complete instructions and tap the hardware to
      * confirm fingerprint enrollment.
      */
-    data object CompleteFingerprintEnrollmentViaNfcUiState : State
+    data class CompleteFingerprintEnrollmentViaNfcUiState(
+      val request: PairNewHardwareProps.Request.Ready,
+    ) : State
 
     data object ShowingHelpCenter : State
   }

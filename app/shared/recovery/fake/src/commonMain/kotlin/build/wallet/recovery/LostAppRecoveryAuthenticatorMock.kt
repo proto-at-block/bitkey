@@ -4,9 +4,9 @@ import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AccountAuthTokensMock
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -19,7 +19,7 @@ class LostAppRecoveryAuthenticatorMock(
   val authenticateCalls = turbine("LostAppRecoveryAuthenticatorMock authenticate calls")
 
   override suspend fun authenticate(
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     fullAccountId: FullAccountId,
     authResponseSessionToken: String,
     hardwareAuthSignature: String,

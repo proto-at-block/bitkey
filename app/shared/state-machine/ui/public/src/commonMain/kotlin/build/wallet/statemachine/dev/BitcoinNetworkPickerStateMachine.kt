@@ -1,7 +1,7 @@
 package build.wallet.statemachine.dev
 
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 
 /**
@@ -10,5 +10,6 @@ import build.wallet.ui.model.list.ListGroupModel
 interface BitcoinNetworkPickerUiStateMachine : StateMachine<BitcoinNetworkPickerUiProps, ListGroupModel?>
 
 data class BitcoinNetworkPickerUiProps(
-  val templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData?,
+  val templateFullAccountConfigData:
+    TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData?,
 )

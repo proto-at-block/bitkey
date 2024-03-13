@@ -41,6 +41,10 @@ pub enum ServiceError {
     Notification(#[from] notification::NotificationError),
     #[error(transparent)]
     NotificationPayloadBuilder(#[from] notification::NotificationPayloadBuilderError),
+    #[error("Account has reached the maximum number of trusted contacts")]
+    MaxTrustedContactsReached,
+    #[error("Account has reached the maximum number of protected customers")]
+    MaxProtectedCustomersReached,
 }
 
 impl From<ServiceError> for ApiError {
@@ -74,6 +78,16 @@ impl From<ServiceError> for ApiError {
                 field: None,
             },
             ServiceError::Notification(e) => e.into(),
+            ServiceError::MaxTrustedContactsReached => ApiError::Specific {
+                code: ErrorCode::MaxTrustedContactsReached,
+                detail: Some(msg),
+                field: None,
+            },
+            ServiceError::MaxProtectedCustomersReached => ApiError::Specific {
+                code: ErrorCode::MaxProtectedCustomersReached,
+                detail: Some(msg),
+                field: None,
+            },
         }
     }
 }

@@ -72,7 +72,6 @@ impl RecoveryRelationshipCommonFields {
 pub struct RecoveryRelationshipConnectionFields {
     pub customer_alias: String, // This is the trusted contact's alias for the customer
     pub trusted_contact_account_id: AccountId,
-    pub trusted_contact_identity_pubkey: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -80,19 +79,23 @@ pub struct RecoveryRelationshipInvitation {
     #[serde(flatten)]
     pub common_fields: RecoveryRelationshipCommonFields,
     pub code: String,
+    pub code_bit_length: usize,
     #[serde(with = "rfc3339")]
     pub expires_at: OffsetDateTime,
     // The enrollment fields are thrown away once the customer has
     // endorsed the Trusted Contact
-    pub customer_enrollment_pubkey: String,
+    pub protected_customer_enrollment_pake_pubkey: String,
 }
 
 impl RecoveryRelationshipInvitation {
-    pub fn reissue(&self, code: &str, expires_at: &OffsetDateTime) -> Self {
+    pub fn reissue(&self, code: &str, code_bit_length: usize, expires_at: &OffsetDateTime) -> Self {
         Self {
             common_fields: self.common_fields.to_owned(),
-            customer_enrollment_pubkey: self.customer_enrollment_pubkey.to_owned(),
+            protected_customer_enrollment_pake_pubkey: self
+                .protected_customer_enrollment_pake_pubkey
+                .to_owned(),
             code: code.to_owned(),
+            code_bit_length,
             expires_at: expires_at.to_owned(),
         }
     }
@@ -108,12 +111,10 @@ pub struct RecoveryRelationshipUnendorsed {
     pub common_fields: RecoveryRelationshipCommonFields,
     #[serde(flatten)]
     pub connection_fields: RecoveryRelationshipConnectionFields,
-    // The enrollment fields are thrown away once the customer has
-    // endorsed the Trusted Contact
-    pub customer_enrollment_pubkey: String,
-    pub trusted_contact_enrollment_pubkey: String,
-    pub trusted_contact_identity_pubkey_mac: String,
-    pub enrollment_key_confirmation: String,
+    pub sealed_delegated_decryption_pubkey: String,
+    pub trusted_contact_enrollment_pake_pubkey: String,
+    pub enrollment_pake_confirmation: String,
+    pub protected_customer_enrollment_pake_pubkey: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Builder)]
@@ -122,7 +123,7 @@ pub struct RecoveryRelationshipEndorsed {
     pub common_fields: RecoveryRelationshipCommonFields,
     #[serde(flatten)]
     pub connection_fields: RecoveryRelationshipConnectionFields,
-    pub endorsement_key_certificate: String,
+    pub delegated_decryption_pubkey_certificate: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -138,8 +139,9 @@ impl RecoveryRelationship {
         id: &RecoveryRelationshipId,
         customer_account_id: &AccountId,
         trusted_contact_alias: &str,
-        customer_enrollment_pubkey: &str,
+        protected_customer_enrollment_pake_pubkey: &str,
         code: &str,
+        code_bit_length: usize,
         expires_at: &OffsetDateTime,
     ) -> Self {
         Self::Invitation(RecoveryRelationshipInvitation {
@@ -151,8 +153,10 @@ impl RecoveryRelationship {
                 updated_at: OffsetDateTime::now_utc(),
             },
             code: code.to_owned(),
+            code_bit_length,
             expires_at: expires_at.to_owned(),
-            customer_enrollment_pubkey: customer_enrollment_pubkey.to_owned(),
+            protected_customer_enrollment_pake_pubkey: protected_customer_enrollment_pake_pubkey
+                .to_owned(),
         })
     }
 
@@ -169,25 +173,32 @@ impl RecoveryRelationship {
             Self::Invitation(invitation) => Self::Invitation(RecoveryRelationshipInvitation {
                 common_fields: common_fields.to_owned(),
                 code: invitation.code.to_owned(),
+                code_bit_length: invitation.code_bit_length,
                 expires_at: invitation.expires_at.to_owned(),
-                customer_enrollment_pubkey: invitation.customer_enrollment_pubkey.to_owned(),
+                protected_customer_enrollment_pake_pubkey: invitation
+                    .protected_customer_enrollment_pake_pubkey
+                    .to_owned(),
             }),
             Self::Unendorsed(connection) => Self::Unendorsed(RecoveryRelationshipUnendorsed {
                 common_fields: common_fields.to_owned(),
                 connection_fields: connection.connection_fields.to_owned(),
-                customer_enrollment_pubkey: connection.customer_enrollment_pubkey.to_owned(),
-                trusted_contact_enrollment_pubkey: connection
-                    .trusted_contact_enrollment_pubkey
+                sealed_delegated_decryption_pubkey: connection
+                    .sealed_delegated_decryption_pubkey
                     .to_owned(),
-                trusted_contact_identity_pubkey_mac: connection
-                    .trusted_contact_identity_pubkey_mac
+                trusted_contact_enrollment_pake_pubkey: connection
+                    .trusted_contact_enrollment_pake_pubkey
                     .to_owned(),
-                enrollment_key_confirmation: connection.enrollment_key_confirmation.to_owned(),
+                enrollment_pake_confirmation: connection.enrollment_pake_confirmation.to_owned(),
+                protected_customer_enrollment_pake_pubkey: connection
+                    .protected_customer_enrollment_pake_pubkey
+                    .to_owned(),
             }),
             Self::Endorsed(connection) => Self::Endorsed(RecoveryRelationshipEndorsed {
                 common_fields: common_fields.to_owned(),
                 connection_fields: connection.connection_fields.to_owned(),
-                endorsement_key_certificate: connection.endorsement_key_certificate.to_owned(),
+                delegated_decryption_pubkey_certificate: connection
+                    .delegated_decryption_pubkey_certificate
+                    .to_owned(),
             }),
         }
     }
@@ -196,5 +207,5 @@ impl RecoveryRelationship {
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 pub struct RecoveryRelationshipEndorsement {
     pub recovery_relationship_id: RecoveryRelationshipId,
-    pub endorsement_key_certificate: String,
+    pub delegated_decryption_pubkey_certificate: String,
 }

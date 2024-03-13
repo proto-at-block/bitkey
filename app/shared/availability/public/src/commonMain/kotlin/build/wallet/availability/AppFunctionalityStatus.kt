@@ -38,7 +38,8 @@ sealed interface AppFunctionalityStatus {
             securityAndRecovery = Available,
             fiatExchangeRates = Available,
             notifications = Available,
-            helpCenter = Available
+            helpCenter = Available,
+            cloudBackupHealth = Available
           )
 
         is LimitedFunctionality -> cause.featureStates

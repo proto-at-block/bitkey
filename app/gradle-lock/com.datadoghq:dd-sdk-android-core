@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.datadoghq:dd-sdk-android-core",
+    "components": [
+        {
+            "version": "2.6.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dd-sdk-android-core-2.6.2.aar": "a88b494a44764a8243cec3685344579507a1839c81841ca2015c85f3876650ed"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

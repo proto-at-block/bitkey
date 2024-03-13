@@ -7,6 +7,7 @@ import build.wallet.auth.AccessToken
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AppAuthKeyMessageSignerMock
+import build.wallet.auth.AuthKeyRotationManagerMock
 import build.wallet.auth.AuthTokenDaoMock
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
@@ -14,8 +15,8 @@ import build.wallet.auth.RefreshToken
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.wallet.SpendingWalletMock
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.cloud.backup.AccountRestorationMock
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorerMock
@@ -41,7 +42,7 @@ import build.wallet.recovery.socrec.SocRecChallengeRepositoryMock
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -50,10 +51,9 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachineImpl
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
@@ -79,11 +79,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
     object : NfcSessionUIStateMachine,
       ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
         "sign-auth-challenge-fake"
-      ) {}
-  val rotateAuthKeyUIStateMachine =
-    object : RotateAuthKeyUIStateMachine,
-      ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>(
-        "rotate-auth-key-fake"
       ) {}
   val recoveryChallengeUiStateMachineMock =
     object : RecoveryChallengeUiStateMachine,
@@ -112,6 +107,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
   val socRecPendingChallengeDao = SocRecStartedChallengeDaoFake()
 
+  val authKeyRotationManager = AuthKeyRotationManagerMock(turbines::create)
+
   val stateMachineActiveDeviceFlagOn =
     FullAccountCloudBackupRestorationUiStateMachineImpl(
       appSpendingWalletProvider =
@@ -137,14 +134,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       postSocRecTaskRepository = postSocRecTaskRepository,
       socRecStartedChallengeDao = socRecPendingChallengeDao,
       inactiveDeviceIsEnabledFeatureFlag = inactiveDeviceIsEnabledFeatureFlag,
-      rotateAuthKeyUIStateMachine = rotateAuthKeyUIStateMachine
+      authKeyRotationManager = authKeyRotationManager
     )
 
   val props =
     FullAccountCloudBackupRestorationUiProps(
-      keyboxConfig =
-        KeyboxConfig(
-          networkType = SIGNET,
+      fullAccountConfig =
+        FullAccountConfig(
+          bitcoinNetworkType = SIGNET,
           isHardwareFake = false,
           f8eEnvironment = Development,
           isUsingSocRecFakes = false,
@@ -175,7 +172,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
       // Cloud back up found model
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -186,7 +183,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       csekDao.get(SealedCsekFake).shouldBe(Ok(CsekFake))
 
       // activating restored keybox
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       cloudBackupDao.get("account-id").shouldBeOk(CloudBackupV2WithFullAccountMock)
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -222,10 +221,12 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
       recoverySyncer.clearCalls.awaitItem()
+      socRecRelationshipsRepository.syncCalls.awaitItem()
 
-      awaitScreenWithBodyModelMock<RotateAuthKeyUIStateMachineProps>(
-        id = rotateAuthKeyUIStateMachine.id
-      )
+      authKeyRotationManager.recommendKeyRotationCalls.awaitItem()
+      keyboxDao.activeKeybox.value
+        .shouldBeOk()
+        .shouldNotBeNull()
     }
   }
 })

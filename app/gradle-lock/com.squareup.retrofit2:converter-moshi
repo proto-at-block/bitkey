@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.retrofit2:converter-moshi",
+    "components": [
+        {
+            "version": "2.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "converter-moshi-2.9.0.jar": "e26cf1256afa208e13ab6d8fbfd458faa448f24b72799d8de55c0363f619be43"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

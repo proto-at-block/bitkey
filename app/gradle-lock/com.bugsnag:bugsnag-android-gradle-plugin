@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.bugsnag:bugsnag-android-gradle-plugin",
+    "components": [
+        {
+            "version": "8.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bugsnag-android-gradle-plugin-8.1.0.jar": "513b42cece7ad55c99d82be9aaa4147ab91d13134ec8b5164501dd029ebb6ea1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

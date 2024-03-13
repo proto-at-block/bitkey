@@ -93,7 +93,6 @@ kotlin {
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.bitkeyPrimitivesPublic)
         implementation(projects.shared.integrationTestingPublic)
-        implementation(projects.shared.stateMachineDataTesting)
         implementation(projects.shared.stateMachineFrameworkTesting)
       }
     }

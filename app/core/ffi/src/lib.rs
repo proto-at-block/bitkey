@@ -3,11 +3,14 @@ mod types;
 
 use crate::csek::{SealKey, UnsealKey};
 use crypto::chacha20poly1305::{ChaCha20Poly1305Error, XChaCha20Poly1305};
+use crypto::crypto_box::{CryptoBox, CryptoBoxError, CryptoBoxKeyPair};
 use crypto::ecdh::Secp256k1SharedSecret;
 use crypto::hkdf::{Hkdf, HkdfError};
 use crypto::invoice::{Invoice, InvoiceError, Sha256};
 use crypto::keys::{PublicKey, SecretKey, SecretKeyError};
+use crypto::signature_verifier::{SignatureVerifier, SignatureVerifierError};
 use crypto::spake2::{Spake2Context, Spake2Error, Spake2Keys, Spake2Role};
+use crypto::wsm_integrity::{WsmContext, WsmIntegrityVerifier, WsmIntegrityVerifierError};
 use teltra::{TelemetryIdentifiers, Teltra, TeltraError};
 use wca::attestation::{Attestation, AttestationError};
 use wca::command_interface::{Command, State};

@@ -1,46 +1,40 @@
 import { Construct } from "constructs";
-import { getRecipients } from "./recipients";
+import { getErrorRecipients } from "./recipients";
 import { Environment } from "./common/environments";
-import { SnsFailureRateHighMonitor, SqsQueueLongMonitor, TwilioFailureRateHighMonitor } from "./common/notifications";
+import { SnsFailureCompositeMonitor, SqsQueueLongMonitor, TwilioFailureCompositeMonitor } from "./common/notifications";
 
 export class NotificationsMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `notifications_${environment}`);
 
-    const recipients = getRecipients(environment);
+    const recipients = getErrorRecipients(environment);
 
-    new SnsFailureRateHighMonitor(this, "sns_failure_rate_high", {
-      name: `[Notifications] SNS has a high failure rate on env:${environment}`,
-      message: "SNS failure rate is too high.",
-      tags: [`env:${environment}`],
-      monitorThresholds: {
-        critical: "0.33",
-      },
+    new SnsFailureCompositeMonitor(this, "sns_failure_composite", {
+      environment,
+      tags: [],
+      rateThreshold: "0.33",
+      countThreshold: "10",
+      recipients: recipients,
       dataDogLink: `https://app.datadoghq.com/dashboard/da2-x25-fdz/wip-notifications-dashboard?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&live=true`,
-      recipients: recipients, // TODO: high priority after testing
     });
 
-    new TwilioFailureRateHighMonitor(this, "twilio_failure_rate_high", {
-      name: `[Notifications] Twilio has a high failure rate on env:${environment}`,
-      message: "Twilio failure rate is too high.",
-      tags: [`env:${environment}`],
-      monitorThresholds: {
-        critical: "0.25",
-      },
+    new TwilioFailureCompositeMonitor(this, "twilio_failure_composite", {
+      environment,
+      tags: [],
+      rateThreshold: "0.33",
+      countThreshold: "10",
+      recipients,
       dataDogLink: `https://app.datadoghq.com/dashboard/da2-x25-fdz/wip-notifications-dashboard?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&live=true`,
-      recipients: recipients, // TODO: high priority after testing
     });
 
-    new TwilioFailureRateHighMonitor(this, "twilio_failure_rate_by_country_high", {
-      name: `[Notifications] Twilio has a high failure rate by country on env:${environment}`,
-      message: "Twilio failure rate by country is too high.",
-      tags: [`env:${environment}`],
-      monitorThresholds: {
-        critical: "0.75",
-      },
-      dataDogLink: `https://app.datadoghq.com/dashboard/da2-x25-fdz/wip-notifications-dashboard?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&live=true`,
-      recipients: recipients, // TODO: high priority after testing
+    new TwilioFailureCompositeMonitor(this, "twilio_failure_composite_by_country", {
       byCountry: true,
+      environment,
+      tags: [],
+      rateThreshold: "0.75",
+      countThreshold: "10",
+      recipients,
+      dataDogLink: `https://app.datadoghq.com/dashboard/da2-x25-fdz/wip-notifications-dashboard?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&live=true`,
     });
 
     new SqsQueueLongMonitor(this, "sqs_queue_long", {

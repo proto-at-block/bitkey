@@ -5,10 +5,12 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_HW_RECOVERY_STARTED
-import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.bitkey.keybox.KeyboxConfigMock
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.nfc.transaction.PairingTransactionResponse
@@ -17,7 +19,7 @@ import build.wallet.statemachine.account.create.full.hardware.PairNewHardwarePro
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachine
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -31,12 +33,15 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.clickSecondaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeTypeOf
 import okio.ByteString.Companion.encodeUtf8
 
 class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
@@ -80,23 +85,25 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
 
   val sealedCsekMock = "sealedCsek".encodeUtf8()
 
-  val awaitingProps =
-    InitiatingLostHardwareRecoveryProps(
-      keyboxConfig = KeyboxConfigMock,
-      fullAccountId = FullAccountIdMock,
-      screenPresentationStyle = Modal,
-      instructionsStyle = InstructionsStyle.Independent,
-      initiatingLostHardwareRecoveryData =
-        AwaitingNewHardwareData(
-          addHardwareKeys = { sealedCsek: SealedCsek, keyBundle: HwKeyBundle ->
-            addHardwareKeysCalls += sealedCsek to keyBundle
-          }
-        ),
-      onFoundHardware = {},
-      onExit = {
-        onExitCalls += Unit
+  val awaitingProps = InitiatingLostHardwareRecoveryProps(
+    account = FullAccountMock,
+    screenPresentationStyle = Modal,
+    instructionsStyle = InstructionsStyle.Independent,
+    initiatingLostHardwareRecoveryData = AwaitingNewHardwareData(
+      newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+      addHardwareKeys = {
+          sealedCsek: SealedCsek,
+          keyBundle: HwKeyBundle,
+          _: AppGlobalAuthKeyHwSignature,
+        ->
+        addHardwareKeysCalls += sealedCsek to keyBundle
       }
-    )
+    ),
+    onFoundHardware = {},
+    onExit = {
+      onExitCalls += Unit
+    }
+  )
 
   val initiatingProps =
     awaitingProps.copy(
@@ -151,7 +158,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
           )
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -159,13 +166,20 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
           )
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<PairNewHardwareProps> {
-        onSuccess.shouldNotBeNull().invoke(
-          PairingTransactionResponse.FingerprintEnrolled(HwKeyBundleMock, sealedCsekMock, "")
-        )
+        request
+          .shouldBeTypeOf<PairNewHardwareProps.Request.Ready>()
+          .onSuccess(
+            PairingTransactionResponse.FingerprintEnrolled(
+              appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
+              keyBundle = HwKeyBundleMock,
+              sealedCsek = sealedCsekMock,
+              serial = ""
+            )
+          )
       }
 
       addHardwareKeysCalls.awaitItem().let { (sealedCsek, keyBundle) ->
@@ -202,7 +216,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
           )
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -231,7 +245,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
           )
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -239,7 +253,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
           )
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
       }
 
       with(awaitItem()) {
@@ -264,7 +278,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
           )
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       with(awaitItem()) {
@@ -275,7 +289,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           )
         alertModel.shouldBeNull()
         with(body.shouldBeInstanceOf<FormBodyModel>()) {
-          secondaryButton.shouldNotBeNull().onClick()
+          clickSecondaryButton()
         }
       }
 
@@ -304,7 +318,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     stateMachine.test(
       props = initiatingProps
     ) {
-      awaitScreenWithBody<LoadingBodyModel> {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
@@ -317,7 +331,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
     stateMachine.test(
       props = initiatingProps
     ) {
-      awaitScreenWithBody<LoadingBodyModel> {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
@@ -346,7 +360,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       retryCalls.awaitItem()
     }
@@ -359,7 +373,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
       }
       rollbackCalls.awaitItem()
     }
@@ -383,7 +397,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       retryCalls.awaitItem()
     }
@@ -396,7 +410,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         id.shouldNotBeNull()
           .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
       }
       rollbackCalls.awaitItem()
     }

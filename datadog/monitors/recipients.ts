@@ -1,17 +1,33 @@
 import { Environment } from "./common/environments";
 
-const DEFAULT_LOW_PRIORITY_RECIPIENTS = ["@slack-Block-w1-alerts"];
-const DEFAULT_HIGH_PRIORITY_RECIPIENTS = ["@slack-Block-w1-alerts", "@pagerduty-fromagerie"];
-const DEFAULT_STAGING_RECIPIENTS = ["@slack-Block-w1-alerts-staging"];
+const PROD_CRITICAL_RECIPIENTS = ["@slack-Block-w1-alerts", "@pagerduty-fromagerie"];
+const PROD_ERROR_RECIPIENTS = ["@slack-Block-w1-robots"];
+const PROD_WARNING_RECIPIENTS = ["@slack-Block-w1-noise"];
+const STAGE_RECIPIENTS = ["@slack-Block-w1-alerts-staging"];
 
-export const getRecipients = (environment: Environment, highPriority?: boolean) => {
+// Critical: goes to alerts channel and pages (oncall should address at any hour)
+export const getCriticalRecipients = (environment: Environment) => {
     if (environment === Environment.PRODUCTION) {
-        if (highPriority) {
-            return DEFAULT_HIGH_PRIORITY_RECIPIENTS;
-        } else {
-            return DEFAULT_LOW_PRIORITY_RECIPIENTS;
-        }
+        return PROD_CRITICAL_RECIPIENTS;
     } else {
-        return DEFAULT_STAGING_RECIPIENTS;
+        return STAGE_RECIPIENTS;
+    }
+}
+
+// Error: goes to robots channel (oncall should check during biz hours)
+export const getErrorRecipients = (environment: Environment) => {
+    if (environment === Environment.PRODUCTION) {
+        return PROD_ERROR_RECIPIENTS;
+    } else {
+        return STAGE_RECIPIENTS;
+    }
+}
+
+// Warning: goes to noise channel (neither of above, maybe useful for debugging / investigations)
+export const getWarningRecipients = (environment: Environment) => {
+    if (environment === Environment.PRODUCTION) {
+        return PROD_WARNING_RECIPIENTS;
+    } else {
+        return STAGE_RECIPIENTS;
     }
 }

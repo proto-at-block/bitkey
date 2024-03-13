@@ -13,6 +13,8 @@ import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaised
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
 import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
+import build.wallet.statemachine.core.Icon.CloudBackupEmergencyAccessKit
+import build.wallet.statemachine.core.Icon.CloudBackupMobileKey
 import build.wallet.statemachine.core.Icon.LargeIconAdd
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
 import build.wallet.statemachine.core.Icon.LargeIconCheckStroked
@@ -45,6 +47,7 @@ import build.wallet.statemachine.core.Icon.SmallIconCaretUp
 import build.wallet.statemachine.core.Icon.SmallIconCheck
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
+import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
 import build.wallet.statemachine.core.Icon.SmallIconCloud
@@ -55,6 +58,7 @@ import build.wallet.statemachine.core.Icon.SmallIconDigitThree
 import build.wallet.statemachine.core.Icon.SmallIconDigitTwo
 import build.wallet.statemachine.core.Icon.SmallIconElectrum
 import build.wallet.statemachine.core.Icon.SmallIconEmail
+import build.wallet.statemachine.core.Icon.SmallIconExternal
 import build.wallet.statemachine.core.Icon.SmallIconInformation
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
 import build.wallet.statemachine.core.Icon.SmallIconKey
@@ -64,6 +68,8 @@ import build.wallet.statemachine.core.Icon.SmallIconMessage
 import build.wallet.statemachine.core.Icon.SmallIconMinus
 import build.wallet.statemachine.core.Icon.SmallIconMinusFilled
 import build.wallet.statemachine.core.Icon.SmallIconMinusStroked
+import build.wallet.statemachine.core.Icon.SmallIconMobileKey
+import build.wallet.statemachine.core.Icon.SmallIconMobileLimit
 import build.wallet.statemachine.core.Icon.SmallIconNotification
 import build.wallet.statemachine.core.Icon.SmallIconPause
 import build.wallet.statemachine.core.Icon.SmallIconPauseFilled
@@ -85,6 +91,7 @@ import build.wallet.statemachine.core.Icon.SmallIconShieldCheck
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
 import build.wallet.statemachine.core.Icon.SmallIconSpeed
 import build.wallet.statemachine.core.Icon.SmallIconSwap
+import build.wallet.statemachine.core.Icon.SmallIconSync
 import build.wallet.statemachine.core.Icon.SmallIconTicket
 import build.wallet.statemachine.core.Icon.SmallIconVideo
 import build.wallet.statemachine.core.Icon.SmallIconWallet
@@ -108,6 +115,8 @@ private val Icon.drawableRes
       BitkeyDeviceRaised -> R.drawable.bitkey_device_raised
       BitkeyDeviceRaisedSmall -> R.drawable.bitkey_device_raised_small
       BuyOwnBitkeyHero -> R.drawable.buy_own_bitkey_hero
+      CloudBackupEmergencyAccessKit -> R.drawable.cloud_backup_emergency_access_kit
+      CloudBackupMobileKey -> R.drawable.cloud_backup_mobile_key
       LargeIconAdd -> R.drawable.large_icon_add
       LargeIconCheckFilled -> R.drawable.large_icon_check_filled
       LargeIconCheckStroked -> R.drawable.large_icon_check_stroked
@@ -150,6 +159,8 @@ private val Icon.drawableRes
       SmallIconDigitTwo -> R.drawable.small_icon_digit_two
       SmallIconElectrum -> R.drawable.small_icon_electrum
       SmallIconEmail -> R.drawable.small_icon_email
+      SmallIconExternal -> R.drawable.small_icon_external
+      SmallIconCircleStroked -> R.drawable.small_icon_circle_stroked
       SmallIconInformation -> R.drawable.small_icon_information
       SmallIconInformationFilled -> R.drawable.small_icon_information_filled
       SmallIconKey -> R.drawable.small_icon_key
@@ -159,6 +170,8 @@ private val Icon.drawableRes
       SmallIconMinus -> R.drawable.small_icon_minus
       SmallIconMinusFilled -> R.drawable.small_icon_minus_filled
       SmallIconMinusStroked -> R.drawable.small_icon_minus_stroked
+      SmallIconMobileKey -> R.drawable.small_icon_mobile_key
+      SmallIconMobileLimit -> R.drawable.small_icon_mobile_limit
       SmallIconNotification -> R.drawable.small_icon_notification
       SmallIconPause -> R.drawable.small_icon_pause
       SmallIconPauseFilled -> R.drawable.small_icon_pause_filled
@@ -180,6 +193,7 @@ private val Icon.drawableRes
       SmallIconShieldPerson -> R.drawable.small_icon_shield_person
       SmallIconSpeed -> R.drawable.small_icon_speed
       SmallIconSwap -> R.drawable.small_icon_swap
+      SmallIconSync -> R.drawable.small_icon_sync
       SmallIconTicket -> R.drawable.small_icon_ticket
       SmallIconVideo -> R.drawable.small_icon_video
       SmallIconWallet -> R.drawable.small_icon_wallet

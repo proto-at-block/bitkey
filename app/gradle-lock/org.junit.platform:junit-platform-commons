@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.junit.platform:junit-platform-commons",
+    "components": [
+        {
+            "version": "1.8.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-platform-commons-1.8.2.jar": "d2e015fca7130e79af2f4608dc54415e4b10b592d77333decb4b1a274c185050"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

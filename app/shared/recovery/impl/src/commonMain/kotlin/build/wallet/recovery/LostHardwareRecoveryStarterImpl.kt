@@ -1,8 +1,8 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.requireRecoveryAuthKey
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyService
@@ -22,6 +22,7 @@ class LostHardwareRecoveryStarterImpl(
     activeKeybox: Keybox,
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, InitiateDelayNotifyHardwareRecoveryError> =
     binding {
       // Persist local pending recovery state
@@ -30,6 +31,7 @@ class LostHardwareRecoveryStarterImpl(
           fullAccountId = activeKeybox.fullAccountId,
           appKeyBundle = destinationAppKeyBundle,
           hwKeyBundle = destinationHardwareKeyBundle,
+          appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
           lostFactor = Hardware
         )
       ).mapError { FailedToPersistRecoveryStateError(it) }
@@ -41,7 +43,7 @@ class LostHardwareRecoveryStarterImpl(
           fullAccountId = activeKeybox.fullAccountId,
           lostFactor = Hardware,
           appGlobalAuthKey = destinationAppKeyBundle.authKey,
-          appRecoveryAuthKey = destinationAppKeyBundle.requireRecoveryAuthKey(),
+          appRecoveryAuthKey = destinationAppKeyBundle.recoveryAuthKey,
           delayPeriod = activeKeybox.config.delayNotifyDuration,
           hardwareAuthKey = destinationHardwareKeyBundle.authKey
         ).mapError { F8eInitiateDelayNotifyError(it) }.bind()

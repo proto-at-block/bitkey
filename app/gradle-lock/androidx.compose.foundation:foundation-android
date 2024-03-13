@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.foundation:foundation-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "foundation-release.aar": "74075b7f5de082f77ce27b80b8787c59ac3ec86d0a66bf5754377211f2894072"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

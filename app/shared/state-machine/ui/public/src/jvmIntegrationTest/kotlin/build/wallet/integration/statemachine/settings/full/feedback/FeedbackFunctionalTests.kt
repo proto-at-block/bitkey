@@ -3,10 +3,9 @@ package build.wallet.integration.statemachine.settings.full.feedback
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.setFlagValue
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
@@ -42,6 +41,7 @@ class FeedbackFunctionalTests : FunSpec({
     val appTester = launchNewApp()
     account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.appComponent.feedbackFormNewUiEnabledFeatureFlag.setFlagValue(true)
+    appTester.app.appComponent.feedbackFormAddAttachmentsFeatureFlag.setFlagValue(true)
     feedbackStateMachine = appTester.app.feedbackUiStateMachine
   }
 
@@ -49,10 +49,11 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          keyboxConfig = account.keybox.config,
+          f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        )
+        ),
+      useVirtualTime = false
     ) {
       awaitFeedbackFilling {
         withClue("primary button") {
@@ -77,10 +78,11 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          keyboxConfig = account.keybox.config,
+          f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        )
+        ),
+      useVirtualTime = false
     ) {
       withClue("Empty form, filling email") {
         awaitFeedbackFilling {
@@ -150,10 +152,11 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          keyboxConfig = account.keybox.config,
+          f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        )
+        ),
+      useVirtualTime = false
     ) {
       fillForm(
         beforeEach = {
@@ -171,45 +174,13 @@ class FeedbackFunctionalTests : FunSpec({
         }
       )
 
-      awaitFeedbackFilling {
-        val alert =
-          withClue("alertModel") {
-            screen.alertModel.shouldNotBeNull()
-          }
-
-        alert.title shouldBe "Are you ready to submit?"
-        alert.secondaryButtonText shouldBe "Not yet"
-        alert.onSecondaryButtonClick.shouldNotBeNull()
-          .invoke()
-      }
-
-      awaitFeedbackFilling {
-        withClue("alertModel") {
-          screen.alertModel.shouldBeNull()
-        }
-        withClue("primary button") {
-          val primary = primaryButton.shouldNotBeNull()
-          primary.isEnabled.shouldBeTrue()
-          primary.onClick.invoke()
-        }
-      }
-
-      awaitFeedbackFilling {
-        val alert =
-          withClue("alertModel") {
-            screen.alertModel.shouldNotBeNull()
-          }
-
-        alert.title shouldBe "Are you ready to submit?"
-        alert.primaryButtonText shouldBe "Submit"
-        alert.onPrimaryButtonClick.invoke()
-      }
-
-      awaitUntilScreenWithBody<LoadingBodyModel>(
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
         id = FeedbackEventTrackerScreenId.FEEDBACK_SUBMITTING
-      )
+      ) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
-      awaitUntilScreenWithBody<SuccessBodyModel>(
+      awaitUntilScreenWithBody<FormBodyModel>(
         id = FeedbackEventTrackerScreenId.FEEDBACK_SUBMIT_SUCCESS
       )
 
@@ -221,10 +192,11 @@ class FeedbackFunctionalTests : FunSpec({
     feedbackStateMachine.test(
       props =
         FeedbackUiProps(
-          keyboxConfig = account.keybox.config,
+          f8eEnvironment = account.config.f8eEnvironment,
           accountId = account.accountId,
           onBack = { onBackCalls.add(Unit) }
-        )
+        ),
+      useVirtualTime = false
     ) {
       awaitFeedbackFilling {
         val categoryPicker =

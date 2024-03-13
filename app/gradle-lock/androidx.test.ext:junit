@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test.ext:junit",
+    "components": [
+        {
+            "version": "1.1.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-1.1.5.aar": "4307c0e60f5d701db9c59bcd9115af705113c36a9132fa3dbad58db1294e9bfd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

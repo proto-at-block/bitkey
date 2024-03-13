@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.sqldelight:sqlite-driver",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sqlite-driver-2.0.1.jar": "ba876dc63abdee4a698a5395c6a62fc062582cb181ba9bb203e97e548b8aa45c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

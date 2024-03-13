@@ -1,0 +1,20 @@
+{
+    "module-identifier": "org.jetbrains.intellij.deps:trove4j",
+    "components": [
+        {
+            "version": "1.0.20200330",
+            "variants": [
+                {
+                    "artifacts": {
+                        "trove4j-1.0.20200330.jar": "c5fd725bffab51846bf3c77db1383c60aaaebfe1b7fe2f00d23fe1b7df0a439d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

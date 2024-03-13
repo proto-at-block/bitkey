@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import uuid, binascii, sys
+
+def flavor_byte(flavor):
+    if flavor == "debug":
+        return b'\x01'
+    elif flavor == "customer":
+        return b'\x02'
+    elif flavor == "beta":
+        return b'\x03'
+    elif flavor == "team":
+        return b'\x04'
+    elif flavor == "emergency":
+        return b'\x05'
+    else:
+        sys.exit(f"Unknown flavor {flavor}")
+
+def commit_hash_bytes(commit_hash):
+    return binascii.unhexlify(commit_hash)[:15]
+
+if len(sys.argv) != 6:
+    sys.exit(f"Usage: {sys.argv[0]} <commit_hash> <flavor> <emergency_apk_hash> <emergency_apk_version> <emergency_apk_url>")
+
+commit_hash = sys.argv[1]
+flavor = sys.argv[2]
+emergency_apk_hash = sys.argv[3]
+emergency_apk_version = sys.argv[4]
+emergency_apk_url = sys.argv[5]
+
+bugsnag_uuid = uuid.UUID(bytes=commit_hash_bytes(commit_hash) + flavor_byte(flavor), version=4)
+
+print(
+    "{\n"
+    f'  "bugsnagId": "{bugsnag_uuid}",\n'
+    f'  "emergencyApkHash": "{emergency_apk_hash}",\n'
+    f'  "emergencyApkVersion": "{emergency_apk_version}",\n'
+    f'  "emergencyApkUrl": "{emergency_apk_url}"\n'
+    "}"
+)
+

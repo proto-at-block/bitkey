@@ -3,13 +3,13 @@ import {Monitor} from "./common/monitor";
 import {log_count_query, trace_analytics_count_query} from "./common/queries";
 
 import {Environment} from "./common/environments";
-import { getRecipients } from "./recipients";
+import { getErrorRecipients } from "./recipients";
 
 export class PartnershipsMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `partnerships_${environment}`);
 
-    let recipients = getRecipients(environment)
+    let recipients = getErrorRecipients(environment)
 
     let log_alert_config = {
       recipients: recipients,

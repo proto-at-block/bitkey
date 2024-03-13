@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.jakewharton.picnic:picnic",
+    "components": [
+        {
+            "version": "0.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "picnic-metadata.jar": "918eee0d1bda29a1593a8f71ebbe55db1b6c9d72aa9fccb65510fac51f69d440"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

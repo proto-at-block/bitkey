@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.bugsnag:bugsnag-android-core",
+    "components": [
+        {
+            "version": "5.31.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bugsnag-android-core-5.31.1.aar": "10e2fcd8193124254565e79dc321c5c3b50add055694a5f7dfd5d0885da992ea"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

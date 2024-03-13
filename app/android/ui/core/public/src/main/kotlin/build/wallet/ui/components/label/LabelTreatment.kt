@@ -8,4 +8,5 @@ enum class LabelTreatment {
   Disabled,
   Strikethrough,
   Warning,
+  Jumbo,
 }

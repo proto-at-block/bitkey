@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.f8e.LiteAccountId
@@ -18,11 +19,13 @@ val KeyboxMock =
     localId = "keybox-fake-id",
     fullAccountId = FullAccountIdMock,
     activeSpendingKeyset = SpendingKeysetMock,
-    activeKeyBundle = AppKeyBundleMock,
+    activeAppKeyBundle = AppKeyBundleMock,
+    activeHwKeyBundle = HwKeyBundleMock,
     inactiveKeysets = emptyImmutableList(),
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     config =
-      KeyboxConfig(
-        networkType = SIGNET,
+      FullAccountConfig(
+        bitcoinNetworkType = SIGNET,
         isHardwareFake = false,
         f8eEnvironment = Development,
         isUsingSocRecFakes = false,
@@ -35,11 +38,13 @@ val KeyboxMock2 =
     localId = "keybox-fake-id",
     fullAccountId = FullAccountIdMock,
     activeSpendingKeyset = SpendingKeysetMock2,
-    activeKeyBundle = AppKeyBundleMock2,
+    activeAppKeyBundle = AppKeyBundleMock2,
+    activeHwKeyBundle = HwKeyBundleMock,
     inactiveKeysets = emptyImmutableList(),
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
     config =
-      KeyboxConfig(
-        networkType = SIGNET,
+      FullAccountConfig(
+        bitcoinNetworkType = SIGNET,
         isHardwareFake = false,
         f8eEnvironment = Development,
         isUsingSocRecFakes = true,
@@ -50,7 +55,7 @@ val KeyboxMock2 =
 val FullAccountMock =
   FullAccount(
     accountId = FullAccountIdMock,
-    config = FullAccountConfig.fromKeyboxConfig(KeyboxMock.config),
+    config = KeyboxMock.config,
     keybox = KeyboxMock
   )
 

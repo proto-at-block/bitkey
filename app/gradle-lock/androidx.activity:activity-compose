@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.activity:activity-compose",
+    "components": [
+        {
+            "version": "1.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "activity-compose-1.7.2.aar": "c73db26b1672a63f144457271b49cc40380b5bafe60ed0710e82d0a774e36a88"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

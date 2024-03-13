@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-serialization-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-serialization-iossimulatorarm64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-serialization.klib": "aab4c176e2e132493ae014094a26b01229a41733b05d4c44e0b1257cf5f427ef"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -2,9 +2,11 @@ package build.wallet.bitkey.keybox
 
 import build.wallet.bitcoin.BitcoinNetworkType.TESTNET
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
@@ -30,8 +32,8 @@ private val hwKeyBundle =
     networkType = TESTNET
   )
 private val config =
-  KeyboxConfig(
-    networkType = TESTNET,
+  FullAccountConfig(
+    bitcoinNetworkType = TESTNET,
     isHardwareFake = true,
     f8eEnvironment = Development,
     isTestAccount = true,
@@ -49,5 +51,6 @@ val WithAppKeysAndHardwareKeysMock =
   WithAppKeysAndHardwareKeys(
     appKeyBundle = appKeyBundle,
     hardwareKeyBundle = hwKeyBundle,
-    config = config
+    config = config,
+    appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignatureMock
   )

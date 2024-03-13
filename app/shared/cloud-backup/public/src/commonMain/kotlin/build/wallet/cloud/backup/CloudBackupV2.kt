@@ -2,10 +2,10 @@ package build.wallet.cloud.backup
 
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppRecoveryAuthKeypair
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.cloud.backup.v2.AppRecoveryAuthKeypairSerializer
+import build.wallet.cloud.backup.v2.DelegatedDecryptionKeySerializer
 import build.wallet.cloud.backup.v2.FullAccountFields
-import build.wallet.cloud.backup.v2.TrustedContactIdentityKeySerializer
 import build.wallet.f8e.F8eEnvironment
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.serialization.Serializable
@@ -24,8 +24,8 @@ data class CloudBackupV2(
   val f8eEnvironment: F8eEnvironment,
   val isTestAccount: Boolean,
   // Note: It's important we override the serializers here to ensure the private keys are stored.
-  @Serializable(with = TrustedContactIdentityKeySerializer::class)
-  override val trustedContactIdentityKeypair: TrustedContactIdentityKey,
+  @Serializable(with = DelegatedDecryptionKeySerializer::class)
+  override val delegatedDecryptionKeypair: DelegatedDecryptionKey,
   @Serializable(with = AppRecoveryAuthKeypairSerializer::class)
   override val appRecoveryAuthKeypair: AppRecoveryAuthKeypair,
   override val fullAccountFields: FullAccountFields?,

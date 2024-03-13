@@ -5,6 +5,22 @@ import SwiftUI
 
 extension AttributedString {
 
+    static func string(
+        from model: LabelModel,
+        font: FontTheme
+    ) -> AttributedString {
+        switch model {
+        case let stringModel as LabelModelStringModel:
+            return AttributedString(stringModel.string)
+
+        case let stringWithSubstringModel as LabelModelStringWithStyledSubstringModel:
+            return stringWithSubstring(stringWithSubstringModel, font: font)
+        
+        default:
+            fatalError("Unexpected LabelModel type")
+        }
+    }
+
     static func stringWithSubstring(
         _ model: LabelModelStringWithStyledSubstringModel,
         font: FontTheme

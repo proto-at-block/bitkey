@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-test-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test-iossimulatorarm64-1.1.1-metadata.jar": "c877be2021718a6d4ceb36a54bd246c8b638f1e314627828916041dbb1588a85"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test.klib": "5e976d79bda142cb96a66ef0f14e5d81fbc6410cbcd870b0b3b94381c09ffb4b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

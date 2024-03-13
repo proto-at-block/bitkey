@@ -1,14 +1,13 @@
 package build.wallet.f8e.sync
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.f8e.AccountId
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 class F8eSyncSequencer {
   private val syncLock = Mutex()
   private val dataLock = Mutex()
-  private var currentAccount: AccountId? = null
+  private var currentAccount: Account? = null
 
   /**
    * Sequences multiple invocations of [task] from different coroutines. If a
@@ -17,7 +16,7 @@ class F8eSyncSequencer {
    * will suspend until the previous invocation is canceled.
    */
   suspend fun run(
-    account: AccountId,
+    account: Account,
     task: suspend () -> Unit,
   ) {
     val lastAccount = dataLock.withLock { currentAccount }
@@ -39,7 +38,7 @@ class F8eSyncSequencer {
   }
 
   private suspend fun doLocked(
-    account: AccountId,
+    account: Account,
     task: suspend () -> Unit,
   ) {
     dataLock.withLock { currentAccount = account }

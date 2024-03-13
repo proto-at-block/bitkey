@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-common-jvm",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-common-jvm-5.8.0.jar": "f7e713bba225fba5879741665a3b6193fa528bc27be54752a7763808a4f29513"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

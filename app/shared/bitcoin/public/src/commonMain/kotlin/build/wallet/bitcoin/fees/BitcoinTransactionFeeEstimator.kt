@@ -3,7 +3,7 @@ package build.wallet.bitcoin.fees
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.money.Money
 import com.github.michaelbull.result.Result
@@ -26,7 +26,7 @@ interface BitcoinTransactionFeeEstimator {
   suspend fun getFeesForTransaction(
     priorities: List<EstimatedTransactionPriority>,
     keyset: SpendingKeyset,
-    keyboxConfig: KeyboxConfig,
+    fullAccountConfig: FullAccountConfig,
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError>

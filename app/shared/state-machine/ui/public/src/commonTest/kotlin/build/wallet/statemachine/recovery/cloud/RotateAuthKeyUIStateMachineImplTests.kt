@@ -1,23 +1,29 @@
 package build.wallet.statemachine.recovery.cloud
 
-import app.cash.turbine.plusAssign
-import build.wallet.analytics.events.screen.id.AuthEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
+import build.wallet.auth.AuthKeyRotationFailure
 import build.wallet.auth.AuthKeyRotationManagerMock
-import build.wallet.auth.AuthKeyRotationRequestState
+import build.wallet.auth.PendingAuthKeyRotationAttempt
+import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
-import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.keybox.keys.AppKeysGeneratorMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.clickSecondaryButton
+import build.wallet.statemachine.ui.matchers.shouldBeDisabled
+import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -30,21 +36,20 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {}
 
   val authKeyRotationManager = AuthKeyRotationManagerMock(turbines::create)
+  val appKeysGenerator = AppKeysGeneratorMock()
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   val stateMachine = RotateAuthKeyUIStateMachineImpl(
-    keyboxDao = KeyboxDaoMock(turbines::create),
+    appKeysGenerator = appKeysGenerator,
     proofOfPossessionNfcStateMachine = proofOfPossessionUIStateMachine,
-    authKeyRotationManager = authKeyRotationManager
+    authKeyRotationManager = authKeyRotationManager,
+    inAppBrowserNavigator = inAppBrowserNavigator
   )
 
-  val onKeyboxRotatedCalls = turbines.create<Unit>("cannot access cloud calls")
-
   val props = RotateAuthKeyUIStateMachineProps(
-    keybox = KeyboxMock,
-    origin = RotateAuthKeyUIOrigin.CloudRestore(
-      onComplete = {
-        onKeyboxRotatedCalls += Unit
-      }
+    account = FullAccountMock,
+    origin = RotateAuthKeyUIOrigin.PendingAttempt(
+      attempt = PendingAuthKeyRotationAttempt.ProposedAttempt
     )
   )
 
@@ -54,10 +59,17 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
 
   test("deactivate other devices -- success") {
     stateMachine.test(props) {
+      // Initial loading state
+      awaitScreenWithBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull()
+        secondaryButton
+          .shouldNotBeNull()
+          .shouldBeDisabled()
+      }
       // Kick Other People Out
       awaitScreenWithBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
       }
 
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps>(
@@ -67,29 +79,40 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
         (request as Request.HwKeyProofAndAccountSignature).onSuccess(
           "",
           HwAuthSecp256k1PublicKeyMock,
-          HwFactorProofOfPossession("")
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
         )
       }
 
-      awaitScreenWithBody<LoadingBodyModel> {
-        this.id.shouldBe(AuthEventTrackerScreenId.ROTATING_AUTH_AFTER_CLOUD_RESTORE)
-        authKeyRotationManager.rotateAuthKeysCalls.awaitItem()
-        authKeyRotationManager.model.value = AuthKeyRotationRequestState.FinishedRotation(KeyboxMock) {}
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         authKeyRotationManager.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitScreenWithBody<FormBodyModel> {
-        this.id.shouldBe(AuthEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH_AFTER_CLOUD_RESTORE)
+        this.id.shouldBe(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH)
       }
     }
   }
 
   test("deactivate other devices -- failure") {
     stateMachine.test(props) {
+      authKeyRotationManager.rotationResult.value = { request, _ ->
+        Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
+      }
+
+      // Initial loading state
+      awaitScreenWithBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull()
+        secondaryButton
+          .shouldNotBeNull()
+          .shouldBeDisabled()
+      }
       // Kick Other People Out
       awaitScreenWithBody<FormBodyModel> {
         primaryButton.shouldNotBeNull()
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
       }
 
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps>(
@@ -99,36 +122,44 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
         (request as Request.HwKeyProofAndAccountSignature).onSuccess(
           "",
           HwAuthSecp256k1PublicKeyMock,
-          HwFactorProofOfPossession("")
+          HwFactorProofOfPossession(""),
+          AppGlobalAuthKeyHwSignatureMock
         )
       }
 
-      awaitScreenWithBody<LoadingBodyModel> {
-        this.id.shouldBe(AuthEventTrackerScreenId.ROTATING_AUTH_AFTER_CLOUD_RESTORE)
-        authKeyRotationManager.rotateAuthKeysCalls.awaitItem()
-        authKeyRotationManager.model.value = AuthKeyRotationRequestState.FailedRotation {}
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         authKeyRotationManager.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitScreenWithBody<FormBodyModel> {
-        this.id.shouldBe(AuthEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_AFTER_CLOUD_BACKUP)
+        this.id.shouldBe(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_UNEXPECTED)
+        primaryButton.shouldNotBeNull()
+        secondaryButton.shouldNotBeNull()
       }
     }
   }
 
   test("don't deactivate other devices") {
     stateMachine.test(props) {
+      // Initial loading state
+      awaitScreenWithBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull()
+        secondaryButton
+          .shouldNotBeNull()
+          .shouldBeDisabled()
+      }
       // Don't kick Other People Out
       awaitScreenWithBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull()
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
-      awaitScreenWithBody<LoadingBodyModel> {
-        this.id.shouldBe(AuthEventTrackerScreenId.SETTING_ACTIVE_KEYBOX_AFTER_CLOUD_RESTORE)
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id.shouldBe(InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL)
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-
-      onKeyboxRotatedCalls.awaitItem()
     }
   }
 })

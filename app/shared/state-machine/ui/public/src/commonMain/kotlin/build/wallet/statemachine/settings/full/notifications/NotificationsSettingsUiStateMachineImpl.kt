@@ -47,7 +47,7 @@ class NotificationsSettingsUiStateMachineImpl(
           props =
             NotificationTouchpointInputAndVerificationProps(
               fullAccountId = props.accountData.account.accountId,
-              keyboxConfig = props.accountData.account.keybox.config,
+              fullAccountConfig = props.accountData.account.keybox.config,
               touchpointType = PhoneNumber,
               entryPoint = Settings,
               onClose = {
@@ -62,7 +62,7 @@ class NotificationsSettingsUiStateMachineImpl(
           props =
             NotificationTouchpointInputAndVerificationProps(
               fullAccountId = props.accountData.account.accountId,
-              keyboxConfig = props.accountData.account.keybox.config,
+              fullAccountConfig = props.accountData.account.keybox.config,
               touchpointType = Email,
               entryPoint = Settings,
               onClose = {

@@ -9,7 +9,7 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.recovery.socrec.list.lite.LiteTrustedContactsListBodyModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
@@ -90,7 +90,7 @@ fun TrustedContactsListBodyModel(
                 text = "Invite",
                 treatment = ButtonModel.Treatment.Secondary,
                 size = ButtonModel.Size.Footer,
-                onClick = Click.standardClick { onAddPressed() }
+                onClick = StandardClick { onAddPressed() }
               ).takeIf { relationships.size < TRUSTED_CONTACT_COUNT_LIMIT }
           )
         ),

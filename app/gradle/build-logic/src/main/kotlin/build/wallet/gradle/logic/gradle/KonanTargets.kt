@@ -46,6 +46,12 @@ fun Project.konanTargetsForIOS(): KonanTargets {
     }
   }
 
+  if (iosEnableAllTargets()) {
+    iosArm64 = true
+    iosSimulatorArm64 = true
+    iosX64 = true
+  }
+
   require(iosArm64 || iosSimulatorArm64 || iosX64) {
     "Expected to have at least one iOS target enabled: iosArm64=$iosArm64, iosSimulatorArm64=$iosSimulatorArm64, iosX64=$iosX64." +
       "\n" +
@@ -71,4 +77,14 @@ private fun Project.iosSkipRealDevice(): Boolean {
  */
 private fun Project.iosSkipSimulator(): Boolean {
   return project.property("build.wallet.kmp.iosSkipSimulator") == "true"
+}
+
+/**
+ * Determine if all iOS targets should be registered.
+ * Overrides any other configuration.
+ *
+ * The primary use cases are generating and verifying lock files because these tasks must have access to all configurations.
+ */
+private fun Project.iosEnableAllTargets(): Boolean {
+  return project.findProperty("build.wallet.kmp.iosEnableAllTargets") == "true"
 }

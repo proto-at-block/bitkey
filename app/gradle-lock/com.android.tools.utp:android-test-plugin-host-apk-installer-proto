@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.utp:android-test-plugin-host-apk-installer-proto",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "android-test-plugin-host-apk-installer-proto-31.1.1.jar": "abd2aac816a81e2af7705f3edff3de22bcd806212a1d158f432a39b06ae544e4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

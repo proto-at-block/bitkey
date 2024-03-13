@@ -37,12 +37,12 @@ impl ExternalIdentifier<String> for SocialChallengeId {
 }
 
 impl SocialChallengeId {
-    // Derive a SocialChallengeId based on a customer's account ID and a challenge code
+    // Derive a SocialChallengeId based on a customer's account ID and a challenge counter
     // Encode this the same way Ulids are encoded (Crockford Base32) to be consistent with other IDs
-    pub fn derive(customer_account_id: &AccountId, code: &str) -> Self {
+    pub fn derive(customer_account_id: &AccountId, counter: u32) -> Self {
         let mut hasher = Sha256::new();
         hasher.update(customer_account_id.to_string().as_bytes());
-        hasher.update(code.as_bytes());
+        hasher.update(counter.to_string().as_bytes());
         let hash = hasher.finalize();
         let encoded = base32::encode(Alphabet::Crockford, &hash[0..16]);
         Self::new(encoded).unwrap()
@@ -58,17 +58,15 @@ impl Display for SocialChallengeId {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SocialChallengeResponse {
     pub recovery_relationship_id: RecoveryRelationshipId,
-    #[deprecated]
-    pub shared_secret_ciphertext: String,
-    pub trusted_contact_recovery_pubkey: String,
-    pub recovery_key_confirmation: String,
-    pub recovery_sealed_pkek: String,
+    pub trusted_contact_recovery_pake_pubkey: String,
+    pub recovery_pake_confirmation: String,
+    pub resealed_dek: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TrustedContactChallengeRequest {
-    pub customer_recovery_pubkey: String,
-    pub enrollment_sealed_pkek: String,
+    pub protected_customer_recovery_pake_pubkey: String,
+    pub sealed_dek: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -76,14 +74,10 @@ pub struct SocialChallenge {
     #[serde(rename = "partition_key")]
     pub id: SocialChallengeId,
     pub customer_account_id: AccountId,
-    pub customer_identity_pubkey: String,
-    //TODO(BKR-919): Remove `customer_ephemeral_pubkey` once we're using the new SocRec model
-    #[deprecated]
-    pub customer_ephemeral_pubkey: String,
     #[serde(default)]
     pub trusted_contact_challenge_requests:
         HashMap<RecoveryRelationshipId, TrustedContactChallengeRequest>,
-    pub code: String,
+    pub counter: u32,
     pub responses: Vec<SocialChallengeResponse>,
     #[serde(with = "rfc3339")]
     pub created_at: OffsetDateTime,
@@ -96,21 +90,17 @@ impl SocialChallenge {
     pub fn new(
         id: &SocialChallengeId,
         customer_account_id: &AccountId,
-        customer_identity_pubkey: &str,
-        customer_ephemeral_pubkey: &str,
         trusted_contact_challenge_requests: HashMap<
             RecoveryRelationshipId,
             TrustedContactChallengeRequest,
         >,
-        code: &str,
+        counter: u32,
     ) -> Self {
         Self {
             id: id.to_owned(),
             customer_account_id: customer_account_id.to_owned(),
-            customer_identity_pubkey: customer_identity_pubkey.to_owned(),
-            customer_ephemeral_pubkey: customer_ephemeral_pubkey.to_owned(),
             trusted_contact_challenge_requests,
-            code: code.to_owned(),
+            counter,
             responses: Vec::new(),
             created_at: OffsetDateTime::now_utc(),
             updated_at: OffsetDateTime::now_utc(),

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.apache.maven:maven-model-builder",
+    "components": [
+        {
+            "version": "3.9.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "maven-model-builder-3.9.1.jar": "383885a4cf1a1b0cf941bb4d2dc3d3bcdd251b46b68c049c27731af50b332290"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

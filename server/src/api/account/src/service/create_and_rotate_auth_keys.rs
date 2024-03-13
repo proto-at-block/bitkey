@@ -11,7 +11,7 @@ impl Service {
         &self,
         input: CreateAndRotateAuthKeysInput<'_>,
     ) -> Result<Account, AccountError> {
-        let Account::Full(full_account) = self.repo.fetch(input.account_id).await? else {
+        let Account::Full(full_account) = self.account_repo.fetch(input.account_id).await? else {
             return Err(AccountError::InvalidAccountType);
         };
         let common_fields = full_account.common_fields.to_owned();
@@ -38,7 +38,7 @@ impl Service {
             ..full_account
         }
         .into();
-        self.repo.persist(&updated_account).await?;
+        self.account_repo.persist(&updated_account).await?;
         Ok(updated_account)
     }
 }

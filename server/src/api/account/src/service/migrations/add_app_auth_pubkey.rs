@@ -42,7 +42,7 @@ impl<'a> Migration for AddAppAuthPubkey<'a> {
                 ..full_account
             };
             self.service
-                .repo
+                .account_repo
                 .persist(&updated_full_account.into())
                 .await
                 .map_err(MigrationError::DbPersist)?;

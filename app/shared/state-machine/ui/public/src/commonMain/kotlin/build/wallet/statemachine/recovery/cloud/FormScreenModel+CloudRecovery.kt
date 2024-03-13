@@ -17,7 +17,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -111,10 +111,7 @@ fun CloudWarningBodyModel(
                         )
                     ),
                   title = "Recover your Wallet",
-                  secondaryText = when (devicePlatform) {
-                    Android, Jvm -> "Start a recovery process with a new Google Drive account."
-                    IOS -> "Replace a lost Mobile Key by creating a new one"
-                  },
+                  secondaryText = "Replace a lost Mobile Key by creating a new one",
                   onClick = onCannotAccessCloud,
                   trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                 ),
@@ -158,65 +155,43 @@ fun CloudBackupTroubleshootingStepsModel(
   header = FormHeaderModel(
     headline = "Check your iCloud settings"
   ),
-  mainContentList =
-    immutableListOf(
-      FormMainContentModel.ListGroup(
-        listGroupModel =
-          ListGroupModel(
-            items =
-              immutableListOf(
-                ListItemModel(
-                  leadingAccessory =
-                    ListItemAccessory.IconAccessory(
-                      iconPadding = 12,
-                      model =
-                        IconModel(
-                          icon = Icon.SmallIconDigitOne,
-                          iconSize = IconSize.Small
-                        )
-                    ),
-                  title = "Open iPhone Settings",
-                  onClick = null
-                ),
-                ListItemModel(
-                  leadingAccessory =
-                    ListItemAccessory.IconAccessory(
-                      iconPadding = 12,
-                      model =
-                        IconModel(
-                          icon = Icon.SmallIconDigitTwo,
-                          iconSize = IconSize.Small
-                        )
-                    ),
-                  title = "Tap on your Apple ID at the top of the screen",
-                  onClick = null
-                ),
-                ListItemModel(
-                  leadingAccessory =
-                    ListItemAccessory.IconAccessory(
-                      iconPadding = 12,
-                      model =
-                        IconModel(
-                          icon = Icon.SmallIconDigitThree,
-                          iconSize = IconSize.Small
-                        )
-                    ),
-                  title = "Tap “iCloud” and make sure “iCloud Drive” is ON",
-                  onClick = null
-                )
-              ),
-            style = ListGroupStyle.NONE
-          )
-      )
-    ),
+  mainContentList = iCloudTroubleshootingStepsMainContentList(),
   primaryButton = ButtonModel(
     text = "Check again",
     leadingIcon = Icon.SmallIconRefresh,
-    onClick = Click.standardClick(onTryAgain),
+    onClick = StandardClick(onTryAgain),
     size = Footer
   ),
   id = CLOUD_BACKUP_NOT_FOUND_TROUBLESHOOTING
 )
+
+fun iCloudTroubleshootingStepsMainContentList() =
+  immutableListOf(
+    FormMainContentModel.ListGroup(
+      listGroupModel =
+        ListGroupModel(
+          items =
+            immutableListOf(
+              ListItemModel(
+                leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '1'),
+                title = "Open iPhone Settings",
+                onClick = null
+              ),
+              ListItemModel(
+                leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '2'),
+                title = "Tap on your Apple ID at the top of the screen",
+                onClick = null
+              ),
+              ListItemModel(
+                leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '3'),
+                title = "Tap “iCloud” and make sure “iCloud Drive” is ON",
+                onClick = null
+              )
+            ),
+          style = ListGroupStyle.DIVIDER
+        )
+    )
+  )
 
 fun CloudBackupFoundModel(
   devicePlatform: DevicePlatform,
@@ -239,7 +214,7 @@ fun CloudBackupFoundModel(
               text = "I’ve lost my Bitkey device",
               size = ButtonModel.Size.Compact,
               treatment = ButtonModel.Treatment.Tertiary,
-              onClick = Click.standardClick { onLostBitkeyClick() }
+              onClick = StandardClick(onLostBitkeyClick)
             )
         ).takeIf { showSocRecButton }
     ),
@@ -296,7 +271,7 @@ fun SocialRecoveryExplanationModel(
   primaryButton =
     ButtonModel(
       text = "Continue",
-      onClick = Click.standardClick(onContinue),
+      onClick = StandardClick(onContinue),
       size = Footer
     )
 )

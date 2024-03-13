@@ -1,7 +1,6 @@
 package build.wallet.statemachine.recovery.losthardware
 
-import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -13,8 +12,7 @@ import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyl
 interface LostHardwareRecoveryUiStateMachine : StateMachine<LostHardwareRecoveryProps, ScreenModel>
 
 data class LostHardwareRecoveryProps(
-  val keyboxConfig: KeyboxConfig,
-  val fullAccountId: FullAccountId,
+  val account: FullAccount,
   val lostHardwareRecoveryData: LostHardwareRecoveryData,
   val fiatCurrency: FiatCurrency,
   val screenPresentationStyle: ScreenPresentationStyle,

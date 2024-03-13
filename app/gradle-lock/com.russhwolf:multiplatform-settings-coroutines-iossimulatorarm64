@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-coroutines-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines-iossimulatorarm64-1.1.1-metadata.jar": "fa38320773290298f2bee77e171642340140a2fed1edb213785d87dbfa0fbbd9"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "multiplatform-settings-coroutines.klib": "97961e59c849569ddaeecef3101a935de8ddfa0034c5fca4cb5041afdf7fd13d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

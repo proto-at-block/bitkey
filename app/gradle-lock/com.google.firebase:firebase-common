@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-common",
+    "components": [
+        {
+            "version": "20.3.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-common-20.3.1.aar": "09002cb668179b3d8a96a196530059764e6e08b1032bff295d7e58900d209db7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

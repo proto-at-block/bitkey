@@ -29,7 +29,7 @@ data class DatadogConfig(
           },
         firstPartyHosts =
           listOf(
-            "api.bitkey.build",
+            "api.bitkey.world",
             "api.bitkeystaging.com",
             "api.dev.wallet.build",
             "bitkey.build",

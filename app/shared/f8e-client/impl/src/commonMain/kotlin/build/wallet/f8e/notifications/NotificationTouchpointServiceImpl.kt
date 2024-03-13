@@ -19,6 +19,8 @@ import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
 import build.wallet.mapUnit
+import build.wallet.notifications.NotificationChannel
+import build.wallet.notifications.NotificationPreferences
 import build.wallet.notifications.NotificationTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
@@ -28,6 +30,7 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.get
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -134,6 +137,7 @@ class NotificationTouchpointServiceImpl(
                 touchpointId = f8eTouchpoint.touchpointId,
                 value = Email(f8eTouchpoint.email)
               )
+
             is F8ePhoneNumberTouchpoint -> {
               val phoneNumber = phoneNumberValidator.validatePhoneNumber(f8eTouchpoint.phoneNumber)
               when (phoneNumber) {
@@ -141,6 +145,7 @@ class NotificationTouchpointServiceImpl(
                   log(Error) { "Unable to validate phone number from server" }
                   null
                 }
+
                 else ->
                   PhoneNumberTouchpoint(
                     touchpointId = f8eTouchpoint.touchpointId,
@@ -152,6 +157,52 @@ class NotificationTouchpointServiceImpl(
         }
       }
       .logNetworkFailure { "Failed to get notification touchpoints" }
+  }
+
+  override suspend fun getNotificationsPreferences(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+  ): Result<NotificationPreferences, NetworkingError> {
+    return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
+      .bodyResult<NotificationsPreferencesRequest> {
+        get("/api/accounts/${fullAccountId.serverId}/notifications-preferences")
+      }
+      .map { response ->
+        NotificationPreferences(
+          moneyMovement = response.moneyMovement
+            .mapNotNull { NotificationChannel.valueOfOrNull(it) }.toSet(),
+          accountSecurity = response.accountSecurity
+            .mapNotNull { NotificationChannel.valueOfOrNull(it) }.toSet(),
+          productMarketing = response.productMarketing
+            .mapNotNull { NotificationChannel.valueOfOrNull(it) }.toSet()
+        )
+      }
+      .logNetworkFailure { "Failed to get notification preferences" }
+  }
+
+  override suspend fun updateNotificationsPreferences(
+    f8eEnvironment: F8eEnvironment,
+    fullAccountId: FullAccountId,
+    preferences: NotificationPreferences,
+    hwFactorProofOfPossession: HwFactorProofOfPossession?,
+  ): Result<Unit, NetworkingError> {
+    val prefRequest = NotificationsPreferencesRequest(
+      moneyMovement = preferences.moneyMovement.map { it.name },
+      accountSecurity = preferences.accountSecurity.map { it.name },
+      productMarketing = preferences.productMarketing.map { it.name }
+    )
+    return f8eHttpClient.authenticated(
+      f8eEnvironment = f8eEnvironment,
+      accountId = fullAccountId,
+      hwFactorProofOfPossession = hwFactorProofOfPossession
+    )
+      .catching {
+        put("/api/accounts/${fullAccountId.serverId}/notifications-preferences") {
+          setBody(prefRequest)
+        }
+      }
+      .logNetworkFailure { "Failed to set notification preferences" }
+      .mapUnit()
   }
 }
 
@@ -177,4 +228,14 @@ data object ActivateTouchpointRequest
 private data class GetTouchpointsResponse(
   @SerialName("touchpoints")
   val touchpoints: List<F8eNotificationTouchpoint>,
+)
+
+@Serializable
+private data class NotificationsPreferencesRequest(
+  @SerialName("account_security")
+  val accountSecurity: List<String>,
+  @SerialName("money_movement")
+  val moneyMovement: List<String>,
+  @SerialName("product_marketing")
+  val productMarketing: List<String>,
 )

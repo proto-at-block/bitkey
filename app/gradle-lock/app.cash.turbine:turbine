@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.turbine:turbine",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "Turbine-metadata.jar": "a65b488d928152a91b52d1a0f783fd150ff291998f103db6592f26393d701365"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

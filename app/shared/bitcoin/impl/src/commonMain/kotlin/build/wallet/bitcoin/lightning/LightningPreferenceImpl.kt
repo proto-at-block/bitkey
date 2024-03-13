@@ -3,7 +3,7 @@ package build.wallet.bitcoin.lightning
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.awaitAsOneOrNullResult
-import com.github.michaelbull.result.getOr
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 
 class LightningPreferenceImpl(
@@ -18,7 +18,7 @@ class LightningPreferenceImpl(
       .awaitAsOneOrNullResult()
       .logFailure { "Unable to get Lightning Preference Entity" }
       .map { it?.enabled }
-      .getOr(null)
+      .get()
       ?: false // Return false as default or on Error.
   }
 

@@ -9,18 +9,23 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.socrec.ProtectedCustomerEphemeralKey
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
-import build.wallet.bitkey.socrec.SocialChallenge
+import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.ChallengeAuthentication
+import build.wallet.bitkey.socrec.ChallengeWrapper
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.encrypt.XCiphertext
 import build.wallet.logging.logFailure
 import build.wallet.notifications.DeviceTokenManager
-import build.wallet.recovery.socrec.DecryptPrivateKeyMaterialParams
+import build.wallet.platform.permissions.Permission
+import build.wallet.platform.permissions.PermissionChecker
+import build.wallet.platform.permissions.PermissionStatus.Authorized
+import build.wallet.platform.permissions.PermissionStatus.Denied
+import build.wallet.platform.permissions.PermissionStatus.NotDetermined
+import build.wallet.recovery.socrec.DecryptPrivateKeyEncryptionKeyOutput
 import build.wallet.recovery.socrec.SocRecCrypto
-import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.serialization.json.decodeFromStringResult
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -30,6 +35,7 @@ import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
+import build.wallet.statemachine.platform.permissions.NotificationRationale
 import build.wallet.statemachine.recovery.cloud.START_SOCIAL_RECOVERY_MESSAGE
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.flatMap
@@ -43,9 +49,10 @@ import kotlin.time.Duration.Companion.seconds
 
 class RecoveryChallengeUiStateMachineImpl(
   private val crypto: SocRecCrypto,
-  private val keysRepository: SocRecKeysRepository,
   private val enableNotificationsUiStateMachine: EnableNotificationsUiStateMachine,
   private val deviceTokenManager: DeviceTokenManager,
+  private val challengeCodeFormatter: ChallengeCodeFormatter,
+  private val permissionChecker: PermissionChecker,
 ) : RecoveryChallengeUiStateMachine {
   @Composable
   override fun model(props: RecoveryChallengeUiProps): ScreenModel {
@@ -83,11 +90,10 @@ class RecoveryChallengeUiStateMachineImpl(
             onComplete = {
               state =
                 State.TrustedContactList(
-                  protectedCustomerEphemeralKey = current.protectedCustomerEphemeralKey,
-                  protectedCustomerIdentityKey = current.protectedCustomerIdentityKey,
                   challenge = current.challenge
                 )
             },
+            rationale = NotificationRationale.Recovery,
             eventTrackerContext =
               PushNotificationEventTrackerScreenIdContext.SOCIAL_RECOVERY_CHALLENGE
           )
@@ -104,7 +110,7 @@ class RecoveryChallengeUiStateMachineImpl(
 
           while (isActive) {
             delay(5.seconds)
-            props.actions.getChallengeById(current.challenge.challengeId)
+            props.actions.getChallengeById(current.challenge.challenge.challengeId)
               .onSuccess { updated ->
                 state = current.copy(challenge = updated)
               }
@@ -118,56 +124,48 @@ class RecoveryChallengeUiStateMachineImpl(
             state =
               State.ShareChallengeCode(
                 selectedContact = it,
-                protectedCustomerEphemeralKey = current.protectedCustomerEphemeralKey,
-                protectedCustomerIdentityKey = current.protectedCustomerIdentityKey,
                 challenge = current.challenge
               )
           },
-          verifiedBy = current.challenge.responses.map { it.recoveryRelationshipId }.toImmutableList(),
+          verifiedBy = current.challenge.challenge.responses.map {
+            it.recoveryRelationshipId
+          }.toImmutableList(),
           onContinue = {
-            val response = current.challenge.responses.first()
+            val response = current.challenge.challenge.responses.first()
             val respondingContact =
               props.trustedContacts.first { contact ->
                 contact.recoveryRelationshipId == response.recoveryRelationshipId
               }
             state =
               State.RestoringAppKey(
-                protectedCustomerIdentityKey = current.protectedCustomerIdentityKey,
-                protectedCustomerEphemeralKey = current.protectedCustomerEphemeralKey,
-                relationshipIdToSealedPrivateKeyEncryptionKeyMap = props.relationshipIdToSocRecPkekMap,
                 sealedPrivateKeyMaterial = props.sealedPrivateKeyMaterial,
                 response = response,
-                contact = respondingContact
+                contact = respondingContact,
+                challengeAuth =
+                  current.challenge.tcAuths.first {
+                    it.relationshipId == response.recoveryRelationshipId
+                  }
               )
           }
         ).asRootScreen()
       }
       is State.ShareChallengeCode -> {
-        // A code of length six is expected, but leave this unenforced so server has the
-        // freedom to redefine code lengths without requiring an app update.
-        val formattedCode =
-          current.challenge.code.let {
-            if (it.length == 6) {
-              "${it.take(3)}-${it.takeLast(3)}"
-            } else {
-              it
-            }
-          }
         RecoveryChallengeCodeBodyModel(
-          recoveryChallengeCode = formattedCode,
+          recoveryChallengeCode =
+            challengeCodeFormatter.format(
+              current.challenge.tcAuths
+                .first { it.relationshipId == current.selectedContact.recoveryRelationshipId }
+                .fullCode
+            ),
           onBack = {
             state =
               State.TrustedContactList(
-                protectedCustomerEphemeralKey = current.protectedCustomerEphemeralKey,
-                protectedCustomerIdentityKey = current.protectedCustomerIdentityKey,
                 challenge = current.challenge
               )
           },
           onDone = {
             state =
               State.TrustedContactList(
-                protectedCustomerEphemeralKey = current.protectedCustomerEphemeralKey,
-                protectedCustomerIdentityKey = current.protectedCustomerIdentityKey,
                 challenge = current.challenge
               )
           }
@@ -177,17 +175,23 @@ class RecoveryChallengeUiStateMachineImpl(
       is State.RestoringAppKey -> {
         LaunchedEffect("restore-app-key") {
           crypto.decryptPrivateKeyMaterial(
-            protectedCustomerIdentityKey = current.protectedCustomerIdentityKey,
-            trustedContactIdentityKey = current.contact.identityKey,
-            sealedPrivateKeyMaterial = current.sealedPrivateKeyMaterial,
-            secureChannelData =
-              DecryptPrivateKeyMaterialParams.V1(
-                sharedSecretCipherText = current.response.sharedSecretCiphertext,
-                protectedCustomerEphemeralKey = current.protectedCustomerEphemeralKey,
-                sealedPrivateKeyEncryptionKey = current.relationshipIdToSealedPrivateKeyEncryptionKeyMap[current.contact.recoveryRelationshipId]!!
-              )
-          ).flatMap {
+            password = current.challengeAuth.pakeCode,
+            protectedCustomerRecoveryPakeKey = current.challengeAuth.protectedCustomerRecoveryPakeKey,
+            decryptPrivateKeyEncryptionKeyOutput = DecryptPrivateKeyEncryptionKeyOutput(
+              trustedContactRecoveryPakeKey =
+                TrustedContactRecoveryPakeKey(
+                  AppKey.fromPublicKey(current.response.trustedContactRecoveryPakePubkey.value)
+                ),
+              keyConfirmation = current.response.recoveryPakeConfirmation,
+              sealedPrivateKeyEncryptionKey = current.response.resealedDek
+            ),
+            sealedPrivateKeyMaterial = current.sealedPrivateKeyMaterial
+          ).logFailure {
+            "Error decrypting SocRec payload during recovery"
+          }.flatMap {
             Json.decodeFromStringResult<FullAccountKeys>(it.utf8())
+          }.logFailure {
+            "Error decoding SocRec payload during recovery"
           }.onSuccess { pkMat ->
             props.onKeyRecovered(pkMat)
           }.onFailure { error ->
@@ -220,25 +224,23 @@ class RecoveryChallengeUiStateMachineImpl(
     setState: (State) -> Unit,
   ) {
     binding {
-      val identityKey = props.protectedCustomerIdentityKey
-      val ephemeralKey =
-        keysRepository.getKeyWithPrivateMaterialOrCreate(
-          ::ProtectedCustomerEphemeralKey
-        ).bind()
       val currentChallenge = props.actions.getCurrentChallenge().bind()
       val challenge =
         currentChallenge ?: props.actions.startChallenge(
-          ephemeralKey,
-          identityKey
+          props.trustedContacts,
+          props.relationshipIdToSocRecPkekMap
         ).bind()
 
-      setState(
-        State.EnablePushNotifications(
-          protectedCustomerEphemeralKey = ephemeralKey,
-          protectedCustomerIdentityKey = identityKey,
+      val newState = when (permissionChecker.getPermissionStatus(Permission.PushNotifications)) {
+        Authorized -> State.TrustedContactList(
           challenge = challenge
         )
-      )
+        Denied, NotDetermined ->
+          State.EnablePushNotifications(
+            challenge = challenge
+          )
+      }
+      setState(newState)
     }.onFailure { error ->
       setState(State.StartSocialChallengeFailed(error = error))
     }
@@ -248,33 +250,25 @@ class RecoveryChallengeUiStateMachineImpl(
     data object StartingChallengeState : State
 
     data class EnablePushNotifications(
-      val protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-      val protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-      val challenge: SocialChallenge,
+      val challenge: ChallengeWrapper,
     ) : State
 
     data class StartSocialChallengeFailed(val error: Error) : State
 
     data class TrustedContactList(
-      val protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-      val protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-      val challenge: SocialChallenge,
+      val challenge: ChallengeWrapper,
     ) : State
 
     data class ShareChallengeCode(
       val selectedContact: TrustedContact,
-      val protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-      val protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-      val challenge: SocialChallenge,
+      val challenge: ChallengeWrapper,
     ) : State
 
     data class RestoringAppKey(
-      val protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
-      val protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-      val relationshipIdToSealedPrivateKeyEncryptionKeyMap: Map<String, XCiphertext>,
       val sealedPrivateKeyMaterial: XCiphertext,
       val response: SocialChallengeResponse,
       val contact: TrustedContact,
+      val challengeAuth: ChallengeAuthentication,
     ) : State
 
     data class RecoveryFailed(

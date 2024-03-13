@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bitbucket.b_c:jose4j",
+    "components": [
+        {
+            "version": "0.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jose4j-0.7.0.jar": "eb14f69c0395d4a106c6c46fe6dff080c4608ccabc99b1f03933d374383d9bbe"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

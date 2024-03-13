@@ -56,7 +56,7 @@ abstract class AndroidRustTargetConfiguration
       project.extensions.configure(KotlinMultiplatformExtension::class.java) {
         sourceSets.withName("androidMain").configureEach {
           dependencies {
-            api(project.libs.jvm.jna.get()) {
+            api(project.libs.jvm.jna.asProvider().get()) {
               artifact {
                 name = "jna"
                 type = "aar"

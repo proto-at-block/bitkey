@@ -1,5 +1,6 @@
 import Combine
 import KMPNativeCoroutinesCombine
+import Lottie
 import Shared
 import SwiftUI
 import UIKit
@@ -202,12 +203,24 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             UIApplication.shared.isIdleTimerDisabled = false
         }
 
+        // Get the topmost presented view controller by iterating through the presented view controllers
+        // until we find the last one (which will be the top one)
+        func topmostViewController(from viewController: UIViewController?) -> UIViewController? {
+            guard let presented = viewController?.presentedViewController else {
+                return viewController
+            }
+            return topmostViewController(from: presented)
+        }
+
         // TODO (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
         // Next, see if there's an alert to present (only if we're not already presenting one)
-        let presentedAlert = stateChangeHandlerStack.topPresentedViewController as? UIAlertController
-        if let alertModel = model.alertModel, presentedAlert == nil {
+        if let theTopmostViewController = topmostViewController(from: stateChangeHandlerStack.topViewController),
+            !(theTopmostViewController is UIAlertController),
+            let alertModel = model.alertModel {
+            // We've got an alert model, so present it on the topmost view controller (including presented ones),
+            // assuming that view controller is not an UIAlertController.
             let alert = UIAlertController(model: .init(alertModel: alertModel))
-            stateChangeHandlerStack.topViewController?.present(alert, animated: true)
+            theTopmostViewController.present(alert, animated: true)
         }
 
         // See if we need to clear the back stack
@@ -217,7 +230,12 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             // don't get popped back to if we re-use them post Onboarding.
             stateChangeHandlerStack.clearBackStack()
         default:
-            break
+            if let generalId = model.body.eventTrackerScreenInfo?.eventTrackerScreenId as? GeneralEventTrackerScreenId {
+                if generalId == .chooseAccountAccess {
+                    // We clear the nav back stack when we reach Choose Account Access (the initial screen without an account)
+                    stateChangeHandlerStack.clearBackStack()
+                }
+            }
         }
 
         // Finally, add or update a gesture recognizer to the top view controller if necessary
@@ -230,18 +248,6 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 // Otherwise, create a new gesture recognizer and add to the top view
                 let twoFingerDoubleTapGestureRecognizer = TwoFingerDoubleTapTapGestureRecognizer(onTwoFingerDoubleTap)
                 topView.addGestureRecognizer(twoFingerDoubleTapGestureRecognizer)
-            }
-        }
-        
-        if let onTwoFingerTripleTap = model.onTwoFingerTripleTap, let topView = stateChangeHandlerStack.topViewController?.view {
-            if let gestureRecognizers = topView.gestureRecognizers,
-               let twoFingerTripleTapGestureRecognizer = gestureRecognizers.compactMap({ $0 as? TwoFingerTripleTapTapGestureRecognizer }).first {
-                // If the current view already has the gesture recognizer, just update the action with the latest from the model
-                twoFingerTripleTapGestureRecognizer.action = onTwoFingerTripleTap
-            } else {
-                // Otherwise, create a new gesture recognizer and add to the top view
-                let twoFingerTripleTapGestureRecognizer = TwoFingerTripleTapTapGestureRecognizer(onTwoFingerTripleTap)
-                topView.addGestureRecognizer(twoFingerTripleTapGestureRecognizer)
             }
         }
     }
@@ -329,7 +335,9 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
         case let viewModel as PairNewHardwareBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<PairNewHardwareView> {
-                vc.updateWrappedView(PairNewHardwareView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView { view in
+                    view.viewModel.update(from: viewModel)
+                }
                 return .none
             } else {
                 let vc = SwiftUIWrapperViewController(PairNewHardwareView(viewModel: viewModel), screenModel: screenModel)
@@ -376,15 +384,6 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 return .showNewView(vc: vc, key: "ios-fwup-instructions", animation: .pushPop)
             }
 
-        case let viewModel as BitkeyGetStartedModel:
-            if let vc = rootViewController as? SwiftUIWrapperViewController<BitkeyGetStartedView> {
-                vc.updateWrappedView(BitkeyGetStartedView(viewModel: viewModel), screenModel: screenModel)
-                return .none
-            } else {
-                let vc = SwiftUIWrapperViewController(BitkeyGetStartedView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: "ios-bitkey-get-started", animation: .pushPop)
-            }
-
         case let viewModel as ChooseAccountAccessModel:
             if let vc = rootViewController as? SwiftUIWrapperViewController<ChooseAccountAccessView> {
                 vc.updateWrappedView(ChooseAccountAccessView(viewModel: viewModel), screenModel: screenModel)
@@ -421,13 +420,15 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 return .showNewView(vc: vc, key: "ios-debug-fm-metadata", animation: .pushPop)
             }
 
-        case let viewModel as LoadingBodyModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<LoadingView> {
-                vc.updateWrappedView(LoadingView(viewModel: viewModel), screenModel: screenModel)
+        case let viewModel as LoadingSuccessBodyModel:
+            if let vc = topViewController as? SwiftUIWrapperViewController<LoadingSuccessView> {
+                vc.updateWrappedView { view in
+                    view.viewModel.updateModel(bodyModel: viewModel)
+                }
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(LoadingView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: viewModel.id?.name ?? "ios-loading", animation: .pushPop)
+                let vc = SwiftUIWrapperViewController(LoadingSuccessView(viewModel: viewModel), screenModel: screenModel)
+                return .showNewView(vc: vc, key: viewModel.id?.name ?? "ios-success-loading", animation: .pushPop)
             }
 
         case let viewModel as LogsBodyModel:
@@ -476,15 +477,6 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             } else {
                 let vc = SwiftUIWrapperViewController(SpendingLimitPickerView(viewModel: viewModel), screenModel: screenModel)
                 return .showNewView(vc: vc, key: "ios-limit-picker", animation: .pushPop)
-            }
-
-        case let viewModel as SuccessBodyModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<SuccessView> {
-                vc.updateWrappedView(SuccessView(viewModel: viewModel), screenModel: screenModel)
-                return .none
-            } else {
-                let vc = SwiftUIWrapperViewController(SuccessView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: "ios-success", animation: .none)
             }
 
         case let viewModel as TransferAmountBodyModel:
@@ -543,12 +535,39 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 let vc = SwiftUIWrapperViewController(CloudBackupHealthDashboardView(viewModel: viewModel), screenModel: screenModel)
                 return .showNewView(vc: vc, key: "ios-cloud-backup-health-dashboard", animation: .pushPop)
             }
+            
+        case let viewModel as DemoModeConfigBodyModel:
+            if let vc = topViewController as? SwiftUIWrapperViewController<DemoModeConfigView> {
+                vc.updateWrappedView(DemoModeConfigView(viewModel: viewModel), screenModel: screenModel)
+                return .none
+            } else {
+                let vc = SwiftUIWrapperViewController(DemoModeConfigView(viewModel: viewModel), screenModel: screenModel)
+                return .showNewView(vc: vc, key: "ios-demo-mode-config", animation: .pushPop)
+            }
+       
+        case let viewModel as LiteMoneyHomeBodyModel:
+            if let vc = rootViewController as? SwiftUIWrapperViewController<LiteMoneyHomeView> {
+                vc.updateWrappedView(LiteMoneyHomeView(viewModel: viewModel), screenModel: screenModel)
+                return .none
+            } else {
+                let vc = SwiftUIWrapperViewController(LiteMoneyHomeView(viewModel: viewModel), screenModel: screenModel)
+                // Don't animate from onboarding
+                let screensToNotAnimateFrom = ["NEW_ACCOUNT_SERVER_KEYS_LOADING", "ios-success"]
+                let shouldAnimate = !screensToNotAnimateFrom.contains { stateChangeHandlerStack.topScreenModelKey.contains($0) }
+                return .showNewView(vc: vc, key: "ios-lite-money-home", animation: shouldAnimate ? .pushPop : .none)
+            }
 
         default:
             fatalError("Unhandled model body: \(bodyModel)")
         }
     }
 
+}
+
+extension SystemUIModelMediaPickerModel: UIAdaptivePresentationControllerDelegate {
+    public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        onMediaPicked([])
+    }
 }
 
 extension SystemUIModelMediaPickerModel: PHPickerViewControllerDelegate {
@@ -562,7 +581,7 @@ extension SystemUIModelMediaPickerModel: PHPickerViewControllerDelegate {
         let itemProvider = result.itemProvider
         let supportedTypes: [UTType] = [
             .image,
-            .video,
+            .audiovisualContent,
         ]
         
         guard let mediaType = supportedTypes.first(where: {
@@ -612,6 +631,7 @@ extension PHPickerViewController {
         configuration.preferredAssetRepresentationMode = .current
         self.init(configuration: configuration)
         delegate = model
+        presentationController?.delegate = model
     }
 }
 
@@ -631,34 +651,6 @@ private class TwoFingerDoubleTapTapGestureRecognizer: UITapGestureRecognizer {
         super.init(target: nil, action: nil)
 
         numberOfTapsRequired = 2
-        numberOfTouchesRequired = 2
-        addTarget(self, action: #selector(handleAction))
-    }
-
-    // MARK: - Private Methods
-
-    @objc
-    private func handleAction() {
-        action()
-    }
-
-}
-
-
-private class TwoFingerTripleTapTapGestureRecognizer: UITapGestureRecognizer {
-
-    // MARK: - Public Properties
-
-    var action: () -> Void
-
-    // MARK: - Life Cycle
-
-    init(_ action: @escaping () -> Void) {
-        self.action = action
-
-        super.init(target: nil, action: nil)
-
-        numberOfTapsRequired = 3
         numberOfTouchesRequired = 2
         addTarget(self, action: #selector(handleAction))
     }

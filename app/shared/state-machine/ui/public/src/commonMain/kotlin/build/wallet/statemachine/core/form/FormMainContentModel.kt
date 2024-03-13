@@ -5,7 +5,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.model.icon.IconModel
@@ -70,13 +70,13 @@ sealed interface FormMainContentModel {
      * A section of a data list that is shown at the top of the data set
      *
      * @property image - the image shown in the hero
-     * @property title - the title of the hero
+     * @property title - optional title of the hero, null when there is none
      * @property subtitle - optional subtitle of the hero, null when there is none
      * @property button - an optional action button in the hero
      */
     data class DataHero(
       val image: IconModel?,
-      val title: String,
+      val title: String?,
       val subtitle: String?,
       val button: ButtonModel?,
     )
@@ -159,7 +159,7 @@ sealed interface FormMainContentModel {
               isLoading = isLoading,
               treatment = ButtonModel.Treatment.Tertiary,
               size = ButtonModel.Size.Compact,
-              onClick = Click.StandardClick(onSendCodeAgain)
+              onClick = StandardClick(onSendCodeAgain)
             )
         )
       }
@@ -182,7 +182,7 @@ sealed interface FormMainContentModel {
               text = "Skip for now",
               treatment = ButtonModel.Treatment.Tertiary,
               size = ButtonModel.Size.Compact,
-              onClick = Click.StandardClick(onSkipForNow)
+              onClick = StandardClick(onSkipForNow)
             )
         )
       }

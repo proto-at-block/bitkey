@@ -5,7 +5,7 @@ import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiProps
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.data.account.CreateFullAccountData.ActivateKeyboxDataFull
@@ -57,8 +57,10 @@ class CreateAccountUiStateMachineImpl(
   private fun ActivateKeyboxScreen(data: ActivateKeyboxDataFull): ScreenModel {
     return when (data) {
       is ActivatingKeyboxDataFull ->
-        LoadingBodyModel(
+        // We want this to transition seamlessly to the "Welcome to Bitkey" success animation
+        LoadingSuccessBodyModel(
           message = "Loading your wallet...",
+          state = LoadingSuccessBodyModel.State.Loading,
           id = GeneralEventTrackerScreenId.LOADING_SAVING_KEYBOX
         ).asRootScreen()
 

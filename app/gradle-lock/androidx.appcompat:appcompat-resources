@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.appcompat:appcompat-resources",
+    "components": [
+        {
+            "version": "1.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "appcompat-resources-1.6.1.aar": "db915dbf49357863de1669ff9fdd8e9008d65fe357af6cce9ae63043ad5f6617"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

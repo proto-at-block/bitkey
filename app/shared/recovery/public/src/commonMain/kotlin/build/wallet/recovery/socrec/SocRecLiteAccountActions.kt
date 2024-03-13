@@ -2,13 +2,10 @@ package build.wallet.recovery.socrec
 
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
-import build.wallet.f8e.error.F8eError
-import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
-import com.github.michaelbull.result.Result
 
 /**
  * Encapsulates actions trusted contacts can take that can produce side effects.
@@ -31,9 +28,7 @@ open class SocRecLiteAccountActions internal constructor(
   /**
    * @see SocRecRelationshipsRepository.retrieveInvitation
    */
-  suspend fun retrieveInvitation(
-    invitationCode: String,
-  ): Result<Invitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> =
+  suspend fun retrieveInvitation(invitationCode: String) =
     repository.retrieveInvitation(
       account = account,
       invitationCode = invitationCode
@@ -43,13 +38,15 @@ open class SocRecLiteAccountActions internal constructor(
    * @see SocRecRelationshipsRepository.acceptInvitation
    */
   suspend fun acceptInvitation(
-    invitation: Invitation,
+    invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
+    delegatedDecryptionKey: DelegatedDecryptionKey,
+    inviteCode: String,
   ) = repository.acceptInvitation(
     account = account,
     invitation = invitation,
     protectedCustomerAlias = protectedCustomerAlias,
-    trustedContactIdentityKey = trustedContactIdentityKey
+    delegatedDecryptionKey = delegatedDecryptionKey,
+    inviteCode = inviteCode
   )
 }

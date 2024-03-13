@@ -9,7 +9,7 @@ import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -32,11 +32,11 @@ class AccountConfigUiStateMachineImpl(
       is AccountData.HasActiveLiteAccountData ->
         ActiveLiteAccountModel(
           accountConfig = props.accountData.account.config,
-          templateKeyboxConfigData = props.accountData.accountUpgradeTemplateKeyboxConfigData
+          templateFullAccountConfigData = props.accountData.accountUpgradeTemplateFullAccountConfigData
         )
 
       else -> {
-        props.templateKeyboxConfigData?.let {
+        props.templateFullAccountConfigData?.let {
           NoActiveAccountModel(it)
         }
       }
@@ -68,7 +68,8 @@ class AccountConfigUiStateMachineImpl(
 
   private fun ActiveLiteAccountModel(
     accountConfig: AccountConfig,
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
   ): ListGroupModel {
     return ListGroupModel(
       header = "Keybox Configuration",
@@ -76,13 +77,14 @@ class AccountConfigUiStateMachineImpl(
       items =
         buildList {
           addAll(AccountConfigItems(accountConfig))
-          add(MockBitkeyItem(templateKeyboxConfigData))
+          add(MockBitkeyItem(templateFullAccountConfigData))
         }.toImmutableList()
     )
   }
 
   private fun NoActiveAccountModel(
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
   ): ListGroupModel {
     return ListGroupModel(
       header = "Keybox Configuration",
@@ -99,16 +101,16 @@ class AccountConfigUiStateMachineImpl(
               ListItemAccessory.SwitchAccessory(
                 model =
                   SwitchModel(
-                    checked = templateKeyboxConfigData.config.isTestAccount,
+                    checked = templateFullAccountConfigData.config.isTestAccount,
                     onCheckedChange = { isTestAccount ->
-                      templateKeyboxConfigData.updateConfig {
+                      templateFullAccountConfigData.updateConfig {
                         it.copy(isTestAccount = isTestAccount)
                       }
                     }
                   )
               )
           ),
-          MockBitkeyItem(templateKeyboxConfigData),
+          MockBitkeyItem(templateFullAccountConfigData),
           ListItemModel(
             title = "Use SocRec Fakes",
             secondaryText = "SocRec interactions will be mocked",
@@ -116,9 +118,9 @@ class AccountConfigUiStateMachineImpl(
               ListItemAccessory.SwitchAccessory(
                 model =
                   SwitchModel(
-                    checked = templateKeyboxConfigData.config.isUsingSocRecFakes,
+                    checked = templateFullAccountConfigData.config.isUsingSocRecFakes,
                     onCheckedChange = { isUsingSocRecFakes ->
-                      templateKeyboxConfigData.updateConfig {
+                      templateFullAccountConfigData.updateConfig {
                         it.copy(isUsingSocRecFakes = isUsingSocRecFakes)
                       }
                     },
@@ -149,7 +151,8 @@ class AccountConfigUiStateMachineImpl(
   }
 
   private fun MockBitkeyItem(
-    templateKeyboxConfigData: TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData,
+    templateFullAccountConfigData:
+      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
   ) = ListItemModel(
     title = "Mock Bitkey",
     secondaryText = "NFC interactions will be mocked",
@@ -157,9 +160,9 @@ class AccountConfigUiStateMachineImpl(
       ListItemAccessory.SwitchAccessory(
         model =
           SwitchModel(
-            checked = templateKeyboxConfigData.config.isHardwareFake,
+            checked = templateFullAccountConfigData.config.isHardwareFake,
             onCheckedChange = { fakeHardware ->
-              templateKeyboxConfigData.updateConfig {
+              templateFullAccountConfigData.updateConfig {
                 it.copy(isHardwareFake = fakeHardware)
               }
             },

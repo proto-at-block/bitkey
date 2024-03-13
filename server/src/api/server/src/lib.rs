@@ -2,6 +2,7 @@
 
 extern crate core;
 
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use std::sync::Arc;
@@ -14,6 +15,7 @@ use metrics::system::init_tokio_metrics;
 use notification::clients::iterable::IterableClient;
 use queue::sqs::SqsQueue;
 use thiserror::Error;
+use userpool::userpool::UserPoolService;
 use utoipa_swagger_ui::SwaggerUi;
 
 use account::repository::Repository as AccountRepository;
@@ -22,7 +24,6 @@ use authn_authz::authorizer::{
     authorize_account_or_recovery_token_for_path, authorize_recovery_token_for_path,
     authorize_token_for_path, AuthorizerConfig,
 };
-use authn_authz::userpool::UserPoolService;
 use bdk_utils::{TransactionBroadcaster, TransactionBroadcasterTrait};
 use chain_indexer::{
     repository::Repository as ChainIndexerRepository, service::Service as ChainIndexerService,
@@ -30,6 +31,7 @@ use chain_indexer::{
 use comms_verification::Service as CommsVerificationService;
 use database::ddb::{self, DDBService};
 use exchange_rate::service::Service as ExchangeRateService;
+
 use http_server::config::Config;
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::middlewares::wsm;
@@ -55,6 +57,7 @@ use recovery::service::social::{
 use repository::consent::Repository as ConsentRepository;
 use repository::recovery::social::Repository as SocialRecoveryRepository;
 pub use routes::axum::axum;
+use screener::service::Service as ScreenerService;
 use wallet_telemetry::{set_global_telemetry, METRICS_REPORTING_PERIOD_SECS};
 
 mod routes;
@@ -86,6 +89,7 @@ pub struct Services {
     pub exchange_rate_service: ExchangeRateService,
     pub iterable_client: IterableClient,
     pub consent_repository: ConsentRepository,
+    pub social_challenge_service: SocialChallengeService,
 }
 
 #[derive(Debug, Error)]
@@ -114,6 +118,8 @@ pub enum BootstrapError {
 pub struct GenServiceOverrides {
     pub address_repo: Option<Box<dyn AddressWatchlistTrait>>,
     pub broadcaster: Option<Arc<dyn TransactionBroadcasterTrait>>,
+    pub blocked_addresses: Option<HashSet<String>>,
+    pub feature_flags: Option<HashMap<String, String>>,
 }
 
 impl GenServiceOverrides {
@@ -130,6 +136,16 @@ impl GenServiceOverrides {
         self.broadcaster = Some(broadcaster);
         self
     }
+
+    pub fn blocked_addresses(mut self, blocked_addresses: HashSet<String>) -> Self {
+        self.blocked_addresses = Some(blocked_addresses);
+        self
+    }
+
+    pub fn feature_flags(mut self, feature_flags: HashMap<String, String>) -> Self {
+        self.feature_flags = Some(feature_flags);
+        self
+    }
 }
 
 pub async fn create_bootstrap(profile: Option<&str>) -> Result<Bootstrap, BootstrapError> {
@@ -144,16 +160,21 @@ pub async fn create_bootstrap_with_overrides(
     set_global_telemetry(&config.wallet_telemetry)?;
     init_tokio_metrics(Duration::from_secs(METRICS_REPORTING_PERIOD_SECS))?;
 
-    let cognito_connection = config::extract::<authn_authz::userpool::Config>(profile)?
+    let cognito_connection = config::extract::<userpool::userpool::Config>(profile)?
         .to_connection()
         .await;
     let userpool_service = UserPoolService::new(cognito_connection.clone());
 
-    let feature_flags = config::extract::<feature_flags::config::Config>(profile)?
-        .to_service()
-        .await?;
+    // Construct overriden feature config if feature_flags is present.
+    let feature_flags = match overrides.feature_flags {
+        None => config::extract::<feature_flags::config::Config>(profile)?,
+        Some(flags) => feature_flags::config::Config::new_with_overrides(flags),
+    }
+    .to_service()
+    .await?;
+
     let authorizer =
-        AuthorizerConfig::from(config::extract::<authn_authz::userpool::Config>(profile)?)
+        AuthorizerConfig::from(config::extract::<userpool::userpool::Config>(profile)?)
             .into_authorizer()
             .layer()
             .await
@@ -167,13 +188,17 @@ pub async fn create_bootstrap_with_overrides(
 
     let account_repository = AccountRepository::new(ddb.clone());
     account_repository.create_table_if_necessary().await?;
-    let account_service = AccountService::new(account_repository.clone());
+    let consent_repository = ConsentRepository::new(ddb.clone());
+    consent_repository.create_table_if_necessary().await?;
+    let account_service = AccountService::new(
+        account_repository.clone(),
+        consent_repository.clone(),
+        userpool_service.clone(),
+    );
 
     let sqs = SqsQueue::new(config::extract(profile)?).await;
     let notification_repository = NotificationRepository::new(ddb.clone());
     notification_repository.create_table_if_necessary().await?;
-    let consent_repository = ConsentRepository::new(ddb.clone());
-    consent_repository.create_table_if_necessary().await?;
     let iterable_client = IterableClient::from(config::extract::<
         notification::clients::iterable::Config,
     >(profile)?);
@@ -201,6 +226,7 @@ pub async fn create_bootstrap_with_overrides(
         social_recovery_repository,
         recovery_relationship_service.clone(),
         notification_service.clone(),
+        account_service.clone(),
     );
     let chain_indexer_repository = ChainIndexerRepository::new(ddb.clone());
     chain_indexer_repository.create_table_if_necessary().await?;
@@ -232,6 +258,10 @@ pub async fn create_bootstrap_with_overrides(
 
     let exchange_rate_service = ExchangeRateService::new();
 
+    let screener_config = config::extract::<screener::Config>(profile)?;
+    let screener_service =
+        ScreenerService::new_and_load_data(overrides.blocked_addresses, screener_config).await;
+
     let notification = notification::routes::RouteState(
         notification_service.clone(),
         account_service.clone(),
@@ -239,6 +269,7 @@ pub async fn create_bootstrap_with_overrides(
         config::extract::<onboarding::routes::Config>(profile)?
             .twilio
             .to_client(),
+        userpool_service.clone(),
     );
     let onboarding = onboarding::routes::RouteState(
         userpool_service.clone(),
@@ -265,6 +296,7 @@ pub async fn create_bootstrap_with_overrides(
         exchange_rate_service.clone(),
         signed_psbt_cache_service.clone(),
         feature_flags.clone(),
+        Arc::new(screener_service.clone()),
     );
     let recovery = recovery::routes::RouteState(
         account_service.clone(),
@@ -358,6 +390,7 @@ pub async fn create_bootstrap_with_overrides(
             exchange_rate_service,
             iterable_client,
             consent_repository,
+            social_challenge_service,
         },
         router,
     })

@@ -12,15 +12,21 @@ use thiserror::Error;
 use tracing::{event, instrument};
 
 use wsm_common::enclave_log::LogBuffer;
-use wsm_common::messages::enclave::{DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest};
+use wsm_common::messages::enclave::{
+    DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest,
+    EnclaveSignWithIntegrityKeyRequest, EnclaveSignWithIntegrityKeyResponse,
+    LoadIntegrityKeyRequest,
+};
 use wsm_common::messages::{
     api::SignedPsbt,
-    enclave::{CreatedKey, EnclaveSignRequest, LoadSecretRequest},
+    enclave::{CreatedKey, EnclaveSignRequest, KmsRequest, LoadSecretRequest},
     SecretRequest,
 };
 
 use crate::dependencies::enclave_client::EnclaveClientError::CredentialProviderError;
 use crate::{DekStore, Settings};
+
+const PROD_WRAPPED_INTEGRITY_KEY_B64: &str = include_str!("../../../keys/prod_integrity_key.b64");
 
 #[derive(Error, Debug)]
 pub enum EnclaveClientError {
@@ -115,6 +121,17 @@ impl EnclaveClient {
         Ok(result.json().await?)
     }
 
+    #[instrument(skip(self))]
+    pub async fn backfill_sign(
+        &self,
+        req: EnclaveSignWithIntegrityKeyRequest,
+    ) -> anyhow::Result<EnclaveSignWithIntegrityKeyResponse> {
+        let result = self
+            .post_request_with_dek(SecretRequest::new("backfill-sign", req.dek_id.clone(), req))
+            .await?;
+        Ok(result.json().await?)
+    }
+
     /// This method first tries an "optimistic" call to the enclave with the user's provided
     /// data-encryption key. Upon first failure, which is usually due to the DEK not being loaded
     /// onto the enclave, we "force" the load. Then, we try again.
@@ -123,6 +140,10 @@ impl EnclaveClient {
         &self,
         req: SecretRequest<'_, T>,
     ) -> anyhow::Result<Response> {
+        // Ensure the integrity key has been loaded into the enclave; this only needs to happen once,
+        // but the state is managed by the enclave (in case the enclave is restarted, for example).
+        self.load_integrity_key().await?;
+
         for _attempt in 0..2 {
             let res = self
                 .client
@@ -174,6 +195,70 @@ impl EnclaveClient {
         }
     }
 
+    async fn create_kms_request(
+        &self,
+        kms_config: &Option<KmsConfig>,
+        ciphertext: String,
+    ) -> anyhow::Result<KmsRequest> {
+        match kms_config {
+            None => Ok(KmsRequest {
+                region: "FAKE_REGION".to_string(),
+                proxy_port: "FAKE_PROXY_PORT".to_string(),
+                akid: "FAKE_AKID".to_string(),
+                skid: "FAKE_SKID".to_string(),
+                session_token: "FAKE_SESSION_TOKEN".to_string(),
+                ciphertext: "FAKE_CIPHERTEXT".to_string(),
+                cmk_id: "FAKE_CMK_ID".to_string(),
+            }),
+            Some(kms_config) => {
+                let region = kms_config.region.to_string();
+                let creds = kms_config.creds().await?;
+                let session_token = creds.session_token().unwrap_or_default().to_string();
+                Ok(KmsRequest {
+                    region,
+                    proxy_port: kms_config.proxy_port.to_string(),
+                    akid: creds.access_key_id().to_string(),
+                    skid: creds.secret_access_key().to_string(),
+                    session_token,
+                    ciphertext,
+                    cmk_id: kms_config.cmk_id.to_string(),
+                })
+            }
+        }
+    }
+
+    async fn load_integrity_key(&self) -> anyhow::Result<()> {
+        let use_test_key = match &self.kms_config {
+            None => true,
+            // 597478299196 is the account id for production.
+            Some(kms_config) => !kms_config.cmk_id.contains("597478299196"),
+        };
+
+        let wrapped_key = if use_test_key {
+            "FAKE_WRAPPED_KEY".to_string()
+        } else {
+            PROD_WRAPPED_INTEGRITY_KEY_B64.to_string()
+        };
+
+        let kms_req = self
+            .create_kms_request(&self.kms_config, wrapped_key)
+            .await?;
+        let req = LoadIntegrityKeyRequest {
+            request: kms_req,
+            use_test_key,
+        };
+
+        let res = self
+            .client
+            .post(self.endpoint.join("load-integrity-key")?)
+            .json(&req)
+            .send()
+            .await?;
+
+        handle_enclave_logs(&res).await;
+        Ok(())
+    }
+
     #[instrument(skip(self))]
     async fn load_wrapped_dek(&self, dek_id: &str) -> anyhow::Result<()> {
         let req = match &self.kms_config {
@@ -220,20 +305,7 @@ impl EnclaveClient {
             .send()
             .await?;
         // get the wsm-enclave logs from the response header and include them in a trace
-        if let Some(logs) = get_enclave_logs_from_header(&res) {
-            // the logs are a base64-encoded LogBuffer. We decode them and log them as a trace
-            // If decoding fails, we log that but don't fail the whole call
-            match unpack_enclave_logs(&logs) {
-                Ok(logs) => {
-                    event!(tracing::Level::WARN, "Enclave error logs: {}", logs);
-                    log!(Level::Warn, "Enclave error logs: {}", logs);
-                }
-                Err(e) => {
-                    event!(tracing::Level::WARN, "Could not decode enclave logs: {}", e);
-                    log!(Level::Warn, "Could not decode enclave logs: {}", e);
-                }
-            }
-        }
+        handle_enclave_logs(&res).await;
         Ok(())
     }
 }
@@ -250,4 +322,13 @@ fn unpack_enclave_logs(logs: &str) -> anyhow::Result<LogBuffer> {
     let logs = BASE64.decode(logs)?;
     let logs = serde_json::from_str(&String::from_utf8(logs)?)?;
     Ok(logs)
+}
+
+async fn handle_enclave_logs(res: &Response) {
+    if let Some(logs) = get_enclave_logs_from_header(res) {
+        match unpack_enclave_logs(&logs) {
+            Ok(logs) => event!(tracing::Level::WARN, "Enclave error logs: {}", logs),
+            Err(e) => event!(tracing::Level::WARN, "Could not decode enclave logs: {}", e),
+        }
+    }
 }

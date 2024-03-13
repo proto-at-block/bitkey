@@ -1,0 +1,18 @@
+{
+    "module-identifier": "de.tototec:de.tototec.cmdoption",
+    "components": [
+        {
+            "version": "0.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "de.tototec.cmdoption-0.2.0.jar": "0dd7dcc62323c7e5c425f261fc026dfe5e69afb8dd49ee51d56b8efc6f1121f5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

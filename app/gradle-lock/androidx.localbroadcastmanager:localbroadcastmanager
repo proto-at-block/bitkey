@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.localbroadcastmanager:localbroadcastmanager",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "localbroadcastmanager-1.0.0.aar": "e71c328ceef5c4a7d76f2d86df1b65d65fe2acf868b1a4efd84a3f34336186d8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

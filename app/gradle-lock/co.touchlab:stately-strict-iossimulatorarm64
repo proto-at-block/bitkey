@@ -1,0 +1,23 @@
+{
+    "module-identifier": "co.touchlab:stately-strict-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.0.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "stately-strict-iossimulatorarm64-2.0.5-metadata.jar": "a2a4917d5c3d2544e62ac5d53217e932dabf940281c9e8ac1769e2a6928addc1"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "stately-strict.klib": "d83f7ff034bc28a8c43b904fc16f6ddf518ec331675e1c403b97fb5705317b61"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

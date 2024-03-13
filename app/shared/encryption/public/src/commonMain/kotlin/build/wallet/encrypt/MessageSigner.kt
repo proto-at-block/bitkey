@@ -12,6 +12,7 @@ interface MessageSigner {
    *
    * Prefer to use non-throwing version of this binding - [MessageSigner.signResult].
    */
+  @Throws(Throwable::class)
   fun sign(
     message: ByteString,
     key: Secp256k1PrivateKey,

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.jakewharton.picnic:picnic-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "picnic-iossimulatorarm64-metadata.jar": "9e06d52aae4d175c33f5e612bf1198c009e4c30b0acf443e7916bfbb3a6771f5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "picnic.klib": "9fe920f700f6378c26c64623484b7b8353ed6bfbd727af15cbb93b59f323f0b3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

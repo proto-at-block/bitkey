@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jcodec:jcodec",
+    "components": [
+        {
+            "version": "0.2.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jcodec-0.2.5.jar": "890329dad124e8b739c1d6602a59a53c8a474daddff265c2561e21c498496c81"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

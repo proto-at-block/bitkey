@@ -15,7 +15,7 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -60,7 +60,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
-      awaitScreenWithBody<LoadingBodyModel>(
+      awaitScreenWithBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
       )
 
@@ -81,9 +81,11 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
-      awaitScreenWithBody<LoadingBodyModel>(
+      awaitScreenWithBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
-      )
+      ) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       onboardingFullAccountDeleter.deleteAccountCalls
         .awaitItem()
@@ -103,9 +105,11 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImplTests : FunSpec({
       awaitScreenWithBodyModelMock<ProofOfPossessionNfcProps> {
         request.shouldBeTypeOf<Request.HwKeyProof>().onSuccess(HwFactorProofOfPossession("fake"))
       }
-      awaitScreenWithBody<LoadingBodyModel>(
+      awaitScreenWithBody<LoadingSuccessBodyModel>(
         CloudEventTrackerScreenId.LOADING_RESTORING_FROM_LITE_ACCOUNT_CLOUD_BACKUP_DURING_FULL_ACCOUNT_ONBOARDING
-      )
+      ) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       onboardingFullAccountDeleter.deleteAccountCalls
         .awaitItem()
         .shouldBe(fullAccountIdToReplace)

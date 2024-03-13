@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.apiguardian:apiguardian-api",
+    "components": [
+        {
+            "version": "1.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "apiguardian-api-1.1.2.jar": "b509448ac506d607319f182537f0b35d71007582ec741832a1f111e5b5b70b38"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

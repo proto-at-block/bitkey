@@ -7,7 +7,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_PHONE_NUMBER_INPUT_SKIP
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED
 import build.wallet.bitkey.f8e.FullAccountIdMock
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
 import build.wallet.notifications.NotificationTouchpointDaoMock
@@ -34,6 +34,8 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
+import build.wallet.statemachine.ui.clickSecondaryButton
+import build.wallet.time.ControlledDelayer
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint.On60
@@ -62,6 +64,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
   val stateMachine =
     NotificationPreferencesSetupUiStateMachineImpl(
       eventTracker = eventTracker,
+      delayer = ControlledDelayer(),
       notificationPermissionRequester = notificationPermissionRequester,
       notificationTouchpointDao = notificationTouchpointDao,
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
@@ -76,7 +79,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
   val props =
     NotificationPreferencesSetupUiProps(
       fullAccountId = FullAccountIdMock,
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       onComplete = { onCompleteCalls.add(Unit) }
     )
 
@@ -165,7 +168,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         }
         formModel.primaryButton.shouldNotBeNull().text.shouldBe("Go Back")
         formModel.secondaryButton.shouldNotBeNull().text.shouldBe("Skip")
-        formModel.secondaryButton.shouldNotBeNull().onClick()
+        formModel.clickSecondaryButton()
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -242,7 +245,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         }
         formModel.primaryButton.shouldNotBeNull().text.shouldBe("Go Back")
         formModel.secondaryButton.shouldNotBeNull().text.shouldBe("Skip")
-        formModel.secondaryButton.shouldNotBeNull().onClick()
+        formModel.clickSecondaryButton()
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -353,7 +356,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         val formModel =
           entryPoint.shouldBeInstanceOf<Onboarding>()
             .skipBottomSheetProvider.shouldNotBeNull().invoke().body as FormBodyModel
-        formModel.secondaryButton.shouldNotBeNull().onClick()
+        formModel.clickSecondaryButton()
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -396,7 +399,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         val formModel =
           entryPoint.shouldBeInstanceOf<Onboarding>()
             .skipBottomSheetProvider.shouldNotBeNull().invoke().body as FormBodyModel
-        formModel.secondaryButton.shouldNotBeNull().onClick()
+        formModel.clickSecondaryButton()
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -438,7 +441,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         val formModel =
           entryPoint.shouldBeInstanceOf<Onboarding>()
             .skipBottomSheetProvider.shouldNotBeNull().invoke().body as FormBodyModel
-        formModel.secondaryButton.shouldNotBeNull().onClick()
+        formModel.clickSecondaryButton()
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -460,7 +463,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         skipBottomSheet.header.shouldNotBeNull().expectSkipNotAllowedModel()
         skipBottomSheet.primaryButton.shouldNotBeNull().text.shouldBe("Go Back")
         skipBottomSheet.secondaryButton.shouldNotBeNull().text.shouldBe("Enter phone number")
-        skipBottomSheet.secondaryButton.shouldNotBeNull().onClick()
+        skipBottomSheet.clickSecondaryButton()
       }
 
       // Entering and verifying phone number
@@ -506,7 +509,7 @@ class NotificationPreferencesSetupUiStateMachineImplTests : FunSpec({
         skipBottomSheet.header.shouldNotBeNull().expectSkipNotAllowedModel()
         skipBottomSheet.primaryButton.shouldNotBeNull().text.shouldBe("Go Back")
         skipBottomSheet.secondaryButton.shouldNotBeNull().text.shouldBe("Enter email")
-        skipBottomSheet.secondaryButton.shouldNotBeNull().onClick()
+        skipBottomSheet.clickSecondaryButton()
       }
 
       // Entering and verifying email

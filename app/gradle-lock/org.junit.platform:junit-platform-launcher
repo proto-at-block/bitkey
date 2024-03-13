@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.junit.platform:junit-platform-launcher",
+    "components": [
+        {
+            "version": "1.8.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-platform-launcher-1.8.2.jar": "822156409fd83e682e4c5199b3460054299b538a058c2c6d0f5c9b6a5bdb7594"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

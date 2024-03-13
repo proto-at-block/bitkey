@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.junit.jupiter:junit-jupiter-api",
+    "components": [
+        {
+            "version": "5.8.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-jupiter-api-5.8.2.jar": "1808ee87e0f718cd6e25f3b75afc17956ac8a3edc48c7e9bab9f19f9a79e3801"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.jakewharton.crossword:crossword-jvm",
+    "components": [
+        {
+            "version": "0.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "crossword-jvm.jar": "6af75f8064934d2c7c3d1a2256804637146498fce7490afe993d03129016d739"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

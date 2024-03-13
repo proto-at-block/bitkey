@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.material:material-icons-core-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-icons-core-release.aar": "fc2bc75dcd539599a773e3a86dbb3a9899fdc58b65e919751f4a2d77bebbd187"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

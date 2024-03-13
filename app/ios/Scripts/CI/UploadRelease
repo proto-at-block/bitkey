@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Activate Hermit"
+source bin/activate-hermit
+
+script_full_path=$(dirname "$0")
+
+echo "Getting GitHub token"
+GH_TOKEN=$("$script_full_path/GetGHToken")
+export GH_TOKEN
+
+release_version="${GIT_BRANCH##*/}"
+release_type="$1"
+
+echo "Copying IPA"
+artifacts_dir="$WORKSPACE/ios-builder/artifacts" 
+case "$release_type" in
+    "customer")
+        release_ipa_file="release_archive.ipa"
+        ;;
+    "team")
+        release_ipa_file="team-testflight_archive.ipa"
+        ;;
+    *)
+        echo "Unsupported release type $release_type" >&2
+        exit 1
+        ;;
+esac
+
+artifact_ipa_file="app-$release_type-$release_version.ipa"
+artifact_hash_file="$artifact_ipa_file.sha256"
+
+pushd "$artifacts_dir"
+echo "Renaming release IPA"
+mv "$release_ipa_file" "$artifact_ipa_file"
+
+echo "Computing checksum"
+sha256sum "$artifact_ipa_file" > "$artifact_hash_file"
+popd
+
+echo "Uploading $artifact_ipa_file and $artifact_hash_file to app/$release_type/$release_version"
+gh release upload "app/$release_type/$release_version" "$artifacts_dir/$artifact_ipa_file" "$artifacts_dir/$artifact_hash_file"
+
+bundle exec fastlane "upload_wallet_${release_type}_build_symbols"

@@ -17,7 +17,8 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statem
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -87,7 +88,7 @@ fun TransferConfirmationScreenModel(
                   text = "Cancel",
                   treatment = TertiaryDestructive,
                   size = Compact,
-                  onClick = Click.standardClick { onCancel() }
+                  onClick = StandardClick { onCancel() }
                 )
             )
         ),
@@ -97,11 +98,7 @@ fun TransferConfirmationScreenModel(
           onNetworkFeesClick = onNetworkFeesClick,
           onArrivalTimeClick = onArrivalTimeClick
         ),
-      ctaWarning =
-        when (variant) {
-          is Variant.SpeedUp -> "You’ll only be charged the additional network fee."
-          is Variant.Regular -> null
-        },
+      ctaWarning = null,
       primaryButton =
         ButtonModel(
           text = "Send",
@@ -131,7 +128,7 @@ fun NetworkFeesInfoSheetModel(onBack: () -> Unit) =
       ButtonModel(
         text = "Got it",
         size = Footer,
-        onClick = Click.sheetClosingClick { onBack() }
+        onClick = SheetClosingClick(onBack)
       ),
     mainContentList =
       immutableListOf(
@@ -241,9 +238,9 @@ private fun TransactionDetailsModel.toDataList(
       total =
         DataList.Data(
           title = "Total Cost",
-          sideText = totalAmountPrimaryText,
+          sideText = transactionDetailModelType.totalAmountPrimaryText,
           sideTextType = DataList.Data.SideTextType.BODY2BOLD,
-          secondarySideText = totalAmountSecondaryText
+          secondarySideText = transactionDetailModelType.totalAmountSecondaryText
         )
     )
   )

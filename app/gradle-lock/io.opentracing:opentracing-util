@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.opentracing:opentracing-util",
+    "components": [
+        {
+            "version": "0.32.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "opentracing-util-0.32.0.jar": "0bbf2efdd4d32a59234d14a146654abc4548b07c748faf15cef4a16944189f43"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

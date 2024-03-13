@@ -1,0 +1,18 @@
+{
+    "module-identifier": "wf.bitcoin:bitcoin-rpc-client",
+    "components": [
+        {
+            "version": "1.2.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bitcoin-rpc-client-1.2.4.jar": "8e74757c646fb3fdeaa86a29ca70a1609eccb92454c9edbf160288dcb8001ea4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

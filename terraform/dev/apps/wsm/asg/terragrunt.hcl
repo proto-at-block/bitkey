@@ -11,6 +11,7 @@ terraform {
 }
 
 inputs = {
-  name      = "wsm"
-  subdomain = "wsm-main"
+  name       = "wsm"
+  subdomain  = "wsm-main"
+  enable_ssm = true
 }

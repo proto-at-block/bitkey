@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.moshi:moshi",
+    "components": [
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "moshi-1.9.3.jar": "75258fda61c1266c7c5606b297b1c70db35d76258cd170c1aac04e8665a6d59e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

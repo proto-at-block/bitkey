@@ -7,7 +7,7 @@ import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 
@@ -33,7 +33,7 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
           isEnabled = true,
           isLoading = false,
           size = Footer,
-          onClick = Click.standardClick { props.onComplete() }
+          onClick = StandardClick(props.onComplete)
         )
     )
   }

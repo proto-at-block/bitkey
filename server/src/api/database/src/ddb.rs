@@ -241,6 +241,8 @@ pub enum DatabaseError {
     PersistenceError(DatabaseObject),
     #[error("Couldn't update field on {0}")]
     UpdateError(DatabaseObject),
+    #[error("Couldn't delete items on {0}")]
+    DeleteItemsError(DatabaseObject),
     #[error("Couldn't serialize field on {0} due to error {1}")]
     SerializationError(DatabaseObject, serde_dynamo::Error),
     #[error("Couldn't format DateTime field on {0}")]
@@ -268,7 +270,8 @@ impl From<DatabaseError> for ApiError {
             | DatabaseError::DatetimeFormatError(_)
             | DatabaseError::SerializeAttributeValueError(_, _)
             | DatabaseError::ObjectNotUnique(_)
-            | DatabaseError::RequestContruction(_) => {
+            | DatabaseError::RequestContruction(_)
+            | DatabaseError::DeleteItemsError(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             DatabaseError::ObjectNotFound(_) => ApiError::GenericNotFound(err_msg),

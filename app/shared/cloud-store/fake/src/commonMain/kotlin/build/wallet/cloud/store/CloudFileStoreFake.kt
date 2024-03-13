@@ -16,6 +16,7 @@ import okio.ByteString.Companion.toByteString
  *        store by deleting all directories and files inside this directory.
  */
 class CloudFileStoreFake(
+  private val parentDir: String,
   private val rootDir: String = "cloud-file-store-fake",
   private val fileManager: FileManager,
 ) : CloudFileStore {
@@ -23,14 +24,14 @@ class CloudFileStoreFake(
     account: CloudStoreAccount,
     fileName: String,
   ): CloudFileStoreResult<Boolean> {
-    return CloudFileStoreResult.Ok(fileManager.fileExists(rootDir.join(fileName)))
+    return CloudFileStoreResult.Ok(fileManager.fileExists(rootDir.join(account.toString()).join(fileName)))
   }
 
   override suspend fun read(
     account: CloudStoreAccount,
     fileName: String,
   ): CloudFileStoreResult<ByteString> {
-    val accountDir = rootDir.join(account.toString())
+    val accountDir = rootDir.join(account.toString()).join(fileName)
     return fileManager
       .readFileAsBytes(accountDir).result
       .map { it.toByteString() }
@@ -52,6 +53,10 @@ class CloudFileStoreFake(
     mimeType: MimeType,
   ): CloudFileStoreResult<Unit> {
     val accountDir = rootDir.join(account.toString())
+
+    val absoluteAccountDir = parentDir.join(accountDir)
+    fileManager.mkdirs(absoluteAccountDir)
+
     return fileManager
       .writeFile(
         data = bytes.toByteArray(),

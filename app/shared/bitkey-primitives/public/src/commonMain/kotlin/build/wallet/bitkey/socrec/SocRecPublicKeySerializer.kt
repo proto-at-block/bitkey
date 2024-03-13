@@ -12,7 +12,7 @@ internal abstract class SocRecPublicKeySerializer<T : SocRecKey>(
   private val factory: (AppKey) -> T,
 ) : KSerializer<T> {
   override val descriptor: SerialDescriptor
-    get() = PrimitiveSerialDescriptor("TrustedContactIdentityKey", PrimitiveKind.STRING)
+    get() = PrimitiveSerialDescriptor("SocRecPublicKey", PrimitiveKind.STRING)
 
   override fun deserialize(decoder: Decoder): T =
     factory(AppKey.fromPublicKey(decoder.decodeString()))

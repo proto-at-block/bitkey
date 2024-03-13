@@ -1,6 +1,7 @@
 package build.wallet.ui.components.list
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,7 +30,14 @@ internal fun ListItemAccessory(model: ListItemAccessory) {
       IconImage(
         modifier =
           Modifier
-            .padding(model.iconPadding?.dp ?: 0.dp),
+            .padding(model.iconPadding?.dp ?: 0.dp)
+            .let { modifier ->
+              model.onClick?.let {
+                modifier.clickable(
+                  onClick = it
+                )
+              } ?: modifier
+            },
         model = model.model
       )
 

@@ -28,8 +28,8 @@ data class GettingStartedTaskRowModel(
       val (title: String, icon: Icon) =
         when (task.id) {
           AddBitcoin -> Pair("Add bitcoin", SmallIconPlusStroked)
-          EnableSpendingLimit -> Pair("Turn on mobile pay", SmallIconPhone)
-          InviteTrustedContact -> Pair("Invite a trusted contact", SmallIconShieldPerson)
+          EnableSpendingLimit -> Pair("Turn on Mobile Pay", SmallIconPhone)
+          InviteTrustedContact -> Pair("Invite a Trusted Contact", SmallIconShieldPerson)
         }
 
       return when (task.state) {

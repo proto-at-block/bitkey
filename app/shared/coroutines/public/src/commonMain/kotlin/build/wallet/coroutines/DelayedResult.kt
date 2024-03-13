@@ -5,6 +5,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Executes [block] and suspends the result return for at least [minimumDuration], including the
@@ -14,7 +15,7 @@ import kotlin.time.Duration
  * part of loading UI.
  */
 suspend inline fun <T> delayedResult(
-  minimumDuration: Duration,
+  minimumDuration: Duration = 1.5.seconds,
   crossinline block: suspend CoroutineScope.() -> T,
 ): T {
   return coroutineScope {

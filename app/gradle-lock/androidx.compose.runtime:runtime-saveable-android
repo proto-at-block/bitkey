@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.runtime:runtime-saveable-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-release.aar": "5e834c12d7d226a1057e6e70b341cc27414afa2e9d0007660b9dffec6b7673ed"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

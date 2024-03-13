@@ -1,0 +1,18 @@
+{
+    "module-identifier": "de.cketti.unicode:kotlin-codepoints-deluxe-jvm",
+    "components": [
+        {
+            "version": "0.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-codepoints-deluxe-jvm.jar": "c8df246ff709a454926ce612c5a9932daedb41dafbe9dfbcde9b7e17b03056cf"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

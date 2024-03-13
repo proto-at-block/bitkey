@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:identity-api",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "identity-api-metadata-1.0.13.jar": "2e6e070f9c677569a2d2b293896ebefcf4347ac2aee5ac94f944fa2d8a20e603"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

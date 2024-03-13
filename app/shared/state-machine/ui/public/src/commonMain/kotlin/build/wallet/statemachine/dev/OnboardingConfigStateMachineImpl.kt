@@ -3,7 +3,6 @@ package build.wallet.statemachine.dev
 import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
-import build.wallet.onboarding.OnboardingKeyboxStep.CurrencyPreference
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
@@ -69,24 +68,6 @@ class OnboardingConfigStateMachineImpl(
                           onboardConfigData.setShouldSkipStep(NotificationPreferences, shouldSkip)
                         },
                         testTag = "skip-notifications"
-                      )
-                  )
-              ),
-              ListItemModel(
-                title = "Skip Currency Preference",
-                secondaryText = "New wallet will default to device locale and Sats",
-                trailingAccessory =
-                  SwitchAccessory(
-                    model =
-                      SwitchModel(
-                        checked =
-                          onboardConfigData.config.stepsToSkip.contains(
-                            CurrencyPreference
-                          ),
-                        onCheckedChange = { shouldSkip ->
-                          onboardConfigData.setShouldSkipStep(CurrencyPreference, shouldSkip)
-                        },
-                        testTag = "skip-currency-pref"
                       )
                   )
               )

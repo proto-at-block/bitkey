@@ -7,7 +7,7 @@ import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_NOT_STARTED
@@ -20,13 +20,12 @@ import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel.Style.Implicit
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
 import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachineImpl
 import com.github.michaelbull.result.Ok
@@ -41,7 +40,7 @@ import com.github.michaelbull.result.getOrThrow
  * to run integration tests.
  *
  *   recoveryStateMachine.test(
- *     props = keyboxConfig,
+ *     props = fullAccountConfig,
  *     testTimeout = 20.seconds,
  *     turbineTimeout = 5.seconds
  *   ) {
@@ -56,9 +55,9 @@ class RecoveryTestingStateMachine(
   val usm: LostAppRecoveryUiStateMachineImpl,
   val recoverySyncer: RecoverySyncer,
   val accountRepository: AccountRepository,
-) : StateMachine<KeyboxConfig, ScreenModel> {
+) : StateMachine<FullAccountConfig, ScreenModel> {
   @Composable
-  override fun model(keyboxConfig: KeyboxConfig): ScreenModel {
+  override fun model(fullAccountConfig: FullAccountConfig): ScreenModel {
     val accountStatus =
       remember { accountRepository.accountStatus() }.collectAsState(null)
         .value?.getOrThrow()
@@ -72,7 +71,7 @@ class RecoveryTestingStateMachine(
     val data =
       dsm.model(
         AccountDataProps(
-          templateKeyboxConfigData = LoadedTemplateKeyboxConfigData(keyboxConfig) {},
+          templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(fullAccountConfig) {},
           currencyPreferenceData = CurrencyPreferenceData(BitcoinDisplayUnit.Satoshi, {}, USD) {}
         )
       )
@@ -93,7 +92,7 @@ class RecoveryTestingStateMachine(
         usm.model(
           LostAppRecoveryUiProps(
             recoveryData = data.lostAppRecoveryData,
-            keyboxConfig = data.templateKeyboxConfig,
+            fullAccountConfig = data.templateFullAccountConfig,
             fiatCurrency = USD,
             eakAssociation = EakDataFake
           )
@@ -127,7 +126,7 @@ internal fun preStartOrPostRecoveryCompletionScreen(
   ScreenModel(
     SuccessBodyModel(
       title = "Recovery Success",
-      style = Implicit,
-      id = id
+      id = id,
+      primaryButtonModel = null
     )
   )

@@ -2,33 +2,34 @@ package build.wallet.statemachine.account.create.full.onboard
 
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.OnboardKeyboxUiProps
 import build.wallet.statemachine.account.create.full.OnboardKeyboxUiStateMachineImpl
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiPropsV2
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.BackingUpKeyboxToCloudDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCurrencyPreferenceDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingNotificationsDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.FailedCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingCurrencyPreferenceDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
-import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
-import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
+import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 import okio.ByteString
 
 class OnboardKeyboxUiStateMachineImplTests : FunSpec({
@@ -38,20 +39,24 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
     OnboardingKeyboxStepStateDaoMock(turbines::create)
 
   val keyboxDao = KeyboxDaoMock(turbines::create)
+  val v2FeatureFlag = NotificationsFlowV2EnabledFeatureFlag(FeatureFlagDaoMock())
+
   val stateMachine =
     OnboardKeyboxUiStateMachineImpl(
       fullAccountCloudSignInAndBackupUiStateMachine =
         object : FullAccountCloudSignInAndBackupUiStateMachine, ScreenStateMachineMock<FullAccountCloudSignInAndBackupProps>(
           id = "cloud"
         ) {},
-      currencyPreferenceUiStateMachine =
-        object : CurrencyPreferenceUiStateMachine, ScreenStateMachineMock<CurrencyPreferenceProps>(
-          id = "currency-preference"
-        ) {},
+      notificationsFlowV2EnabledFeatureFlag = v2FeatureFlag,
       notificationPreferencesSetupUiStateMachine =
         object : NotificationPreferencesSetupUiStateMachine,
           ScreenStateMachineMock<NotificationPreferencesSetupUiProps>(
             id = "notification-preferences"
+          ) {},
+      notificationPreferencesSetupUiStateMachineV2 =
+        object : NotificationPreferencesSetupUiStateMachineV2,
+          ScreenStateMachineMock<NotificationPreferencesSetupUiPropsV2>(
+            id = "notification-preferences-v2"
           ) {}
     )
 
@@ -84,20 +89,16 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
       onComplete = { settingNotificationsPreferencesDataCompleteCalls.add(Unit) }
     )
 
-  val settingCurrencyPreferenceDataCompleteCalls =
-    turbines.create<Unit>(
-      "SettingCurrencyPreferenceData complete calls"
-    )
-  val settingCurrencyPreferenceData =
-    SettingCurrencyPreferenceDataFull(
-      currencyPreferenceData = CurrencyPreferenceDataMock,
-      onComplete = { settingCurrencyPreferenceDataCompleteCalls.add(Unit) }
-    )
-
   beforeTest {
     onboardingKeyboxSealedCsekDao.clear()
     onboardingKeyboxStepStateDao.reset()
     keyboxDao.reset()
+  }
+
+  beforeEach {
+    v2FeatureFlag.apply {
+      setFlagValue(FeatureFlagValue.BooleanFlag(false))
+    }
   }
 
   test("BackingUpKeyboxToCloudData screen - onBackupSaved") {
@@ -121,7 +122,7 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
   test("FailedCloudBackupData screen") {
     stateMachine.test(OnboardKeyboxUiProps(failedCloudBackupData)) {
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       failedCloudBackupDataRetryCalls.awaitItem()
     }
@@ -129,7 +130,9 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
 
   test("CompletingCloudBackupData screen") {
     stateMachine.test(OnboardKeyboxUiProps(CompletingCloudBackupDataFull)) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
     }
   }
 
@@ -144,22 +147,9 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
 
   test("CompletingNotificationsData screen") {
     stateMachine.test(OnboardKeyboxUiProps(CompletingNotificationsDataFull)) {
-      awaitScreenWithBody<LoadingBodyModel>()
-    }
-  }
-
-  test("SettingCurrencyPreferenceData screen - complete") {
-    stateMachine.test(OnboardKeyboxUiProps(settingCurrencyPreferenceData)) {
-      awaitScreenWithBodyModelMock<CurrencyPreferenceProps> {
-        onDone.shouldNotBeNull().invoke()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      settingCurrencyPreferenceDataCompleteCalls.awaitItem()
-    }
-  }
-
-  test("CompletingCurrencyPreferenceData screen") {
-    stateMachine.test(OnboardKeyboxUiProps(CompletingCurrencyPreferenceDataFull)) {
-      awaitScreenWithBody<LoadingBodyModel>()
     }
   }
 })

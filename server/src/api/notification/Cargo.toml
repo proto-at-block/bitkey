@@ -33,10 +33,12 @@ time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 ulid = { workspace = true }
+urlencoding = { workspace = true }
 utoipa = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
+authn_authz = { workspace = true }
 bdk_utils = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
@@ -46,6 +48,7 @@ migration = { workspace = true }
 queue = { workspace = true }
 repository = { workspace = true, features = ["consent"] }
 types = { workspace = true, features = ["account", "notification"] }
+userpool = { workspace = true }
 
 [dev-dependencies]
 rstest = "0.18.1"

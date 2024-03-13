@@ -30,6 +30,8 @@ class KeyboxDaoMock(
       Ok(LoadableValue.LoadedValue(defaultOnboardingKeybox))
     )
 
+  var rotateKeyboxResult: Result<Keybox, DbError> = Ok(KeyboxMock)
+
   var keyset: SpendingKeyset? = null
 
   override fun activeKeybox(): Flow<Result<Keybox?, DbError>> = activeKeybox
@@ -60,7 +62,11 @@ class KeyboxDaoMock(
     appAuthKeys: AppAuthPublicKeys,
   ): Result<Keybox, DbError> {
     rotateAuthKeysCalls += Unit
-    return Ok(KeyboxMock)
+    return rotateKeyboxResult.also {
+      if (it is Ok) {
+        activeKeybox.value = Ok(it.value)
+      }
+    }
   }
 
   override suspend fun saveKeyboxAndBeginOnboarding(keybox: Keybox): Result<Unit, DbError> {
@@ -83,5 +89,6 @@ class KeyboxDaoMock(
     onboardingKeybox.value = Ok(LoadableValue.LoadedValue(defaultOnboardingKeybox))
     activeKeybox.value = Ok(defaultActiveKeybox)
     keyset = null
+    rotateKeyboxResult = Ok(KeyboxMock)
   }
 }

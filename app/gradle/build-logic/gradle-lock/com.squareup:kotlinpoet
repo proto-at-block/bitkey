@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup:kotlinpoet",
+    "components": [
+        {
+            "version": "1.15.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinpoet-metadata-1.15.2.jar": "78c3aff14ff7d24991b9fd8b21a8e4a142d290b52ab61102c1bf6d48badc6765"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

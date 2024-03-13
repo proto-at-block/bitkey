@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.googlecode.juniversalchardet:juniversalchardet",
+    "components": [
+        {
+            "version": "1.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "juniversalchardet-1.0.3.jar": "757bfe906193b8b651e79dc26cd67d6b55d0770a2cdfb0381591504f779d4a76"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

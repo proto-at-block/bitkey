@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-build-tools-api",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-build-tools-api-1.9.10.jar": "55e66137990be8c0d155992e25f437ac3a235cb18d1c7b88654366df684c8d41"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

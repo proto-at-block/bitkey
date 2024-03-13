@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.rickclephas.kmp:nsexception-kt-core-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.1.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "nsexception-kt-core-iossimulatorarm64-0.1.10-metadata.jar": "63a83be72d72f8a0d9f677a687443a08ca1b2bd7ab2778347c7e305712646bfd"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "nsexception-kt-core.klib": "7a3bb451fda3d97ed659f67e733ecda041af56e6bc7512fb218242ef1843b89d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

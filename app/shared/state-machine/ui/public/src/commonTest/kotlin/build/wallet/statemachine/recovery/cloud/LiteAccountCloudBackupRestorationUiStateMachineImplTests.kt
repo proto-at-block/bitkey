@@ -9,14 +9,14 @@ import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.cloud.backup.LiteAccountCloudBackupRestorerFake
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
@@ -42,7 +42,9 @@ class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   test("success") {
     stateMachine.test(props = props) {
-      awaitScreenWithBody<LoadingBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       liteAccountCloudBackupRestorer
         .restoreFromBackupCalls
         .awaitItem()
@@ -55,13 +57,15 @@ class LiteAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
     val throwable = Throwable("foo")
     liteAccountCloudBackupRestorer.returnError = Err(AccountBackupRestorationError(throwable))
     stateMachine.test(props = props) {
-      awaitScreenWithBody<LoadingBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_RESTORING_FROM_CLOUD_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       liteAccountCloudBackupRestorer
         .restoreFromBackupCalls
         .awaitItem()
         .shouldBe(CloudBackupV2WithLiteAccountMock)
       awaitScreenWithBody<FormBodyModel>(FAILURE_RESTORE_FROM_CLOUD_BACKUP) {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onExitCalls.awaitItem()
     }

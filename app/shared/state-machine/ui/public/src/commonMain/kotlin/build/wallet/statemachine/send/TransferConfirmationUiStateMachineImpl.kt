@@ -55,7 +55,7 @@ import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransfe
 import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.InfoSheet
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -197,7 +197,7 @@ class TransferConfirmationUiStateMachineImpl(
                       text = "Cancel",
                       treatment = ButtonModel.Treatment.TertiaryDestructive,
                       size = ButtonModel.Size.Compact,
-                      onClick = Click.standardClick { props.onExit() }
+                      onClick = StandardClick(props.onExit)
                     )
                 )
             ),
@@ -499,7 +499,7 @@ class TransferConfirmationUiStateMachineImpl(
                       props =
                         FeeOptionListProps(
                           accountData = props.accountData,
-                          transactionAmount =
+                          transactionBaseAmount =
                             BitcoinMoney.sats(
                               state.appSignedPsbt.amountSats.toBigInteger()
                             ),

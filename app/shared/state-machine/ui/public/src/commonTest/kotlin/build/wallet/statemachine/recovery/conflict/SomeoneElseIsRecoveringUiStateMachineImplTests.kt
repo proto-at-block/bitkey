@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.conflict
 
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -12,6 +12,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiProps
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -52,7 +53,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
             showingSomeoneElseIsRecoveringDataOnCancelRecoveryConflictCalls.add(Unit)
           }
         ),
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       fullAccountId = FullAccountIdMock
     )
 
@@ -62,7 +63,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
         SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData(
           cancelingRecoveryLostFactor = App
         ),
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       fullAccountId = FullAccountIdMock
     )
 
@@ -82,7 +83,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
           rollback = { cancelingSomeoneElsesRecoveryFailedDataRollbackCalls.add(Unit) },
           retry = { cancelingSomeoneElsesRecoveryFailedDataRetryCalls.add(Unit) }
         ),
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       fullAccountId = FullAccountIdMock
     )
 
@@ -119,7 +120,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
       bottomSheet.onClosed()
       cancelingSomeoneElsesRecoveryFailedDataRollbackCalls.awaitItem()
       val bottomSheetBody = bottomSheet.body.shouldBeInstanceOf<FormBodyModel>()
-      bottomSheetBody.primaryButton.shouldNotBeNull().onClick()
+      bottomSheetBody.clickPrimaryButton()
       cancelingSomeoneElsesRecoveryFailedDataRetryCalls.awaitItem()
     }
   }

@@ -1,0 +1,21 @@
+{
+    "module-identifier": "org.jetbrains:annotations",
+    "components": [
+        {
+            "version": "13.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotations-13.0.jar": "ace2a10dc8e2d5fd34925ecac03e4988b2c0f851650c94b8cef49ba1bd111478"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "build-toolchain",
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

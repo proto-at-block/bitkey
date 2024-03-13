@@ -18,23 +18,7 @@ class CloudFormScreenSnapshots : FunSpec({
           onLearnMoreClick = {},
           devicePlatform = DevicePlatform.Android,
           requiresHardware = false,
-          isLoading = false,
-          emergencyAccessKitEnabled = false
-        )
-      )
-    }
-  }
-
-  test("cloud sign in instructions screen - EAK enabled") {
-    paparazzi.snapshot {
-      FormScreen(
-        SaveBackupInstructionsBodyModel(
-          onBackupClick = {},
-          onLearnMoreClick = {},
-          devicePlatform = DevicePlatform.Android,
-          requiresHardware = false,
-          isLoading = false,
-          emergencyAccessKitEnabled = true
+          isLoading = false
         )
       )
     }
@@ -45,6 +29,7 @@ class CloudFormScreenSnapshots : FunSpec({
       FormScreen(
         model =
           CloudSignInFailedScreenModel(
+            onContactSupport = {},
             onBack = {},
             onTryAgain = {},
             devicePlatform = DevicePlatform.Android

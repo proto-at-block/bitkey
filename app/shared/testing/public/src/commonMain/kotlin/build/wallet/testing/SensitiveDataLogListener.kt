@@ -1,9 +1,9 @@
 package build.wallet.testing
 
+import build.wallet.logging.SensitiveDataValidator
 import io.kotest.assertions.assertSoftly
 import io.kotest.core.listeners.ProjectListener
 import io.kotest.matchers.string.shouldNotContain
-import kotlin.text.RegexOption.IGNORE_CASE
 
 internal class SensitiveDataLogListener : ProjectListener {
   override suspend fun afterProject() {
@@ -16,17 +16,11 @@ internal class SensitiveDataLogListener : ProjectListener {
   private fun TestLogStoreWriter.shouldNotContainSensitiveData() {
     assertSoftly {
       logs.forEach { entry ->
-        sensitiveDataIndicators.forEach { indicator ->
+        SensitiveDataValidator.indicators().forEach { indicator ->
           entry.tag.shouldNotContain(indicator)
           entry.message.shouldNotContain(indicator)
         }
       }
     }
   }
-
-  // Naive way of catching logs that might contain sensitive data.
-  private val sensitiveDataIndicators =
-    listOf(
-      Regex("\\b[tx]prv\\w{78,112}", IGNORE_CASE)
-    )
 }

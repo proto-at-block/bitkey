@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-mock-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-mock-iosarm64-2.3.8-metadata.jar": "f4ddc0912ce552684e72ee3a830ff9d679e92f77c4afcd719a72386ed78f594d"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-mock.klib": "7b9bf974355385032974fb0f38c539eba64025fa18e73a570005b124a820d937"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

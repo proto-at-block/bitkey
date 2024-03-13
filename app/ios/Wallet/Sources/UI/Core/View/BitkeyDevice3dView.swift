@@ -61,9 +61,11 @@ private struct ToolbarScreenView: View {
                                     color: .translucentwhite
                                 ),
                                 iconTint: .ontranslucent,
+                                iconOpacity: nil,
+                                iconTopSpacing: nil,
                                 text: nil
                             ),
-                            onClick: ClickCompanion.shared.standardClick(onClick: onClose),
+                            onClick: StandardClick(onClick: onClose),
                             enabled: true
                         )
                     ),

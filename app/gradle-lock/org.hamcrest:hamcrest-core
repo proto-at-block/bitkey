@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.hamcrest:hamcrest-core",
+    "components": [
+        {
+            "version": "1.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "hamcrest-core-1.3.jar": "66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

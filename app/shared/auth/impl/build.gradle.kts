@@ -45,6 +45,7 @@ kotlin {
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.availabilityImpl)
+        implementation(projects.shared.cloudBackupFake)
       }
     }
   }

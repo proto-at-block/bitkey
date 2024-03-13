@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.matthewnelson.encoding:core-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-iossimulatorarm64-2.1.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "core.klib": "c791ccd7b856faef189fc2f595b796e8c95c0509119d7dc98df8b125d1641868"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

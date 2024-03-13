@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools:desugar_jdk_libs_configuration",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "desugar_jdk_libs_configuration-2.0.3.jar": "9f834a20ca4e1376522afe7bf523d3f1d5e9ad9bb0214b534ee79cc8481b4fc5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-toolchain"
+            ]
+        }
+    ]
+}

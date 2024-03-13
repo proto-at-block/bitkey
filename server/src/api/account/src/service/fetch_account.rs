@@ -1,9 +1,9 @@
-use database::ddb::DatabaseError;
-use errors::ApiError;
-
-use crate::entities::{AuthFactor, FullAccount, PubkeysToAccount};
+use crate::entities::{AuthFactor, FullAccount};
 use crate::service::FetchAccountByAuthKeyInput;
 use crate::{entities::Account, error::AccountError};
+use database::ddb::DatabaseError;
+use errors::ApiError;
+use types::account::PubkeysToAccount;
 
 use super::{FetchAccountInput, Service};
 
@@ -12,18 +12,24 @@ impl Service {
         &self,
         input: FetchAccountInput<'_>,
     ) -> Result<Account, AccountError> {
-        self.repo.fetch(input.account_id).await.map_err(Into::into)
+        self.account_repo
+            .fetch(input.account_id)
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn fetch_accounts(&self) -> Result<Vec<Account>, AccountError> {
-        self.repo.fetch_all_accounts().await.map_err(Into::into)
+        self.account_repo
+            .fetch_all_accounts()
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn fetch_account_id_by_hw_pubkey(
         &self,
         input: FetchAccountByAuthKeyInput,
     ) -> Result<PubkeysToAccount, ApiError> {
-        self.repo
+        self.account_repo
             .fetch_account_by_auth_pubkey(input.pubkey, AuthFactor::Hw)
             .await
             .map(Into::into)
@@ -34,7 +40,7 @@ impl Service {
         &self,
         input: FetchAccountByAuthKeyInput,
     ) -> Result<PubkeysToAccount, ApiError> {
-        self.repo
+        self.account_repo
             .fetch_account_by_auth_pubkey(input.pubkey, AuthFactor::Recovery)
             .await
             .map(Into::into)
@@ -45,7 +51,7 @@ impl Service {
         &self,
         input: FetchAccountByAuthKeyInput,
     ) -> Result<PubkeysToAccount, ApiError> {
-        self.repo
+        self.account_repo
             .fetch_account_by_auth_pubkey(input.pubkey, AuthFactor::App)
             .await
             .map(Into::into)
@@ -56,7 +62,7 @@ impl Service {
         &self,
         input: FetchAccountByAuthKeyInput,
     ) -> Result<Option<Account>, DatabaseError> {
-        self.repo
+        self.account_repo
             .fetch_optional_account_by_auth_pubkey(input.pubkey, AuthFactor::Hw)
             .await
     }
@@ -65,7 +71,7 @@ impl Service {
         &self,
         input: FetchAccountByAuthKeyInput,
     ) -> Result<Option<Account>, DatabaseError> {
-        self.repo
+        self.account_repo
             .fetch_optional_account_by_auth_pubkey(input.pubkey, AuthFactor::App)
             .await
             .map_err(Into::into)
@@ -75,7 +81,7 @@ impl Service {
         &self,
         input: FetchAccountByAuthKeyInput,
     ) -> Result<Option<Account>, DatabaseError> {
-        self.repo
+        self.account_repo
             .fetch_optional_account_by_auth_pubkey(input.pubkey, AuthFactor::Recovery)
             .await
             .map_err(Into::into)
@@ -85,7 +91,7 @@ impl Service {
         &self,
         input: FetchAccountInput<'_>,
     ) -> Result<FullAccount, AccountError> {
-        let account = self.repo.fetch(input.account_id).await?;
+        let account = self.account_repo.fetch(input.account_id).await?;
         let Account::Full(full_account) = account else {
             return Err(AccountError::InvalidAccountType);
         };

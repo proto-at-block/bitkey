@@ -1,11 +1,11 @@
 use authn_authz::key_claims::KeyClaims;
-use authn_authz::userpool::cognito_user::CognitoUser;
 
 use notification::payloads::recovery_relationship_deleted::RecoveryRelationshipDeletedPayload;
 use notification::service::SendNotificationInput;
 use notification::{NotificationPayloadBuilder, NotificationPayloadType};
-use tracing::{event, Level};
+use tracing::{event, instrument, Level};
 use types::account::identifiers::AccountId;
+use types::authn_authz::cognito::CognitoUser;
 use types::recovery::social::relationship::{
     RecoveryRelationship, RecoveryRelationshipCommonFields, RecoveryRelationshipConnectionFields,
     RecoveryRelationshipId,
@@ -13,6 +13,14 @@ use types::recovery::social::relationship::{
 
 use super::{error::ServiceError, Service};
 
+/// The input for the `delete_recovery_relationship` function
+///
+/// # Fields
+///
+/// * `acting_account_id` - The account that is trying to server the recovery relationship
+/// * `recovery_relationship_id` - The ID of the recovery relationship to be terminated
+/// * `key_proof` - The keyproof containing checks for both app and hardware signatures over the access token
+/// * `cognito_user` - The Cognito user linked to the access token
 pub struct DeleteRecoveryRelationshipInput<'a> {
     pub acting_account_id: &'a AccountId,
     pub recovery_relationship_id: &'a RecoveryRelationshipId,
@@ -28,10 +36,8 @@ impl Service {
     ///
     /// # Arguments
     ///
-    /// * `acting_account_id` - The account that is trying to server the recovery relationship
-    /// * `recovery_relationship_id` - The ID of the recovery relationship to be terminated
-    /// * `key_proof` - The keyproof containing checks for both app and hardware signatures over the access token
-    /// * `cognito_user` - The Cognito user linked to the access token
+    /// * `input` - Contains the account id of the acting account, the recovery relationship id to be terminated, the keyproof and the cognito user
+    #[instrument(skip(self, input))]
     pub async fn delete_recovery_relationship(
         &self,
         input: DeleteRecoveryRelationshipInput<'_>,

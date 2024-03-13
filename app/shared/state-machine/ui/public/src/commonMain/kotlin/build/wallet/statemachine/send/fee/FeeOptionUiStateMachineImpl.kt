@@ -17,19 +17,19 @@ class FeeOptionUiStateMachineImpl(
 ) : FeeOptionUiStateMachine {
   @Composable
   override fun model(props: FeeOptionProps): FeeOption {
-    val btcAmountString = moneyDisplayFormatter.format(props.amount)
+    val btcAmountString = moneyDisplayFormatter.format(props.feeAmount)
     val fiatAmountString =
       props.exchangeRates?.let {
         convertedOrZeroWithRates(
           converter = currencyConverter,
-          fromAmount = props.amount,
+          fromAmount = props.feeAmount,
           toCurrency = props.fiatCurrency,
           rates = props.exchangeRates
         ).let { moneyDisplayFormatter.format(it) }
       }
 
     val optionEnabled =
-      !(props.bitcoinBalance.total - props.amount - props.transactionAmount).isNegative
+      !(props.bitcoinBalance.total - props.feeAmount - props.transactionAmount).isNegative
 
     return FeeOption(
       optionName = getPriorityLeadingText(props.estimatedTransactionPriority),

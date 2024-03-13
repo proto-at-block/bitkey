@@ -143,8 +143,8 @@ extension UIColor {
   )
   // Warning banner background color
   public static let warning = UIColor(
-    light: UIColor(red: 1.000, green: 0.961, blue: 0.941, alpha: 1),
-    dark: UIColor(red: 1.000, green: 0.961, blue: 0.941, alpha: 1)
+    light: UIColor(red: 1.000, green: 0.96078431372549, blue: 0.941176470588235, alpha: 1),
+    dark: UIColor(red: 1.000, green: 0.96078431372549, blue: 0.941176470588235, alpha: 1)
   )
   // Warning foreground color
   public static let warningForeground = UIColor(

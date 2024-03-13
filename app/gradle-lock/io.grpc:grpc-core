@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.grpc:grpc-core",
+    "components": [
+        {
+            "version": "1.45.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-core-1.45.1.jar": "8dd8353e2a55678581ec92415c2b92cc8dafb437647dee57a49e36d1e8345b9e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

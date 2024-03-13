@@ -60,6 +60,10 @@ class SymbolChecks(bitkey_fwa.TestCase):
             'trigger_memset_stack_overflow',
             # mpu testing
             'mpu_test_map',
+            # dev functions for testing biometrics
+            'bio_provision_cryptographic_keys',
+            'bio_storage_key_plaintext_save',
+            'bio_write_plaintext_key',
         ]
 
         # match partial test

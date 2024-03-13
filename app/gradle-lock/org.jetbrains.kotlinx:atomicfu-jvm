@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:atomicfu-jvm",
+    "components": [
+        {
+            "version": "0.21.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "atomicfu-jvm-0.21.0.jar": "1d2c9337b10c48841c217dd0abb3be5a4250c789a8af89a91d707bed6c65b2fb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

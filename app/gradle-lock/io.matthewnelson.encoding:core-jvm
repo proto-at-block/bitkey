@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.matthewnelson.encoding:core-jvm",
+    "components": [
+        {
+            "version": "2.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-jvm-2.1.0.jar": "2183efb8934d389094fc81424f709a48600a80a965016352b0b07afe226df3d1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

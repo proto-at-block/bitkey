@@ -23,14 +23,14 @@ class AuthTokensRepositoryImpl(
     accountId: AccountId,
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens?, Throwable> {
-    log { "Loading auth tokens for $accountId..." }
+    log(LogLevel.Debug) { "Loading auth tokens for $accountId..." }
     return authTokenDao
       .getTokensOfScope(accountId, scope)
       .onSuccess { tokens ->
         if (tokens == null) {
           log(LogLevel.Warn) { "No auth tokens found for $accountId of scope $scope" }
         } else {
-          log { "Found auth tokens for $accountId of scope $scope" }
+          log(LogLevel.Debug) { "Found auth tokens for $accountId of scope $scope" }
         }
       }
   }

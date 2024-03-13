@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.7.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core-iossimulatorarm64-1.7.3-metadata.jar": "e0dfbcd28a285ece7e5d67dfb1ebebf9a964fac69e5b8e88372c5c9d896b9913"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core.klib": "67cc63b6fb2d0f8213d9e49626126f4ecc43604a6e22d5c6267d138a320c3a2a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

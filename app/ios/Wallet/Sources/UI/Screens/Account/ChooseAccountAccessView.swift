@@ -20,86 +20,69 @@ public struct ChooseAccountAccessView: View {
     // MARK: - View
 
     public var body: some View {
-        ZStack {
-            // Bottom of ZStack: background video
-            BackgroundVideoView()
+        GeometryReader { reader in
+            ZStack {
+                // Bottom of ZStack: background video
+                BackgroundVideoView()
 
-            // Top of ZStack: logo, text and buttons
-            VStack(spacing: 0) {
-                // Logo
-                HStack {
-                    Button {
-                        viewModel.onLogoClick()
-                    } label: {
+                // Top of ZStack: logo, text and buttons
+                VStack(spacing: 0) {
+                    // Logo
+                    HStack {
                         Image(uiImage: .bitkeyFullLogo)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(height: 25)
                             .foregroundColor(.white)
+                            .onTapGesture(perform: viewModel.onLogoClick)
                             .accessibility(identifier: "logo")
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
-
-                Spacer()
-
-                VStack {
-                    VStack {
-                        ModeledText(model: .standard(viewModel.title, font: .display3, textColor: .white))
-
                         Spacer()
-                            .frame(height: 4)
-
-                        ModeledText(model: .standard(viewModel.subtitle, font: .body2Regular, textColor: .white))
-
-                        Spacer()
-                            .frame(height: 16)
-
-                        VStack(spacing: 16) {
-                            ForEach(viewModel.buttons, id: \.text) {
-                                ButtonView(model: $0)
-                            }
-                        }
                     }
                     .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
 
-                }.background(
-                    LinearGradient(
-                        gradient: .init(colors: [.clear, .black.opacity(0.8)]),
-                        startPoint: .top,
-                        endPoint: .bottom
+                    Spacer()
+
+                    // Text and buttons
+                    VStack {
+                        VStack {
+                            ModeledText(model: .standard(viewModel.title, font: .display3, textColor: .white))
+
+                            Spacer()
+                                .frame(height: 4)
+
+                            ModeledText(model: .standard(viewModel.subtitle, font: .body2Regular, textColor: .white))
+
+                            Spacer()
+                                .frame(height: 16)
+
+                            VStack(spacing: 16) {
+                                ForEach(viewModel.buttons, id: \.text) {
+                                    ButtonView(model: $0)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
+
+                    }
+                    .padding(.bottom, reader.safeAreaInsets.bottom == 0 ? DesignSystemMetrics.verticalPadding : 0)
+                    .background(
+                        LinearGradient(
+                            gradient: .init(colors: [.clear, .black.opacity(0.8)]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
+                }
+                .padding(.top, reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0)
             }
         }
     }
 }
 
 private struct BackgroundVideoView : View {
-    private let player = AVPlayer(url: .welcomeVideoUrl)
     var body: some View {
-        VideoView(videoPlayer: player, videoGravity: .resizeAspectFill)
+        VideoView(viewModel: .init(videoUrl: .welcomeVideoUrl, videoGravity: .resizeAspectFill, videoShouldLoop: true, videoShouldPauseOnResignActive: true))
            .frame(maxHeight: .infinity)
            .ignoresSafeArea()
-           .onAppear {
-               // Set up observer to loop video
-               NotificationCenter.default.addObserver(
-                   forName: .AVPlayerItemDidPlayToEndTime,
-                   object: player.currentItem,
-                   queue: nil
-               ) { notification in
-                   player.seek(to: .zero)
-                   player.play()
-               }
-           }
-           .onDisappear {
-               // Remove observer used to loop video
-               NotificationCenter.default.removeObserver(
-                   self,
-                   name: .AVPlayerItemDidPlayToEndTime,
-                   object: player.currentItem
-               )
-           }
     }
 }

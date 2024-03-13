@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build:apkzlib",
+    "components": [
+        {
+            "version": "8.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "apkzlib-8.1.1.jar": "ec6cdd0645c9923c733d38a0a68c1b47919a822f138d56dc99ba9c78c361fa00"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

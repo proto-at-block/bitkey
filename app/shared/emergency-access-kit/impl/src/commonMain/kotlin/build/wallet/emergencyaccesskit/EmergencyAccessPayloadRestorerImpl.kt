@@ -1,10 +1,8 @@
 package build.wallet.emergencyaccesskit
 
 import build.wallet.bitcoin.AppPrivateKeyDao
-import build.wallet.bitcoin.keys.ExtendedPrivateKey
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppSpendingKeypair
-import build.wallet.bitkey.app.AppSpendingPrivateKey
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.catching
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.AccountRestoration
@@ -33,7 +31,7 @@ class EmergencyAccessPayloadRestorerImpl(
       when (payload) {
         is EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1 -> {
           val pkek =
-            csekDao.get(payload.hwEncryptionKeyCiphertext)
+            csekDao.get(payload.sealedHwEncryptionKey)
               .mapError { CsekMissing(cause = it) }
               .toErrorIfNull { CsekMissing() }
               .bind()
@@ -57,15 +55,7 @@ class EmergencyAccessPayloadRestorerImpl(
           appPrivateKeyDao.storeAppSpendingKeyPair(
             AppSpendingKeypair(
               publicKey = backup.spendingKeyset.appKey,
-              privateKey =
-                AppSpendingPrivateKey(
-                  key =
-                    ExtendedPrivateKey(
-                      xprv = backup.appSpendingKeyXprv,
-                      // TODO(BKR-839): Backup and restore the xprv mnemonic if it's needed.
-                      mnemonic = "MNEMONIC REMOVED DURING EMERGENCY ACCESS"
-                    )
-                )
+              privateKey = backup.appSpendingKeyXprv
             )
           )
             .mapError {
@@ -75,9 +65,9 @@ class EmergencyAccessPayloadRestorerImpl(
 
           AccountRestoration(
             activeSpendingKeyset = backup.spendingKeyset,
-            keyboxConfig =
-              KeyboxConfig(
-                networkType = backup.spendingKeyset.networkType,
+            fullAccountConfig =
+              FullAccountConfig(
+                bitcoinNetworkType = backup.spendingKeyset.networkType,
                 f8eEnvironment = F8eEnvironment.ForceOffline,
                 isHardwareFake = false,
                 isUsingSocRecFakes = false,

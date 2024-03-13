@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -59,7 +59,7 @@ fun HardwareReplacementInstructionsModel(
   primaryButton =
     ButtonModel(
       text = "Continue",
-      onClick = Click.standardClick { onContinue() },
+      onClick = StandardClick { onContinue() },
       size = Footer
     ),
   id = HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
@@ -85,14 +85,14 @@ fun NewDeviceReadyQuestionModel(
               model =
                 IconButtonModel(
                   iconModel = backIconModel,
-                  onClick = Click.standardClick { onBack() }
+                  onClick = StandardClick { onBack() }
                 )
             ).takeIf { showBack }
         ),
       header =
         FormHeaderModel(
-          headline = "Do you have a new Bitkey device ready to go?",
-          subline = "You’ll need to pair a new Bitkey device before you can start the process of replacing the old one."
+          headline = "Do you have a new Bitkey hardware device ready to go?",
+          subline = "You’ll need to pair a new Bitkey hardware device before you can start the process of replacing the old one."
         ),
       primaryButton = primaryAction,
       secondaryButton = secondaryAction,
@@ -103,8 +103,8 @@ fun NewDeviceReadyQuestionModel(
     if (showingNoDeviceAlert) {
       AlertModel(
         onDismiss = onNoDeviceAlertDismiss,
-        title = "A new device is required to recover your wallet.",
-        subline = "Please contact the Bitkey team.",
+        title = "A new Bitkey hardware device is required to replace one that is lost",
+        subline = "Visit https://bitkey.world to purchase a new Bitkey hardware device.",
         primaryButtonText = "Got it",
         onPrimaryButtonClick = onNoDeviceAlertDismiss
       )

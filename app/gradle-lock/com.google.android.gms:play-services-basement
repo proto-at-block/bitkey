@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.android.gms:play-services-basement",
+    "components": [
+        {
+            "version": "18.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "play-services-basement-18.2.0.aar": "ef43ebfc641d71481543524f46d126793b4cb57bf466c4df4ce43d0cb5e11b91"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

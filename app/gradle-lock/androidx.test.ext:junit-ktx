@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test.ext:junit-ktx",
+    "components": [
+        {
+            "version": "1.1.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-ktx-1.1.5.aar": "3f32de8f372bc6300b6d2ff2f219269aefcf7bcea8e876b1e715d35aef0ccc6d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

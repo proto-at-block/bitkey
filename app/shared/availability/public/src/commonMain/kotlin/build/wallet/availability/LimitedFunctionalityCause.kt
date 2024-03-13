@@ -26,7 +26,8 @@ sealed interface LimitedFunctionalityCause {
             securityAndRecovery = Unavailable,
             fiatExchangeRates = OutOfDate(lastUpdated = lastReachableTime),
             notifications = Unavailable,
-            helpCenter = Unavailable
+            helpCenter = Unavailable,
+            cloudBackupHealth = Unavailable
           )
 
         is InternetUnreachable ->
@@ -39,7 +40,8 @@ sealed interface LimitedFunctionalityCause {
             securityAndRecovery = Unavailable,
             fiatExchangeRates = OutOfDate(lastUpdated = lastReachableTime),
             notifications = Unavailable,
-            helpCenter = Unavailable
+            helpCenter = Unavailable,
+            cloudBackupHealth = Unavailable
           )
 
         EmergencyAccessMode ->
@@ -52,7 +54,8 @@ sealed interface LimitedFunctionalityCause {
             securityAndRecovery = Unavailable,
             fiatExchangeRates = Unavailable,
             notifications = Unavailable,
-            helpCenter = Unavailable
+            helpCenter = Unavailable,
+            cloudBackupHealth = Unavailable
           )
 
         InactiveApp ->
@@ -65,7 +68,8 @@ sealed interface LimitedFunctionalityCause {
             securityAndRecovery = Unavailable,
             fiatExchangeRates = Unavailable,
             notifications = Unavailable,
-            helpCenter = Unavailable
+            helpCenter = Unavailable,
+            cloudBackupHealth = Unavailable
           )
       }
 }

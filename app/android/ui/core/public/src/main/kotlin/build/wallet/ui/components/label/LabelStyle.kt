@@ -14,6 +14,7 @@ import androidx.compose.ui.text.style.TextDecoration.Companion.LineThrough
 import androidx.compose.ui.text.style.TextDecoration.Companion.None
 import androidx.compose.ui.text.style.TextDecoration.Companion.Underline
 import build.wallet.ui.components.label.LabelTreatment.Disabled
+import build.wallet.ui.components.label.LabelTreatment.Jumbo
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.label.LabelTreatment.Strikethrough
@@ -55,7 +56,7 @@ internal fun WalletTheme.textStyle(
 ): TextStyle {
   val color =
     when (treatment) {
-      Primary, Tertiary -> colors.foreground
+      Primary, Tertiary, Jumbo -> colors.foreground
       Secondary, Strikethrough -> colors.foreground60
       Disabled -> colors.foreground30
       Warning -> colors.warningForeground

@@ -1,6 +1,0 @@
-CREATE TABLE priorityPreferenceEntity(
-    rowId    INTEGER NOT NULL PRIMARY KEY,
-    priority TEXT AS EstimatedTransactionPriority NOT NULL
-);
-
-PRAGMA foreign_key_check;

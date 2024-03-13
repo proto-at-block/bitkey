@@ -30,13 +30,13 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("already has keys") {
-    secureStore.putString(key = "spending_key", value = AppSpendingPublicKeyMock.key.dpub)
-    secureStore.putString(key = "auth_key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
     secureStore.putString(
-      key = "app_recovery_auth_key",
+      key = "app-recovery-auth-key",
       value = AppRecoveryAuthPublicKeyMock.pubKey.value
     )
-    secureStore.putString(key = "network", value = "BITCOIN")
+    secureStore.putString(key = "network-key", value = "BITCOIN")
 
     keystore.getAppKeyBundle(localId = "foo", network = BITCOIN)
       .shouldBe(
@@ -51,52 +51,43 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
   }
 
   test("missing recovery auth key") {
-    secureStore.putString(key = "spending_key", value = AppSpendingPublicKeyMock.key.dpub)
-    secureStore.putString(key = "auth_key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
-    secureStore.putString(key = "network", value = "BITCOIN")
+    secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "network-key", value = "BITCOIN")
 
-    keystore.getAppKeyBundle(localId = "foo", network = BITCOIN)
-      .shouldBe(
-        AppKeyBundle(
-          localId = "foo",
-          spendingKey = AppSpendingPublicKeyMock,
-          authKey = AppGlobalAuthPublicKeyMock,
-          recoveryAuthKey = null,
-          networkType = BITCOIN
-        )
-      )
+    keystore.getAppKeyBundle(localId = "foo", network = BITCOIN).shouldBeNull()
   }
 
   test("missing spending key") {
-    secureStore.putString(key = "auth_key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
     secureStore.putString(
-      key = "app_recovery_auth_key",
+      key = "app-recovery-auth-key",
       value = AppRecoveryAuthPublicKeyMock.pubKey.value
     )
-    secureStore.putString(key = "network", value = "BITCOIN")
+    secureStore.putString(key = "network-key", value = "BITCOIN")
 
     keystore.getAppKeyBundle(localId = "foo", network = BITCOIN).shouldBeNull()
   }
 
   test("missing global auth key") {
-    secureStore.putString(key = "spending_key", value = AppSpendingPublicKeyMock.key.dpub)
+    secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
     secureStore.putString(
-      key = "app_recovery_auth_key",
+      key = "app-recovery-auth-key",
       value = AppRecoveryAuthPublicKeyMock.pubKey.value
     )
-    secureStore.putString(key = "network", value = "BITCOIN")
+    secureStore.putString(key = "network-key", value = "BITCOIN")
 
     keystore.getAppKeyBundle(localId = "foo", network = BITCOIN).shouldBeNull()
   }
 
   test("network type mismatch") {
-    secureStore.putString(key = "spending_key", value = AppSpendingPublicKeyMock.key.dpub)
-    secureStore.putString(key = "auth_key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
     secureStore.putString(
-      key = "app_recovery_auth_key",
+      key = "app-recovery-auth-key",
       value = AppRecoveryAuthPublicKeyMock.pubKey.value
     )
-    secureStore.putString(key = "network", value = "SIGNET")
+    secureStore.putString(key = "network-key", value = "SIGNET")
 
     keystore.getAppKeyBundle(localId = "foo", network = BITCOIN).shouldBeNull()
   }

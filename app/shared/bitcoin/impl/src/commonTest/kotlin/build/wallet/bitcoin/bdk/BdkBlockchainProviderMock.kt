@@ -29,7 +29,8 @@ class BdkBlockchainProviderMock(
       BdkBlockchainMock(
         blockHeightResult = Ok(1),
         blockHashResult = Ok(BitcoinNetworkType.BITCOIN.chainHash()),
-        broadcastResult = Ok(Unit)
+        broadcastResult = Ok(Unit),
+        feeRateResult = Ok(1f)
       )
 
     val ElectrumServerMock =

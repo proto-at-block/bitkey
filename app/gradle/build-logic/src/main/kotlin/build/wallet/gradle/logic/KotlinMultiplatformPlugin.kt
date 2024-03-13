@@ -1,5 +1,6 @@
 package build.wallet.gradle.logic
 
+import build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigurationPlugin
 import build.wallet.gradle.dependencylocking.DependencyLockingPlugin
 import build.wallet.gradle.logic.gradle.apply
 import org.gradle.api.Plugin
@@ -15,5 +16,7 @@ internal class KotlinMultiplatformPlugin : Plugin<Project> {
       pluginManager.apply("org.jetbrains.kotlin.multiplatform")
       pluginManager.apply<BasePlugin>()
       pluginManager.apply<DependencyLockingPlugin>()
+      pluginManager.apply<DependencyLockingCommonGroupConfigurationPlugin>()
+      pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
     }
 }

@@ -37,15 +37,15 @@ class FakeHardwareKeyStoreImpl(
 ) : FakeHardwareKeyStore {
   private suspend fun store() = encryptedKeyValueStoreFactory.getOrCreate(STORE_NAME)
 
-  override suspend fun getSeed(): String {
-    return store().getStringOrNull(SEED_KEY)!!
+  override suspend fun getSeed(): FakeHardwareKeyStore.Seed {
+    return FakeHardwareKeyStore.Seed(store().getStringOrNull(SEED_KEY)!!)
   }
 
-  override suspend fun setSeed(words: String) {
-    return store().putString(SEED_KEY, words)
+  override suspend fun setSeed(seed: FakeHardwareKeyStore.Seed) {
+    return store().putString(SEED_KEY, seed.words)
   }
 
-  suspend fun getRootPrivateKey(network: BitcoinNetworkType): BdkDescriptorSecretKey {
+  private suspend fun getRootPrivateKey(network: BitcoinNetworkType): BdkDescriptorSecretKey {
     val store = store()
     val words = store.getStringOrNull(SEED_KEY)
     val mnemonic =
@@ -138,8 +138,10 @@ class FakeHardwareKeyStoreImpl(
   }
 
   private companion object {
+    // changing these values is a breaking change and will cause data loss
+    // this class is only used for testing but will disrupt existing installations
     const val STORE_NAME = "fakeHardware"
-    const val SEED_KEY = "_seed"
+    const val SEED_KEY = "seed-key"
 
     val pathPattern = Regex("""^/84'/(\d+)'/(\d+)'""")
 

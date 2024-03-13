@@ -1,7 +1,11 @@
 package build.wallet.statemachine.data.keybox
 
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.count.id.SocialRecoveryEventTrackerCounterId
+import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
@@ -23,10 +27,14 @@ import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 
 // TODO(BKR-933): merge into FullAccountCloudBackupRepairer
 class CloudBackupRefresherImpl(
@@ -35,7 +43,13 @@ class CloudBackupRefresherImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val cloudBackupRepository: CloudBackupRepository,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
+  private val eventTracker: EventTracker,
+  private val clock: Clock,
 ) : CloudBackupRefresher {
+  private val lastCheckState: MutableStateFlow<Instant> = MutableStateFlow(Instant.DISTANT_PAST)
+
+  override val lastCheck: StateFlow<Instant> = lastCheckState
+
   override suspend fun refreshCloudBackupsWhenNecessary(
     scope: CoroutineScope,
     fullAccount: FullAccount,
@@ -43,8 +57,10 @@ class CloudBackupRefresherImpl(
     scope.launch {
       combine(
         socRecRelationshipsRepository.relationships
-          // Only the trusted contacts are interesting for cloud backups.
-          .map { it.trustedContacts }
+          // Only endorsed and verified trusted contacts are interesting for cloud backups.
+          .map {
+            it.trustedContacts
+          }
           .distinctUntilChanged(),
         cloudBackupDao
           .backup(accountId = fullAccount.accountId.serverId)
@@ -61,7 +77,7 @@ class CloudBackupRefresherImpl(
               refreshCloudBackup(
                 fullAccount = fullAccount,
                 hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek,
-                trustedContacts
+                trustedContacts = trustedContacts
               ).onSuccess {
                 log { "Refreshed cloud backup" }
               }.bind()
@@ -74,6 +90,7 @@ class CloudBackupRefresherImpl(
         }.onSuccess {
           log { "Cloud backup check succeeded" }
         }
+        lastCheckState.value = clock.now()
       }
     }
   }
@@ -99,12 +116,27 @@ class CloudBackupRefresherImpl(
           fullAccountFields
             ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))
 
-        val backedUpRelationshipIds = fields.socRecEncryptionKeyCiphertextMap.keys
+        val backedUpRelationshipIds = fields.socRecSealedDekMap.keys
         val newRelationshipIds = trustedContacts.map { it.recoveryRelationshipId }.toSet()
         if (backedUpRelationshipIds == newRelationshipIds) {
           Ok(UpToDate)
         } else {
-          Ok(NeedsUpdate(fields.hwEncryptionKeyCiphertext))
+          val count: Int = trustedContacts.count {
+            it.authenticationState == TrustedContactAuthenticationState.VERIFIED
+          }
+
+          eventTracker.track(
+            EventTrackerCountInfo(
+              eventTrackerCounterId = SocialRecoveryEventTrackerCounterId.SOCREC_COUNT_TOTAL_TCS,
+              count = count
+            )
+          )
+
+          Ok(
+            NeedsUpdate(
+              hwekEncryptedPkek = fields.sealedHwEncryptionKey
+            )
+          )
         }
       }
       null -> {
@@ -146,7 +178,8 @@ class CloudBackupRefresherImpl(
       cloudBackupRepository.writeBackup(
         accountId = fullAccount.accountId,
         cloudStoreAccount = cloudStoreAccount,
-        backup = cloudBackup
+        backup = cloudBackup,
+        requireAuthRefresh = true
       ).bind()
     }
 }

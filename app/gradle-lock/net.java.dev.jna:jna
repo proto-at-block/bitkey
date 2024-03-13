@@ -1,0 +1,42 @@
+{
+    "module-identifier": "net.java.dev.jna:jna",
+    "components": [
+        {
+            "version": "5.13.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jna-5.13.0.aar": "3a03daf5a7212201c3a9b44f734dfc9babb3addcb5cbfa639f9f535e887925c0"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "jna-5.13.0.aar": "3a03daf5a7212201c3a9b44f734dfc9babb3addcb5cbfa639f9f535e887925c0",
+                        "jna-5.13.0.jar": "66d4f819a062a51a1d5627bffc23fac55d1677f0e0a1feba144aabdd670a64bb"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "jna-5.13.0.jar": "66d4f819a062a51a1d5627bffc23fac55d1677f0e0a1feba144aabdd670a64bb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "5.6.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jna-5.6.0.jar": "5557e235a8aa2f9766d5dc609d67948f2a8832c2d796cea9ef1d6cbe0b3b7eaf"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

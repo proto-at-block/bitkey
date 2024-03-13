@@ -32,10 +32,12 @@ locals {
   }
 
   commands = {
-    api_server            = "api-server"            # start the api server (default)
-    revenue_reporting_job = "revenue-reporting-job" # schedule periodic revenue reporting job
-    order_update_job      = "order-update-job"      # schedule periodic order update job
-    order_payments_job    = "order-payments-job"    # schedule periodic order payments job
+    api_server             = "api-server"             # start the api server (default)
+    revenue_reporting_job  = "revenue-reporting-job"  # schedule periodic revenue reporting job
+    order_update_job       = "order-update-job"       # schedule periodic order update job
+    order_payments_job     = "order-payments-job"     # schedule periodic order payments job
+    refund_request_job     = "refund-request-job"     # schedule periodic refund request job
+    tax_refund_request_job = "tax-refund-request-job" # schedule periodic tax refund request job
   }
 }
 
@@ -142,6 +144,66 @@ module "web_order_update" {
   }
 }
 
+module "web_refund_request" {
+  source = "../../../models/ecs-service"
+
+  namespace = var.namespace
+  name      = "${var.name}-refund-request-job"
+
+  vpc_name             = var.vpc_name
+  security_group_ids   = [module.lookup_db.ingress_security_group_id]
+  cluster_arn          = var.cluster_arn
+  image_name           = var.image_name
+  image_tag            = var.image_tag
+  environment          = var.environment
+  cpu_architecture     = "X86_64"
+  desired_count        = 1
+  create_load_balancer = false
+  command              = [local.commands.refund_request_job]
+
+  environment_variables = merge(local.environment_variables, {
+    DD_SERVICE = "${var.name}-refund-request-job"
+  })
+  secrets = local.secrets
+
+  task_policy_arns = merge({
+    secrets = aws_iam_policy.secrets_policy.arn
+  }, var.task_policy_arns)
+  exec_policy_arns = {
+    secrets = aws_iam_policy.secrets_policy.arn
+  }
+}
+
+module "web_tax_refund_request" {
+  source = "../../../models/ecs-service"
+
+  namespace = var.namespace
+  name      = "${var.name}-tax-refund-request-job"
+
+  vpc_name             = var.vpc_name
+  security_group_ids   = [module.lookup_db.ingress_security_group_id]
+  cluster_arn          = var.cluster_arn
+  image_name           = var.image_name
+  image_tag            = var.image_tag
+  environment          = var.environment
+  cpu_architecture     = "X86_64"
+  desired_count        = 1
+  create_load_balancer = false
+  command              = [local.commands.tax_refund_request_job]
+
+  environment_variables = merge(local.environment_variables, {
+    DD_SERVICE = "${var.name}-tax-refund-request-job"
+  })
+  secrets = local.secrets
+
+  task_policy_arns = merge({
+    secrets = aws_iam_policy.secrets_policy.arn
+  }, var.task_policy_arns)
+  exec_policy_arns = {
+    secrets = aws_iam_policy.secrets_policy.arn
+  }
+}
+
 data "aws_iam_policy_document" "secrets_policy_shop_api_secrets" {
   statement {
     resources = [
@@ -170,6 +232,26 @@ resource "aws_iam_role_policy" "web_order_update_secrets_policy_exec" {
 
 resource "aws_iam_role_policy" "web_order_update_secrets_policy" {
   role   = module.web_order_update.task_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_refund_request_secrets_policy_exec" {
+  role   = module.web_refund_request.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_refund_request_secrets_policy" {
+  role   = module.web_refund_request.task_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_tax_refund_request_secrets_policy_exec" {
+  role   = module.web_tax_refund_request.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_tax_refund_request_secrets_policy" {
+  role   = module.web_tax_refund_request.task_role_name
   policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 

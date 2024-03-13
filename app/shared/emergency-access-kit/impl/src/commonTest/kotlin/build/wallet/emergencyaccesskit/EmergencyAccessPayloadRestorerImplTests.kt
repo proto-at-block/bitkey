@@ -19,7 +19,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import okio.ByteString
 
 class EmergencyAccessPayloadRestorerImplTests : FunSpec({
-  val decoder = EmergencyAccessKitPayloadDecoderImpl
 
   val csekDao = CsekDaoFake()
   val symmetricKeyEncryptor = SymmetricKeyEncryptorFake()
@@ -88,7 +87,7 @@ class EmergencyAccessPayloadRestorerImplTests : FunSpec({
               nonce = ByteString.EMPTY,
               tag = ByteString.EMPTY
             ),
-          hwEncryptionKeyCiphertext = CsekFake.key.raw
+          sealedHwEncryptionKey = CsekFake.key.raw
         )
     )
       .shouldBeErr(
@@ -141,11 +140,12 @@ class EmergencyAccessPayloadRestorerImplTests : FunSpec({
       .shouldNotBeNull()
 
     val keybox = extracted.asKeybox(
-      localId = "localId"
-    )
-      .shouldNotBeNull()
+      keyboxId = "keyboxId",
+      appKeyBundleId = "appKeyBundleId",
+      hwKeyBundleId = "hwKeyBundleId"
+    ).shouldNotBeNull()
 
-    keybox.activeKeyBundle.spendingKey
+    keybox.activeAppKeyBundle.spendingKey
       .shouldBeEqual(AppSpendingPublicKeyMock)
   }
 })

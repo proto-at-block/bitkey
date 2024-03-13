@@ -4,21 +4,15 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.SuccessBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
 
 fun AcceptingInviteWithF8eSuccessBodyModel(
   protectedCustomer: ProtectedCustomer,
   onDone: () -> Unit,
-): SuccessBodyModel =
+): FormBodyModel =
   SuccessBodyModel(
     id = TC_ENROLLMENT_SUCCESS,
-    title = "That's it!",
+    title = "You're all set.",
     message = "We’ve securely saved a recovery key for ${protectedCustomer.alias.alias}'s wallet to this cloud account",
-    style =
-      SuccessBodyModel.Style.Explicit(
-        primaryButton =
-          ButtonDataModel(
-            text = "Got it",
-            onClick = onDone
-          )
-      )
+    primaryButtonModel = ButtonDataModel("Got it", onClick = onDone)
   )

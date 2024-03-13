@@ -7,7 +7,7 @@ import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.SCAN_QR_CODE
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.SELECT_IMPORT_METHOD
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
@@ -27,7 +27,7 @@ import build.wallet.platform.clipboard.ClipItem
 import build.wallet.platform.clipboard.ClipboardMock
 import build.wallet.platform.random.UuidFake
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -37,6 +37,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.QrCodeScanBodyModel
+import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
@@ -96,7 +97,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
   val props =
     EmergencyAccessKitRecoveryUiStateMachineProps(
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       onExit = { onExitCalls.add(Unit) }
     )
   val permissionMock = PermissionUiStateMachineMock()
@@ -118,13 +119,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   val validData =
     EmergencyAccessKitPayloadDecoderImpl.encode(
       EmergencyAccessKitPayloadV1(
-        hwEncryptionKeyCiphertext = CsekFake.key.raw,
+        sealedHwEncryptionKey = CsekFake.key.raw,
         sealedActiveSpendingKeys =
           SealedData(
             ciphertext = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
               EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
                 spendingKeyset = SpendingKeysetMock,
-                appSpendingKeyXprv = AppSpendingPrivateKeyMock.key.xprv
+                appSpendingKeyXprv = AppSpendingPrivateKeyMock
               )
             ),
             nonce = "nonce".toByteArray().toByteString(),
@@ -154,7 +155,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     val invalidData = "Invalid payload!"
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         val fieldModel =
@@ -175,7 +176,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(invalidData)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED) {
         this.secondaryButton.shouldNotBeNull().text.shouldBe("Try again")
@@ -188,7 +189,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(invalidData)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED) {
         this
@@ -209,14 +210,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("UI manual entry - Successful Decoding") {
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .onValueChange(validData, IntRange(0, validData.length))
+        this.mainContentList.first()
+          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+          .fieldModel
+          .onValueChange(validData, IntRange(0, validData.length))
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         this.mainContentList.first()
@@ -225,7 +225,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(validData)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET)
     }
@@ -234,14 +234,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("UI manual entry - Back until exit") {
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .onValueChange(validData, IntRange(0, validData.length))
+        this.mainContentList.first()
+          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+          .fieldModel
+          .onValueChange(validData, IntRange(0, validData.length))
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         this.mainContentList.first()
@@ -250,7 +249,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(validData)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
         this.onBack.shouldNotBeNull().invoke()
@@ -269,15 +268,14 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     clipboard.setItem(ClipItem.PlainText(validData))
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .trailingButtonModel
-            .shouldNotBeNull()
-            .onClick()
+        this.mainContentList.first()
+          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+          .trailingButtonModel
+          .shouldNotBeNull()
+          .onClick()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         this.mainContentList.first()
@@ -325,14 +323,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
   test("Successful Restore") {
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .onValueChange(validData, IntRange(0, validData.length))
+        this.mainContentList.first()
+          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+          .fieldModel
+          .onValueChange(validData, IntRange(0, validData.length))
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         this.mainContentList.first()
@@ -341,10 +338,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(validData)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -354,7 +351,9 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       }
 
       // Decoding backup and attempting to apply
-      awaitScreenWithBody<LoadingBodyModel>(LOADING_BACKUP) {
+      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+
         val restoredPrivateKey = appPrivateKeyDao.getAppSpendingPrivateKey(AppSpendingPublicKeyMock)
           .get()
           .shouldNotBeNull()
@@ -376,14 +375,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .onValueChange(validData, IntRange(0, validData.length))
+        this.mainContentList.first()
+          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+          .fieldModel
+          .onValueChange(validData, IntRange(0, validData.length))
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         this.mainContentList.first()
@@ -392,10 +390,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(validData)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -404,7 +402,9 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
         onSuccess(CsekFake)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(LOADING_BACKUP)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED)
     }
   }
@@ -413,7 +413,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
     val invalidPayload =
       EmergencyAccessKitPayloadDecoderImpl.encode(
         EmergencyAccessKitPayloadV1(
-          hwEncryptionKeyCiphertext = "ciphertext".toByteArray().toByteString(),
+          sealedHwEncryptionKey = "ciphertext".toByteArray().toByteString(),
           sealedActiveSpendingKeys =
             SealedData(
               ciphertext = "sealedCipherText".toByteArray().toByteString(),
@@ -424,14 +424,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       )
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(SELECT_IMPORT_METHOD) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
-        val fieldModel =
-          this.mainContentList.first()
-            .shouldBeTypeOf<FormMainContentModel.AddressInput>()
-            .fieldModel
-            .onValueChange(invalidPayload, IntRange(0, invalidPayload.length))
+        this.mainContentList.first()
+          .shouldBeTypeOf<FormMainContentModel.AddressInput>()
+          .fieldModel
+          .onValueChange(invalidPayload, IntRange(0, invalidPayload.length))
       }
       awaitScreenWithBody<FormBodyModel>(IMPORT_TEXT_KEY) {
         this.mainContentList.first()
@@ -440,10 +439,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
           .value
           .shouldBe(invalidPayload)
 
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
-        this.primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       // Unsealing CSEK
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Csek>>(
@@ -452,7 +451,9 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
         onSuccess(CsekFake)
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(LOADING_BACKUP)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(LOADING_BACKUP) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel>(CODE_NOT_RECOGNIZED)
     }
   }

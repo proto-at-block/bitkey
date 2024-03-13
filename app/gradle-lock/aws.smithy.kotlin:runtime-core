@@ -1,0 +1,18 @@
+{
+    "module-identifier": "aws.smithy.kotlin:runtime-core",
+    "components": [
+        {
+            "version": "1.0.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-core-metadata-1.0.13.jar": "360bc7b5416e054941aa2d636116555cded5e2b33c173f70ad4a55268bd0357a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

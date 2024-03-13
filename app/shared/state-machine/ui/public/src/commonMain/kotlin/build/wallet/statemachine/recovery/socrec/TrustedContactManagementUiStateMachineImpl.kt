@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
@@ -22,6 +24,7 @@ class TrustedContactManagementUiStateMachineImpl(
   private val listingTrustedContactsUiStateMachine: ListingTrustedContactsUiStateMachine,
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
+  private val deviceInfoProvider: DeviceInfoProvider,
 ) : TrustedContactManagementUiStateMachine {
   @Composable
   override fun model(props: TrustedContactManagementProps): ScreenModel {
@@ -57,6 +60,14 @@ class TrustedContactManagementUiStateMachineImpl(
           )
         )
 
+      State.BeTrustedContactIntroduction -> {
+        BeTrustedContactIntroductionModel(
+          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
+          onContinue = { state = State.EnrollingAsTrustedContact },
+          onBack = { state = ListingContactsState }
+        ).asModalScreen()
+      }
+
       State.EnrollingAsTrustedContact ->
         trustedContactEnrollmentUiStateMachine.model(
           TrustedContactEnrollmentUiProps(
@@ -80,6 +91,8 @@ class TrustedContactManagementUiStateMachineImpl(
     data object ListingContactsState : State
 
     data object AddingTrustedContactState : State
+
+    data object BeTrustedContactIntroduction : State
 
     data object EnrollingAsTrustedContact : State
   }

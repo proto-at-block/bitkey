@@ -13,7 +13,7 @@ interface InviteTrustedContactFlowUiStateMachine :
   StateMachine<InviteTrustedContactFlowUiProps, ScreenModel>
 
 /**
- * @property keyboxConfig - config from the current active keybox
+ * @property fullAccountConfig - config from the current active keybox
  * @property fullAccountId - account id of the current active account inviting the trusted contact
  * @property onExit - callback invoked once the flow is exited
  */

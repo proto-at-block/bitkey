@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab:kermit-bugsnag",
+    "components": [
+        {
+            "version": "2.0.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kermit-bugsnag-metadata-2.0.3.jar": "59e44c51bc20bcf3bca8f9e6db44e3c540ef8d10a2d13621c890557b55a2996d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

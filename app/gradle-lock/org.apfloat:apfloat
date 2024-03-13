@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.apfloat:apfloat",
+    "components": [
+        {
+            "version": "1.10.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "apfloat-1.10.1.jar": "a1480f560f37355f6c0458c523bda46658da4cd3e23cc64e309fedcd7b0782ba"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

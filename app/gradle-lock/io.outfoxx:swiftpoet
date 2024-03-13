@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.outfoxx:swiftpoet",
+    "components": [
+        {
+            "version": "1.6.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "swiftpoet-1.6.4.jar": "1795596aadcab101476dc4373b72a0bf796b752fe901cc3151084fa456f02e8a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

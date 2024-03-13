@@ -24,11 +24,12 @@ use wsm_common::bitcoin::util::bip32::DerivationPath;
 
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
-    CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse, SignPsbtRequest,
-    SignedPsbt,
+    CreateRootKeyRequest, CreatedSigningKey, GenerateIntegrityKeyResponse, GetIntegritySigRequest,
+    GetIntegritySigResponse, SignPsbtRequest, SignedPsbt,
 };
 use wsm_common::messages::enclave::{
     EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, EnclaveSignRequest,
+    EnclaveSignWithIntegrityKeyRequest,
 };
 use wsm_common::messages::DomainFactoredXpub;
 
@@ -57,7 +58,9 @@ impl From<RouteState> for Router {
             .route("/health-check", get(health_check))
             .route("/create-key", post(create_key))
             .route("/sign-psbt", post(sign_psbt))
+            .route("/integrity-sig", get(integrity_sig))
             .route("/generate-integrity-key", get(generate_integrity_key))
+            .route("/backfill-integrity-hashes", get(backfill_integrity_hashes))
             .with_state(state)
     }
 }
@@ -108,10 +111,15 @@ async fn create_key(
                 tracing::Level::DEBUG,
                 "create_key called on wallet that already exists"
             );
+            let xpub_sig = if let Some(sig) = ck.integrity_signature {
+                sig
+            } else {
+                "".to_string()
+            };
             Ok(Json(CreatedSigningKey {
                 root_key_id: root_key_id.clone(),
                 xpub: ck.xpub_descriptor,
-                xpub_sig: "TODO(W-5872): Backfill this field".to_string(),
+                xpub_sig,
             }))
         }
         None => {
@@ -162,6 +170,7 @@ async fn create_key(
                     xpub: spend_key.dpub.clone(),
                 }],
                 request.network,
+                spend_key.xpub_sig.clone(),
             );
 
             customer_key_store
@@ -172,8 +181,7 @@ async fn create_key(
             Ok(Json(CreatedSigningKey {
                 root_key_id: root_key_id.clone(),
                 xpub: spend_key.dpub,
-                // xpub_sig: spend_key.dpub_sig,
-                xpub_sig: "TODO(W-5872)".to_string(),
+                xpub_sig: spend_key.xpub_sig,
             }))
         }
     }
@@ -270,6 +278,64 @@ async fn generate_integrity_key(
         wrapped_privkey: BASE64.encode(wrapped_privkey),
         pubkey: BASE64.encode(pubkey),
     }))
+}
+
+/// Look through DDB for all customer public keys and sign them with the integrity key using wsm-enclave
+/// and then store the signature in the DDB table.
+async fn backfill_integrity_hashes(State(state): State<RouteState>) -> Result<Json<()>, ApiError> {
+    let customer_keys = state
+        .customer_key_store
+        .get_all_customer_keys()
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to retrieve customer keys: {e}")))?;
+
+    for customer_key in customer_keys {
+        // xpub descriptor is stored in the DB, but we just want the xpub
+        let xpub_descriptor = customer_key.xpub_descriptor.clone();
+
+        let xpub_clean: Vec<&str> = xpub_descriptor.split("']").collect();
+        let xpub = xpub_clean[1].trim_end_matches("/*");
+
+        let response = state
+            .enclave
+            .backfill_sign(EnclaveSignWithIntegrityKeyRequest {
+                data: xpub.to_string(),
+                dek_id: customer_key.dek_id.clone(),
+            })
+            .await
+            .map_err(|e| {
+                ApiError::ServerError(format!("Failed to sign data with integrity key: {e}"))
+            })?;
+
+        state
+            .customer_key_store
+            .update_integrity_signature(&customer_key.root_key_id, &response.signature)
+            .await
+            .map_err(|e| {
+                ApiError::ServerError(format!(
+                    "Failed to update customer key with new signature: {e}"
+                ))
+            })?;
+    }
+
+    Ok(Json(()))
+}
+
+async fn integrity_sig(
+    State(state): State<RouteState>,
+    request: Json<GetIntegritySigRequest>,
+) -> Result<Json<GetIntegritySigResponse>, ApiError> {
+    let signature = state
+        .customer_key_store
+        .get_customer_key(&request.root_key_id)
+        .await
+        .map_err(|e| ApiError::ServerError(format!("Failed to retrieve customer key: {e}")))?
+        .ok_or(ApiError::NotFound("Customer key not found".to_string()))?
+        .integrity_signature
+        .ok_or(ApiError::NotFound(
+            "Integrity signature not found".to_string(),
+        ))?;
+    Ok(Json(GetIntegritySigResponse { signature }))
 }
 
 pub async fn axum() -> (TcpListener, Router) {

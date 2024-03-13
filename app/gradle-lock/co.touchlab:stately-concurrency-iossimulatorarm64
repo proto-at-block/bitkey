@@ -1,0 +1,23 @@
+{
+    "module-identifier": "co.touchlab:stately-concurrency-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.0.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "stately-concurrency-iossimulatorarm64-2.0.5-metadata.jar": "546807b04b063d6093b3ac043f7fea2bd040cd5b97182d5adae6a62544056872"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "stately-concurrency.klib": "0a48fdb7401923861ae028e1423436ead457d65250c32664561a725ab707731a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

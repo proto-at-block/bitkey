@@ -2,7 +2,6 @@ package build.wallet.cloud.backup.v2
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.appGlobalAuthKeypair
 import build.wallet.cloud.backup.appKeys
@@ -15,7 +14,6 @@ import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCr
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.recovery.socrec.SocRecCrypto
-import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.serialization.json.encodeToStringResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
@@ -28,7 +26,6 @@ class FullAccountFieldsCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
-  private val socRecKeysRepository: SocRecKeysRepository,
   private val socRecCrypto: SocRecCrypto,
 ) : FullAccountFieldsCreator {
   override suspend fun create(
@@ -50,17 +47,15 @@ class FullAccountFieldsCreatorImpl(
             AppSpendingPrivateKeyRetrievalError(it)
           }.bind()
 
-      val protectedCustomerIdentityKey =
-        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate(::ProtectedCustomerIdentityKey)
-          .mapError { FullAccountFieldsCreationError.SocRecKeysRetrievalError(it) }
-          .bind()
-
       val fullAccountKeys =
         FullAccountKeys(
           activeSpendingKeyset = keybox.activeSpendingKeyset,
+          activeHwSpendingKey = keybox.activeHwKeyBundle.spendingKey,
+          activeHwAuthKey = keybox.activeHwKeyBundle.authKey,
           inactiveSpendingKeysets = keybox.inactiveKeysets,
           appGlobalAuthKeypair = appAuthKeypair,
-          appSpendingKeys = appPrivateKeysMap
+          appSpendingKeys = appPrivateKeysMap,
+          rotationAppGlobalAuthKeypair = null
         )
 
       val fullCustomerKeysInfoEncoded =
@@ -91,7 +86,6 @@ class FullAccountFieldsCreatorImpl(
             socRecCrypto
               .encryptPrivateKeyEncryptionKey(
                 it.identityKey,
-                protectedCustomerIdentityKey,
                 socRecPKMatOutput.privateKeyEncryptionKey
               )
               .mapError { err -> FullAccountFieldsCreationError.SocRecEncryptionError(err) }
@@ -99,12 +93,13 @@ class FullAccountFieldsCreatorImpl(
         }
 
       FullAccountFields(
-        hwEncryptionKeyCiphertext = sealedCsek,
-        socRecEncryptionKeyCiphertextMap = socRecRelationshipsMap,
+        sealedHwEncryptionKey = sealedCsek,
+        socRecSealedDekMap = socRecRelationshipsMap,
         isFakeHardware = keybox.config.isHardwareFake,
         hwFullAccountKeysCiphertext = fullCustomerKeysInfoEncodedHardwareEncrypted,
-        socRecFullAccountKeysCiphertext = socRecPKMatOutput.sealedPrivateKeyMaterial,
-        protectedCustomerIdentityPublicKey = protectedCustomerIdentityKey.publicKey
+        socRecSealedFullAccountKeys = socRecPKMatOutput.sealedPrivateKeyMaterial,
+        rotationAppRecoveryAuthKeypair = null,
+        appGlobalAuthKeyHwSignature = keybox.appGlobalAuthKeyHwSignature
       )
     }
 }

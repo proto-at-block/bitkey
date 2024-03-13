@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.ui:ui-geometry-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-geometry-release.aar": "2ecd05d0c033325304834a361d3e5f2c01395bfc5da2402641cfcee4981a01a9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

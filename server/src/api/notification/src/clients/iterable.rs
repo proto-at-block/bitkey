@@ -4,9 +4,10 @@ use std::env;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::future::join_all;
 use futures::lock::Mutex;
 use reqwest::Client;
-use reqwest::StatusCode;
+
 use reqwest_middleware::ClientBuilder;
 use reqwest_middleware::ClientWithMiddleware;
 
@@ -17,19 +18,26 @@ use serde::Deserialize;
 use serde::Serialize;
 use strum::IntoEnumIterator;
 use tokio::time::sleep;
+use tracing::info;
 use tracing::{error, instrument};
 
 use strum_macros::EnumString;
 use types::account::identifiers::AccountId;
+use types::account::identifiers::TouchpointId;
 use types::notification::NotificationCategory;
+
+use urlencoding::encode as urlencode;
 
 use crate::clients::error::NotificationClientsError;
 
 const ITERABLE_API_URL: &str = "https://api.iterable.com/api/";
 const USER_ID_QUERY_PARAM: &str = "userId";
 const API_KEY_HEADER: &str = "Api-Key";
-const MAX_GET_USER_ATTEMPTS: u32 = 5;
-const GET_USER_RETRY_INITIAL_BACKOFF_MILLIS: u64 = 500;
+const CACHE_CONTROL_HEADER: &str = "Cache-Control";
+const NO_CACHE_HEADER_VALUE: &str = "no-cache";
+const MAX_RETRY_ATTEMPTS: u64 = 5;
+const RETRY_INITIAL_BACKOFF_MILLIS: u64 = 1000;
+const UNKNOWN_ERROR_CODE: &str = "unknown";
 
 // https://support.iterable.com/hc/en-us/articles/208499956-Handling-Anonymous-Users#manually-creating-a-placeholder-email
 pub const PLACEHOLDER_EMAIL_ADDRESS: &str = "bitkey@placeholder.email";
@@ -40,14 +48,14 @@ pub const USER_SCOPE_KEY: &str = "bitkeyUserScope";
 #[derive(Debug)]
 pub enum IterableUserId<'a> {
     Account(&'a AccountId),
-    Touchpoint(&'a AccountId),
+    Touchpoint(&'a TouchpointId),
 }
 
 impl ToString for IterableUserId<'_> {
     fn to_string(&self) -> String {
         match self {
             IterableUserId::Account(account_id) => account_id.to_string(),
-            IterableUserId::Touchpoint(account_id) => format!("{}:touchpoint", account_id),
+            IterableUserId::Touchpoint(touchpoint_id) => touchpoint_id.to_string(),
         }
     }
 }
@@ -66,9 +74,12 @@ impl From<Config> for IterableClient {
 #[derive(Deserialize, Default, Clone)]
 pub struct ClientConfig {
     pub comms_verification_campaign_id: usize,
-    pub recovery_pending_delay_period_campaign_id: usize,
-    pub recovery_completed_delay_period_campaign_id: usize,
-    pub recovery_canceled_delay_period_campaign_id: usize,
+    pub recovery_pending_delay_period_lost_app_campaign_id: usize,
+    pub recovery_pending_delay_period_lost_hw_campaign_id: usize,
+    pub recovery_completed_delay_period_lost_app_campaign_id: usize,
+    pub recovery_completed_delay_period_lost_hw_campaign_id: usize,
+    pub recovery_canceled_delay_period_lost_app_campaign_id: usize,
+    pub recovery_canceled_delay_period_lost_hw_campaign_id: usize,
     pub recovery_relationship_invitation_accepted_campaign_id: usize,
     pub recovery_relationship_deleted_campaign_id: usize,
     pub social_challenge_response_received_campaign_id: usize,
@@ -106,9 +117,12 @@ pub enum IterableClient {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum IterableCampaignType {
     CommsVerification,
-    RecoveryPendingDelayPeriod,
-    RecoveryCompletedDelayPeriod,
-    RecoveryCanceledDelayPeriod,
+    RecoveryPendingDelayPeriodLostApp,
+    RecoveryPendingDelayPeriodLostHw,
+    RecoveryCompletedDelayPeriodLostApp,
+    RecoveryCompletedDelayPeriodLostHw,
+    RecoveryCanceledDelayPeriodLostApp,
+    RecoveryCanceledDelayPeriodLostHw,
     RecoveryRelationshipInvitationAccepted,
     RecoveryRelationshipDeleted,
     SocialChallengeResponseReceived,
@@ -215,14 +229,23 @@ impl IterableClient {
                     IterableCampaignType::CommsVerification => {
                         config.comms_verification_campaign_id
                     }
-                    IterableCampaignType::RecoveryPendingDelayPeriod => {
-                        config.recovery_pending_delay_period_campaign_id
+                    IterableCampaignType::RecoveryPendingDelayPeriodLostApp => {
+                        config.recovery_pending_delay_period_lost_app_campaign_id
                     }
-                    IterableCampaignType::RecoveryCompletedDelayPeriod => {
-                        config.recovery_completed_delay_period_campaign_id
+                    IterableCampaignType::RecoveryPendingDelayPeriodLostHw => {
+                        config.recovery_pending_delay_period_lost_hw_campaign_id
                     }
-                    IterableCampaignType::RecoveryCanceledDelayPeriod => {
-                        config.recovery_canceled_delay_period_campaign_id
+                    IterableCampaignType::RecoveryCompletedDelayPeriodLostApp => {
+                        config.recovery_completed_delay_period_lost_app_campaign_id
+                    }
+                    IterableCampaignType::RecoveryCompletedDelayPeriodLostHw => {
+                        config.recovery_completed_delay_period_lost_hw_campaign_id
+                    }
+                    IterableCampaignType::RecoveryCanceledDelayPeriodLostApp => {
+                        config.recovery_canceled_delay_period_lost_app_campaign_id
+                    }
+                    IterableCampaignType::RecoveryCanceledDelayPeriodLostHw => {
+                        config.recovery_canceled_delay_period_lost_hw_campaign_id
                     }
                     IterableCampaignType::RecoveryRelationshipInvitationAccepted => {
                         config.recovery_relationship_invitation_accepted_campaign_id
@@ -253,10 +276,10 @@ impl IterableClient {
                     })?;
 
                 let status_code = response.status();
-                if status_code != StatusCode::OK {
+                if !status_code.is_success() {
                     let error_code = match response.json::<ErrorResponse>().await {
                         Ok(error_response) => error_response.code,
-                        Err(_) => "unknown".to_string(),
+                        Err(_) => UNKNOWN_ERROR_CODE.to_string(),
                     };
                     error!("received error sending targeted email; status_code: {status_code:?}; code: {error_code:?}");
                     Err(NotificationClientsError::IterableSendTargetedEmailError)
@@ -300,10 +323,10 @@ impl IterableClient {
                     })?;
 
                 let status_code = response.status();
-                if status_code != StatusCode::OK {
+                if !status_code.is_success() {
                     let error_code = match response.json::<ErrorResponse>().await {
                         Ok(error_response) => error_response.code,
-                        Err(_) => "unknown".to_string(),
+                        Err(_) => UNKNOWN_ERROR_CODE.to_string(),
                     };
 
                     if error_code == "InvalidEmailAddressError" {
@@ -332,10 +355,11 @@ impl IterableClient {
                 api_key,
                 ..
             } => {
-                for attempt in 0..MAX_GET_USER_ATTEMPTS {
+                for attempt in 0..MAX_RETRY_ATTEMPTS {
                     let response = client
                         .get(endpoint.join("users/byUserId").unwrap())
                         .header(API_KEY_HEADER, api_key.to_owned())
+                        .header(CACHE_CONTROL_HEADER, NO_CACHE_HEADER_VALUE)
                         .query(&[(USER_ID_QUERY_PARAM, user_id.clone())])
                         .send()
                         .await
@@ -345,10 +369,10 @@ impl IterableClient {
                         })?;
 
                     let status_code = response.status();
-                    if status_code != StatusCode::OK {
+                    if !status_code.is_success() {
                         let error_code = match response.json::<ErrorResponse>().await {
                             Ok(error_response) => error_response.code,
-                            Err(_) => "unknown".to_string(),
+                            Err(_) => UNKNOWN_ERROR_CODE.to_string(),
                         };
 
                         if error_code == "error.users.noUserWithIdExists" {
@@ -364,13 +388,14 @@ impl IterableClient {
                     match response.json::<GetUserResponse>().await {
                         Ok(response) => return Ok(Some(response)),
                         Err(e) => {
-                            error!("received error deserializing user: {e:?}");
+                            info!("received error deserializing user; retrying: {e:?}");
 
-                            // 500ms, 1s, 2s, 4s
-                            sleep(Duration::from_millis(
-                                2u64.pow(attempt) * GET_USER_RETRY_INITIAL_BACKOFF_MILLIS,
-                            ))
-                            .await;
+                            if attempt < MAX_RETRY_ATTEMPTS - 1 {
+                                sleep(Duration::from_millis(
+                                    (attempt + 1) * RETRY_INITIAL_BACKOFF_MILLIS,
+                                ))
+                                .await;
+                            }
                         }
                     }
                 }
@@ -528,10 +553,10 @@ impl IterableClient {
                         })?;
 
                     let status_code = response.status();
-                    if status_code != StatusCode::OK {
+                    if !status_code.is_success() {
                         let error_code = match response.json::<ErrorResponse>().await {
                             Ok(error_response) => error_response.code,
-                            Err(_) => "unknown".to_string(),
+                            Err(_) => UNKNOWN_ERROR_CODE.to_string(),
                         };
                         error!("received error updating user subscriptions; status_code: {status_code:?}; code: {error_code:?}");
                         Err(NotificationClientsError::IterableUpdateUserSubscriptionsError)
@@ -554,10 +579,15 @@ impl IterableClient {
         }
     }
 
+    // This is a special case for the initial subscription of a user to a set of notification categories.
+    // It assumes the Iterable user has no existing subscriptions. This prevents us from running into
+    // consistency issues if we try to observe the Iterable user too soon after creating it (such as during
+    // onboarding).
     #[instrument(skip(self))]
-    pub async fn subscribe_to_account_security(
+    pub async fn set_initial_subscribed_notification_categories(
         &self,
         user_id: IterableUserId<'_>,
+        notification_categories: HashSet<NotificationCategory>,
     ) -> Result<(), NotificationClientsError> {
         match self {
             Self::Real {
@@ -566,63 +596,94 @@ impl IterableClient {
                 api_key,
                 config,
                 ..
-            } => match self.get_user(user_id.to_string()).await? {
-                Some(get_user_response) => {
-                    let user = get_user_response.user;
-
-                    let request = UpdateUserSubscriptionsRequest {
-                        user_id: user_id.to_string(),
-                        user_list_ids: user.data_fields.user_list_ids,
-                        unsubscribed_channel_ids: user.data_fields.unsubscribed_channel_ids,
-                        unsubscribed_message_type_ids: user
-                            .data_fields
-                            .unsubscribed_message_type_ids
-                            .into_iter()
-                            .filter(|id| config.account_security_message_type_id == *id)
-                            .collect(),
-                        subscribed_message_type_ids: user
-                            .data_fields
-                            .subscribed_message_type_ids
-                            .union(&HashSet::from([config.account_security_message_type_id]))
-                            .cloned()
-                            .collect(),
+            } => {
+                let requests = notification_categories.iter().map(|category| {
+                    let message_type_id = match category {
+                        NotificationCategory::AccountSecurity => {
+                            config.account_security_message_type_id
+                        }
+                        NotificationCategory::MoneyMovement => {
+                            config.money_movement_message_type_id
+                        }
+                        NotificationCategory::ProductMarketing => {
+                            config.product_marketing_message_type_id
+                        }
                     };
 
-                    let response = client
-                        .post(endpoint.join("users/updateSubscriptions").unwrap())
+                    client
+                        .patch(
+                            endpoint
+                                .join(&format!(
+                                    "subscriptions/{}/{}/byUserId/{}",
+                                    "messageType",
+                                    message_type_id,
+                                    urlencode(&user_id.to_string())
+                                ))
+                                .unwrap(),
+                        )
                         .header(API_KEY_HEADER, api_key.to_owned())
-                        .json(&request)
                         .send()
-                        .await
-                        .map_err(|e| {
-                            error!("received error updating user subscriptions: {e:?}");
-                            NotificationClientsError::IterableUpdateUserSubscriptionsError
-                        })?;
+                });
 
+                for result in join_all(requests).await {
+                    let response = result.map_err(|e| {
+                        error!("received error subscribing user: {e:?}");
+                        NotificationClientsError::IterableSubscribeUserError
+                    })?;
                     let status_code = response.status();
-                    if status_code != StatusCode::OK {
+                    if !status_code.is_success() {
                         let error_code = match response.json::<ErrorResponse>().await {
                             Ok(error_response) => error_response.code,
-                            Err(_) => "unknown".to_string(),
+                            Err(_) => UNKNOWN_ERROR_CODE.to_string(),
                         };
-                        error!("received error updating user subscriptions; status_code: {status_code:?}; code: {error_code:?}");
-                        Err(NotificationClientsError::IterableUpdateUserSubscriptionsError)
-                    } else {
-                        Ok(())
+                        error!("received error subscribing user; status_code: {status_code:?}; code: {error_code:?}");
+                        return Err(NotificationClientsError::IterableSubscribeUserError);
                     }
                 }
-                None => {
-                    error!("attempted to update user subscriptions for nonexistent user");
-                    Err(NotificationClientsError::IterableUpdateUserSubscriptionsNonexistentUserError)
-                }
-            },
+                Ok(())
+            }
             Self::Test(store) => {
                 let mut store = store.lock().await;
                 let mut categories = store.get(&user_id.to_string()).cloned().unwrap_or_default();
-                categories.insert(NotificationCategory::AccountSecurity);
+                categories.extend(notification_categories);
                 store.insert(user_id.to_string(), categories);
                 Ok(())
             }
+        }
+    }
+
+    #[instrument(skip(self))]
+    pub async fn wait_for_touchpoint_user(
+        &self,
+        user_id: IterableUserId<'_>,
+    ) -> Result<(), NotificationClientsError> {
+        match self {
+            Self::Real { config, .. } => {
+                for attempt in 0..MAX_RETRY_ATTEMPTS {
+                    if let Some(user) = self.get_user(user_id.to_string()).await? {
+                        if !user
+                            .user
+                            .data_fields
+                            .subscribed_message_type_ids
+                            .contains(&config.account_security_message_type_id)
+                        {
+                            if attempt < MAX_RETRY_ATTEMPTS - 1 {
+                                sleep(Duration::from_millis(
+                                    (attempt + 1) * RETRY_INITIAL_BACKOFF_MILLIS,
+                                ))
+                                .await;
+                            }
+                        } else {
+                            return Ok(());
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                return Err(NotificationClientsError::IterableWaitForTouchpointUserError);
+            }
+            Self::Test(_) => Ok(()),
         }
     }
 }

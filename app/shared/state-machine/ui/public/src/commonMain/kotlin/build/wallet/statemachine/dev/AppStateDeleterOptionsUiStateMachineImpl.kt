@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.config.AppVariant.Team
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
@@ -36,7 +36,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                         text = "Delete",
                         treatment = TertiaryDestructive,
                         size = Compact,
-                        onClick = Click.standardClick { props.onDeleteAppKeyRequest() },
+                        onClick = StandardClick(props.onDeleteAppKeyRequest),
                         testTag = "delete-app-key"
                       )
                   )
@@ -52,7 +52,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                         text = "Delete",
                         treatment = TertiaryDestructive,
                         size = Compact,
-                        onClick = Click.standardClick { props.onDeleteAppKeyBackupRequest() },
+                        onClick = StandardClick(props.onDeleteAppKeyBackupRequest),
                         testTag = "delete-mobile-key-backup"
                       )
                   )
@@ -71,7 +71,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                     text = "Delete",
                     treatment = TertiaryDestructive,
                     size = Compact,
-                    onClick = Click.standardClick { props.onDeleteAppKeyAndBackupRequest() },
+                    onClick = StandardClick { props.onDeleteAppKeyAndBackupRequest() },
                     testTag = "delete-app-key-and-backup"
                   )
               )

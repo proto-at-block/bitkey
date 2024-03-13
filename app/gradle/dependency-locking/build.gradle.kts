@@ -13,6 +13,10 @@ gradlePlugin {
       id = "build.wallet.dependency-locking"
       implementationClass = "build.wallet.gradle.dependencylocking.DependencyLockingPlugin"
     }
+    create("dependencyLockingCommonGroupConfigurationPlugin") {
+      id = "build.wallet.dependency-locking.common-group-configuration"
+      implementationClass = "build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigurationPlugin"
+    }
   }
 }
 

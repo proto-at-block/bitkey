@@ -8,7 +8,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import kotlinx.collections.immutable.ImmutableList
@@ -41,7 +41,7 @@ fun TransferInitiatedBodyModel(
   primaryButton =
     ButtonModel(
       text = "Done",
-      onClick = Click.standardClick { onDone() },
+      onClick = StandardClick(onDone),
       size = Footer
     ),
   id = SendEventTrackerScreenId.SEND_INITIATED_SUCCESS,
@@ -94,9 +94,9 @@ private fun TransactionDetailsModel.toDataList(): ImmutableList<DataList> {
       total =
         Data(
           title = "Total Cost",
-          sideText = totalAmountPrimaryText,
+          sideText = transactionDetailModelType.totalAmountPrimaryText,
           sideTextType = Data.SideTextType.BODY2BOLD,
-          secondarySideText = totalAmountSecondaryText
+          secondarySideText = transactionDetailModelType.totalAmountSecondaryText
         )
     )
   )

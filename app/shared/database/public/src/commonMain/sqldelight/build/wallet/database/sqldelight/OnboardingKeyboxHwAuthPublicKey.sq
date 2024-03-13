@@ -1,14 +1,16 @@
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 import build.wallet.bitkey.hardware.HwAuthPublicKey;
 
 CREATE TABLE onboardingKeyboxHwAuthPublicKey(
     rowId           INTEGER NOT NULL PRIMARY KEY,
-    hwAuthPublicKey TEXT AS HwAuthPublicKey
+    hwAuthPublicKey TEXT AS HwAuthPublicKey,
+    appGlobalAuthKeyHwSignature TEXT AS AppGlobalAuthKeyHwSignature NOT NULL
 );
 
 set:
-INSERT OR REPLACE INTO onboardingKeyboxHwAuthPublicKey(rowId, hwAuthPublicKey)
+INSERT OR REPLACE INTO onboardingKeyboxHwAuthPublicKey(rowId, hwAuthPublicKey, appGlobalAuthKeyHwSignature)
 -- Use stable row ID to ensure we only ever have a single hwAuthPublicKey.
-VALUES(0, ?);
+VALUES(0, ?, ?);
 
 get:
 SELECT * FROM onboardingKeyboxHwAuthPublicKey

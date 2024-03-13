@@ -30,15 +30,19 @@ private extension FormBodyModel {
     static func transferInitiatedModel(
         isSpeedUp: Bool
     ) -> FormBodyModel {
-        let transactionDetailModel = if (isSpeedUp) {
-            TransactionDetailModelType.SpeedUp(
+        let transactionDetailModel: TransactionDetailModelType = if (isSpeedUp) {
+            TransactionDetailModelTypeSpeedUp(
                 transferAmountText: "$20.00",
+                totalAmountPrimaryText: "$22.36",
+                totalAmountSecondaryText: "(0.0010 BTC)",
                 oldFeeAmountText: "$1.00",
                 feeDifferenceText: "+$1.00"
             )
         } else {
-            TransactionDetailModelType.Regular(
+            TransactionDetailModelTypeRegular(
                 transferAmountText: "$20.00",
+                totalAmountPrimaryText: "$21.36",
+                totalAmountSecondaryText: "(0.0010 BTC)",
                 feeAmountText: "$1.36"
             )
         }
@@ -46,11 +50,9 @@ private extension FormBodyModel {
         return TransferInitiatedBodyModelKt.TransferInitiatedBodyModel(
             onBack: {},
             recipientAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            transactionDetails: .init(
+            transactionDetails: TransactionDetailsModel.init(
                 transactionDetailModelType: transactionDetailModel,
-                transactionSpeedText: "~30 minutes",
-                totalAmountPrimaryText: "$21.36",
-                totalAmountSecondaryText: "(0.0010 BTC)"
+                transactionSpeedText: "~30 minutes"
             ),
             onDone: {}
         )

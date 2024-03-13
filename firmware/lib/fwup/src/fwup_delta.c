@@ -341,7 +341,12 @@ static bool apply_patch_from_file(void) {
   }
 
   uint8_t buf[512] = {0};
-  uint32_t patch_size = fs_file_size(&fwup_file_handle);
+  int size_or_err = fs_file_size(&fwup_file_handle);
+  if (size_or_err < 0) {
+    LOGE("Failed to get patch file size");
+    goto out;
+  }
+  uint32_t patch_size = size_or_err;
   int finalize_status;
 
   // First pass: verify the patch

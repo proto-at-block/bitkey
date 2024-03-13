@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.sweep
 
 import androidx.compose.runtime.Composable
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.core.ScreenModel
@@ -34,7 +34,7 @@ class SweepUiStateMachineImpl(
         generatingPsbtsBodyModel(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
             ),
           onBack = props.onExit,
@@ -46,7 +46,7 @@ class SweepUiStateMachineImpl(
         generatePsbtsFailedScreenModel(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
             ),
           onPrimaryButtonClick = props.onExit,
@@ -57,7 +57,7 @@ class SweepUiStateMachineImpl(
         zeroBalancePrompt(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
             ),
           onDone = sweepData.proceed,
@@ -69,7 +69,7 @@ class SweepUiStateMachineImpl(
         sweepFundsPrompt(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
             ),
           recoveredFactor = sweepData.recoveredFactor,
@@ -95,7 +95,7 @@ class SweepUiStateMachineImpl(
             },
             onSuccess = sweepData.addHwSignedSweeps,
             onCancel = props.onExit,
-            isHardwareFake = sweepData.keyboxConfig.isHardwareFake,
+            isHardwareFake = sweepData.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = props.presentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.SIGN_MANY_TRANSACTIONS
           )
@@ -106,7 +106,7 @@ class SweepUiStateMachineImpl(
         broadcastingScreenModel(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING
             ),
           onBack = props.onExit,
@@ -118,7 +118,7 @@ class SweepUiStateMachineImpl(
         sweepSuccessScreenModel(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
             ),
           recoveredFactor = sweepData.recoveredFactor,
@@ -131,7 +131,7 @@ class SweepUiStateMachineImpl(
         sweepFailedScreenModel(
           id =
             sweepData.recoveredFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_FAILED
             ),
           onRetry = sweepData.retry,

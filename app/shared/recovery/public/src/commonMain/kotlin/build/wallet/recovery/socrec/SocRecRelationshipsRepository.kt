@@ -3,12 +3,15 @@ package build.wallet.recovery.socrec
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.IncomingInvitation
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -16,37 +19,76 @@ import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
 import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.f8e.socrec.SocRecRelationships
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Repository for managing protected customers and trusted contacts for Social Recovery.
  */
+@Suppress("TooManyFunctions")
 interface SocRecRelationshipsRepository {
   /**
    * Launches a non-blocking coroutine to periodically sync relationships with f8e.
+   *
+   * If the [account] is a [FullAccount]. also verifies the TCs.
    */
-  suspend fun syncLoop(account: Account)
+  fun syncLoop(
+    scope: CoroutineScope,
+    account: Account,
+  )
 
   /**
-   * Immediately sync relationships with f8e and store the result.
+   * Immediately fetches latest relationships from f8e and stores them in db without performing any
+   * verification.
+   *
+   * This method is only useful in the context when there's no [FullAccount] available
+   * to perform verification of TCs.
    */
-  suspend fun syncRelationships(
+  suspend fun syncRelationshipsWithoutVerification(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
   ): Result<SocRecRelationships, Error>
 
   /**
-   * Get list of customers you are protecting and list of your trusted contacts (pending and
-   * accepted invites). Emits latest value stored in database if any. The database value is synced
-   * by [syncLoop] as long as [syncLoop] is in scope.
+   * Immediately fetches latest relationships from f8e, verifies TCs and stores them in db.
    */
-  val relationships: StateFlow<SocRecRelationships>
+  suspend fun syncAndVerifyRelationships(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    appAuthKey: AppGlobalAuthPublicKey?,
+    hwAuthPublicKey: HwAuthPublicKey?,
+  ): Result<SocRecRelationships, Error>
 
   /**
-   * Remove a recovery relationship that the caller ([accountId]) is part of.
+   * Emits latest [SocRecRelationships] stored in the database. Sync is performed by:
+   *   - [syncLoop] as long as the [syncLoop] is in scope.
+   *   - [syncAndVerifyRelationships] and [syncRelationshipsWithoutVerification] when called.
+   *
+   * For [FullAccount], the relationships are always verified before being emitted.
+   */
+  val relationships: Flow<SocRecRelationships>
+
+  /** Get [SocRecRelationships] but do not persist to the DB or emit to listeners. */
+  suspend fun getRelationshipsWithoutSyncing(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
+  ): SocRecRelationships
+
+  /**
+   * Remove a recovery relationship that the caller ([account]) is part of.
    */
   suspend fun removeRelationship(
     account: Account,
+    hardwareProofOfPossession: HwFactorProofOfPossession?,
+    authTokenScope: AuthTokenScope,
+    relationshipId: String,
+  ): Result<Unit, Error>
+
+  /** Like [removeRelationship] but without syncing relationships afterward. */
+  suspend fun removeRelationshipWithoutSyncing(
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
@@ -59,7 +101,7 @@ interface SocRecRelationshipsRepository {
     account: FullAccount,
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Invitation, Error>
+  ): Result<OutgoingInvitation, Error>
 
   /**
    * Update an invitation for an existing Trusted Contact.
@@ -68,7 +110,7 @@ interface SocRecRelationshipsRepository {
     account: FullAccount,
     relationshipId: String,
     hardwareProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Invitation, Error>
+  ): Result<OutgoingInvitation, Error>
 
   /**
    * Retrieves invitation data for a potential Trusted Contact given a code.
@@ -77,7 +119,7 @@ interface SocRecRelationshipsRepository {
   suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
-  ): Result<Invitation, F8eError<RetrieveTrustedContactInvitationErrorCode>>
+  ): Result<IncomingInvitation, RetrieveInvitationCodeError>
 
   /**
    * Accept an invitation to become a Trusted Contact. Can be done both by a
@@ -90,10 +132,11 @@ interface SocRecRelationshipsRepository {
    */
   suspend fun acceptInvitation(
     account: Account,
-    invitation: Invitation,
+    invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
-  ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>>
+    delegatedDecryptionKey: DelegatedDecryptionKey,
+    inviteCode: String,
+  ): Result<ProtectedCustomer, AcceptInvitationCodeError>
 
   /**
    * Clear all local social relationship data.
@@ -109,4 +152,33 @@ interface SocRecRelationshipsRepository {
    * Create a [SocRecFullAccountActions] by currying the Account into [SocRecRelationshipsRepository].
    */
   fun toActions(account: FullAccount) = SocRecFullAccountActions(this, account)
+}
+
+suspend fun SocRecRelationshipsRepository.syncAndVerifyRelationships(
+  account: Account,
+): Result<SocRecRelationships, Error> =
+  syncAndVerifyRelationships(
+    accountId = account.accountId,
+    f8eEnvironment = account.config.f8eEnvironment,
+    hardwareProofOfPossession = null,
+    appAuthKey = (account as? FullAccount)?.keybox?.activeAppKeyBundle?.authKey,
+    hwAuthPublicKey = (account as? FullAccount)?.keybox?.activeHwKeyBundle?.authKey
+  )
+
+sealed interface RetrieveInvitationCodeError {
+  data object InvalidInvitationCode : RetrieveInvitationCodeError
+
+  data object InvitationCodeVersionMismatch : RetrieveInvitationCodeError
+
+  data class F8ePropagatedError(val error: F8eError<RetrieveTrustedContactInvitationErrorCode>) :
+    RetrieveInvitationCodeError
+}
+
+sealed interface AcceptInvitationCodeError {
+  data object InvalidInvitationCode : AcceptInvitationCodeError
+
+  data class CryptoError(val cause: SocRecCryptoError) : AcceptInvitationCodeError
+
+  data class F8ePropagatedError(val error: F8eError<AcceptTrustedContactInvitationErrorCode>) :
+    AcceptInvitationCodeError
 }

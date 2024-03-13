@@ -15,6 +15,7 @@ import build.wallet.google.signin.GoogleSignInError.UnhandledError
 import build.wallet.google.signin.GoogleSignInLauncher
 import build.wallet.google.signin.GoogleSignOutAction
 import build.wallet.google.signin.GoogleSignOutError
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInStateMachineImpl.State.FailedToSignInState
@@ -64,6 +65,7 @@ class GoogleSignInStateMachineImpl(
             state = FinishedSignInState(it)
           },
           onSignInFailure = {
+            log(LogLevel.Warn) { "Google sign-in failure: $it" }
             // TODO(W-678): show appropriate UI/message based on the cause of failure.
             state = FailedToSignInState(it)
           }

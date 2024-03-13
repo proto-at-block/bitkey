@@ -38,6 +38,7 @@ import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachineImpl
+import build.wallet.statemachine.ui.matchers.shouldHaveTitle
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
@@ -143,7 +144,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       cardModel.expect(
         tasks = listOf(GettingStartedTask(EnableSpendingLimit, state = Incomplete))
       )
-      cardModel.onClick("Turn on mobile pay").invoke()
+      cardModel.onClick("Turn on Mobile Pay").invoke()
       onEnableSpendingLimitCalls.awaitItem()
     }
   }
@@ -159,7 +160,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       cardModel.expect(
         tasks = listOf(GettingStartedTask(InviteTrustedContact, state = Incomplete))
       )
-      cardModel.onClick("Invite a trusted contact").invoke()
+      cardModel.onClick("Invite a Trusted Contact").invoke()
       onInviteTrustedContactCalls.awaitItem()
     }
   }
@@ -396,7 +397,7 @@ private fun CardModel.expect(tasks: List<GettingStartedTask>) =
 private fun CardModel.expectTaskModelWithEnabled(
   taskPairs: List<Pair<GettingStartedTask, Boolean>>,
 ) {
-  title.string.shouldBe("Getting Started")
+  shouldHaveTitle("Getting Started")
   subtitle.shouldBeNull()
   leadingImage.shouldBeNull()
   val drillList = content.shouldBeInstanceOf<DrillList>().items

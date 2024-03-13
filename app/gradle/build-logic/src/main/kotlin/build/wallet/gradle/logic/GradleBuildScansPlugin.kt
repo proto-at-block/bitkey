@@ -92,7 +92,7 @@ internal class GradleBuildScansPlugin : Plugin<Project> {
 
     if (buildsDisabledReason != null) {
       project.serviceOf<StyledTextOutputFactory>().create("GradleBuildScansPlugin")
-        .style(StyledTextOutput.Style.Failure)
+        .style(StyledTextOutput.Style.Info)
         .println(buildsDisabledReason)
 
       return false

@@ -1,5 +1,6 @@
 package build.wallet.gradle.logic
 
+import build.wallet.gradle.dependencylocking.DependencyLockingCommonGroupConfigurationPlugin
 import build.wallet.gradle.dependencylocking.DependencyLockingPlugin
 import build.wallet.gradle.logic.gradle.apply
 import com.android.build.api.dsl.ApplicationExtension
@@ -18,6 +19,8 @@ internal class AndroidAppPlugin : Plugin<Project> {
       pluginManager.apply<BasePlugin>()
       pluginManager.apply<KotlinBasePlugin>()
       pluginManager.apply<DependencyLockingPlugin>()
+      pluginManager.apply<DependencyLockingCommonGroupConfigurationPlugin>()
+      pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
 
       android {
         commonConfiguration(project)

@@ -21,12 +21,12 @@ use authn_authz::routes::{
 };
 use exchange_rate::routes::SupportedFiatCurrenciesResponse;
 use mobile_pay::routes::{
-    MobilePayResponse, MobilePaySetupRequest, MobilePaySetupResponse, SignTransactionData,
+    GetMobilePayResponse, MobilePaySetupRequest, MobilePaySetupResponse, SignTransactionData,
     SignTransactionResponse,
 };
 use notification::routes::{
     RegisterWatchAddressRequest, RegisterWatchAddressResponse, SendTestPushData,
-    SendTestPushResponse, SetNotificationsPreferencesRequest,
+    SendTestPushResponse,
 };
 use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountActivateTouchpointResponse,
@@ -50,7 +50,7 @@ use recovery::routes::{
     StartSocialChallengeRequest, StartSocialChallengeResponse, UpdateDelayForTestRecoveryRequest,
     UpdateRecoveryRelationshipRequest, UpdateRecoveryRelationshipResponse,
     VerifyAccountVerificationCodeRequest, VerifyAccountVerificationCodeResponse,
-    VerifySocialChallengeCodeRequest, VerifySocialChallengeCodeResponse,
+    VerifySocialChallengeRequest, VerifySocialChallengeResponse,
 };
 use recovery::state_machine::RecoveryResponse;
 
@@ -200,6 +200,20 @@ impl TestClient {
             .await
     }
 
+    pub(crate) async fn add_device_token_with_access_token(
+        &self,
+        account_id: &str,
+        request: &AccountAddDeviceTokenRequest,
+        access_token: &str,
+    ) -> Response<AccountAddDeviceTokenResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/device-token"))
+            .authenticated_with_access_token(access_token)
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
     pub(crate) async fn add_touchpoint(
         &self,
         account_id: &str,
@@ -268,9 +282,19 @@ impl TestClient {
         account_id: &AccountId,
         request: &MobilePaySetupRequest,
     ) -> Response<MobilePaySetupResponse> {
+        self.put_mobile_pay_with_keyproof_account_id(account_id, account_id, request)
+            .await
+    }
+
+    pub(crate) async fn put_mobile_pay_with_keyproof_account_id(
+        &self,
+        keyproof_account_id: &AccountId,
+        account_id: &AccountId,
+        request: &MobilePaySetupRequest,
+    ) -> Response<MobilePaySetupResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/mobile-pay"))
-            .authenticated(account_id, true, true)
+            .authenticated(keyproof_account_id, true, true)
             .put(request)
             .call(&self.router)
             .await
@@ -279,7 +303,7 @@ impl TestClient {
     pub(crate) async fn get_mobile_pay(
         &self,
         account_id: &AccountId,
-    ) -> Response<MobilePayResponse> {
+    ) -> Response<GetMobilePayResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/mobile-pay"))
             .authenticated(account_id, true, false)
@@ -445,10 +469,21 @@ impl TestClient {
         account_id: &str,
         request: &RotateAuthenticationKeysRequest,
     ) -> Response<RotateAuthenticationKeysResponse> {
+        let account_id = AccountId::from_str(account_id).unwrap();
+        self.rotate_authentication_keys_with_keyproof_account_id(&account_id, &account_id, request)
+            .await
+    }
+
+    pub(crate) async fn rotate_authentication_keys_with_keyproof_account_id(
+        &self,
+        keyproof_account_id: &AccountId,
+        account_id: &AccountId,
+        request: &RotateAuthenticationKeysRequest,
+    ) -> Response<RotateAuthenticationKeysResponse> {
         Request::builder()
             .method("POST")
             .uri(format!("/api/accounts/{account_id}/authentication-keys"))
-            .authenticated(&AccountId::from_str(account_id).unwrap(), true, true)
+            .authenticated(keyproof_account_id, true, true)
             .post(&request)
             .call(&self.router)
             .await
@@ -772,11 +807,11 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn verify_social_challenge_code(
+    pub(crate) async fn verify_social_challenge(
         &self,
         account_id: &str,
-        request: &VerifySocialChallengeCodeRequest,
-    ) -> Response<VerifySocialChallengeCodeResponse> {
+        request: &VerifySocialChallengeRequest,
+    ) -> Response<VerifySocialChallengeResponse> {
         Request::builder()
             .uri(format!(
                 "/api/accounts/{account_id}/recovery/verify-social-challenge"
@@ -834,13 +869,19 @@ impl TestClient {
     pub(crate) async fn set_notifications_preferences(
         &self,
         account_id: &str,
-        request: &SetNotificationsPreferencesRequest,
+        request: &NotificationsPreferences,
+        app_signed: bool,
+        hw_signed: bool,
     ) -> Response<NotificationsPreferences> {
         Request::builder()
             .uri(format!(
                 "/api/accounts/{account_id}/notifications-preferences"
             ))
-            .authenticated(&AccountId::from_str(account_id).unwrap(), false, false)
+            .authenticated(
+                &AccountId::from_str(account_id).unwrap(),
+                app_signed,
+                hw_signed,
+            )
             .put(request)
             .call(&self.router)
             .await

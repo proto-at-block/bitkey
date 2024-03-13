@@ -1,0 +1,42 @@
+[package]
+edition = "2021"
+name = "bk"
+publish = false
+version = "2024.50.0"
+
+default-run = "bk"
+
+[dependencies]
+aes-gcm-siv = "0.11.1"
+anyhow = { version = "1.0.80", features = ["backtrace"] }
+aws-config = "0.56.1"
+aws-sdk-cognitoidentityprovider = "0.34.0"
+aws-sdk-dynamodb = "0.33.0"
+aws-sdk-secretsmanager = "0.34.0"
+aws-types = "0.56.0"
+bdk = "0.28.0"
+clap = { version = "4.5.0", features = ["derive"] }
+derive_builder = { version = "0.13.0" }
+hkdf = "0.12.3"
+http = { version = "0.2.10" }
+indicatif = "0.17.8"
+pcsc = "2.8.2"
+qrcode = { version = "0.13.0", default-features = false }
+rustify = { version = "0.5.3", default-features = false, features = [
+  "blocking",
+  "rustls-tls",
+] }
+rustify_derive = { version = "0.5.2" }
+serde = "1.0.196"
+serde_derive = { version = "1.0.137" }
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+0_29"] }
+serde_json = "1.0.113"
+sha2 = "0.10.8"
+sled = { version = "0.34.7" }
+thiserror = "1.0.57"
+time = { version = "0.3.34", features = ["serde", "serde-well-known"] }
+tokio = { version = "1.36.0", features = ["rt-multi-thread"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
+wca = { path = "../app/core/wca" }
+zip = "0.6.6"

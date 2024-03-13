@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-swift-generator",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-swift-generator-4.9.5.jar": "df152760662fbff478331076f7af2347a776e4b8da3806bb46eda58570278889"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

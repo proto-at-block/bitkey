@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-jvm",
+    "components": [
+        {
+            "version": "1.1.18",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-result-jvm-1.1.18.jar": "ea024206aa3fff799ceca1a676657502da09b1c31d494fce6636bcd4d2d5edee"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

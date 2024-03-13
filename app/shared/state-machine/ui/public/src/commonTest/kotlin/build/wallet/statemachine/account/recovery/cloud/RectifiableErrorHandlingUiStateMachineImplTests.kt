@@ -8,14 +8,16 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingProps
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiStateMachineImpl
 import build.wallet.statemachine.cloud.RectifiableErrorMessages
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.shouldBe
 
 class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
 
@@ -71,7 +73,7 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(props.screenId) {
         header.shouldNotBeNull().let { head ->
-          head.headline.shouldBeEqual(props.messages.title)
+          head.headline.shouldNotBeNull().shouldBeEqual(props.messages.title)
           head.sublineModel.shouldNotBeNull().string.shouldBeEqual(props.messages.subline)
         }
       }
@@ -81,10 +83,12 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
   test("Pressing Try Again shows loading screen and returns") {
     stateMachine.test(props = props) {
       awaitScreenWithBody<FormBodyModel>(props.screenId) {
-        primaryButton.shouldNotBeNull().onClick.invoke()
+        clickPrimaryButton()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.RECTIFYING_CLOUD_ERROR)
+      awaitScreenWithBody<LoadingSuccessBodyModel>(CloudEventTrackerScreenId.RECTIFYING_CLOUD_ERROR) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       returnCalls.awaitItem()
     }
   }

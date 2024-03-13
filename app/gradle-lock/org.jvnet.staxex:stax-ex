@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jvnet.staxex:stax-ex",
+    "components": [
+        {
+            "version": "1.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "stax-ex-1.8.1.jar": "20522549056e9e50aa35ef0b445a2e47a53d06be0b0a9467d704e2483ffb049a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

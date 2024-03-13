@@ -1,0 +1,19 @@
+{
+    "module-identifier": "jakarta.xml.bind:jakarta.xml.bind-api",
+    "components": [
+        {
+            "version": "2.3.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jakarta.xml.bind-api-2.3.2.jar": "69156304079bdeed9fc0ae3b39389f19b3cc4ba4443bc80508995394ead742ea"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

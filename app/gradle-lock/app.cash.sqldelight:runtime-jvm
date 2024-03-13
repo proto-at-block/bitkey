@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.sqldelight:runtime-jvm",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-jvm-2.0.1.jar": "7119363786fe3ef7d65096b1116b69ddd481c6d977d8fb0395868c81aa0029ec"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

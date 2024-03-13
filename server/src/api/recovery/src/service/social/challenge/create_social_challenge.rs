@@ -1,29 +1,26 @@
 use std::collections::{HashMap, HashSet};
 
-use rand::Rng;
-use types::{
-    account::identifiers::AccountId,
-    recovery::social::{
-        challenge::{SocialChallenge, SocialChallengeId, TrustedContactChallengeRequest},
-        relationship::{RecoveryRelationship, RecoveryRelationshipId},
-    },
+use account::{
+    entities::FullAccount, service::FetchAndUpdateSpendingLimitInput, spend_limit::SpendingLimit,
+};
+
+use tracing::instrument;
+use types::recovery::social::{
+    challenge::{SocialChallenge, SocialChallengeId, TrustedContactChallengeRequest},
+    relationship::RecoveryRelationshipId,
 };
 
 use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
 
 use super::{error::ServiceError, Service};
 
-const CODE_MAX_VALUE: i64 = 999999;
-
 pub struct CreateSocialChallengeInput<'a> {
-    pub customer_account_id: &'a AccountId,
-    pub customer_identity_pubkey: &'a str,
-    #[deprecated]
-    pub customer_ephemeral_pubkey: &'a str,
+    pub customer_account: &'a FullAccount,
     pub requests: HashMap<RecoveryRelationshipId, TrustedContactChallengeRequest>,
 }
 
 impl Service {
+    #[instrument(skip(self, input))]
     pub async fn create_social_challenge(
         &self,
         input: CreateSocialChallengeInput<'_>,
@@ -32,40 +29,52 @@ impl Service {
         let relationships = self
             .recovery_relationship_service
             .get_recovery_relationships(GetRecoveryRelationshipsInput {
-                account_id: &input.customer_account_id,
+                account_id: &input.customer_account.id,
             })
             .await?;
 
-        //TODO(BKR-919): Update this to only endorsed once we support
-        let to_recovery_relationship_ids = |v: Vec<RecoveryRelationship>| {
-            v.into_iter()
-                .map(|r| r.common_fields().id.clone())
-                .collect::<HashSet<_>>()
-        };
-        let mut eligible_recovery_relationship_ids =
-            to_recovery_relationship_ids(relationships.endorsed_trusted_contacts.clone());
-        eligible_recovery_relationship_ids.extend(to_recovery_relationship_ids(
-            relationships.unendorsed_trusted_contacts,
-        ));
-        //TODO(BKR-919): Return an error here once the mobile app is passing up the challenge requests
+        let eligible_recovery_relationship_ids = relationships
+            .endorsed_trusted_contacts
+            .into_iter()
+            .map(|r| r.common_fields().id.clone())
+            .collect::<HashSet<_>>();
         if !input
             .requests
             .keys()
             .all(|id| eligible_recovery_relationship_ids.contains(id))
-        {}
+        {
+            return Err(ServiceError::MismatchingRecoveryRelationships);
+        }
 
-        let code = format!("{:0>6}", rand::thread_rng().gen_range(0..=CODE_MAX_VALUE));
-        let id = SocialChallengeId::derive(input.customer_account_id, code.as_str());
+        self.account_service
+            .fetch_and_update_spend_limit(FetchAndUpdateSpendingLimitInput {
+                account_id: &input.customer_account.id,
+                new_spending_limit: input.customer_account.spending_limit.as_ref().map_or_else(
+                    || None,
+                    |old_limit| {
+                        Some(SpendingLimit {
+                            active: false,
+                            ..old_limit.clone()
+                        })
+                    },
+                ),
+            })
+            .await?;
+
+        let counter = u32::try_from(
+            self.repository
+                .count_social_challenges_for_customer(&input.customer_account.id)
+                .await?,
+        )?;
+        let id = SocialChallengeId::derive(&input.customer_account.id, counter);
 
         let challenge = self
             .repository
             .persist_social_challenge(&SocialChallenge::new(
                 &id,
-                input.customer_account_id,
-                input.customer_identity_pubkey,
-                input.customer_ephemeral_pubkey,
+                &input.customer_account.id,
                 input.requests,
-                &code,
+                counter,
             ))
             .await?;
 

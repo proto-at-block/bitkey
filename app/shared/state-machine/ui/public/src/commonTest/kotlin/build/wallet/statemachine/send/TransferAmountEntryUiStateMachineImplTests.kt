@@ -25,6 +25,9 @@ import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
+import build.wallet.statemachine.ui.matchers.shouldBeDisabled
+import build.wallet.statemachine.ui.matchers.shouldHaveTitle
+import build.wallet.statemachine.ui.robots.click
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
@@ -41,10 +44,11 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
   val balancePrimaryAmount = FiatMoney.usd(16.67)
   val balanceSecondaryAmount = bitcoinBalance
 
+  val defaultSecondaryAmount = BitcoinMoney.sats(1000)
   val defaultMoneyCalculatorModel =
     MoneyCalculatorModel(
       primaryAmount = FiatMoney.usd(1.0),
-      secondaryAmount = BitcoinMoney.sats(1000),
+      secondaryAmount = defaultSecondaryAmount,
       amountModel =
         MoneyAmountEntryModel(
           primaryAmount = "$1",
@@ -58,11 +62,12 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       defaultMoneyCalculatorModel
     ) {}
 
+  val spendingPolicy = MobilePaySpendingPolicyMock(turbines::create)
   val stateMachine =
     TransferAmountEntryUiStateMachineImpl(
       currencyConverter = CurrencyConverterFake(conversionRate = 3.3333),
       moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
-      mobilePaySpendingPolicy = MobilePaySpendingPolicyMock(),
+      mobilePaySpendingPolicy = spendingPolicy,
       moneyDisplayFormatter = MoneyDisplayFormatterFake
     )
 
@@ -88,6 +93,10 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       f8eReachability = NetworkReachability.REACHABLE
     )
 
+  afterTest {
+    moneyCalculatorUiStateMachine.emitModel(defaultMoneyCalculatorModel)
+  }
+
   test("initial balance amount and balance update") {
     stateMachine.test(props) {
       awaitScreenWithBody<TransferAmountBodyModel> {
@@ -106,6 +115,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         )
       )
 
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
       // After balance update – now with amount from balance provider
       awaitScreenWithBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$33.33 available")
@@ -115,6 +125,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   test("initial amount in btc") {
     stateMachine.test(props.copy(initialAmount = BitcoinMoney.btc(1.0))) {
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
       awaitScreenWithBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle
           .shouldBe("500,000,000 sats available")
@@ -127,6 +138,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   test("entered amount at exactly balance") {
     stateMachine.test(props) {
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
       awaitScreenWithBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
       }
@@ -138,6 +150,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         )
       )
 
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(balanceSecondaryAmount)
       awaitScreenWithBody<TransferAmountBodyModel> {
         cardModel.shouldNotBeNull()
           .title
@@ -149,6 +162,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   test("entered amount above balance in fiat") {
     stateMachine.test(props) {
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
       awaitScreenWithBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
       }
@@ -169,6 +183,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       )
 
       awaitScreenWithBody<TransferAmountBodyModel> {
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(balanceSecondaryAmount)
+
         // We should show smart bar
         cardModel.shouldNotBeNull()
           .title
@@ -180,27 +196,30 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   context("Send Max is Available") {
     test("Should show smart bar and disable amount hero if spending above balance") {
-      stateMachine.test(props) {
-        val primaryAmountAboveBalance = balancePrimaryAmount + FiatMoney.usd(0.1)
-        moneyCalculatorUiStateMachine.emitModel(
-          defaultMoneyCalculatorModel.copy(
-            primaryAmount = primaryAmountAboveBalance,
-            secondaryAmount =
-              BitcoinMoney(
-                currency = BTC,
-                primaryAmountAboveBalance.value.divide(
-                  conversionRate.toBigDecimal(),
-                  BTC.decimalMode()
-                )
-              )
-          )
+      val primaryAmountAboveBalance = balancePrimaryAmount + FiatMoney.usd(0.1)
+      val secondaryAmountAboveBalance = BitcoinMoney(
+        currency = BTC,
+        primaryAmountAboveBalance.value.divide(
+          conversionRate.toBigDecimal(),
+          BTC.decimalMode()
         )
+      )
+      moneyCalculatorUiStateMachine.emitModel(
+        defaultMoneyCalculatorModel.copy(
+          primaryAmount = primaryAmountAboveBalance,
+          secondaryAmount = secondaryAmountAboveBalance
+        )
+      )
 
+      stateMachine.test(props) {
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(balanceSecondaryAmount)
         awaitScreenWithBody<TransferAmountBodyModel> {
-          cardModel.shouldNotBeNull().title.string.shouldBe("Send Max (balance minus fees)")
           amountDisabled.shouldBeTrue()
-          primaryButton.isEnabled.shouldBeFalse()
-          cardModel?.onClick?.invoke()
+          primaryButton.shouldBeDisabled()
+          cardModel
+            .shouldNotBeNull()
+            .shouldHaveTitle("Send Max (balance minus fees)")
+            .click()
         }
 
         onContinueClickCalls.awaitItem().shouldBe(
@@ -216,27 +235,33 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
     test("Should show approval required") {
       stateMachine.test(props) {
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
         awaitScreenWithBody<TransferAmountBodyModel> {
           toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("\$16.67 available")
         }
+      }
 
-        val primaryAmountBelowBalance = balancePrimaryAmount - FiatMoney.usd(0.1)
-        moneyCalculatorUiStateMachine.emitModel(
-          defaultMoneyCalculatorModel.copy(
-            primaryAmount = primaryAmountBelowBalance,
-            secondaryAmount =
-              BitcoinMoney(
-                currency = BTC,
-                primaryAmountBelowBalance.value.divide(
-                  conversionRate.toBigDecimal(),
-                  BTC.decimalMode()
-                )
-              )
-          )
+      val primaryAmountBelowBalance = balancePrimaryAmount - FiatMoney.usd(0.1)
+      val secondaryAmountBelowBalance = BitcoinMoney(
+        currency = BTC,
+        primaryAmountBelowBalance.value.divide(
+          conversionRate.toBigDecimal(),
+          BTC.decimalMode()
         )
+      )
+      moneyCalculatorUiStateMachine.emitModel(
+        defaultMoneyCalculatorModel.copy(
+          primaryAmount = primaryAmountBelowBalance,
+          secondaryAmount = secondaryAmountBelowBalance
+        )
+      )
 
+      stateMachine.test(props) {
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(secondaryAmountBelowBalance)
         awaitScreenWithBody<TransferAmountBodyModel> {
-          cardModel.shouldNotBeNull().title.string.shouldBe("Bitkey approval required")
+          cardModel
+            .shouldNotBeNull()
+            .shouldHaveTitle("Bitkey approval required")
           amountDisabled.shouldBeFalse()
         }
       }
@@ -253,6 +278,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         )
 
       stateMachine.test(zeroBalanceProps) {
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
 
         // Set calculator to simulate returning zero as input
         moneyCalculatorUiStateMachine.emitModel(
@@ -262,6 +288,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           )
         )
 
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(BitcoinMoney.zero())
         awaitScreenWithBody<TransferAmountBodyModel> {
           amountDisabled.shouldBeTrue()
           primaryButton.isEnabled.shouldBeFalse()
@@ -269,20 +296,21 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         }
 
         val primaryAmountBelowBalance = balancePrimaryAmount - FiatMoney.usd(0.1)
+        val secondaryAmountBelowBalance = BitcoinMoney(
+          currency = BTC,
+          primaryAmountBelowBalance.value.divide(
+            conversionRate.toBigDecimal(),
+            BTC.decimalMode()
+          )
+        )
         moneyCalculatorUiStateMachine.emitModel(
           defaultMoneyCalculatorModel.copy(
             primaryAmount = primaryAmountBelowBalance,
-            secondaryAmount =
-              BitcoinMoney(
-                currency = BTC,
-                primaryAmountBelowBalance.value.divide(
-                  conversionRate.toBigDecimal(),
-                  BTC.decimalMode()
-                )
-              )
+            secondaryAmount = secondaryAmountBelowBalance
           )
         )
 
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(secondaryAmountBelowBalance)
         // With input; we should show a disabled hero amount, enabled continue button, and no smart bar.
         awaitScreenWithBody<TransferAmountBodyModel> {
           amountDisabled.shouldBeFalse()
@@ -299,8 +327,63 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   test("given exchange rates are null, should not show fiat amount") {
     stateMachine.test(props.copy(exchangeRates = null, initialAmount = BitcoinMoney.btc(1.0))) {
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
       awaitScreenWithBody<TransferAmountBodyModel> {
         toolbar.middleAccessory.shouldNotBeNull().subtitle.shouldBe("500,000,000 sats available")
+      }
+    }
+  }
+
+  test("Entering amount should change requiresHardware status") {
+    // Emit a zero entry
+    moneyCalculatorUiStateMachine.emitModel(
+      MoneyCalculatorModel(
+        primaryAmount = FiatMoney.zeroUsd(),
+        secondaryAmount = BitcoinMoney.zero(),
+        amountModel = MoneyAmountEntryModel(
+          primaryAmount = "$0",
+          primaryAmountGhostedSubstringRange = null,
+          secondaryAmount = "0 sats"
+        ),
+        keypadModel = KeypadModel(showDecimal = true, onButtonPress = {})
+      )
+    )
+
+    stateMachine.test(props) {
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(BitcoinMoney.zero())
+      // Amount entered should be zero right now, so requiresHardware should be false
+      awaitScreenWithBody<TransferAmountBodyModel> {
+        cardModel.shouldBeNull()
+      }
+
+      moneyCalculatorUiStateMachine.emitModel(defaultMoneyCalculatorModel)
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
+
+      awaitScreenWithBody<TransferAmountBodyModel> {
+        cardModel?.shouldHaveTitle("Bitkey approval required")
+      }
+    }
+  }
+
+  test("Entering amount above balance should use balance to check if hardware needed") {
+    val amountAboveBalance = defaultMoneyCalculatorModel.copy(
+      primaryAmount = FiatMoney.usd(21.0),
+      secondaryAmount = BitcoinMoney.btc(10.0),
+      amountModel =
+        MoneyAmountEntryModel(
+          primaryAmount = "$21.00",
+          primaryAmountGhostedSubstringRange = null,
+          secondaryAmount = "1,000,000,000 sats"
+        )
+    )
+
+    moneyCalculatorUiStateMachine.emitModel(amountAboveBalance)
+
+    stateMachine.test(props) {
+      spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(balanceSecondaryAmount)
+
+      awaitScreenWithBody<TransferAmountBodyModel> {
+        cardModel?.shouldHaveTitle("Send Max (balance minus fees)")
       }
     }
   }

@@ -2,7 +2,7 @@ package build.wallet.statemachine.notifications
 
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.f8e.FullAccountIdMock
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -27,10 +27,9 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -45,10 +44,12 @@ import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.matchers.shouldBeLoading
+import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -65,6 +66,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   val stateMachine =
     NotificationTouchpointInputAndVerificationUiStateMachineImpl(
+      delayer = ControlledDelayer(),
       emailInputUiStateMachine =
         object : EmailInputUiStateMachine, ScreenStateMachineMock<EmailInputUiProps>(
           "email-input"
@@ -80,15 +82,21 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
           "proof-of-hw"
         ) {},
       verificationCodeInputStateMachine =
-        object : VerificationCodeInputStateMachine, ScreenStateMachineMock<VerificationCodeInputProps>(
-          "verification-code-input"
-        ) {}
+        object : VerificationCodeInputStateMachine,
+          ScreenStateMachineMock<VerificationCodeInputProps>(
+            "verification-code-input"
+          ) {},
+      uiErrorHintSubmitter = object : UiErrorHintSubmitter {
+        override fun phoneNone() {}
+
+        override fun phoneNotAvailable() {}
+      }
     )
 
   val props =
     NotificationTouchpointInputAndVerificationProps(
       fullAccountId = FullAccountIdMock,
-      keyboxConfig = KeyboxConfigMock,
+      fullAccountConfig = FullAccountConfigMock,
       touchpointType = PhoneNumber,
       entryPoint =
         Onboarding(
@@ -146,7 +154,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     }
 
     // Sending verification code to server
-    awaitScreenWithBody<LoadingBodyModel>()
+    awaitScreenWithBody<LoadingSuccessBodyModel> {
+      state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+    }
     with(notificationTouchpointService.verifyTouchpointCalls.awaitItem()) {
       shouldBeTypeOf<VerifyTouchpointParams>()
       touchpointId.shouldBe(touchpointId)
@@ -160,7 +170,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       stateMachine.test(props.copy(touchpointType = touchpointType)) {
         progressToSendingVerificationCode(touchpointType)
         // Sending activation request to server
-        awaitScreenWithBody<LoadingBodyModel>()
+        awaitScreenWithBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+        }
         with(notificationTouchpointService.activateTouchpointCalls.awaitItem()) {
           shouldBeTypeOf<ActivateTouchpointParams>()
           hwFactorProofOfPossession.shouldBeNull()
@@ -168,7 +180,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
         notificationTouchpointDao.storeTouchpointCalls.awaitItem()
 
-        awaitScreenWithBody<SuccessBodyModel>()
+        awaitScreenWithBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+        }
 
         onCloseCalls.awaitItem()
       }
@@ -187,7 +201,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         // Activation approval instructions
         awaitScreenWithBody<FormBodyModel> {
           expectActivationInstructions(touchpointType)
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
 
         // Verifying HW proof
@@ -201,13 +215,15 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
             onTokenRefresh.shouldNotBeNull().invoke()
               .body.shouldBeInstanceOf<FormBodyModel>()
           refreshingScreenModel.expectActivationInstructions(touchpointType)
-          refreshingScreenModel.primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+          refreshingScreenModel.primaryButton.shouldNotBeNull().shouldBeLoading()
 
           (request as Request.HwKeyProof).onSuccess(hwProofOfPossession)
         }
 
         // Sending activation request to server
-        awaitScreenWithBody<LoadingBodyModel>()
+        awaitScreenWithBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
+        }
         with(notificationTouchpointService.activateTouchpointCalls.awaitItem()) {
           shouldBeTypeOf<ActivateTouchpointParams>()
           touchpointId.shouldBe(touchpointId)
@@ -216,7 +232,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
         notificationTouchpointDao.storeTouchpointCalls.awaitItem()
 
-        awaitScreenWithBody<SuccessBodyModel>()
+        awaitScreenWithBody<LoadingSuccessBodyModel> {
+          state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Success>()
+        }
 
         onCloseCalls.awaitItem()
       }
@@ -261,7 +279,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
               "Make sure you are connected to the internet and try again."
             )
           }
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
 
         // Go back to Entering verification code
@@ -289,7 +307,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
               "We are looking into this. Please try again later."
             )
           }
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
 
         // Go back to Entering touchpoint
@@ -326,7 +344,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
               "Your verification code has expired. Please submit your contact details again."
             )
           }
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
 
         // Go back to Entering touchpoint
@@ -363,7 +381,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
               "The verification code was incorrect. Please try again."
             )
           }
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
 
         // Go back to Entering verification code

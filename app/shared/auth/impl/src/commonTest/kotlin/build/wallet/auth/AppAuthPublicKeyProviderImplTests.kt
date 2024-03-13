@@ -7,9 +7,7 @@ import build.wallet.auth.AuthTokenScope.Recovery
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.db.DbQueryError
 import build.wallet.f8e.F8eEnvironment
@@ -19,7 +17,6 @@ import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -40,12 +37,12 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
 
     test("Returns AppGlobalAuthPublicKey from active Full account for Global scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Global)
-      appAuthPublicKey.get().shouldBe(account.keybox.activeKeyBundle.authKey)
+      appAuthPublicKey.get().shouldBe(account.keybox.activeAppKeyBundle.authKey)
     }
 
     test("Returns AppRecoveryAuthPublicKey from active Full account for RecoveryApp scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Recovery)
-      appAuthPublicKey.get().shouldBe(account.keybox.activeKeyBundle.recoveryAuthKey)
+      appAuthPublicKey.get().shouldBe(account.keybox.activeAppKeyBundle.recoveryAuthKey)
     }
   }
 
@@ -56,12 +53,12 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
 
     test("Returns AppGlobalAuthPublicKey from onboarding Full account for Global scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Global)
-      appAuthPublicKey.get().shouldBe(account.keybox.activeKeyBundle.authKey)
+      appAuthPublicKey.get().shouldBe(account.keybox.activeAppKeyBundle.authKey)
     }
 
     test("Returns AppRecoveryAuthPublicKey from onboarding Full account for RecoveryApp scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Recovery)
-      appAuthPublicKey.get().shouldBe(account.keybox.activeKeyBundle.recoveryAuthKey)
+      appAuthPublicKey.get().shouldBe(account.keybox.activeAppKeyBundle.recoveryAuthKey)
     }
   }
 
@@ -88,12 +85,12 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
 
     test("Returns AppRecoveryAuthPublicKey from onboarding Full account for Recovery scope") {
       val appAuthPublicKey = provider.getKey(fullAccount.accountId, Recovery)
-      appAuthPublicKey.get().shouldBe(fullAccount.keybox.activeKeyBundle.recoveryAuthKey)
+      appAuthPublicKey.get().shouldBe(fullAccount.keybox.activeAppKeyBundle.recoveryAuthKey)
     }
 
     test("Returns AppGlobalAuthPublicKey from onboarding Full account for Global scope") {
       val appAuthPublicKey = provider.getKey(fullAccount.accountId, Global)
-      appAuthPublicKey.get().shouldBe(fullAccount.keybox.activeKeyBundle.authKey)
+      appAuthPublicKey.get().shouldBe(fullAccount.keybox.activeAppKeyBundle.authKey)
     }
   }
 
@@ -136,18 +133,6 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
     recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
     val appAuthPublicKey = provider.getKey(FullAccountId("some other ID"), Global)
     appAuthPublicKey.shouldBeErrOfType<UnhandledError>()
-  }
-
-  test("Throws error for active Full account for RecoveryApp scope with no recovery auth key") {
-    val account =
-      FullAccountMock.copy(
-        keybox = KeyboxMock.copy(activeKeyBundle = AppKeyBundleMock.copy(recoveryAuthKey = null))
-      )
-    accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(account))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
-    shouldThrow<IllegalArgumentException> {
-      provider.getKey(account.accountId, Recovery)
-    }
   }
 
   test("Returns error if there is no account that is active, onboarding, or recovering") {

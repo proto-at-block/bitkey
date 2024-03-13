@@ -23,6 +23,7 @@ import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.LostConnection
 import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.Searching
 import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.Success
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigatorMock
+import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -41,6 +42,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
     FwupNfcSessionUiStateMachineImpl(
       enableNfcNavigator = EnableNfcNavigatorMock(),
       eventTracker = eventTracker,
+      delayer = ControlledDelayer(),
       fwupProgressCalculator = FwupProgressCalculatorMock(),
       deviceInfoProvider = deviceInfoProvider,
       nfcReaderCapabilityProvider = NfcReaderCapabilityProviderMock(),

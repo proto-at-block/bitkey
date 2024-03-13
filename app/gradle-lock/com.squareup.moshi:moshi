@@ -1,0 +1,31 @@
+{
+    "module-identifier": "com.squareup.moshi:moshi",
+    "components": [
+        {
+            "version": "1.15.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "moshi-1.15.0.jar": "350d48c34df4a8ef4f1475aa65ef0e54c4d8302a71efc9f6c09d0e98fd4c63c6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "1.9.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "moshi-1.9.3.jar": "75258fda61c1266c7c5606b297b1c70db35d76258cd170c1aac04e8665a6d59e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

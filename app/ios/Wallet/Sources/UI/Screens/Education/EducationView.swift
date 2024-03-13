@@ -54,9 +54,11 @@ private struct ExplainerToolbar: View {
                             color: .foreground10
                         ),
                         iconTint: nil,
+                        iconOpacity: nil,
+                        iconTopSpacing: nil,
                         text: nil
                     ),
-                    onClick: ClickCompanion().standardClick { viewModel.onDismiss() } ,
+                    onClick: StandardClick { viewModel.onDismiss() } ,
                     enabled: true
                 )
             )

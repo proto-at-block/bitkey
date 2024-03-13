@@ -6,8 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.analytics.v1.Action
+import build.wallet.bitkey.socrec.OutgoingInvitation
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -33,7 +35,7 @@ import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.ScanningHardwareState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.ShareState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.Success
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -44,6 +46,7 @@ class AddingTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val sharingManager: SharingManager,
   private val clipboard: Clipboard,
+  private val eventTracker: EventTracker,
 ) : AddingTrustedContactUiStateMachine {
   @Composable
   override fun model(props: AddingTrustedContactUiProps): ScreenModel {
@@ -53,6 +56,13 @@ class AddingTrustedContactUiStateMachineImpl(
     return when (val current = state) {
       is EnterTcNameState -> {
         var input by remember { mutableStateOf(current.tcNameInitial) }
+        val continueClick = remember(input) {
+          if (input.isNotBlank()) {
+            StandardClick { state = SaveWithBitkeyRequestState(tcName = input) }
+          } else {
+            StandardClick { } // noop
+          }
+        }
 
         NameInputBodyModel(
           id = SocialRecoveryEventTrackerScreenId.TC_ADD_TC_NAME,
@@ -63,13 +73,7 @@ class AddingTrustedContactUiStateMachineImpl(
             ButtonModel(
               text = "Continue",
               isEnabled = input.isNotBlank(),
-              onClick =
-                Click.standardClick {
-                  state =
-                    SaveWithBitkeyRequestState(
-                      tcName = input
-                    )
-                },
+              onClick = continueClick,
               size = ButtonModel.Size.Footer
             ),
           onValueChange = { input = it },
@@ -108,7 +112,7 @@ class AddingTrustedContactUiStateMachineImpl(
                 }
               ),
             fullAccountId = props.account.accountId,
-            keyboxConfig = props.account.keybox.config,
+            fullAccountConfig = props.account.keybox.config,
             onBack = {
               state =
                 SaveWithBitkeyRequestState(
@@ -170,14 +174,14 @@ class AddingTrustedContactUiStateMachineImpl(
 
       is ShareState ->
         ShareInviteBodyModel(
-          trustedContactName = current.invitation.trustedContactAlias.alias,
+          trustedContactName = current.invitation.invitation.trustedContactAlias.alias,
           onShareComplete = {
             // We need to watch the clipboard on Android because we don't get
             // a callback from the share sheet when they use the copy action
             scope.launch {
               clipboard.plainTextItemAndroid().drop(1).collect { content ->
                 content.let {
-                  if (it.toString().contains(current.invitation.token)) {
+                  if (it.toString().contains(current.invitation.inviteCode)) {
                     state = Success
                   }
                 }
@@ -185,9 +189,11 @@ class AddingTrustedContactUiStateMachineImpl(
             }
 
             sharingManager.shareInvitation(
-              inviteCode = current.invitation.token,
+              inviteCode = current.invitation.inviteCode,
               onCompletion = {
                 state = Success
+              }, onFailure = {
+                eventTracker.track(Action.ACTION_APP_SOCREC_TC_INVITE_DISMISSED_SHEET_WITHOUT_SHARING)
               }
             )
           },
@@ -200,17 +206,8 @@ class AddingTrustedContactUiStateMachineImpl(
       Success ->
         SuccessBodyModel(
           id = SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS,
-          style =
-            SuccessBodyModel.Style.Explicit(
-              primaryButton =
-                ButtonDataModel(
-                  text = "Got it",
-                  onClick = {
-                    props.onInvitationShared()
-                  }
-                )
-            ),
-          title = "That's it!",
+          primaryButtonModel = ButtonDataModel("Got it", onClick = props.onInvitationShared),
+          title = "You're all set.",
           message = "You can manage your Trusted Contacts in your settings."
         ).asModalScreen()
     }
@@ -241,7 +238,7 @@ class AddingTrustedContactUiStateMachineImpl(
     ) : State
 
     data class ShareState(
-      val invitation: Invitation,
+      val invitation: OutgoingInvitation,
     ) : State
 
     data object Success : State

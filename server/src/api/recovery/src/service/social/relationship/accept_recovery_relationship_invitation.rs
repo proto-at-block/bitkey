@@ -2,23 +2,36 @@ use notification::payloads::recovery_relationship_invitation_accepted::RecoveryR
 use notification::service::SendNotificationInput;
 use notification::{NotificationPayloadBuilder, NotificationPayloadType};
 use time::OffsetDateTime;
+use tracing::instrument;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{
     RecoveryRelationship, RecoveryRelationshipConnectionFieldsBuilder, RecoveryRelationshipId,
     RecoveryRelationshipUnendorsedBuilder,
 };
 
-use super::{disambiguate_code_input, error::ServiceError, Service};
+use super::{error::ServiceError, Service};
 
+const MAX_PROTECTED_CUSTOMERS: usize = 10;
+
+/// The input for the `accept_recovery_relationship_invitation` function
+///
+/// # Fields
+///
+/// * `trusted_contact_account_id` - The account id of the Trusted that's accepting the invitation
+/// * `recovery_relationship_id` - The invitation id to be redeemed by the Trusted Contact
+/// * `code` - The code corresponding to the recovery_relationship_id which was fetched before calling the endpoint
+/// * `customer_alias` - Allows the Trusted Contact to give the customer an alias for future reference
+/// * `trusted_contact_enrollment_pake_pubkey` - The public key of the Trusted Contact, used to encrypt the Social Recovery payload
+/// * `enrollment_pake_confirmation` - The confirmation code used in PAKE to ensure nothing was tampered in transit.
+/// * `sealed_delegated_decryption_pubkey` - The sealed delegated decryption pubkey
 pub struct AcceptRecoveryRelationshipInvitationInput<'a> {
     pub trusted_contact_account_id: &'a AccountId,
     pub recovery_relationship_id: &'a RecoveryRelationshipId,
     pub code: &'a str,
     pub customer_alias: &'a str,
-    pub trusted_contact_identity_pubkey: &'a str,
-    pub trusted_contact_enrollment_pubkey: &'a str,
-    pub trusted_contact_identity_pubkey_mac: &'a str,
-    pub enrollment_key_confirmation: &'a str,
+    pub trusted_contact_enrollment_pake_pubkey: &'a str,
+    pub enrollment_pake_confirmation: &'a str,
+    pub sealed_delegated_decryption_pubkey: &'a str,
 }
 
 impl Service {
@@ -29,13 +42,12 @@ impl Service {
     ///
     /// # Arguments
     ///
-    /// * `trusted_contact_account_id` - The account id of the Trusted that's accepting the invitation
-    /// * `recovery_relationship_id` - The invitation id to be redeemed by the Trusted Contact
-    /// * `code` - The code corresponding to the recovery_relationship_id which was fetched before calling the endpoint
-    /// * `customer_alias` - Allows the Trusted Contact to give the customer an alias for future reference
-    /// * `trusted_contact_identity_pubkey` - The public key of the Trusted Contact, used to encrypt the Social Recovery payload
-    /// * `trusted_contact_identity_pubkey_mac` - The message authentication code used to ensure that keys weren't altered in transit.
-    /// * `enrollment_key_confirmation` - The key confirmation used to verify that both parties have calculated the same session key without revealing the key to potential eavesdroppers
+    /// * `input` - Contains the information needed to accept the invite
+    ///
+    /// # Returns
+    ///
+    /// * The unendorsed recovery relationship that was accepted by the Trusted Contact
+    #[instrument(skip(self, input))]
     pub async fn accept_recovery_relationship_invitation(
         &self,
         input: AcceptRecoveryRelationshipInvitationInput<'_>,
@@ -71,7 +83,7 @@ impl Service {
             return Err(ServiceError::InvitationExpired);
         }
 
-        if invitation.code != disambiguate_code_input(input.code) {
+        if invitation.code != input.code {
             return Err(ServiceError::InvitationCodeMismatch);
         }
 
@@ -97,21 +109,32 @@ impl Service {
             _ => {}
         }
 
+        let relationships = self
+            .repository
+            .fetch_recovery_relationships_for_account(input.trusted_contact_account_id)
+            .await?;
+        if relationships.customers.len() >= MAX_PROTECTED_CUSTOMERS {
+            return Err(ServiceError::MaxProtectedCustomersReached);
+        }
+
         let connection_fields = RecoveryRelationshipConnectionFieldsBuilder::default()
             .customer_alias(input.customer_alias.to_owned())
             .trusted_contact_account_id(input.trusted_contact_account_id.to_owned())
-            .trusted_contact_identity_pubkey(input.trusted_contact_identity_pubkey.to_owned())
             .build()?;
 
         let connection = RecoveryRelationshipUnendorsedBuilder::default()
             .common_fields(prev_common_fields.to_owned())
             .connection_fields(connection_fields.to_owned())
-            .customer_enrollment_pubkey(invitation.customer_enrollment_pubkey.to_owned())
-            .trusted_contact_enrollment_pubkey(input.trusted_contact_enrollment_pubkey.to_owned())
-            .trusted_contact_identity_pubkey_mac(
-                input.trusted_contact_identity_pubkey_mac.to_owned(),
+            .trusted_contact_enrollment_pake_pubkey(
+                input.trusted_contact_enrollment_pake_pubkey.to_owned(),
             )
-            .enrollment_key_confirmation(input.enrollment_key_confirmation.to_owned())
+            .enrollment_pake_confirmation(input.enrollment_pake_confirmation.to_owned())
+            .sealed_delegated_decryption_pubkey(input.sealed_delegated_decryption_pubkey.to_owned())
+            .protected_customer_enrollment_pake_pubkey(
+                invitation
+                    .protected_customer_enrollment_pake_pubkey
+                    .to_owned(),
+            )
             .build()?;
 
         let relationship = self

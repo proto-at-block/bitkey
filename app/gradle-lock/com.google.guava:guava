@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.google.guava:guava",
+    "components": [
+        {
+            "version": "32.0.1-jre",
+            "variants": [
+                {
+                    "artifacts": {
+                        "guava-32.0.1-jre.jar": "bd7fa227591fb8509677d0d1122cf95158f3b8a9f45653f58281d879f6dc48c5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

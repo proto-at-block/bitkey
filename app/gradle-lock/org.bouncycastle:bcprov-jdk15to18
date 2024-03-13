@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.bouncycastle:bcprov-jdk15to18",
+    "components": [
+        {
+            "version": "1.72",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcprov-jdk15to18-1.72.jar": "ea66ea8a450810b2193e8bf9a7ad3e46307c9896224c0f407d1b7d96ba1221cc"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

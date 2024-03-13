@@ -2,11 +2,14 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit, Payload},
     XChaCha20Poly1305 as RustCryptoXChaCha20Poly1305, XNonce,
 };
+use crypto_common::InvalidLength;
 use std::sync::Mutex;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ChaCha20Poly1305Error {
+    #[error("Failed to create a new XChaCha20Poly1305 instance: {0}")]
+    XChaCha20InstantiationError(#[from] InvalidLength),
     #[error("Failed to encrypt")]
     EncryptError,
     #[error("Failed to decrypt")]
@@ -18,12 +21,12 @@ pub struct XChaCha20Poly1305 {
 }
 
 impl XChaCha20Poly1305 {
-    pub fn new(key: &[u8]) -> Self {
-        let xchacha20poly1305 = RustCryptoXChaCha20Poly1305::new_from_slice(key).unwrap();
+    pub fn new(key: &[u8]) -> Result<Self, ChaCha20Poly1305Error> {
+        let xchacha20poly1305 = RustCryptoXChaCha20Poly1305::new_from_slice(key)?;
 
-        Self {
+        Ok(Self {
             xchacha20poly1305_mutex: Mutex::new(xchacha20poly1305),
-        }
+        })
     }
 
     pub fn encrypt(
@@ -51,6 +54,9 @@ impl XChaCha20Poly1305 {
         ciphertext: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, ChaCha20Poly1305Error> {
+        if nonce.len() != 24 {
+            return Err(ChaCha20Poly1305Error::DecryptError);
+        }
         let nonce = XNonce::from_slice(nonce);
         let cipher = self.xchacha20poly1305_mutex.lock().unwrap();
 
@@ -67,7 +73,7 @@ impl XChaCha20Poly1305 {
 
 #[cfg(test)]
 mod tests {
-    use crate::chacha20poly1305::XChaCha20Poly1305;
+    use crate::chacha20poly1305::{ChaCha20Poly1305Error, XChaCha20Poly1305};
     use chacha20poly1305::{aead::AeadCore, XChaCha20Poly1305 as RustCryptoXChaCha20Poly1305};
     use rand::RngCore;
     use typenum::Unsigned;
@@ -76,7 +82,7 @@ mod tests {
     fn test_encryption_without_aad() {
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
-        let cipher = XChaCha20Poly1305::new(&key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
         let plaintext = b"Hello world!";
         let mut nonce = [0u8; 24];
         rand::thread_rng().fill_bytes(&mut nonce);
@@ -90,7 +96,7 @@ mod tests {
     fn test_encryption_with_aad() {
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
-        let cipher = XChaCha20Poly1305::new(&key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
         let plaintext = b"Hello world!";
         let mut nonce = [0u8; 24];
         rand::thread_rng().fill_bytes(&mut nonce);
@@ -107,7 +113,7 @@ mod tests {
     fn test_authentication() {
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
-        let cipher = XChaCha20Poly1305::new(&key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
         let plaintext = b"Hello world!";
         let mut nonce = [0u8; 24];
         rand::thread_rng().fill_bytes(&mut nonce);
@@ -142,11 +148,28 @@ mod tests {
         let expected_tag = hex::decode("c0875924c1c7987947deafd8780acf49").unwrap();
         let tag_size = <RustCryptoXChaCha20Poly1305 as AeadCore>::TagSize::to_usize();
 
-        let cipher = XChaCha20Poly1305::new(&key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
         let out = cipher.encrypt(&iv, &plaintext, &aad).unwrap();
         let tag_index = out.len() - tag_size;
         let (ciphertext, tag) = out.split_at(tag_index);
         assert_eq!(ciphertext, expected_ciphertext);
         assert_eq!(tag, expected_tag);
+    }
+
+    #[test]
+    fn test_crypto_kit_chacha20poly1305_returns_error() {
+        // Generated from iOS CryptoKit ChaCha20Poly1305
+        let key = hex::decode("a6aee00aa3363fb096715bc0ee1debff9d6fd9054c505781ee66cef9de863a63")
+            .unwrap();
+        let ciphertext = hex::decode("b5b6a8a8c628539e616fb8e7e0ef14c2e8accda99d22c5374fd58beb9928beeabee30885478d9cd5208dd073523c724f24226bfa78135ca5cd0303f3cffb7a7f99303902b1a4aee74637772a462e30a82d5fba3f7897dd8caaa4413652c9a65b6b6568de4b1360fbb7919207f2a0365931c363d302ae084a3164b65c89a991b85adde85fb8a37a").unwrap();
+        let nonce = hex::decode("f76e277b339e5dc5eba45032").unwrap();
+        let tag = hex::decode("9bf8c38c8bdcb6f90656f5b74d6185f3").unwrap();
+
+        let _ciphertextAndTag = [ciphertext.as_slice(), tag.as_slice()].concat();
+
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
+        let decrypted = cipher.decrypt(&nonce, &ciphertext, &[]);
+
+        assert_eq!(Err(ChaCha20Poly1305Error::DecryptError), decrypted);
     }
 }

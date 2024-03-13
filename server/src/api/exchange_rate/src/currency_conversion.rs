@@ -1,5 +1,7 @@
 use async_trait::async_trait;
 
+use tracing::instrument;
+
 use crate::error::ExchangeRateError::{
     ProviderUnreachable, UnsupportedDestinationCurrency, UnsupportedSourceCurrency,
 };
@@ -14,6 +16,7 @@ use types::exchange_rate::bitstamp::{BitstampRate, BitstampRateProvider};
 use types::exchange_rate::cash::{CashAppQuote, CashAppRateProvider};
 use types::exchange_rate::local_rate_provider::{LocalRateProvider, LocalRateType};
 
+#[instrument(err, skip(exchange_rate_service, rate_provider, money))]
 pub async fn sats_for<T>(
     exchange_rate_service: &Service,
     rate_provider: T,
@@ -41,7 +44,7 @@ pub trait SpotExchangeRateProvider: ExchangeRateProvider {
 
     /// Get the exchange rate for the given currency pair. Returns an error if the source currency
     /// is not supported by the provider.
-    #[tracing::instrument(skip(self))]
+    #[instrument(skip(self))]
     async fn rate(&self, from: &CurrencyCode, to: &CurrencyCode) -> Result<f64, ExchangeRateError> {
         match from {
             BTC => {
@@ -53,7 +56,7 @@ pub trait SpotExchangeRateProvider: ExchangeRateProvider {
                             return Err(UnsupportedDestinationCurrency(to.clone()));
                         }
 
-                        let response = self.request(to).await.map_err(|_| ProviderUnreachable)?;
+                        let response = self.request(to).await?;
                         self.parse_response(response).await
                     }
                     Currency::Bitcoin(_) => Ok(1.0),
@@ -94,7 +97,7 @@ impl SpotExchangeRateProvider for BitstampRateProvider {
         self.rate_request(currency)
             .send()
             .await
-            .map_err(|_| ProviderUnreachable)?
+            .map_err(ProviderUnreachable)?
             .json::<BitstampRate>()
             .await
             .map_err(|_| ProviderResponseError::Deserialization(Self::rate_provider_type()).into())
@@ -130,7 +133,7 @@ impl SpotExchangeRateProvider for CashAppRateProvider {
         self.rate_request(currency)
             .send()
             .await
-            .map_err(|_| ProviderUnreachable)?
+            .map_err(ProviderUnreachable)?
             .json::<CashAppQuote>()
             .await
             .map_err(|_| ProviderResponseError::Deserialization(Self::rate_provider_type()).into())

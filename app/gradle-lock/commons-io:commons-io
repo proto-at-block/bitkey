@@ -1,0 +1,18 @@
+{
+    "module-identifier": "commons-io:commons-io",
+    "components": [
+        {
+            "version": "2.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-io-2.4.jar": "cc6a41dc3eaacc9e440a6bd0d2890b20d36b4ee408fe2d67122f328bb6e01581"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -30,7 +30,6 @@ data class ScreenModel(
   val alertModel: AlertModel? = null,
   val statusBannerModel: StatusBannerModel? = null,
   val bottomSheetModel: SheetModel? = null,
-  val onTwoFingerTripleTap: (() -> Unit)? = null,
   val systemUIModel: SystemUIModel? = null,
 ) : Model() {
   init {
@@ -40,6 +39,9 @@ data class ScreenModel(
       require(presentationStyle == Root)
     }
   }
+
+  override val key: String
+    get() = body.eventTrackerScreenInfo?.screenId ?: body.key
 }
 
 /**

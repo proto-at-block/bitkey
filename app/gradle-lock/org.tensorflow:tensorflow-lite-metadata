@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.tensorflow:tensorflow-lite-metadata",
+    "components": [
+        {
+            "version": "0.1.0-rc2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "tensorflow-lite-metadata-0.1.0-rc2.jar": "2c2a264f842498c36d34d2a7b91342490d9a962862c85baac1acd54ec2fca6d9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

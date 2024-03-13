@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.russhwolf:multiplatform-settings-test-iosx64",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test-iosx64-1.1.1-metadata.jar": "e1d2ec0c583f977c3739134cca285f06c52bbe196d14022776739a76913f9bf0"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "multiplatform-settings-test.klib": "000f5a7735da214faa6dee00cdc566e9f1b0a5c2eec53bde8e638bc02e6977cf"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

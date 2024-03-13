@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.jakewharton.picnic:picnic-iosx64",
+    "components": [
+        {
+            "version": "0.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "picnic-iosx64-metadata.jar": "9e06d52aae4d175c33f5e612bf1198c009e4c30b0acf443e7916bfbb3a6771f5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "picnic.klib": "ad7669babe0088c0013c1b97f95f80dea83fe0926b79ae54b1de673a28869e0f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

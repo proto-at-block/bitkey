@@ -22,9 +22,9 @@ use time::{Duration, OffsetDateTime};
 use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::{
-    create_account, create_default_account_with_predefined_wallet, create_phone_touchpoint,
-    create_plain_keys, create_pubkey, create_push_touchpoint, gen_signature,
-    generate_delay_and_notify_recovery,
+    create_account, create_auth_keyset_model, create_default_account_with_predefined_wallet,
+    create_phone_touchpoint, create_plain_keys, create_pubkey, create_push_touchpoint,
+    gen_signature, generate_delay_and_notify_recovery,
 };
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::Response;
@@ -33,7 +33,7 @@ use crate::tests::requests::Response;
 struct CreateDelayNotifyTestVector {
     override_account_id: Option<AccountId>,
     lost_factor: Factor,
-    include_recovery_auth_pubkey: bool,
+    include_recovery_auth_pubkey: (bool, bool),
     create_test_account: bool,
     expected_status: StatusCode,
     app_signed: bool,
@@ -50,7 +50,15 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
         true => Network::BitcoinSignet,
         false => Network::BitcoinMain,
     };
-    let account = create_account(&bootstrap.services, network, None).await;
+
+    let (account_has_recovery_key, recovery_has_recovery_key) = vector.include_recovery_auth_pubkey;
+
+    let mut keys = create_auth_keyset_model(network);
+    if !account_has_recovery_key {
+        keys.recovery_pubkey = None;
+    }
+
+    let account = create_account(&bootstrap.services, network, Some(keys)).await;
     let query_account_id = vector.override_account_id.unwrap_or(account.clone().id);
 
     let touchpoint_id =
@@ -63,7 +71,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
                 source_auth_keys_id: account.clone().common_fields.active_auth_keys_id,
                 app_auth_pubkey: create_pubkey(),
                 hardware_auth_pubkey: account.hardware_auth_pubkey,
-                recovery_auth_pubkey: if vector.include_recovery_auth_pubkey {
+                recovery_auth_pubkey: if recovery_has_recovery_key {
                     create_pubkey().into()
                 } else {
                     None
@@ -91,7 +99,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
             } else {
                 create_pubkey()
             },
-            recovery: if vector.include_recovery_auth_pubkey {
+            recovery: if recovery_has_recovery_key {
                 Some(create_pubkey())
             } else {
                 None
@@ -196,7 +204,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
             } else {
                 create_pubkey()
             },
-            recovery: if vector.include_recovery_auth_pubkey {
+            recovery: if recovery_has_recovery_key {
                 Some(create_pubkey())
             } else {
                 None
@@ -315,7 +323,7 @@ tests! {
     test_create_delay_notify_with_invalid_wallet_id: CreateDelayNotifyTestVector {
         override_account_id: AccountId::gen().ok(),
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: true,
         expected_status: StatusCode::NOT_FOUND,
         app_signed: true,
@@ -325,7 +333,7 @@ tests! {
     test_create_delay_notify: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: true,
         expected_status: StatusCode::OK,
         app_signed: true,
@@ -335,7 +343,7 @@ tests! {
     test_create_delay_notify_without_recovery_auth_pubkey: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: false,
+        include_recovery_auth_pubkey: (false, false),
         create_test_account: true,
         expected_status: StatusCode::OK,
         app_signed: true,
@@ -345,7 +353,7 @@ tests! {
     test_create_delay_notify_with_seven_day_delay_period_override: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: false,
         expected_status: StatusCode::OK,
         app_signed: true,
@@ -355,7 +363,7 @@ tests! {
     test_create_delay_notify_no_signers: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: true,
         expected_status: StatusCode::BAD_REQUEST,
         app_signed: false,
@@ -365,7 +373,7 @@ tests! {
     test_create_delay_notify_wrong_signer: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: true,
         expected_status: StatusCode::BAD_REQUEST,
         app_signed: false,
@@ -375,7 +383,7 @@ tests! {
     test_create_delay_notify_both_signers: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: true,
         expected_status: StatusCode::BAD_REQUEST,
         app_signed: true,
@@ -385,7 +393,7 @@ tests! {
     test_create_delay_notify_prior_contest: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: true,
+        include_recovery_auth_pubkey: (true, true),
         create_test_account: true,
         expected_status: StatusCode::OK,
         app_signed: true,
@@ -395,12 +403,32 @@ tests! {
     test_create_delay_notify_prior_contest_without_recovery_auth_pubkey: CreateDelayNotifyTestVector {
         override_account_id: None,
         lost_factor: Factor::Hw,
-        include_recovery_auth_pubkey: false,
+        include_recovery_auth_pubkey: (false, false),
         create_test_account: true,
         expected_status: StatusCode::OK,
         app_signed: true,
         hw_signed: false,
         prior_contest: true,
+    },
+    test_create_delay_notify_upgrade_to_recovery_key: CreateDelayNotifyTestVector {
+        override_account_id: None,
+        lost_factor: Factor::Hw,
+        include_recovery_auth_pubkey: (false, true),
+        create_test_account: true,
+        expected_status: StatusCode::OK,
+        app_signed: true,
+        hw_signed: false,
+        prior_contest: false,
+    },
+    test_create_delay_notify_downgrade_to_no_recovery_key: CreateDelayNotifyTestVector {
+        override_account_id: None,
+        lost_factor: Factor::Hw,
+        include_recovery_auth_pubkey: (true, false),
+        create_test_account: true,
+        expected_status: StatusCode::BAD_REQUEST,
+        app_signed: true,
+        hw_signed: false,
+        prior_contest: false,
     },
 }
 
@@ -1338,7 +1366,11 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
         match vector.auth_key_reuse {
             AuthKeyReuse::MyAccountApp => (
                 account.application_auth_pubkey.unwrap(),
-                create_pubkey(),
+                if vector.lost_factor == Factor::Hw {
+                    create_pubkey()
+                } else {
+                    account.hardware_auth_pubkey
+                },
                 Some(create_pubkey()),
             ),
             AuthKeyReuse::MyAccountHw => (
@@ -1348,12 +1380,20 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
             ),
             AuthKeyReuse::MyAccountRecovery => (
                 create_pubkey(),
-                create_pubkey(),
+                if vector.lost_factor == Factor::Hw {
+                    create_pubkey()
+                } else {
+                    account.hardware_auth_pubkey
+                },
                 account.common_fields.recovery_auth_pubkey,
             ),
             AuthKeyReuse::OtherAccountApp => (
                 other_account.application_auth_pubkey.unwrap(),
-                create_pubkey(),
+                if vector.lost_factor == Factor::Hw {
+                    create_pubkey()
+                } else {
+                    account.hardware_auth_pubkey
+                },
                 Some(create_pubkey()),
             ),
             AuthKeyReuse::OtherAccountHw => (
@@ -1363,12 +1403,20 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
             ),
             AuthKeyReuse::OtherAccountRecovery => (
                 create_pubkey(),
-                create_pubkey(),
+                if vector.lost_factor == Factor::Hw {
+                    create_pubkey()
+                } else {
+                    account.hardware_auth_pubkey
+                },
                 other_account.common_fields.recovery_auth_pubkey,
             ),
             AuthKeyReuse::OtherRecoveryApp => (
                 other_recovery.destination_app_auth_pubkey.unwrap(),
-                create_pubkey(),
+                if vector.lost_factor == Factor::Hw {
+                    create_pubkey()
+                } else {
+                    account.hardware_auth_pubkey
+                },
                 Some(create_pubkey()),
             ),
             AuthKeyReuse::OtherRecoveryHw => (
@@ -1378,7 +1426,11 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
             ),
             AuthKeyReuse::OtherRecoveryRecovery => (
                 create_pubkey(),
-                create_pubkey(),
+                if vector.lost_factor == Factor::Hw {
+                    create_pubkey()
+                } else {
+                    account.hardware_auth_pubkey
+                },
                 other_recovery.destination_recovery_auth_pubkey,
             ),
         };

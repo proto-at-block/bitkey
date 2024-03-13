@@ -1,0 +1,31 @@
+{
+    "module-identifier": "org.apache.httpcomponents:httpcore",
+    "components": [
+        {
+            "version": "4.4.15",
+            "variants": [
+                {
+                    "artifacts": {
+                        "httpcore-4.4.15.jar": "3cbaed088c499a10f96dde58f39dc0e7985171abd88138ca1655a872011bb142"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "4.4.16",
+            "variants": [
+                {
+                    "artifacts": {
+                        "httpcore-4.4.16.jar": "6c9b3dd142a09dc468e23ad39aad6f75a0f2b85125104469f026e52a474e464f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-common",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-scripting-common-1.9.10.jar": "27cf9a31b2124862fad478729e790e335072d0ab9e36cc21e386fbd5a942a7af"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

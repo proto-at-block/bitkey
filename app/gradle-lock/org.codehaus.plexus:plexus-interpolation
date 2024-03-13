@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.codehaus.plexus:plexus-interpolation",
+    "components": [
+        {
+            "version": "1.26",
+            "variants": [
+                {
+                    "artifacts": {
+                        "plexus-interpolation-1.26.jar": "b3b5412ce17889103ea564bcdfcf9fb3dfa540344ffeac6b538a73c9d7182662"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

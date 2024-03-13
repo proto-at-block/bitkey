@@ -1,0 +1,18 @@
+{
+    "module-identifier": "cafe.adriel.voyager:voyager-transitions",
+    "components": [
+        {
+            "version": "1.0.0-rc05",
+            "variants": [
+                {
+                    "artifacts": {
+                        "voyager-transitions-metadata-1.0.0-rc05.jar": "0a42ab9be07f0ed370c38bfa66aa78b1ff6bb59e00930648aa0adbcbcd5da625"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

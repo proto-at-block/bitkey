@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-websockets-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-websockets-iosx64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-websockets.klib": "e3942c2a38511072ead9643feae40722250a480fd3baa6f4445512122b27f6e7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -19,11 +19,11 @@ import kotlinx.collections.immutable.toImmutableList
 
 fun AccountAccessMoreOptionsFormBodyModel(
   onBack: () -> Unit,
-  onRestoreYourWalletClick: () -> Unit,
+  onRestoreYourWalletClick: (() -> Unit)?,
   onBeTrustedContactClick: (() -> Unit)?,
   onRestoreEmergencyAccessKit: (() -> Unit)?,
 ) = FormBodyModel(
-  id = GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS,
+  id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
   onBack = onBack,
   toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
   header =
@@ -54,21 +54,23 @@ fun AccountAccessMoreOptionsFormBodyModel(
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                   )
                 },
-                ListItemModel(
-                  leadingAccessory =
-                    ListItemAccessory.IconAccessory(
-                      iconPadding = 12,
-                      model =
-                        IconModel(
-                          icon = Icon.SmallIconWallet,
-                          iconSize = IconSize.Small
-                        )
-                    ),
-                  title = "Restore your wallet",
-                  onClick = onRestoreYourWalletClick,
-                  trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
-                  testTag = "restore-your-wallet"
-                ),
+                onRestoreYourWalletClick?.let {
+                  ListItemModel(
+                    leadingAccessory =
+                      ListItemAccessory.IconAccessory(
+                        iconPadding = 12,
+                        model =
+                          IconModel(
+                            icon = Icon.SmallIconWallet,
+                            iconSize = IconSize.Small
+                          )
+                      ),
+                    title = "Restore your wallet",
+                    onClick = it,
+                    trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
+                    testTag = "restore-your-wallet"
+                  )
+                },
                 onRestoreEmergencyAccessKit?.let {
                   ListItemModel(
                     leadingAccessory =

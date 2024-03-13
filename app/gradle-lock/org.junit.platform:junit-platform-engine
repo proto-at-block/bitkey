@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.junit.platform:junit-platform-engine",
+    "components": [
+        {
+            "version": "1.8.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "junit-platform-engine-1.8.2.jar": "0b7d000f8c3e8e5f7d6b819649936e7b9938314e87c8f983805218ea57567e59"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

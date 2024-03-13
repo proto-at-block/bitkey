@@ -15,4 +15,6 @@ internal data class RetrieveTrustedContactInvitation(
   val expiresAt: Instant,
   @SerialName("recovery_relationship_id")
   val recoveryRelationshipId: String,
+  @SerialName("protected_customer_enrollment_pake_pubkey")
+  val protectedCustomerEnrollmentPakePubkey: String,
 )

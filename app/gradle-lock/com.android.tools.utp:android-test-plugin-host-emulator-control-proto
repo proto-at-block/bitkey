@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.utp:android-test-plugin-host-emulator-control-proto",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "android-test-plugin-host-emulator-control-proto-31.1.1.jar": "435438bc84016ec5d28c34c9d017b01365f37949168cffc81126d43757c53ca4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

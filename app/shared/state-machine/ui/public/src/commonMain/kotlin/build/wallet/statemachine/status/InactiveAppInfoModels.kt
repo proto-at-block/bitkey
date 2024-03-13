@@ -6,7 +6,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -18,12 +17,8 @@ import build.wallet.ui.model.toolbar.ToolbarModel
  * The body model for the inactive app status screen
  *
  * onClose - The action to take when the screen is closed
- * onSetUpNewWallet: The action to take when the user wants to set up a new wallet
  */
-fun InactiveAppInfoBodyModel(
-  onClose: () -> Unit,
-  onSetUpNewWallet: () -> Unit,
-): FormBodyModel {
+fun InactiveAppInfoBodyModel(onClose: () -> Unit): FormBodyModel {
   return FormBodyModel(
     id = AppFunctionalityEventTrackerScreenId.INACTIVE_APP_STATUS,
     onBack = onClose,
@@ -53,12 +48,6 @@ fun InactiveAppInfoBodyModel(
                     secondaryText = "Some features may not be available",
                     trailingAccessory = ListItemAccessory.drillIcon(),
                     onClick = onClose
-                  ),
-                  ListItemModel(
-                    title = "Set up a new wallet or Restore Backup",
-                    secondaryText = "Start fresh with a new Bitcoin wallet on this device.",
-                    trailingAccessory = ListItemAccessory.drillIcon(),
-                    onClick = onSetUpNewWallet
                   )
                 )
             )
@@ -67,22 +56,3 @@ fun InactiveAppInfoBodyModel(
     primaryButton = null
   )
 }
-
-/**
- * The alert model for setting up a new wallet and erasing the current keys from the phone
- *
- * onOverwrite - The action to take when the user wants to overwrite the current wallet
- * onCancel - The action to take when the user wants to cancel the action
- */
-fun SetUpNewWalletAlert(
-  onOverwrite: () -> Unit,
-  onCancel: () -> Unit,
-) = AlertModel(
-  title = "Erase App contents?",
-  subline = "This will delete the app key on this phone so you can set up a new one. You won't be able to use this app to manage the contents of this Bitkey without restoring using your Hardware.",
-  onDismiss = onCancel,
-  primaryButtonText = "Overwrite",
-  onPrimaryButtonClick = onOverwrite,
-  secondaryButtonText = "Cancel",
-  onSecondaryButtonClick = onCancel
-)

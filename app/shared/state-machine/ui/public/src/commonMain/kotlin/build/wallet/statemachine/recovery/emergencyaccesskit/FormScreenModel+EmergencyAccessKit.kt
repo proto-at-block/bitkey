@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
@@ -58,13 +58,13 @@ fun EmergencyAccessKitImportWalletModel(
       text = "Enter details manually",
       treatment = Secondary,
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onEnterManually() }
+      onClick = StandardClick { onEnterManually() }
     ),
   secondaryButton =
     ButtonModel(
       text = "Scan QR code",
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onScanQRCode() }
+      onClick = StandardClick { onScanQRCode() }
     )
 )
 
@@ -110,7 +110,7 @@ fun EmergencyAccessKitImportPasteMobileKeyModel(
               leadingIcon = Icon.SmallIconClipboard,
               treatment = Secondary,
               size = Compact,
-              onClick = Click.standardClick { onPasteButtonClick() }
+              onClick = StandardClick { onPasteButtonClick() }
             )
           } else {
             null
@@ -122,7 +122,7 @@ fun EmergencyAccessKitImportPasteMobileKeyModel(
       text = "Continue",
       isEnabled = enteredText.isNotEmpty(),
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onContinue() }
+      onClick = StandardClick { onContinue() }
     )
 )
 
@@ -151,7 +151,7 @@ fun EmergencyAccessKitScanQRCodeModel(
       text = "Fake Valid Data",
       size = ButtonModel.Size.Footer,
       onClick =
-        Click.standardClick {
+        StandardClick {
           onScanQRCode("kQnG62aGRXF4Uh3bVDFkkADBfo9TJKJ4Ff69MYxuAWQqXDgiKQJMt862hu")
         }
     ),
@@ -159,7 +159,7 @@ fun EmergencyAccessKitScanQRCodeModel(
     ButtonModel(
       text = "Fake Invalid Data",
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onScanQRCode("Invalid Payload!") }
+      onClick = StandardClick { onScanQRCode("Invalid Payload!") }
     )
 )
 
@@ -190,14 +190,14 @@ fun EmergencyAccessKitCodeNotRecognized(
       text = "Scan QR code",
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onScanQRCode() }
+      onClick = StandardClick { onScanQRCode() }
     ),
   secondaryButton =
     ButtonModel(
       text =
         if (arrivedFromManualEntry) "Try again" else "Import",
       size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick { onImport() }
+      onClick = StandardClick { onImport() }
     )
 )
 

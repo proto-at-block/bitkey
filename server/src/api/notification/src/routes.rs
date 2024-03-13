@@ -1,7 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use ::metrics::KeyValue;
 use account::service::{FetchAccountInput, Service as AccountService};
+use authn_authz::key_claims::KeyClaims;
 use axum::{
     extract::{Path, State},
     routing::get,
@@ -19,6 +20,7 @@ use types::{
     account::identifiers::AccountId,
     notification::{NotificationChannel, NotificationsPreferences},
 };
+use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
 use crate::{
@@ -43,6 +45,7 @@ pub struct RouteState(
     pub AccountService,
     pub Box<dyn AddressWatchlistTrait>,
     pub TwilioClient,
+    pub UserPoolService,
 );
 
 impl RouteState {
@@ -95,7 +98,7 @@ impl From<RouteState> for SwaggerEndpoint {
     components(
         schemas(SendTestPushData, SendTestPushResponse),
         schemas(RegisterWatchAddressRequest, RegisterWatchAddressResponse),
-        schemas(SetNotificationsPreferencesRequest, NotificationsPreferences, NotificationChannel),
+        schemas(NotificationsPreferences, NotificationChannel),
     ),
     tags(
         (name = "Notification", description = "Touchpoints with Users")
@@ -295,34 +298,6 @@ pub async fn twilio_status_callback(
     Ok(axum::http::StatusCode::NO_CONTENT)
 }
 
-// TODO: Remove in part 2 of W-5882
-fn default_account_security_channels() -> HashSet<NotificationChannel> {
-    HashSet::from([
-        NotificationChannel::Push,
-        NotificationChannel::Email,
-        NotificationChannel::Sms,
-    ])
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
-pub struct SetNotificationsPreferencesRequest {
-    #[serde(default = "default_account_security_channels")]
-    pub account_security: HashSet<NotificationChannel>,
-    pub money_movement: HashSet<NotificationChannel>,
-    pub product_marketing: HashSet<NotificationChannel>,
-}
-
-// TODO: Remove along with SetNotificationsPreferencesRequest in part 2 of W-5882
-impl From<SetNotificationsPreferencesRequest> for NotificationsPreferences {
-    fn from(request: SetNotificationsPreferencesRequest) -> Self {
-        NotificationsPreferences {
-            account_security: request.account_security,
-            money_movement: request.money_movement,
-            product_marketing: request.product_marketing,
-        }
-    }
-}
-
 #[instrument(err, skip(notification_service))]
 #[utoipa::path(
     put,
@@ -330,7 +305,7 @@ impl From<SetNotificationsPreferencesRequest> for NotificationsPreferences {
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
-    request_body = SetNotificationsPreferencesRequest,
+    request_body = NotificationsPreferences,
     responses(
         (status = 200, description = "Notifications preferences set", body=NotificationsPreferences),
     ),
@@ -338,13 +313,15 @@ impl From<SetNotificationsPreferencesRequest> for NotificationsPreferences {
 pub async fn set_notifications_preferences(
     Path(account_id): Path<AccountId>,
     State(notification_service): State<NotificationService>,
-    Json(request): Json<SetNotificationsPreferencesRequest>,
+    key_proof: KeyClaims,
+    Json(request): Json<NotificationsPreferences>,
 ) -> Result<Json<NotificationsPreferences>, ApiError> {
-    let new_notifications_preferences = NotificationsPreferences::from(request);
+    let new_notifications_preferences = request;
     notification_service
         .update_notifications_preferences(UpdateNotificationsPreferencesInput {
             account_id: &account_id,
             notifications_preferences: &new_notifications_preferences,
+            key_proof: Some(key_proof),
         })
         .await?;
 

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.1.18",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-result-coroutines-iossimulatorarm64-1.1.18-metadata.jar": "4356527c57b56e055cb4901b79d5788d546af6d85942c332619fc0e360800555"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-result-coroutines.klib": "3e37fd7ec6b97316b1bf0ab4c36febd93d39141672341f0ee65a65e5a3e54d5e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

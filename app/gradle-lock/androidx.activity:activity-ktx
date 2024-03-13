@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.activity:activity-ktx",
+    "components": [
+        {
+            "version": "1.7.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "activity-ktx-1.7.2.aar": "b0b4206ece92919925061fdf5784dd21f0118534609e8f6d9404bdd0f5cb5a3d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

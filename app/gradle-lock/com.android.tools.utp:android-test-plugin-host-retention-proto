@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.utp:android-test-plugin-host-retention-proto",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "android-test-plugin-host-retention-proto-31.1.1.jar": "4d1c3faaff5a38b29426f082e8e8c3f8b85a902086b90d18f706754ad93de04d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

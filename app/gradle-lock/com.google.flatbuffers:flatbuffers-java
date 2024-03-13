@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.flatbuffers:flatbuffers-java",
+    "components": [
+        {
+            "version": "1.12.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "flatbuffers-java-1.12.0.jar": "3f8c088b4dd04a9858721f2e162508c94db0dd86f961e306ee63ef2eda871bf7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

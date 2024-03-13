@@ -7,7 +7,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.isFullAccount
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -28,8 +27,11 @@ class GettingStartedRoutingStateMachineImpl(
     var state: State by remember { mutableStateOf(LoadingCloudBackup) }
 
     val showErrorOnBackupMissing: Boolean =
-      remember(props.eakAssociation) {
-        (props.eakAssociation == EmergencyAccessKitAssociation.EakBuild)
+      remember(props) {
+        when (props.startIntent) {
+          RestoreBitkey -> true
+          BeTrustedContact -> false
+        }
       }
 
     return when (val current = state) {

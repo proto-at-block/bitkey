@@ -119,7 +119,7 @@ actual class SqlDriverFactoryImpl actual constructor(
           .createMultiThreadedConnection().close()
       }
     if (connectAttempt.getError() == null) {
-      throw DbNotEncryptedException("Database opened unencrypted. Check your liker settings.")
+      throw DbNotEncryptedException("Database opened unencrypted. Check your linker settings.")
     }
   }
 }

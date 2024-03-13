@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-auth-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-auth-iossimulatorarm64-2.3.8-metadata.jar": "b2683a6b4ba8c66c3791b9e3e6d15f6b502ea7044285cb70c747c392cb107404"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-auth.klib": "2c429bc08117ab4c53d275c9a5a96f9f3e8796313eb3281bb3c2820f2e629deb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

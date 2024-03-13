@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.ui:ui-geometry",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-geometry-metadata-1.5.4.jar": "1dd30ce8cca076140ed92ee748c1d35a4ac46b9da435406e353208a07267996d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

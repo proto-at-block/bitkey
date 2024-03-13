@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.codehaus.mojo:animal-sniffer-annotations",
+    "components": [
+        {
+            "version": "1.19",
+            "variants": [
+                {
+                    "artifacts": {
+                        "animal-sniffer-annotations-1.19.jar": "e67ec27ceeaf13ab5d54cf5fdbcc544c41b4db8d02d9f006678cca2c7c13ee9d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

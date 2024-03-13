@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.snakeyaml:snakeyaml-engine",
+    "components": [
+        {
+            "version": "2.7",
+            "variants": [
+                {
+                    "artifacts": {
+                        "snakeyaml-engine-2.7.jar": "4053f878c171692aab8782f53a3974f43e55e2b6ed12c3682b36a46968c5ded1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

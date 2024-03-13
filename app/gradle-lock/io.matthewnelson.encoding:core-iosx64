@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.matthewnelson.encoding:core-iosx64",
+    "components": [
+        {
+            "version": "2.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-iosx64-2.1.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "core.klib": "b6c470201c70185b607a079a8430ce72301c54218d1b83e8aa3fc77d82a6c6f1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

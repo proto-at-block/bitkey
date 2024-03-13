@@ -11,6 +11,7 @@ import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.platform.random.UuidFake
+import build.wallet.recovery.socrec.ProtectedCustomerEnrollmentPakeKeyFake
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
@@ -73,7 +74,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Jack")
+        trustedContactAlias = TrustedContactAlias("Jack"),
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -99,7 +101,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Kirill")
+        trustedContactAlias = TrustedContactAlias("Kirill"),
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-1")
@@ -131,7 +134,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount1,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Jack")
+        trustedContactAlias = TrustedContactAlias("Jack"),
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -154,7 +158,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
 
     // Remove the invitation
     serviceFake.removeRelationship(
-      account = fullAccount1,
+      accountId = fullAccount1.accountId,
+      f8eEnvironment = fullAccount1.config.f8eEnvironment,
       hardwareProofOfPossession = hwPopMock,
       authTokenScope = AuthTokenScope.Global,
       relationshipId = "uuid-0"
@@ -178,7 +183,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount1,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Jack")
+        trustedContactAlias = TrustedContactAlias("Jack"),
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -201,7 +207,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
 
     // Attempt to remove a nonexistent invitation - error
     serviceFake.removeRelationship(
-      account = fullAccount1,
+      accountId = fullAccount1.accountId,
+      f8eEnvironment = fullAccount1.config.f8eEnvironment,
       hardwareProofOfPossession = hwPopMock,
       authTokenScope = AuthTokenScope.Global,
       relationshipId = "uuid-1"
@@ -230,7 +237,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Jack")
+        trustedContactAlias = TrustedContactAlias("Jack"),
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -283,7 +291,8 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Jack")
+        trustedContactAlias = TrustedContactAlias("Jack"),
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")

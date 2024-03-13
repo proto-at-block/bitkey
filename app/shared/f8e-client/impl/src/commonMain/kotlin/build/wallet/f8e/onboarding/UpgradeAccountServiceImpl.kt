@@ -2,6 +2,7 @@ package build.wallet.f8e.onboarding
 
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitcoin.BitcoinNetworkType
+import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
@@ -19,7 +20,9 @@ import build.wallet.f8e.error.code.CreateAccountClientErrorCode
 import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
 import build.wallet.f8e.serialization.toJsonString
+import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.bodyResult
+import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -47,7 +50,7 @@ class UpgradeAccountServiceImpl(
             RequestBody(
               appKeyBundle = keyCrossDraft.appKeyBundle,
               hardwareKeyBundle = keyCrossDraft.hardwareKeyBundle,
-              network = keyCrossDraft.config.networkType
+              network = keyCrossDraft.config.bitcoinNetworkType
             )
           )
         }
@@ -55,6 +58,28 @@ class UpgradeAccountServiceImpl(
       .mapError { it.toF8eError<CreateAccountClientErrorCode>() }
       .logF8eFailure { "Failed to upgrade account on f8e" }
       .map { response ->
+        val verified = runCatching {
+          f8eHttpClient.wsmVerifier.verify(
+            base58Message = DescriptorPublicKey(response.spending).xpub,
+            signature = response.spendingSig,
+            keyVariant = keyCrossDraft.config.f8eEnvironment.wsmIntegrityKeyVariant
+          ).isValid
+        }.getOrElse {
+          false
+        }
+
+        if (!verified) {
+          // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
+          log {
+            "[wsm_integrity_failure] WSM integrity signature verification failed: " +
+              "${response.spendingSig} : " +
+              "${response.spending} : " +
+              "${response.accountId} : " +
+              response.keysetId
+          }
+          // Just log, don't fail the call.
+        }
+
         UpgradeAccountService.Success(
           f8eSpendingKeyset =
             F8eSpendingKeyset(
@@ -142,5 +167,7 @@ class UpgradeAccountServiceImpl(
     val keysetId: String,
     @SerialName("spending")
     val spending: String,
+    @SerialName("spending_sig")
+    val spendingSig: String,
   )
 }

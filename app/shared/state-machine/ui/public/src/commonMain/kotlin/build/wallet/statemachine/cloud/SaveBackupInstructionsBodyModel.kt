@@ -10,12 +10,11 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 fun SaveBackupInstructionsBodyModel(
   requiresHardware: Boolean,
@@ -23,7 +22,6 @@ fun SaveBackupInstructionsBodyModel(
   onBackupClick: () -> Unit,
   onLearnMoreClick: () -> Unit,
   devicePlatform: DevicePlatform,
-  emergencyAccessKitEnabled: Boolean,
 ): FormBodyModel {
   return FormBodyModel(
     id = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS,
@@ -36,7 +34,7 @@ fun SaveBackupInstructionsBodyModel(
               ButtonModel(
                 text = "Learn more",
                 treatment = ButtonModel.Treatment.TertiaryPrimary,
-                onClick = Click.standardClick(onLearnMoreClick),
+                onClick = StandardClick(onLearnMoreClick),
                 size = ButtonModel.Size.Compact
               )
           )
@@ -58,22 +56,22 @@ fun SaveBackupInstructionsBodyModel(
       immutableListOf(
         FormMainContentModel.Explainer(
           items =
-            listOfNotNull(
+            immutableListOf(
               FormMainContentModel.Explainer.Statement(
-                leadingIcon = Icon.SmallIconPhone,
+                leadingIcon = Icon.SmallIconMobileKey,
                 title = "Mobile Key",
                 body = "If you ever get a new phone, simply restore your wallet with this backup and your Bitkey device."
               ),
               FormMainContentModel.Explainer.Statement(
-                leadingIcon = Icon.SmallIconKey,
+                leadingIcon = Icon.SmallIconRecovery,
                 title = "Emergency Access Kit",
                 body =
                   when (devicePlatform) {
-                    Android, Jvm -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Access document located in your Google Drive to maintain self-custody — Never share this file with anyone."
-                    IOS -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Access document located in your iCloud Drive to maintain self-custody — Never share this file with anyone."
+                    Android, Jvm -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Access document located in your Google Drive to maintain self-custody."
+                    IOS -> "If the Bitkey app is unavailable, you’ll be able to use this Emergency Access document located in your iCloud Drive to maintain self-custody."
                   }
-              ).takeIf { emergencyAccessKitEnabled }
-            ).toImmutableList()
+              )
+            )
         )
       ),
     primaryButton =

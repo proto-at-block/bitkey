@@ -6,6 +6,7 @@ import build.wallet.coroutines.turbine.awaitUntil
 import build.wallet.logging.log
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.form.FormBodyModel
 import io.kotest.assertions.asClue
 import io.kotest.assertions.assertSoftly
 
@@ -65,3 +66,17 @@ suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitUnti
 inline fun ScreenModel.toSimpleString(): String {
   return "ScreenModel(${body::class.simpleName}) id=${body.eventTrackerScreenInfo?.eventTrackerScreenId}"
 }
+
+/**
+ * Awaits for a [ScreenModel] with a [FormBodyModel], exact screen ID and body content match.
+ */
+suspend fun ReceiveTurbine<ScreenModel>.formScreen(
+  id: EventTrackerScreenId,
+  match: FormBodyModel.() -> Boolean = { true },
+  validate: FormBodyModel.() -> Unit,
+): FormBodyModel =
+  awaitUntilScreenWithBody<FormBodyModel>(
+    id = id,
+    expectedBodyContentMatch = match,
+    block = validate
+  )

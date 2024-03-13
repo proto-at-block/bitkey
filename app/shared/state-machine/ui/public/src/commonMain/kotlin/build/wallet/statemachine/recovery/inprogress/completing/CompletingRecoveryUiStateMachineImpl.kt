@@ -6,8 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
@@ -30,6 +30,7 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.AwaitingChallengeAndCsekSignedWithHardwareData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.FailedToRotateAuthData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
@@ -121,7 +122,7 @@ class CompletingRecoveryUiStateMachineImpl(
           message = "Updating your credentials...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
             ),
           eventTrackerShouldTrack = false
@@ -134,7 +135,7 @@ class CompletingRecoveryUiStateMachineImpl(
               onSuccess = props.completingRecoveryData.addHwFactorProofOfPossession
             ),
             fullAccountId = props.completingRecoveryData.fullAccountId,
-            keyboxConfig = props.completingRecoveryData.keyboxConfig,
+            fullAccountConfig = props.completingRecoveryData.fullAccountConfig,
             appAuthKey = props.completingRecoveryData.appAuthKey,
             onBack = props.completingRecoveryData.rollback,
             screenPresentationStyle = props.presentationStyle
@@ -146,7 +147,7 @@ class CompletingRecoveryUiStateMachineImpl(
           message = "Creating your keys...",
           id =
             props.completingRecoveryData.physicalFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_CREATING_SPENDING_KEYS
             ),
           eventTrackerShouldTrack = false
@@ -163,14 +164,14 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerScreenId =
             props.completingRecoveryData.physicalFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR
             ),
           eventTrackerShouldTrack = false
         ).asScreen(props.presentationStyle)
 
       // While fetching trusted contacts from the db.
-      GettingTrustedContactsData ->
+      GettingTrustedContactsData, RegeneratingTcCertificatesData ->
         LoadingBodyModel(id = null)
           .asScreen(presentationStyle = props.presentationStyle)
 
@@ -185,7 +186,7 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerScreenId =
             props.completingRecoveryData.physicalFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_TRUSTED_CONTACT_SYNC_ERROR
             )
         ).asScreen(props.presentationStyle)
@@ -198,7 +199,8 @@ class CompletingRecoveryUiStateMachineImpl(
             onBackupSaved = props.completingRecoveryData.onBackupFinished,
             onBackupFailed = props.completingRecoveryData.onBackupFailed,
             trustedContacts = props.completingRecoveryData.trustedContacts,
-            presentationStyle = props.presentationStyle
+            presentationStyle = props.presentationStyle,
+            requireAuthRefreshForCloudBackup = false
           )
         )
       }
@@ -224,7 +226,7 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerScreenId =
             props.completingRecoveryData.physicalFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_EXITED,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_EXITED,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_EXITED
             ),
           eventTrackerShouldTrack = false
@@ -241,7 +243,7 @@ class CompletingRecoveryUiStateMachineImpl(
             ),
           eventTrackerScreenId =
             props.completingRecoveryData.physicalFactor.getEventId(
-              AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE,
+              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_BACKUP_UPLOAD_FAILURE
             ),
           eventTrackerShouldTrack = false

@@ -2,8 +2,10 @@ package build.wallet.analytics.events
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
+import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
+import build.wallet.analytics.events.screen.id.EventTrackerCounterId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
@@ -15,6 +17,14 @@ class EventTrackerMock(
 
   override fun track(action: Action) {
     eventCalls += TrackedAction(action)
+  }
+
+  override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {
+    eventCalls += TrackedAction(
+      Action.ACTION_APP_COUNT,
+      counterId = eventTrackerCountInfo.eventTrackerCounterId,
+      count = eventTrackerCountInfo.count
+    )
   }
 
   override fun track(eventTrackerScreenInfo: EventTrackerScreenInfo) {
@@ -31,4 +41,6 @@ data class TrackedAction(
   val action: Action,
   val screenId: EventTrackerScreenId? = null,
   val screenIdContext: EventTrackerScreenIdContext? = null,
+  val counterId: EventTrackerCounterId? = null,
+  val count: Int? = null,
 )

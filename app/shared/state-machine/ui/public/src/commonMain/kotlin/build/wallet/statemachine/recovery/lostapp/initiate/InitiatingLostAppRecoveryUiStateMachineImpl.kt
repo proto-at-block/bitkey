@@ -9,13 +9,15 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_AUTH
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext.APP_RECOVERY
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AUTHENTICATING_WITH_F8E
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
+import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
@@ -29,9 +31,9 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppKeysData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndSpendingKeyData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
@@ -47,6 +49,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
+import build.wallet.statemachine.platform.permissions.NotificationRationale
 import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.InitiatingViaNfcState
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
@@ -54,10 +57,11 @@ import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerif
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 
 /** UI State Machine for navigating the initiation of lost app recovery. */
-interface InitiatingLostAppRecoveryUiStateMachine : StateMachine<InitiatingLostAppRecoveryUiProps, ScreenModel>
+interface InitiatingLostAppRecoveryUiStateMachine :
+  StateMachine<InitiatingLostAppRecoveryUiProps, ScreenModel>
 
 data class InitiatingLostAppRecoveryUiProps(
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val initiatingLostAppRecoveryData: InitiatingLostAppRecoveryData,
 )
 
@@ -71,7 +75,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
   override fun model(props: InitiatingLostAppRecoveryUiProps): ScreenModel {
     var uiState: UiState by remember { mutableStateOf(ShowingInstructionsState) }
     return when (val recoveryData = props.initiatingLostAppRecoveryData) {
-      is AwaitingAppKeysData -> {
+      is AwaitingHwKeysData -> {
         when (uiState) {
           ShowingInstructionsState ->
             RecoverYourMobileKeyBodyModel(
@@ -86,7 +90,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                 session = { session, commands -> commands.getAuthenticationKey(session) },
                 onSuccess = { recoveryData.addHardwareAuthKey(it) },
                 onCancel = { uiState = ShowingInstructionsState },
-                isHardwareFake = props.keyboxConfig.isHardwareFake,
+                isHardwareFake = props.fullAccountConfig.isHardwareFake,
                 shouldLock = false, // Don't lock because we quickly call [SignChallenge] next
                 screenPresentationStyle = Root,
                 eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_GET_HW_KEYS
@@ -108,6 +112,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                   }
                 ),
               eventTrackerContext = APP_RECOVERY,
+              rationale = NotificationRationale.Recovery,
               onComplete = recoveryData.onComplete
             )
         ).asRootScreen()
@@ -124,7 +129,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
       is ListingKeysetsFromF8eData ->
         LoadingBodyModel(
           message = "Retrieving account data...",
-          id = AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS,
+          id = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_LISTING_KEYSETS,
           onBack = recoveryData.rollback,
           eventTrackerShouldTrack = false
         ).asRootScreen()
@@ -158,35 +163,41 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
               uiState = ShowingInstructionsState
               recoveryData.rollback()
             },
-            isHardwareFake = props.keyboxConfig.isHardwareFake,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
             shouldLock = false, // Don't lock because we quickly call [GetNextSpendingKey] next
             eventTrackerContext = APP_DELAY_NOTIFY_SIGN_AUTH,
             screenPresentationStyle = Root
           )
         )
 
-      is AwaitingHardwareProofOfPossessionAndSpendingKeyData -> {
+      is AwaitingHardwareProofOfPossessionAndKeysData -> {
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              val proof =
-                HwFactorProofOfPossession(
-                  commands.signAccessToken(session, recoveryData.authTokens.accessToken)
-                )
-              val spendingKey =
-                commands.getNextSpendingKey(
-                  session,
-                  recoveryData.existingHwSpendingKeys,
-                  recoveryData.network
-                )
-              proof to spendingKey
+              val proof = HwFactorProofOfPossession(
+                commands.signAccessToken(session, recoveryData.authTokens.accessToken)
+              )
+              val spendingKey = commands.getNextSpendingKey(
+                session,
+                recoveryData.existingHwSpendingKeys,
+                recoveryData.network
+              )
+
+              // Sign the new app global auth key with the hardware auth key.
+              val appGlobalAuthKeyHwSignature = commands
+                .signChallenge(session, recoveryData.newAppGlobalAuthKey.pubKey.value)
+                .let(::AppGlobalAuthKeyHwSignature)
+
+              RotateHwKeysResponse(proof, spendingKey, appGlobalAuthKeyHwSignature)
             },
-            onSuccess = { (proof, spendingKey) -> recoveryData.onComplete(proof, spendingKey) },
+            onSuccess = { (proof, spendingKey, appGlobalAuthKeyHwSignature) ->
+              recoveryData.onComplete(proof, spendingKey, appGlobalAuthKeyHwSignature)
+            },
             onCancel = {
               uiState = ShowingInstructionsState
               recoveryData.rollback()
             },
-            isHardwareFake = props.keyboxConfig.isHardwareFake,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
             eventTrackerContext = HW_PROOF_OF_POSSESSION,
             screenPresentationStyle = Root
           )
@@ -223,7 +234,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       CancellingConflictingRecoveryData ->
         LoadingBodyModel(
-          "Cancelling Existing Recovery",
+          message = "Cancelling Existing Recovery",
           id = LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
         ).asRootScreen()
 
@@ -238,14 +249,14 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
     ErrorFormBodyModel(
       title = "We couldn’t initiate recovery process.",
       primaryButton = ButtonDataModel(text = "OK", onClick = onDoneClicked),
-      eventTrackerScreenId = AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_ERROR
+      eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_ERROR
     ).asRootScreen()
 
   private fun CancelConflictingRecoveryErrorScreenModel(onDoneClicked: () -> Unit): ScreenModel =
     ErrorFormBodyModel(
       title = "We couldn’t cancel the existing recovery. Please try your recovery again.",
       primaryButton = ButtonDataModel(text = "OK", onClick = onDoneClicked),
-      eventTrackerScreenId = AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION_ERROR
+      eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION_ERROR
     ).asRootScreen()
 
   private sealed interface UiState {
@@ -253,4 +264,10 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
     data object InitiatingViaNfcState : UiState
   }
+
+  private data class RotateHwKeysResponse(
+    val proof: HwFactorProofOfPossession,
+    val spendingKey: HwSpendingPublicKey,
+    val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+  )
 }

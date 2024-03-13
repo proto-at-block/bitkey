@@ -39,7 +39,10 @@ impl TryFrom<(NotificationCompositeKey, RecoveryCanceledDelayPeriodPayload)>
             composite_key,
             account_id,
             email_payload: Some(EmailPayload::Iterable {
-                campaign_type: IterableCampaignType::RecoveryCanceledDelayPeriod,
+                campaign_type: match payload.lost_factor {
+                    Factor::App => IterableCampaignType::RecoveryCanceledDelayPeriodLostApp,
+                    Factor::Hw => IterableCampaignType::RecoveryCanceledDelayPeriodLostHw,
+                },
                 data_fields: HashMap::from([(
                     LOST_FACTOR_FIELD.to_string(),
                     payload.lost_factor.to_string(),

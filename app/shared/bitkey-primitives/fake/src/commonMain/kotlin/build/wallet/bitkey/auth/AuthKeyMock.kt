@@ -30,3 +30,5 @@ val AppRecoveryAuthPrivateKeyMock =
   AppRecoveryAuthPrivateKey(Secp256k1PrivateKey("app-recovery-auth-private-key".encodeUtf8()))
 val AppRecoveryAuthKeypairMock =
   AppRecoveryAuthKeypair(AppRecoveryAuthPublicKeyMock, AppRecoveryAuthPrivateKeyMock)
+
+val HwAuthPublicKeyMock = HwAuthPublicKey(HwAuthSecp256k1PublicKeyMock.pubKey)

@@ -56,10 +56,10 @@ fun PurchaseOptions.toPurchaseMethodAmounts(
     paymentMethods[paymentMethod]
       ?.let {
         if (it.displayPurchaseAmounts.isEmpty()) {
-          return Err(Error("No display amounts available for payment method: $paymentMethod"))
+          return Err(NoDisplayAmountsError(paymentMethod))
         }
         it
-      } ?: return Err(Error("No purchase options available for payment method: $paymentMethod"))
+      } ?: return Err(NoPurchaseOptionsError(paymentMethod))
 
   val displayOptions =
     cardPaymentOptions.displayPurchaseAmounts.map { FiatMoney(currency, it.toBigDecimal()) }
@@ -80,3 +80,7 @@ data class PurchaseMethodAmounts(
   val min: FiatMoney,
   val max: FiatMoney,
 )
+
+class NoDisplayAmountsError(paymentMethod: String) : Error("No display amounts available for payment method: $paymentMethod")
+
+class NoPurchaseOptionsError(paymentMethod: String) : Error("No purchase options available for payment method: $paymentMethod")

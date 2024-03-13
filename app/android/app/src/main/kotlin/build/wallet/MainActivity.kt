@@ -20,13 +20,13 @@ import build.wallet.cloud.store.GoogleAccountRepositoryImpl
 import build.wallet.cloud.store.GoogleDriveFileStoreImpl
 import build.wallet.cloud.store.GoogleDriveKeyValueStoreImpl
 import build.wallet.cloud.store.GoogleDriveServiceImpl
+import build.wallet.crypto.Spake2Impl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponent
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponent
-import build.wallet.encrypt.HkdfImpl
+import build.wallet.encrypt.CryptoBoxImpl
 import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
-import build.wallet.encrypt.Secp256k1SharedSecretImpl
 import build.wallet.encrypt.SymmetricKeyEncryptorImpl
 import build.wallet.encrypt.SymmetricKeyGeneratorImpl
 import build.wallet.encrypt.XChaCha20Poly1305Impl
@@ -56,7 +56,6 @@ import build.wallet.statemachine.account.recovery.cloud.CloudSignInUiStateMachin
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInStateMachineImpl
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachineImpl
 import build.wallet.ui.app.AnimatedApp
-import build.wallet.ui.app.App
 import build.wallet.ui.app.AppUiModelMap
 
 class MainActivity : ComponentActivity() {
@@ -79,19 +78,11 @@ class MainActivity : ComponentActivity() {
     Router.route = Route.fromUrl(intent.dataString)
 
     setContent {
-      if (appComponent.androidTransitionsIsEnabledFeatureFlag.flagValue().value.value) {
-        AnimatedApp(
-          model = activityComponent.appUiStateMachine.model(Unit),
-          appVariant = appComponent.appVariant,
-          uiModelMap = AppUiModelMap
-        )
-      } else {
-        App(
-          model = activityComponent.appUiStateMachine.model(Unit),
-          appVariant = appComponent.appVariant,
-          uiModelMap = AppUiModelMap
-        )
-      }
+      AnimatedApp(
+        model = activityComponent.appUiStateMachine.model(Unit),
+        appVariant = appComponent.appVariant,
+        uiModelMap = AppUiModelMap
+      )
     }
     createNotificationChannel()
     logEventIfFromNotification()
@@ -185,13 +176,16 @@ class MainActivity : ComponentActivity() {
     val googleAccountRepository = GoogleAccountRepositoryImpl(appComponent.platformContext)
     val cloudStoreAccountRepository =
       CloudStoreAccountRepositoryImpl(googleAccountRepository)
-    val googleDriveService = GoogleDriveServiceImpl(appComponent.appId, appComponent.platformContext)
+    val googleDriveService =
+      GoogleDriveServiceImpl(appComponent.appId, appComponent.platformContext)
     val googleDriveFileStore = GoogleDriveFileStoreImpl(googleDriveService)
     val googleDriveKeyValueStore = GoogleDriveKeyValueStoreImpl(googleDriveService)
     val cloudFileStore = CloudFileStoreImpl(googleDriveFileStore)
     val cloudKeyValueStore = CloudKeyValueStoreImpl(googleDriveKeyValueStore)
-    val googleSignInLauncher = GoogleSignInLauncherImpl(GoogleSignInClientProviderImpl(appComponent.platformContext))
-    val googleSignOutAction = GoogleSignOutActionImpl(GoogleSignInClientProviderImpl(appComponent.platformContext))
+    val googleSignInLauncher =
+      GoogleSignInLauncherImpl(GoogleSignInClientProviderImpl(appComponent.platformContext))
+    val googleSignOutAction =
+      GoogleSignOutActionImpl(GoogleSignInClientProviderImpl(appComponent.platformContext))
     val cloudSignInUiStateMachine =
       CloudSignInUiStateMachineImpl(
         GoogleSignInStateMachineImpl(
@@ -201,7 +195,11 @@ class MainActivity : ComponentActivity() {
         )
       )
     val cloudDevOptionsStateMachine =
-      CloudDevOptionsStateMachineImpl(googleAccountRepository, googleSignInLauncher, googleSignOutAction)
+      CloudDevOptionsStateMachineImpl(
+        googleAccountRepository,
+        googleSignInLauncher,
+        googleSignOutAction
+      )
     val publicKeyGenerator = Secp256k1KeyGeneratorImpl()
     val fakeHardwareKeyStore =
       FakeHardwareKeyStoreImpl(
@@ -250,12 +248,11 @@ class MainActivity : ComponentActivity() {
       inAppBrowserNavigator = inAppBrowserNavigator,
       nfcCommandsProvider = nfcCommandsProvider,
       nfcSessionProvider = nfcSessionProvider,
-      secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl(),
       xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
-      secp256k1SharedSecret = Secp256k1SharedSecretImpl(),
-      hkdf = HkdfImpl(),
       xNonceGenerator = XNonceGeneratorImpl(),
-      pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(applicationContext = this)
+      pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(applicationContext = this),
+      spake2 = Spake2Impl(),
+      cryptoBox = CryptoBoxImpl()
     )
   }
 }

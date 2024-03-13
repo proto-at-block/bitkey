@@ -1,0 +1,15 @@
+import build.wallet.bitkey.hardware.HwAuthPublicKey;
+import build.wallet.bitkey.hardware.HwSpendingPublicKey;
+
+CREATE TABLE hwKeyBundleEntity(
+  id            TEXT NOT NULL PRIMARY KEY,
+  spendingKey   TEXT AS HwSpendingPublicKey NOT NULL,
+  authKey       TEXT AS HwAuthPublicKey NOT NULL
+);
+
+insertKeyBundle:
+INSERT OR REPLACE INTO hwKeyBundleEntity(id, spendingKey, authKey)
+VALUES(?, ?, ?);
+
+clear:
+DELETE FROM hwKeyBundleEntity;

@@ -4,6 +4,36 @@ enum class NotificationsEventTrackerScreenId : EventTrackerScreenId {
   /** Screen prompting the customer to set up notification preferences */
   NOTIFICATION_PREFERENCES_SETUP,
 
+  /** Screen prompting the customer to select notification preferences */
+  NOTIFICATION_PREFERENCES_SELECTION,
+
+  /** Recovery channels settings screen */
+  RECOVERY_CHANNELS_SETTINGS,
+
+  /** Recovery channels settings networking error */
+  RECOVERY_CHANNELS_SETTINGS_NETWORKING_ERROR_SHEET,
+
+  /** Recovery channels settings push enable/disable */
+  RECOVERY_CHANNELS_SETTINGS_PUSH_TOGGLE_SHEET,
+
+  /** Recovery channels settings edit sms */
+  RECOVERY_CHANNELS_SETTINGS_SMS_EDIT_SHEET,
+
+  /** Recovery channels settings us customers cannot use sms */
+  RECOVERY_CHANNELS_SETTINGS_SMS_NON_US_SHEET,
+
+  /** Recovery channels settings loading preferences screen */
+  RECOVERY_CHANNELS_SETTINGS_LOADING_PREFERENCES,
+
+  /** Recovery channels settings updating server screen */
+  RECOVERY_CHANNELS_SETTINGS_UPDATING_PREFERENCES,
+
+  /** Warn user that they should set up all recovery channel options */
+  RECOVERY_SKIP_SHEET,
+
+  /** Warn user that email is required as a recovery option */
+  RECOVERY_EMAIL_REQUIRED_ERROR_SHEET,
+
   /** Customer is inputting their phone number */
   SMS_INPUT_ENTERING_SMS,
 

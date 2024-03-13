@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.room:room-common",
+    "components": [
+        {
+            "version": "2.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "room-common-2.5.0.jar": "0262e2a0e2a2e9c7267b9f7a405847ce636a06c4c16c52976cb68df77866b87d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

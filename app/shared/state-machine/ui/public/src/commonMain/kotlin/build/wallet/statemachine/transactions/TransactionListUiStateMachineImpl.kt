@@ -26,14 +26,13 @@ class TransactionListUiStateMachineImpl(
       else ->
         buildList {
           if (pendingTransactions.isNotEmpty() && confirmedTransactions.isNotEmpty()) {
-            add(TransactionSectionModel(props, pendingTransactions, "Pending"))
-            add(TransactionSectionModel(props, confirmedTransactions, "Confirmed"))
+            add(TransactionSectionModel(props, pendingTransactions))
+            add(TransactionSectionModel(props, confirmedTransactions))
           } else {
             if (pendingTransactions.isNotEmpty()) {
-              add(TransactionSectionModel(props, pendingTransactions, "Pending"))
+              add(TransactionSectionModel(props, pendingTransactions))
             } else if (confirmedTransactions.isNotEmpty()) {
-              // Don't show a section header if there's only one section and it's confirmed
-              add(TransactionSectionModel(props, confirmedTransactions, null))
+              add(TransactionSectionModel(props, confirmedTransactions))
             }
           }
         }.toImmutableList()
@@ -75,9 +74,8 @@ class TransactionListUiStateMachineImpl(
   private fun TransactionSectionModel(
     props: TransactionListUiProps,
     transactions: ImmutableList<BitcoinTransaction>,
-    title: String? = null,
   ) = ListGroupModel(
-    header = title,
+    header = null,
     style = ListGroupStyle.NONE,
     items =
       transactions.map {

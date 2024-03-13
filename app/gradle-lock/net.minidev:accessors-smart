@@ -1,0 +1,18 @@
+{
+    "module-identifier": "net.minidev:accessors-smart",
+    "components": [
+        {
+            "version": "2.4.9",
+            "variants": [
+                {
+                    "artifacts": {
+                        "accessors-smart-2.4.9.jar": "accdd5c7ac4c49b155890aaea1ffca2a9ccd5826b562dd95a99fc1887003e031"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

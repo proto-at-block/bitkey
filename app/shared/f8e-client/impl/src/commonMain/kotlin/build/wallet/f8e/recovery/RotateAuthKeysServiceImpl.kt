@@ -11,9 +11,9 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.ktor.result.catching
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
+import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import com.github.michaelbull.result.map
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
@@ -50,12 +50,13 @@ class RotateAuthKeysServiceImpl(
         accountIdByteString
       ).bind()
 
-      f8eHttpClient.authenticated(
-        f8eEnvironment,
-        fullAccountId,
-        hwFactorProofOfPossession = hwFactorProofOfPossession,
-        appFactorProofOfPossessionAuthKey = oldAppAuthPublicKey
-      )
+      f8eHttpClient
+        .authenticated(
+          f8eEnvironment,
+          fullAccountId,
+          hwFactorProofOfPossession = hwFactorProofOfPossession,
+          appFactorProofOfPossessionAuthKey = oldAppAuthPublicKey
+        )
         .catching {
           post("/api/accounts/${fullAccountId.serverId}/authentication-keys") {
             setBody(
@@ -75,8 +76,9 @@ class RotateAuthKeysServiceImpl(
               )
             )
           }
-        }.map { Unit }
-        .logNetworkFailure { "Failed to send verification code during recovery" }
+        }
+        .mapUnit()
+        .logNetworkFailure { "Error rotating auth keys" }
         .bind()
     }
 

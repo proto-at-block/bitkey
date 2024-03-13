@@ -35,7 +35,7 @@ class UiModelContentScreen(model: ScreenModel) : VoyagerScreen, Parcelable {
     }
 
   override val key: ScreenKey
-    get() = model.body.key
+    get() = model.key
 
   @Composable
   override fun Content() {

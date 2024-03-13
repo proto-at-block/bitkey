@@ -1,7 +1,7 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import com.github.michaelbull.result.Result
 
 /**
@@ -12,14 +12,15 @@ interface SocialChallengeVerifier {
    * Completes all the steps of the trusted contact social recovery process.
    *
    * @param account - the account of the trusted contact
+   * @param delegatedDecryptionKey - the identity key of the trusted contact
    * @param recoveryRelationshipId - the id of the recovery relationship between the protected customer and the trusted contact
-   * @param code - the code sent by the protected customer to the trusted contact
+   * @param recoveryCode - the full code sent by the protected customer to the trusted contact, containing both the server part and the pake part
    */
   suspend fun verifyChallenge(
     account: Account,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
+    delegatedDecryptionKey: DelegatedDecryptionKey,
     recoveryRelationshipId: String,
-    code: String,
+    recoveryCode: String,
   ): Result<Unit, SocialChallengeError>
 }
 
@@ -34,11 +35,11 @@ sealed class SocialChallengeError(
     override val cause: Throwable,
   ) : SocialChallengeError(cause = cause)
 
-  data class UnableToEncryptSharedSecretError(override val cause: Throwable) : SocialChallengeError(
+  data class ChallengeCodeVersionMismatch(override val cause: Throwable) : SocialChallengeError(
     cause = cause
   )
 
-  data class UnableToRespondToChallengeError(override val cause: Throwable) : SocialChallengeError(
+  class UnableToRespondToChallengeError(override val cause: Throwable) : SocialChallengeError(
     cause = cause
   )
 }

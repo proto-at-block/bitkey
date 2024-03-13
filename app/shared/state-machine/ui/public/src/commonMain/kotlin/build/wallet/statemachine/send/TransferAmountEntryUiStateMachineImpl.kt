@@ -139,30 +139,6 @@ class TransferAmountEntryUiStateMachineImpl(
 
     val latestTransactions = props.accountData.transactionsData.transactions
 
-    val spendingLimitStatus by remember(
-      enteredBitcoinMoney,
-      latestTransactions,
-      props.accountData.mobilePayData
-    ) {
-      mutableStateOf(
-        mobilePaySpendingPolicy.getDailySpendingLimitStatus(
-          transactionAmount = enteredBitcoinMoney,
-          latestTransactions = latestTransactions,
-          mobilePayBalance =
-            when (val mobilePayData = props.accountData.mobilePayData) {
-              is MobilePayEnabledData -> mobilePayData.balance
-              else -> null
-            }
-        )
-      )
-    }
-
-    val requiresHardware by remember(spendingLimitStatus) {
-      mutableStateOf(
-        !enteredBitcoinMoney.isZero && spendingLimitStatus is RequiresHardware
-      )
-    }
-
     // Base the determination of the entered amount being above the balance
     // based on the currency it's entered in.
     val enteredAmountAboveBalance: Boolean by remember(
@@ -207,6 +183,36 @@ class TransferAmountEntryUiStateMachineImpl(
           else -> AmountBelowBalanceUiState
         }
       }
+    }
+
+    val spendingLimitStatus by remember(
+      transferAmountState,
+      enteredBitcoinMoney,
+      latestTransactions,
+      props.accountData.mobilePayData
+    ) {
+      derivedStateOf {
+        val transactionAmount = when (transferAmountState) {
+          AmountEqualOrAboveBalanceUiState -> bitcoinBalance.spendable
+          else -> enteredBitcoinMoney
+        }
+
+        mobilePaySpendingPolicy.getDailySpendingLimitStatus(
+          transactionAmount = transactionAmount,
+          latestTransactions = latestTransactions,
+          mobilePayBalance =
+            when (val mobilePayData = props.accountData.mobilePayData) {
+              is MobilePayEnabledData -> mobilePayData.balance
+              else -> null
+            }
+        )
+      }
+    }
+
+    val requiresHardware by remember(enteredBitcoinMoney, spendingLimitStatus) {
+      mutableStateOf(
+        !enteredBitcoinMoney.isZero && spendingLimitStatus is RequiresHardware
+      )
     }
 
     val bannerModel by remember(

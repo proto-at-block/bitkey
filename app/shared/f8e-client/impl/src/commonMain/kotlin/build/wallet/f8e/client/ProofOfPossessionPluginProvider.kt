@@ -82,7 +82,7 @@ class ProofOfPossessionPluginProvider(
               log {
                 "Found active or onboarding keybox, using its app auth key to create app proof of possession"
               }
-              keybox.activeKeyBundle.authKey
+              keybox.activeAppKeyBundle.authKey
             }
 
             else -> {

@@ -3,7 +3,7 @@ use errors::ApiError;
 use thiserror::Error;
 use types::currencies::CurrencyCode;
 
-#[derive(Clone, Debug, Error)]
+#[derive(Debug, Error)]
 pub enum ExchangeRateError {
     #[error("Could not retrieve or update exchange rate in cache")]
     CacheRead,
@@ -11,8 +11,8 @@ pub enum ExchangeRateError {
     UnsupportedSourceCurrency(CurrencyCode),
     #[error("Cannot convert from BTC to unsupported destination currency {0}")]
     UnsupportedDestinationCurrency(CurrencyCode),
-    #[error("Could not retrieve exchange rate from provider")]
-    ProviderUnreachable,
+    #[error("Could not retrieve exchange rate from provider {0}")]
+    ProviderUnreachable(#[from] reqwest::Error),
     #[error(transparent)]
     ProviderResponseInvalid(#[from] ProviderResponseError),
     #[error("Could not retrieve rates due to rate limits")]
@@ -28,7 +28,7 @@ impl From<ExchangeRateError> for ApiError {
             | ExchangeRateError::UnsupportedSourceCurrency(_)
             | ExchangeRateError::ProviderRateLimited => ApiError::GenericBadRequest(err_msg),
             ExchangeRateError::CacheRead
-            | ExchangeRateError::ProviderUnreachable
+            | ExchangeRateError::ProviderUnreachable(_)
             | ExchangeRateError::ProviderResponseInvalid(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }

@@ -1,5 +1,6 @@
 package build.wallet.f8e.socrec
 
+import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -19,3 +20,9 @@ interface GetRecoveryRelationshipsService {
     hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<SocRecRelationships, NetworkingError>
 }
+
+suspend fun GetRecoveryRelationshipsService.getRelationships(
+  account: Account,
+  hardwareProofOfPossession: HwFactorProofOfPossession?,
+): Result<SocRecRelationships, NetworkingError> =
+  getRelationships(account.accountId, account.config.f8eEnvironment, hardwareProofOfPossession)

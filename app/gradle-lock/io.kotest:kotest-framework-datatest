@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-datatest",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-datatest-metadata-5.8.0.jar": "7dda90ccfe6448ff33ae97e0023404f5a2ba44cfb3ed395551e943872b584882"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -29,25 +29,30 @@ struct IconView: View {
     
     @ViewBuilder
     private var icon: some View {
+        let opacity = model.iconOpacity as? Double ?? 1.0
         switch model.iconImage {
         case let image as IconImage.UrlImage:
             if let url = URL(string: image.url) {
                 AsyncUrlImageView(
                     url: url,
-                    fallbackIcon: image.fallbackIcon
+                    size: model.iconSize,
+                    opacity: opacity,
+                    fallbackContent: {
+                        Image(uiImage: image.fallbackIcon.uiImage)
+                            .opacity(opacity)
+                            .frame(iconSize: model.iconSize)
+                    }
                 )
-                .frame(
-                    width: model.iconSize.value.f,
-                    height: model.iconSize.value.f
-                )
+                .frame(iconSize: model.iconSize)
 
             } else {
-                Image(uiImage: image.fallbackIcon.uiImage)
+                Image(uiImage: image.fallbackIcon.uiImage).opacity(opacity)
             }
         
         case let icon as IconImage.LocalImage:
             Image(uiImage: icon.icon.uiImage)
                 .resizable()
+                .opacity(opacity)
                 .frame(iconSize: model.iconSize)
 
         case _ as IconImage.Loader:
@@ -78,6 +83,8 @@ struct IconViewPreview: PreviewProvider {
                     iconSize: .small,
                     iconBackgroundType: IconBackgroundTypeTransient(),
                     iconTint: nil,
+                    iconOpacity: nil,
+                    iconTopSpacing: nil,
                     text: nil
                 )
         )
@@ -88,6 +95,7 @@ private extension IconBackgroundTypeCircle {
     var fillColor: Color {
         switch color {
         case .foreground10: return .foreground10
+        case .primarybackground20: return .primary.opacity(0.2)
         case .translucentblack: return .black.opacity(0.1)
         case .translucentwhite: return .white.opacity(0.2)
         default: return .foreground10

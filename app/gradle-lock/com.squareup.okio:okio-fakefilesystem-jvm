@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.okio:okio-fakefilesystem-jvm",
+    "components": [
+        {
+            "version": "3.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-fakefilesystem-jvm-3.7.0.jar": "3f2084c61902372eef323e2e5a8e5a60ce1e4836dce8bb8bc51abe1d7dbddeee"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

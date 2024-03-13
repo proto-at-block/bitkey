@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.squareup.okio:okio-iosarm64",
+    "components": [
+        {
+            "version": "3.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-iosarm64-3.7.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "okio.klib": "1a56bc18b076e88d70a4e16d94543ac3437ca0091117875106b32ce623bb3223"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

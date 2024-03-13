@@ -1,5 +1,5 @@
 {
-  "current_version": "2024.15.0-b1-sqb1128",
+  "current_version": "2024.50.0-b2-sqb1164",
   "version_pattern": "YYYY.VERSION0.PATCH-bBUILD-sqbSQB",
   "commit_message": "release: {new_version}",
   "commit": false,
@@ -16,10 +16,10 @@
       "patch = PATCH",
       "build = BUILD"
     ],
-    "app/core/Cargo.lock": [
+    "cli/Cargo.lock": [
       "version = \"YYYY.VERSION0.PATCH\""
     ],
-    "app/core/cli/Cargo.toml": [
+    "cli/Cargo.toml": [
       "version = \"YYYY.VERSION0.PATCH\""
     ],
     "app/ios/project.yml": [

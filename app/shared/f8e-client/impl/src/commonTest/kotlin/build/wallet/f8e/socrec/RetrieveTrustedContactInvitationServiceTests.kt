@@ -14,7 +14,8 @@ class RetrieveTrustedContactInvitationServiceTests : FunSpec({
       {
           "invitation": {
               "recovery_relationship_id": "test-id",
-              "expires_at":"1970-01-01T00:02:03Z"
+              "expires_at":"1970-01-01T00:02:03Z",
+              "protected_customer_enrollment_pake_pubkey": "deadbeef"
           }
       }
       """.trimIndent()
@@ -26,7 +27,8 @@ class RetrieveTrustedContactInvitationServiceTests : FunSpec({
         invitation =
           RetrieveTrustedContactInvitation(
             recoveryRelationshipId = "test-id",
-            expiresAt = Instant.fromEpochSeconds(123)
+            expiresAt = Instant.fromEpochSeconds(123),
+            protectedCustomerEnrollmentPakePubkey = "deadbeef"
           )
       )
     )

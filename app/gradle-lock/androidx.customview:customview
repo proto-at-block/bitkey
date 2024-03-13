@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.customview:customview",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "customview-1.0.0.aar": "20e5b8f6526a34595a604f56718da81167c0b40a7a94a57daa355663f2594df2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

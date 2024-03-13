@@ -79,15 +79,19 @@ class SpendingWalletImpl(
 
   override suspend fun sync(): Result<Unit, Error> =
     binding {
-      bdkWalletSyncer.sync(bdkWallet, networkType).bind()
+      bdkWalletSyncer.sync(bdkWallet, networkType)
+        .logFailure { "Error syncing wallet" }
+        .bind()
 
-      getTransactions().onSuccess {
-        transactionsState.value = LoadedValue(it)
-      }
+      getTransactions()
+        .logFailure { "Error getting transactions" }
+        .bind()
+        .also { transactionsState.value = LoadedValue(it) }
 
-      getBalance().onSuccess {
-        balanceState.value = LoadedValue(it)
-      }
+      getBalance()
+        .logFailure { "Error getting balance" }
+        .bind()
+        .also { balanceState.value = LoadedValue(it) }
     }
 
   override fun launchPeriodicSync(

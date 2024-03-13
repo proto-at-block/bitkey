@@ -7,7 +7,7 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.notifications.NotificationTouchpoint
 import build.wallet.phonenumber.PhoneNumberMock
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -24,6 +24,8 @@ import build.wallet.statemachine.data.recovery.verification.RecoveryNotification
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingNotificationTouchpointToServerFailureData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingVerificationCodeToServerData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData.SendingVerificationCodeToServerFailureData
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.clickSecondaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -130,7 +132,9 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
 
   test("LoadingNotificationTouchpointData model") {
     stateMachine.test(loadingNotificationTouchpointDataProps) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
     }
   }
 
@@ -140,10 +144,10 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         onBack.shouldNotBeNull().invoke()
         loadingNotificationTouchpointFailureDataPropsRollbackCalls.awaitItem()
 
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
         loadingNotificationTouchpointFailureDataPropsRetryCalls.awaitItem()
 
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
         loadingNotificationTouchpointFailureDataPropsRollbackCalls.awaitItem()
       }
     }
@@ -170,7 +174,9 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
 
   test("SendingNotificationTouchpointToServerData model") {
     stateMachine.test(sendingNotificationTouchpointToServerDataProps) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
     }
   }
 
@@ -180,10 +186,10 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         onBack.shouldNotBeNull().invoke()
         sendingNotificationTouchpointToServerFailureDataPropsRollbackCalls.awaitItem()
 
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
         sendingNotificationTouchpointToServerFailureDataPropsRetryCalls.awaitItem()
 
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
         sendingNotificationTouchpointToServerFailureDataPropsRollbackCalls.awaitItem()
       }
     }
@@ -203,7 +209,9 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
 
   test("SendingVerificationCodeToServerData model") {
     stateMachine.test(sendingVerificationCodeToServerDataProps) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
     }
   }
 
@@ -213,10 +221,10 @@ class RecoveryNotificationVerificationUiStateMachineImplTests : FunSpec({
         onBack.shouldNotBeNull().invoke()
         sendingVerificationCodeToServerFailureDataPropsRollbackCalls.awaitItem()
 
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
         sendingVerificationCodeToServerFailureDataPropsRetryCalls.awaitItem()
 
-        secondaryButton.shouldNotBeNull().onClick()
+        clickSecondaryButton()
         sendingVerificationCodeToServerFailureDataPropsRollbackCalls.awaitItem()
       }
     }

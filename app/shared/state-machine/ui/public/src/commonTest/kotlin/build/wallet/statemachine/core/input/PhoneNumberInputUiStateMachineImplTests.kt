@@ -15,11 +15,13 @@ import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.clickSecondaryButton
+import build.wallet.statemachine.ui.matchers.shouldBeDisabled
+import build.wallet.statemachine.ui.matchers.shouldBeEnabled
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -43,11 +45,15 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
     PhoneNumberInputUiProps(
       dataInputStyle = Enter,
       prefillValue = null,
+      subline = null,
       onClose = { onCloseCalls.add(Unit) },
       onSubmitPhoneNumber = { number, errorCallback ->
         onSubmitPhoneNumberCalls.add(SubmitPhoneNumberParams(number, errorCallback))
       },
-      onSkip = { onSkipCalls += Unit },
+      primaryButtonText = "Skip for Now",
+      primaryButtonOnClick = { onSkipCalls += Unit },
+      secondaryButtonText = "Use Different Country Number",
+      secondaryButtonOnClick = null,
       skipBottomSheetProvider = { SheetModelMock(it) }
     )
 
@@ -136,14 +142,14 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
-          primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+          primaryButton.shouldNotBeNull().shouldBeDisabled()
           fieldModel.onValueChange(newValue)
         }
       }
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(phoneNumberFormatter.formatPartialPhoneNumberResult)
-          primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+          primaryButton.shouldNotBeNull().shouldBeDisabled()
         }
       }
     }
@@ -155,7 +161,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
-          primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
+          primaryButton.shouldNotBeNull().shouldBeDisabled()
           phoneNumberValidator.validatePhoneNumberResult = PhoneNumberMock
           fieldModel.onValueChange(newValue)
         }
@@ -164,7 +170,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList.first().shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(PhoneNumberMock.formattedDisplayValue)
-          primaryButton.shouldNotBeNull().isEnabled.shouldBeTrue()
+          primaryButton.shouldNotBeNull().shouldBeEnabled()
         }
       }
     }
@@ -183,7 +189,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
         body.shouldBeInstanceOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       // Submitting
@@ -225,7 +231,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
         body.shouldBeInstanceOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       // Submitting
@@ -242,22 +248,29 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
         awaitItem().bottomSheetModel.shouldNotBeNull()
           .body.shouldBeInstanceOf<FormBodyModel>()
       with(errorModel.header.shouldNotBeNull()) {
-        headline.shouldBe("SMS notifications are not supported in your country")
+        headline.shouldBe("SMS notifications are not available in your country")
         sublineModel.shouldNotBeNull().string.shouldBe(
-          "Bitcoin might be borderless, but our SMS notifications are still catching up. We’re working with our partner to bring SMS notifications to your country soon."
+          "SMS notifications are currently not supported for this country."
         )
       }
-      errorModel.primaryButton.shouldNotBeNull().onClick()
+      errorModel.clickPrimaryButton()
       onSkipCalls.awaitItem()
 
       // Close error sheet
-      errorModel.secondaryButton.shouldNotBeNull().onClick()
+      errorModel.clickSecondaryButton()
       awaitItem().bottomSheetModel.shouldBeNull()
     }
   }
 
   test("error - unsupported country code - not skippable") {
-    stateMachine.test(props.copy(onSkip = null)) {
+    stateMachine.test(
+      props.copy(
+        primaryButtonText = "Got it",
+        primaryButtonOnClick = null,
+        secondaryButtonText = null,
+        secondaryButtonOnClick = null
+      )
+    ) {
       awaitScreenWithBody<FormBodyModel> {
         phoneNumberFormatter.formatPartialPhoneNumberResult = "1-23-45-6"
         phoneNumberValidator.validatePhoneNumberResult = PhoneNumberMock
@@ -269,7 +282,7 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
       with(awaitItem()) {
         bottomSheetModel.shouldBeNull()
         body.shouldBeInstanceOf<FormBodyModel>()
-          .primaryButton.shouldNotBeNull().onClick()
+          .clickPrimaryButton()
       }
 
       // Submitting
@@ -286,13 +299,13 @@ class PhoneNumberInputUiStateMachineImplTests : FunSpec({
         awaitItem().bottomSheetModel.shouldNotBeNull()
           .body.shouldBeInstanceOf<FormBodyModel>()
       with(errorModel.header.shouldNotBeNull()) {
-        headline.shouldBe("SMS notifications are not supported in your country")
+        headline.shouldBe("SMS notifications are not available in your country")
         sublineModel.shouldNotBeNull().string.shouldBe(
-          "Bitcoin might be borderless, but our SMS notifications are still catching up. We’re working with our partner to bring SMS notifications to your country soon."
+          "SMS notifications are currently not supported for this country."
         )
       }
       errorModel.secondaryButton.shouldBeNull()
-      errorModel.primaryButton.shouldNotBeNull().onClick()
+      errorModel.clickPrimaryButton()
 
       // Error sheet closed
       awaitItem().bottomSheetModel.shouldBeNull()

@@ -1,0 +1,24 @@
+{
+    "module-identifier": "io.ktor:ktor-utils-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-utils-cinterop-threadUtils.klib": "fc8be286c063e292a8a63d84a77dde75e89d35bdfbff41f332e4a03ebe397b3a",
+                        "ktor-utils.klib": "79ab1882c3faf0424ffc68bb479a413d8ea4f009d2738bf439457daf5e3bad58"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-utils-iosx64-2.3.8-metadata.jar": "cc253bb30173c1b2a67fdb00e374ae8bc96ae87e4cb2d9f5ed17a97937a35344"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

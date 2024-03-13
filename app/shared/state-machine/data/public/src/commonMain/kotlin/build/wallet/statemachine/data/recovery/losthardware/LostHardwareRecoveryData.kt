@@ -1,5 +1,7 @@
 package build.wallet.statemachine.data.recovery.losthardware
 
+import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -15,10 +17,16 @@ sealed interface LostHardwareRecoveryData {
    */
   sealed interface InitiatingLostHardwareRecoveryData : LostHardwareRecoveryData {
     /**
-     * Indicates that we are awaiting for new hardware keys.
+     * Generate new app keys since we rotate them for Lost Hardware recovery.
+     */
+    data object GeneratingNewAppKeysData : InitiatingLostHardwareRecoveryData
+
+    /**
+     * Indicates that we are awaiting new hardware keys.
      */
     data class AwaitingNewHardwareData(
-      val addHardwareKeys: (SealedCsek, HwKeyBundle) -> Unit,
+      val newAppGlobalAuthKey: AppGlobalAuthPublicKey,
+      val addHardwareKeys: (SealedCsek, HwKeyBundle, AppGlobalAuthKeyHwSignature) -> Unit,
     ) : InitiatingLostHardwareRecoveryData
 
     /**

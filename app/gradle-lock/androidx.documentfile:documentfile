@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.documentfile:documentfile",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "documentfile-1.0.0.aar": "865a061ef2fad16522f8433536b8d47208c46ff7c7745197dfa1eeb481869487"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

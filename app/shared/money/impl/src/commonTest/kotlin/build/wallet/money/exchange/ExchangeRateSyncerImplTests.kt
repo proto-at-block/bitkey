@@ -5,10 +5,7 @@ package build.wallet.money.exchange
 import build.wallet.coroutines.advanceTimeBy
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.ActiveF8eEnvironmentRepositoryMock
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.setFlagValue
 import build.wallet.ktor.result.HttpError.UnhandledException
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -21,21 +18,14 @@ import kotlin.time.Duration.Companion.seconds
 
 class ExchangeRateSyncerImplTests : FunSpec({
   val exchangeRateDao = ExchangeRateDaoMock(turbines::create)
-  val bitstampExchangeRateService = BitstampExchangeRateServiceMock()
   val f8eExchangeRateService = F8eExchangeRateServiceMock()
-  val multipleFiatCurrencyEnabledFeatureFlag =
-    MultipleFiatCurrencyEnabledFeatureFlag(
-      featureFlagDao = FeatureFlagDaoMock()
-    )
   val activeF8eEnvironmentRepository =
     ActiveF8eEnvironmentRepositoryMock(turbines::create)
 
   val syncer =
     ExchangeRateSyncerImpl(
       exchangeRateDao = exchangeRateDao,
-      bitstampExchangeRateService = bitstampExchangeRateService,
       f8eExchangeRateService = f8eExchangeRateService,
-      multipleFiatCurrencyEnabledFeatureFlag = multipleFiatCurrencyEnabledFeatureFlag,
       activeF8eEnvironmentRepository = activeF8eEnvironmentRepository
     )
 
@@ -47,7 +37,9 @@ class ExchangeRateSyncerImplTests : FunSpec({
     runTest {
       syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
 
-      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate1)
+//      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate1)
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
+      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
     }
   }
@@ -57,21 +49,23 @@ class ExchangeRateSyncerImplTests : FunSpec({
       backgroundScope.launch {
         syncer.launchSync(scope = this, syncFrequency = 3.seconds)
       }
-      bitstampExchangeRateService.btcToUsdExchangeRate.value =
-        Err(UnhandledException(Exception("oops")))
+      f8eExchangeRateService.exchangeRates.value = Err(UnhandledException(Exception("oops")))
 
       runCurrent()
 
       advanceTimeBy(3.seconds)
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.expectNoEvents()
 
       advanceTimeBy(1.seconds)
       // 3 seconds haven't passed yet.
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.expectNoEvents()
 
-      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate1)
+      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
 
       advanceTimeBy(2.seconds)
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
     }
   }
@@ -81,14 +75,15 @@ class ExchangeRateSyncerImplTests : FunSpec({
       backgroundScope.launch {
         syncer.launchSync(scope = this, syncFrequency = 3.seconds)
       }
-      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate1)
+      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
 
       runCurrent()
 
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
 
       // Update the exchange rate response.
-      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate2)
+      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate2))
 
       // 3 seconds total haven't passed yet.
       advanceTimeBy(2.seconds)
@@ -96,33 +91,29 @@ class ExchangeRateSyncerImplTests : FunSpec({
 
       // 3 seconds total have passed.
       advanceTimeBy(1.seconds)
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate2)
 
       // Update the exchange rate response.
-      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate1)
+      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
 
       // Another sync after 3 seconds.
       advanceTimeBy(3.seconds)
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
     }
   }
 
-  context("multiple currency feature flag on") {
-    beforeTest {
-      multipleFiatCurrencyEnabledFeatureFlag.setFlagValue(true)
-    }
+  test("sync multiple currencies immediately") {
+    runTest {
+      val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
+      f8eExchangeRateService.exchangeRates.value = Ok(exchangeRates)
 
-    test("sync multiple currencies immediately") {
-      runTest {
-        val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
-        f8eExchangeRateService.exchangeRates.value = Ok(exchangeRates)
+      syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
 
-        syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
-
-        activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
-        exchangeRates.forEach {
-          exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(it)
-        }
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
+      exchangeRates.forEach {
+        exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(it)
       }
     }
   }

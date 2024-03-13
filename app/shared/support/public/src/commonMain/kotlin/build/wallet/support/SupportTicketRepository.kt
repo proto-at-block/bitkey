@@ -17,6 +17,7 @@ interface SupportTicketRepository {
     accountId: AccountId,
     form: SupportTicketForm,
     data: SupportTicketData,
+    addAttachmentsEnabled: Boolean,
   ): Result<Unit, Error>
 
   /**

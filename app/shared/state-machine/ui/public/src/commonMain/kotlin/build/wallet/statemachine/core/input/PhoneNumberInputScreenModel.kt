@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryPrimaryNoUnderline
@@ -23,6 +23,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun PhoneNumberInputScreenModel(
   title: String,
+  subline: String? = null,
   textFieldValue: String,
   textFieldPlaceholder: String,
   textFieldSelection: IntRange,
@@ -47,13 +48,13 @@ fun PhoneNumberInputScreenModel(
                   ButtonModel(
                     text = "Skip",
                     treatment = TertiaryPrimaryNoUnderline,
-                    onClick = Click.standardClick { it() },
+                    onClick = StandardClick(onSkip),
                     size = Compact
                   )
               )
             }
         ),
-      header = FormHeaderModel(headline = title),
+      header = FormHeaderModel(headline = title, subline = subline),
       mainContentList =
         immutableListOf(
           TextInput(
@@ -107,34 +108,20 @@ fun PhoneNumberTouchpointAlreadyActiveErrorSheetModel(onBack: () -> Unit) =
 
 fun PhoneNumberUnsupportedCountryErrorSheetModel(
   onBack: () -> Unit,
-  onSkip: (() -> Unit)?,
+  primaryButtonText: String,
+  primaryButtonOnClick: (() -> Unit)?,
+  secondaryButtonText: String?,
+  secondaryButtonOnClick: (() -> Unit)?,
 ) = ErrorFormBodyModel(
-  title = "SMS notifications are not supported in your country",
-  subline =
-    "Bitcoin might be borderless, but our SMS notifications are still catching up. " +
-      "We’re working with our partner to bring SMS notifications to your country soon.",
-  primaryButton =
-    when (onSkip) {
-      null ->
-        ButtonDataModel(
-          text = "Got it",
-          onClick = onBack
-        )
-      else ->
-        ButtonDataModel(
-          text = "Skip for Now",
-          onClick = onSkip
-        )
-    },
-  secondaryButton =
-    when (onSkip) {
-      null -> null
-      else ->
-        ButtonDataModel(
-          text = "Use Different Country Number",
-          onClick = onBack
-        )
-    },
+  title = "SMS notifications are not available in your country",
+  subline = "SMS notifications are currently not supported for this country.",
+  primaryButton = ButtonDataModel(
+    text = primaryButtonText,
+    onClick = primaryButtonOnClick ?: onBack
+  ),
+  secondaryButton = secondaryButtonText?.let {
+    ButtonDataModel(text = it, onClick = secondaryButtonOnClick ?: onBack)
+  },
   renderContext = Sheet,
   eventTrackerScreenId = NotificationsEventTrackerScreenId.SMS_UNSUPPORTED_COUNTRY_ERROR_SHEET
 )

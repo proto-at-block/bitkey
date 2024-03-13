@@ -1,13 +1,13 @@
 package build.wallet.statemachine.sweep
 
 import app.cash.turbine.plusAssign
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.keybox.KeyboxConfigMock
+import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.immutableListOf
@@ -19,7 +19,7 @@ import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToLi
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -40,6 +40,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
+import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -83,7 +84,9 @@ class SweepUiStateMachineImplTests : FunSpec({
 
   test("no funds found") {
     sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(props.copy(sweepData = NoFundsFoundData(App, {})))
 
       awaitScreenWithBody<FormBodyModel> {
@@ -94,7 +97,9 @@ class SweepUiStateMachineImplTests : FunSpec({
 
   test("generate psbts failed - user chooses to cancel") {
     sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(
         props.copy(
           sweepData = GeneratePsbtsFailedData(App, FailedToListKeysets, retry = onRetryCallback)
@@ -109,7 +114,9 @@ class SweepUiStateMachineImplTests : FunSpec({
 
   test("sweep and sign without hardware") {
     sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(
         props.copy(
           sweepData =
@@ -121,26 +128,29 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       )
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain("10,000 sats")
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       startSweepCalls.awaitItem()
       updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
-      awaitScreenWithBody<LoadingBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       updateProps(props.copy(sweepData = SweepCompleteData(App, {})))
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
-        primaryButton.shouldNotBeNull().onClick()
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
+        clickPrimaryButton()
       }
     }
   }
 
   test("sweep and sign with hardware") {
     sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       val sweepPsbts =
         listOf(
           SweepPsbt(
@@ -169,11 +179,11 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       )
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain(
           "10,000 sats ($100.00)"
         )
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       startSweepCalls.awaitItem()
       updateProps(
@@ -181,7 +191,7 @@ class SweepUiStateMachineImplTests : FunSpec({
           sweepData =
             AwaitingHardwareSignedSweepsData(
               recoveredFactor = App,
-              keyboxConfig = KeyboxConfigMock,
+              fullAccountConfig = FullAccountConfigMock,
               needsHwSign = needsHwSign,
               addHwSignedSweeps = { addHwSignedSweepsCalls += it }
             )
@@ -193,17 +203,18 @@ class SweepUiStateMachineImplTests : FunSpec({
         val nfcCommandsMock = NfcCommandsMock(turbines::create)
         session(NfcSessionFake(), nfcCommandsMock)
         needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.value }
-        isHardwareFake shouldBe KeyboxConfigMock.isHardwareFake
+        isHardwareFake shouldBe FullAccountConfigMock.isHardwareFake
         onSuccess(hwSignedPsbts)
       }
       addHwSignedSweepsCalls.awaitItem().shouldBe(hwSignedPsbts)
       updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
-      awaitScreenWithBody<LoadingBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       updateProps(props.copy(sweepData = SweepCompleteData(App, {})))
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         primaryButton!!.onClick()
       }
     }
@@ -211,7 +222,9 @@ class SweepUiStateMachineImplTests : FunSpec({
 
   test("broadcast failed - user chooses to cancel") {
     sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(
         props.copy(
           sweepData =
@@ -223,7 +236,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       )
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain(
           "10,000 sats ($100.00)"
         )
@@ -231,14 +244,16 @@ class SweepUiStateMachineImplTests : FunSpec({
       }
       startSweepCalls.awaitItem()
       updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(
         props.copy(
           sweepData = SweepFailedData(App, Generic(Exception("Dang."), null), onRetryCallback)
         )
       )
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
         secondaryButton!!.onClick()
       }
       onExitCalls.awaitItem()
@@ -247,7 +262,9 @@ class SweepUiStateMachineImplTests : FunSpec({
 
   test("broadcast failed - user chooses to retry") {
     sweepStateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(
         props.copy(
           sweepData =
@@ -259,28 +276,31 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       )
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain("10,000 sats")
         primaryButton!!.onClick()
       }
       startSweepCalls.awaitItem()
       updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       updateProps(
         props.copy(
           sweepData = SweepFailedData(App, Generic(Exception("Dang."), null), onRetryCallback)
         )
       )
       awaitScreenWithBody<FormBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
         primaryButton!!.onClick()
       }
       onRetryCalls.awaitItem()
 
       // Go back to initial state
       updateProps(props)
-      awaitScreenWithBody<LoadingBodyModel> {
-        id shouldBe AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
     }
   }

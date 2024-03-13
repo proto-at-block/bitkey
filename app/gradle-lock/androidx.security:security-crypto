@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.security:security-crypto",
+    "components": [
+        {
+            "version": "1.1.0-alpha06",
+            "variants": [
+                {
+                    "artifacts": {
+                        "security-crypto-1.1.0-alpha06.aar": "976111170b3f13d2f0f9457d9f9f579347143cb65c054265906d33c7618a4c2a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

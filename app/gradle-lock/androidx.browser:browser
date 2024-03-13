@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.browser:browser",
+    "components": [
+        {
+            "version": "1.5.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "browser-1.5.0.aar": "94f24e272b3a269ff9a5ba21da5e652615dc59ac3fa2ba2d7a5ae30d1c4df748"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

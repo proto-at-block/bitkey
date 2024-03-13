@@ -10,5 +10,5 @@ import com.github.michaelbull.result.Result
  */
 data class KeyboxAddressData(
   val latestAddress: BitcoinAddress?,
-  val generateAddress: (Result<BitcoinAddress, Throwable>.() -> Unit) -> Unit,
+  val generateAddress: suspend () -> Result<BitcoinAddress, Throwable>,
 )

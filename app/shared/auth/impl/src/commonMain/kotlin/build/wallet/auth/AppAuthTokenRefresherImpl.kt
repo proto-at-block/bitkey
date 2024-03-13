@@ -10,6 +10,7 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Err
@@ -69,7 +70,9 @@ class AppAuthTokenRefresherImpl(
     appAuthKey: AppAuthPublicKey?,
   ): Result<AccountAuthTokens, AuthError> =
     binding {
-      log { "Attempting to refresh access token using app auth key $appAuthKey for $accountId" }
+      log(level = LogLevel.Debug) {
+        "Attempting to refresh access token using app auth key $appAuthKey for $accountId"
+      }
 
       // Retrieve current auth tokens from local storage
       val authTokens =
@@ -86,10 +89,6 @@ class AppAuthTokenRefresherImpl(
         refresh(f8eEnvironment, authTokens.refreshToken)
           .logAuthFailure {
             "Failed to auth refresh using existing tokens (refresh token is likely expired. Re-authenticating.)"
-          }
-          .map { tokens ->
-            // Successfully authenticated with f8e, persisting new auth tokens locally.
-            AccountAuthTokens(accessToken = tokens.accessToken, refreshToken = tokens.refreshToken)
           }
           .orElse {
             // The refresh token we passed to f8e is likely expired, so we need to re-authenticate.

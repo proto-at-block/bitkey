@@ -10,16 +10,64 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.money.currency.CurrencyPreferenceFormModel
 import build.wallet.statemachine.money.currency.FiatCurrencyListFormModel
 import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsFormBodyModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
+
+@Preview
+@Composable
+internal fun PreviewMobilePaySheetScreen() {
+  FormScreen(
+    model = FormBodyModel(
+      id = null,
+      onBack = { },
+      toolbar = null,
+      header =
+        FormHeaderModel(
+          iconModel = IconModel(
+            icon = Icon.SmallIconPhone,
+            iconSize = IconSize.Large,
+            iconTint = IconTint.Primary,
+            iconBackgroundType = IconBackgroundType.Circle(
+              circleSize = IconSize.Avatar,
+              color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
+            ),
+            iconTopSpacing = 0
+          ),
+          headline = "Mobile pay",
+          alignment = FormHeaderModel.Alignment.LEADING,
+          subline =
+            "Leave your device at home, and make small spends with just the key on your phone."
+        ),
+      primaryButton =
+        ButtonModel(
+          text = "Enable Mobile Pay",
+          size = ButtonModel.Size.Footer,
+          onClick = StandardClick {}
+        ),
+      secondaryButton =
+        ButtonModel(
+          text = "Set up later",
+          size = ButtonModel.Size.Footer,
+          treatment = ButtonModel.Treatment.Secondary,
+          onClick = StandardClick {}
+        ),
+      renderContext = RenderContext.Sheet
+    )
+  )
+}
 
 @Preview
 @Composable
@@ -75,7 +123,7 @@ internal fun PreviewFeeOptionsFormScreen() {
           ButtonModel(
             text = "Continue",
             size = ButtonModel.Size.Footer,
-            onClick = Click.StandardClick { }
+            onClick = StandardClick {}
           ),
         id = null
       )
@@ -126,7 +174,7 @@ internal fun SetCustomElectrumFormScreenPreview() {
           ButtonModel(
             text = "Save",
             isEnabled = true,
-            onClick = Click.StandardClick { },
+            onClick = StandardClick {},
             size = ButtonModel.Size.Footer
           )
       )

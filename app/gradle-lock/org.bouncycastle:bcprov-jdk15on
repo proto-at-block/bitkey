@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.bouncycastle:bcprov-jdk15on",
+    "components": [
+        {
+            "version": "1.67",
+            "variants": [
+                {
+                    "artifacts": {
+                        "bcprov-jdk15on-1.67.jar": "fa0041a36f9f20af3c6b8dbf6eb49a969e2c9cc029049d61acc526ba3247b3ef"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

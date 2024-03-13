@@ -1,4 +1,6 @@
-import build.wallet.gradle.logic.reproducible.reproducibleBugsnag
+import build.wallet.gradle.dependencylocking.extension.commonDependencyLockingGroups
+import build.wallet.gradle.dependencylocking.util.ifMatches
+import build.wallet.gradle.logic.reproducible.reproducibleBuildVariables
 
 plugins {
   id("build.wallet.android.app")
@@ -13,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2024,
-      version = 15,
+      version = 50,
       patch = 0,
-      build = 1
+      build = 2
     )
   }
   compose {
@@ -64,7 +66,7 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       isDebuggable = false
-      reproducibleBugsnag(project)
+      reproducibleBuildVariables(project)
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
@@ -77,7 +79,7 @@ android {
       isMinifyEnabled = true
       isShrinkResources = true
       isDebuggable = false
-      reproducibleBugsnag(project)
+      reproducibleBuildVariables(project)
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
         "proguard-rules.pro"
@@ -89,11 +91,12 @@ android {
     register("team") {
       initWith(getByName("customer"))
       applicationIdSuffix = ".team"
-      reproducibleBugsnag(project)
+      reproducibleBuildVariables(project)
     }
 
     register("emergency") {
       initWith(getByName("customer"))
+      reproducibleBuildVariables(project)
     }
 
     // Disable default "release" build type, we use "customer" and "team".
@@ -125,7 +128,7 @@ licensee {
 }
 
 dependencies {
-  implementation(libs.android.activity)
+  implementation(libs.android.activity.ktx)
   implementation(libs.android.compose.ui.activity)
   implementation(libs.android.core.ktx)
   implementation(libs.android.lifecycle.process)
@@ -140,7 +143,6 @@ dependencies {
   implementation(projects.android.uiCorePublic)
   implementation(projects.shared.appComponentImpl)
   implementation(projects.shared.bugsnagPublic)
-  implementation(libs.android.activity)
   implementation(libs.android.lifecycle.common)
   implementation(libs.android.firebase.messaging)
   implementation(libs.kmp.kotlin.coroutines)
@@ -152,4 +154,18 @@ dependencies {
 
   androidTestImplementation(libs.android.test.runner)
   androidTestImplementation(libs.android.test.junit)
+}
+
+customDependencyLocking {
+  android.buildTypes.configureEach {
+    val buildTypeName = name
+
+    configurations.configureEach {
+      ifMatches {
+        nameIs("${buildTypeName}WearBundling", "${buildTypeName}ReverseMetadataValues")
+      } then {
+        dependencyLockingGroup = commonDependencyLockingGroups.buildClasspath
+      }
+    }
+  }
 }

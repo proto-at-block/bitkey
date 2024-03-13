@@ -1,4 +1,4 @@
-FROM docker.io/amazonlinux:2
+FROM docker.io/amazonlinux:2@sha256:90e48c53055fc5943819e6a75e0227ecd43384ba3dbe949030f164645c485518
 RUN yum install -y gcc autoconf tcp_wrappers-devel readline-devel openssl-devel make
 WORKDIR /app
 CMD autoconf && ./configure && make progs

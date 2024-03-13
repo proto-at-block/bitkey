@@ -16,6 +16,8 @@ import build.wallet.f8e.recovery.ListKeysetsService
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
+import build.wallet.notifications.RegisterWatchAddressContext
+import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.AppPrivateKeyMissing
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
@@ -34,6 +36,7 @@ class SweepGeneratorImpl(
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val keysetWalletProvider: KeysetWalletProvider,
   private val appPrivateKeyDao: AppPrivateKeyDao,
+  private val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>,
 ) : SweepGenerator {
   override suspend fun generateSweep(
     keybox: Keybox,
@@ -78,7 +81,7 @@ class SweepGeneratorImpl(
 
       val feeRate =
         bitcoinFeeRateEstimator.estimatedFeeRateForTransaction(
-          networkType = keybox.config.networkType,
+          networkType = keybox.config.bitcoinNetworkType,
           estimatedTransactionPriority = EstimatedTransactionPriority.sweepPriority()
         )
 
@@ -86,7 +89,7 @@ class SweepGeneratorImpl(
         signableKeysets.forEach { keyset ->
           log { "Generating psbt for $keyset" }
           // Generate the sweep psbt(s), failing fast on the first non-recoverable error
-          buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate).bind()?.let { psbt ->
+          buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox).bind()?.let { psbt ->
             add(psbt)
           }
         }
@@ -108,6 +111,7 @@ class SweepGeneratorImpl(
     signableKeyset: SignableKeyset,
     destinationKeyset: SpendingKeyset,
     feeRate: FeeRate,
+    keybox: Keybox,
   ): Result<SweepPsbt?, SweepGeneratorError> =
     binding {
       val destinationWallet =
@@ -122,6 +126,16 @@ class SweepGeneratorImpl(
           .getNewAddress()
           .mapError(::FailedToGenerateDestinationAddress)
           .bind()
+
+      // don't bind on process the address, if this fails we still want the sweep to continue
+      registerWatchAddressProcessor.process(
+        RegisterWatchAddressContext(
+          address = destinationAddress,
+          f8eSpendingKeyset = destinationKeyset.f8eSpendingKeyset,
+          accountId = keybox.fullAccountId.serverId,
+          f8eEnvironment = keybox.config.f8eEnvironment
+        )
+      ).logFailure { "Error registering address with f8e" }
 
       destinationWallet
         .sync()

@@ -28,7 +28,7 @@ import build.wallet.money.currency.USD
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -41,6 +41,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachineFake
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.ui.model.icon.IconImage
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
@@ -88,10 +90,10 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
             transactionDetailModelType =
               TransactionDetailModelType.Regular(
                 transferAmountText = "transferFiatAmountText",
-                feeAmountText = "feeFiatAmountText"
-              ),
-            totalAmountPrimaryText = "totalFiatAmountText",
-            totalAmountSecondaryText = "totalBitcoinAmountText"
+                feeAmountText = "feeFiatAmountText",
+                totalAmountPrimaryText = "totalFiatAmountText",
+                totalAmountSecondaryText = "totalBitcoinAmountText"
+              )
           )
       ) {}
   val nfcSessionUIStateMachine =
@@ -151,7 +153,9 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       Err(BdkError.InsufficientFunds(Exception(""), null))
 
     stateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       // Error screen
       awaitScreenWithBody<FormBodyModel> {
         with(header.shouldNotBeNull()) {
@@ -173,10 +177,12 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     spendingWallet.createSignedPsbtResult = Err(BdkError.Generic(Exception(""), null))
 
     stateMachine.test(props) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel> {
         expectGenericErrorMessage()
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onExitCalls.awaitItem()
     }
@@ -187,10 +193,12 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     transactionPriorityPreference.preference.shouldBeNull()
 
     stateMachine.test(props.copy(requiredSigner = SigningFactor.Hardware)) {
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitScreenWithBody<FormBodyModel> {
         expectGenericErrorMessage()
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onExitCalls.awaitItem()
     }
@@ -209,13 +217,14 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().icon.shouldBe(Icon.Bitcoin)
+        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(IconImage.LocalImage(Icon.Bitcoin))
         header.shouldNotBeNull().headline.shouldBe("Send your transfer")
-        ctaWarning.shouldBeNull()
 
         // Correct title
         mainContentList[0]
@@ -230,7 +239,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
           .shouldBeTypeOf<DataList>()
           .items.size.shouldBe(2)
 
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // SigningWithHardware
@@ -241,7 +250,9 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       // FinalizingAndBroadcastingTransaction
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndHwSignedPsbt)
 
       // We persist this transaction into the database
@@ -265,11 +276,13 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // SigningWithHardware
@@ -280,13 +293,15 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       }
 
       // FinalizingAndBroadcastingTransaction
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndHwSignedPsbt)
 
       // ReceivedBdkError
       awaitScreenWithBody<FormBodyModel> {
         expectGenericErrorMessage()
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onExitCalls.awaitItem()
     }
@@ -309,14 +324,18 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // SigningWithServer
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
       bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndServerSignedPsbt)
 
@@ -342,12 +361,14 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ReceivedBdkError
       awaitScreenWithBody<FormBodyModel> {
         expectGenericErrorMessage()
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
       onExitCalls.awaitItem()
     }
@@ -369,15 +390,19 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // SigningWithServer
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
       bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndServerSignedPsbt)
     }
@@ -400,15 +425,19 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       )
     ) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       // SigningWithServer
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       serverSigner.signWithSpecificKeysetCalls.awaitItem().shouldBe(appSignedPsbt)
 
       // ReceivedServerSigningError
@@ -437,7 +466,9 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   test("Transaction details update after selecting a new fee from sheet") {
     stateMachine.test(props) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
@@ -506,23 +537,24 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
           TransactionDetailModelType.SpeedUp(
             transferAmountText = "transferAmountText",
             oldFeeAmountText = "oldFeeAmountText",
-            feeDifferenceText = "feeDifferenceText"
+            feeDifferenceText = "feeDifferenceText",
+            totalAmountPrimaryText = "totalFiatAmountText",
+            totalAmountSecondaryText = "totalBitcoinAmountText"
           ),
-        transactionSpeedText = "transactionSpeedText",
-        totalAmountPrimaryText = "totalFiatAmountText",
-        totalAmountSecondaryText = "totalBitcoinAmountText"
+        transactionSpeedText = "transactionSpeedText"
       )
     )
 
     stateMachine.test(feeBumpProps) {
       // CreatingAppSignedPsbt
-      awaitScreenWithBody<LoadingBodyModel>()
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().icon.shouldBe(Icon.LargeIconSpeedometer)
+        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(IconImage.LocalImage(Icon.LargeIconSpeedometer))
         header.shouldNotBeNull().headline.shouldBe("Speed up your transfer to")
-        ctaWarning.shouldNotBeNull()
 
         // Correct title
         mainContentList[0]

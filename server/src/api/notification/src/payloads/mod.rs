@@ -1,5 +1,6 @@
 pub mod comms_verification;
 pub mod payment;
+pub mod push_blast;
 pub mod recovery_canceled_delay_period;
 pub mod recovery_completed_delay_period;
 pub mod recovery_pending_delay_period;

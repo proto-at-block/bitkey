@@ -26,6 +26,7 @@ dependencies {
   implementation(libs.kmp.kotlin.datetime)
   implementation(libs.jvm.zxing)
   implementation(libs.android.io.coil.compose)
+  implementation(libs.android.io.coil.svg)
   implementation(libs.android.lottie.compose)
   implementation(projects.shared.stateMachineUiPublic)
 }

@@ -13,7 +13,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
@@ -111,7 +111,7 @@ fun zeroBalancePrompt(
       primaryButton =
         ButtonModel(
           text = "OK",
-          onClick = Click.standardClick { onDone() },
+          onClick = StandardClick(onDone),
           size = Footer
         ),
       eventTrackerShouldTrack = false
@@ -165,7 +165,7 @@ fun sweepSuccessScreenModel(
       primaryButton =
         ButtonModel(
           text = "Got it",
-          onClick = Click.standardClick { onDone() },
+          onClick = StandardClick { onDone() },
           size = Footer
         ),
       eventTrackerShouldTrack = false
@@ -194,13 +194,13 @@ fun sweepFailedScreenModel(
       primaryButton =
         ButtonModel(
           text = "Try again",
-          onClick = Click.standardClick { onRetry() },
+          onClick = StandardClick { onRetry() },
           size = Footer
         ),
       secondaryButton =
         ButtonModel(
           text = "Cancel",
-          onClick = Click.standardClick { onExit() },
+          onClick = StandardClick { onExit() },
           size = Footer
         ),
       eventTrackerShouldTrack = false

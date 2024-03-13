@@ -38,6 +38,8 @@ data class IconModel(
   val iconSize: IconSize,
   val iconBackgroundType: IconBackgroundType = Transient,
   val iconTint: IconTint? = null,
+  val iconOpacity: Float? = null,
+  val iconTopSpacing: Int? = null,
   val text: String? = null,
 ) {
   val totalSize: IconSize
@@ -54,6 +56,8 @@ fun IconModel(
   iconSize: IconSize = Regular,
   iconBackgroundType: IconBackgroundType = Transient,
   iconTint: IconTint? = null,
+  iconOpacity: Float? = null,
+  iconTopSpacing: Int? = null,
 ): IconModel {
   return IconModel(
     iconImage =
@@ -63,7 +67,9 @@ fun IconModel(
       ),
     iconSize = iconSize,
     iconBackgroundType = iconBackgroundType,
-    iconTint = iconTint
+    iconTint = iconTint,
+    iconOpacity = iconOpacity,
+    iconTopSpacing = iconTopSpacing
   )
 }
 
@@ -72,12 +78,16 @@ fun IconModel(
   iconSize: IconSize,
   iconBackgroundType: IconBackgroundType = Transient,
   iconTint: IconTint? = null,
+  iconOpacity: Float? = null,
+  iconTopSpacing: Int? = null,
 ): IconModel {
   return IconModel(
     iconImage = LocalImage(icon = icon),
     iconSize = iconSize,
     iconBackgroundType = iconBackgroundType,
-    iconTint = iconTint
+    iconTint = iconTint,
+    iconOpacity = iconOpacity,
+    iconTopSpacing = iconTopSpacing
   )
 }
 
@@ -127,6 +137,9 @@ sealed interface IconBackgroundType {
     enum class CircleColor {
       Foreground10,
 
+      /** primary color with a .2 transparency */
+      PrimaryBackground20,
+
       /** Black with a .1 transparency */
       TranslucentBlack,
 
@@ -141,6 +154,7 @@ sealed interface IconBackgroundType {
  */
 enum class IconTint {
   Primary,
+  Foreground,
   On60,
   On30,
   Destructive,

@@ -1,11 +1,11 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -34,7 +34,8 @@ class TrustedContactManagementFunctionalTests : FunSpec({
         onExit = { onExitCalls.add(Unit) },
         socRecRelationships = SocRecRelationships.EMPTY,
         socRecActions = appTester.app.socRecRelationshipsRepository.toActions(account)
-      )
+      ),
+      useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<FormBodyModel> {
         header?.headline.shouldBe("Trusted Contacts")
@@ -59,11 +60,8 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       TrustedContact(
         recoveryRelationshipId = "test-id",
         trustedContactAlias = TrustedContactAlias("test-contact"),
-        TrustedContactIdentityKey(
-          AppKey.fromPublicKey(
-            "[e5ff120e/84'/0'/0']xpub6Gxgx4jtKP3xsM95Rtub11QE4YqGDxTw9imtJ23Bi7nFi2aqE27HwanX2x3m451zuni5tKSuHeFVHexyCkjDEwB74R7NRtQ2UryVKDy1fgK/*"
-          )
-        )
+        keyCertificate = TrustedContactKeyCertificateFake,
+        authenticationState = VERIFIED
       )
 
     appTester.app.trustedContactManagementUiStateMachine.test(
@@ -72,7 +70,8 @@ class TrustedContactManagementFunctionalTests : FunSpec({
         onExit = { onExitCalls.add(Unit) },
         socRecRelationships = SocRecRelationships.EMPTY.copy(trustedContacts = listOf(testContact)),
         socRecActions = appTester.app.socRecRelationshipsRepository.toActions(account)
-      )
+      ),
+      useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<FormBodyModel> {
         header?.headline.shouldBe("Trusted Contacts")
@@ -97,7 +96,8 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       Invitation(
         recoveryRelationshipId = "test-id",
         trustedContactAlias = TrustedContactAlias("test-invitation"),
-        token = "test-token",
+        code = "test-token",
+        codeBitLength = 40,
         expiresAt = Instant.DISTANT_FUTURE
       )
 
@@ -107,7 +107,8 @@ class TrustedContactManagementFunctionalTests : FunSpec({
         onExit = { onExitCalls.add(Unit) },
         socRecRelationships = SocRecRelationships.EMPTY.copy(invitations = listOf(testInvitation)),
         socRecActions = appTester.app.socRecRelationshipsRepository.toActions(account)
-      )
+      ),
+      useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<FormBodyModel> {
         header?.headline.shouldBe("Trusted Contacts")
@@ -135,7 +136,8 @@ class TrustedContactManagementFunctionalTests : FunSpec({
         onExit = { onExitCalls.add(Unit) },
         socRecRelationships = SocRecRelationships.EMPTY,
         socRecActions = appTester.app.socRecRelationshipsRepository.toActions(account)
-      )
+      ),
+      useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<FormBodyModel> {
         mainContentList.first()

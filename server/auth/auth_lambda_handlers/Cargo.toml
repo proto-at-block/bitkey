@@ -19,14 +19,14 @@ name = "verify_auth_challenge"
 name = "pre_token_generation"
 
 [dependencies]
-aws_lambda_events = "0.13.1"
-serde = { version = "1.0.196", features = ["derive"] }
-serde_json = "1.0.113"
+aws_lambda_events = "0.15.0"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
 tokio = { version = "1.36.0", features = ["full"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 # NOTE: the following crate is not part of the SDK, but it is maintained by AWS.
-base64 = "0.21.7"
-lambda_runtime = "0.9.1"
+base64 = "0.22.0"
+lambda_runtime = "0.10.0"
 rand = "0.8.5"
 secp256k1 = { version = "0.28.2", features = ["hashes", "serde"] }
 

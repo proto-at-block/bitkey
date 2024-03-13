@@ -5,14 +5,18 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.ProtectedCustomerEphemeralKey
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
+import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
+import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactIdentityKey
+import build.wallet.bitkey.socrec.TrustedContactEndorsement
+import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -27,6 +31,9 @@ import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitation
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitationRequestBody
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitationResponseBody
+import build.wallet.f8e.socrec.models.EndorseTrustedContactsRequestBody
+import build.wallet.f8e.socrec.models.EndorseTrustedContactsResponseBody
+import build.wallet.f8e.socrec.models.EndorsementBody
 import build.wallet.f8e.socrec.models.GetRecoveryRelationshipsResponseBody
 import build.wallet.f8e.socrec.models.RefreshTrustedContactRequestBody
 import build.wallet.f8e.socrec.models.RefreshTrustedContactResponseBody
@@ -41,15 +48,20 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.catching
 import build.wallet.logging.logNetworkFailure
+import build.wallet.mapUnit
+import build.wallet.serialization.json.JsonEncodingError
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.mapResult
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import kotlinx.collections.immutable.toImmutableList
+import okio.ByteString
 
 class SocialRecoveryServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -72,7 +84,8 @@ class SocialRecoveryServiceImpl(
       .map {
         SocRecRelationships(
           invitations = it.invitations.map { invite -> invite.toInvitation() },
-          trustedContacts = it.trustedContacts,
+          trustedContacts = it.endorsedTrustedContacts,
+          unendorsedTrustedContacts = it.unendorsedTrustedContacts,
           protectedCustomers = it.customers.toImmutableList()
         )
       }
@@ -83,6 +96,7 @@ class SocialRecoveryServiceImpl(
     account: FullAccount,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
+    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
   ): Result<Invitation, NetworkingError> {
     return f8eHttpClient.authenticated(
       f8eEnvironment = account.config.f8eEnvironment,
@@ -93,7 +107,8 @@ class SocialRecoveryServiceImpl(
         post("/api/accounts/${account.accountId.serverId}/recovery/relationships") {
           setBody(
             CreateTrustedContactInvitationRequestBody(
-              trustedContactAlias = trustedContactAlias
+              trustedContactAlias = trustedContactAlias,
+              protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey
             )
           )
         }
@@ -126,21 +141,22 @@ class SocialRecoveryServiceImpl(
   }
 
   override suspend fun removeRelationship(
-    account: Account,
+    accountId: AccountId,
+    f8eEnvironment: F8eEnvironment,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
       .authenticated(
-        f8eEnvironment = account.config.f8eEnvironment,
-        accountId = account.accountId,
+        f8eEnvironment = f8eEnvironment,
+        accountId = accountId,
         hwFactorProofOfPossession = hardwareProofOfPossession,
         authTokenScope = authTokenScope
       )
       .catching {
         delete(
-          "/api/accounts/${account.accountId.serverId}/recovery/relationships/$relationshipId"
+          "/api/accounts/${accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
           setBody("{}")
         }
@@ -152,8 +168,7 @@ class SocialRecoveryServiceImpl(
   override suspend fun startChallenge(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    protectedCustomerEphemeralKey: ProtectedCustomerEphemeralKey,
-    protectedCustomerIdentityKey: ProtectedCustomerIdentityKey,
+    trustedContacts: List<StartSocialChallengeRequestTrustedContact>,
   ): Result<SocialChallenge, NetworkingError> {
     return f8eHttpClient
       .authenticated(
@@ -165,8 +180,7 @@ class SocialRecoveryServiceImpl(
         post("/api/accounts/${fullAccountId.serverId}/recovery/social-challenges") {
           setBody(
             StartSocialChallengeRequestBody(
-              customerEphemeralPublicKey = protectedCustomerEphemeralKey,
-              customerIdentityPublicKey = protectedCustomerIdentityKey
+              trustedContacts = trustedContacts
             )
           )
         }
@@ -196,7 +210,7 @@ class SocialRecoveryServiceImpl(
   override suspend fun verifyChallenge(
     account: Account,
     recoveryRelationshipId: String,
-    code: String,
+    counter: Int,
   ): Result<ChallengeVerificationResponse, NetworkingError> {
     return f8eHttpClient
       .authenticated(
@@ -210,7 +224,7 @@ class SocialRecoveryServiceImpl(
           setBody(
             VerifyChallengeRequestBody(
               recoveryRelationshipId = recoveryRelationshipId,
-              code = code
+              code = counter
             )
           )
         }
@@ -223,7 +237,9 @@ class SocialRecoveryServiceImpl(
   override suspend fun respondToChallenge(
     account: Account,
     socialChallengeId: String,
-    sharedSecretCiphertext: XCiphertext,
+    trustedContactRecoveryPakePubkey: PublicKey,
+    recoveryPakeConfirmation: ByteString,
+    resealedDek: XCiphertext,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient
       .authenticated(
@@ -236,7 +252,9 @@ class SocialRecoveryServiceImpl(
         ) {
           setBody(
             RespondToChallengeRequestBody(
-              sharedSecretCiphertext = sharedSecretCiphertext.value
+              trustedContactRecoveryPakePubkey = trustedContactRecoveryPakePubkey,
+              recoveryPakeConfirmation = recoveryPakeConfirmation,
+              resealedDek = resealedDek
             )
           )
         }
@@ -245,10 +263,42 @@ class SocialRecoveryServiceImpl(
       }
   }
 
+  override suspend fun endorseTrustedContacts(
+    accountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    endorsements: List<TrustedContactEndorsement>,
+  ): Result<Unit, Error> =
+    binding {
+      val f8eEndorsements = endorsements.mapResult { it.body() }.bind()
+
+      f8eHttpClient
+        .authenticated(
+          f8eEnvironment = f8eEnvironment,
+          accountId = accountId,
+          authTokenScope = AuthTokenScope.Global
+        )
+        .bodyResult<EndorseTrustedContactsResponseBody> {
+          put("/api/accounts/${accountId.serverId}/recovery/relationships") {
+            setBody(EndorseTrustedContactsRequestBody(f8eEndorsements))
+          }
+        }
+        .logNetworkFailure { "Failed to endorse trusted contacts" }
+        .mapUnit()
+        .bind()
+    }
+
+  private suspend fun TrustedContactEndorsement.body(): Result<EndorsementBody, JsonEncodingError> =
+    binding {
+      EndorsementBody(
+        recoveryRelationshipId = recoveryRelationshipId.value,
+        delegatedDecryptionKeyCertificate = keyCertificate.encode().bind()
+      )
+    }
+
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
-  ): Result<Invitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
+  ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return f8eHttpClient
       .authenticated(
         f8eEnvironment = account.config.f8eEnvironment,
@@ -261,15 +311,17 @@ class SocialRecoveryServiceImpl(
         )
       }
       .logNetworkFailure { "Failed to retrieve Trusted Contact invitation" }
-      .map { it.invitation.toInvitation(invitationCode) }
+      .map { it.invitation.toIncomingInvitation(invitationCode) }
       .mapError { it.toF8eError<RetrieveTrustedContactInvitationErrorCode>() }
   }
 
   override suspend fun acceptInvitation(
     account: Account,
-    invitation: Invitation,
+    invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactIdentityKey: TrustedContactIdentityKey,
+    trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+    enrollmentPakeConfirmation: ByteString,
+    sealedDelegateDecryptionKeyCipherText: XCiphertext,
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
     return f8eHttpClient
       .authenticated(
@@ -283,9 +335,11 @@ class SocialRecoveryServiceImpl(
         ) {
           setBody(
             AcceptTrustedContactInvitationRequestBody(
-              code = invitation.token,
+              code = invitation.code,
               customerAlias = protectedCustomerAlias.alias,
-              trustedContactIdentityKey = trustedContactIdentityKey.publicKey.value
+              trustedContactEnrollmentPakeKey = trustedContactEnrollmentPakeKey,
+              enrollmentPakeConfirmation = enrollmentPakeConfirmation,
+              sealedDelegateDecryptionKey = sealedDelegateDecryptionKeyCipherText
             )
           )
         }
@@ -300,15 +354,16 @@ private fun CreateTrustedContactInvitation.toInvitation() =
   Invitation(
     recoveryRelationshipId = recoveryRelationshipId,
     trustedContactAlias = trustedContactAlias,
-    token = token,
+    code = code,
+    codeBitLength = codeBitLength,
     expiresAt = expiresAt
   )
 
-private fun RetrieveTrustedContactInvitation.toInvitation(invitationCode: String) =
-  Invitation(
+private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode: String) =
+  IncomingInvitation(
     recoveryRelationshipId = recoveryRelationshipId,
-    // The alias isn't needed when retrieving / accepting, so just pass an empty alias
-    trustedContactAlias = TrustedContactAlias(""),
-    token = invitationCode,
-    expiresAt = expiresAt
+    code = invitationCode,
+    protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKey(
+      AppKey.fromPublicKey(protectedCustomerEnrollmentPakePubkey)
+    )
   )

@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -23,7 +23,7 @@ fun BeTrustedContactIntroductionModel(
   toolbar = ToolbarModel(leadingAccessory = BackAccessory(onBack)),
   header =
     FormHeaderModel(
-      headline = "Be a Trusted Contact",
+      headline = "You've been invited to become a Trusted Contact",
       subline = "A Trusted Contact can help someone restore a wallet that they may have lost access to."
     ),
   mainContentList =
@@ -58,7 +58,7 @@ fun BeTrustedContactIntroductionModel(
   primaryButton =
     ButtonModel(
       text = "Continue",
-      onClick = Click.standardClick(onContinue),
+      onClick = StandardClick(onContinue),
       size = ButtonModel.Size.Footer
     ),
   onBack = onBack,

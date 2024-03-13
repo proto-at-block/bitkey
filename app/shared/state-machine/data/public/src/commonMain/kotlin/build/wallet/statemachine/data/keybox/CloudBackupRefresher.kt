@@ -2,6 +2,8 @@ package build.wallet.statemachine.data.keybox
 
 import build.wallet.bitkey.account.FullAccount
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.datetime.Instant
 
 /**
  * Performs background cloud backup when information about Trusted Contacts changes, i.e.
@@ -16,4 +18,9 @@ interface CloudBackupRefresher {
     scope: CoroutineScope,
     fullAccount: FullAccount,
   )
+
+  /**
+   * The timestamp that last check for cloud backup refresh completed, successfully or otherwise.
+   */
+  val lastCheck: StateFlow<Instant>
 }

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.matthewnelson.encoding:core-iosarm64",
+    "components": [
+        {
+            "version": "2.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-iosarm64-2.1.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "core.klib": "0f3fba224a3e20a69a5061db798a81c032dd6c9ed9dabba1f4a58a2ab644edde"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

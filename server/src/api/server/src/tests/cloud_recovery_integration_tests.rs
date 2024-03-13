@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use authn_authz::userpool::cognito_user::CognitoUser;
 use http::StatusCode;
+use std::default::Default;
 use time::{Duration, OffsetDateTime};
 
 use account::entities::{Factor, FullAccountAuthKeysPayload, Network, SpendingKeysetRequest};
@@ -12,6 +12,8 @@ use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use onboarding::routes::CreateAccountRequest;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
 use recovery::routes::{AuthenticationKey, RotateAuthenticationKeysRequest};
+use types::account::identifiers::AccountId;
+use types::authn_authz::cognito::CognitoUser;
 
 use crate::tests;
 use crate::tests::lib::{
@@ -29,6 +31,26 @@ struct RotateAuthenticationKeysTestVector {
     override_recovery_signature: Option<String>,
     expected_status: StatusCode,
     existing_delay_notify: bool,
+    override_keyproof_account_id: Option<AccountId>,
+}
+
+impl Default for RotateAuthenticationKeysTestVector {
+    fn default() -> Self {
+        Self {
+            include_initial_recovery_pubkey: false,
+            new_auth_app_sk: SecretKey::from_str(
+                "09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde",
+            )
+            .unwrap(),
+            override_auth_hardware_sk: None,
+            override_app_signature: None,
+            rotate_recovery_pubkey: true,
+            override_recovery_signature: None,
+            expected_status: StatusCode::OK,
+            existing_delay_notify: false,
+            override_keyproof_account_id: None,
+        }
+    }
 }
 
 async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVector) {
@@ -131,9 +153,17 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         secp.sign_ecdsa(&message, &new_auth_recovery_seckey)
             .to_string()
     });
+
+    // If we're testing with a different account, we need to use the keyproof account id
+    let keyproof_account_id = vector
+        .override_keyproof_account_id
+        .clone()
+        .unwrap_or(account_id.clone());
+
     let response = client
-        .rotate_authentication_keys(
-            &account_id.to_string(),
+        .rotate_authentication_keys_with_keyproof_account_id(
+            &keyproof_account_id,
+            &account_id,
             &RotateAuthenticationKeysRequest {
                 application: AuthenticationKey {
                     key: new_auth_app_pubkey,
@@ -154,11 +184,20 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
             },
         )
         .await;
+
     assert_eq!(
         response.status_code, vector.expected_status,
         "{}",
         response.body_string
     );
+
+    // If keyproof account id is different from test account, we don't bother checking anything else.
+    if vector
+        .override_keyproof_account_id
+        .map_or(false, |override_id| override_id != account_id)
+    {
+        return;
+    }
 
     let account = bootstrap
         .services
@@ -239,85 +278,50 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
 tests! {
     runner = rotate_authentication_keys_test,
     test_successfully_rotate_app_auth_key: RotateAuthenticationKeysTestVector {
-        include_initial_recovery_pubkey: false,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
-        override_app_signature: None,
-        rotate_recovery_pubkey: true,
-        override_recovery_signature: None,
-        expected_status: StatusCode::OK,
-        existing_delay_notify: false,
+        ..Default::default()
     },
     test_successfully_rotate_app_auth_key_with_recovery_pubkey: RotateAuthenticationKeysTestVector {
         include_initial_recovery_pubkey: true,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
-        override_app_signature: None,
-        rotate_recovery_pubkey: true,
-        override_recovery_signature: None,
-        expected_status: StatusCode::OK,
-        existing_delay_notify: false,
+        ..Default::default()
     },
     test_rotate_keys_without_preexisting_recovery_auth_key: RotateAuthenticationKeysTestVector {
-        include_initial_recovery_pubkey: false,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
-        override_app_signature: None,
         rotate_recovery_pubkey: false,
-        override_recovery_signature: None,
-        expected_status: StatusCode::OK,
-        existing_delay_notify: false,
+        ..Default::default()
     },
     test_rotate_keys_with_preexisting_recovery_auth_key: RotateAuthenticationKeysTestVector {
         include_initial_recovery_pubkey: true,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
-        override_app_signature: None,
         rotate_recovery_pubkey: false,
-        override_recovery_signature: None,
         expected_status: StatusCode::BAD_REQUEST,
-        existing_delay_notify: false,
+        ..Default::default()
     },
     test_successfully_rotate_app_auth_key_with_existing_delay_notify: RotateAuthenticationKeysTestVector {
         include_initial_recovery_pubkey: true,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
-        override_app_signature: None,
-        rotate_recovery_pubkey: true,
-        override_recovery_signature: None,
-        expected_status: StatusCode::OK,
         existing_delay_notify: true,
+        ..Default::default()
     },
     test_bad_signature_rotate_app_auth_key: RotateAuthenticationKeysTestVector {
         include_initial_recovery_pubkey: true,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
         override_app_signature: Some("this_should_fail".to_string()),
-        rotate_recovery_pubkey: true,
-        override_recovery_signature: None,
         expected_status: StatusCode::BAD_REQUEST,
-        existing_delay_notify: false,
+        ..Default::default()
     },
     test_bad_signature_rotate_recovery_auth_key: RotateAuthenticationKeysTestVector {
         include_initial_recovery_pubkey: true,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
-        override_auth_hardware_sk: None,
-        override_app_signature: None,
-        rotate_recovery_pubkey: true,
         override_recovery_signature: Some("this_should_fail".to_string()),
         expected_status: StatusCode::BAD_REQUEST,
-        existing_delay_notify: false,
+        ..Default::default()
     },
     // For now, we'll only allow you to rotate the application key
     // TODO: Remove this test once we support rotating both keys
     test_rotate_both_keys: RotateAuthenticationKeysTestVector {
         include_initial_recovery_pubkey: true,
-        new_auth_app_sk: SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap(),
         override_auth_hardware_sk: Some(SecretKey::from_str("09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde").unwrap()),
-        override_app_signature: None,
-        rotate_recovery_pubkey: true,
-        override_recovery_signature: None,
         expected_status: StatusCode::BAD_REQUEST,
-        existing_delay_notify: false,
+        ..Default::default()
+    },
+    test_rotate_keys_with_invalid_keyproof_account_id: RotateAuthenticationKeysTestVector {
+        override_keyproof_account_id: Some(AccountId::gen().unwrap()),
+        expected_status: StatusCode::UNAUTHORIZED,
+        ..Default::default()
     },
 }

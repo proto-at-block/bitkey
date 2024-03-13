@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.crypto.tink:tink-android",
+    "components": [
+        {
+            "version": "1.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "tink-android-1.8.0.jar": "5efe8f1cb6e75814ae06793d5ff8d9b01e6f88ef97ecc062d14ebc27027dbf78"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

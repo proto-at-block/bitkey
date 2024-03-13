@@ -8,7 +8,7 @@ import build.wallet.bitcoin.BitcoinNetworkType.REGTEST
 import build.wallet.bitcoin.bdk.bdkNetwork
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Spending
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.money.BitcoinMoney
 import build.wallet.testing.launchNewApp
@@ -25,8 +25,8 @@ class RegtestTreasuryWalletTests : FunSpec({
     // Set the keybox config to regtest because the syncer use its network. It'd be better
     // to construct the needed dependencies from scratch in the test instead of relying on
     // appTester, but instantiating the graph is far too complex to be maintainable.
-    appTester.app.appComponent.templateKeyboxConfigDao.set(
-      KeyboxConfig(
+    appTester.app.appComponent.templateFullAccountConfigDao.set(
+      FullAccountConfig(
         network,
         // These args below don't matter.
         f8eEnvironment = Development,

@@ -1,16 +1,16 @@
 package build.wallet.integration.statemachine.create
 
 import app.cash.turbine.ReceiveTurbine
-import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.integration.statemachine.recovery.socrec.advanceThroughCreateLiteAccountScreens
 import build.wallet.integration.statemachine.recovery.socrec.advanceThroughTrustedContactEnrollmentScreens
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.card.CardModel
+import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.testing.launchNewApp
+import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -21,20 +21,18 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
   test("happy path through create lite account and enroll as trusted contact") {
     // Set up a protected customer with a full account and create a trusted contact invite
     val fullAccountApp = launchNewApp()
-    val fullAccount = fullAccountApp.onboardFullAccountWithFakeHardware()
-    val tcInvitation =
+    fullAccountApp.onboardFullAccountWithFakeHardware()
+    val (inviteCode, _) =
       fullAccountApp.createTcInvite(
-        fullAccount,
         tcName = "Test Trusted Contact Name"
       )
 
     // Going through onboarding with the lite account, becoming a trusted contact
     // and then remove the trusted contact relationship
     val liteAccountApp = launchNewApp()
-    liteAccountApp.app.cloudBackupRepository.clear(CloudStoreAccount1Fake)
-    liteAccountApp.app.appUiStateMachine.test(Unit) {
+    liteAccountApp.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       advanceThroughCreateLiteAccountScreens(
-        inviteCode = tcInvitation.token
+        inviteCode = inviteCode
       )
       advanceThroughTrustedContactEnrollmentScreens(
         protectedCustomerName = "Test Protected Customer Name"
@@ -46,7 +44,7 @@ class CreateAndOnboardLiteAccountFunctionalTests : FunSpec({
 })
 
 private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveRelationship() {
-  awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+  awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>(
     expectedBodyContentMatch = { body ->
       // Wait until the "Wallets you're Protecting" card shows a protected customer
       body.walletsYoureProtectingCount == 1
@@ -82,7 +80,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
     }
 
   // Back to Money Home, the card should be removed
-  awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+  awaitUntilScreenWithBody<LiteMoneyHomeBodyModel>(
     expectedBodyContentMatch = { body ->
       // Wait until there is 1 card showing
       body.walletsYoureProtectingCount == 0
@@ -90,8 +88,13 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
   )
 }
 
-private val MoneyHomeBodyModel.walletsYoureProtectingCount: Int
+private val LiteMoneyHomeBodyModel.walletsYoureProtectingCount: Int
   get() {
     val drillList = cardsModel.cards.first().content as CardModel.CardContent.DrillList
-    return drillList.items.size - 1
+    return when (drillList.items.first().leadingAccessory) {
+      // This is the Accept Invite button, so there are no protected customers.
+      is ListItemAccessory.ButtonAccessory -> 0
+      // This is the list of protected customers.
+      else -> drillList.items.size
+    }
   }

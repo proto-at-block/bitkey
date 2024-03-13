@@ -1,0 +1,18 @@
+{
+    "module-identifier": "co.touchlab.crashkios:core-android-debug",
+    "components": [
+        {
+            "version": "0.8.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-debug.aar": "7940806fc4049541002df62d2f1d1c1dfe806a53d152af7bfafda23f35b3b0a4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -56,7 +56,13 @@ class FullAccountCloudBackupRestorerImpl(
       is CloudBackupV2RestorerError.SocRecTrustedContactIdentityKeyStorageError -> {
         AccountBackupRestorationError(
           cause = error.cause,
-          message = "Error storing Social Recovery TrustedContactIdentityKey"
+          message = "Error storing Social Recovery DegegatedDecryptionKey"
+        )
+      }
+      is CloudBackupV2RestorerError.AccountBackupDecryptionError -> {
+        AccountBackupRestorationError(
+          cause = error.cause,
+          message = "Error decrypting Cloud Backup"
         )
       }
     }

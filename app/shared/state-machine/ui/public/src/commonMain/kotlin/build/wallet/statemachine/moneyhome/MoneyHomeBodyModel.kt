@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.list.ListModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -31,11 +31,11 @@ import dev.zacsweers.redacted.annotations.Redacted
  * on iOS and Android.
  */
 data class MoneyHomeBodyModel(
-  val trailingToolbarAccessoryModel: ToolbarAccessoryModel,
+  override val trailingToolbarAccessoryModel: ToolbarAccessoryModel,
   @Redacted
   val balanceModel: MoneyAmountModel,
-  val buttonsModel: MoneyHomeButtonsModel,
-  val cardsModel: MoneyHomeCardsModel,
+  override val buttonsModel: MoneyHomeButtonsModel,
+  override val cardsModel: MoneyHomeCardsModel,
   @Redacted
   val transactionsModel: ListModel?,
   val seeAllButtonModel: ButtonModel?,
@@ -46,7 +46,7 @@ data class MoneyHomeBodyModel(
     EventTrackerScreenInfo(
       eventTrackerScreenId = MoneyHomeEventTrackerScreenId.MONEY_HOME
     ),
-) : BodyModel() {
+) : BodyModel(), BaseMoneyHomeBodyModel {
   constructor(
     onSettings: () -> Unit,
     balanceModel: MoneyAmountModel,
@@ -65,7 +65,7 @@ data class MoneyHomeBodyModel(
             icon = Icon.SmallIconSettings,
             iconSize = IconSize.HeaderToolbar
           ),
-          onClick = Click.standardClick { onSettings() }
+          onClick = StandardClick(onSettings)
         )
       ),
     balanceModel = balanceModel,

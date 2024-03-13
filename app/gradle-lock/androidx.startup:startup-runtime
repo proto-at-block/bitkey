@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.startup:startup-runtime",
+    "components": [
+        {
+            "version": "1.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "startup-runtime-1.1.1.aar": "e0a6329a371262fe4c450372b70fdaf33b769ef6917094723787cfce896b1dd3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

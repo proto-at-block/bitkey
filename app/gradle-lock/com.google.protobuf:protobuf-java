@@ -1,0 +1,31 @@
+{
+    "module-identifier": "com.google.protobuf:protobuf-java",
+    "components": [
+        {
+            "version": "3.19.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "protobuf-java-3.19.3.jar": "440642e3b526663d1c15b4a2071c2696f2a25f031332ac3eb43f63969d819b3d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "3.25.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "protobuf-java-3.25.1.jar": "48a8e58a1a8f82eff141a7a388d38dfe77d7a48d5e57c9066ee37f19147e20df"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

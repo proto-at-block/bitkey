@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jheaps:jheaps",
+    "components": [
+        {
+            "version": "0.14",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jheaps-0.14.jar": "49a9898da3758659388f1333c53ccadb6fbd142a7d18aa7b1a33577090684279"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

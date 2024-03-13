@@ -20,6 +20,7 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.creating
+import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getValue
 import org.gradle.kotlin.dsl.getting
 import org.gradle.kotlin.dsl.withType
@@ -99,7 +100,12 @@ private fun KotlinMultiplatformExtension.configureJvmTarget() {
         //   I think it's because IDEA considers our KotlinJvmTest for resolution, but compilation then runs againts the original one.
         javaClass.getMethod("setCompilationName", String::class.java)
           .invoke(this, integrationTest.name)
-        maxParallelForks = 1
+
+        // Run tests in parallel by default, and allow setting the property
+        // -Pbitkey.integrationTest.maxParallelForks=1 to override it
+        maxParallelForks =
+          (project.findProperty("bitkey.integrationTest.maxParallelForks") as? String)?.toInt()
+            ?: (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
       }
     }
   }
@@ -111,29 +117,6 @@ private fun KotlinMultiplatformExtension.configureJvmTarget() {
 
     jvmIntegrationTest {
       project.configureJUnit(sourceSet = this)
-    }
-  }
-
-  project.applyVersionConflictsFix()
-}
-
-/**
- * We use AWS JVM lib in `jvmIntegrationTest` target. The AWS lib introduces a bunch of
- * dependencies which conflict with dependencies from other modules.
- *
- * This method explicitly resolves version conflicts.
- */
-private fun Project.applyVersionConflictsFix() {
-  kotlin {
-    sourceSets {
-      jvmMain {
-        dependencies {
-          // See https://github.com/awslabs/aws-sdk-kotlin/issues/993
-          implementation(libs.jvm.slf4j)
-          // See https://github.com/awslabs/aws-sdk-kotlin/issues/765
-          implementation(libs.kmp.okhttp)
-        }
-      }
     }
   }
 }
@@ -292,6 +275,7 @@ private fun Project.configureDependencies() {
           api(libs.kmp.kotlin.coroutines)
 
           if (isFakeModule()) {
+            api(libs.kmp.test.kotlin.coroutines)
             api(libs.kmp.test.turbine)
           }
         }
@@ -319,7 +303,8 @@ private fun Project.configureTests() {
             implementation(libs.kmp.test.kotest.framework.api)
             implementation(libs.kmp.test.kotest.framework.engine)
             implementation(libs.kmp.test.kotest.property)
-            api(libs.kmp.test.turbine)
+            implementation(libs.kmp.test.kotlin.coroutines)
+            implementation(libs.kmp.test.turbine)
           }
         }
       }

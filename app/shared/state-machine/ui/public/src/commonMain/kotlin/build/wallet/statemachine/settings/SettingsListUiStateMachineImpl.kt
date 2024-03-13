@@ -9,44 +9,45 @@ import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconAnnouncement
 import build.wallet.statemachine.core.Icon.SmallIconBitkey
 import build.wallet.statemachine.core.Icon.SmallIconCloud
 import build.wallet.statemachine.core.Icon.SmallIconCurrency
 import build.wallet.statemachine.core.Icon.SmallIconElectrum
+import build.wallet.statemachine.core.Icon.SmallIconMobileLimit
 import build.wallet.statemachine.core.Icon.SmallIconNotification
 import build.wallet.statemachine.core.Icon.SmallIconPhone
 import build.wallet.statemachine.core.Icon.SmallIconQuestion
+import build.wallet.statemachine.core.Icon.SmallIconRecovery
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CloudBackupHealth
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.ContactUs
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CurrencyPreference
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CustomElectrumServer
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.NotificationPreferences
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Notifications
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RecoveryChannels
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RotateAuthKey
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.SendFeedback
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.TrustedContacts
+import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.reflect.KClass
 
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
-  private val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag,
   private val cloudBackupHealthFeatureFlag: CloudBackupHealthFeatureFlag,
   private val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag,
+  private val notificationsFlowV2EnabledFeatureFlag: NotificationsFlowV2EnabledFeatureFlag,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
-    val multipleFiatCurrencyEnabled =
-      remember {
-        multipleFiatCurrencyEnabledFeatureFlag.flagValue().value
-      }.value
     val cloudBackupHealthEnabled = remember { cloudBackupHealthFeatureFlag.isEnabled() }
     val inactiveDeviceIsEnabled = remember { inactiveDeviceIsEnabledFeatureFlag.isEnabled() }
     val appFunctionalityStatus =
@@ -66,8 +67,12 @@ class SettingsListUiStateMachineImpl(
               listOfNotNull(
                 MobilePay::class,
                 BitkeyDevice::class,
-                CurrencyPreference::class.takeIf { multipleFiatCurrencyEnabled },
-                Notifications::class
+                CurrencyPreference::class,
+                if (notificationsFlowV2EnabledFeatureFlag.isEnabled()) {
+                  NotificationPreferences::class
+                } else {
+                  Notifications::class
+                }
               )
           ),
           SettingsSection(
@@ -78,7 +83,8 @@ class SettingsListUiStateMachineImpl(
               listOfNotNull(
                 RotateAuthKey::class.takeIf { inactiveDeviceIsEnabled },
                 CloudBackupHealth::class.takeIf { cloudBackupHealthEnabled },
-                TrustedContacts::class
+                TrustedContacts::class,
+                RecoveryChannels::class.takeIf { notificationsFlowV2EnabledFeatureFlag.isEnabled() }
               )
           ),
           SettingsSection(
@@ -96,7 +102,7 @@ class SettingsListUiStateMachineImpl(
             title = "Support",
             rowTypes =
               listOfNotNull(
-                SendFeedback::class,
+                ContactUs::class,
                 HelpCenter::class
               )
           )
@@ -110,7 +116,7 @@ class SettingsListUiStateMachineImpl(
     appFunctionalityStatus: AppFunctionalityStatus,
     title: String,
     @Suppress("UnstableCollections")
-    rowTypes: List<KClass<out SettingsListUiProps.SettingsListRow>>,
+    rowTypes: List<KClass<out SettingsListRow>>,
   ): SettingsBodyModel.SectionModel? {
     // Build the row models based on if the parent wants to show the row for the section
     val rowModels =
@@ -130,18 +136,19 @@ class SettingsListUiStateMachineImpl(
     )
   }
 
-  private fun SettingsListUiProps.SettingsListRow.rowModel(
+  private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
     props: SettingsListUiProps,
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
-        is MobilePay -> Pair(SmallIconPhone, "Mobile Pay")
+        is MobilePay -> Pair(SmallIconMobileLimit, "Mobile Pay")
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
         is CurrencyPreference -> Pair(SmallIconCurrency, "Currency")
-        is Notifications -> Pair(SmallIconNotification, "Notifications")
+        is Notifications, is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
+        is RecoveryChannels -> Pair(SmallIconRecovery, "Recovery Methods")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
-        is SendFeedback -> Pair(SmallIconAnnouncement, "Send Feedback")
+        is ContactUs -> Pair(SmallIconAnnouncement, "Contact Us")
         is HelpCenter -> Pair(SmallIconQuestion, "Help Center")
         is TrustedContacts -> Pair(SmallIconShieldPerson, "Trusted Contacts")
         is CloudBackupHealth -> Pair(SmallIconCloud, "Cloud Backup")
@@ -171,31 +178,32 @@ class SettingsListUiStateMachineImpl(
     )
   }
 
-  private fun SettingsListUiProps.SettingsListRow.isRowEnabled(
+  private fun SettingsListRow.isRowEnabled(
     appFunctionalityStatus: AppFunctionalityStatus,
   ): Boolean {
     return when (this) {
       // Rows that are always available
-      is BitkeyDevice, is SendFeedback ->
+      is BitkeyDevice ->
         true
 
       is MobilePay ->
         appFunctionalityStatus.featureStates.mobilePay == Available
       is CurrencyPreference ->
         appFunctionalityStatus.featureStates.fiatExchangeRates == Available
-      is Notifications ->
+      is Notifications, is NotificationPreferences, is RecoveryChannels ->
         appFunctionalityStatus.featureStates.notifications == Available
       is CustomElectrumServer ->
         appFunctionalityStatus.featureStates.customElectrumServer == Available
       is TrustedContacts ->
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
       is HelpCenter ->
-        appFunctionalityStatus.featureStates.securityAndRecovery == Available
+        appFunctionalityStatus.featureStates.helpCenter == Available
       is CloudBackupHealth ->
-        // TODO(BKR-804): disable when device is inactive
-        true
+        appFunctionalityStatus.featureStates.cloudBackupHealth == Available
       is RotateAuthKey ->
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
+      is ContactUs ->
+        appFunctionalityStatus.featureStates.helpCenter == Available
     }
   }
 }

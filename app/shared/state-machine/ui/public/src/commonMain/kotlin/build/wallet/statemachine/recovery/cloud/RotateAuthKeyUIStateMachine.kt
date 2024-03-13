@@ -6,40 +6,43 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.analytics.events.screen.id.AuthEventTrackerScreenId
+import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
+import build.wallet.auth.AuthKeyRotationFailure
 import build.wallet.auth.AuthKeyRotationManager
-import build.wallet.auth.AuthKeyRotationRequestState
-import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keybox.Keybox
-import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.keybox.KeyboxDao
+import build.wallet.auth.AuthKeyRotationRequest
+import build.wallet.auth.PendingAuthKeyRotationAttempt
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.keybox.keys.AppKeysGenerator
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
+import build.wallet.logging.logFailure
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.ui.model.Click
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarModel
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.mapBoth
+import com.github.michaelbull.result.onSuccess
 
 interface RotateAuthKeyUIStateMachine :
   StateMachine<RotateAuthKeyUIStateMachineProps, ScreenModel>
 
 data class RotateAuthKeyUIStateMachineProps(
-  val keybox: Keybox,
+  val account: FullAccount,
   val origin: RotateAuthKeyUIOrigin,
 )
 
 /**
- * The rotation can happen from two places:
+ * The rotation can happen from three places (origins):
  * 1. when recovering from the cloud,
- * 2. or just going in through the settings.
+ * 2. going in through the settings,
+ * 3. or on app startup when a previous rotation attempt has failed.
  *
  * When recovering from the cloud,
  * we want to give users the option to skip this step,
@@ -49,278 +52,268 @@ data class RotateAuthKeyUIStateMachineProps(
  * they expect to have a back button in the toolbar,
  * so we only show the one button to rotate keys on the bottom.
  *
- * There's also difference in copy between the two.
- *
- * IMPORTANT TODO(BKR-918): Currently there's also an inconsistency in how this screen works.
- * When recovering from the cloud, we don't have an active keybox to rotate keys in.
- * So we rotate and then return the new keybox to the cloud recovery flow (the parent).
- * This can lead to users losing access as explained in BKR-918.
+ * When a previous rotation attempt has failed,
+ * we go directly into a loading screen trying to recover the previous attempt.
  */
 sealed interface RotateAuthKeyUIOrigin {
-  data class CloudRestore(val onComplete: (keyboxToActive: Keybox) -> Unit) : RotateAuthKeyUIOrigin
+  data class PendingAttempt(
+    val attempt: PendingAuthKeyRotationAttempt,
+  ) : RotateAuthKeyUIOrigin
 
   data class Settings(val onBack: () -> Unit) : RotateAuthKeyUIOrigin
 }
 
 class RotateAuthKeyUIStateMachineImpl(
-  val keyboxDao: KeyboxDao,
+  val appKeysGenerator: AppKeysGenerator,
   val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   val authKeyRotationManager: AuthKeyRotationManager,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : RotateAuthKeyUIStateMachine {
   @Composable
   override fun model(props: RotateAuthKeyUIStateMachineProps): ScreenModel {
-    var state: State by remember {
-      mutableStateOf(State.WaitingOnChoiceState)
+    val evenTrackerScreenIdContext = remember(props.origin) {
+      when (props.origin) {
+        is RotateAuthKeyUIOrigin.PendingAttempt -> when (props.origin.attempt) {
+          is PendingAuthKeyRotationAttempt.IncompleteAttempt -> AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT
+          PendingAuthKeyRotationAttempt.ProposedAttempt -> AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        }
+        is RotateAuthKeyUIOrigin.Settings -> AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+      }
+    }
+
+    var state: State by remember(props.origin) {
+      val initialState = when (props.origin) {
+        is RotateAuthKeyUIOrigin.PendingAttempt -> when (props.origin.attempt) {
+          PendingAuthKeyRotationAttempt.ProposedAttempt -> State.WaitingOnChoiceState(newAppAuthKeys = null)
+          is PendingAuthKeyRotationAttempt.IncompleteAttempt -> State.RotatingAuthKeys(
+            request = AuthKeyRotationRequest.Resume(newKeys = props.origin.attempt.newKeys)
+          )
+        }
+        is RotateAuthKeyUIOrigin.Settings -> State.WaitingOnChoiceState(newAppAuthKeys = null)
+      }
+      mutableStateOf(initialState)
     }
 
     return when (val uiState = state) {
-      State.WaitingOnChoiceState -> {
-        when (props.origin) {
-          is RotateAuthKeyUIOrigin.CloudRestore -> DeactivateDevicesAfterRestoreChoiceScreenModel(
-            onNotRightNow = { state = State.ReturningFinalKeybox(props.keybox) },
-            onRemoveAllOtherDevices = { state = State.ObtainingHwProofOfPossession }
-          )
-          is RotateAuthKeyUIOrigin.Settings -> DeactivateDevicesFromSettingsChoiceScreenModel(
-            onBack = props.origin.onBack,
-            onRemoveAllOtherDevices = { state = State.ObtainingHwProofOfPossession }
-          )
-        }
+      is State.PresentingInAppBrowserCustomerSupportUi -> {
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = "https://support.bitkey.world/hc/en-us",
+              onClose = { state = State.RotatingAuthKeys(uiState.retryRequest) }
+            )
+          }
+        ).asModalScreen()
       }
+      is State.WaitingOnChoiceState -> {
+        if (uiState.newAppAuthKeys == null) {
+          LaunchedEffect("generate-new-app-auth-keys") {
+            // Since we are rotating app global auth key, we need to create
+            // a new AppGlobalAuthKeyHwSignature as well by tapping hardware.
+            // This requires having a new app global auth key before the hardware tap,
+            // so we are preloading it here, to save us from an extra tap after auth keys are rotated.
+            generateAppAuthKeys()
+              .onSuccess {
+                state = State.WaitingOnChoiceState(newAppAuthKeys = it)
+              }
+          }
+        }
 
-      State.ObtainingHwProofOfPossession -> waitingOnProofOfPossession(props) { state = it }
+        val removeAllOtherDevices = remember(uiState.newAppAuthKeys) {
+          if (uiState.newAppAuthKeys == null) {
+            { /* noop */ }
+          } else {
+            { state = State.ObtainingHwProofOfPossession(uiState.newAppAuthKeys) }
+          }
+        }
+
+        when (val origin = props.origin) {
+          is RotateAuthKeyUIOrigin.PendingAttempt -> RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice(
+            onNotRightNow = { state = State.DismissingProposedAttempt },
+            removeAllOtherDevicesEnabled = uiState.newAppAuthKeys != null,
+            onRemoveAllOtherDevices = removeAllOtherDevices
+          )
+          is RotateAuthKeyUIOrigin.Settings -> RotateAuthKeyScreens.DeactivateDevicesFromSettingsChoice(
+            onBack = origin.onBack,
+            removeAllOtherDevicesEnabled = uiState.newAppAuthKeys != null,
+            onRemoveAllOtherDevices = removeAllOtherDevices
+          )
+        }.asRootScreen()
+      }
+      is State.ObtainingHwProofOfPossession -> waitingOnProofOfPossession(props, uiState) {
+        state = it
+      }
       is State.RotatingAuthKeys -> {
-        when (val rotationState = rotateAuthKeys(props, uiState)) {
-          // TODO(BRK-887): Handle failure screen correctly
-          is AuthKeyRotationRequestState.FailedRotation -> FailureScreen(
-            origin = props.origin,
-            onSelected = {
-              // TODO(BKR-818): This can lead to users losing access when recovering from the cloud.
-              rotationState.clearAttempt()
-              state = State.ReturningFinalKeybox(props.keybox)
-            }
-          )
-          is AuthKeyRotationRequestState.FinishedRotation -> ConfirmationScreen(
-            origin = props.origin,
-            onSelected = {
-              // TODO(BKR-818): This can lead to users losing access when recovering from the cloud.
-              rotationState.clearAttempt()
-              state = State.ReturningFinalKeybox(rotationState.rotatedKeybox)
-            }
-          )
-          AuthKeyRotationRequestState.Rotating -> LoadingScreen(
-            message = "Removing all devices",
-            id = when (props.origin) {
-              is RotateAuthKeyUIOrigin.CloudRestore -> AuthEventTrackerScreenId.ROTATING_AUTH_AFTER_CLOUD_RESTORE
-              is RotateAuthKeyUIOrigin.Settings -> AuthEventTrackerScreenId.ROTATING_AUTH_FROM_SETTINGS
-            }
-          )
-        }
-      }
-      is State.ReturningFinalKeybox -> {
-        LaunchedEffect("rotating-keybox") {
-          when (val origin = props.origin) {
-            is RotateAuthKeyUIOrigin.CloudRestore -> origin.onComplete(uiState.keybox)
-            is RotateAuthKeyUIOrigin.Settings -> origin.onBack()
-          }
+        LaunchedEffect("rotate auth keys") {
+          state = getAuthKeyRotationResult(uiState, props)
         }
 
-        LoadingScreen(
-          message = "",
-          id = when (props.origin) {
-            is RotateAuthKeyUIOrigin.CloudRestore -> AuthEventTrackerScreenId.SETTING_ACTIVE_KEYBOX_AFTER_CLOUD_RESTORE
-            is RotateAuthKeyUIOrigin.Settings -> AuthEventTrackerScreenId.SETTING_ACTIVE_KEYBOX_FROM_SETTINGS
+        RotateAuthKeyScreens.RotatingKeys(
+          context = evenTrackerScreenIdContext
+        ).asRootScreen()
+      }
+      is State.AcknowledgingSuccess -> RotateAuthKeyScreens.Confirmation(
+        context = evenTrackerScreenIdContext,
+        onSelected = {
+          uiState.onAcknowledge()
+          if (props.origin is RotateAuthKeyUIOrigin.Settings) {
+            props.origin.onBack()
           }
+        }
+      ).asRootScreen()
+      is State.PresentingUnexpectedFailure -> RotateAuthKeyScreens.UnexpectedFailure(
+        context = evenTrackerScreenIdContext,
+        onRetry = {
+          state = State.RotatingAuthKeys(uiState.retryRequest)
+        },
+        onContactSupport = {
+          state = State.PresentingInAppBrowserCustomerSupportUi(uiState.retryRequest)
+        }
+      ).asRootScreen()
+      is State.PresentingRecoverableFailure -> RotateAuthKeyScreens.AcceptableFailure(
+        context = evenTrackerScreenIdContext,
+        onRetry = { state = State.ObtainingHwProofOfPossession(uiState.newAppAuthKeys) },
+        onAcknowledge = {
+          uiState.onAcknowledge()
+          if (props.origin is RotateAuthKeyUIOrigin.Settings) {
+            props.origin.onBack()
+          }
+        }
+      ).asRootScreen()
+      is State.PresentingAccountLockedFailure -> RotateAuthKeyScreens.AccountLockedFailure(
+        context = evenTrackerScreenIdContext,
+        onRetry = {
+          state = State.RotatingAuthKeys(uiState.retryRequest)
+        },
+        onContactSupport = {
+          state = State.PresentingInAppBrowserCustomerSupportUi(uiState.retryRequest)
+        }
+      ).asRootScreen()
+      State.DismissingProposedAttempt -> {
+        LaunchedEffect("dismiss proposed attempt") {
+          authKeyRotationManager.dismissProposedRotationAttempt()
+        }
+
+        RotateAuthKeyScreens.DismissingProposal(evenTrackerScreenIdContext).asRootScreen()
+      }
+    }
+  }
+
+  private suspend fun getAuthKeyRotationResult(
+    uiState: State.RotatingAuthKeys,
+    props: RotateAuthKeyUIStateMachineProps,
+  ) = authKeyRotationManager.startOrResumeAuthKeyRotation(
+    request = uiState.request,
+    account = props.account
+  ).mapBoth(
+    success = { success ->
+      log(LogLevel.Debug) { "Successfully rotated auth keys" }
+      State.AcknowledgingSuccess(
+        onAcknowledge = success.onAcknowledge
+      )
+    },
+    failure = { failure ->
+      log(LogLevel.Warn) { "Failed to rotate auth keys" }
+      when (failure) {
+        is AuthKeyRotationFailure.Acceptable -> State.PresentingRecoverableFailure(
+          newAppAuthKeys = uiState.request.newKeys,
+          onAcknowledge = failure.onAcknowledge
+        )
+        is AuthKeyRotationFailure.Unexpected -> State.PresentingUnexpectedFailure(
+          retryRequest = failure.retryRequest
+        )
+        is AuthKeyRotationFailure.AccountLocked -> State.PresentingAccountLockedFailure(
+          retryRequest = failure.retryRequest
         )
       }
     }
-  }
+  )
 
-  @Composable
-  private fun rotateAuthKeys(
-    props: RotateAuthKeyUIStateMachineProps,
-    uiState: State.RotatingAuthKeys,
-  ): AuthKeyRotationRequestState {
-    /**
-     * We could just do `props.origin is Settings`,
-     * but since this is important, we should make sure if a new origin is added,
-     * we don't forget to think about whether we should rotate or not.
-     */
-    val shouldRotateActiveKeybox = when (props.origin) {
-      // When restoring, we don't have an active keybox to rotate keys in.
-      is RotateAuthKeyUIOrigin.CloudRestore -> false
-      // And we don't want to add more logic to settings that'd run the key rotating.
-      is RotateAuthKeyUIOrigin.Settings -> true
-    }
-    return authKeyRotationManager.startOrResumeAuthKeyRotation(
-      hwFactorProofOfPossession = uiState.hwFactorProofOfPossession,
-      keyboxToRotate = props.keybox,
-      rotateActiveKeybox = shouldRotateActiveKeybox,
-      hwAuthPublicKey = uiState.hwAuthPublicKey,
-      hwSignedAccountId = uiState.signedAccountId
-    )
-  }
+  private suspend fun generateAppAuthKeys(): Result<AppAuthPublicKeys, Throwable> =
+    binding {
+      with(appKeysGenerator) {
+        val appGlobalAuthPublicKey = generateGlobalAuthKey().bind()
+        val appRecoveryAuthPublicKey = generateRecoveryAuthKey().bind()
+        AppAuthPublicKeys(
+          appGlobalAuthPublicKey,
+          appRecoveryAuthPublicKey,
+          appGlobalAuthKeyHwSignature = null
+        )
+      }
+    }.logFailure { "Error generating new app auth keys" }
 
   @Composable
   private fun waitingOnProofOfPossession(
     props: RotateAuthKeyUIStateMachineProps,
+    state: State.ObtainingHwProofOfPossession,
     setState: (State) -> Unit,
   ) = proofOfPossessionNfcStateMachine.model(
     props = ProofOfPossessionNfcProps(
       request = Request.HwKeyProofAndAccountSignature(
-        accountId = props.keybox.fullAccountId,
-        onSuccess = { signedAccountId, hwAuthPublicKey, hwFactorProofOfPossession ->
+        appAuthGlobalKey = state.newAppAuthKeys.appGlobalAuthPublicKey,
+        accountId = props.account.keybox.fullAccountId,
+        onSuccess = {
+            signedAccountId,
+            hwAuthPublicKey,
+            hwFactorProofOfPossession,
+            appGlobalAuthKeyHwSignature,
+          ->
           setState(
             State.RotatingAuthKeys(
-              hwAuthPublicKey = hwAuthPublicKey,
-              hwFactorProofOfPossession = hwFactorProofOfPossession,
-              signedAccountId = signedAccountId
+              request = AuthKeyRotationRequest.Start(
+                newKeys = state.newAppAuthKeys.copy(
+                  appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
+                ),
+                hwFactorProofOfPossession = hwFactorProofOfPossession,
+                hwAuthPublicKey = hwAuthPublicKey,
+                hwSignedAccountId = signedAccountId
+              )
             )
           )
         }
       ),
-      fullAccountId = props.keybox.fullAccountId,
-      keyboxConfig = props.keybox.config,
+      fullAccountId = props.account.keybox.fullAccountId,
+      fullAccountConfig = props.account.keybox.config,
       screenPresentationStyle = ScreenPresentationStyle.FullScreen,
-      appAuthKey = props.keybox.activeKeyBundle.authKey,
-      onBack = { setState(State.WaitingOnChoiceState) }
+      appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
+      onBack = { setState(State.WaitingOnChoiceState(newAppAuthKeys = state.newAppAuthKeys)) }
     )
   )
 
   private sealed interface State {
     // We're waiting on the customer to choose an option.
-    data object WaitingOnChoiceState : State
-
-    // We're returning the final keybox to our parent, who will set it as active
-    data class ReturningFinalKeybox(
-      val keybox: Keybox,
+    data class WaitingOnChoiceState(
+      val newAppAuthKeys: AppAuthPublicKeys?,
     ) : State
 
     // We've passed control to the proof of possession state machine and are awaiting it's completion
-    data object ObtainingHwProofOfPossession : State
+    data class ObtainingHwProofOfPossession(
+      val newAppAuthKeys: AppAuthPublicKeys,
+    ) : State
 
-    // We're performing the work to rotate the auth keys for the customer
-    data class RotatingAuthKeys(
-      val hwAuthPublicKey: HwAuthPublicKey,
-      val hwFactorProofOfPossession: HwFactorProofOfPossession,
-      val signedAccountId: String,
+    data class RotatingAuthKeys(val request: AuthKeyRotationRequest) : State
+
+    data class AcknowledgingSuccess(
+      val onAcknowledge: () -> Unit,
+    ) : State
+
+    data class PresentingUnexpectedFailure(
+      val retryRequest: AuthKeyRotationRequest,
+    ) : State
+
+    data class PresentingRecoverableFailure(
+      val newAppAuthKeys: AppAuthPublicKeys,
+      val onAcknowledge: () -> Unit,
+    ) : State
+
+    data class PresentingAccountLockedFailure(
+      val retryRequest: AuthKeyRotationRequest,
+    ) : State
+
+    data object DismissingProposedAttempt : State
+
+    data class PresentingInAppBrowserCustomerSupportUi(
+      val retryRequest: AuthKeyRotationRequest,
     ) : State
   }
 }
-
-private fun ConfirmationScreen(
-  origin: RotateAuthKeyUIOrigin,
-  onSelected: () -> Unit,
-) = FormBodyModel(
-  id = when (origin) {
-    is RotateAuthKeyUIOrigin.CloudRestore -> AuthEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH_AFTER_CLOUD_RESTORE
-    is RotateAuthKeyUIOrigin.Settings -> AuthEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH_FROM_SETTINGS
-  },
-  onBack = null,
-  toolbar = ToolbarModel(),
-  header =
-    FormHeaderModel(
-      icon = Icon.LargeIconCheckFilled,
-      headline = "Removed all devices",
-      subline = "We’ve successfully removed all other devices that were using your Bitkey wallet."
-    ),
-  primaryButton =
-    ButtonModel(
-      "Done",
-      treatment = ButtonModel.Treatment.Primary,
-      size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick(onSelected)
-    )
-).asRootScreen()
-
-private fun FailureScreen(
-  origin: RotateAuthKeyUIOrigin,
-  onSelected: () -> Unit,
-) = FormBodyModel(
-  id = when (origin) {
-    is RotateAuthKeyUIOrigin.CloudRestore -> AuthEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_AFTER_CLOUD_BACKUP
-    is RotateAuthKeyUIOrigin.Settings -> AuthEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_FROM_SETTINGS
-  },
-  onBack = null,
-  toolbar = ToolbarModel(),
-  header =
-    FormHeaderModel(
-      icon = Icon.LargeIconCheckFilled,
-      headline = "Something went wrong",
-      subline = "We weren't able to remove all devices associated with your Bitkey wallet. " +
-        "Please try again or you can cancel and remove devices at a later time within your Bitkey application settings."
-    ),
-  primaryButton =
-    ButtonModel(
-      "Try again",
-      treatment = ButtonModel.Treatment.Primary,
-      size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick(onSelected)
-    ),
-  secondaryButton =
-    ButtonModel(
-      "Cancel",
-      treatment = ButtonModel.Treatment.Secondary,
-      size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick(onSelected)
-    )
-).asRootScreen()
-
-private fun LoadingScreen(
-  message: String,
-  id: AuthEventTrackerScreenId,
-) = LoadingBodyModel(
-  message = message,
-  id = id
-).asRootScreen()
-
-private fun DeactivateDevicesAfterRestoreChoiceScreenModel(
-  onNotRightNow: () -> Unit,
-  onRemoveAllOtherDevices: () -> Unit,
-) = FormBodyModel(
-  id = AuthEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH_AFTER_CLOUD_RESTORE,
-  onBack = null,
-  toolbar = ToolbarModel(),
-  header =
-    FormHeaderModel(
-      headline = "Remove all other devices",
-      subline = "If you've restored a wallet, you might still be signed into Bitkey on another device. " +
-        "You can remove Bitkey from other devices now, or choose to do this later from settings."
-    ),
-  secondaryButton =
-    ButtonModel(
-      "Remove all other devices",
-      treatment = ButtonModel.Treatment.Black,
-      size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick(onRemoveAllOtherDevices)
-    ),
-  primaryButton =
-    ButtonModel(
-      "Not right now",
-      treatment = ButtonModel.Treatment.Secondary,
-      size = ButtonModel.Size.Footer,
-      onClick = Click.standardClick(onNotRightNow)
-    )
-).asRootScreen()
-
-private fun DeactivateDevicesFromSettingsChoiceScreenModel(
-  onBack: () -> Unit,
-  onRemoveAllOtherDevices: () -> Unit,
-) = FormBodyModel(
-  id = AuthEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH_FROM_SETTINGS,
-  onBack = null,
-  toolbar = ToolbarModel(
-    leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = onBack)
-  ),
-  header =
-    FormHeaderModel(
-      headline = "Remove all other devices",
-      subline = "If you’ve restored a wallet, your Bitkey might still be connected to another mobile device. " +
-        "You can remove Bitkey from other mobile devices while remaining to use this one."
-    ),
-  primaryButton = ButtonModel(
-    "Remove all other devices",
-    treatment = ButtonModel.Treatment.Black,
-    size = ButtonModel.Size.Footer,
-    onClick = Click.standardClick(onRemoveAllOtherDevices)
-  )
-).asRootScreen()

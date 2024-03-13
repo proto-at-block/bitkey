@@ -1,18 +1,17 @@
 package build.wallet.bitkey.account
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.f8e.F8eEnvironment
+import kotlin.time.Duration
 
 /**
  * Defines environment configuration for [FullAccount]s.
- *
- * Note that [KeyboxConfig] type is equivalent to [FullAccountConfig]. The [KeyboxConfig] is what
- * we used to have primarily before we had different account types. Using [FullAccountConfig] is
- * preferred. Long term goal is to get rid of [KeyboxConfig] entirely in favor of
- * [FullAccountConfig] (TODO: BKR-490).
- *
+ * @property bitcoinNetworkType network type to use for the account
+ * @property f8eEnvironment - describes a f8e environment used for the account.
+ * @property isTestAccount is this a test account
+ * @property isUsingSocRecFakes if we should use real or fake socrec service implementation
  * @property isHardwareFake determines if real or fake hardware should be used for this account.
+ * @property delayNotifyDuration - how long to delay during a recovery
  */
 data class FullAccountConfig(
   override val bitcoinNetworkType: BitcoinNetworkType,
@@ -20,18 +19,5 @@ data class FullAccountConfig(
   override val isTestAccount: Boolean,
   override val isUsingSocRecFakes: Boolean,
   val isHardwareFake: Boolean,
-) : AccountConfig {
-  companion object {
-    /**
-     * Convenience function to create [FullAccountConfig] based on provided [KeyboxConfig].
-     */
-    fun fromKeyboxConfig(config: KeyboxConfig) =
-      FullAccountConfig(
-        bitcoinNetworkType = config.networkType,
-        f8eEnvironment = config.f8eEnvironment,
-        isTestAccount = config.isTestAccount,
-        isUsingSocRecFakes = config.isUsingSocRecFakes,
-        isHardwareFake = config.isHardwareFake
-      )
-  }
-}
+  val delayNotifyDuration: Duration? = null,
+) : AccountConfig

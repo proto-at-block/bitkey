@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.animation:animation-android",
+    "components": [
+        {
+            "version": "1.5.4",
+            "variants": [
+                {
+                    "artifacts": {
+                        "animation-release.aar": "428538775ea55529b953fbb7a6000ccfddc89722c69c7a30431a630fa2fe74f2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

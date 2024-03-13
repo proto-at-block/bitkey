@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.annotation:annotation-jvm",
+    "components": [
+        {
+            "version": "1.6.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotation-jvm-1.6.0.jar": "60b10b5ef5769b79570172e015b8159405c92f034ba88b9391a977589c9deb4e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

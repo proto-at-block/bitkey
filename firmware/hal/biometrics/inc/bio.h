@@ -58,6 +58,4 @@ bool bio_sensor_is_secured(bool* secured);
 bool bio_sensor_is_otp_locked(bool* locked);
 bool bio_image_capture_test(uint8_t** image_out, uint32_t* image_size_out);
 
-void bio_storage_remove(void);
-
 void bio_wipe_state(void);

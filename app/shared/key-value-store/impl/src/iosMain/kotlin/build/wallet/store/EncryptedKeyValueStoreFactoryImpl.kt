@@ -1,4 +1,7 @@
-@file:OptIn(ExperimentalSettingsApi::class, ExperimentalSettingsImplementation::class)
+@file:OptIn(
+  ExperimentalSettingsApi::class, ExperimentalSettingsImplementation::class,
+  ExperimentalForeignApi::class
+)
 
 package build.wallet.store
 
@@ -9,8 +12,13 @@ import com.russhwolf.settings.ExperimentalSettingsImplementation
 import com.russhwolf.settings.KeychainSettings
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.coroutines.toSuspendSettings
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import platform.Foundation.CFBridgingRetain
+import platform.Security.kSecAttrAccessible
+import platform.Security.kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+import platform.Security.kSecAttrService
 
 /**
  * iOS implementation of [EncryptedKeyValueStoreFactory] baked by Apple's Keychain.
@@ -25,7 +33,10 @@ actual class EncryptedKeyValueStoreFactoryImpl actual constructor(
   actual override suspend fun getOrCreate(storeName: String): SuspendSettings {
     return lock.withLock {
       settings.getOrPut(storeName) {
-        KeychainSettings(service = storeName).toSuspendSettings()
+        KeychainSettings(
+          kSecAttrService to CFBridgingRetain(storeName),
+          kSecAttrAccessible to kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        ).toSuspendSettings()
       }
     }
   }

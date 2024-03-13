@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-multiplatform-plugin-gradle",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-multiplatform-plugin-gradle-5.8.0.jar": "bccfa9dbc7f5dc4ca5fc1c876da43fb31762e3dba06d960a4adbac7c200cda35"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

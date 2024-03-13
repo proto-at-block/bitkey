@@ -4,7 +4,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.test
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -26,13 +26,13 @@ class EducationUiStateMachineImplTests : FunSpec({
           ButtonModel(
             "primaryButton",
             size = ButtonModel.Size.Footer,
-            onClick = Click.StandardClick { }
+            onClick = StandardClick {}
           ),
         secondaryButton =
           ButtonModel(
             "secondaryButton",
             size = ButtonModel.Size.Footer,
-            onClick = Click.StandardClick { }
+            onClick = StandardClick {}
           )
       ),
       EducationItem(

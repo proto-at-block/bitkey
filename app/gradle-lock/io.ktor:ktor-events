@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.ktor:ktor-events",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-events-metadata-2.3.8.jar": "a9f4e2bd6ec02ebb79a6b39c104afefa4dbcd4803bb9fad5d9ed57093457f06d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

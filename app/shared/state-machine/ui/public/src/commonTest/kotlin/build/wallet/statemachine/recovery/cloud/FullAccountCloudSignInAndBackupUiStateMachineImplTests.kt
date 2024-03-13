@@ -1,5 +1,6 @@
 package build.wallet.statemachine.recovery.cloud
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
@@ -23,15 +24,13 @@ import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGeneratorFake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepositoryFake
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.setFlagValue
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.recovery.emergencyaccess.EmergencyAccessFeatureFlag
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachineImpl
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -39,6 +38,9 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.matchers.shouldBeLoading
+import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
 import build.wallet.testing.shouldBeOk
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.Err
@@ -59,7 +61,6 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       TrustedContactFake1,
       TrustedContactFake2
     )
-  val emergencyAccessFeatureFlag = EmergencyAccessFeatureFlag(FeatureFlagDaoMock())
 
   val stateMachine =
     FullAccountCloudSignInAndBackupUiStateMachineImpl(
@@ -77,8 +78,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       csekDao = CsekDaoFake(),
       inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
       emergencyAccessKitPdfGenerator = EmergencyAccessKitPdfGeneratorFake(),
-      emergencyAccessKitRepository = EmergencyAccessKitRepositoryFake(),
-      emergencyAccessFeatureFlag = emergencyAccessFeatureFlag
+      emergencyAccessKitRepository = EmergencyAccessKitRepositoryFake()
     )
 
   val onBackupSavedCalls = turbines.create<Unit>("backup saved")
@@ -97,7 +97,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       onBackupFailed = {
         onBackupFailedCalls += Unit
       },
-      presentationStyle = ScreenPresentationStyle.Root
+      presentationStyle = ScreenPresentationStyle.Root,
+      requireAuthRefreshForCloudBackup = false
     )
 
   suspend fun awaitStartCloudBackupEvent() {
@@ -108,9 +109,19 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_CLOUD_BACKUP_MISSING))
   }
 
+  suspend fun ReceiveTurbine<ScreenModel>.awaitLoadingScreens() {
+    awaitScreenWithBody<LoadingSuccessBodyModel>(
+      CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
+    ) {
+      state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+    }
+    awaitScreenWithBody<LoadingSuccessBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING) {
+      state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+    }
+  }
+
   afterTest {
     cloudBackupRepository.reset()
-    emergencyAccessFeatureFlag.setFlagValue(false)
   }
 
   test("show backup instructions by default") {
@@ -125,7 +136,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -133,10 +144,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
 
@@ -153,7 +161,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -161,16 +169,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
 
       // Error screen
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       onBackupFailedCalls.awaitItem()
@@ -183,7 +188,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -191,16 +196,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
 
       // Error screen
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       onBackupFailedCalls.awaitItem()
@@ -211,7 +213,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -231,7 +233,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -240,7 +242,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBody<FormBodyModel> { // failed to sign in
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -257,7 +259,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -266,7 +268,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBody<FormBodyModel> { // failed to sign in
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -274,10 +276,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
 
@@ -293,16 +292,16 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     stateMachine.test(props = props.copy(sealedCsek = null)) {
       // generating csek, loading button on save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBe(true)
+        primaryButton.shouldNotBeNull().shouldBeLoading()
       }
 
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        with(primaryButton.shouldNotBeNull()) {
-          primaryButton.shouldNotBeNull().isLoading.shouldBe(false)
-          primaryButton.shouldNotBeNull().treatment.shouldBe(ButtonModel.Treatment.Black)
-          onClick()
-        }
+        primaryButton
+          .shouldNotBeNull()
+          .shouldNotBeLoading()
+          .also { it.treatment.shouldBe(ButtonModel.Treatment.Black) }
+          .onClick()
       }
 
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<*>>()
@@ -314,12 +313,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     cloudBackupRepository.writeBackup(
       FullAccountIdMock,
       cloudAccount,
-      CloudBackupV2WithFullAccountMock
+      CloudBackupV2WithFullAccountMock,
+      requireAuthRefresh = true
     )
     stateMachine.test(props) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -327,10 +327,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
 
@@ -347,23 +344,24 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     cloudBackupRepository.writeBackup(
       FullAccountIdMock,
       cloudAccount,
-      CloudBackupV2WithFullAccountMock
+      CloudBackupV2WithFullAccountMock,
+      requireAuthRefresh = true
     )
     val onExistingCloudBackupFoundCalls =
       turbines.create<CloudBackup>(
         "on existing cloud backup found"
       )
 
-    val props =
+    val adjustedProps =
       props.copy(onExistingCloudBackupFound = { cloudBackup, proceed ->
         onExistingCloudBackupFoundCalls += cloudBackup
         proceed()
       })
 
-    stateMachine.test(props) {
+    stateMachine.test(adjustedProps) {
       // save backup instructions
       awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
@@ -371,10 +369,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
       onExistingCloudBackupFoundCalls.awaitItem()
@@ -397,10 +392,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
         awaitStartCloudBackupEvent()
       }
 
-      awaitScreenWithBody<LoadingBodyModel>(
-        CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
-      )
-      awaitScreenWithBody<LoadingBodyModel>(CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING)
+      awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
 

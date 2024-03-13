@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.json:json",
+    "components": [
+        {
+            "version": "20180813",
+            "variants": [
+                {
+                    "artifacts": {
+                        "json-20180813.jar": "518080049ba83181914419d11a25d9bc9833a2d729b6a6e7469fa52851356da8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[app]"
+            ]
+        }
+    ]
+}

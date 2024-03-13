@@ -73,7 +73,7 @@ class SomeoneElseIsRecoveringUiStateMachineImpl(
                 }
               ),
             fullAccountId = props.fullAccountId,
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             screenPresentationStyle = ModalFullScreen,
             onBack = props.data.rollback
           )

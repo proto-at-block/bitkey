@@ -62,7 +62,7 @@ data class FullCreateAccountAuthKeys(
   constructor(
     app: AppGlobalAuthPublicKey,
     hardware: HwAuthPublicKey,
-    recovery: AppRecoveryAuthPublicKey?,
+    recovery: AppRecoveryAuthPublicKey,
   ) : this(
     app = app.pubKey.value,
     hardware = hardware.pubKey.value,

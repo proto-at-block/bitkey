@@ -1,3 +1,4 @@
+import build.wallet.gradle.dependencylocking.util.ifMatches
 import build.wallet.gradle.logic.extensions.targets
 
 plugins {
@@ -57,5 +58,25 @@ kotlin {
     }
 
     jvmTest {}
+  }
+}
+
+customDependencyLocking {
+  sqldelight.databases.configureEach {
+    val databaseName = name
+
+    configurations.configureEach {
+      ifMatches {
+        nameIs("${databaseName}DialectClasspath")
+      } then {
+        dependencyLockingGroup = dependencyLockingGroups.maybeCreate("SQLDelight-DialectClasspath")
+      }
+
+      ifMatches {
+        nameIs("${databaseName}IntellijEnv", "${databaseName}MigrationEnv")
+      } then {
+        dependencyLockingGroup = dependencyLockingGroups.maybeCreate("SQLDelight-InternalClasspath")
+      }
+    }
   }
 }

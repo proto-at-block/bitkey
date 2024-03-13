@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.ow2.asm:asm-commons",
+    "components": [
+        {
+            "version": "9.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "asm-commons-9.2.jar": "be4ce53138a238bb522cd781cf91f3ba5ce2f6ca93ec62d46a162a127225e0a6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

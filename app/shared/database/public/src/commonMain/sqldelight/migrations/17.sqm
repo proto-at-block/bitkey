@@ -1,8 +1,0 @@
-import build.wallet.money.display.BitcoinDisplayUnit;
-
-CREATE TABLE bitcoinDisplayPreferenceEntity(
-  rowId         INTEGER NOT NULL PRIMARY KEY,
-  displayUnit   TEXT AS BitcoinDisplayUnit NOT NULL
-);
-
-PRAGMA foreign_key_check;

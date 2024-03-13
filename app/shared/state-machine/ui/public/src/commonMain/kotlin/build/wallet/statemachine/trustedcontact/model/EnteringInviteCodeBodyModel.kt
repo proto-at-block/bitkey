@@ -35,7 +35,9 @@ fun EnteringInviteCodeBodyModel(
           TextFieldModel(
             value = value,
             placeholderText = "Invite Code",
-            onValueChange = { newValue, _ -> onValueChange(newValue) },
+            onValueChange = { newValue, _ ->
+              onValueChange(newValue.replace("-", "").chunked(4).joinToString("-"))
+            },
             keyboardType = TextFieldModel.KeyboardType.Default,
             onDone =
               if (primaryButton.isEnabled) {

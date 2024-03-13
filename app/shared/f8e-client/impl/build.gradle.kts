@@ -22,6 +22,7 @@ kotlin {
         implementation(libs.kmp.ktor.client.core)
         implementation(libs.kmp.ktor.client.json)
         implementation(projects.shared.datadogPublic)
+        implementation(projects.shared.serializationPublic)
         // For SocialRecoveryServiceFake
         implementation(projects.shared.ktorTestFake)
       }

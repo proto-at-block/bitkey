@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.sqldelight:coroutines-extensions-iosarm64",
+    "components": [
+        {
+            "version": "2.0.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "coroutines-extensions.klib": "6f3cdf03d1c16ea5201d89753eb2c2db2487237cd979c03f9621355db7a8124a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "sqldelight-coroutines-extensions-iosarm64-2.0.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

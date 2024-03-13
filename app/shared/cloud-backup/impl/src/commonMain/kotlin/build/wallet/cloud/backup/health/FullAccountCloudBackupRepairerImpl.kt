@@ -84,7 +84,7 @@ class FullAccountCloudBackupRepairerImpl(
   ) {
     // Attempt to re-upload backup
     cloudBackupRepository
-      .writeBackup(account.accountId, cloudStoreAccount, localBackup)
+      .writeBackup(account.accountId, cloudStoreAccount, localBackup, true)
       .onSuccess {
         log { "Successfully uploaded backup" }
       }
@@ -99,7 +99,7 @@ class FullAccountCloudBackupRepairerImpl(
   ) {
     val sealedCsek = when (localBackup) {
       is CloudBackupV2 ->
-        localBackup.fullAccountFields?.hwEncryptionKeyCiphertext
+        localBackup.fullAccountFields?.sealedHwEncryptionKey
           // The backup should be for full account, but to be safe.
           ?: return
     }

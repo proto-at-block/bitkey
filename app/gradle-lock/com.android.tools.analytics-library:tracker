@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.analytics-library:tracker",
+    "components": [
+        {
+            "version": "31.1.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "tracker-31.1.1.jar": "02cc932f48012d8feae1d09f949697c6e2154e821d6d4649e1e39dc911c46977"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

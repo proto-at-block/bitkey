@@ -1,10 +1,3 @@
-//
-//  FormMainContentModelDataListExtensions.swift
-//  Wallet
-//
-//  Created by Jurvis Tan on 1/30/24.
-//
-
 import Shared
 
 // Convenience initializer that mirrors default parameter values in Kotlin.

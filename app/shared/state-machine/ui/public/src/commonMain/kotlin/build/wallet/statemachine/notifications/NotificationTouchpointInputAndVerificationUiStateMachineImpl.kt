@@ -26,11 +26,10 @@ import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.input.DataInputStyle.Edit
 import build.wallet.statemachine.core.input.DataInputStyle.Enter
 import build.wallet.statemachine.core.input.EmailInputUiProps
@@ -42,6 +41,7 @@ import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCod
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachine
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Onboarding
+import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Recovery
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Settings
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState
@@ -55,19 +55,21 @@ import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVer
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.VerifyingProofOfHwPossessionUiState
 import build.wallet.statemachine.notifications.NotificationTouchpointSubmissionState.None
 import build.wallet.statemachine.notifications.NotificationTouchpointSubmissionState.SendingTouchpointToServer
+import build.wallet.time.Delayer
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 
 class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
+  private val delayer: Delayer,
   private val emailInputUiStateMachine: EmailInputUiStateMachine,
   private val notificationTouchpointDao: NotificationTouchpointDao,
   private val notificationTouchpointService: NotificationTouchpointService,
   private val phoneNumberInputUiStateMachine: PhoneNumberInputUiStateMachine,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val verificationCodeInputStateMachine: VerificationCodeInputStateMachine,
+  private val uiErrorHintSubmitter: UiErrorHintSubmitter,
 ) : NotificationTouchpointInputAndVerificationUiStateMachine {
   @Composable
   override fun model(props: NotificationTouchpointInputAndVerificationProps): ScreenModel {
@@ -81,6 +83,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
           props = props,
           state = state,
           onSubmissionToServerSuccess = { phoneNumber ->
+            if (props.touchpointType == PhoneNumber) {
+              uiErrorHintSubmitter.phoneNone()
+            }
             uiState =
               EnteringVerificationCodeUiState(
                 touchpointToVerify = phoneNumber
@@ -126,9 +131,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         ).asModalScreen()
 
       is ActivationApprovalInstructionsUiState ->
-        ActivationApprovalInstructionsFormScreenModel(
+        NotificationOperationApprovalInstructionsFormScreenModel(
           onExit = props.onClose,
-          touchpointDisplayString = state.touchpointToActivate.formattedDisplayValue,
+          operationDescriptiton = operationDescription(state.touchpointToActivate.formattedDisplayValue),
           isApproveButtonLoading = false,
           errorBottomSheetState = ErrorBottomSheetState.Hidden,
           onApprove = {
@@ -203,16 +208,16 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         ProofOfPossessionNfcProps(
           request = Request.HwKeyProof(onSuccess),
           fullAccountId = props.fullAccountId,
-          keyboxConfig = props.keyboxConfig,
+          fullAccountConfig = props.fullAccountConfig,
           onBack = goToActivationInstructions,
           screenPresentationStyle = ScreenPresentationStyle.Modal,
           onTokenRefresh = {
             // Provide a screen model to show while the token is being refreshed.
             // We want this to be the same as [ActivationApprovalInstructionsUiState]
             // but with the button in a loading state
-            ActivationApprovalInstructionsFormScreenModel(
+            NotificationOperationApprovalInstructionsFormScreenModel(
               onExit = props.onClose,
-              touchpointDisplayString = state.touchpointToActivate.formattedDisplayValue,
+              operationDescriptiton = operationDescription(state.touchpointToActivate.formattedDisplayValue),
               isApproveButtonLoading = true,
               errorBottomSheetState = ErrorBottomSheetState.Hidden,
               onApprove = {
@@ -224,9 +229,9 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
             // Provide a screen model to show if the token refresh results in an error.
             // We want this to be the same as [ActivationApprovalInstructionsUiState]
             // but with the error bottom sheet showing
-            ActivationApprovalInstructionsFormScreenModel(
+            NotificationOperationApprovalInstructionsFormScreenModel(
               onExit = props.onClose,
-              touchpointDisplayString = state.touchpointToActivate.formattedDisplayValue,
+              operationDescriptiton = operationDescription(state.touchpointToActivate.formattedDisplayValue),
               isApproveButtonLoading = false,
               errorBottomSheetState =
                 ErrorBottomSheetState.Showing(
@@ -284,6 +289,17 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         )
     }
 
+    // Including this call directly in the onError lambda for the phoneNumberInputUiStateMachine
+    // causes a recomposition for unknown reasons. Putting the specific call in a `remember`
+    // lambda prevents the recomposition. Because it's an injected property, this should cause
+    // no behavior differences.
+    val phoneNotAvailable: (() -> Unit) =
+      remember(uiErrorHintSubmitter) {
+        {
+          uiErrorHintSubmitter.phoneNotAvailable()
+        }
+      }
+
     // Return model
     return when (props.touchpointType) {
       PhoneNumber -> {
@@ -292,6 +308,35 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
             PhoneNumberInputUiProps(
               dataInputStyle = props.entryPoint.dataInputStyle(),
               prefillValue = (state.touchpointPrefill as? PhoneNumberTouchpoint)?.value,
+              subline = if (props.entryPoint is Recovery) {
+                "We’ll only use this phone number to notify you of wallet recovery attempts and privacy updates, nothing else."
+              } else {
+                null
+              },
+              primaryButtonText =
+                when (props.entryPoint) {
+                  is Onboarding -> "Skip for Now"
+                  is Recovery -> "Use a different number"
+                  is Settings -> "Got it"
+                },
+              primaryButtonOnClick =
+                when (props.entryPoint) {
+                  is Onboarding -> props.entryPoint.onSkip
+                  is Recovery -> null
+                  is Settings -> null
+                },
+              secondaryButtonText =
+                when (props.entryPoint) {
+                  is Onboarding -> "Use Different Country Number"
+                  is Recovery -> "Skip"
+                  is Settings -> null
+                },
+              secondaryButtonOnClick =
+                when (props.entryPoint) {
+                  is Onboarding -> null
+                  is Recovery -> props.entryPoint.onSkip
+                  is Settings -> null
+                },
               onClose = props.onClose,
               onSubmitPhoneNumber = { phoneNumber, onError ->
                 onSubmitTouchpoint(
@@ -300,14 +345,14 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
                       touchpointId = "",
                       value = phoneNumber
                     ),
-                  onError = onError
+                  onError = { error ->
+                    if (f8toErrorCode(error) == AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE) {
+                      phoneNotAvailable()
+                    }
+                    onError(error)
+                  }
                 )
               },
-              onSkip =
-                when (props.entryPoint) {
-                  is Onboarding -> props.entryPoint.onSkip
-                  else -> null
-                },
               skipBottomSheetProvider =
                 when (props.entryPoint) {
                   is Onboarding -> props.entryPoint.skipBottomSheetProvider
@@ -323,6 +368,11 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
             EmailInputUiProps(
               dataInputStyle = props.entryPoint.dataInputStyle(),
               previousEmail = (state.touchpointPrefill as? EmailTouchpoint)?.value,
+              subline = if (props.entryPoint is Recovery) {
+                "We’ll only use this email to notify you of wallet recovery attempts and privacy updates, nothing else."
+              } else {
+                null
+              },
               onClose = props.onClose,
               skipBottomSheetProvider =
                 when (props.entryPoint) {
@@ -414,7 +464,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
     LaunchedEffect("send-verification-code", state) {
       notificationTouchpointService
         .verifyTouchpoint(
-          f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           fullAccountId = props.fullAccountId,
           touchpointId = state.touchpointToVerify.touchpointId,
           verificationCode = state.verificationCode
@@ -425,7 +475,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
           // request to the server directly. Otherwise, we need the customer to perform a HW tap
           // to get the proof of possession, so go to the activation instructions for that.
           when (props.entryPoint) {
-            is Onboarding ->
+            is Onboarding, is Recovery ->
               setState(
                 SendingActivationToServerUiState(
                   touchpointToActivate = state.touchpointToVerify,
@@ -452,13 +502,13 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
     }
 
     // Return model
-    return LoadingBodyModel(
-      style = LoadingBodyModel.Style.Implicit,
+    return LoadingSuccessBodyModel(
       id =
         when (props.touchpointType) {
           Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_CODE_TO_SERVER
           PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_SENDING_CODE_TO_SERVER
-        }
+        },
+      state = LoadingSuccessBodyModel.State.Loading
     )
   }
 
@@ -528,7 +578,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
     LaunchedEffect("send-activation", state) {
       notificationTouchpointService
         .activateTouchpoint(
-          f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           fullAccountId = props.fullAccountId,
           touchpointId = state.touchpointToActivate.touchpointId,
           hwFactorProofOfPossession = state.hwFactorProofOfPossession
@@ -541,13 +591,13 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
     }
 
     // Return model
-    return LoadingBodyModel(
-      style = LoadingBodyModel.Style.Implicit,
+    return LoadingSuccessBodyModel(
       id =
         when (props.touchpointType) {
           Email -> NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_ACTIVATION_TO_SERVER
           PhoneNumber -> NotificationsEventTrackerScreenId.SMS_INPUT_SENDING_ACTIVATION_TO_SERVER
-        }
+        },
+      state = LoadingSuccessBodyModel.State.Loading
     )
   }
 
@@ -576,25 +626,25 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   ): BodyModel {
     // Side effect
     LaunchedEffect("end-flow-after-delay") {
-      delay(2.seconds)
-      props.onClose()
+      delayer.delay(3.seconds)
+      props.onSuccess()
     }
 
     // Return model
-    return SuccessBodyModel(
+    return LoadingSuccessBodyModel(
       id =
         when (props.touchpointType) {
           Email -> NotificationsEventTrackerScreenId.NOTIFICATIONS_HW_APPROVAL_SUCCESS_EMAIL
           PhoneNumber -> NotificationsEventTrackerScreenId.NOTIFICATIONS_HW_APPROVAL_SUCCESS_SMS
         },
-      // If the activation didn't require HW proof of possession, just show 'Verified' because
-      // that was the main action the customer was taking
-      title =
+      state = LoadingSuccessBodyModel.State.Success,
+      message =
+        // If the activation didn't require HW proof of possession, just show 'Verified' because
+        // that was the main action the customer was taking
         when (requiredHwProofOfPossession) {
           true -> "Approved"
           false -> "Verified"
-        },
-      style = SuccessBodyModel.Style.Implicit
+        }
     )
   }
 
@@ -609,7 +659,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       val result =
         notificationTouchpointService
           .addTouchpoint(
-            f8eEnvironment = props.keyboxConfig.f8eEnvironment,
+            f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
             fullAccountId = props.fullAccountId,
             touchpoint = touchpoint
           )
@@ -707,6 +757,9 @@ sealed interface NotificationTouchpointInputAndVerificationUiState {
   ) : NotificationTouchpointInputAndVerificationUiState
 }
 
+private fun operationDescription(formattedDisplayValue: String) =
+  "Notifications will be sent to $formattedDisplayValue"
+
 private sealed interface NotificationTouchpointSubmissionState {
   data object None : NotificationTouchpointSubmissionState
 
@@ -735,6 +788,14 @@ private fun NotificationTouchpoint.activationErrorTitle() =
 
 private fun EntryPoint.dataInputStyle() =
   when (this) {
-    is Onboarding -> Enter
+    is Onboarding, is Recovery -> Enter
     is Settings -> Edit
   }
+
+/**
+ * Helper function for getting the error code when country not allowed, or null. Moved here to clean
+ * up the code above.
+ */
+private fun f8toErrorCode(
+  er: F8eError<AddTouchpointClientErrorCode>,
+): AddTouchpointClientErrorCode? = (er as? F8eError.SpecificClientError)?.errorCode

@@ -88,10 +88,17 @@ private struct LabelView: View {
                     font: .body2Regular
                 )
             )
+            
+        case let model as LabelModelLinkSubstringModel:
+            ModeledText(
+                model: .linkedText(
+                    textContent: .linkedText(string: model.markdownString(), links: model.linkedSubstrings),
+                    font: FontTheme.body2Regular
+                )
+            )
 
         default:
             fatalError("Unexpected Kotlin LabelModel")
         }
     }
-
 }

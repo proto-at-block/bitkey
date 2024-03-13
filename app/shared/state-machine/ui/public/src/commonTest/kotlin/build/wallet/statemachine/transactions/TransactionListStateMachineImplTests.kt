@@ -42,7 +42,7 @@ class TransactionListStateMachineImplTests : FunSpec({
     stateMachine.test(createProps(transactionVisibility = All, transactions = txnListAllPending)) {
       awaitItem().shouldNotBeNull().should {
         it.size.shouldBe(1)
-        it.first().header.shouldBe("Pending")
+        it.first().header.shouldBe(null)
         it.first().items.size.shouldBe(10)
       }
     }
@@ -69,9 +69,9 @@ class TransactionListStateMachineImplTests : FunSpec({
     ) {
       awaitItem().shouldNotBeNull().should {
         it.size.shouldBe(2)
-        it[0].header.shouldBe("Pending")
+        it[0].header.shouldBe(null)
         it[0].items.size.shouldBe(10)
-        it[1].header.shouldBe("Confirmed")
+        it[1].header.shouldBe(null)
         it[1].items.size.shouldBe(10)
       }
     }
@@ -87,7 +87,7 @@ class TransactionListStateMachineImplTests : FunSpec({
     ) {
       awaitItem().shouldNotBeNull().should {
         it.size.shouldBe(1)
-        it.first().header.shouldBe("Pending")
+        it.first().header.shouldBe(null)
         it.first().items.size.shouldBe(numberOfVisibleTransactions)
       }
     }
@@ -118,7 +118,7 @@ class TransactionListStateMachineImplTests : FunSpec({
       stateMachine.test(createProps(transactionVisibility, transactions = this)) {
         awaitItem().shouldNotBeNull().should {
           it.size.shouldBe(1)
-          it[0].header.shouldBe("Pending")
+          it[0].header.shouldBe(null)
           it[0].items.size.shouldBe(1)
         }
       }
@@ -136,9 +136,9 @@ class TransactionListStateMachineImplTests : FunSpec({
       stateMachine.test(createProps(transactionVisibility, transactions = this)) {
         awaitItem().shouldNotBeNull().should {
           it.size.shouldBe(2)
-          it[0].header.shouldBe("Pending")
+          it[0].header.shouldBe(null)
           it[0].items.size.shouldBe(1)
-          it[1].header.shouldBe("Confirmed")
+          it[1].header.shouldBe(null)
           it[1].items.size.shouldBe(2)
         }
       }
@@ -157,9 +157,9 @@ class TransactionListStateMachineImplTests : FunSpec({
       stateMachine.test(createProps(transactionVisibility, transactions = this)) {
         awaitItem().shouldNotBeNull().should {
           it.size.shouldBe(2)
-          it[0].header.shouldBe("Pending")
+          it[0].header.shouldBe(null)
           it[0].items.size.shouldBe(1)
-          it[1].header.shouldBe("Confirmed")
+          it[1].header.shouldBe(null)
           it[1].items.size.shouldBe(2)
         }
       }
@@ -177,7 +177,7 @@ class TransactionListStateMachineImplTests : FunSpec({
       stateMachine.test(createProps(transactionVisibility, transactions = this)) {
         awaitItem().shouldNotBeNull().should {
           it.size.shouldBe(1)
-          it[0].header.shouldBe("Pending")
+          it[0].header.shouldBe(null)
           it[0].items.size.shouldBe(3)
         }
       }
@@ -196,7 +196,7 @@ class TransactionListStateMachineImplTests : FunSpec({
       stateMachine.test(createProps(transactionVisibility, transactions = this)) {
         awaitItem().shouldNotBeNull().should {
           it.size.shouldBe(1)
-          it[0].header.shouldBe("Pending")
+          it[0].header.shouldBe(null)
           it[0].items.size.shouldBe(3)
         }
       }

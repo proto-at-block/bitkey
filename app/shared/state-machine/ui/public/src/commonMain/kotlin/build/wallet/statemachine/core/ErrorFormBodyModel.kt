@@ -10,7 +10,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.statemachine.core.form.RenderContext.Sheet
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
@@ -50,7 +50,7 @@ fun ErrorFormBodyModel(
     ButtonModel(
       text = primaryButton.text,
       size = Footer,
-      onClick = Click.standardClick { primaryButton.onClick() }
+      onClick = StandardClick(primaryButton.onClick)
     ),
   renderContext = renderContext,
   secondaryButton =
@@ -59,7 +59,7 @@ fun ErrorFormBodyModel(
         text = secondary.text,
         treatment = Secondary,
         size = Footer,
-        onClick = Click.standardClick { secondary.onClick() },
+        onClick = StandardClick(secondary.onClick),
         leadingIcon = secondaryButtonIcon
       )
     },

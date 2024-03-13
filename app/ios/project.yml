@@ -20,12 +20,13 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.15.0
-        PROJECT_BUNDLE_VERSION: 1
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.50.0
+        PROJECT_BUNDLE_VERSION: 2
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         OTHER_CFLAGS: -DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=3 -DSQLCIPHER_CRYPTO_CC -DNDEBUG
+        REPRODUCIBLE_BUILD_VARIABLES_PATH: ${REPRODUCIBLE_BUILD}
       configs:
         Release:
           APP_ICON: AppIconRelease
@@ -92,7 +93,25 @@ targets:
           GCC_PREPROCESSOR_DEFINITIONS: SQLITE_HAS_CODEC=1
 
     dependencies:
-    - package: Dependencies
+    - package: bdk-swift
+      product: BitcoinDevKit
+    - package: bugsnag-cocoa
+      product: "Bugsnag"
+    - package: dd-sdk-ios
+      products:
+      - DatadogCore
+      - DatadogCrashReporting
+      - DatadogLogs
+      - DatadogRUM
+      - DatadogTrace
+    - package: lottie-spm
+      product: Lottie
+    - package: kmp-nativecoroutines
+      product: KMPNativeCoroutinesCombine
+    - package: PhoneNumberKit
+    - package: ZIPFoundation
+    - package: SVGView
+    - package: core
 
     sources:
     - Wallet/Sources
@@ -157,7 +176,13 @@ targets:
         - TAG
         com.apple.developer.ubiquity-kvstore-identifier: "$(AppIdentifierPrefix)$(CFBundleIdentifier)"
         com.apple.developer.icloud-container-identifiers: ["iCloud.$(CFBundleIdentifier)"]
+        com.apple.developer.ubiquity-container-identifiers: ["iCloud.$(CFBundleIdentifier)"]
+        com.apple.developer.icloud-services: ["CloudDocuments"]
     preBuildScripts:
+      - name: Verify SPM lock file
+        shell: /usr/bin/env bash
+        script: |
+          "$SRCROOT/../bin/just" fast-verify-ios-lockfile
       - name: Compile and embed Kotlin framework
         basedOnDependencyAnalysis: false
         shell: /usr/bin/env bash
@@ -168,7 +193,17 @@ targets:
             exit 0
           fi
           cd "$SRCROOT/.."
-          ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode --configuration-cache
+          REPRODUCIBLE_BUILD="$REPRODUCIBLE_BUILD_VARIABLES_PATH" ./bin/gradle :shared:xc-framework:embedAndSignAppleFrameworkForXcode --configuration-cache
+      - name: Embed reproducible-build-variables if exists
+        basedOnDependencyAnalysis: false
+        shell: /usr/bin/env bash
+        script: |
+          set -e
+
+          if [ -e "$REPRODUCIBLE_BUILD_VARIABLES_PATH" ]; then
+            cp "$REPRODUCIBLE_BUILD_VARIABLES_PATH" "$TARGET_BUILD_DIR"/"$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+          fi
+
     scheme:
       gatherCoverageData: true
       stopOnEveryMainThreadCheckerIssue: true
@@ -203,7 +238,8 @@ targets:
       path: Wallet/Tests/Info.plist
     dependencies:
     - target: Wallet
-    - package: SnapshotTesting
+    - package: swift-snapshot-testing
+      product: SnapshotTesting
     scheme:
       testTargets:
         - WalletSnapshotTests
@@ -217,10 +253,33 @@ settings:
     FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) "../shared/xc-framework/_build/xcode-frameworks/$(CONFIGURATION)/iphoneos$(SDK_VERSION)"
 
 packages:
-  Dependencies:
-    path: Dependencies/
-
-  SnapshotTesting:
+  core:
+    path: ../core
+  bdk-swift:
+    url: https://github.com/bitcoindevkit/bdk-swift
+    exactVersion: 0.31.0
+  bugsnag-cocoa:
+    url: https://github.com/bugsnag/bugsnag-cocoa
+    exactVersion: 6.28.0
+  dd-sdk-ios:
+    url: https://github.com/Datadog/dd-sdk-ios
+    exactVersion: 2.7.1
+  kmp-nativecoroutines:
+    url: https://github.com/rickclephas/kmp-nativecoroutines
+    exactVersion: 0.13.3
+  lottie-spm:
+    url: https://github.com/airbnb/lottie-spm
+    exactVersion: 4.3.4
+  PhoneNumberKit:
+    url: https://github.com/marmelroy/PhoneNumberKit
+    exactVersion: 3.7.6
+  SVGView:
+    url: https://github.com/exyte/SVGView.git
+    exactVersion: 1.0.6
+  swift-snapshot-testing:
     url: https://github.com/pointfreeco/swift-snapshot-testing
-    from: 1.15.1
+    exactVersion: 1.15.4
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation
+    exactVersion: 0.9.17
 

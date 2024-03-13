@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.kotest:kotest-assertions-json",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-assertions-json-metadata-5.8.0.jar": "594a4b5cb80281e4f32f223d993df399768045bcce508987780386f5257f8483"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

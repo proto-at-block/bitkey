@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-iid-interop",
+    "components": [
+        {
+            "version": "17.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-iid-interop-17.1.0.aar": "0b7c3721c84b62e70415307239ed4a7f998989084bf2833f90b9f5bea3095a05"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

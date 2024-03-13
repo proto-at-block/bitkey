@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.jakewharton.crossword:crossword-iosx64",
+    "components": [
+        {
+            "version": "0.3.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "crossword-iosx64-metadata.jar": "a15ee415f9acf376b968050f563a26be7bb8f72e687ba857a96ba00ebdd47926"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "crossword.klib": "aacdc6d2d771ec141b5e20a861e247a6f7dcf87a1a71c439cd956073caad4d0c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

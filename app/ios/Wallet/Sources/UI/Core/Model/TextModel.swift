@@ -1,4 +1,5 @@
 import SwiftUI
+import Shared
 
 // MARK: -
 
@@ -9,6 +10,7 @@ public struct TextModel {
     public enum Content {
         case text(String)
         case attributedText(AttributedString)
+        case linkedText(string: String, links: [LabelModelLinkSubstringModel.LinkSubstring])
     }
 
     public enum Width {
@@ -76,6 +78,15 @@ public struct ModeledText: View {
                     }
             case let .attributedText(string):
                 Text(string)
+            case let .linkedText(string, links):
+                Text(LocalizedStringKey(string)).environment(\.openURL, OpenURLAction { url in
+                    let urlString = url.absoluteString
+                    let startIndex = urlString.index(urlString.startIndex, offsetBy: "ls:".count)
+                    let linkIndexString = urlString[startIndex..<urlString.endIndex]
+                    links[Int(linkIndexString)!].onClick()
+                    return .handled
+                })
+                .tint(Color.primary)
             }
         }
         .font(model.font)

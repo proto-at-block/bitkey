@@ -37,6 +37,7 @@ fun WalletTheme.iconStyle(
             icon.icon.canApplyTint() ->
               when (tint) {
                 IconTint.Primary -> colors.primary
+                IconTint.Foreground -> colors.foreground
                 IconTint.On60 -> colors.foreground60
                 IconTint.On30 -> colors.foreground30
                 IconTint.Destructive -> colors.destructiveForeground

@@ -1,5 +1,4 @@
 use account::entities::AccountProperties;
-use base32::Alphabet;
 use rand::Rng;
 use repository::recovery::social::Repository;
 use time::{Duration, OffsetDateTime};
@@ -16,7 +15,9 @@ pub mod get_recovery_relationships;
 pub mod reissue_recovery_relationship_invitation;
 
 const TEST_EXPIRATION_SECS: i64 = 3000;
-
+const INVITATION_CODE_BIT_LENGTH: usize = 20;
+const INVITATION_CODE_BYTE_LENGTH: usize = (INVITATION_CODE_BIT_LENGTH + 7) / 8;
+const INVITATION_CODE_LAST_BYTE_MASK: u8 = 0xFF << (8 - (INVITATION_CODE_BIT_LENGTH % 8));
 const EXPIRATION_DAYS: i64 = 3;
 
 #[derive(Clone)]
@@ -35,18 +36,13 @@ impl Service {
     }
 }
 
-fn disambiguate_code_input(code: &str) -> String {
-    // https://www.crockford.com/base32.html
-    // Decode Os as 0s and Is and Ls as 1s for human readability errors
-    code.to_uppercase()
-        .replace('O', "0")
-        .replace(['I', 'L'], "1")
-}
-
-fn gen_code() -> String {
-    let mut code_bytes: [u8; 5] = [0; 5];
+// Generates a code of bit length INVITATION_CODE_BIT_LENGTH and returns it left-justified
+// (right-padded) within hex-encoded byte sequence of length ceil(INVITATION_CODE_BIT_LENGTH / 8)
+fn gen_code() -> (String, usize) {
+    let mut code_bytes: [u8; INVITATION_CODE_BYTE_LENGTH] = [0; INVITATION_CODE_BYTE_LENGTH];
     rand::thread_rng().fill(&mut code_bytes);
-    base32::encode(Alphabet::Crockford, &code_bytes)
+    code_bytes[INVITATION_CODE_BYTE_LENGTH - 1] &= INVITATION_CODE_LAST_BYTE_MASK;
+    (hex::encode(code_bytes), INVITATION_CODE_BIT_LENGTH)
 }
 
 /// Generates an expiration date for a recovery relationship based on the account properties.

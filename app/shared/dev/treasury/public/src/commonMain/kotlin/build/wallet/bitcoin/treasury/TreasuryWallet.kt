@@ -19,6 +19,7 @@ import io.kotest.assertions.fail
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import kotlinx.coroutines.flow.first
+import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
 class TreasuryWallet(
@@ -38,9 +39,16 @@ class TreasuryWallet(
     val fundingResult =
       eventually(
         eventuallyConfig {
-          duration = 60.seconds
+          duration = 180.seconds
           interval = 5.seconds
+          retries = 3
           expectedExceptions = setOf(BdkError::class)
+          listener = {
+              k,
+              throwable,
+            ->
+            println("Iteration $k failed, with cause $throwable of type ${throwable::class}")
+          }
         }
       ) {
         fund(address, amount)
@@ -75,7 +83,11 @@ class TreasuryWallet(
   ): FundingResult {
     require(amount.isPositive)
 
-    spendingWallet.sync().getOrThrow()
+    val timeTaken = measureTimeMillis {
+      spendingWallet.sync().getOrThrow()
+    }
+
+    println("Sync time: $timeTaken ms")
     val treasuryBalance = spendingWallet.balance().first().shouldBeLoaded()
     println("Treasury has ${treasuryBalance.confirmed} sats available")
     val treasuryAddress = spendingWallet.getLastUnusedAddress().getOrThrow()

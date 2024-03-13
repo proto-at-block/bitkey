@@ -13,6 +13,8 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.ui.model.video.VideoStartingPosition
 import build.wallet.ui.model.video.VideoStartingPosition.END
 import build.wallet.ui.model.video.VideoStartingPosition.START
@@ -39,7 +41,10 @@ fun Video(
   AndroidView(
     modifier = modifier,
     factory = { context ->
-      VideoView(context).apply {
+      VideoView(context)
+    },
+    update = { video ->
+      video.apply {
         setVideoURI(
           Uri.parse(
             "android.resource://" +
@@ -47,13 +52,17 @@ fun Video(
               "/" + resource
           )
         )
-        setOnPreparedListener {
-          it.isLooping = isLooping
-          it.setVolume(0f, 0f)
+        setOnPreparedListener { mediaPlayer ->
+          mediaPlayer.isLooping = isLooping
+          mediaPlayer.setVolume(0f, 0f)
           when (startingPosition) {
             START -> Unit
-            END -> it.seekTo(duration)
+            END -> mediaPlayer.seekTo(duration)
           }
+        }
+        setOnErrorListener { _, what, extra ->
+          log(LogLevel.Warn) { "Error playing video: $what | $extra" }
+          true
         }
         start()
         videoView = this

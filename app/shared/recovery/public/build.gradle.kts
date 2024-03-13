@@ -20,6 +20,14 @@ kotlin {
         api(projects.shared.f8eClientPublic)
         api(projects.shared.ktorResultPublic)
         api(projects.shared.timePublic)
+        implementation(projects.shared.serializationPublic)
+      }
+    }
+
+    val commonJvmIntegrationTest by getting {
+      dependencies {
+        implementation(projects.shared.bitcoinFake)
+        implementation(projects.shared.encryptionImpl)
       }
     }
   }

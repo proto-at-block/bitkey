@@ -1,7 +1,7 @@
 package build.wallet.statemachine.notifications
 
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -22,10 +22,11 @@ interface NotificationTouchpointInputAndVerificationUiStateMachine :
 
 data class NotificationTouchpointInputAndVerificationProps(
   val fullAccountId: FullAccountId,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val touchpointType: NotificationTouchpointType,
   val entryPoint: EntryPoint,
   val onClose: () -> Unit,
+  val onSuccess: () -> Unit = onClose,
 ) {
   sealed interface EntryPoint {
     /**
@@ -40,5 +41,7 @@ data class NotificationTouchpointInputAndVerificationProps(
     ) : EntryPoint
 
     data object Settings : EntryPoint
+
+    data class Recovery(val onSkip: (() -> Unit)? = null) : EntryPoint
   }
 }

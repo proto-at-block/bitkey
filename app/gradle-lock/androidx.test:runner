@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test:runner",
+    "components": [
+        {
+            "version": "1.5.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runner-1.5.2.aar": "36cd6bc876daa1f183ccd11f9898e094c71f06960fde85a373422959613a44d6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

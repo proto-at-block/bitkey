@@ -11,7 +11,7 @@ import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
 import build.wallet.statemachine.send.TransferScreenBannerModel.AmountEqualOrAboveBalanceBannerModel
 import build.wallet.statemachine.send.TransferScreenBannerModel.HardwareRequiredBannerModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -60,7 +60,7 @@ data class TransferAmountBodyModel(
         text = "Continue",
         isEnabled = continueButtonEnabled,
         size = Footer,
-        onClick = Click.standardClick { onContinueClick() }
+        onClick = StandardClick(onContinueClick)
       ),
     cardModel =
       when (bannerModel) {

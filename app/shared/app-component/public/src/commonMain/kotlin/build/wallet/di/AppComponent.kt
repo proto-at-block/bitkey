@@ -35,13 +35,15 @@ import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
+import build.wallet.encrypt.SignatureVerifier
+import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagInitializer
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
-import build.wallet.featureflag.AndroidTransitionsIsEnabledFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.firmware.FirmwareDeviceNotFoundEnabledFeatureFlag
 import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.firmware.FirmwareTelemetryUploader
 import build.wallet.firmware.HardwareAttestation
@@ -49,7 +51,7 @@ import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
 import build.wallet.fwup.FwupProgressCalculator
 import build.wallet.keybox.KeyboxDao
-import build.wallet.keybox.config.TemplateKeyboxConfigDao
+import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -59,7 +61,6 @@ import build.wallet.ldk.LdkNodeService
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStore
 import build.wallet.memfault.MemfaultService
-import build.wallet.money.MultipleFiatCurrencyEnabledFeatureFlag
 import build.wallet.money.currency.FiatCurrencyDao
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -80,11 +81,12 @@ import build.wallet.platform.settings.LocaleCurrencyCodeProvider
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.recovery.RecoveryDao
-import build.wallet.recovery.emergencyaccess.EmergencyAccessFeatureFlag
-import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
+import build.wallet.statemachine.settings.full.feedback.FeedbackFormAddAttachmentsFeatureFlag
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormNewUiEnabledFeatureFlag
+import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
+import build.wallet.time.Delayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
@@ -93,8 +95,8 @@ interface AppComponent {
   val accountAuthenticator: AccountAuthenticator
   val accountRepository: AccountRepository
   val allFeatureFlags: List<FeatureFlag<BooleanFlag>>
-  val androidTransitionsIsEnabledFeatureFlag: AndroidTransitionsIsEnabledFeatureFlag
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
+  val authenticationService: AuthenticationService
   val authTokensRepository: AuthTokensRepository
   val appCoroutineScope: CoroutineScope
   val appId: AppId
@@ -121,6 +123,7 @@ interface AppComponent {
   val cloudBackupHealthFeatureFlag: CloudBackupHealthFeatureFlag
   val datadogRumMonitor: DatadogRumMonitor
   val datadogTracer: DatadogTracer
+  val delayer: Delayer
   val deviceInfoProvider: DeviceInfoProvider
   val deviceTokenManager: DeviceTokenManager
   val electrumReachability: ElectrumReachability
@@ -131,8 +134,8 @@ interface AppComponent {
   val extendedKeyGenerator: ExtendedKeyGenerator
   val f8eHttpClient: F8eHttpClient
   val featureFlagInitializer: FeatureFlagInitializer
-  val feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag
   val feedbackFormNewUiEnabledFeatureFlag: FeedbackFormNewUiEnabledFeatureFlag
+  val feedbackFormAddAttachmentsFeatureFlag: FeedbackFormAddAttachmentsFeatureFlag
   val fiatCurrencyDao: FiatCurrencyDao
   val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository
   val fileManager: FileManager
@@ -154,9 +157,9 @@ interface AppComponent {
   val logWriterContextStore: LogWriterContextStore
   val memfaultService: MemfaultService
   val messageSigner: MessageSigner
-  val multipleFiatCurrencyEnabledFeatureFlag: MultipleFiatCurrencyEnabledFeatureFlag
-  val emergencyAccessFeatureFlag: EmergencyAccessFeatureFlag
+  val signatureVerifier: SignatureVerifier
   val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag
+  val notificationsFlowV2EnabledFeatureFlag: NotificationsFlowV2EnabledFeatureFlag
   val networkingDebugConfigRepository: NetworkingDebugConfigRepository
   val networkReachabilityEventDao: NetworkReachabilityEventDao
   val networkReachabilityProvider: NetworkReachabilityProvider
@@ -169,17 +172,17 @@ interface AppComponent {
   val platformContext: PlatformContext
   val platformInfoProvider: PlatformInfoProvider
   val secp256k1KeyGenerator: Secp256k1KeyGenerator
-  val purchaseFlowIsEnabledFeatureFlag: FeatureFlag<BooleanFlag>
   val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider
   val recoveryDao: RecoveryDao
   val secureStoreFactory: EncryptedKeyValueStoreFactory
   val sessionIdProvider: SessionIdProvider
   val spendingWalletProvider: SpendingWalletProvider
-  val templateKeyboxConfigDao: TemplateKeyboxConfigDao
+  val templateFullAccountConfigDao: TemplateFullAccountConfigDao
   val transactionDetailDao: TransactionDetailDao
   val uuid: Uuid
   val onboardingAppKeyKeystore: OnboardingAppKeyKeystore
   val recoverySyncFrequency: Duration
   val hardwareAttestation: HardwareAttestation
   val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider
+  val firmwareDeviceNotFoundEnabledFeatureFlag: FirmwareDeviceNotFoundEnabledFeatureFlag
 }

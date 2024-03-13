@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-websocket-serialization-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-websocket-serialization-iossimulatorarm64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-websocket-serialization.klib": "bf7404d5277ab710a4eca4756f3e199fd106c37b902ee4714cc00db8f21ecd21"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

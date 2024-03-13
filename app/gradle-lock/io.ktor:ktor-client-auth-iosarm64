@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-auth-iosarm64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-auth-iosarm64-2.3.8-metadata.jar": "bcb52fcfadd2151f4dcbc538a62e5bf80acfef0be9ec941e6dcfcc96707b64a7"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-auth.klib": "ca3bd8b93f00954d6687f04d3e4de084b5c1dc958c6ada3c62681b0d8c86dc38"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

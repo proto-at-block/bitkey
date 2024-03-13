@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.kotest:kotest-framework-datatest-iosx64",
+    "components": [
+        {
+            "version": "5.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotest-framework-datatest-iosx64-5.8.0-metadata.jar": "ccaa1cfcf56e6ab36562bbb239599e51a10d47482d4626f5a3ecf2bff47f465b"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotest-framework-datatest.klib": "eb5b07487bc8166a8835cd2808f3bd95dd6256b9f1092e0040f5e334a604e66a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

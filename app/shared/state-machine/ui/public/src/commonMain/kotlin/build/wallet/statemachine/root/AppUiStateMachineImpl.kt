@@ -8,10 +8,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
-import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.log
 import build.wallet.money.display.CurrencyPreferenceData
@@ -22,10 +22,9 @@ import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
-import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.statemachine.data.app.AppData.AppLoadedData
 import build.wallet.statemachine.data.app.AppData.LoadingAppData
@@ -53,6 +52,9 @@ import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
+import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
+import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
+import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
@@ -63,14 +65,13 @@ import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import build.wallet.time.Delayer
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class AppUiStateMachineImpl(
   private val appVariant: AppVariant,
+  private val delayer: Delayer,
   private val debugMenuStateMachine: DebugMenuStateMachine,
   private val eventTracker: EventTracker,
   private val lostAppRecoveryUiStateMachine: LostAppRecoveryUiStateMachine,
@@ -86,8 +87,7 @@ class AppUiStateMachineImpl(
   private val liteAccountCloudBackupRestorationUiStateMachine:
     LiteAccountCloudBackupRestorationUiStateMachine,
   private val emergencyAccessKitRecoveryUiStateMachine: EmergencyAccessKitRecoveryUiStateMachine,
-  private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
-  private val appCoroutineScope: CoroutineScope,
+  private val authKeyRotationUiStateMachine: RotateAuthKeyUIStateMachine,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -104,137 +104,8 @@ class AppUiStateMachineImpl(
 
     var screenModel =
       when (appData) {
-        is AppLoadedData -> {
-          when (val accountData = appData.accountData) {
-            is CheckingActiveAccountData -> AppLoadingScreenModel()
-
-            is NoActiveAccountData -> {
-              when (accountData) {
-                is CheckingRecoveryOrOnboarding -> AppLoadingScreenModel()
-
-                is GettingStartedData ->
-                  ChooseAccountAccessScreenModel(
-                    chooseAccountAccessData = accountData,
-                    firmwareData = appData.firmwareData,
-                    eakAssociation = appData.eakAssociation
-                  )
-
-                is RecoveringAccountData ->
-                  lostAppRecoveryUiStateMachine.model(
-                    LostAppRecoveryUiProps(
-                      recoveryData = accountData.lostAppRecoveryData,
-                      keyboxConfig = accountData.templateKeyboxConfig,
-                      fiatCurrency = appData.currencyPreferenceData.fiatCurrencyPreference,
-                      eakAssociation = appData.eakAssociation
-                    )
-                  )
-
-                is RecoveringLiteAccountData ->
-                  liteAccountCloudBackupRestorationUiStateMachine.model(
-                    props =
-                      LiteAccountCloudBackupRestorationUiProps(
-                        cloudBackup = accountData.cloudBackup,
-                        onLiteAccountRestored = accountData.onAccountCreated,
-                        onExit = accountData.onExit
-                      )
-                  )
-
-                is RecoveringAccountWithEmergencyAccessKit ->
-                  emergencyAccessKitRecoveryUiStateMachine.model(
-                    EmergencyAccessKitRecoveryUiStateMachineProps(
-                      keyboxConfig = accountData.templateKeyboxConfig,
-                      onExit = accountData.onExit
-                    )
-                  )
-
-                is CreatingFullAccountData ->
-                  createAccountUiStateMachine.model(
-                    props =
-                      CreateAccountUiProps(
-                        createFullAccountData = accountData.createFullAccountData,
-                        isHardwareFake = accountData.templateKeyboxConfig.isHardwareFake
-                      )
-                  )
-
-                is CheckingCloudBackupData ->
-                  gettingStartedRoutingStateMachine.model(
-                    GettingStartedRoutingProps(
-                      startIntent = accountData.intent,
-                      eakAssociation = appData.eakAssociation,
-                      onStartLiteAccountRecovery = accountData.onStartLiteAccountRecovery,
-                      onStartCloudRecovery = accountData.onStartCloudRecovery,
-                      onStartLostAppRecovery = accountData.onStartLostAppRecovery,
-                      onStartLiteAccountCreation = accountData.onStartLiteAccountCreation,
-                      onImportEmergencyAccessKit = accountData.onImportEmergencyAccessKit,
-                      onExit = accountData.onExit
-                    )
-                  )
-
-                is CreatingLiteAccountData ->
-                  createLiteAccountUiStateMachine.model(
-                    props =
-                      CreateLiteAccountUiProps(
-                        onBack = accountData.onRollback,
-                        accountConfig =
-                          LiteAccountConfig(
-                            bitcoinNetworkType = accountData.templateKeyboxConfig.networkType,
-                            f8eEnvironment = accountData.templateKeyboxConfig.f8eEnvironment,
-                            isTestAccount = accountData.templateKeyboxConfig.isTestAccount,
-                            isUsingSocRecFakes = accountData.templateKeyboxConfig.isUsingSocRecFakes
-                          ),
-                        inviteCode = accountData.inviteCode,
-                        onAccountCreated = accountData.onAccountCreated
-                      )
-                  )
-              }
-            }
-
-            is HasActiveFullAccountData -> {
-              when (accountData) {
-                is ActiveFullAccountLoadedData ->
-                  HomeScreenModel(
-                    accountData = accountData,
-                    electrumServerData = appData.electrumServerData,
-                    firmwareData = appData.firmwareData,
-                    currencyPreferenceData = appData.currencyPreferenceData
-                  )
-
-                is HasActiveFullAccountData.LoadingActiveFullAccountData ->
-                  AppLoadingScreenModel()
-              }
-            }
-
-            is AccountData.HasActiveLiteAccountData ->
-              liteHomeUiStateMachine.model(
-                props =
-                  LiteHomeUiProps(
-                    accountData = accountData,
-                    currencyPreferenceData = appData.currencyPreferenceData,
-                    firmwareData = appData.firmwareData
-                  )
-              )
-
-            is AccountData.NoLongerRecoveringFullAccountData ->
-              noLongerRecoveringUiStateMachine.model(
-                props =
-                  NoLongerRecoveringUiProps(
-                    data = accountData.data
-                  )
-              )
-
-            is AccountData.SomeoneElseIsRecoveringFullAccountData ->
-              someoneElseIsRecoveringUiStateMachine.model(
-                props =
-                  SomeoneElseIsRecoveringUiProps(
-                    data = accountData.data,
-                    keyboxConfig = accountData.keyboxConfig,
-                    fullAccountId = accountData.fullAccountId
-                  )
-              )
-          }
-        }
-
-        LoadingAppData -> AppLoadingScreenModel()
+        is LoadingAppData -> AppLoadingScreenModel()
+        is AppLoadedData -> AppLoadedDataScreenModel(appData)
       }
 
     LogScreenModelEffect(screenModel)
@@ -242,11 +113,10 @@ class AppUiStateMachineImpl(
 
     // If we are showing the Splash screen and then try to show a loading screen,
     // continue to show the Splash screen for more seamless app startup experience
-    val shouldContinueToShowSplashScreen =
-      remember(previousScreenModel, screenModel) {
-        (previousScreenModel?.body is SplashBodyModel) &&
-          (screenModel.body is LoadingBodyModel)
-      }
+    val shouldContinueToShowSplashScreen = remember(previousScreenModel, screenModel) {
+      (previousScreenModel?.body is SplashBodyModel) &&
+        (screenModel.body as? LoadingSuccessBodyModel)?.state == LoadingSuccessBodyModel.State.Loading
+    }
     if (shouldContinueToShowSplashScreen) {
       screenModel = SplashScreenModel()
     }
@@ -257,7 +127,7 @@ class AppUiStateMachineImpl(
     var isAnimatingSplashScreen by remember { mutableStateOf(previousScreenModel == null) }
     if (isAnimatingSplashScreen) {
       LaunchedEffect("show-splash-for-animation") {
-        delay(2.seconds)
+        delayer.delay(2.seconds)
         isAnimatingSplashScreen = false
       }
       // Early return the splash screen model here while we let it animate.
@@ -268,12 +138,11 @@ class AppUiStateMachineImpl(
     var isShowingDebugMenu by remember { mutableStateOf(false) }
     if (isShowingDebugMenu && appData is AppLoadedData) {
       return debugMenuStateMachine.model(
-        props =
-          DebugMenuProps(
-            accountData = appData.accountData,
-            firmwareData = appData.firmwareData,
-            onClose = { isShowingDebugMenu = false }
-          )
+        props = DebugMenuProps(
+          accountData = appData.accountData,
+          firmwareData = appData.firmwareData,
+          onClose = { isShowingDebugMenu = false }
+        )
       )
     }
 
@@ -285,15 +154,187 @@ class AppUiStateMachineImpl(
         screenModel
 
       AppVariant.Team, AppVariant.Development ->
-        screenModel.copy(
-          onTwoFingerDoubleTap = { isShowingDebugMenu = true },
-          onTwoFingerTripleTap = {
-            appCoroutineScope.launch {
-              networkingDebugConfigRepository.setFailF8eRequests(
-                value = !networkingDebugConfigRepository.config.value.failF8eRequests
-              )
-            }
+        screenModel.copy(onTwoFingerDoubleTap = { isShowingDebugMenu = true })
+    }
+  }
+
+  @Composable
+  private fun AppLoadedDataScreenModel(appData: AppLoadedData): ScreenModel {
+    // Keep track of when to show the "Welcome to Bitkey" screen.
+    // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
+    var shouldShowWelcomeScreenWhenTransitionToActive by remember {
+      mutableStateOf(false)
+    }
+
+    return when (val accountData = appData.accountData) {
+      is CheckingActiveAccountData ->
+        AppLoadingScreenModel()
+
+      is NoActiveAccountData -> {
+        shouldShowWelcomeScreenWhenTransitionToActive = true
+        NoActiveAccountDataScreenModel(appData, accountData)
+      }
+
+      is HasActiveFullAccountData ->
+        HasActiveFullAccountDataScreenModel(
+          appData = appData,
+          accountData = accountData,
+          initialShouldShowWelcomeScreenWhenTransitionToActive = shouldShowWelcomeScreenWhenTransitionToActive
+        )
+
+      is AccountData.HasActiveLiteAccountData ->
+        liteHomeUiStateMachine.model(
+          props = LiteHomeUiProps(
+            accountData = accountData,
+            currencyPreferenceData = appData.currencyPreferenceData,
+            firmwareData = appData.firmwareData
+          )
+        )
+
+      is AccountData.NoLongerRecoveringFullAccountData ->
+        noLongerRecoveringUiStateMachine.model(
+          props = NoLongerRecoveringUiProps(
+            data = accountData.data
+          )
+        )
+
+      is AccountData.SomeoneElseIsRecoveringFullAccountData ->
+        someoneElseIsRecoveringUiStateMachine.model(
+          props = SomeoneElseIsRecoveringUiProps(
+            data = accountData.data,
+            fullAccountConfig = accountData.fullAccountConfig,
+            fullAccountId = accountData.fullAccountId
+          )
+        )
+    }
+  }
+
+  @Composable
+  private fun NoActiveAccountDataScreenModel(
+    appData: AppLoadedData,
+    accountData: NoActiveAccountData,
+  ): ScreenModel {
+    return when (accountData) {
+      is CheckingRecoveryOrOnboarding -> AppLoadingScreenModel()
+
+      is GettingStartedData ->
+        ChooseAccountAccessScreenModel(
+          chooseAccountAccessData = accountData,
+          firmwareData = appData.firmwareData,
+          eakAssociation = appData.eakAssociation
+        )
+
+      is RecoveringAccountData ->
+        lostAppRecoveryUiStateMachine.model(
+          LostAppRecoveryUiProps(
+            recoveryData = accountData.lostAppRecoveryData,
+            fullAccountConfig = accountData.templateFullAccountConfig,
+            fiatCurrency = appData.currencyPreferenceData.fiatCurrencyPreference,
+            eakAssociation = appData.eakAssociation
+          )
+        )
+
+      is RecoveringLiteAccountData ->
+        liteAccountCloudBackupRestorationUiStateMachine.model(
+          props = LiteAccountCloudBackupRestorationUiProps(
+            cloudBackup = accountData.cloudBackup,
+            onLiteAccountRestored = accountData.onAccountCreated,
+            onExit = accountData.onExit
+          )
+        )
+
+      is RecoveringAccountWithEmergencyAccessKit ->
+        emergencyAccessKitRecoveryUiStateMachine.model(
+          EmergencyAccessKitRecoveryUiStateMachineProps(
+            fullAccountConfig = accountData.templateFullAccountConfig,
+            onExit = accountData.onExit
+          )
+        )
+
+      is CreatingFullAccountData ->
+        createAccountUiStateMachine.model(
+          props = CreateAccountUiProps(
+            createFullAccountData = accountData.createFullAccountData,
+            isHardwareFake = accountData.templateFullAccountConfig.isHardwareFake
+          )
+        )
+
+      is CheckingCloudBackupData ->
+        gettingStartedRoutingStateMachine.model(
+          GettingStartedRoutingProps(
+            startIntent = accountData.intent,
+            eakAssociation = appData.eakAssociation,
+            onStartLiteAccountRecovery = accountData.onStartLiteAccountRecovery,
+            onStartCloudRecovery = accountData.onStartCloudRecovery,
+            onStartLostAppRecovery = accountData.onStartLostAppRecovery,
+            onStartLiteAccountCreation = accountData.onStartLiteAccountCreation,
+            onImportEmergencyAccessKit = accountData.onImportEmergencyAccessKit,
+            onExit = accountData.onExit
+          )
+        )
+
+      is CreatingLiteAccountData ->
+        createLiteAccountUiStateMachine.model(
+          props = CreateLiteAccountUiProps(
+            onBack = accountData.onRollback,
+            accountConfig = LiteAccountConfig(
+              bitcoinNetworkType = accountData.templateFullAccountConfig.bitcoinNetworkType,
+              f8eEnvironment = accountData.templateFullAccountConfig.f8eEnvironment,
+              isTestAccount = accountData.templateFullAccountConfig.isTestAccount,
+              isUsingSocRecFakes = accountData.templateFullAccountConfig.isUsingSocRecFakes
+            ),
+            inviteCode = accountData.inviteCode,
+            onAccountCreated = accountData.onAccountCreated,
+            // If this flow was reached via invite code, show the introduction screen.
+            showBeTrustedContactIntroduction = accountData.inviteCode != null
+          )
+        )
+    }
+  }
+
+  @Composable
+  private fun HasActiveFullAccountDataScreenModel(
+    appData: AppLoadedData,
+    accountData: HasActiveFullAccountData,
+    initialShouldShowWelcomeScreenWhenTransitionToActive: Boolean,
+  ): ScreenModel {
+    var shouldShowWelcomeScreenWhenTransitionToActive by remember {
+      mutableStateOf(initialShouldShowWelcomeScreenWhenTransitionToActive)
+    }
+
+    return when (accountData) {
+      is ActiveFullAccountLoadedData ->
+        // If we are transitioning from NoActiveAccount to HasActiveFullAccount, we want to briefly
+        // show a welcome screen. We do it here (in the UI state machine) because this is purely
+        // an additional UI nicety that should not affect underlying app data state.
+        if (shouldShowWelcomeScreenWhenTransitionToActive) {
+          LaunchedEffect("show-welcome-screen") {
+            delayer.delay(3.seconds)
+            shouldShowWelcomeScreenWhenTransitionToActive = false
           }
+          LoadingSuccessBodyModel(
+            id = null,
+            message = "Welcome to Bitkey",
+            state = LoadingSuccessBodyModel.State.Success
+          ).asRootScreen()
+        } else {
+          HomeScreenModel(
+            accountData = accountData,
+            electrumServerData = appData.electrumServerData,
+            firmwareData = appData.firmwareData,
+            currencyPreferenceData = appData.currencyPreferenceData
+          )
+        }
+
+      is HasActiveFullAccountData.LoadingActiveFullAccountData ->
+        AppLoadingScreenModel()
+
+      is HasActiveFullAccountData.RotatingAuthKeys ->
+        authKeyRotationUiStateMachine.model(
+          RotateAuthKeyUIStateMachineProps(
+            account = accountData.account,
+            origin = RotateAuthKeyUIOrigin.PendingAttempt(accountData.pendingAttempt)
+          )
         )
     }
   }
@@ -307,11 +348,16 @@ class AppUiStateMachineImpl(
     return when (val previousScreenModel = previousScreenModel) {
       null -> SplashScreenModel()
       else ->
-        when (previousScreenModel.body) {
-          is SplashBodyModel, is LoadingBodyModel -> previousScreenModel
+        when {
+          previousScreenModel.body is SplashBodyModel ||
+            (previousScreenModel.body as? LoadingSuccessBodyModel)?.state == LoadingSuccessBodyModel.State.Loading
+          ->
+            previousScreenModel
+
           else ->
-            LoadingBodyModel(
-              id = GeneralEventTrackerScreenId.LOADING_APP
+            LoadingSuccessBodyModel(
+              id = GeneralEventTrackerScreenId.LOADING_APP,
+              state = LoadingSuccessBodyModel.State.Loading
             ).asRootScreen()
         }
     }
@@ -332,12 +378,11 @@ class AppUiStateMachineImpl(
     eakAssociation: EmergencyAccessKitAssociation,
   ): ScreenModel =
     chooseAccountAccessUiStateMachine.model(
-      props =
-        ChooseAccountAccessUiProps(
-          chooseAccountAccessData = chooseAccountAccessData,
-          firmwareData = firmwareData,
-          eakAssociation = eakAssociation
-        )
+      props = ChooseAccountAccessUiProps(
+        chooseAccountAccessData = chooseAccountAccessData,
+        firmwareData = firmwareData,
+        eakAssociation = eakAssociation
+      )
     )
 
   @Composable
@@ -348,13 +393,12 @@ class AppUiStateMachineImpl(
     currencyPreferenceData: CurrencyPreferenceData,
   ): ScreenModel =
     homeUiStateMachine.model(
-      props =
-        HomeUiProps(
-          accountData = accountData,
-          electrumServerData = electrumServerData,
-          firmwareData = firmwareData,
-          currencyPreferenceData = currencyPreferenceData
-        )
+      props = HomeUiProps(
+        accountData = accountData,
+        electrumServerData = electrumServerData,
+        firmwareData = firmwareData,
+        currencyPreferenceData = currencyPreferenceData
+      )
     )
 
   /**
@@ -362,7 +406,7 @@ class AppUiStateMachineImpl(
    */
   @Composable
   private fun LogScreenModelEffect(screenModel: ScreenModel) {
-    DisposableEffect(screenModel.body.key) {
+    DisposableEffect(screenModel.key) {
       log(
         level = Info,
         tag = "Screen"
@@ -374,33 +418,30 @@ class AppUiStateMachineImpl(
 
   /**
    * Track screen transitions as events.
+   *
+   * If there is an overlay (a bottom sheet), will use overlay's event info to track.
+   * Otherwise, will use screen body's event info to track, if any.
+   *
+   * The idea is to track the screen that is most visible to the user. If an overlay gets
+   * closed, the screen body will be tracked again.
    */
   @Composable
   private fun TrackScreenEvents(screenModel: ScreenModel) {
-    val bottomSheet = screenModel.bottomSheetModel
+    val eventInfoToTrack = screenModel.eventInfoToTrack()
 
-    DisposableEffect(screenModel.body.eventTrackerScreenInfo, bottomSheet) {
-      trackScreenId(bottomSheet, screenModel)
-      onDispose {}
+    eventInfoToTrack?.let {
+      LaunchedEffect("track-screen-event", eventInfoToTrack) {
+        eventTracker.track(eventInfoToTrack)
+      }
     }
   }
 
-  private fun trackScreenId(
-    bottomSheet: SheetModel?,
-    screenModel: ScreenModel,
-  ) {
+  private fun ScreenModel.eventInfoToTrack(): EventTrackerScreenInfo? {
     // If there is an overlay (a bottom sheet), use it for the screen info.
     // Otherwise, use the body of the overall screen model.
-    val eventTrackerScreenInfo =
-      when (bottomSheet) {
-        null -> screenModel.body.eventTrackerScreenInfo
-        else -> bottomSheet.body.eventTrackerScreenInfo
-      }
-
-    // Only track the screen event if the specified info is nonnull.
-    when (eventTrackerScreenInfo) {
-      null -> Unit
-      else -> eventTracker.track(eventTrackerScreenInfo = eventTrackerScreenInfo)
+    return when (bottomSheetModel) {
+      null -> body.eventTrackerScreenInfo
+      else -> bottomSheetModel?.body?.eventTrackerScreenInfo
     }
   }
 }

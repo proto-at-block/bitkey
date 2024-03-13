@@ -1,7 +1,6 @@
 package build.wallet.statemachine.moneyhome.lite
 
 import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData
@@ -22,7 +21,6 @@ interface LiteMoneyHomeUiStateMachine : StateMachine<LiteMoneyHomeUiProps, Scree
  */
 data class LiteMoneyHomeUiProps(
   val accountData: AccountData.HasActiveLiteAccountData,
-  val fiatCurrency: FiatCurrency,
   val protectedCustomers: ImmutableList<ProtectedCustomer>,
   val homeStatusBannerModel: StatusBannerModel?,
   val onRemoveRelationship: suspend (ProtectedCustomer) -> Result<Unit, Error>,

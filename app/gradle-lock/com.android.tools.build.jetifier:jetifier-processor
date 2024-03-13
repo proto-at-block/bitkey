@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.android.tools.build.jetifier:jetifier-processor",
+    "components": [
+        {
+            "version": "1.0.0-beta10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jetifier-processor-1.0.0-beta10.jar": "c5067a7b928237a1271a5e9cb5710e9f80b4973293945bc51e3a4c864ea4bfed"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

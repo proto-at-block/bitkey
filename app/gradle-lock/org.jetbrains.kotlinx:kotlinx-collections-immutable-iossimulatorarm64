@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-collections-immutable-iossimulatorarm64",
+    "components": [
+        {
+            "version": "0.3.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-collections-immutable-iossimulatorarm64-0.3.5-metadata.jar": "d41e1efe2fb78a6f3de7175fdbea183b1994101b75b0b0f9fc184a9c56fd23a5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-collections-immutable.klib": "13e96c91d19154fc622b80eed7cef9de188b554c9951fb05cf55428413096d26"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

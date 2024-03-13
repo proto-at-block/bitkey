@@ -1,10 +1,11 @@
 package build.wallet.statemachine.auth
 
 import build.wallet.auth.AccountAuthTokens
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -23,16 +24,27 @@ interface ProofOfPossessionNfcStateMachine : StateMachine<ProofOfPossessionNfcPr
  * which one you need, then you need HwKeyProof.
  */
 sealed interface Request {
+  /**
+   * Request to obtain hardware keyproof.
+   */
   data class HwKeyProof(
     val onSuccess: (hwFactorProofOfPossession: HwFactorProofOfPossession) -> Unit,
   ) : Request
 
+  /**
+   * Request to obtain:
+   * - hardware keyproof
+   * - account ID signed with hardware
+   * - app global auth key signed with hardware
+   */
   data class HwKeyProofAndAccountSignature(
+    val appAuthGlobalKey: AppGlobalAuthPublicKey,
     val accountId: FullAccountId,
     val onSuccess: (
       accountSignature: String,
       hwAuthPublicKey: HwAuthPublicKey,
       hwFactorProofOfPossession: HwFactorProofOfPossession,
+      appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
     ) -> Unit,
   ) : Request
 }
@@ -42,7 +54,7 @@ sealed interface Request {
  *
  *
  * @property fullAccountId Account to be used to retrieve a refreshed access token.
- * @property keyboxConfig Used to mock/no-mock behaviors, as well as the correct F8eEnvironment.
+ * @property fullAccountConfig Used to mock/no-mock behaviors, as well as the correct F8eEnvironment.
  * @property appAuthKey app auth key to use for refreshing f8e access token.
  * When `null`, will use active keybox if any to get the key. Otherwise, will use this auth key's
  * corresponding private key (if present locally).
@@ -66,7 +78,7 @@ sealed interface Request {
 data class ProofOfPossessionNfcProps(
   val request: Request,
   val fullAccountId: FullAccountId,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val appAuthKey: AppGlobalAuthPublicKey? = null,
   val authTokens: AccountAuthTokens? = null,
   val screenPresentationStyle: ScreenPresentationStyle,

@@ -23,7 +23,7 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -87,7 +87,7 @@ fun LightningSendAndReceiveScreen(model: LightningSendReceiveBodyModel) {
           text = "Send",
           treatment = Primary,
           size = Footer,
-          onClick = Click.StandardClick { model.handleSendButtonPressed() }
+          onClick = StandardClick(model.handleSendButtonPressed)
         )
 
         Spacer(Modifier.height(24.dp))
@@ -115,7 +115,7 @@ fun LightningSendAndReceiveScreen(model: LightningSendReceiveBodyModel) {
           text = "Generate Invoice",
           treatment = Primary,
           size = Footer,
-          onClick = Click.StandardClick { model.handleGenerateInvoicePressed() }
+          onClick = StandardClick(model.handleGenerateInvoicePressed)
         )
 
         model.generatedInvoiceString?.let {

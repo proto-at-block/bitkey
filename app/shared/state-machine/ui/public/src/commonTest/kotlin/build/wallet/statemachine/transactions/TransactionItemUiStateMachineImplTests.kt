@@ -83,7 +83,7 @@ class TransactionItemUiStateMachineImplTests : FunSpec({
     stateMachine.test(makeProps(TEST_SEND_TXN.copy(confirmationStatus = Pending))) {
       awaitItem().let { // before currency conversion
         it.title.shouldBe("bc1z...xpcs")
-        it.secondaryText.shouldBe("broadcast-time")
+        it.secondaryText.shouldBe("Pending")
         it.sideText.shouldBe("~~")
         it.secondarySideText.shouldBe("100,000,100 sats")
         it.sideTextTint.shouldBe(PRIMARY)

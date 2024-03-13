@@ -1,13 +1,14 @@
 package build.wallet.bitkey.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.encrypt.XCiphertext
+import okio.ByteString.Companion.encodeUtf8
 
 val UnendorsedTrustedContactFake = UnendorsedTrustedContact(
   recoveryRelationshipId = "someRelationshipId",
   trustedContactAlias = TrustedContactAlias("someContact"),
-  identityKey = TrustedContactIdentityKey(AppKey.fromPublicKey("deadbeef")),
-  identityPublicKeyMac = "",
-  enrollmentKey = TrustedContactEnrollmentKey(AppKey.fromPublicKey("deadbeef")),
-  enrollmentKeyConfirmation = "",
-  authenticationState = TrustedContactAuthenticationState.UNENDORSED
+  enrollmentPakeKey = TrustedContactEnrollmentPakeKey(AppKey.fromPublicKey("deadbeef")),
+  enrollmentKeyConfirmation = "".encodeUtf8(),
+  sealedDelegatedDecryptionKey = XCiphertext("deadbeef"),
+  authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED
 )

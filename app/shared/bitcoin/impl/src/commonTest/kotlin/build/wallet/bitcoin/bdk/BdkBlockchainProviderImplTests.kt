@@ -17,7 +17,8 @@ class BdkBlockchainProviderImplTests : FunSpec({
     BdkBlockchainMock(
       blockHeightResult = BdkResult.Ok(1),
       blockHashResult = BdkResult.Ok("123"),
-      broadcastResult = BdkResult.Ok(Unit)
+      broadcastResult = BdkResult.Ok(Unit),
+      feeRateResult = BdkResult.Ok(1f)
     )
   val bdkBlockchainFactory = BdkBlockchainFactoryMock(BdkResult.Ok(bdkBlockchain))
   val electrumServerSettingProvider = ElectrumServerSettingProviderMock(turbines::create)

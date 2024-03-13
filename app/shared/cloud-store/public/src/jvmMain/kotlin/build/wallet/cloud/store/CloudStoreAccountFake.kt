@@ -16,5 +16,11 @@ data class CloudStoreAccountFake(
     val ProtectedCustomerFake =
       CloudStoreAccountFake(identifier = "cloud-store-protected-customer-fake")
     val TrustedContactFake = CloudStoreAccountFake(identifier = "cloud-store-trusted-contact-fake")
+
+    val cloudStoreAccountFakes = listOf(
+      CloudStoreAccount1Fake,
+      ProtectedCustomerFake,
+      TrustedContactFake
+    )
   }
 }

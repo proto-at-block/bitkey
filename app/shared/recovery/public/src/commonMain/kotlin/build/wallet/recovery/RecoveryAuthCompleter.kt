@@ -1,5 +1,6 @@
 package build.wallet.recovery
 
+import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.csek.SealedCsek
@@ -22,7 +23,8 @@ interface RecoveryAuthCompleter {
     fullAccountId: FullAccountId,
     challenge: ChallengeToCompleteRecovery,
     hardwareSignedChallenge: SignedChallengeToCompleteRecovery,
-    destinationAppGlobalAuthPubKey: AppGlobalAuthPublicKey,
+    destinationAppAuthPubKeys: AppAuthPublicKeys,
     sealedCsek: SealedCsek,
+    removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable>
 }

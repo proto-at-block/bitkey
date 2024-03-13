@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jgrapht:jgrapht-core",
+    "components": [
+        {
+            "version": "1.5.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jgrapht-core-1.5.2.jar": "dfa596e9f0d0838f1b5e81dd0cd60e3a76c2c290ac25a0a029ffde58cf5e4c14"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

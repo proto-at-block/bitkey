@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.matthewnelson.encoding:base32",
+    "components": [
+        {
+            "version": "2.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "base32-metadata-2.1.0.jar": "b7e400647f76b3d7ba1676f4ecbcd9b7e9e17c9c18002d7922a696b95a27419b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

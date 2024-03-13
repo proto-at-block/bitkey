@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.wire:wire-runtime",
+    "components": [
+        {
+            "version": "4.9.5",
+            "variants": [
+                {
+                    "artifacts": {
+                        "wire-runtime-metadata-4.9.5.jar": "3c6fd494621724b72b68a0bd4024d8a9897ce09cb43f883989069fc548a8dbd8"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

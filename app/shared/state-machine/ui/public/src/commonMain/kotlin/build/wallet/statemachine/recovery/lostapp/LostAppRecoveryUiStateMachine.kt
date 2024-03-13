@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.lostapp
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
@@ -21,7 +21,7 @@ interface LostAppRecoveryUiStateMachine : StateMachine<LostAppRecoveryUiProps, S
 
 data class LostAppRecoveryUiProps(
   val recoveryData: LostAppRecoveryData,
-  val keyboxConfig: KeyboxConfig,
+  val fullAccountConfig: FullAccountConfig,
   val fiatCurrency: FiatCurrency,
   val eakAssociation: EmergencyAccessKitAssociation,
 )
@@ -38,7 +38,7 @@ class LostAppRecoveryUiStateMachineImpl(
         lostAppRecoveryHaveNotStartedDataStateMachine.model(
           LostAppRecoveryHaveNotStartedUiProps(
             notUndergoingRecoveryData = recoveryData,
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             eakAssociation = props.eakAssociation
           )
         )
@@ -48,7 +48,7 @@ class LostAppRecoveryUiStateMachineImpl(
           RecoveryInProgressUiProps(
             presentationStyle = Root,
             recoveryInProgressData = recoveryData.recoveryInProgressData,
-            keyboxConfig = props.keyboxConfig,
+            fullAccountConfig = props.fullAccountConfig,
             fiatCurrency = props.fiatCurrency
           )
         )

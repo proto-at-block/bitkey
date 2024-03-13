@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.android.tools:repository",
+    "components": [
+        {
+            "version": "31.1.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "repository-31.1.2.jar": "8fe8e9d6bcebe92dd4eee3e8f8e122b521f03a8f49e28f6a814b46e3822e4aaa"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

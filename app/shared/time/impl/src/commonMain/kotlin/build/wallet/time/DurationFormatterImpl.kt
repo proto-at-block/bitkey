@@ -5,20 +5,34 @@ import kotlin.time.Duration
 class DurationFormatterImpl : DurationFormatter {
   override fun formatWithWords(duration: Duration): String {
     return duration.toComponents { days, hours, minutes, _, _ ->
+      fun formatComponent(
+        amount: Int,
+        singularString: String,
+        pluralString: String,
+      ) = when {
+        amount > 1 -> "$amount $pluralString"
+        amount == 1 -> "1 $singularString"
+        else -> null
+      }
+
+      val daysFormatted = formatComponent(days.toInt(), "day", "days")
+      val hoursFormatted = formatComponent(hours, "hour", "hours")
+      val minutesFormatted = formatComponent(minutes, "minute", "minutes")
+
       when {
-        days > 0 -> {
+        daysFormatted != null -> {
           when {
-            hours > 0 -> "$days days, $hours hours"
-            else -> "$days days"
+            hoursFormatted != null -> "$daysFormatted, $hoursFormatted"
+            else -> "$daysFormatted"
           }
         }
-        hours > 0 -> {
+        hoursFormatted != null -> {
           when {
-            minutes > 0 -> "$hours hours, $minutes minutes"
-            else -> "$hours hours"
+            minutesFormatted != null -> "$hoursFormatted, $minutesFormatted"
+            else -> "$minutesFormatted"
           }
         }
-        minutes > 0 -> "$minutes minutes"
+        minutes > 0 -> "$minutesFormatted"
         else -> "Less than 1 minute"
       }
     }

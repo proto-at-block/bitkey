@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.google.code.findbugs:jsr305",
+    "components": [
+        {
+            "version": "3.0.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jsr305-3.0.2.jar": "766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

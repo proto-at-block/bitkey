@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.turbine:turbine-iosx64",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "Turbine-iosx64-metadata.jar": "0ff37d2b246297e703aa02ded0a57e00e5b3bce19139f3e5b04498bcda0da2ec"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "Turbine.klib": "532975b068ba38d20df6e239b656619af61fe1ef84f9f74cf821b49415b28fd6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.test
@@ -12,12 +13,14 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachineImpl
+import build.wallet.statemachine.ui.matchers.shouldHaveSubtitle
+import build.wallet.statemachine.ui.matchers.shouldHaveTitle
+import build.wallet.statemachine.ui.matchers.shouldNotHaveSubtitle
+import build.wallet.statemachine.ui.robots.click
 import build.wallet.time.ClockFake
 import build.wallet.time.DurationFormatterFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
-import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.Instant
 
@@ -36,7 +39,8 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
     HardwareRecoveryStatusCardUiProps(
       lostHardwareRecoveryData =
         AwaitingNewHardwareData(
-          addHardwareKeys = { _, _ -> }
+          newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+          addHardwareKeys = { _, _, _ -> }
         ),
       onClick = {
         onClickCalls += Unit
@@ -75,11 +79,10 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
           )
       )
     ) {
-      awaitItem().shouldBeTypeOf<CardModel>().let {
-        it.title.string.shouldBe("Replacement Ready")
-        it.subtitle.shouldBeNull()
-        it.onClick.shouldNotBeNull().invoke()
-      }
+      awaitItem().shouldBeTypeOf<CardModel>()
+        .shouldHaveTitle("Replacement Ready")
+        .shouldNotHaveSubtitle()
+        .click()
       onClickCalls.awaitItem()
     }
   }
@@ -99,11 +102,10 @@ class HardwareRecoveryStatusCardUiStateMachineImplTests : FunSpec({
           )
       )
     ) {
-      awaitItem().shouldBeTypeOf<CardModel>().let {
-        it.title.string.shouldBe("Replacement pending...")
-        it.subtitle.shouldBe("0s")
-        it.onClick.shouldNotBeNull().invoke()
-      }
+      awaitItem().shouldBeTypeOf<CardModel>()
+        .shouldHaveTitle("Replacement pending...")
+        .shouldHaveSubtitle("0s")
+        .click()
       onClickCalls.awaitItem()
     }
   }

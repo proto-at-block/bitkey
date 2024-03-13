@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.core:core-ktx",
+    "components": [
+        {
+            "version": "1.12.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "core-ktx-1.12.0.aar": "95b3edaf78227b7cc8d802d11f8793a9aed292e52b8fbf8c08d6134ccb1716d3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

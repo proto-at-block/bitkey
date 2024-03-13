@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.okio:okio",
+    "components": [
+        {
+            "version": "2.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-jvm-2.7.0.jar": "63b202bade0d0256d8a3ba73070e024980e5ef8bdf010dd5cafd9b2fca2c86b9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

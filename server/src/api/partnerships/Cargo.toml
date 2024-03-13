@@ -20,6 +20,7 @@ aws-utils = { path = "aws_utils" }
 external_identifier = { workspace = true }
 partnerships-lib = { path = "partnerships_lib" }
 types = { workspace = true, features = ["account"] }
+userpool = { workspace = true }
 
 [dev-dependencies]
 http-body-util = "0.1.0"

@@ -118,46 +118,6 @@ public struct MoneyHomeView: View {
         }
     }
 
-    private func modulate(
-        watchedViewValue: CGFloat,
-        watchedViewStart: CGFloat,
-        watchedViewEnd: CGFloat,
-        appliedViewStart: CGFloat,
-        appliedViewEnd:CGFloat,
-        limit: Bool = false
-    ) -> CGFloat {
-        var result: CGFloat = 0
-
-        let toLow = CGFloat(appliedViewStart)
-        let toHigh = CGFloat(appliedViewEnd)
-        let fromLow = CGFloat(watchedViewStart)
-        let fromHigh = CGFloat(watchedViewEnd)
-        let watchedValue = CGFloat(watchedViewValue)
-
-        result = toLow + (((watchedValue - fromLow) / (fromHigh - fromLow)) * (toHigh - toLow))
-
-        if limit == true {
-            if toLow < toHigh {
-                if result < toLow {
-                    return toLow
-                }
-                if result > toHigh {
-                    return toHigh
-                }
-            }
-            else {
-                if result > toLow {
-                    return toLow
-                }
-                if result < toHigh {
-                    return toHigh
-                }
-            }
-        }
-
-        return result
-    }
-
 }
 
 struct MoneyHomeView_Preview: PreviewProvider {
@@ -197,4 +157,44 @@ extension UIScrollView {
     get { false }
     set {}
   }
+}
+
+public func modulate(
+    watchedViewValue: CGFloat,
+    watchedViewStart: CGFloat,
+    watchedViewEnd: CGFloat,
+    appliedViewStart: CGFloat,
+    appliedViewEnd:CGFloat,
+    limit: Bool = false
+) -> CGFloat {
+    var result: CGFloat = 0
+
+    let toLow = CGFloat(appliedViewStart)
+    let toHigh = CGFloat(appliedViewEnd)
+    let fromLow = CGFloat(watchedViewStart)
+    let fromHigh = CGFloat(watchedViewEnd)
+    let watchedValue = CGFloat(watchedViewValue)
+
+    result = toLow + (((watchedValue - fromLow) / (fromHigh - fromLow)) * (toHigh - toLow))
+
+    if limit == true {
+        if toLow < toHigh {
+            if result < toLow {
+                return toLow
+            }
+            if result > toHigh {
+                return toHigh
+            }
+        }
+        else {
+            if result > toLow {
+                return toLow
+            }
+            if result < toHigh {
+                return toHigh
+            }
+        }
+    }
+
+    return result
 }

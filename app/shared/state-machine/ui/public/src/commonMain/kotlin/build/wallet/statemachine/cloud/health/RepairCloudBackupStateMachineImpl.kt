@@ -36,6 +36,7 @@ import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CheckingLocalBackupState
@@ -50,11 +51,13 @@ import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.GeneratingCsekState
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ProblemWithBackupState
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.SealingCsekWithHardwareState
+import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.ShowingCustomerSupportUiState
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.SigningIntoCloudState
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.SyncingBackupHealthStatus
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.UploadingBackupState
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -63,6 +66,7 @@ import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.first
 
 // TODO(796): add integration tests
 class RepairCloudBackupStateMachineImpl(
@@ -78,6 +82,7 @@ class RepairCloudBackupStateMachineImpl(
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
   private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : RepairCloudBackupStateMachine {
   @Composable
   override fun model(props: RepairMobileKeyBackupProps): ScreenModel {
@@ -103,8 +108,24 @@ class RepairCloudBackupStateMachineImpl(
           )
         ).asScreen(props.presentationStyle)
 
+      is ShowingCustomerSupportUiState ->
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = currentState.urlString,
+              onClose = {
+                state = ErrorSigningIntoCloudState
+              }
+            )
+          }
+        ).asModalScreen()
       is ErrorSigningIntoCloudState ->
         CloudSignInFailedScreenModel(
+          onContactSupport = {
+            state = ShowingCustomerSupportUiState(
+              urlString = "https://support.bitkey.world/hc/en-us"
+            )
+          },
           onTryAgain = {
             // Try signing in again, this time force sign out to allow customer to resign in or
             // switch accounts.
@@ -244,7 +265,8 @@ class RepairCloudBackupStateMachineImpl(
       is CreatingMobileKeyBackupState -> {
         LaunchedEffect("creating-mobile-key-backup") {
           log { "Creating mobile key backup" }
-          val trustedContacts = socRecRelationshipsRepository.relationships.value
+          val trustedContacts = socRecRelationshipsRepository.relationships
+            .first()
             .trustedContacts
 
           fullAccountCloudBackupCreator
@@ -306,7 +328,8 @@ class RepairCloudBackupStateMachineImpl(
             .writeBackup(
               accountId = props.account.keybox.fullAccountId,
               cloudStoreAccount = currentState.cloudAccount,
-              backup = currentState.mobileKeyBackup
+              backup = currentState.mobileKeyBackup,
+              requireAuthRefresh = true
             )
             .logFailure { "Error saving cloud backup to cloud storage" }
             .onFailure { error ->
@@ -472,7 +495,7 @@ class RepairCloudBackupStateMachineImpl(
             if (foundLocalBackup.isFullAccount()) {
               return CreatingEakBackupState(
                 cloudAccount = cloudAccount,
-                sealedCsek = foundLocalBackup.fullAccountFields!!.hwEncryptionKeyCiphertext,
+                sealedCsek = foundLocalBackup.fullAccountFields!!.sealedHwEncryptionKey,
                 mobileKeyBackup = foundLocalBackup
               )
             } else {
@@ -588,5 +611,7 @@ class RepairCloudBackupStateMachineImpl(
      * After that, we are good to exit the repair flow.
      */
     data object SyncingBackupHealthStatus : State
+
+    data class ShowingCustomerSupportUiState(val urlString: String) : State
   }
 }

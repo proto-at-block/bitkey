@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.matthewnelson.encoding:base32-jvm",
+    "components": [
+        {
+            "version": "2.1.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "base32-jvm-2.1.0.jar": "650b2035efb4cdce837bdf5787ed9b0647d57aa14ae372f506c4d6c2fa76a29b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

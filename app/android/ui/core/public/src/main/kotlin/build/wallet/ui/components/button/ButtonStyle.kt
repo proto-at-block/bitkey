@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.buttonTextStyle
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
+import build.wallet.ui.model.button.ButtonModel.Size.FitContent
 import build.wallet.ui.model.button.ButtonModel.Size.Floating
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
@@ -45,7 +46,7 @@ data class ButtonStyle(
   val iconSize: IconSize,
   val backgroundColor: Color,
   val minWidth: Dp,
-  val height: Dp,
+  val height: Dp?,
   val fillWidth: Boolean,
   val verticalPadding: Dp,
   val horizontalPadding: Dp,
@@ -62,7 +63,7 @@ fun WalletTheme.buttonStyle(
   cornerRadius: Dp = 16.dp,
   enabled: Boolean,
 ): ButtonStyle {
-  val textColor = textColor(enabled = enabled, treatment = treatment)
+  val textColor = textColor(treatment = treatment)
   val textStyle =
     buttonTextStyle(
       type =
@@ -83,7 +84,7 @@ fun WalletTheme.buttonStyle(
       } else {
         treatment.disabledBackgroundColor()
       },
-    iconColor = iconColor(enabled, treatment),
+    iconColor = iconColor(treatment),
     iconSize = treatment.leadingIconSize,
     isTextButton = isTextButton,
     fillWidth = size == Footer,
@@ -91,7 +92,8 @@ fun WalletTheme.buttonStyle(
       when (size) {
         Compact -> 32.dp
         Floating -> 64.dp
-        else -> 52.dp
+        Footer, Regular -> 52.dp
+        FitContent -> null
       },
     minWidth =
       when (size) {
@@ -114,9 +116,8 @@ fun WalletTheme.buttonStyle(
         0.dp
       } else {
         when (size) {
-          Regular -> 16.dp
+          Regular, Footer, FitContent -> 16.dp
           Compact -> 12.dp
-          Footer -> 16.dp
           Floating -> 22.dp
         }
       }
@@ -125,46 +126,32 @@ fun WalletTheme.buttonStyle(
 
 @Composable
 @ReadOnlyComposable
-private fun textColor(
-  enabled: Boolean,
-  treatment: ButtonModel.Treatment,
-): Color {
-  if (enabled) {
-    return when (treatment) {
-      Black,
-      Primary,
-      -> colors.primaryForeground
+private fun textColor(treatment: ButtonModel.Treatment): Color {
+  return when (treatment) {
+    Black,
+    Primary,
+    -> colors.primaryForeground
 
-      Secondary -> colors.secondaryForeground
-      SecondaryDestructive -> colors.destructive
-      Tertiary,
-      TertiaryNoUnderline,
-      -> colors.foreground
+    Secondary -> colors.secondaryForeground
+    SecondaryDestructive -> colors.destructive
+    Tertiary,
+    TertiaryNoUnderline,
+    -> colors.foreground
 
-      TertiaryDestructive -> colors.destructive
-      Translucent, Translucent10 -> colors.translucentForeground
-      TertiaryPrimary,
-      TertiaryPrimaryNoUnderline,
-      -> colors.primary
+    TertiaryDestructive -> colors.destructive
+    Translucent, Translucent10 -> colors.translucentForeground
+    TertiaryPrimary,
+    TertiaryPrimaryNoUnderline,
+    -> colors.primary
 
-      White -> Color.Black
-      Warning -> colors.warning
-    }
-  } else {
-    return colors.foreground30
+    White -> Color.Black
+    Warning -> colors.warning
   }
 }
 
 @Composable
 @ReadOnlyComposable
-private fun iconColor(
-  enabled: Boolean,
-  treatment: ButtonModel.Treatment,
-): Color {
-  if (!enabled) {
-    return colors.foreground30
-  }
-
+private fun iconColor(treatment: ButtonModel.Treatment): Color {
   return when (treatment) {
     Black,
     Primary,
@@ -212,7 +199,7 @@ private fun ButtonModel.Treatment.normalBackgroundColor() =
 private fun ButtonModel.Treatment.disabledBackgroundColor() =
   when (this) {
     Primary ->
-      colors.primary.copy(alpha = 0.8F)
+      colors.primary.copy(alpha = 0.4F)
     Secondary, SecondaryDestructive ->
       colors.secondary
     Translucent ->
@@ -226,7 +213,7 @@ private fun ButtonModel.Treatment.disabledBackgroundColor() =
     TertiaryPrimaryNoUnderline,
     ->
       Color.Transparent
-    Black -> Color.Black.copy(alpha = 0.8F)
-    White -> Color.White.copy(alpha = 0.8F)
-    Warning -> colors.warningForeground.copy(alpha = 0.8F)
+    Black -> Color.Black.copy(alpha = 0.4F)
+    White -> Color.White.copy(alpha = 0.4F)
+    Warning -> colors.warningForeground.copy(alpha = 0.4F)
   }

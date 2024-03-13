@@ -6,12 +6,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_BACKUP_FAILURE
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION_FAILURE
+import build.wallet.analytics.v1.Action
 import build.wallet.auth.LiteAccountCreator
 import build.wallet.bitkey.account.LiteAccount
+import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.ButtonDataModel
@@ -25,7 +29,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -38,20 +42,44 @@ class CreateLiteAccountUiStateMachineImpl(
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val liteAccountCloudSignInAndBackupUiStateMachine:
     LiteAccountCloudSignInAndBackupUiStateMachine,
+  private val deviceInfoProvider: DeviceInfoProvider,
+  private val eventTracker: EventTracker,
 ) : CreateLiteAccountUiStateMachine {
   @Composable
   override fun model(props: CreateLiteAccountUiProps): ScreenModel {
     var uiState: State by remember(props.inviteCode) {
       mutableStateOf(
-        if (props.inviteCode != null) {
-          State.CreatingLiteAccount(props.inviteCode)
+        if (props.showBeTrustedContactIntroduction) {
+          // If we are not skipping the introduction, show it.
+          State.ShowingBeTrustedContactIntroduction(props.inviteCode ?: "")
         } else {
-          State.EnteringInviteCode("")
+          if (props.inviteCode != null) {
+            // If we are skipping the introduction, create the account immediately with invite code.
+            State.CreatingLiteAccount(props.inviteCode)
+          } else {
+            // If there is no invite code, we need to enter one.
+            State.EnteringInviteCode("")
+          }
         }
       )
     }
 
     return when (val state = uiState) {
+      is State.ShowingBeTrustedContactIntroduction -> {
+        BeTrustedContactIntroductionModel(
+          onBack = props.onBack,
+          onContinue = {
+            // Got here from a deeplink, skip entering the code and go straight to create account
+            if (state.inviteCode.isNotEmpty()) {
+              uiState = State.CreatingLiteAccount(state.inviteCode)
+            } else {
+              uiState = State.EnteringInviteCode(state.inviteCode)
+            }
+          },
+          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+        ).asRootScreen()
+      }
+
       is State.EnteringInviteCode -> {
         var value by remember { mutableStateOf(state.inviteCode) }
         EnteringInviteCodeBodyModel(
@@ -62,12 +90,23 @@ class CreateLiteAccountUiStateMachineImpl(
               text = "Continue",
               isEnabled = value.isNotEmpty(),
               size = ButtonModel.Size.Footer,
-              onClick =
-                Click.standardClick {
-                  uiState = State.CreatingLiteAccount(value)
-                }
+              onClick = StandardClick {
+                // If the TC is tapping the continue button, it wasn't from a deep link
+                // but rather manually entered.
+                eventTracker.track(Action.ACTION_APP_SOCREC_ENTERED_INVITE_MANUALLY)
+                uiState = State.CreatingLiteAccount(value)
+              }
             ),
-          retreat = props.onBack.toBackRetreat()
+          retreat =
+            (
+              if (props.showBeTrustedContactIntroduction) {
+                {
+                  uiState = State.ShowingBeTrustedContactIntroduction(value)
+                }
+              } else {
+                props.onBack
+              }
+            ).toBackRetreat()
         ).asRootScreen()
       }
 
@@ -183,6 +222,13 @@ private sealed class State {
    * [EnteringInviteCode] and [EnrollingAsTrustedContact].
    */
   abstract val inviteCode: String
+
+  /**
+   * Introduction to being a trusted contact.
+   */
+  data class ShowingBeTrustedContactIntroduction(
+    override val inviteCode: String,
+  ) : State()
 
   /**
    * Enter invite code.

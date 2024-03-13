@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.ow2.asm:asm-tree",
+    "components": [
+        {
+            "version": "9.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "asm-tree-9.2.jar": "aabf9bd23091a4ebfc109c1f3ee7cf3e4b89f6ba2d3f51c5243f16b3cffae011"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

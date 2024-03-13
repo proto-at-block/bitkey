@@ -43,7 +43,7 @@ impl Service {
             comms_verification_claims,
             ..full_account
         };
-        self.repo.persist(&updated_account.into()).await?;
+        self.account_repo.persist(&updated_account.into()).await?;
 
         Ok(())
     }

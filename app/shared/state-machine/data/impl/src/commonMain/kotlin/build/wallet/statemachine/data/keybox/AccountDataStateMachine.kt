@@ -2,7 +2,7 @@ package build.wallet.statemachine.data.keybox
 
 import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 
 /**
  * Manages [Account] data state.
@@ -10,6 +10,6 @@ import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.Loa
 interface AccountDataStateMachine : StateMachine<AccountDataProps, AccountData>
 
 data class AccountDataProps(
-  val templateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+  val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
   val currencyPreferenceData: CurrencyPreferenceData,
 )

@@ -1,10 +1,10 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -147,7 +147,7 @@ sealed interface RecoveryInProgressData {
        */
       data class AwaitingHardwareProofOfPossessionData(
         val fullAccountId: FullAccountId,
-        val keyboxConfig: KeyboxConfig,
+        val fullAccountConfig: FullAccountConfig,
         val appAuthKey: AppGlobalAuthPublicKey,
         val addHwFactorProofOfPossession: (HwFactorProofOfPossession) -> Unit,
         val rollback: () -> Unit,
@@ -174,6 +174,13 @@ sealed interface RecoveryInProgressData {
       val physicalFactor: PhysicalFactor,
       val retry: () -> Unit,
     ) : CompletingRecoveryData
+
+    /**
+     * Indicates that we are currently generating new TC
+     * certificates using new auth keys, verifying them and
+     * uploading them to f8e.
+     */
+    data object RegeneratingTcCertificatesData : CompletingRecoveryData
 
     /**
      * Encrypting and backing up new keyset and app private keys. Once backup is finished,

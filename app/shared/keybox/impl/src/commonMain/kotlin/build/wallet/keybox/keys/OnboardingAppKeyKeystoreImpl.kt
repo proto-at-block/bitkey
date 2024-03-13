@@ -12,10 +12,10 @@ import com.github.michaelbull.result.Result
 import com.russhwolf.settings.ExperimentalSettingsApi
 
 private const val KEYSTORE_KEY = "onboarding-app-keys"
-private const val SPENDING_KEY = "spending_key"
-private const val APP_GLOBAL_AUTH_KEY = "auth_key"
-private const val APP_RECOVERY_AUTH_KEY = "app_recovery_auth_key"
-private const val NETWORK_KEY = "network"
+private const val SPENDING_KEY = "spending-key"
+private const val APP_GLOBAL_AUTH_KEY = "auth-key"
+private const val APP_RECOVERY_AUTH_KEY = "app-recovery-auth-key"
+private const val NETWORK_KEY = "network-key"
 
 /**
  * This implementation of [OnboardingAppKeyKeystore] uses [SuspendSettings] to persist app keys
@@ -48,37 +48,23 @@ class OnboardingAppKeyKeystoreImpl(
     network: BitcoinNetworkType,
   ): AppKeyBundle? {
     val appKeystore = appKeystore()
-    return if (appKeystore.hasKey(SPENDING_KEY) && appKeystore.hasKey(APP_GLOBAL_AUTH_KEY)) {
-      val spendingKey = appKeystore.getStringOrNull(SPENDING_KEY)
-      val globalAuthKey = appKeystore.getStringOrNull(APP_GLOBAL_AUTH_KEY)
-      val recoveryAuthKey = appKeystore.getStringOrNull(APP_RECOVERY_AUTH_KEY)
-      val networkType =
-        when (val networkName = appKeystore.getStringOrNull(NETWORK_KEY)) {
-          null -> null
-          else -> BitcoinNetworkType.valueOf(networkName)
-        }
+    val spendingKey = appKeystore.getStringOrNull(SPENDING_KEY) ?: return null
+    val globalAuthKey = appKeystore.getStringOrNull(APP_GLOBAL_AUTH_KEY) ?: return null
+    val recoveryAuthKey = appKeystore.getStringOrNull(APP_RECOVERY_AUTH_KEY) ?: return null
+    val bitcoinNetworkTypeName = appKeystore.getStringOrNull(NETWORK_KEY) ?: return null
+    val bitcoinNetworkType = BitcoinNetworkType.valueOf(bitcoinNetworkTypeName)
 
-      if (spendingKey == null || globalAuthKey == null || network != networkType) {
-        null
-      } else {
-        AppKeyBundle(
-          localId = localId,
-          spendingKey = AppSpendingPublicKey(spendingKey),
-          authKey = AppGlobalAuthPublicKey(Secp256k1PublicKey(globalAuthKey)),
-          networkType = network,
-          recoveryAuthKey =
-            recoveryAuthKey?.let {
-              // It's possible that an existing customer has already generated app keys, but not the
-              // recovery auth key, prior the app update that started generating the recovery auth key.
-              // In this case, we don't know have the recovery auth key generated; it will be backfilled
-              // later (TODO: BKR-573).
-              AppRecoveryAuthPublicKey(Secp256k1PublicKey(recoveryAuthKey))
-            }
-        )
-      }
-    } else {
-      null
+    if (network != bitcoinNetworkType) {
+      return null
     }
+
+    return AppKeyBundle(
+      localId = localId,
+      spendingKey = AppSpendingPublicKey(spendingKey),
+      authKey = AppGlobalAuthPublicKey(Secp256k1PublicKey(globalAuthKey)),
+      networkType = network,
+      recoveryAuthKey = AppRecoveryAuthPublicKey(Secp256k1PublicKey(recoveryAuthKey))
+    )
   }
 
   override suspend fun clear(): Result<Unit, Throwable> {

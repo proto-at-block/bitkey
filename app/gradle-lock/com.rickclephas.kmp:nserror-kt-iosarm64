@@ -1,0 +1,24 @@
+{
+    "module-identifier": "com.rickclephas.kmp:nserror-kt-iosarm64",
+    "components": [
+        {
+            "version": "0.2.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "nserror-kt-cinterop-NSErrorKtRuntime.klib": "f13882360390d115f69d912d3f5756bf32edf64f1f82add76bb171640e3ded01",
+                        "nserror-kt.klib": "d812da04c3e4c3739007c74bf7f419f1993685204482054cb3558232e2ad439c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "nserror-kt-iosarm64-0.2.0-metadata.jar": "bc9818ea49132e9c4ecea7275a6c4161dbcdcabfce12f6fd76a8e9832aa0bede"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

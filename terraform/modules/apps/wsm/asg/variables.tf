@@ -35,3 +35,9 @@ variable "asg_max_size" {
   description = "The maximum number of instances in the WSM Autoscaling Group"
   default     = 4
 }
+
+variable "enable_ssm" {
+  type        = bool
+  description = "Enable SSM for the WSM instances"
+  default     = false
+}

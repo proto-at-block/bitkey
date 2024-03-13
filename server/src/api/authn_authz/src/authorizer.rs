@@ -8,19 +8,18 @@ use axum::middleware::Next;
 use axum::response::Response;
 use jwt_authorizer::{JwtAuthorizer, JwtClaims, Refresh, RefreshStrategy, Validation};
 use types::account::identifiers::AccountId;
-
-use crate::key_claims::AccessTokenClaims;
-use crate::test_utils::TEST_JWT_SIGNING_SECRET;
-use crate::userpool::{self};
-use crate::userpool::{cognito_user::CognitoUser, CognitoMode};
+use types::authn_authz::cognito::CognitoUser;
+use types::authn_authz::AccessTokenClaims;
+use userpool::test_utils::TEST_JWT_SIGNING_SECRET;
+use userpool::userpool::CognitoMode;
 
 pub enum AuthorizerConfig {
     Test,
     Cognito,
 }
 
-impl From<userpool::Config> for AuthorizerConfig {
-    fn from(value: userpool::Config) -> Self {
+impl From<userpool::userpool::Config> for AuthorizerConfig {
+    fn from(value: userpool::userpool::Config) -> Self {
         match value.cognito {
             CognitoMode::Environment => Self::Cognito,
             CognitoMode::Test => Self::Test,

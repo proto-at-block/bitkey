@@ -127,6 +127,7 @@ onboard: install-git-lfs install-xcode-clt install-jetbrains-toolbox submodules 
 # Generate Xcode project (for both device and simulator targets)
 xcodegen:
   cd ios/ && xcodegen
+  just reconstruct-ios-package-resolved-file
 
 [private]
 install-xcode-clt:
@@ -238,9 +239,43 @@ get-regtest-funds address amount:
   just -f ../server/justfile get-regtest-funds {{ address }} {{ amount }}
 
 update-gradle-lockfile:
-  {{gradle}} :deleteAllDependencyLocks --write-locks
-  {{gradle}} syncDependencyLockSymLinks
-#  {{gradle}} updateDependencyLock --write-locks
+  {{gradle}} :updateDependencyLockFile :build-logic:updateDependencyLockFile -Pbuild.wallet.kmp.iosEnableAllTargets=true -Pbuild.wallet.dependency-locking.is-enabled=false
+
+verify-gradle-lockfile:
+  {{gradle}} verifyDependencyLockFile :build-logic:verifyDependencyLockFile -Pbuild.wallet.kmp.iosEnableAllTargets=true
+
+resolve-ios-packages: xcodegen
+  xcodebuild -resolvePackageDependencies -project ios/Wallet.xcodeproj
+
+reconstruct-ios-package-resolved-file:
+  mkdir -p ios/Wallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm
+  cp ios/Package.lock ios/Wallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+
+# Use only if the Package.resolved was already updated (for example by Xcode)
+fast-update-ios-lockfile:
+  cp ios/Wallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved ios/Package.lock
+
+update-ios-lockfile: resolve-ios-packages fast-update-ios-lockfile
+
+# Use only if the Package.resolved was already updated (for example by Xcode)
+fast-verify-ios-lockfile:
+  #!/usr/bin/env bash
+  diff_output=$(diff ios/Package.lock ios/Wallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)
+  diff_exit_code=$?
+  if [ $diff_exit_code -ne 0 ]; then
+    echo "Resolved packages do not match the lock file." >&2
+    echo "Consider updating the lockfile using \"just fast-update-ios-lockfile\"." >&2
+    echo "$diff_output" >&2
+    exit $diff_exit_code
+  fi
+
+verify-ios-lockfile: resolve-ios-packages fast-verify-ios-lockfile
 
 verify-android-apk path-to-bitkey-repository-directory path-to-build-directory app-package-name:
   verifiable-build/android/verification/verify-android-apk {{path-to-bitkey-repository-directory}} {{path-to-build-directory}} {{app-package-name}}
+
+generate-state-machine-graph machine_name='' excludes='' output_file='':
+  gradle :shared:state-machine-ui-public:generateStateMachineDiagram -PmachineName={{machine_name}} -PexcludingMachineNames={{excludes}} -PoutputFile={{output_file}}
+
+generate-entire-state-machine-graph output_file='':
+  gradle :shared:state-machine-ui-public:generateStateMachineDiagram -PoutputFile={{output_file}} -PoverridePermanentExcludes=true

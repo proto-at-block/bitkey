@@ -1,16 +1,17 @@
 package build.wallet.statemachine.data.keybox
 
+import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keybox.KeyboxConfig
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.OnboardConfigData
 import build.wallet.statemachine.data.keybox.address.KeyboxAddressData
-import build.wallet.statemachine.data.keybox.config.TemplateKeyboxConfigData.LoadedTemplateKeyboxConfigData
+import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
 import build.wallet.statemachine.data.mobilepay.MobilePayData
 import build.wallet.statemachine.data.notifications.NotificationTouchpointData
@@ -41,12 +42,12 @@ sealed interface AccountData {
     /**
      * Indicates that there is no active account and no onboarding or recovery in progress.
      *
-     * @property [templateKeyboxConfigData] template [KeyboxConfig] to be used for creating or
+     * @property [templateFullAccountConfigData] template [FullAccountConfig] to be used for creating or
      * recovering Keybox matching that config.
      */
     data class GettingStartedData(
       val newAccountOnboardConfigData: OnboardConfigData,
-      val templateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+      val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
       val startFullAccountCreation: () -> Unit,
       val startLiteAccountCreation: () -> Unit,
       val startRecovery: () -> Unit,
@@ -57,13 +58,13 @@ sealed interface AccountData {
     /**
      * Indicates that there is an ongoing "Lost App" recovery in progress for a [FullAccount].
      *
-     * @property [templateKeyboxConfig] template [KeyboxConfig] to be used to recover Keybox
-     * matching that config. Note that we are not passing [LoadedTemplateKeyboxConfigData]
+     * @property [templateFullAccountConfig] template [FullAccountConfig] to be used to recover Keybox
+     * matching that config. Note that we are not passing [LoadedTemplateFullAccountConfigData]
      * at this point because we should not allow downstream state machines to change config
      * template at this point.
      */
     data class RecoveringAccountData(
-      val templateKeyboxConfig: KeyboxConfig,
+      val templateFullAccountConfig: FullAccountConfig,
       val lostAppRecoveryData: LostAppRecoveryData,
     ) : NoActiveAccountData
 
@@ -80,20 +81,20 @@ sealed interface AccountData {
      * Indicates that the account is attempting recovery with the Emergency Access Kit.
      */
     data class RecoveringAccountWithEmergencyAccessKit(
-      val templateKeyboxConfig: KeyboxConfig,
+      val templateFullAccountConfig: FullAccountConfig,
       val onExit: () -> Unit,
     ) : NoActiveAccountData
 
     /**
      * Indicates that there is an ongoing brand new Full Account creation in progress
      *
-     * @property templateKeyboxConfig template [KeyboxConfig] to be used for creating new keybox.
-     * Note that we are not passing [LoadedTemplateKeyboxConfigData] at this point because
+     * @property templateFullAccountConfig template [FullAccountConfig] to be used for creating new keybox.
+     * Note that we are not passing [LoadedTemplateFullAccountConfigData] at this point because
      * we should not allow downstream state machines to change config template at this point.
      * @property createFullAccountData provides data for the state of account creation.
      */
     data class CreatingFullAccountData(
-      val templateKeyboxConfig: KeyboxConfig,
+      val templateFullAccountConfig: FullAccountConfig,
       val createFullAccountData: CreateFullAccountData,
     ) : NoActiveAccountData
 
@@ -101,14 +102,14 @@ sealed interface AccountData {
      * Indicates that there is an ongoing new lite account creation in progress
      *
      * @property onRollback Callback to rollback the creation of the lite account.
-     * @property templateKeyboxConfig template [KeyboxConfig] to be used for creating new keybox.
+     * @property templateFullAccountConfig template [FullAccountConfig] to be used for creating new keybox.
      * @property inviteCode The invite code used to create the lite account. Present when coming from
      * a trusted contact invite deep link.
      * @property onAccountCreated Invoked when the account creation is complete.
      */
     data class CreatingLiteAccountData(
       val onRollback: () -> Unit,
-      val templateKeyboxConfig: KeyboxConfig,
+      val templateFullAccountConfig: FullAccountConfig,
       val inviteCode: String?,
       val onAccountCreated: (LiteAccount) -> Unit,
     ) : NoActiveAccountData
@@ -166,6 +167,11 @@ sealed interface AccountData {
      */
     val account: FullAccount
 
+    data class RotatingAuthKeys(
+      override val account: FullAccount,
+      val pendingAttempt: PendingAuthKeyRotationAttempt,
+    ) : HasActiveFullAccountData
+
     /**
      * Active Full Account found, loading its data.
      */
@@ -199,7 +205,7 @@ sealed interface AccountData {
    *
    * @param accountUpgradeOnboardConfigData: Configuration for the onboarding flow for a Lite
    *  account to upgrade to a Full account.
-   * @param accountUpgradeTemplateKeyboxConfigData: Configuration for the keybox for when the Lite
+   * @param accountUpgradeTemplateFullAccountConfigData: Configuration for the keybox for when the Lite
    *  account upgrades to a Full account (and creates a keybox).
    * @property onUpgradeAccount Callback for when the Lite Account wants to start the upgrade
    *  process to become a full account. Currently, this needs to happen all within the context
@@ -209,7 +215,7 @@ sealed interface AccountData {
   data class HasActiveLiteAccountData(
     val account: LiteAccount,
     val accountUpgradeOnboardConfigData: OnboardConfigData.LoadedOnboardConfigData,
-    val accountUpgradeTemplateKeyboxConfigData: LoadedTemplateKeyboxConfigData,
+    val accountUpgradeTemplateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     val onUpgradeAccount: () -> Unit,
   ) : AccountData
 
@@ -225,7 +231,7 @@ sealed interface AccountData {
    */
   data class SomeoneElseIsRecoveringFullAccountData(
     val data: SomeoneElseIsRecoveringData,
-    val keyboxConfig: KeyboxConfig,
+    val fullAccountConfig: FullAccountConfig,
     val fullAccountId: FullAccountId,
   ) : AccountData
 }

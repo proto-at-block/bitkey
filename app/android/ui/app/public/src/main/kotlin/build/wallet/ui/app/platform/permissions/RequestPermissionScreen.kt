@@ -9,7 +9,7 @@ import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
@@ -43,7 +43,7 @@ fun RequestPermissionScreen(model: RequestPermissionBodyModel) {
           text = "Request",
           treatment = Primary,
           size = Footer,
-          onClick = Click.StandardClick { model.onRequest() }
+          onClick = StandardClick(model.onRequest)
         )
       }
     )

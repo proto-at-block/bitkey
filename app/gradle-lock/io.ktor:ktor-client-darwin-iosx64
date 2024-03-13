@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-darwin-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-darwin-iosx64-2.3.8-metadata.jar": "3f6c8d917ddd00c78eb450458010c21b69f14504abd5d6003cd90283540b8ea9"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-darwin.klib": "68b4486e15c028d725874cc2bac32d9be33bee3ffc15be0d7e99d4f4a8e5e6c2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

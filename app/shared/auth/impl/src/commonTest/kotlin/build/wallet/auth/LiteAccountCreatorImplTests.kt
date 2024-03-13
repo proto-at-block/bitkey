@@ -26,7 +26,7 @@ class LiteAccountCreatorImplTests : FunSpec({
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
   val accountRepository = AccountRepositoryFake()
   val authTokenDao = AuthTokenDaoMock(turbines::create)
-  val appKeysGenerator = AppKeysGeneratorMock(turbines::create)
+  val appKeysGenerator = AppKeysGeneratorMock()
   val createLiteAccountService = CreateLiteAccountServiceMock(turbines::create)
 
   val creator =

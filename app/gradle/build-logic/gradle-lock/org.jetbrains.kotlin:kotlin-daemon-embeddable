@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-daemon-embeddable",
+    "components": [
+        {
+            "version": "1.9.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-daemon-embeddable-1.9.10.jar": "79bd4bf388da4430b0a9be86d2f72a111110941965edd478e99f3ae083156116"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

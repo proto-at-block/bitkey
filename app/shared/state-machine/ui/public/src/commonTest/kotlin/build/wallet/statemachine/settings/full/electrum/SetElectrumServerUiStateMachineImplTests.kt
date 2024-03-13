@@ -8,14 +8,14 @@ import build.wallet.bitcoin.sync.ElectrumReachability.ElectrumReachabilityError.
 import build.wallet.bitcoin.sync.ElectrumReachabilityMock
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel.Style.Implicit
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.input.onValueChange
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -41,12 +41,15 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
   val electrumPreferenceMock = ElectrumServerSettingProviderMock(turbine = turbines::create)
   val reachabilityMock = ElectrumReachabilityMock(Ok(Unit))
   val unreachabilityMock = ElectrumReachabilityMock(Err(Unreachable(BdkError.Generic(null, null))))
+  val delayer = ControlledDelayer()
 
   lateinit var stateMachine: SetElectrumServerUiStateMachineImpl
 
   beforeTest {
+    delayer.reset()
     stateMachine =
       SetElectrumServerUiStateMachineImpl(
+        delayer = delayer,
         electrumServerSettingProvider = electrumPreferenceMock,
         electrumReachability = reachabilityMock
       )
@@ -80,25 +83,25 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newPort)
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<LoadingBodyModel> {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         // Should have saved electrum preference
         electrumPreferenceMock.setCalls.awaitItem()
         onSetServerCalls.awaitItem().shouldBe(Unit)
       }
 
-      awaitScreenWithBody<SuccessBodyModel> {
-        style.shouldBeInstanceOf<Implicit>()
-      }
+      awaitScreenWithBody<FormBodyModel>()
     }
   }
 
   test("do not save unreachable electrum server, show error screen") {
     stateMachine =
       SetElectrumServerUiStateMachineImpl(
+        delayer = delayer,
         electrumServerSettingProvider = electrumPreferenceMock,
         electrumReachability = unreachabilityMock
       )
@@ -130,17 +133,19 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newPort)
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<LoadingBodyModel> {}
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       awaitScreenWithBody<FormBodyModel> {
         header?.headline.shouldBe("Unable to contact Electrum server")
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR)
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -153,6 +158,7 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
   test("if Electrum server is incompatible, show error screen") {
     stateMachine =
       SetElectrumServerUiStateMachineImpl(
+        delayer = delayer,
         electrumServerSettingProvider = electrumPreferenceMock,
         electrumReachability = ElectrumReachabilityMock(Err(IncompatibleNetwork))
       )
@@ -184,17 +190,19 @@ class SetElectrumServerUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel> {
         with(mainContentList[1].shouldBeInstanceOf<TextInput>()) {
           fieldModel.value.shouldBe(newPort)
-          primaryButton.shouldNotBeNull().onClick()
+          clickPrimaryButton()
         }
       }
 
-      awaitScreenWithBody<LoadingBodyModel> {}
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       awaitScreenWithBody<FormBodyModel> {
         header?.headline.shouldBe("Incompatible Electrum server")
         eventTrackerScreenInfo?.eventTrackerScreenId
           .shouldBe(CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_ERROR)
-        primaryButton.shouldNotBeNull().onClick()
+        clickPrimaryButton()
       }
 
       awaitScreenWithBody<FormBodyModel> {

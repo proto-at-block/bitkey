@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.ktor:ktor-client-core-iosx64",
+    "components": [
+        {
+            "version": "2.3.8",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ktor-client-core-iosx64-2.3.8-metadata.jar": "0cd409f0e41b5f1935785177eefd09a510262a8be6f475cc002321bad03d5b72"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ktor-client-core.klib": "49ecc1cfaac65e409a960e1f62480b2f6ad21bd576523a259a3cd29246c8fc94"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -15,7 +15,7 @@ class TransactionDetailDaoImpl(
   override suspend fun insert(
     broadcastTime: Instant,
     transactionId: String,
-    estimatedConfirmationTimeInstant: Instant,
+    estimatedConfirmationTime: Instant,
   ): Result<Unit, DbError> =
     databaseProvider.database()
       .transactionDetailQueries
@@ -23,7 +23,7 @@ class TransactionDetailDaoImpl(
         insertTransactionDetail(
           transactionId = transactionId,
           broadcastTimeInstant = broadcastTime,
-          estimatedConfirmationTimeInstant = estimatedConfirmationTimeInstant
+          estimatedConfirmationTimeInstant = estimatedConfirmationTime
         )
       }
       .logFailure { "Failed to insert details for transaction $transactionId" }
@@ -43,7 +43,7 @@ class TransactionDetailDaoImpl(
       .awaitTransactionWithResult {
         estimatedConfirmationTimeForTransaction(
           transactionId = transactionId
-        ).executeAsOneOrNull()?.estimatedConfirmationTimeInstant
+        ).executeAsOneOrNull()
       }
       .logFailure { "Failed to fetch estimated confirmation time for transaction $transactionId" }
       .get()

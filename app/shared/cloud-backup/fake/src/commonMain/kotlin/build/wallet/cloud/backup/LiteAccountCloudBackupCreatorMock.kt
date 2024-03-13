@@ -3,7 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.auth.AppRecoveryAuthKeypairMock
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError
-import build.wallet.recovery.socrec.TrustedContactIdentityKeyFake
+import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -25,7 +25,7 @@ class LiteAccountCloudBackupCreatorMock : LiteAccountCloudBackupCreator {
         isTestAccount = account.config.isTestAccount,
         fullAccountFields = null,
         appRecoveryAuthKeypair = AppRecoveryAuthKeypairMock,
-        trustedContactIdentityKeypair = TrustedContactIdentityKeyFake,
+        delegatedDecryptionKeypair = DelegatedDecryptionKeyFake,
         isUsingSocRecFakes = account.config.isUsingSocRecFakes,
         bitcoinNetworkType = account.config.bitcoinNetworkType
       )

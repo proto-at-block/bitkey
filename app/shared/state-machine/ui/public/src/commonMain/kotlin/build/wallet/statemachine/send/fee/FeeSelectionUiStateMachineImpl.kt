@@ -33,7 +33,7 @@ import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_E
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_LOAD_FEES_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import com.github.michaelbull.result.onFailure
@@ -137,7 +137,7 @@ class FeeSelectionUiStateMachineImpl(
           FeeOptionListProps(
             accountData = props.accountData,
             fiatCurrency = props.fiatCurrency,
-            transactionAmount = state.transactionBaseAmount,
+            transactionBaseAmount = state.transactionBaseAmount,
             fees = state.fees,
             defaultPriority = state.defaultPriority,
             exchangeRates = props.exchangeRates,
@@ -155,13 +155,12 @@ class FeeSelectionUiStateMachineImpl(
           text = "Continue",
           size = Footer,
           isEnabled = options.options.any { it.selected }, // enable if an option is selected
-          onClick =
-            Click.standardClick {
-              props.onContinue(
-                state.selectedPriority,
-                state.fees
-              )
-            }
+          onClick = StandardClick {
+            props.onContinue(
+              state.selectedPriority,
+              state.fees
+            )
+          }
         ),
       onBack = props.onBack
     )
@@ -201,7 +200,7 @@ class FeeSelectionUiStateMachineImpl(
       bitcoinTransactionFeeEstimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
         keyset = props.accountData.account.keybox.activeSpendingKeyset,
-        keyboxConfig = props.accountData.account.keybox.config,
+        fullAccountConfig = props.accountData.account.keybox.config,
         recipientAddress = props.recipientAddress,
         amount = props.sendAmount
       )
@@ -209,7 +208,7 @@ class FeeSelectionUiStateMachineImpl(
         .onSuccess {
           val fees = it.toImmutableMap()
 
-          val transactionBaseAmount =
+          val minimumTransactionAmount =
             transactionBaseCalculator.minimumSatsRequiredForTransaction(
               walletBalance = props.accountData.transactionsData.balance,
               sendAmount = props.sendAmount,
@@ -220,7 +219,7 @@ class FeeSelectionUiStateMachineImpl(
             is ExactAmount -> {
               // If the base transaction amount required is greater than the balance, show insufficient
               // funds screen.
-              if (transactionBaseAmount > props.accountData.transactionsData.balance.total) {
+              if (minimumTransactionAmount > props.accountData.transactionsData.balance.total) {
                 onFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
                 return@LaunchedEffect
               }
@@ -228,7 +227,7 @@ class FeeSelectionUiStateMachineImpl(
             is SendAll -> {
               // If the base transaction amount required is negative, the customer's available funds
               // will not be enough to cover the fees to create the Send All transaction.
-              if (transactionBaseAmount.isNegative) {
+              if (minimumTransactionAmount.isNegative) {
                 onFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
                 return@LaunchedEffect
               }
@@ -254,7 +253,15 @@ class FeeSelectionUiStateMachineImpl(
             props.onContinue(selectedPriority, immutableMapOf())
           } else {
             // otherwise we will display the fees
-            onFeesLoaded(transactionBaseAmount, fees, selectedPriority)
+
+            // Use `transactionBaseAmount` if we are sending all, since that is calculated using
+            // the send amount minus the fastest possible feerate. Else, just take whatever gets
+            // passed in here.
+            val transactionAmount = when (props.sendAmount) {
+              SendAll -> minimumTransactionAmount
+              is ExactAmount -> props.sendAmount.money
+            }
+            onFeesLoaded(transactionAmount, fees, selectedPriority)
           }
         }
     }

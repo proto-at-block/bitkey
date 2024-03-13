@@ -3,6 +3,7 @@ package build.wallet.bitcoin.recovery
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.recovery.LostHardwareRecoveryStarter
@@ -20,6 +21,7 @@ class LostHardwareRecoveryStarterMock(
     activeKeybox: Keybox,
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, InitiateDelayNotifyHardwareRecoveryError> {
     initiateCalls += Unit
     return initiateResult

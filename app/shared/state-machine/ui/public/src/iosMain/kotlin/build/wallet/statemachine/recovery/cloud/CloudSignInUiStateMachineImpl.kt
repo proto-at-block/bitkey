@@ -34,7 +34,7 @@ class CloudSignInUiStateMachineImpl(
     }
 
     return LoadingBodyModel(
-      message = "Checking iCloud...",
+      message = "Loading...",
       onBack = null,
       id = CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING,
       eventTrackerScreenIdContext = props.eventTrackerContext

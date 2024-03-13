@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,15 +61,13 @@ fun QrCode(
   // Use BoxWithConstraints so that we can derive size constraints from
   // parent layout node. We need those constraints to set appropriate
   // size of our QR code in pixels (while accounting for density).
-  BoxWithConstraints(
-    modifier = modifier.padding(top = 20.dp)
-  ) {
+  BoxWithConstraints {
     // Use the most narrow constraint available.
     val qrCodeSizeDp = min(maxWidth, maxHeight)
 
     when (val m = matrix) {
       null -> {
-        Box(modifier = Modifier.size(qrCodeSizeDp)) {
+        Box(modifier = modifier.size(qrCodeSizeDp)) {
           // Show loading spinner while we are waiting for data
           LoadingIndicator(
             modifier =

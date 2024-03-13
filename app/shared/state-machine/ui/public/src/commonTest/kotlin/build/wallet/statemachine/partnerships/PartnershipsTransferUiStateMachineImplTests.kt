@@ -1,16 +1,15 @@
 package build.wallet.statemachine.partnerships
 
-import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.keybox.FullAccountMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
 import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
@@ -29,20 +28,18 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     )
   val getTransferPartnerListService = GetTransferPartnerListServiceMock(turbines::create)
   val getTransferRedirectService = GetTransferRedirectServiceMock(turbines::create)
-  val appSpendingWalletProviderMock =
-    AppSpendingWalletProviderMock(SpendingWalletMock(turbines::create))
 
   // state machine
   val stateMachine =
     PartnershipsTransferUiStateMachineImpl(
       getTransferPartnerListService = getTransferPartnerListService,
-      getTransferRedirectService = getTransferRedirectService,
-      appSpendingWalletProvider = appSpendingWalletProviderMock
+      getTransferRedirectService = getTransferRedirectService
     )
 
   fun props() =
     PartnershipsTransferUiProps(
-      account = FullAccountMock,
+      keybox = KeyboxMock,
+      generateAddress = KeyboxAddressDataMock.generateAddress,
       onBack = {
         onBack.add(Unit)
       },

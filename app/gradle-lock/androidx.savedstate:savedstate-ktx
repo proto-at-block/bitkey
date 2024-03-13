@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.savedstate:savedstate-ktx",
+    "components": [
+        {
+            "version": "1.2.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "savedstate-ktx-1.2.1.aar": "8553f87e7136c24ec5243560f48f1c32cba56daa77722f89589a5cafcb8f7894"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

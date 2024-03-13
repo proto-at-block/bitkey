@@ -15,7 +15,9 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.ShowingExplanationUiState
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachineImpl.UiState.ShowingSystemPermissionUiState
-import build.wallet.ui.model.Click
+import build.wallet.statemachine.platform.permissions.NotificationRationale.Generic
+import build.wallet.statemachine.platform.permissions.NotificationRationale.Recovery
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -47,6 +49,11 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
       else -> {}
     }
 
+    val sublineMessage = when (props.rationale) {
+      Generic -> "Keep your wallet secure and stay updated."
+      Recovery -> "You'll be notified with any updates to the status of your Bitkey recovery."
+    }
+
     return FormBodyModel(
       id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
       eventTrackerScreenIdContext = props.eventTrackerContext,
@@ -54,14 +61,14 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
       toolbar = ToolbarModel(leadingAccessory = props.retreat.leadingToolbarAccessory),
       header =
         FormHeaderModel(
-          headline = "Turn on notifications",
-          subline = "Keep your wallet secure and stay updated."
+          headline = "Enable Push Notifications on this Phone.",
+          subline = sublineMessage
         ),
       primaryButton =
         ButtonModel(
           text = "Enable",
           size = Footer,
-          onClick = Click.standardClick { uiState = ShowingSystemPermissionUiState }
+          onClick = StandardClick { uiState = ShowingSystemPermissionUiState }
         )
     )
   }

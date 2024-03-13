@@ -1,8 +1,7 @@
-use crate::service::{
-    migrations::initial_notifications_preferences::InitialNotificationsPreferences, Service,
-};
+use crate::service::{migrations::ext_beta_push_blast::ExtBetaPushBlast, Service};
 use migration::{MigratableService, Migration};
 
+mod ext_beta_push_blast;
 mod initial_notifications_preferences;
 
 impl MigratableService for Service {
@@ -11,6 +10,6 @@ impl MigratableService for Service {
     }
 
     fn list_migrations(&self) -> Vec<Box<dyn Migration + '_>> {
-        vec![Box::new(InitialNotificationsPreferences::new(self))]
+        vec![Box::new(ExtBetaPushBlast::new(self))]
     }
 }

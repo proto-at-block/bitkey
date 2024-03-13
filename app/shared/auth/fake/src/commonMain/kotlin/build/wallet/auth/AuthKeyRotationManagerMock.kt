@@ -1,45 +1,69 @@
 package build.wallet.auth
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keybox.Keybox
-import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.bitkey.account.FullAccount
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+
+typealias StartOrResumeAuthKeyRotationMock = suspend (
+  request: AuthKeyRotationRequest,
+  account: FullAccount,
+) -> AuthKeyRotationResult
 
 class AuthKeyRotationManagerMock(
   turbine: (String) -> Turbine<Any>,
 ) : AuthKeyRotationManager {
   val rotateAuthKeysCalls = turbine("rotate auth keys calls AuthKeyRotationManagerMock")
-  val model: MutableStateFlow<AuthKeyRotationRequestState> = MutableStateFlow(AuthKeyRotationRequestState.Rotating)
+  val successAcknowledgedCalls = turbine("success acknowledged calls AuthKeyRotationManagerMock")
 
-  val getKeyRotationStatusCalls = turbine("get key rotation status calls AuthKeyRotationManagerMock")
-  var getKeyRotationStatusResult = Ok(AuthKeyRotationAttemptState.AttemptInProgress)
+  val pendingKeyRotationAttempt = MutableStateFlow<PendingAuthKeyRotationAttempt?>(null)
+  val rotationResult = MutableStateFlow(
+    defaultSuccess(successAcknowledgedCalls)
+  )
 
-  @Composable
-  override fun startOrResumeAuthKeyRotation(
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
-    keyboxToRotate: Keybox,
-    rotateActiveKeybox: Boolean,
-    hwAuthPublicKey: HwAuthPublicKey,
-    hwSignedAccountId: String,
-  ): AuthKeyRotationRequestState {
+  val recommendKeyRotationCalls = turbine("recommend key rotation calls AuthKeyRotationManagerMock")
+
+  override suspend fun startOrResumeAuthKeyRotation(
+    request: AuthKeyRotationRequest,
+    account: FullAccount,
+  ): AuthKeyRotationResult {
     rotateAuthKeysCalls += Unit
-    return model.collectAsState().value
+    return rotationResult.value(request, account)
   }
 
-  override suspend fun getKeyRotationStatus(): Flow<Result<AuthKeyRotationAttemptState, Throwable>> {
-    getKeyRotationStatusCalls += Unit
-    return flowOf(getKeyRotationStatusResult)
+  override fun observePendingKeyRotationAttemptUntilNull(): Flow<PendingAuthKeyRotationAttempt?> {
+    return flow {
+      emitAll(pendingKeyRotationAttempt)
+    }
+  }
+
+  override suspend fun recommendKeyRotation() {
+    recommendKeyRotationCalls += Unit
+    pendingKeyRotationAttempt.value = PendingAuthKeyRotationAttempt.ProposedAttempt
+  }
+
+  override suspend fun dismissProposedRotationAttempt() {
+    pendingKeyRotationAttempt.value = null
   }
 
   fun reset() {
-    model.value = AuthKeyRotationRequestState.Rotating
+    rotationResult.value = defaultSuccess(successAcknowledgedCalls)
+    pendingKeyRotationAttempt.value = null
+  }
+
+  companion object {
+    fun defaultSuccess(onAcknowledge: Turbine<Any>): StartOrResumeAuthKeyRotationMock {
+      return { _, _ ->
+        Ok(
+          AuthKeyRotationSuccess(onAcknowledge = {
+            onAcknowledge += Unit
+          })
+        )
+      }
+    }
   }
 }

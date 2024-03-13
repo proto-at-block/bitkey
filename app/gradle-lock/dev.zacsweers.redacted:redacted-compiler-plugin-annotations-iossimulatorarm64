@@ -1,0 +1,23 @@
+{
+    "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.7.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-annotations-iossimulatorarm64-1.7.1-metadata.jar": "a2e2bdcf3034578d09a0266f8a559a534883271bd0597e692da970ab422006de"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-annotations.klib": "46cd0158c552fd8976248570cece8b09cb266a5451948ac1d974a8d7bd3b8afb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

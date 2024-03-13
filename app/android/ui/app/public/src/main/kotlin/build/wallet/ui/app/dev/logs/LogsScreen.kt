@@ -24,7 +24,7 @@ import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
@@ -81,7 +81,7 @@ fun LogsScreen(model: LogsBodyModel) {
         text = "Clear logs",
         treatment = TertiaryDestructive,
         size = Size.Footer,
-        onClick = Click.StandardClick { model.onClear() }
+        onClick = StandardClick(model.onClear)
       )
     }
     Spacer(Modifier.height(24.dp))

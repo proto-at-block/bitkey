@@ -1,3 +1,4 @@
+use tracing::instrument;
 use types::{
     account::identifiers::AccountId,
     recovery::social::{
@@ -16,10 +17,15 @@ pub struct FetchSocialChallengeAsCustomerInput<'a> {
 pub struct FetchSocialChallengeAsTrustedContactInput<'a> {
     pub trusted_contact_account_id: &'a AccountId,
     pub recovery_relationship_id: &'a RecoveryRelationshipId,
-    pub code: &'a str,
+    pub counter: u32,
+}
+
+pub struct CountSocialChallengesInput<'a> {
+    pub customer_account_id: &'a AccountId,
 }
 
 impl Service {
+    #[instrument(skip(self, input))]
     pub async fn fetch_social_challenge_as_customer(
         &self,
         input: FetchSocialChallengeAsCustomerInput<'_>,
@@ -36,20 +42,20 @@ impl Service {
         Ok(challenge)
     }
 
+    #[instrument(skip(self, input))]
     pub async fn fetch_social_challenge_as_trusted_contact(
         &self,
         input: FetchSocialChallengeAsTrustedContactInput<'_>,
     ) -> Result<SocialChallenge, ServiceError> {
-        //TODO(BKR-919): Fix this once we update the social challenge
+        // Only fetch the Social Challenge if the Recovery Relationship is endorsed
         let (common_fields, connection_fields) = match self
             .repository
             .fetch_recovery_relationship(input.recovery_relationship_id)
             .await?
         {
-            RecoveryRelationship::Invitation(_) => {
+            RecoveryRelationship::Invitation(_) | RecoveryRelationship::Unendorsed(_) => {
                 return Err(ServiceError::RecoveryRelationshipStatusMismatch)
             }
-            RecoveryRelationship::Unendorsed(r) => (r.common_fields, r.connection_fields),
             RecoveryRelationship::Endorsed(r) => (r.common_fields, r.connection_fields),
         };
 
@@ -57,10 +63,21 @@ impl Service {
             return Err(ServiceError::AccountNotTrustedContact);
         }
 
-        let id = SocialChallengeId::derive(&common_fields.customer_account_id, input.code);
+        let id = SocialChallengeId::derive(&common_fields.customer_account_id, input.counter);
 
         let challenge = self.repository.fetch_social_challenge(&id).await?;
 
         Ok(challenge)
+    }
+
+    #[instrument(skip(self, input))]
+    pub async fn count_social_challenges(
+        &self,
+        input: CountSocialChallengesInput<'_>,
+    ) -> Result<usize, ServiceError> {
+        Ok(self
+            .repository
+            .count_social_challenges_for_customer(input.customer_account_id)
+            .await?)
     }
 }

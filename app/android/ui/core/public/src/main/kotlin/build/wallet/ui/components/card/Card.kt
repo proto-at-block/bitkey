@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.theme.WalletTheme
@@ -27,6 +28,8 @@ fun Card(
   backgroundColor: Color = WalletTheme.colors.containerBackground,
   verticalArrangement: Arrangement.Vertical = Arrangement.Top,
   horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+  cornerRadius: Dp = 16.dp,
+  borderWidth: Dp = 1.dp,
   paddingValues: PaddingValues = PaddingValues(horizontal = 16.dp),
   content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -35,12 +38,12 @@ fun Card(
       modifier
         .background(
           color = backgroundColor,
-          shape = RoundedCornerShape(16.dp)
+          shape = RoundedCornerShape(cornerRadius)
         )
         .border(
-          width = 1.dp,
+          width = borderWidth,
           color = WalletTheme.colors.foreground10,
-          shape = RoundedCornerShape(16.dp)
+          shape = RoundedCornerShape(cornerRadius)
         )
         .padding(paddingValues),
     verticalArrangement = verticalArrangement,

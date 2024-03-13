@@ -43,6 +43,6 @@ mkdir -p "$2/tmp"
 java -jar "$BUNDLETOOL" build-apks --connected-device --bundle="$1" --output="$2/tmp/apks.apks" || exit $?
 unzip "$2/tmp/apks.apks" -d "$2/tmp"
 
-find "$2/tmp" -type file -name "*.apk" -exec mv {} "$2" \;
+find "$2/tmp" -type f -name "*.apk" -exec mv {} "$2" \;
 
 rm -rf "$2/tmp"

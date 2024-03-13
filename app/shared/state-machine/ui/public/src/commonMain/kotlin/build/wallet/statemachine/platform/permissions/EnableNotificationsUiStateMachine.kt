@@ -15,4 +15,5 @@ data class EnableNotificationsUiProps(
   val retreat: Retreat,
   val onComplete: () -> Unit,
   val eventTrackerContext: PushNotificationEventTrackerScreenIdContext,
+  val rationale: NotificationRationale,
 )

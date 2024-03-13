@@ -19,14 +19,14 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Failure screen shown when there was an error retrieving the invite data from f8e for a given code */
   TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE,
 
-  /** Trusted contact is adding the name of the customer they are trying to protect */
+  /** Trusted contact is adding the name of the customer they are trying to protect. Also signals a successful retrieval of the invite from F8E. */
   TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME,
 
   /** Trusted contact is getting or creating trusted contact identity key. */
-  TC_TRUSTED_CONTACT_IDENTITY_KEY,
+  TC_DELEGATED_DECRYPTION_KEY_KEY,
 
   /** Failure while trusted contact is getting or creating trusted contact identity key. */
-  TC_TRUSTED_CONTACT_IDENTITY_KEY_FAILURE,
+  TC_DELEGATED_DECRYPTION_KEY_KEY_FAILURE,
 
   /** We are accepting the invite data from f8e for a given code */
   TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E,
@@ -49,11 +49,20 @@ enum class SocialRecoveryEventTrackerScreenId : EventTrackerScreenId {
   /** Success screen shown when the TC enrollment is complete */
   TC_ENROLLMENT_SUCCESS,
 
-  /** Customer is viewing the details of an invited or confirmed TC  */
+  /** Customer is viewing the explanation of the TC experience */
+  TC_MANAGEMENT_EXPLAINER,
+
+  /** Customer is viewing the details of an invited or confirmed TC, within the money home context */
   TC_MANAGEMENT_DETAIL_SHEET,
 
   /** Customer is viewing the removal screen for an invited or  confirmed TC  */
   TC_MANAGEMENT_REMOVAL_CONFIRMATION,
+
+  /** Customer is attempting to remove an invited or confirmed TC  */
+  TC_MANAGEMENT_REMOVAL_LOADING,
+
+  /** Customer failed to remove an invited or confirmed TC  */
+  TC_MANAGEMENT_REMOVAL_FAILED,
 
   /** The bottom sheet showing the details of a protected customer that a TC is protected is showing */
   TC_PROTECTED_CUSTOMER_SHEET,

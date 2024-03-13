@@ -2,6 +2,7 @@ package build.wallet.ui.model.button
 
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Treatment.Black
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.icon.IconSize
@@ -82,6 +83,7 @@ data class ButtonModel(
     Compact,
     Footer,
     Floating,
+    FitContent,
   }
 
   /**
@@ -106,7 +108,7 @@ data class ButtonModel(
     isEnabled = isEnabled,
     isLoading = isLoading,
     testTag = testTag,
-    onClick = Click.standardClick { onClick() }
+    onClick = StandardClick { onClick() }
   )
 
   companion object {
@@ -129,7 +131,7 @@ data class ButtonModel(
       isEnabled = isEnabled,
       isLoading = isLoading,
       testTag = testTag,
-      onClick = Click.standardClick { onClick() }
+      onClick = StandardClick { onClick() }
     )
   }
 }

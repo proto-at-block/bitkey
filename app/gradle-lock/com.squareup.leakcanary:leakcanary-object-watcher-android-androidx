@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup.leakcanary:leakcanary-object-watcher-android-androidx",
+    "components": [
+        {
+            "version": "2.13",
+            "variants": [
+                {
+                    "artifacts": {
+                        "leakcanary-object-watcher-android-androidx-2.13.aar": "d853a58f6f9bdbf574893f56cc9dabbde03ef55ae998d9be57b573fdb2289edb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

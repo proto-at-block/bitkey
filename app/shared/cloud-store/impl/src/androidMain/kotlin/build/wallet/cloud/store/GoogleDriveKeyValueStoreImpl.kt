@@ -1,5 +1,6 @@
 package build.wallet.cloud.store
 
+import android.accounts.Account
 import build.wallet.catching
 import build.wallet.logging.LogLevel
 import build.wallet.logging.logFailure
@@ -24,6 +25,9 @@ import okio.ByteString.Companion.encodeUtf8
 class GoogleDriveKeyValueStoreImpl(
   private val googleDriveService: GoogleDriveService,
 ) : GoogleDriveKeyValueStore {
+  private fun drive(androidAccount: Account) =
+    googleDriveService.drive(androidAccount, scopes = listOf(GoogleDriveScope.AppData))
+
   override suspend fun setString(
     account: GoogleAccount,
     key: String,
@@ -31,7 +35,7 @@ class GoogleDriveKeyValueStoreImpl(
   ): Result<Unit, GoogleDriveError> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val entryFile = driveService.findEntryFile(key).bind()
       if (entryFile == null) {
@@ -47,7 +51,7 @@ class GoogleDriveKeyValueStoreImpl(
   ): Result<Unit, GoogleDriveError> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val entryFile =
         driveService.findEntryFile(key)
@@ -72,8 +76,7 @@ class GoogleDriveKeyValueStoreImpl(
   ): Result<String?, GoogleDriveError> =
     binding {
       val androidAccount = account.credentials.androidAccount().bind()
-
-      val driveService = googleDriveService.drive(androidAccount).bind()
+      val driveService = drive(androidAccount).bind()
 
       val file = driveService.findEntryFile(key).bind()
 

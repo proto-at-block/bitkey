@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iosarm64",
+    "components": [
+        {
+            "version": "1.7.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core-iosarm64-1.7.3-metadata.jar": "0c22cd22fac19587c632e58fc2b93f893be765da4bec742c54e5b35241904180"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core.klib": "5174f6c71cc362b3e7d8332339506e259ccec28a69bbf1b2cfd8b529722285ae"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

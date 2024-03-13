@@ -8,7 +8,7 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
 
 /**
@@ -24,7 +24,7 @@ fun ViewingTrustedContactSheetModel(
   onClosed: () -> Unit,
 ) = ViewingRecoveryContactSheetModel(
   headline = contact.trustedContactAlias.alias,
-  subline = null,
+  subline = "If you ever get a new phone, ${contact.trustedContactAlias.alias} can help verify you so you can regain access to your wallet.",
   removeButtonText = "Remove Trusted Contact",
   onRemove = onRemove,
   onClosed = onClosed
@@ -102,12 +102,7 @@ fun ViewingRecoveryContactSheetModel(
           text = removeButtonText,
           treatment = ButtonModel.Treatment.SecondaryDestructive,
           size = ButtonModel.Size.Footer,
-          onClick =
-            object : Click.SheetClosingClick {
-              override fun invoke() {
-                onRemove()
-              }
-            }
+          onClick = SheetClosingClick(onRemove)
         ),
       renderContext = RenderContext.Sheet
     ),

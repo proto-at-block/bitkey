@@ -4,7 +4,7 @@ import { trace_analytics_count_query } from "../common/queries";
 import { AverageLatencyHighMonitor } from "../common/http";
 import { Environment } from "../common/environments";
 import { ContainerCpuUtilizationHighMonitor, ContainerMemoryUtilizationHighMonitor } from "../common/system";
-import { getRecipients } from "../recipients";
+import { getErrorRecipients } from "../recipients";
 
 interface ShopApiConfig {
   title: string,
@@ -20,7 +20,7 @@ class ShopApiMonitor extends Construct {
   constructor(scope: Construct, config: ShopApiConfig) {
     const { title, status, name, resource, type, message, environment } = config
     super(scope, title);
-    const recipients = getRecipients(environment);
+    const recipients = getErrorRecipients(environment);
 
     const trace_alert_config = {
       recipients: recipients,
@@ -230,6 +230,30 @@ export class ShopApiMonitors extends Construct {
       environment
     })
 
+    new ShopApiMonitor(this, {
+      title: "order_cancellation_too_many_4xx_errors",
+      name: "Order cancel 4xx error rate too high",
+      status: '4??',
+      resource: 'POST /v1/orders/cancel',
+      environment
+    })
+
+    new ShopApiMonitor(this, {
+      title: "order_cancellation_too_many_5xx_errors",
+      name: "Order cancel 5xx error rate too high",
+      status: '5??',
+      resource: 'POST /v1/orders/cancel',
+      environment
+    })
+
+    new ShopApiMonitor(this, {
+      title: "order_cancellation_too_many_errors",
+      name: "Order cancel error rate too high",
+      type: 'error',
+      resource: 'POST /v1/orders/cancel',
+      environment
+    })
+
     new ContainerMemoryUtilizationHighMonitor(this, `${serviceName}_memory_utilization_high`, {
       name: `[${serviceName}] has a high container memory utilization on env:${environment}`,
       message: `\`${serviceName}\` container memory utilization is too high.`,
@@ -237,7 +261,7 @@ export class ShopApiMonitors extends Construct {
       monitorThresholds: {
         critical: "0.3", // Whole percent
       },
-      recipients: getRecipients(environment),
+      recipients: getErrorRecipients(environment),
     });
 
     new ContainerCpuUtilizationHighMonitor(this, `${serviceName}_cpu_utilization_high`, {
@@ -247,7 +271,7 @@ export class ShopApiMonitors extends Construct {
       monitorThresholds: {
         critical: "0.3", // Whole percent
       },
-      recipients: getRecipients(environment),
+      recipients: getErrorRecipients(environment),
     });
 
     new AverageLatencyHighMonitor(this, "avg_latency_high", {
@@ -260,7 +284,7 @@ export class ShopApiMonitors extends Construct {
       name: "[web-shop-api]: service has a high average latency",
       priority: 2,
       tags: tags,
-      recipients: getRecipients(environment),
+      recipients: getErrorRecipients(environment),
     });
   }
 }

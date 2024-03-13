@@ -7,7 +7,7 @@ import build.wallet.statemachine.core.Icon.SmallIconScan
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.AddressInput
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -61,7 +61,7 @@ fun BitcoinRecipientAddressScreenModel(
                   iconSize = IconSize.Accessory,
                   iconBackgroundType = IconBackgroundType.Circle(circleSize = IconSize.Regular)
                 ),
-              onClick = Click.standardClick { onScanQrCodeClick() }
+              onClick = StandardClick(onScanQrCodeClick)
             )
         )
     ),
@@ -83,7 +83,7 @@ fun BitcoinRecipientAddressScreenModel(
               leadingIcon = Icon.SmallIconClipboard,
               treatment = Secondary,
               size = Compact,
-              onClick = Click.standardClick { onPasteButtonClick() }
+              onClick = StandardClick { onPasteButtonClick() }
             )
           } else {
             null
@@ -108,7 +108,7 @@ fun BitcoinRecipientAddressScreenModel(
     ButtonModel(
       text = "Continue",
       size = Footer,
-      onClick = Click.standardClick { onContinueClick?.invoke() },
+      onClick = StandardClick { onContinueClick?.invoke() },
       isEnabled = onContinueClick != null
     ),
   secondaryButton = null,

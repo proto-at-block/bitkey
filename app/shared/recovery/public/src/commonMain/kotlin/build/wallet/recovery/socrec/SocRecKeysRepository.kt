@@ -6,6 +6,8 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.reflect.KClass
 
 /**
@@ -25,10 +27,12 @@ class SocRecKeysRepository(
     binding {
       socRecKeysDao.getKey(keyFactory, keyClass)
         .recoverIf({ it is SocRecKeyError.NoKeyAvailable }) {
-          socRecCrypto.generateAsymmetricKey(keyFactory)
-            .mapError { SocRecKeyError.UnableToGenerateKey(it) }
-            .bind()
-            .also { socRecKeysDao.saveKey(it) }
+          withContext(Dispatchers.Default) {
+            socRecCrypto.generateAsymmetricKey(keyFactory)
+              .mapError { SocRecKeyError.UnableToGenerateKey(it) }
+              .bind()
+              .also { socRecKeysDao.saveKey(it) }
+          }
         }
         .bind()
     }
@@ -49,10 +53,12 @@ class SocRecKeysRepository(
     binding {
       socRecKeysDao.getKeyWithPrivateMaterial(keyFactory, keyClass)
         .recoverIf({ it is SocRecKeyError.NoKeyAvailable }) {
-          socRecCrypto.generateAsymmetricKey(keyFactory)
-            .mapError { SocRecKeyError.UnableToGenerateKey(it) }
-            .bind()
-            .also { socRecKeysDao.saveKey(it) }
+          withContext(Dispatchers.Default) {
+            socRecCrypto.generateAsymmetricKey(keyFactory)
+              .mapError { SocRecKeyError.UnableToGenerateKey(it) }
+              .bind()
+              .also { socRecKeysDao.saveKey(it) }
+          }
         }
         .bind()
     }

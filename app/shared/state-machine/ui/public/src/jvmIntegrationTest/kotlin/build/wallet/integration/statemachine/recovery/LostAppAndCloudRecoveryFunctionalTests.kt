@@ -2,19 +2,19 @@
 
 package build.wallet.integration.statemachine.recovery
 
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_PENDING
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
-import build.wallet.analytics.events.screen.id.AppRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_PENDING
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
-import build.wallet.bitkey.keybox.KeyboxConfig
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityComponentImpl
@@ -23,8 +23,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThan
 import build.wallet.statemachine.cloud.CloudSignInModelFake
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.SuccessBodyModel
+import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
@@ -39,6 +38,7 @@ import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
@@ -46,7 +46,7 @@ import kotlin.time.Duration.Companion.seconds
 class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   lateinit var appTester: AppTester
   lateinit var app: ActivityComponentImpl
-  lateinit var keyboxConfig: KeyboxConfig
+  lateinit var fullAccountConfig: FullAccountConfig
   lateinit var recoveryStateMachine: RecoveryTestingStateMachine
   lateinit var appSpendingWalletProvider: AppSpendingWalletProvider
 
@@ -54,7 +54,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
     appTester = launchNewApp()
     app = appTester.app
     appTester.onboardFullAccountWithFakeHardware()
-    keyboxConfig =
+    fullAccountConfig =
       appTester.getActiveFullAccount().keybox.config
         .copy(delayNotifyDuration = 2.seconds)
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
@@ -88,7 +88,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("delay & notify") {
     setup()
-    val props = keyboxConfig
+    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
         props = props,
@@ -102,18 +102,22 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(keyboxConfig.f8eEnvironment)
+        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -121,7 +125,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("recovery lost app - force exiting in the middle of initiating") {
     setup()
-    val props = keyboxConfig
+    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
         props = props,
@@ -150,18 +154,22 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(keyboxConfig.f8eEnvironment)
+        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -169,7 +177,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("force exiting before cloud backup takes you back to icloud backup") {
     setup()
-    val props = keyboxConfig
+    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
         props = props,
@@ -183,10 +191,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(keyboxConfig.f8eEnvironment)
+        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
       }
 
@@ -203,10 +213,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -214,7 +226,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("force exiting after cloud backup & before sweep takes you back to sweep") {
     setup()
-    val props = keyboxConfig
+    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
         props = props,
@@ -228,15 +240,19 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(keyboxConfig.f8eEnvironment)
+        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         cancelAndIgnoreRemainingEvents()
       }
 
@@ -248,10 +264,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
       ) {
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+        awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
         cancelAndIgnoreRemainingEvents()
       }
     }
@@ -259,7 +277,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("force exiting during D&N wait") {
     setup()
-    val props = keyboxConfig
+    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
         props = props,
@@ -285,10 +303,12 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       ) {
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(keyboxConfig.f8eEnvironment)
+        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
-        awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+        }
         awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
         cancelAndIgnoreRemainingEvents()
       }
@@ -297,7 +317,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("ensure funds are swept after recovery") {
     setup(BitcoinMoney.sats(10_000))
-    val props = keyboxConfig
+    val props = fullAccountConfig
 
     recoveryStateMachine.test(
       props = props,
@@ -311,25 +331,31 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .clickPrimaryButton()
       awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-      appTester.completeServerDelayNotifyPeriodForTesting(keyboxConfig.f8eEnvironment)
+      appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
       awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
-      awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
       awaitUntilScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_INSTRUCTIONS)
         .clickPrimaryButton()
       awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
         .signInSuccess(CloudStoreAccount1Fake)
-      awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT)
         .clickPrimaryButton()
 
-      awaitUntilScreenWithBody<LoadingBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING) {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
 
       awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS)
         .clickPrimaryButton()
 
-      awaitUntilScreenWithBody<SuccessBodyModel>(RECOVERY_COMPLETED)
+      awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_COMPLETED)
 
       eventually(
         eventuallyConfig {

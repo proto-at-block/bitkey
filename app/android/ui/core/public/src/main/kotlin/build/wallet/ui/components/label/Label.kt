@@ -17,11 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.theme.SystemColorMode.DARK
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -54,6 +58,67 @@ fun Label(
           onClick()
         }
       }
+  )
+}
+
+@Composable
+fun Label(
+  model: LabelModel,
+  modifier: Modifier = Modifier,
+  type: LabelType = Title3,
+  treatment: LabelTreatment = LabelTreatment.Primary,
+  alignment: TextAlign = TextAlign.Start,
+) {
+  Label(
+    modifier = modifier,
+    text = buildAnnotatedString {
+      when (model) {
+        is LabelModel.StringModel ->
+          append(model.string)
+        is LabelModel.StringWithStyledSubstringModel -> {
+          append(model.string)
+          model.styledSubstrings.forEach { styledSubstring ->
+            addStyle(
+              style =
+                when (val substringStyle = styledSubstring.style) {
+                  is LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle ->
+                    SpanStyle(
+                      color = substringStyle.color.toWalletTheme()
+                    )
+                  is LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle ->
+                    SpanStyle(
+                      fontWeight = FontWeight.W600
+                    )
+                },
+              start = styledSubstring.range.first,
+              end = styledSubstring.range.last + 1
+            )
+          }
+        }
+        is LabelModel.LinkSubstringModel -> {
+          append(model.string)
+          model.linkedSubstrings.forEach { linkedSubstring ->
+            addStyle(
+              style = SpanStyle(color = WalletTheme.colors.primary),
+              start = linkedSubstring.range.first,
+              end = linkedSubstring.range.last + 1
+            )
+          }
+        }
+      }
+    },
+    onClick = (model as? LabelModel.LinkSubstringModel)?.let { linkedLabelModel ->
+      { clickPosition ->
+        linkedLabelModel.linkedSubstrings.find { ls ->
+          ls.range.contains(clickPosition)
+        }?.let { matchedLs ->
+          matchedLs.onClick()
+        }
+      }
+    },
+    type = type,
+    treatment = treatment,
+    alignment = alignment
   )
 }
 

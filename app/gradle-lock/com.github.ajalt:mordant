@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.github.ajalt:mordant",
+    "components": [
+        {
+            "version": "1.2.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "mordant-1.2.1.jar": "7a714eb8d25b4d9ba7f256a54c7559cca87d85ec90d6943df1913cad43db95d6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

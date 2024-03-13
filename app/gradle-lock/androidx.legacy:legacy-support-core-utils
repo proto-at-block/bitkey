@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.legacy:legacy-support-core-utils",
+    "components": [
+        {
+            "version": "1.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "legacy-support-core-utils-1.0.0.aar": "a7edcf01d5b52b3034073027bc4775b78a4764bb6202bb91d61c829add8dd1c7"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

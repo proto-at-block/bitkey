@@ -1,0 +1,23 @@
+{
+    "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-core-iosarm64",
+    "components": [
+        {
+            "version": "0.13.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-core-iosarm64-0.13.3-metadata.jar": "d3532d6270131e0e528c05e174f94fa8baa472d5b3b566cda158a0822b9e90ca"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-core.klib": "ca20f44da2e7967911ea7c00a39925f99d9ef256255a78ba1546e3b57af32358"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

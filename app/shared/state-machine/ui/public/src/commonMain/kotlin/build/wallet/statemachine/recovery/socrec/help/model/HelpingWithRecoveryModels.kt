@@ -7,7 +7,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.Click
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.input.TextFieldModel
@@ -173,8 +172,8 @@ fun ConfirmingIdentityFormBodyModel(
 
 fun EnterRecoveryCodeFormBodyModel(
   value: String,
+  primaryButton: ButtonModel,
   onBack: () -> Unit,
-  onContinueClick: () -> Unit,
   onInputChange: (String) -> Unit,
 ): FormBodyModel =
   FormBodyModel(
@@ -199,18 +198,19 @@ fun EnterRecoveryCodeFormBodyModel(
               value = value,
               selectionOverride = null,
               placeholderText = "••••••",
-              onValueChange = { s: String, _: IntRange ->
-                onInputChange(s)
+              onValueChange = { newValue, _ ->
+                onInputChange(newValue.replace("-", "").chunked(4).joinToString("-"))
               },
-              keyboardType = TextFieldModel.KeyboardType.Number
+              keyboardType = TextFieldModel.KeyboardType.Number,
+              onDone =
+                if (primaryButton.isEnabled) {
+                  primaryButton.onClick::invoke
+                } else {
+                  null
+                }
             )
         )
       ),
-    primaryButton =
-      ButtonModel(
-        text = "Continue",
-        onClick = Click.standardClick { onContinueClick() },
-        size = ButtonModel.Size.Footer
-      ),
+    primaryButton = primaryButton,
     id = SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
   )

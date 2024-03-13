@@ -58,6 +58,7 @@ struct DataListView: View {
             }
         }
         .padding(.vertical, viewModel.hasSingleItem ? 0 : 4)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.foreground10, lineWidth: 2)
@@ -154,7 +155,9 @@ struct DataHeroView: View {
                 Spacer().frame(height: 16)
             }
 
-            ModeledText(model: .standard(viewModel.title, font: .title2, textAlignment: .center))
+            if let title = viewModel.title {
+                ModeledText(model: .standard(title, font: .title2, textAlignment: .center))
+            }
             if let subtitle = viewModel.subtitle {
                 Spacer().frame(height: 4)
                 ModeledText(model: .standard(subtitle, font: .body3Bold, textAlignment: .center, textColor: .foreground60))

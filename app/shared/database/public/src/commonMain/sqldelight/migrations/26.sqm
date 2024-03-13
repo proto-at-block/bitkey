@@ -1,6 +1,0 @@
--- Drop unused table. This table used to be used to track Notifications onboarding state.
--- We now use `onboardingStepStateEntity` in place of this. 
-
-DROP TABLE notificationPreferencesOnboardingStateEntity;
-
-PRAGMA foreign_key_check;

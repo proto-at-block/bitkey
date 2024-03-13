@@ -13,4 +13,8 @@ class F8eAuthSignatureStatusProviderImpl : F8eAuthSignatureStatusProvider {
   override suspend fun updateAuthSignatureStatus(authSignatureStatus: AuthSignatureStatus) {
     authSignatureStatusFlow.emit(authSignatureStatus)
   }
+
+  override suspend fun clear() {
+    authSignatureStatusFlow.emit(AuthSignatureStatus.Authenticated)
+  }
 }

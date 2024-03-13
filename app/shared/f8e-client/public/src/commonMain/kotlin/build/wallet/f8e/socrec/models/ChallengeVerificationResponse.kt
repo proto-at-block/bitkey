@@ -1,5 +1,6 @@
 package build.wallet.f8e.socrec.models
 
+import build.wallet.crypto.PublicKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -7,15 +8,15 @@ import kotlinx.serialization.Serializable
  * Challenge verification response
  *
  * @property socialChallengeId - the id of the current active social challenge
- * @property customerEphemeralPublicKey - the ephemeral public key of the customer that is recovering
- * @property customerIdentityPublicKey - the identity public key of the customer that is recovering
+ * @property protectedCustomerRecoveryPakePubkey - pake public key of the customer that is recovering
+ * @property sealedDek - encrypted material of the customer that is recovering
  */
 @Serializable
 data class ChallengeVerificationResponse(
   @SerialName("social_challenge_id")
   val socialChallengeId: String,
-  @SerialName("customer_ephemeral_pubkey")
-  val customerEphemeralPublicKey: String,
-  @SerialName("customer_identity_pubkey")
-  val customerIdentityPublicKey: String,
+  @SerialName("protected_customer_recovery_pake_pubkey")
+  val protectedCustomerRecoveryPakePubkey: PublicKey,
+  @SerialName("sealed_dek")
+  val sealedDek: String,
 )

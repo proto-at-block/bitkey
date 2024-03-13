@@ -34,9 +34,9 @@ import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Communicating
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Searching
 import build.wallet.statemachine.nfc.NfcSessionUIState.InSession.Success
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
+import build.wallet.time.Delayer
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.delay
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Connected as ConnectedState
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Searching as SearchingState
 import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success as SuccessState
@@ -79,6 +79,7 @@ class NfcSessionUIStateMachineProps<T>(
 interface NfcSessionUIStateMachine : StateMachine<NfcSessionUIStateMachineProps<*>, ScreenModel>
 
 class NfcSessionUIStateMachineImpl(
+  private val delayer: Delayer,
   private val nfcReaderCapabilityProvider: NfcReaderCapabilityProvider,
   private val enableNfcNavigator: EnableNfcNavigator,
   private val deviceInfoProvider: DeviceInfoProvider,
@@ -113,7 +114,7 @@ class NfcSessionUIStateMachineImpl(
         ).onSuccess {
           newState = Success
 
-          delay(
+          delayer.delay(
             NfcSuccessScreenDuration(
               devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
               isHardwareFake = props.isHardwareFake

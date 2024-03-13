@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.code.findbugs:jsr305",
+    "components": [
+        {
+            "version": "2.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jsr305-2.0.0.jar": "1e7f53fa5b8b5c807e986ba335665da03f18d660802d8bf061823089d1bee468"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

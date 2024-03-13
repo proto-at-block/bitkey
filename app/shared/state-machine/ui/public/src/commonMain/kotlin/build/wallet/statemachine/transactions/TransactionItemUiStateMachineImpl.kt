@@ -61,11 +61,10 @@ class TransactionItemUiStateMachineImpl(
   }
 
   private fun BitcoinTransaction.formattedDateTime(): String {
-    val dateTime =
-      when (val status = confirmationStatus) {
-        is Confirmed -> status.blockTime.timestamp
-        is Pending -> broadcastTime
-      }?.toLocalDateTime(timeZoneProvider.current())
-    return dateTime?.let { dateTimeFormatter.shortDateWithTime(it) } ?: "Pending"
+    return when (val status = confirmationStatus) {
+      is Confirmed -> status.blockTime.timestamp.toLocalDateTime(timeZoneProvider.current())
+        .let { dateTimeFormatter.shortDateWithTime(it) }
+      is Pending -> "Pending"
+    }
   }
 }

@@ -1,4 +1,5 @@
 use ::metrics::KeyValue;
+use account::entities::Factor;
 use account::entities::FullAccount;
 use account::entities::FullAccountAuthKeysPayload;
 use account::service::ClearPushTouchpointsInput;
@@ -13,6 +14,7 @@ use crate::entities::RecoveryStatus;
 use crate::entities::WalletRecovery;
 use crate::error::RecoveryError;
 use crate::metrics;
+use crate::service::social::challenge::clear_social_challenges::ClearSocialChallengesInput;
 use crate::state_machine::{PendingDelayNotifyRecovery, RecoveryResponse};
 
 pub(crate) struct CompletableRecoveryState {
@@ -66,6 +68,22 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                 return Err(RecoveryError::InvalidRecoveryDestination);
             }
 
+            let has_existing_recovery_key = account
+                .active_auth_keys()
+                .ok_or(RecoveryError::NoActiveAuthKeysError)?
+                .recovery_pubkey
+                .is_some();
+
+            // If there's no existing recovery key and we're adding a new one, we need a new recovery cognito user
+            if !has_existing_recovery_key {
+                if let Some(recovery_key) = action.destination.recovery_auth_pubkey {
+                    user_pool_service
+                        .create_recovery_user_if_necessary(&account.id, recovery_key)
+                        .await
+                        .map_err(RecoveryError::RotateAuthKeys)?;
+                }
+            }
+
             user_pool_service
                 .rotate_account_auth_keys(
                     &account.id,
@@ -84,6 +102,15 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                     recovery_auth_pubkey: action.destination.recovery_auth_pubkey,
                 })
                 .await?;
+
+            if matches!(recovery.get_lost_factor(), Some(Factor::Hw)) {
+                services
+                    .challenge
+                    .clear_social_challenges(ClearSocialChallengesInput {
+                        customer_account_id: &account.id,
+                    })
+                    .await?;
+            }
 
             services
                 .account

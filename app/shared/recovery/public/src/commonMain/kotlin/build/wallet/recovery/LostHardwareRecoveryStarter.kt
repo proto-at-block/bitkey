@@ -1,6 +1,7 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.app.AppKeyBundle
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.f8e.error.F8eError
@@ -24,6 +25,7 @@ interface LostHardwareRecoveryStarter {
     activeKeybox: Keybox,
     destinationAppKeyBundle: AppKeyBundle,
     destinationHardwareKeyBundle: HwKeyBundle,
+    appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, InitiateDelayNotifyHardwareRecoveryError>
 
   sealed class InitiateDelayNotifyHardwareRecoveryError : Error() {

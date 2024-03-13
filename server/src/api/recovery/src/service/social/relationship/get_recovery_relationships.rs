@@ -1,13 +1,27 @@
 use repository::recovery::social::fetch::RecoveryRelationshipsForAccount;
+use tracing::instrument;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::RecoveryRelationship;
 
 use super::{error::ServiceError, Service};
 
+/// The input for the `get_recovery_relationships` function
+///
+/// # Fields
+///
+/// * `account_id` - The account to fetch the recovery relationships for
 pub struct GetRecoveryRelationshipsInput<'a> {
     pub account_id: &'a AccountId,
 }
 
+/// The output for the `get_recovery_relationships` function
+///
+/// # Fields
+///
+/// * `invitations` - The list of invitations for the account
+/// * `endorsed_trusted_contacts` - The list of endorsed trusted contacts for the account
+/// * `unendorsed_trusted_contacts` - The list of unendorsed trusted contacts for the account
+/// * `customers` - The list of customers for the account
 pub struct GetRecoveryRelationshipsOutput {
     pub invitations: Vec<RecoveryRelationship>,
     pub endorsed_trusted_contacts: Vec<RecoveryRelationship>,
@@ -33,7 +47,12 @@ impl Service {
     ///
     /// # Arguments
     ///
-    /// * `account_id` - The account to fetch the recovery relationships for
+    /// * `input` - Contains the account id to fetch the recovery relationships for
+    ///
+    /// # Returns
+    ///
+    /// * A list of invitations, trusted contacts, and customers
+    #[instrument(skip(self, input))]
     pub async fn get_recovery_relationships(
         &self,
         input: GetRecoveryRelationshipsInput<'_>,

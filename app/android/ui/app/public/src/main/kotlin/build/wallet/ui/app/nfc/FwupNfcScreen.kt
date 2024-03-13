@@ -13,6 +13,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.with
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -60,7 +61,7 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.labelStyle
 import build.wallet.ui.components.progress.CircularProgressIndicator
-import build.wallet.ui.model.Click
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Translucent
 import build.wallet.ui.system.KeepScreenOn
@@ -116,10 +117,9 @@ internal fun FwupNfcScreenInternal(
           ),
         treatment = Translucent,
         size = Footer,
-        onClick =
-          Click.StandardClick {
-            model.onCancel?.invoke()
-          }
+        onClick = StandardClick {
+          model.onCancel?.invoke()
+        }
       )
       Spacer(modifier = Modifier.height(24.dp))
     }
@@ -225,9 +225,9 @@ private fun StatusIndicator(status: FwupNfcBodyModel.Status) {
           // Don't animate InProgress -> InProgress, the text will be
           // cross-faded separately
           if (initialState is InProgress && targetState is InProgress) {
-            EnterTransition.None with ExitTransition.None
+            EnterTransition.None togetherWith ExitTransition.None
           } else {
-            fadeIn(animationSpec = tween(durationMillis = 500)) with
+            fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
               fadeOut(animationSpec = tween(durationMillis = 500))
           }
         },
@@ -258,6 +258,7 @@ private fun StatusIndicator(status: FwupNfcBodyModel.Status) {
   }
 }
 
+@Suppress("FunctionName")
 @Composable
 private fun ColumnScope.StatusLabel(status: FwupNfcBodyModel.Status) {
   Box(modifier = Modifier.weight(1F)) {

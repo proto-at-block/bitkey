@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.test:monitor",
+    "components": [
+        {
+            "version": "1.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "monitor-1.6.1.aar": "2985ce8556989baf7c84342e7f687713c037a39a922e614d1a3ddf1ca3777079"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}
