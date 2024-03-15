@@ -90,9 +90,9 @@ sealed interface CreateFullAccountData {
       val sealedCsek: SealedCsek?,
       val onBackupSaved: () -> Unit,
       val onBackupFailed: () -> Unit,
-      val onExistingCloudBackupFound: (
+      val onExistingAppDataFound: (
         (
-          cloudBackup: CloudBackup,
+          cloudBackup: CloudBackup?,
           proceed: () -> Unit,
         ) -> Unit
       )? = null,

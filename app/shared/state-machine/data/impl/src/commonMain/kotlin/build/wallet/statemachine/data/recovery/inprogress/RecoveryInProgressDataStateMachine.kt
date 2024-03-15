@@ -35,10 +35,9 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.recovery.ServerRecovery
+import build.wallet.logging.logFailure
 import build.wallet.nfc.transaction.SignChallengeAndCsek
 import build.wallet.notifications.DeviceTokenManager
-import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.random.Uuid
 import build.wallet.recovery.ChallengeToCompleteRecovery
 import build.wallet.recovery.LocalRecoveryAttemptProgress
@@ -158,7 +157,6 @@ class RecoveryInProgressDataStateMachineImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val recoveryDao: RecoveryDao,
   private val deviceTokenManager: DeviceTokenManager,
-  private val deviceInfoProvider: DeviceInfoProvider,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
@@ -762,17 +760,14 @@ class RecoveryInProgressDataStateMachineImpl(
           )
           .bind()
 
+      // TODO(BKR-1094): Use the recovery destination auth key, not the stale ones
       deviceTokenManager.addDeviceTokenIfPresentForAccount(
         fullAccountId = props.recovery.fullAccountId,
         f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
         authTokenScope = AuthTokenScope.Recovery
-      )
-        .result
-        .takeIf {
-          // Only bind for Android. iOS can fail silently here.
-          deviceInfoProvider.getDeviceInfo().devicePlatform == Android
-        }
-        ?.bind()
+      ).result.logFailure {
+        "Failed to add device token for account during Social Recovery"
+      }
 
       recoverySyncer
         .setLocalRecoveryProgress(

@@ -18,5 +18,10 @@ interface SocRecRelationshipsDao {
     authenticationState: TrustedContactAuthenticationState,
   ): Result<Unit, DbError>
 
+  suspend fun setTrustedContactAuthenticationState(
+    recoveryRelationshipId: String,
+    authenticationState: TrustedContactAuthenticationState,
+  ): Result<Unit, DbError>
+
   suspend fun clear(): Result<Unit, DbError>
 }

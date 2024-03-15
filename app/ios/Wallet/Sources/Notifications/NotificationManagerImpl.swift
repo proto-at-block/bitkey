@@ -54,14 +54,14 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
         log { "Registered for remote notifications" }
 
         let decodedDeviceToken = deviceToken.map { String(format:"%02.2hhx",$0) }.joined()
-
-        deviceTokenProvider.setDeviceToken(deviceToken: decodedDeviceToken)
-
         Task { @MainActor in
             let result = try? await deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
                 deviceToken: decodedDeviceToken,
                 touchpointPlatform: .from(appVariant: appVariant)
             )
+            result?.onSuccess(action: { _ in
+                self.deviceTokenProvider.setDeviceToken(deviceToken: decodedDeviceToken)
+            })
             result?.onFailure(action: { error in
                 log(.warn, error: error.asError()) { "Failed to add device token" }
             })

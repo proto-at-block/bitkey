@@ -24,6 +24,7 @@ import build.wallet.ktor.result.isClientError
 import build.wallet.ktor.result.isServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
+import build.wallet.recovery.socrec.TrustedContactKeyAuthenticatorMock
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -47,6 +48,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
   val bestEffortFullAccountCloudBackupUploader =
     BestEffortFullAccountCloudBackupUploaderMock(turbines::create)
   val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
+  val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorMock(turbines::create)
 
   val authKeyRotationManager = AuthKeyRotationManagerImpl(
     authKeyRotationAttemptDao = authKeyRotationAttemptDao,
@@ -54,7 +56,8 @@ class AuthKeyRotationManagerImplTests : FunSpec({
     keyboxDao = keyboxDao,
     accountAuthenticator = accountAuthenticator,
     bestEffortFullAccountCloudBackupUploader = bestEffortFullAccountCloudBackupUploader,
-    socRecRelationshipsRepository = socRecRelationshipsRepository
+    socRecRelationshipsRepository = socRecRelationshipsRepository,
+    trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
   )
 
   beforeEach {

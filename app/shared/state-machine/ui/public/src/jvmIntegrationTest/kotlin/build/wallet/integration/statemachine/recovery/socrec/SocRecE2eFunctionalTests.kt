@@ -1,4 +1,4 @@
-@file:OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class, ExperimentalKotest::class)
+@file:OptIn(FlowPreview::class, ExperimentalKotest::class)
 
 package build.wallet.integration.statemachine.recovery.socrec
 
@@ -16,6 +16,7 @@ import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.f8e.socrec.endorseTrustedContacts
+import build.wallet.f8e.socrec.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.recovery.socrec.syncAndVerifyRelationships
@@ -31,18 +32,19 @@ import build.wallet.testing.AppTester
 import build.wallet.testing.launchNewApp
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.fail
+import io.kotest.assertions.withClue
 import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeSingleton
+import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.comparables.shouldBeGreaterThan
+import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.maps.shouldHaveKey
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.kotest.property.PropTestConfig
 import io.kotest.property.checkAll
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
@@ -363,6 +365,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
+    verifyKeyCertificatesAreRefreshed(customerApp)
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
@@ -398,18 +401,9 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // PC: Re-verify the TC key cert
-    // TODO: https://linear.app/squareup/issue/BKR-1087
-    //   This is a workaround for the race where the endorsement is not being re-verified in
-    //   initial sync.
-    val customerAccount = customerApp.getActiveFullAccount()
-    customerApp.app.socRecRelationshipsRepository.syncAndVerifyRelationships(customerAccount)
-      .getOrThrow()
-      .trustedContacts
-      .first { it.recoveryRelationshipId == relationshipId }
-      .authenticationState
-      .shouldBe(TrustedContactAuthenticationState.VERIFIED)
+    verifyKeyCertificatesAreRefreshed(customerApp)
 
+    val customerAccount = customerApp.getActiveFullAccount()
     customerApp.app.bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackup(
       customerAccount
     ).getOrThrow()
@@ -536,18 +530,9 @@ class SocRecE2eFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    // PC: Re-verify the TC key cert
-    // TODO: https://linear.app/squareup/issue/BKR-1087
-    //   This is a workaround for the race where the endorsement is not being re-verified in
-    //   initial sync.
-    val customerAccount = customerApp.getActiveFullAccount()
-    customerApp.app.socRecRelationshipsRepository.syncAndVerifyRelationships(customerAccount)
-      .getOrThrow()
-      .trustedContacts
-      .first { it.recoveryRelationshipId == relationshipId }
-      .authenticationState
-      .shouldBe(TrustedContactAuthenticationState.VERIFIED)
+    verifyKeyCertificatesAreRefreshed(customerApp)
 
+    val customerAccount = customerApp.getActiveFullAccount()
     customerApp.app.bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackup(
       customerAccount
     ).getOrThrow()
@@ -674,4 +659,37 @@ suspend fun shouldSucceedSocialRestore(
   }
 
   return recoveringApp
+}
+
+suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
+  val account = appTester.getActiveFullAccount()
+  val appPubKey = account.keybox.activeAppKeyBundle.authKey.pubKey
+  val hwSig = account.keybox.appGlobalAuthKeyHwSignature
+  val hwPubKey = account.keybox.activeHwKeyBundle.authKey.pubKey
+  hwPubKey.shouldBeEqual(appTester.fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
+
+  val serverTcs = appTester.app.socialRecoveryServiceProvider.get()
+    .getRelationships(account, null).getOrThrow()
+    .trustedContacts
+  val dbTcs = appTester.app.socRecRelationshipsDao
+    .socRecRelationships().first().getOrThrow()
+    .trustedContacts
+
+  withClue("Server and DB Trusted Contacts should match") {
+    serverTcs.shouldContainExactlyInAnyOrder(
+      dbTcs.map {
+        // The authenticationState is @Transient and defaults to AWAITING_VERIFY when returned by
+        // the server
+        it.copy(authenticationState = TrustedContactAuthenticationState.AWAITING_VERIFY)
+      }
+    )
+  }
+
+  dbTcs.forEach {
+    withClue("key certificates for ${it.trustedContactAlias} should be refreshed") {
+      it.keyCertificate.hwAuthPublicKey.pubKey.shouldBeEqual(hwPubKey)
+      it.keyCertificate.appGlobalAuthPublicKey.pubKey.shouldBeEqual(appPubKey)
+      it.keyCertificate.appAuthGlobalKeyHwSignature.value.shouldBeEqual(hwSig.value)
+    }
+  }
 }

@@ -98,14 +98,11 @@ class CreateFullAccountDataStateMachineImpl(
               onboardConfig = props.onboardConfig,
               currencyPreferenceData = props.currencyPreferenceData,
               isSkipCloudBackupInstructions = state.isSkipCloudBackupInstructions,
-              onExistingCloudBackupFound = { cloudBackup, proceed ->
-                if (cloudBackup !is CloudBackupV2) {
-                  // Ignore legacy backups. These should not exist post-v1
-                  proceed()
-                } else if (cloudBackup.accountId == state.keybox.fullAccountId.serverId) {
+              onExistingAppDataFound = { cloudBackup, proceed ->
+                if (cloudBackup?.accountId == state.keybox.fullAccountId.serverId) {
                   // It's OK to overwrite the backup if it's for the same account
                   proceed()
-                } else if (cloudBackup.fullAccountFields != null) {
+                } else if (cloudBackup !is CloudBackupV2 || cloudBackup.fullAccountFields != null) {
                   if (state.isSkipCloudBackupInstructions) {
                     proceed()
                   } else {

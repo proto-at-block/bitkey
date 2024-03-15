@@ -166,6 +166,18 @@ class SocRecRelationshipsDaoImpl(
     }
   }
 
+  override suspend fun setTrustedContactAuthenticationState(
+    recoveryRelationshipId: String,
+    authenticationState: TrustedContactAuthenticationState,
+  ): Result<Unit, DbError> {
+    return database.socRecRelationshipsQueries.awaitTransactionWithResult {
+      setSocRecTrustedContactAuthenticationState(
+        recoveryRelationshipId = recoveryRelationshipId,
+        authenticationState = authenticationState
+      )
+    }
+  }
+
   override suspend fun clear() =
     database.awaitTransactionWithResult {
       socRecRelationshipsQueries.clear()

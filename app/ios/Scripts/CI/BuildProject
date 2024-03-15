@@ -8,4 +8,4 @@ hermit clean --packages
 hermit update
 
 echo "Building Xcode Project"
-xcodegen --spec app/ios/project.yml
+just app/xcodegen

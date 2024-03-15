@@ -86,7 +86,7 @@ class OnboardKeyboxDataStateMachineImpl(
         sealedCsek = sealedCsek,
         onBackupFailed = { stepDidFail = true },
         onBackupSaved = { stepIsCompleting = true },
-        onExistingCloudBackupFound = props.onExistingCloudBackupFound,
+        onExistingAppDataFound = props.onExistingAppDataFound,
         isSkipCloudBackupInstructions = props.isSkipCloudBackupInstructions
       )
     }

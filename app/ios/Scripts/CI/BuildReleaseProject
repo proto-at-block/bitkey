@@ -10,4 +10,4 @@ hermit update
 app/ios/Scripts/CI/FetchBuildVariables "$1"
 
 echo "Building Xcode Project"
-REPRODUCIBLE_BUILD="$(pwd)/reproducible-build-variables.json" xcodegen --spec app/ios/project.yml
+REPRODUCIBLE_BUILD="$(pwd)/reproducible-build-variables.json" just app/xcodegen

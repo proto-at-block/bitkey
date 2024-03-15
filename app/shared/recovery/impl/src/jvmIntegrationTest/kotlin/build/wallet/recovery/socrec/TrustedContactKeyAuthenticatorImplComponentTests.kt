@@ -1,11 +1,14 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.encrypt.signResult
 import build.wallet.f8e.socrec.SocialRecoveryServiceFake
 import build.wallet.testing.AppTester
 import build.wallet.testing.launchNewApp
@@ -13,6 +16,7 @@ import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlinx.coroutines.flow.first
@@ -146,6 +150,105 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     relationships.unendorsedTrustedContacts.shouldBeEmpty()
     relationships.invitations.shouldBeEmpty()
     relationships.protectedCustomers.shouldBeEmpty()
+  }
+
+  test("Authenticate/regenerate/endorse - Empty") {
+    // Onboard new account
+    val account = appTester.onboardFullAccountWithFakeHardware()
+
+    // Generate new Certs
+    val newAppKey = socRecCrypto.generateAppAuthKeypair()
+    val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.pubKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+
+    // Verify test setup
+    socialRecoveryService.trustedContacts.shouldBeEmpty()
+
+    val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+      accountId = account.accountId,
+      f8eEnvironment = account.config.f8eEnvironment,
+      contacts = socialRecoveryService.trustedContacts,
+      oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
+      oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
+      newAppGlobalAuthKey = newAppKey.publicKey,
+      newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(hwSignature)
+    )
+
+    result.shouldBeOk()
+  }
+
+  test("Authenticate/regenerate/endorse - Success") {
+    // Onboard new account
+    val account = appTester.onboardFullAccountWithFakeHardware()
+
+    // Create TC invite
+    simulateAcceptedInvite(account)
+
+    // Endorse
+    trustedContactKeyAuthenticator.authenticateAndEndorse(
+      socialRecoveryService.unendorsedTrustedContacts,
+      account
+    )
+
+    // Generate new Certs
+    val newAppKey = socRecCrypto.generateAppAuthKeypair()
+    val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.pubKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+
+    // Verify test setup
+    socialRecoveryService.trustedContacts.shouldNotBeEmpty()
+
+    val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+      accountId = account.accountId,
+      f8eEnvironment = account.config.f8eEnvironment,
+      contacts = socialRecoveryService.trustedContacts,
+      oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
+      oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
+      newAppGlobalAuthKey = newAppKey.publicKey,
+      newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(hwSignature)
+    )
+
+    result.shouldBeOk()
+  }
+
+  test("Authenticate/regenerate/endorse - Tamper") {
+    // Onboard new account
+    val account = appTester.onboardFullAccountWithFakeHardware()
+
+    // Create TC invite
+    simulateAcceptedInvite(account)
+
+    // Endorse
+    trustedContactKeyAuthenticator.authenticateAndEndorse(
+      socialRecoveryService.unendorsedTrustedContacts,
+      account
+    )
+
+    // Generate New Certs
+    val newAppKey = socRecCrypto.generateAppAuthKeypair()
+    val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.pubKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+
+    // Verify test setup
+    socialRecoveryService.trustedContacts.shouldNotBeEmpty()
+
+    val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+      accountId = account.accountId,
+      f8eEnvironment = account.config.f8eEnvironment,
+      contacts = listOf(
+        socialRecoveryService.trustedContacts.single().copy(
+          keyCertificate = TrustedContactKeyCertificateFake2
+        )
+      ),
+      oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
+      oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
+      newAppGlobalAuthKey = newAppKey.publicKey,
+      newAppGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(hwSignature)
+    )
+    val relationships = socRecRelationshipsDao.socRecRelationships().first().getOrThrow()
+
+    relationships.trustedContacts.single().authenticationState.shouldBe(TrustedContactAuthenticationState.TAMPERED)
+    result.shouldBeOk()
   }
 
   test("missing pake data") {

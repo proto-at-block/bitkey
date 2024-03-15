@@ -46,7 +46,6 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.FailedToCreateSpendingKeysData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
@@ -116,10 +115,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       uuid = uuid,
       recoverySyncer = recoverySyncer,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
-      recoveryDao = recoveryDao,
       accountAuthenticator = accountAuthorizer,
+      recoveryDao = recoveryDao,
       deviceTokenManager = deviceTokenManager,
-      deviceInfoProvider = deviceInfoProvider,
       socRecRelationshipsRepository = socRecRelationshipsRepository,
       postSocRecTaskRepository = postSocRecTaskRepository,
       trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
@@ -1488,72 +1486,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<PerformingCloudBackupData>()
       }
-    }
-  }
-
-  test("fail recovery on Android") {
-    val recovery = recovery()
-    // Handle failures on Android
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    deviceInfoProvider.devicePlatformValue = Android
-    // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndCsek(
-            signedChallenge = "",
-            sealedCsek = SealedCsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          RotatedAuthKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-      }
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<FailedToCreateSpendingKeysData>()
-      }
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     }
   }
 })

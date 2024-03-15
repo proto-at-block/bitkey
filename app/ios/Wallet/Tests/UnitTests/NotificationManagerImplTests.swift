@@ -103,8 +103,19 @@ class NotificationManagerImplTests: XCTestCase {
     // TODO W-3590: Fix flaky test for updating provisional notification status
 
     func test_didRegisterForRemoteNotificationsWithDeviceToken_deviceTokenProvider() {
+        deviceTokenManager.addCallExpectation = expectation(description: "token manager success")
+        deviceTokenProvider.addSetExpectation = expectation(description: "token set")
         manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        waitForExpectations(timeout: 3)
         XCTAssertEqual(deviceTokenProvider.deviceToken, decodedDeviceToken)
+    }
+    
+    func test_didRegisterForRemoteNotificationsWithDeviceToken_deviceTokenProviderFailsOnError() {
+        deviceTokenManager.addCallExpectation = expectation(description: "token manager failed")
+        deviceTokenManager.addDeviceTokenIfActiveAccountResult = DeviceTokenManagerResultErr(error: DeviceTokenManagerError.NoKeybox())
+        manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(deviceTokenProvider.deviceToken, nil)
     }
 
     func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_developmentVariant() {
@@ -193,10 +204,12 @@ private class DeviceTokenManagerMock : DeviceTokenManager {
 
 fileprivate class DeviceTokenProviderMock : DeviceTokenProvider {
 
+    var addSetExpectation: XCTestExpectation?
     var deviceToken: String?
 
     func setDeviceToken(deviceToken: String) {
         self.deviceToken = deviceToken
+        addSetExpectation?.fulfill()
     }
 
     func reset() {

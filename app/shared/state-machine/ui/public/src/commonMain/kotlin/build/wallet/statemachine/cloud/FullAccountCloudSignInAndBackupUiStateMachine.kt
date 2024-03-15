@@ -19,6 +19,9 @@ interface FullAccountCloudSignInAndBackupUiStateMachine : StateMachine<FullAccou
  * @property onBackupFailed callback for when customer failed to sign into cloud storage to
  * back up the keybox, or something went wrong on our side.
  * @property onBackupSaved callback for when keybox has been successfully backed up.
+ * @property onExistingAppDataFound callback for when an existing cloud backup is found. The
+ * cloudBackup passed as an argument will be null if the file could not be parsed, potentially
+ * because it was a v1 backup from Beta.
  * @property isSkipCloudBackupInstructions attempt to start backup process without showing the
  * instructions or forcing sign out. This is used when the user has already seen the instructions
  * and we are attempting to re-do the backup. On the off chance that the CSEK is missing, we'll
@@ -31,7 +34,12 @@ data class FullAccountCloudSignInAndBackupProps(
   val trustedContacts: List<TrustedContact>,
   val onBackupFailed: () -> Unit,
   val onBackupSaved: () -> Unit,
-  val onExistingCloudBackupFound: ((cloudBackup: CloudBackup, proceed: () -> Unit) -> Unit)? = null,
+  val onExistingAppDataFound: (
+    (
+      cloudBackup: CloudBackup?,
+      proceed: () -> Unit,
+    ) -> Unit
+  )? = null,
   val presentationStyle: ScreenPresentationStyle,
   val isSkipCloudBackupInstructions: Boolean = false,
   val requireAuthRefreshForCloudBackup: Boolean,

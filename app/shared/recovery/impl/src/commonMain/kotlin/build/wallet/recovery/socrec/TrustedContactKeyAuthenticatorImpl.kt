@@ -20,6 +20,9 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getAll
+import com.github.michaelbull.result.getOr
+import com.github.michaelbull.result.map
+import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -56,20 +59,28 @@ class TrustedContactKeyAuthenticatorImpl(
   ): Result<Unit, Error> =
     binding {
       val endorsements = contacts.map { contact ->
-        // TODO: Remove failed keys / mark as tampered
-        val newCert = socRecCrypto.verifyAndRegenerateKeyCertificate(
+        socRecCrypto.verifyAndRegenerateKeyCertificate(
           oldCertificate = contact.keyCertificate,
           oldAppGlobalAuthKey = oldAppGlobalAuthKey,
           oldHwAuthKey = oldHwAuthKey,
           newAppGlobalAuthKey = newAppGlobalAuthKey,
           newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature
-        ).bind()
-
-        TrustedContactEndorsement(
-          recoveryRelationshipId = RecoveryRelationshipId(contact.recoveryRelationshipId),
-          keyCertificate = newCert
-        )
-      }
+        ).logFailure {
+          "Failed to verify contact ${contact.recoveryRelationshipId} key certificate for certificate regeneration."
+        }.onFailure {
+          socRecRelationshipsDao.setTrustedContactAuthenticationState(
+            contact.recoveryRelationshipId,
+            TrustedContactAuthenticationState.TAMPERED
+          ).logFailure {
+            "Failed to set contact ${contact.recoveryRelationshipId} authentication state to TAMPERED."
+          }.bind()
+        }.map { newCert ->
+          TrustedContactEndorsement(
+            recoveryRelationshipId = RecoveryRelationshipId(contact.recoveryRelationshipId),
+            keyCertificate = newCert
+          )
+        }
+      }.mapNotNull { it.get() }
 
       // Upload the new key certificates to f8e
       endorseTrustedContactsServiceProvider.get()

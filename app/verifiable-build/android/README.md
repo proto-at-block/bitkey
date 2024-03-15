@@ -7,11 +7,9 @@ The `release` directory contains scripts primarily used in CI for producing rele
 The `verification` directory contains `verify-android-apk` which automates the full verification process - from downloading the APK from the phone, building the local version, to comparing the results.
 The directory also contains `steps` directory which holds scripts for each of the verification steps.
 
-General documentation can be found here: `docs/docs/guides/mobile/build/verifiable-builds/verifiable-builds-android.md`
-
 > [!NOTE]
 > To run the verification build,
-> you need either an x86_64 machine.
+> you need an x86_64 machine.
 > So either one of:
 >
 > - Intel macOS

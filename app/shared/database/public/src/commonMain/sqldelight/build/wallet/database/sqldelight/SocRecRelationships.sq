@@ -87,6 +87,11 @@ UPDATE socRecUnendorsedTrustedContactEntity
 SET authenticationState = ?
 WHERE recoveryRelationshipId = ?;
 
+setSocRecTrustedContactAuthenticationState:
+UPDATE socRecTrustedContactEntity
+SET authenticationState = ?
+WHERE recoveryRelationshipId = ?;
+
 clearSocRecTrustedContactInvitations:
 DELETE FROM socRecTrustedContactInvitationEntity;
 

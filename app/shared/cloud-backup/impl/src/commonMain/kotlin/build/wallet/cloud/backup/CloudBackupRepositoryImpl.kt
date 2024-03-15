@@ -40,10 +40,12 @@ class CloudBackupRepositoryImpl(
       when (backupEncoded) {
         null -> null
         else ->
-          // Found encoded backup
+          // Found encoded app data
           // Attempt to decode as V2 backup
           Json.decodeFromStringResult<CloudBackupV2>(backupEncoded)
-            .mapPossibleRectifiableErrors()
+            .mapError {
+              UnrectifiableCloudBackupError(UnknownAppDataFoundError(it))
+            }
             .bind()
       }
     }.logFailure(Warn) { "Error reading cloud backup from cloud storage" }

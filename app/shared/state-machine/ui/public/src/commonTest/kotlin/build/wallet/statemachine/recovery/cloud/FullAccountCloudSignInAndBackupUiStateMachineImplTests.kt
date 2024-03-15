@@ -347,14 +347,14 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       CloudBackupV2WithFullAccountMock,
       requireAuthRefresh = true
     )
-    val onExistingCloudBackupFoundCalls =
-      turbines.create<CloudBackup>(
+    val onExistingAppDataFoundCalls =
+      turbines.create<CloudBackup?>(
         "on existing cloud backup found"
       )
 
     val adjustedProps =
-      props.copy(onExistingCloudBackupFound = { cloudBackup, proceed ->
-        onExistingCloudBackupFoundCalls += cloudBackup
+      props.copy(onExistingAppDataFound = { cloudBackup, proceed ->
+        onExistingAppDataFoundCalls += cloudBackup
         proceed()
       })
 
@@ -372,8 +372,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       awaitLoadingScreens()
 
       cloudBackupCreator.createCalls.awaitItem()
-      onExistingCloudBackupFoundCalls.awaitItem()
-        .shouldBeEqual(CloudBackupV2WithFullAccountMock)
+      onExistingAppDataFoundCalls.awaitItem()
+        .shouldNotBeNull().shouldBeEqual(CloudBackupV2WithFullAccountMock)
 
       cloudBackupRepository.readBackup(
         cloudAccount

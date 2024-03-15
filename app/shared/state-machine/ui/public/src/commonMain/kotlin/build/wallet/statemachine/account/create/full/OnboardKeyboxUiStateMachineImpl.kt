@@ -71,7 +71,7 @@ class OnboardKeyboxUiStateMachineImpl(
           trustedContacts = emptyList(),
           onBackupFailed = data.onBackupFailed,
           onBackupSaved = data.onBackupSaved,
-          onExistingCloudBackupFound = data.onExistingCloudBackupFound,
+          onExistingAppDataFound = data.onExistingAppDataFound,
           presentationStyle = ScreenPresentationStyle.Root,
           isSkipCloudBackupInstructions = data.isSkipCloudBackupInstructions,
           requireAuthRefreshForCloudBackup = true

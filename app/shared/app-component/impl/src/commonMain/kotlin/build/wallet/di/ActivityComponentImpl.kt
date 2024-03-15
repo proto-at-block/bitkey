@@ -1803,13 +1803,22 @@ class ActivityComponentImpl(
     signer = appComponent.appAuthKeyMessageSigner
   )
 
+  val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorImpl(
+    socRecRelationshipsRepository = socRecRelationshipsRepository,
+    socRecRelationshipsDao = socRecRelationshipsDao,
+    socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
+    socRecCrypto = socRecCrypto,
+    endorseTrustedContactsServiceProvider = { socialRecoveryServiceProvider.get() }
+  )
+
   val authKeyRotationManager: AuthKeyRotationManager = AuthKeyRotationManagerImpl(
     authKeyRotationAttemptDao = authKeyRotationAttemptDao,
     rotateAuthKeysService = rotateAuthKeysService,
     keyboxDao = appComponent.keyboxDao,
     accountAuthenticator = appComponent.accountAuthenticator,
     bestEffortFullAccountCloudBackupUploader = bestEffortFullAccountCloudBackupUploader,
-    socRecRelationshipsRepository = socRecRelationshipsRepository
+    socRecRelationshipsRepository = socRecRelationshipsRepository,
+    trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
   )
 
   val rotateAuthUIStateMachine = RotateAuthKeyUIStateMachineImpl(
@@ -2220,14 +2229,6 @@ class ActivityComponentImpl(
       setActiveSpendingKeysetService = setActiveSpendingKeysetService
     )
 
-  val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorImpl(
-    socRecRelationshipsRepository = socRecRelationshipsRepository,
-    socRecRelationshipsDao = socRecRelationshipsDao,
-    socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
-    socRecCrypto = socRecCrypto,
-    endorseTrustedContactsServiceProvider = { socialRecoveryServiceProvider.get() }
-  )
-
   val recoveryInProgressDataStateMachine =
     RecoveryInProgressDataStateMachineImpl(
       recoveryCanceler = lostAppRecoveryCanceler,
@@ -2243,7 +2244,6 @@ class ActivityComponentImpl(
       accountAuthenticator = appComponent.accountAuthenticator,
       recoveryDao = appComponent.recoveryDao,
       deviceTokenManager = appComponent.deviceTokenManager,
-      deviceInfoProvider = appComponent.deviceInfoProvider,
       socRecRelationshipsRepository = socRecRelationshipsRepository,
       postSocRecTaskRepository = postSocRecTaskRepository,
       trustedContactKeyAuthenticator = trustedContactKeyAuthenticator

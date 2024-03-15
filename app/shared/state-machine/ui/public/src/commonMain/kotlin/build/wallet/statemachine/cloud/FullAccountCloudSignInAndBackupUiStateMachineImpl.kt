@@ -12,9 +12,12 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_INITIALIZE
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_MISSING
+import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.RectifiableCloudBackupError
+import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator
+import build.wallet.cloud.backup.UnknownAppDataFoundError
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.CsekGenerator
@@ -157,10 +160,14 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               when (backup) {
                 null -> uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)
                 else -> {
-                  val proceed = {
-                    uiState = CreatingAndSavingBackupUiState(state.account, state.sealedCsek)
-                  }
-                  props.onExistingCloudBackupFound?.invoke(backup, proceed) ?: proceed()
+                  handleAppDataFound(
+                    state = state,
+                    props = props,
+                    backup = backup,
+                    setState = {
+                      uiState = it
+                    }
+                  )
                 }
               }
             }
@@ -175,9 +182,21 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                     )
                 }
 
-                else -> {
+                is UnrectifiableCloudBackupError -> {
                   log(LogLevel.Warn) { "Failed to read cloud backup: $cloudBackupError" }
-                  FailureUiState
+                  if (cloudBackupError.cause is UnknownAppDataFoundError) {
+                    // If unknown app data was found, give the option to overwrite.
+                    handleAppDataFound(
+                      state = state,
+                      props = props,
+                      backup = null,
+                      setState = {
+                        uiState = it
+                      }
+                    )
+                  } else {
+                    uiState = FailureUiState
+                  }
                 }
               }
             }
@@ -251,6 +270,18 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           )
         )
     }
+  }
+
+  private fun handleAppDataFound(
+    state: CheckingCloudBackupUiState,
+    props: FullAccountCloudSignInAndBackupProps,
+    backup: CloudBackup?,
+    setState: (FullAccountCloudSignInAndBackupUiState) -> Unit,
+  ) {
+    val proceed = {
+      setState(CreatingAndSavingBackupUiState(state.account, state.sealedCsek))
+    }
+    props.onExistingAppDataFound?.invoke(backup, proceed) ?: proceed()
   }
 
   @Composable

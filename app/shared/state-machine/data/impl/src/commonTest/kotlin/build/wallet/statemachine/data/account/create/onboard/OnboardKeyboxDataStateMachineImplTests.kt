@@ -37,7 +37,7 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
       keybox = KeyboxMock,
       onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
       currencyPreferenceData = CurrencyPreferenceDataMock,
-      onExistingCloudBackupFound = { _, proceed -> proceed() },
+      onExistingAppDataFound = { _, proceed -> proceed() },
       isSkipCloudBackupInstructions = false
     )
 

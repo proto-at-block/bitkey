@@ -4,6 +4,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader
 import build.wallet.f8e.F8eEnvironment
@@ -14,6 +15,7 @@ import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
 import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -38,6 +40,7 @@ class AuthKeyRotationManagerImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val bestEffortFullAccountCloudBackupUploader: BestEffortFullAccountCloudBackupUploader,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
+  private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
 ) : AuthKeyRotationManager {
   private val pendingRotationAttemptChangedSemaphore = MutableSharedFlow<Unit>(
     // Although 0 is default, let's be explicit here. We don't want to replay any events to new subscribers.
@@ -279,7 +282,20 @@ class AuthKeyRotationManagerImpl(
         keybox = rotatedKeybox
       )
 
-      socRecRelationshipsRepository.syncAndVerifyRelationships(account)
+      // With new auth keys, we need to re-generate new endorsement certificates for existing
+      // trusted contacts.
+      regenerateEndorseAndVerifyTrustedContacts(
+        newAccount = rotatedAccount,
+        oldHwAuthPublicKey = account.keybox.activeHwKeyBundle.authKey,
+        oldAppAuthKey = account.keybox.activeAppKeyBundle.authKey,
+        newAppKeys = newKeys
+      )
+        .mapError {
+          AuthKeyRotationFailure.Unexpected(
+            retryRequest = AuthKeyRotationRequest.Resume(newKeys)
+          )
+        }
+        .bind()
 
       trySynchronizingCloudBackup(rotatedAccount)
         .mapError {
@@ -303,6 +319,27 @@ class AuthKeyRotationManagerImpl(
           notifyPendingRotationAttemptChanged()
         }
       )
+    }
+
+  private suspend fun regenerateEndorseAndVerifyTrustedContacts(
+    newAccount: FullAccount,
+    oldAppAuthKey: AppGlobalAuthPublicKey,
+    oldHwAuthPublicKey: HwAuthPublicKey,
+    newAppKeys: AppAuthPublicKeys,
+  ): Result<Unit, Error> =
+    binding {
+      val relationships = socRecRelationshipsRepository.relationships.first()
+      trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+        accountId = newAccount.accountId,
+        f8eEnvironment = newAccount.config.f8eEnvironment,
+        contacts = relationships.trustedContacts,
+        oldAppGlobalAuthKey = oldAppAuthKey,
+        oldHwAuthKey = oldHwAuthPublicKey,
+        newAppGlobalAuthKey = newAppKeys.appGlobalAuthPublicKey,
+        newAppGlobalAuthKeyHwSignature = newAppKeys.requireAppGlobalAuthKeyHwSignature()
+      ).bind()
+
+      socRecRelationshipsRepository.syncAndVerifyRelationships(newAccount)
     }
 
   private suspend fun trySynchronizingCloudBackup(account: FullAccount): Result<Unit, Error> {

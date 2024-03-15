@@ -2,6 +2,7 @@ package build.wallet.nfc.transaction
 
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.HardwareAttestation
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
@@ -46,6 +47,8 @@ class StartFingerprintEnrollmentTransactionProviderImpl(
     val identityCert = commands.getCert(session, FirmwareCertType.IDENTITY)
     val batchCert = commands.getCert(session, FirmwareCertType.BATCH)
 
+    // TODO(W-6318): Make these exceptions again.
+
     // NOTE: Do not remove '[hardware_attestation_failure]' from the message. We alert
     // on this string in Datadog.
     val serial =
@@ -55,20 +58,16 @@ class StartFingerprintEnrollmentTransactionProviderImpl(
           batchCert = batchCert
         )
       }.getOrElse {
-        throw NfcException.InauthenticHardware(
-          message = "[hardware_attestation_failure] Failed to verify cert chain",
-          cause = it
-        )
+        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify cert chain" }
+        return
       }
 
     val challenge =
       Result.runCatching {
         hardwareAttestation.generateChallenge()
       }.getOrElse {
-        throw NfcException.InauthenticHardware(
-          message = "[hardware_attestation_failure] Failed to generate challenge for $serial",
-          cause = it
-        )
+        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to generate challenge for $serial " }
+        return
       }
 
     Result.runCatching {
@@ -82,13 +81,11 @@ class StartFingerprintEnrollmentTransactionProviderImpl(
     }.getOrElse {
       // TODO(W-6045): Don't look at the message string.
       if (it.cause?.message?.contains("signature invalid") == true) {
-        throw NfcException.InauthenticHardware(
-          message = "[hardware_attestation_failure] Failed to verify challenge for $serial",
-          cause = it
-        )
+        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify challenge for $serial " }
+        return
       } else {
-        // Throw the exception as-is so that NFC flakes don't show up as InauthenticHardware
-        throw it
+        log(LogLevel.Warn) { "[hardware_attestation_failure] NFC flaked or firmware does not support attestation; allowing anyway... for now! Serial: $serial" }
+        return
       }
     }
 

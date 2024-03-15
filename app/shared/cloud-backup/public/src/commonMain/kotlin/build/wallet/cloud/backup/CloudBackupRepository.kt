@@ -32,3 +32,7 @@ interface CloudBackupRepository {
     clearRemoteOnly: Boolean,
   ): Result<Unit, CloudBackupError>
 }
+
+data class UnknownAppDataFoundError(
+  override val cause: Throwable,
+) : Error()

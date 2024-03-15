@@ -20,6 +20,6 @@ data class OnboardKeyboxDataProps(
   val keybox: Keybox,
   val onboardConfig: OnboardConfig,
   val currencyPreferenceData: CurrencyPreferenceData,
-  val onExistingCloudBackupFound: (cloudBackup: CloudBackup, proceed: () -> Unit) -> Unit,
+  val onExistingAppDataFound: (cloudBackup: CloudBackup?, proceed: () -> Unit) -> Unit,
   val isSkipCloudBackupInstructions: Boolean,
 )
