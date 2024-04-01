@@ -1,7 +1,6 @@
 package build.wallet.statemachine.platform.permissions
 
 import androidx.compose.runtime.Composable
-import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 
 /**
@@ -15,7 +14,6 @@ interface NotificationPermissionRequester {
    * @param onDeclined - Called once the user does any action other than granting permission
    * (ignore, decline, etc)
    */
-  @OptIn(ExperimentalObjCRefinement::class)
   @Composable
   @HiddenFromObjC
   fun requestNotificationPermission(

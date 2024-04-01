@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.annotation:annotation-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.7.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotation-iossimulatorarm64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "annotation.klib": "8322e9b26cfe7fbe9160e5c1ef7de523708f62c8eba5b78bf563e72ed719db6a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

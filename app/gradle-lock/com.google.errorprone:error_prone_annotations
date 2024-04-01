@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "2.20.0",
+            "version": "2.23.0",
             "variants": [
                 {
                     "artifacts": {
-                        "error_prone_annotations-2.20.0.jar": "a136d3dce67168d88751115fa223bec80eae6cc062aa2f8173e8344a98235ec4"
+                        "error_prone_annotations-2.23.0.jar": "ec6f39f068b6ff9ac323c68e28b9299f8c0a80ca512dccb1d4a70f40ac3ec054"
                     }
                 }
             ],

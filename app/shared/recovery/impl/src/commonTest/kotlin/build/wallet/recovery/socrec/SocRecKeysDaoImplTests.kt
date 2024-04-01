@@ -1,14 +1,12 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.keys.app.AppKeyImpl
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
-import build.wallet.crypto.CurveType
+import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.sqldelight.inMemorySqlDriver
-import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getError
 import io.kotest.core.spec.style.FunSpec
@@ -32,57 +30,26 @@ class SocRecKeysDaoImplTests : FunSpec({
   }
 
   test("persist and retrieve keypair") {
-    val key =
-      ProtectedCustomerIdentityKey(
-        key =
-          AppKeyImpl(
-            CurveType.SECP256K1,
-            PublicKey(value = "pubkey"),
-            PrivateKey(bytes = "privkey".toByteArray().toByteString())
-          )
-      )
+    val key = AppKey<DelegatedDecryptionKey>(
+      PublicKey(value = "pubkey"),
+      PrivateKey(bytes = "privkey".toByteArray().toByteString())
+    )
 
     dao.saveKey(key)
-    dao.getKeyWithPrivateMaterial(::ProtectedCustomerIdentityKey)
+    dao.getKeyWithPrivateMaterial<DelegatedDecryptionKey>()
       .shouldNotBeNull()
       .shouldBeOk(key)
 
-    dao.getKey(::ProtectedCustomerIdentityKey)
+    dao.getPublicKey<DelegatedDecryptionKey>()
       .shouldNotBeNull()
       .shouldBeOk()
       .shouldBeEqual(
-        ProtectedCustomerIdentityKey(
-          AppKeyImpl(
-            CurveType.SECP256K1,
-            key.publicKey,
-            null
-          )
-        )
+        key.publicKey
       )
-  }
-
-  test("persist public key and retrieve") {
-    val key =
-      ProtectedCustomerIdentityKey(
-        key =
-          AppKeyImpl(
-            CurveType.SECP256K1,
-            PublicKey(value = "pubkey"),
-            null
-          )
-      )
-
-    dao.saveKey(key)
-    dao.getKeyWithPrivateMaterial(::ProtectedCustomerIdentityKey)
-      .shouldBeErrOfType<SocRecKeyError.NoPrivateKeyAvailable>()
-
-    dao.getKey(::ProtectedCustomerIdentityKey)
-      .shouldNotBeNull()
-      .shouldBeOk(key)
   }
 
   test("retrieving empty keys returns error") {
-    dao.getKey(::ProtectedCustomerIdentityKey)
+    dao.getPublicKey<DelegatedDecryptionKey>()
       .getError()
       .shouldNotBeNull()
       .shouldBeInstanceOf<SocRecKeyError.NoKeyAvailable>()

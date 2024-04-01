@@ -1,6 +1,7 @@
 package build.wallet.bitkey.socrec
 
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.UNAUTHENTICATED
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.serialization.ByteStringAsHexSerializer
 import kotlinx.serialization.SerialName
@@ -21,7 +22,7 @@ data class UnendorsedTrustedContact(
   @SerialName("sealed_delegated_decryption_pubkey")
   val sealedDelegatedDecryptionKey: XCiphertext,
   @SerialName("trusted_contact_enrollment_pake_pubkey")
-  val enrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+  val enrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
   @SerialName("enrollment_pake_confirmation")
   @Serializable(with = ByteStringAsHexSerializer::class)
   val enrollmentKeyConfirmation: ByteString,

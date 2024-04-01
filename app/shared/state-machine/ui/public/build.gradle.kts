@@ -20,6 +20,7 @@ kotlin {
         implementation(projects.shared.composeRuntimePublic)
         implementation(projects.shared.serializationPublic)
         implementation(projects.shared.stdlibPublic)
+        implementation(libs.kmp.settings)
 
         api(libs.kmp.test.kotest.framework.api)
 
@@ -36,6 +37,7 @@ kotlin {
         api(projects.shared.f8eClientPublic)
         api(projects.shared.featureFlagPublic)
         api(projects.shared.homePublic)
+        api(projects.shared.keyValueStoreImpl)
         api(projects.shared.ktorClientPublic)
         api(projects.shared.ldkBindingsPublic)
         api(projects.shared.loggingPublic)
@@ -46,7 +48,6 @@ kotlin {
         api(projects.shared.timePublic)
         api(projects.shared.phoneNumberPublic)
         api(projects.shared.platformPublic)
-        api(projects.shared.platformImpl)
         api(projects.shared.recoveryPublic)
         api(projects.shared.routerPublic)
         api(projects.shared.stateMachineDataPublic)

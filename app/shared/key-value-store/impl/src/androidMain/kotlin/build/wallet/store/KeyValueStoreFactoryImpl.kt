@@ -1,13 +1,9 @@
-@file:OptIn(ExperimentalSettingsImplementation::class, ExperimentalSettingsApi::class)
-
 package build.wallet.store
 
 import android.content.Context
 import androidx.datastore.preferences.preferencesDataStore
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.data.FileManager
-import com.russhwolf.settings.ExperimentalSettingsApi
-import com.russhwolf.settings.ExperimentalSettingsImplementation
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.datastore.DataStoreSettings
 

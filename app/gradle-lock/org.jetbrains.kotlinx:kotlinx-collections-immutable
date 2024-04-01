@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-collections-immutable",
     "components": [
         {
-            "version": "0.3.5",
+            "version": "0.3.7",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-collections-immutable-metadata-0.3.5-all.jar": "00ad9f2ef12ec0a9ebda1504e06da8d5c09ed5264214e45a0a1aba64e782b92a"
+                        "kotlinx-collections-immutable-metadata-0.3.7.jar": "34cccbf2f563a58731216882a16d5d946965e8e5879a16a13e4d2bd6ef8653e6"
                     }
                 }
             ],

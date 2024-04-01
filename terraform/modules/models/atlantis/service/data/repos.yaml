@@ -35,9 +35,10 @@ workflows:
             output: strip_refreshing
         - run: terragrunt show -json $PLANFILE > $SHOWFILE
     policy_check:
-      # override the default policy_check implementation; skip the default `show` step since it invokes terraform instead
-      # of terragrunt the default `policy_check` step will automatically read from $SHOWFILE, which was created in the plan stage
+      # override the default policy_check implementation; the default `show` step since it invokes terraform instead
+      # of terragrunt.
       steps:
+        - run: terragrunt show -json $PLANFILE > $SHOWFILE
         - policy_check
   firmware-signer-development:
     plan:

@@ -20,7 +20,6 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.creating
-import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.getValue
 import org.gradle.kotlin.dsl.getting
 import org.gradle.kotlin.dsl.withType
@@ -49,8 +48,8 @@ fun KotlinMultiplatformExtension.targets(
     common {
       if (jvm || android) {
         group("commonJvm") {
-          if (jvm) group("jvm") { withJvm() }
-          if (android) group("android") { withAndroidTarget() }
+          if (jvm) withJvm()
+          if (android) withAndroidTarget()
         }
       }
       if (ios) group("ios") { withIos() }

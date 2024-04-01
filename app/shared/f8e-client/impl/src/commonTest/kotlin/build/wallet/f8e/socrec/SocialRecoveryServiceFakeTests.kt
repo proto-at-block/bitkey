@@ -10,7 +10,7 @@ import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError.UnhandledException
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.socrec.ProtectedCustomerEnrollmentPakeKeyFake
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
@@ -24,12 +24,12 @@ import kotlinx.coroutines.test.TestScope
 import kotlin.time.Duration.Companion.days
 
 class SocialRecoveryServiceFakeTests : FunSpec({
-  val uuid = UuidFake()
+  val uuid = UuidGeneratorFake()
   val clock = ClockFake()
 
   val serviceFake =
     SocialRecoveryServiceFake(
-      uuid = uuid,
+      uuidGenerator = uuid,
       backgroundScope = TestScope(),
       clock = clock
     )
@@ -75,7 +75,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -85,8 +85,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships should contain first invitation
     serviceFake.getRelationships(
       accountId = fullAccount2.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -102,7 +101,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
         trustedContactAlias = TrustedContactAlias("Kirill"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-1")
@@ -112,8 +111,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships should contain first and second invitations
     serviceFake.getRelationships(
       accountId = fullAccount1.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.shouldHaveSize(2)
       relationships.invitations[0].should {
@@ -135,7 +133,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         account = fullAccount1,
         hardwareProofOfPossession = hwPopMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -145,8 +143,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships should contain the invitation
     serviceFake.getRelationships(
       accountId = fullAccount1.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -168,8 +165,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships should no longer have the invitation
     serviceFake.getRelationships(
       accountId = fullAccount1.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.shouldBeEmpty()
       relationships.protectedCustomers.shouldBeEmpty()
@@ -184,7 +180,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         account = fullAccount1,
         hardwareProofOfPossession = hwPopMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -194,8 +190,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships should contain the invitation
     serviceFake.getRelationships(
       accountId = fullAccount1.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -219,8 +214,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships still contain the initial invitation
     serviceFake.getRelationships(
       accountId = fullAccount1.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -238,7 +232,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -250,8 +244,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // invitation should be expired
     serviceFake.getRelationships(
       accountId = fullAccount1.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
         it.isExpired(clock).shouldBe(true)
@@ -272,8 +265,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     // Relationships should contain refreshed invitation
     serviceFake.getRelationships(
       accountId = fullAccount2.accountId,
-      f8eEnvironment = Development,
-      hardwareProofOfPossession = null
+      f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
         it.recoveryRelationshipId.shouldBe("uuid-0")
@@ -292,7 +284,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
         trustedContactAlias = TrustedContactAlias("Jack"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-0")

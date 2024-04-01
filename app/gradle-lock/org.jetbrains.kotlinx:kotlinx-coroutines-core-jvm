@@ -24,8 +24,20 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-coroutines-core-jvm-1.8.0.jar": "9860906a1937490bf5f3b06d2f0e10ef451e65b95b269f22daf68a3d1f5065c5"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

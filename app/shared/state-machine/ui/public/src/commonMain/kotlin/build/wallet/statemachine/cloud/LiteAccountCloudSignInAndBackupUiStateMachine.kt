@@ -10,7 +10,7 @@ interface LiteAccountCloudSignInAndBackupUiStateMachine :
 
 data class LiteAccountCloudSignInAndBackupProps(
   val liteAccount: LiteAccount,
-  val onBackupFailed: () -> Unit,
+  val onBackupFailed: (Throwable?) -> Unit,
   val onBackupSaved: () -> Unit,
   val presentationStyle: ScreenPresentationStyle,
 )

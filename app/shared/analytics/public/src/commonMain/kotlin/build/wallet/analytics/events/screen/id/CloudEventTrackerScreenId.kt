@@ -68,7 +68,7 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
   FAILURE_DELETING_FULL_ACCOUNT,
 
   /** Show warning about existing full account cloud backup before overwriting. */
-  OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING,
+  OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING,
 
   /** Error shown when accessing cloud backup fails but there may be a resolution. */
   ACCESS_CLOUD_BACKUP_FAILURE_RECTIFIABLE,
@@ -90,4 +90,7 @@ enum class CloudEventTrackerScreenId : EventTrackerScreenId {
 
   /** Loading screen shown when we are uploading a cloud backup */
   UPLOADING_CLOUD_BACKUP,
+
+  /** Show warning about existing full account cloud backup before overwriting. */
+  OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_BACKUP_REPAIR,
 }

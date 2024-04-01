@@ -7,17 +7,12 @@ import kotlinx.coroutines.launch
 
 class NfcHapticsImpl(
   private val haptics: Haptics,
-  private val nfcHapticsIsEnabledFeatureFlag: NfcHapticsIsEnabledFeatureFlag,
   private val nfcHapticsOnConnectedIsEnabledFeatureFlag: NfcHapticsOnConnectedIsEnabledFeatureFlag,
-  private val nfcHapticsOnFailureIsEnabledFeatureFlag: NfcHapticsOnFailureIsEnabledFeatureFlag,
-  private val nfcHapticsOnSuccessIsEnabledFeatureFlag: NfcHapticsOnSuccessIsEnabledFeatureFlag,
   private val appCoroutineScope: CoroutineScope,
 ) : NfcHaptics {
   private fun vibrate(effect: HapticsEffect) {
     appCoroutineScope.launch {
-      if (nfcHapticsIsEnabledFeatureFlag.flagValue().value.value) {
-        haptics.vibrate(effect = effect)
-      }
+      haptics.vibrate(effect = effect)
     }
   }
 
@@ -28,14 +23,10 @@ class NfcHapticsImpl(
   }
 
   override fun vibrateSuccess() {
-    if (nfcHapticsOnSuccessIsEnabledFeatureFlag.flagValue().value.value) {
-      vibrate(effect = HapticsEffect.DoubleClick)
-    }
+    vibrate(effect = HapticsEffect.DoubleClick)
   }
 
   override fun vibrateFailure() {
-    if (nfcHapticsOnFailureIsEnabledFeatureFlag.flagValue().value.value) {
-      vibrate(effect = HapticsEffect.DullOneShot)
-    }
+    vibrate(effect = HapticsEffect.DullOneShot)
   }
 }

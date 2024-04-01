@@ -1,10 +1,7 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.store
 
 import build.wallet.catching
 import com.github.michaelbull.result.Result
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 
 /**

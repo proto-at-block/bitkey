@@ -161,4 +161,5 @@ enum class IconTint {
   OutOfDate,
   OnTranslucent,
   Green,
+  Warning,
 }

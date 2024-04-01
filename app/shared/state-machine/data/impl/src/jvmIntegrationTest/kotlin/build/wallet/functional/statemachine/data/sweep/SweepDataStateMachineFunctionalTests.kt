@@ -8,6 +8,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.encrypt.toSecp256k1PublicKey
 import build.wallet.f8e.onboarding.CreateAccountKeysetService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
@@ -23,7 +24,11 @@ import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getHardwareFactorProofOfPossession
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.returnFundsToTreasury
+import build.wallet.testing.ext.setupMobilePay
 import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
@@ -66,7 +71,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
             mobilePaySigningService,
             appSpendingWalletProvider,
             exchangeRateSyncer,
-            transactionRepository
+            outgoingTransactionDetailRepository
           )
         }
     }
@@ -164,7 +169,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
       HwKeyBundle(
         localId = "fake-lost-hardware-key-bundle-id",
         spendingKey = HwSpendingPublicKey(newKeyBundle.spendingKey.key),
-        authKey = HwAuthPublicKey(newKeyBundle.authKey.pubKey),
+        authKey = HwAuthPublicKey(newKeyBundle.authKey.toSecp256k1PublicKey()),
         networkType = network
       )
 

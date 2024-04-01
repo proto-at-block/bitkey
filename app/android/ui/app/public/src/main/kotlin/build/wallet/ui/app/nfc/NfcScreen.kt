@@ -4,7 +4,6 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -71,7 +70,6 @@ fun NfcScreen(
   NfcScreenInternal(model = model, modifier = modifier)
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 private fun NfcScreenInternal(
   model: NfcBodyModel,

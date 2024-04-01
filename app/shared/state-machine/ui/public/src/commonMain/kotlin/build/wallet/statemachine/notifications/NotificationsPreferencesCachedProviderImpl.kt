@@ -14,7 +14,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -25,7 +24,6 @@ internal const val MONEY_MOVEMENT_CHANNELS = "moneyMovement-channels"
 internal const val PRODUCT_MARKETING_CHANNELS = "productMarketing-channels"
 internal const val ACCOUNT_SECURITY_CHANNELS = "accountSecurity-channels"
 
-@OptIn(ExperimentalSettingsApi::class)
 class NotificationsPreferencesCachedProviderImpl(
   private val notificationTouchpointService: NotificationTouchpointService,
   private val keyValueStoreFactory: KeyValueStoreFactory,

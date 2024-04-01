@@ -1,14 +1,12 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.keys.app.AppKeyImpl
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
-import build.wallet.crypto.CurveType
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl
-import build.wallet.database.sqldelight.SocRecEnrollmentAuthentication
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
@@ -29,14 +27,10 @@ class SocRecEnrollmentAuthenticationDaoImplTests : FunSpec({
         AppPrivateKeyDaoFake(),
         BitkeyDatabaseProviderImpl(sqlDriver.factory)
       )
-    val key =
-      ProtectedCustomerEnrollmentPakeKey(
-        AppKeyImpl(
-          CurveType.Curve25519,
-          PublicKey("pub"),
-          PrivateKey("priv".encodeUtf8())
-        )
-      )
+    val key = AppKey<ProtectedCustomerEnrollmentPakeKey>(
+      PublicKey("pub"),
+      PrivateKey("priv".encodeUtf8())
+    )
     val relationshipId = "a"
     val pakeCode = PakeCode("F00DBAR".toByteArray().toByteString())
     dao.insert(relationshipId, key, pakeCode)
@@ -46,10 +40,10 @@ class SocRecEnrollmentAuthenticationDaoImplTests : FunSpec({
       .shouldBeOk()
       .shouldNotBeNull()
       .shouldBeEqual(
-        SocRecEnrollmentAuthentication(
+        SocRecEnrollmentAuthenticationDao.SocRecEnrollmentAuthenticationRow(
           recoveryRelationshipId = relationshipId,
           protectedCustomerEnrollmentPakeKey = key,
-          pakeCode = pakeCode.bytes
+          pakeCode = PakeCode(pakeCode.bytes)
         )
       )
     dao.deleteByRelationshipId(relationshipId)

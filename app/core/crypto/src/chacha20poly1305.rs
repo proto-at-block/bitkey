@@ -35,6 +35,9 @@ impl XChaCha20Poly1305 {
         plaintext: &[u8],
         aad: &[u8],
     ) -> Result<Vec<u8>, ChaCha20Poly1305Error> {
+        if nonce.len() != 24 {
+            return Err(ChaCha20Poly1305Error::EncryptError);
+        }
         let nonce = XNonce::from_slice(nonce);
         let cipher = self.xchacha20poly1305_mutex.lock().unwrap();
 
@@ -75,6 +78,7 @@ impl XChaCha20Poly1305 {
 mod tests {
     use crate::chacha20poly1305::{ChaCha20Poly1305Error, XChaCha20Poly1305};
     use chacha20poly1305::{aead::AeadCore, XChaCha20Poly1305 as RustCryptoXChaCha20Poly1305};
+    use quickcheck_macros::quickcheck;
     use rand::RngCore;
     use typenum::Unsigned;
 
@@ -165,11 +169,76 @@ mod tests {
         let nonce = hex::decode("f76e277b339e5dc5eba45032").unwrap();
         let tag = hex::decode("9bf8c38c8bdcb6f90656f5b74d6185f3").unwrap();
 
-        let _ciphertextAndTag = [ciphertext.as_slice(), tag.as_slice()].concat();
+        let ciphertext_and_tag = [ciphertext.as_slice(), tag.as_slice()].concat();
 
         let cipher = XChaCha20Poly1305::new(&key).unwrap();
-        let decrypted = cipher.decrypt(&nonce, &ciphertext, &[]);
+        let decrypted = cipher.decrypt(&nonce, &ciphertext_and_tag, &[]);
 
         assert_eq!(Err(ChaCha20Poly1305Error::DecryptError), decrypted);
+    }
+
+    #[test]
+    fn test_altered_ciphertext_decryption() {
+        let key = [0u8; 32];
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
+        let nonce = [0u8; 24];
+        let plaintext = b"Hello, world!";
+        let aad = b"Additional data";
+
+        let mut ciphertext = cipher.encrypt(&nonce, plaintext, aad).unwrap();
+        ciphertext[0] ^= 0xff; // Alter the first byte of the ciphertext
+
+        let result = cipher.decrypt(&nonce, &ciphertext, aad);
+        assert!(
+            result.is_err(),
+            "Decryption should fail with altered ciphertext"
+        );
+    }
+
+    #[quickcheck]
+    fn test_new_with_arbitrary_key(key: Vec<u8>) {
+        let cipher = XChaCha20Poly1305::new(&key);
+        assert!(
+            cipher.is_ok()
+                || matches!(
+                    cipher,
+                    Err(ChaCha20Poly1305Error::XChaCha20InstantiationError(_))
+                )
+        )
+    }
+
+    #[quickcheck]
+    fn test_encrypt_decrypt_with_arbitrary_plaintext_and_aad(plaintext: Vec<u8>, aad: Vec<u8>) {
+        let mut key = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
+        let mut nonce = [0u8; 24];
+        rand::thread_rng().fill_bytes(&mut nonce);
+
+        let ciphertext = cipher.encrypt(&nonce, &plaintext, &aad).unwrap();
+        let decrypted = cipher.decrypt(&nonce, &ciphertext, &aad).unwrap();
+        assert_eq!(plaintext, decrypted);
+    }
+
+    #[quickcheck]
+    fn test_encrypt_with_arbitrary_inputs(nonce: Vec<u8>, plaintext: Vec<u8>, aad: Vec<u8>) {
+        let mut key = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
+
+        let ciphertext = cipher.encrypt(&nonce, &plaintext, &aad);
+        assert!(
+            ciphertext.is_ok() || matches!(ciphertext, Err(ChaCha20Poly1305Error::EncryptError))
+        );
+    }
+
+    #[quickcheck]
+    fn test_decrypt_with_arbitrary_inputs(nonce: Vec<u8>, ciphertext: Vec<u8>, aad: Vec<u8>) {
+        let mut key = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut key);
+        let cipher = XChaCha20Poly1305::new(&key).unwrap();
+
+        let decrypted = cipher.decrypt(&nonce, &ciphertext, &aad);
+        assert!(decrypted.is_ok() || matches!(decrypted, Err(ChaCha20Poly1305Error::DecryptError)));
     }
 }

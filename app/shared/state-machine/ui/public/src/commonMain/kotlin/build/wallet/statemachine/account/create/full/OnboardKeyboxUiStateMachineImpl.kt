@@ -5,10 +5,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CL
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_LOADING
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.LOADING_ONBOARDING_STEP
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SAVE_NOTIFICATIONS_LOADING
-import build.wallet.feature.isEnabled
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiPropsV2
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
@@ -22,14 +19,10 @@ import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeybo
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.FailedCloudBackupDataFull
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
 import build.wallet.statemachine.notifications.NotificationPreferencesProps.Source.Onboarding
-import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
 
 class OnboardKeyboxUiStateMachineImpl(
   private val fullAccountCloudSignInAndBackupUiStateMachine:
     FullAccountCloudSignInAndBackupUiStateMachine,
-  private val notificationsFlowV2EnabledFeatureFlag: NotificationsFlowV2EnabledFeatureFlag,
-  private val notificationPreferencesSetupUiStateMachine:
-    NotificationPreferencesSetupUiStateMachine,
   private val notificationPreferencesSetupUiStateMachineV2:
     NotificationPreferencesSetupUiStateMachineV2,
 ) : OnboardKeyboxUiStateMachine {
@@ -49,11 +42,7 @@ class OnboardKeyboxUiStateMachineImpl(
         LoadingBodyModel(id = SAVE_CLOUD_BACKUP_LOADING).asRootScreen()
 
       is SettingNotificationsPreferencesDataFull -> {
-        if (notificationsFlowV2EnabledFeatureFlag.isEnabled()) {
-          SettingNotificationsPreferencesScreenV2(props.onboardKeyboxData)
-        } else {
-          SettingNotificationsPreferencesScreen(props.onboardKeyboxData)
-        }
+        SettingNotificationsPreferencesScreen(props.onboardKeyboxData)
       }
 
       is CompletingNotificationsDataFull ->
@@ -89,20 +78,6 @@ class OnboardKeyboxUiStateMachineImpl(
 
   @Composable
   private fun SettingNotificationsPreferencesScreen(
-    data: SettingNotificationsPreferencesDataFull,
-  ): ScreenModel {
-    return notificationPreferencesSetupUiStateMachine.model(
-      props =
-        NotificationPreferencesSetupUiProps(
-          fullAccountId = data.keybox.fullAccountId,
-          fullAccountConfig = data.keybox.config,
-          onComplete = data.onComplete
-        )
-    )
-  }
-
-  @Composable
-  private fun SettingNotificationsPreferencesScreenV2(
     data: SettingNotificationsPreferencesDataFull,
   ): ScreenModel {
     return notificationPreferencesSetupUiStateMachineV2.model(

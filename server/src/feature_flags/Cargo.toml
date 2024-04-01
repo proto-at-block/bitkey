@@ -14,5 +14,6 @@ debug-embed = ["rust-embed/debug-embed"]
 launchdarkly-server-sdk = "2.0.2"
 rust-embed = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 toml = "0.8.10"

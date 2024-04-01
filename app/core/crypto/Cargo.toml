@@ -19,5 +19,7 @@ thiserror = { workspace = true }
 uniffi = { workspace = true }
 
 [dev-dependencies]
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"
 rand = "0.8.5"
 typenum = "1.17.0"

@@ -18,6 +18,13 @@
 #include "sysevent.h"
 #include "unlock.h"
 
+#define INVALID_FINGERPRINT_INDEX 0xFF
+
+typedef struct {
+  bool enrollment_in_progress;
+  uint8_t index;
+} enrollment_ctx_t;
+
 static struct {
   rtos_thread_t* main_thread_handle;
   rtos_thread_t* matching_thread_handle;
@@ -27,7 +34,7 @@ static struct {
   rtos_timer_t unlock_timer;
   rtos_mutex_t auth_lock;
   secure_bool_t enroll_ok;
-  bool enrollment_in_progress;
+  enrollment_ctx_t current_enrollment_ctx;
   secure_bool_t authenticated;
   bio_enroll_stats_t stats;
   uint32_t timestamp;
@@ -39,7 +46,11 @@ static struct {
   .unlock_timer = {0},
   .auth_lock = {0},
   .enroll_ok = SECURE_FALSE,
-  .enrollment_in_progress = false,
+  .current_enrollment_ctx =
+    {
+      .enrollment_in_progress = false,
+      .index = INVALID_FINGERPRINT_INDEX,
+    },
   .authenticated = SECURE_FALSE,
   .stats = {0},
   .timestamp = 0,
@@ -150,7 +161,8 @@ NO_OPTIMIZE void handle_start_fingerprint_enrollment(ipc_ref_t* message) {
 
   rsp->which_msg = fwpb_wallet_rsp_start_fingerprint_enrollment_rsp_tag;
 
-  auth_priv.enrollment_in_progress = true;
+  auth_priv.current_enrollment_ctx.enrollment_in_progress = true;
+  auth_priv.current_enrollment_ctx.index = cmd->msg.start_fingerprint_enrollment_cmd.index;
   SECURE_DO({ auth_priv.enroll_ok = SECURE_FALSE; });
 
   static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_ENROLLMENT,
@@ -186,7 +198,7 @@ void handle_get_fingerprint_enrollment_status(ipc_ref_t* message) {
     goto out;
   }
 
-  if (!auth_priv.enrollment_in_progress) {
+  if (!auth_priv.current_enrollment_ctx.enrollment_in_progress) {
     rsp->msg.get_fingerprint_enrollment_status_rsp.fingerprint_status =
       fwpb_get_fingerprint_enrollment_status_rsp_fingerprint_enrollment_status_NOT_IN_PROGRESS;
   } else {
@@ -345,6 +357,51 @@ out:
   proto_send_rsp(cmd, rsp);
 }
 
+void handle_delete_fingerprint(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_delete_fingerprint_rsp_tag;
+  rsp->status = fwpb_status_ERROR;
+
+  uint32_t num_templates = 0;
+  bio_storage_get_template_count(&num_templates);
+
+  if (num_templates == 1) {
+    rsp->status = fwpb_status_INVALID_STATE;
+    goto out;
+  }
+
+  bio_err_t err = bio_storage_delete_template(cmd->msg.delete_fingerprint_cmd.index);
+  switch (err) {
+    case BIO_ERR_NONE:
+      rsp->status = fwpb_status_SUCCESS;
+      break;
+    case BIO_ERR_TEMPLATE_DOESNT_EXIST:
+      rsp->status = fwpb_status_FILE_NOT_FOUND;
+      break;
+    default:
+      break;
+  }
+
+out:
+  proto_send_rsp(cmd, rsp);
+}
+
+void handle_get_enrolled_fingerprints(ipc_ref_t* message) {
+  fwpb_wallet_cmd* cmd = proto_get_cmd((uint8_t*)message->object, message->length);
+  fwpb_wallet_rsp* rsp = proto_get_rsp();
+
+  rsp->which_msg = fwpb_wallet_rsp_get_enrolled_fingerprints_rsp_tag;
+  rsp->status = fwpb_status_ERROR;
+
+  bio_storage_get_template_count(&rsp->msg.get_enrolled_fingerprints_rsp.count);
+  rsp->msg.get_enrolled_fingerprints_rsp.max_count = TEMPLATE_MAX_COUNT;
+  rsp->status = fwpb_status_SUCCESS;
+
+  proto_send_rsp(cmd, rsp);
+}
+
 void auth_main_thread(void* UNUSED(args)) {
   sysevent_wait(SYSEVENT_SLEEP_TIMER_READY | SYSEVENT_FEATURE_FLAGS_READY, true);
 
@@ -387,6 +444,14 @@ void auth_main_thread(void* UNUSED(args)) {
         handle_unlock_limit_response(&message);
         break;
       }
+      case IPC_PROTO_DELETE_FINGERPRINT_CMD: {
+        handle_delete_fingerprint(&message);
+        break;
+      }
+      case IPC_PROTO_GET_ENROLLED_FINGERPRINTS_CMD: {
+        handle_get_enrolled_fingerprints(&message);
+        break;
+      }
       default: {
         LOGE("unknown message %ld", message.tag);
       }
@@ -414,12 +479,11 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
 
     sleep_refresh_power_timer();
 
-    if (auth_priv.enrollment_in_progress) {  // Fingerprint enrollment
-      // TODO How in the UX should we expose the ability to
-      // overwrite older fingerprints? I'll just hardcode 0 for now.
-
+    if (auth_priv.current_enrollment_ctx.enrollment_in_progress &&
+        auth_priv.current_enrollment_ctx.index !=
+          INVALID_FINGERPRINT_INDEX) {  // Fingerprint enrollment
       SECURE_DO_ONCE({
-        bool res = bio_enroll_finger(0, &auth_priv.stats);
+        bool res = bio_enroll_finger(auth_priv.current_enrollment_ctx.index, &auth_priv.stats);
         SECURE_IF_FAILOUT(res == true) { auth_priv.enroll_ok = SECURE_TRUE; }
         else {
           auth_priv.enroll_ok = SECURE_FALSE;
@@ -429,7 +493,8 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
       if (auth_priv.enroll_ok != SECURE_TRUE) {
         LOGE("Enrollment of id %d failed", 0);
       }
-      auth_priv.enrollment_in_progress = false;
+      auth_priv.current_enrollment_ctx.enrollment_in_progress = false;
+      auth_priv.current_enrollment_ctx.index = INVALID_FINGERPRINT_INDEX;
 
       SECURE_DO_FAILOUT(auth_priv.enroll_ok == SECURE_TRUE, {
         // If enrollment was successful, then unlock the device.

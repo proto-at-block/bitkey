@@ -4,10 +4,10 @@ import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.auth.TcIdentityKeyAppSignatureMock
-import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.crypto.PublicKey
 
 val TrustedContactKeyCertificateFake = TrustedContactKeyCertificate(
-  delegatedDecryptionKey = DelegatedDecryptionKey(AppKey.fromPublicKey("deadbeef")),
+  delegatedDecryptionKey = PublicKey("deadbeef"),
   hwAuthPublicKey = HwAuthPublicKeyMock,
   appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
   appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,
@@ -15,7 +15,7 @@ val TrustedContactKeyCertificateFake = TrustedContactKeyCertificate(
 )
 
 val TrustedContactKeyCertificateFake2 = TrustedContactKeyCertificate(
-  delegatedDecryptionKey = DelegatedDecryptionKey(AppKey.fromPublicKey("deadbeef-2")),
+  delegatedDecryptionKey = PublicKey("deadbeef-2"),
   hwAuthPublicKey = HwAuthPublicKeyMock,
   appGlobalAuthPublicKey = AppGlobalAuthPublicKeyMock,
   appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignatureMock,

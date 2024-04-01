@@ -8,10 +8,13 @@ import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.signResult
 import build.wallet.f8e.socrec.SocialRecoveryServiceFake
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getHardwareFactorProofOfPossession
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
@@ -65,7 +68,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     account: FullAccount,
     overrideConfirmation: String? = null,
     overridePakeCode: String? = null,
-  ): Pair<UnendorsedTrustedContact, DelegatedDecryptionKey> {
+  ): Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>> {
     val invite = socRecRepository
       .createInvitation(
         account = account,
@@ -87,13 +90,13 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     val pakeCode = if (overridePakeCode != null) {
       PakeCode(overridePakeCode.toByteArray().toByteString())
     } else {
-      PakeCode(pakeData.pakeCode)
+      pakeData.pakeCode
     }
     val tcResponse = socRecCrypto
       .encryptDelegatedDecryptionKey(
         password = pakeCode,
-        protectedCustomerEnrollmentPakeKey = pakeData.protectedCustomerEnrollmentPakeKey,
-        delegatedDecryptionKey = delegatedDecryptionKey
+        protectedCustomerEnrollmentPakeKey = pakeData.protectedCustomerEnrollmentPakeKey.publicKey,
+        delegatedDecryptionKey = delegatedDecryptionKey.publicKey
       )
       .getOrThrow()
     val unendorsedTc = UnendorsedTrustedContact(
@@ -111,7 +114,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     socialRecoveryService.unendorsedTrustedContacts.add(unendorsedTc)
 
     socRecRepository.syncAndVerifyRelationships(account).getOrThrow()
-    return Pair(unendorsedTc, delegatedDecryptionKey)
+    return Pair(unendorsedTc, delegatedDecryptionKey.publicKey)
   }
 
   test("happy path") {
@@ -130,10 +133,9 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Verify the key certificate
     val keyCertificate = socialRecoveryService.keyCertificates.single()
     socRecCrypto.verifyKeyCertificate(account, keyCertificate)
-      .shouldBeOk().run {
-        // Verify the TC's identity key
-        publicKey.shouldBe(tcIdentityKey.publicKey)
-      }
+      .shouldBeOk()
+      // Verify the TC's identity key
+      .shouldBe(tcIdentityKey)
 
     // Fetch relationships
     val relationships = socRecRelationshipsDao.socRecRelationships().first().getOrThrow()
@@ -159,7 +161,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Generate new Certs
     val newAppKey = socRecCrypto.generateAppAuthKeypair()
     val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.pubKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
 
     // Verify test setup
     socialRecoveryService.trustedContacts.shouldBeEmpty()
@@ -193,7 +195,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Generate new Certs
     val newAppKey = socRecCrypto.generateAppAuthKeypair()
     val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.pubKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
 
     // Verify test setup
     socialRecoveryService.trustedContacts.shouldNotBeEmpty()
@@ -227,7 +229,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Generate New Certs
     val newAppKey = socRecCrypto.generateAppAuthKeypair()
     val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.pubKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
 
     // Verify test setup
     socialRecoveryService.trustedContacts.shouldNotBeEmpty()
@@ -339,7 +341,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       .trustedContacts
       .single()
       .run {
-        identityKey.publicKey.shouldBe(tcGoodIdentityKey.publicKey)
+        identityKey.shouldBe(tcGoodIdentityKey)
         trustedContactAlias.shouldBe(tcGood.trustedContactAlias)
         authenticationState.shouldBe(TrustedContactAuthenticationState.VERIFIED)
       }
@@ -348,7 +350,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     socialRecoveryService.keyCertificates
       .single()
       .run {
-        delegatedDecryptionKey.publicKey.shouldBe(tcGoodIdentityKey.publicKey)
+        delegatedDecryptionKey.shouldBe(tcGoodIdentityKey)
 
         socRecCrypto.verifyKeyCertificate(keyCertificate = this, account = account)
       }

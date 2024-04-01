@@ -2,7 +2,7 @@ package build.wallet.component.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -46,12 +46,12 @@ class AppKeysGeneratorComponentTests : FunSpec({
         .shouldNotBeNull()
 
       app.appComponent.appPrivateKeyDao
-        .getGlobalAuthKey(appKeyBundle.authKey)
+        .getAsymmetricPrivateKey(appKeyBundle.authKey)
         .shouldBeOk()
         .shouldNotBeNull()
 
       app.appComponent.appPrivateKeyDao
-        .getRecoveryAuthKey(appKeyBundle.recoveryAuthKey.shouldNotBeNull())
+        .getAsymmetricPrivateKey(appKeyBundle.recoveryAuthKey.shouldNotBeNull())
         .shouldBeOk()
         .shouldNotBeNull()
     }

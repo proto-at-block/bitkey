@@ -18,20 +18,22 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingHardwareProofOfPossessionKeyData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.DisplayingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedBuildingKeyCrossData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedToCancelConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.GeneratingNewAppKeysData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.hardware.initiating.HardwareReplacementInstructionsModel
 import build.wallet.statemachine.recovery.hardware.initiating.NewDeviceReadyQuestionModel
 import build.wallet.statemachine.recovery.lostapp.initiate.RecoveryConflictModel
@@ -166,6 +168,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
           PairingNewWalletState ->
             pairNewHardwareUiStateMachine.model(
               props = PairNewHardwareProps(
+                segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
                 request = PairNewHardwareProps.Request.Ready(
                   fullAccountConfig = props.account.keybox.config,
                   appGlobalAuthPublicKey = recoveryData.newAppGlobalAuthKey,
@@ -187,6 +190,18 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         }
       }
 
+      is LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.ErrorGeneratingNewAppKeysData ->
+        InitiateRecoveryErrorScreenModel(
+          props = props,
+          onRetryClicked = recoveryData.retry,
+          onCancelClicked = props.onExit,
+          errorData = ErrorData(
+            segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
+            actionDescription = "Error generating new app keys",
+            cause = recoveryData.cause
+          )
+        )
+
       is InitiatingRecoveryWithF8eData -> {
         LoadingBodyModel(
           id = HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY,
@@ -196,16 +211,14 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         ).asScreen(props.screenPresentationStyle)
       }
 
-      is FailedBuildingKeyCrossData ->
-        InitiateRecoveryErrorScreenModel(
-          props = props,
-          onRetryClicked = recoveryData.retry,
-          onCancelClicked = recoveryData.rollback
-        )
-
       is FailedInitiatingRecoveryWithF8eData ->
         InitiateRecoveryErrorScreenModel(
           props = props,
+          errorData = ErrorData(
+            segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
+            cause = recoveryData.cause,
+            actionDescription = "Error initiating recovery with F8e"
+          ),
           onRetryClicked = recoveryData.retry,
           onCancelClicked = recoveryData.rollback
         )
@@ -214,7 +227,9 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
         recoveryNotificationVerificationUiStateMachine.model(
           props = RecoveryNotificationVerificationUiProps(
             recoveryNotificationVerificationData = recoveryData.data,
-            lostFactor = Hardware
+            lostFactor = Hardware,
+            segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
+            actionDescription = "Error verifying notification comms for contested recovery"
           )
         )
 
@@ -243,6 +258,8 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
             fullAccountId = props.account.accountId,
             fullAccountConfig = props.account.keybox.config,
             appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
+            segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
+            actionDescription = "Error getting hardware keyproof",
             screenPresentationStyle = props.screenPresentationStyle,
             onBack = recoveryData.rollback
           )
@@ -250,29 +267,41 @@ class InitiatingLostHardwareRecoveryUiStateMachineImpl(
       }
 
       is FailedToCancelConflictingRecoveryData ->
-        CancelConflictingRecoveryErrorScreenModel(props) {
-          recoveryData.onAcknowledge
-        }
+        CancelConflictingRecoveryErrorScreenModel(
+          props,
+          errorData = ErrorData(
+            segment = RecoverySegment.DelayAndNotify.LostHardware.Initiation,
+            cause = recoveryData.cause,
+            actionDescription = "Error cancelling conflicting recovery"
+          ),
+          onDoneClicked = {
+            recoveryData.onAcknowledge
+          }
+        )
     }
   }
 
   private fun InitiateRecoveryErrorScreenModel(
     props: InitiatingLostHardwareRecoveryProps,
+    errorData: ErrorData,
     onRetryClicked: () -> Unit,
     onCancelClicked: () -> Unit,
   ) = ErrorFormBodyModel(
-    title = "Sorry, we couldn’t initiate recovery process.",
+    title = "Unable to initiate recovery",
     primaryButton = ButtonDataModel(text = "Retry", onClick = onRetryClicked),
     secondaryButton = ButtonDataModel(text = "Cancel", onClick = onCancelClicked),
-    eventTrackerScreenId = HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR
+    eventTrackerScreenId = HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR,
+    errorData = errorData
   ).asScreen(props.screenPresentationStyle)
 
   private fun CancelConflictingRecoveryErrorScreenModel(
     props: InitiatingLostHardwareRecoveryProps,
+    errorData: ErrorData,
     onDoneClicked: () -> Unit,
   ): ScreenModel =
     ErrorFormBodyModel(
       title = "We couldn’t cancel the existing recovery. Please try your recovery again.",
+      errorData = errorData,
       primaryButton = ButtonDataModel(text = "OK", onClick = onDoneClicked),
       eventTrackerScreenId = HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_CANCELLATION_ERROR
     ).asScreen(props.screenPresentationStyle)

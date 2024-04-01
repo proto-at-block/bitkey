@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-shared-jvm",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-shared-jvm-5.8.0.jar": "f959ffd72d8a739c54f2e09017f8003d25f4468de853a52c20ffb2930d5354c1"
+                        "kotest-assertions-shared-jvm-5.8.1.jar": "bc9660d9d8b70810fcd8a8c3dbaf3f15b3311def47fd3a5f0ae7b098fbd016b0"
                     }
                 }
             ],

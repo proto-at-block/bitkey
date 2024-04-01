@@ -2,12 +2,15 @@ package build.wallet.statemachine.settings
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
+import build.wallet.LoadableValue
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
+import build.wallet.cloud.backup.CloudBackupHealthRepository
+import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.feature.isEnabled
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconAnnouncement
@@ -31,25 +34,24 @@ import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Cu
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.NotificationPreferences
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Notifications
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RecoveryChannels
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RotateAuthKey
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.TrustedContacts
-import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.reflect.KClass
 
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
   private val cloudBackupHealthFeatureFlag: CloudBackupHealthFeatureFlag,
-  private val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag,
-  private val notificationsFlowV2EnabledFeatureFlag: NotificationsFlowV2EnabledFeatureFlag,
+  private val cloudBackupHealthRepository: CloudBackupHealthRepository,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
     val cloudBackupHealthEnabled = remember { cloudBackupHealthFeatureFlag.isEnabled() }
-    val inactiveDeviceIsEnabled = remember { inactiveDeviceIsEnabledFeatureFlag.isEnabled() }
     val appFunctionalityStatus =
       remember {
         appFunctionalityStatusProvider.appFunctionalityStatus(props.f8eEnvironment)
@@ -68,11 +70,7 @@ class SettingsListUiStateMachineImpl(
                 MobilePay::class,
                 BitkeyDevice::class,
                 CurrencyPreference::class,
-                if (notificationsFlowV2EnabledFeatureFlag.isEnabled()) {
-                  NotificationPreferences::class
-                } else {
-                  Notifications::class
-                }
+                NotificationPreferences::class
               )
           ),
           SettingsSection(
@@ -81,10 +79,10 @@ class SettingsListUiStateMachineImpl(
             title = "Security & Recovery",
             rowTypes =
               listOfNotNull(
-                RotateAuthKey::class.takeIf { inactiveDeviceIsEnabled },
+                RotateAuthKey::class,
                 CloudBackupHealth::class.takeIf { cloudBackupHealthEnabled },
                 TrustedContacts::class,
-                RecoveryChannels::class.takeIf { notificationsFlowV2EnabledFeatureFlag.isEnabled() }
+                RecoveryChannels::class
               )
           ),
           SettingsSection(
@@ -118,13 +116,16 @@ class SettingsListUiStateMachineImpl(
     @Suppress("UnstableCollections")
     rowTypes: List<KClass<out SettingsListRow>>,
   ): SettingsBodyModel.SectionModel? {
+    val mobileKeyBackupStatus by remember {
+      cloudBackupHealthRepository.mobileKeyBackupStatus()
+    }.collectAsState()
     // Build the row models based on if the parent wants to show the row for the section
     val rowModels =
-      remember(appFunctionalityStatus) {
+      remember(appFunctionalityStatus, mobileKeyBackupStatus) {
         rowTypes.mapNotNull { rowType ->
           props.supportedRows
             .firstOrNull { rowType.isInstance(it) }
-            ?.rowModel(appFunctionalityStatus, props)
+            ?.rowModel(appFunctionalityStatus, props, mobileKeyBackupStatus)
         }
       }
 
@@ -139,13 +140,14 @@ class SettingsListUiStateMachineImpl(
   private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
     props: SettingsListUiProps,
+    mobileKeyBackupStatus: LoadableValue<MobileKeyBackupStatus>,
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
         is MobilePay -> Pair(SmallIconMobileLimit, "Mobile Pay")
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
         is CurrencyPreference -> Pair(SmallIconCurrency, "Currency")
-        is Notifications, is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
+        is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
         is RecoveryChannels -> Pair(SmallIconRecovery, "Recovery Methods")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
         is ContactUs -> Pair(SmallIconAnnouncement, "Contact Us")
@@ -159,6 +161,7 @@ class SettingsListUiStateMachineImpl(
       icon = icon,
       title = title,
       isDisabled = !isRowEnabled,
+      specialTrailingIconModel = getSpecialTrailingIconModel(mobileKeyBackupStatus),
       onClick = {
         if (isRowEnabled) {
           onClick()
@@ -178,6 +181,24 @@ class SettingsListUiStateMachineImpl(
     )
   }
 
+  private fun SettingsListRow.getSpecialTrailingIconModel(
+    mobileKeyBackupStatus: LoadableValue<MobileKeyBackupStatus>,
+  ): IconModel? {
+    return when (this) {
+      is CloudBackupHealth -> {
+        IconModel(
+          icon = Icon.SmallIconInformationFilled,
+          iconSize = IconSize.Small,
+          iconTint = IconTint.Warning
+        ).takeIf {
+          mobileKeyBackupStatus is LoadableValue.LoadedValue &&
+            mobileKeyBackupStatus.value is MobileKeyBackupStatus.ProblemWithBackup
+        }
+      }
+      else -> null
+    }
+  }
+
   private fun SettingsListRow.isRowEnabled(
     appFunctionalityStatus: AppFunctionalityStatus,
   ): Boolean {
@@ -190,7 +211,7 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.mobilePay == Available
       is CurrencyPreference ->
         appFunctionalityStatus.featureStates.fiatExchangeRates == Available
-      is Notifications, is NotificationPreferences, is RecoveryChannels ->
+      is NotificationPreferences, is RecoveryChannels ->
         appFunctionalityStatus.featureStates.notifications == Available
       is CustomElectrumServer ->
         appFunctionalityStatus.featureStates.customElectrumServer == Available

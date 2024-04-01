@@ -9,7 +9,6 @@ package build.wallet.ui.components.screen
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -63,7 +62,6 @@ private val ExitScales = EnterScales.second to EnterScales.first
  * @return [ContentTransform] with [EnterTransition] and [ExitTransition] for the shared axis
  * animation
  */
-@OptIn(ExperimentalAnimationApi::class)
 fun sharedAxisAnimation(
   axis: Axis,
   direction: AxisAnimationDirection,
@@ -82,7 +80,6 @@ fun sharedAxisAnimation(
  * @return [ContentTransform] with [EnterTransition] and [ExitTransition] for the slide overlay
  * animation
  */
-@OptIn(ExperimentalAnimationApi::class)
 fun slideOverlayAnimation(direction: AxisAnimationDirection): ContentTransform {
   return when (direction) {
     AxisAnimationDirection.Forward ->
@@ -235,7 +232,6 @@ private val SharedYAxisExitTransition: (Density, AxisAnimationDirection) -> Exit
     )
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 private val SharedZAxisEnterTransition: (AxisAnimationDirection) -> EnterTransition = { direction ->
   val initialScale =
     when (direction) {
@@ -248,7 +244,6 @@ private val SharedZAxisEnterTransition: (AxisAnimationDirection) -> EnterTransit
   )
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 private val SharedZAxisExitTransition: (AxisAnimationDirection) -> ExitTransition = { direction ->
   val targetScale =
     when (direction) {
@@ -258,7 +253,6 @@ private val SharedZAxisExitTransition: (AxisAnimationDirection) -> ExitTransitio
   scaleOut(targetScale = targetScale, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 val NoAnimation: ContentTransform = EnterTransition.None with ExitTransition.None
 
 val FadeAnimation: ContentTransform =

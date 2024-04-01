@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-auth-iosarm64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-auth-iosarm64-2.3.8-metadata.jar": "bcb52fcfadd2151f4dcbc538a62e5bf80acfef0be9ec941e6dcfcc96707b64a7"
+                        "ktor-client-auth-iosarm64-2.3.9-metadata.jar": "2dd9019d3f5e5c92d41f5a16aba67650a2a3bb438cbe3082f659cca2a950428d"
                     }
                 },
                 {

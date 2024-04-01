@@ -24,7 +24,7 @@ messages:
       - rustfmt::skip
   - paths: [PlatformInfo]
     attrs:
-      - derive(serde::Serialize, serde::Deserialize)
+      - derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)
       - serde(rename_all = "camelCase")
       - serde(default)
       - rustfmt::skip

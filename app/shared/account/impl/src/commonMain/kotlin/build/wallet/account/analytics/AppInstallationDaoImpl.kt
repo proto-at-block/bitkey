@@ -3,21 +3,21 @@ package build.wallet.account.analytics
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
 import build.wallet.logging.logFailure
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 
 class AppInstallationDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) : AppInstallationDao {
   private val database by lazy { databaseProvider.database() }
 
   override suspend fun getOrCreateAppInstallation(): Result<AppInstallation, DbError> {
     return database.appInstallationQueries
       .awaitTransactionWithResult {
-        initializeAppInstallationIfAbsent(uuid.random())
+        initializeAppInstallationIfAbsent(uuidGenerator.random())
 
         getAppInstallation()
           .executeAsOne()
@@ -37,7 +37,7 @@ class AppInstallationDaoImpl(
   ): Result<Unit, DbError> {
     return database.appInstallationQueries
       .awaitTransaction {
-        initializeAppInstallationIfAbsent(uuid.random())
+        initializeAppInstallationIfAbsent(uuidGenerator.random())
         updateHardwareSerialNumber(serialNumber)
       }
       .logFailure { "Failed to update app installation hardware serial number" }

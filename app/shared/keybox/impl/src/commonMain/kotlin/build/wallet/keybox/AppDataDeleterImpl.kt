@@ -5,7 +5,7 @@ import build.wallet.auth.AuthKeyRotationAttemptDao
 import build.wallet.auth.AuthTokenDao
 import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.bitcoin.AppPrivateKeyDao
-import build.wallet.bitcoin.transactions.TransactionDetailDao
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.local.CloudBackupDao
@@ -43,7 +43,7 @@ class AppDataDeleterImpl(
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val spendingLimitDao: SpendingLimitDao,
-  private val transactionDetailDao: TransactionDetailDao,
+  private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
   private val fwupDataDao: FwupDataDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val firmwareMetadataDao: FirmwareMetadataDao,
@@ -74,7 +74,7 @@ class AppDataDeleterImpl(
       onboardingKeyboxHardwareKeysDao.clear()
       spendingLimitDao.disableSpendingLimit()
       spendingLimitDao.removeAllLimits()
-      transactionDetailDao.clear()
+      outgoingTransactionDetailDao.clear()
       fwupDataDao.clear()
       firmwareDeviceInfoDao.clear()
       firmwareMetadataDao.clear()

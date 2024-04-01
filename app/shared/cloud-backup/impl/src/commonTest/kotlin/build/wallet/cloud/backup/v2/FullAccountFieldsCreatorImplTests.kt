@@ -1,11 +1,11 @@
 package build.wallet.cloud.backup.v2
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.TrustedContactFake1
 import build.wallet.bitkey.socrec.TrustedContactFake2
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
@@ -52,8 +52,8 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
 
   test("create full account backup") {
     csekDao.set(SealedCsekFake, CsekFake)
-    appPrivateKeyDao.storeAppAuthKeyPair(
-      AppGlobalAuthKeypair(
+    appPrivateKeyDao.storeAppKeyPair(
+      AppKey(
         publicKey = AppGlobalAuthPublicKeyMock,
         privateKey = AppGlobalAuthPrivateKeyMock
       )
@@ -87,8 +87,8 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   test("create full account backup fails with PkekRetrievalError from exception") {
     val throwable = Throwable("foo")
     csekDao.getErrResult = Err(throwable)
-    appPrivateKeyDao.storeAppAuthKeyPair(
-      AppGlobalAuthKeypair(
+    appPrivateKeyDao.storeAppKeyPair(
+      AppKey(
         publicKey = AppGlobalAuthPublicKeyMock,
         privateKey = AppGlobalAuthPrivateKeyMock
       )
@@ -114,8 +114,8 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   }
 
   test("create full account backup fails with PkekRetrievalError from missing Pkek") {
-    appPrivateKeyDao.storeAppAuthKeyPair(
-      AppGlobalAuthKeypair(
+    appPrivateKeyDao.storeAppKeyPair(
+      AppKey(
         publicKey = AppGlobalAuthPublicKeyMock,
         privateKey = AppGlobalAuthPrivateKeyMock
       )
@@ -139,8 +139,8 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
 
   test("create full account backup fails with PrivateKeyRetrievalError") {
     val throwable = Throwable("foo")
-    appPrivateKeyDao.storeAppAuthKeyPair(
-      AppGlobalAuthKeypair(
+    appPrivateKeyDao.storeAppKeyPair(
+      AppKey(
         publicKey = AppGlobalAuthPublicKeyMock,
         privateKey = AppGlobalAuthPrivateKeyMock
       )
@@ -161,7 +161,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
 
   test("create full account backup fails with AuthKeyRetrievalError") {
     val throwable = Throwable("foo")
-    appPrivateKeyDao.getAppAuthPrivateKeyErrResult = Err(throwable)
+    appPrivateKeyDao.getAppPrivateKeyErrResult = Err(throwable)
     symmetricKeyEncryptor.sealResult = SealedDataMock
     val createResult =
       fullAccountFieldsCreator.create(

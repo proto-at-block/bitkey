@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.IOException
 
-@OptIn(ExperimentalStdlibApi::class)
 class NfcSessionImpl(
   override val parameters: NfcSession.Parameters,
   private val nfcTagScanner: NfcTagScanner,

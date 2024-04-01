@@ -26,7 +26,7 @@ import build.wallet.logging.log
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeys
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreateKeyboxErrorData
 import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData
@@ -55,7 +55,7 @@ class CreateKeyboxDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val liteToFullAccountUpgrader: LiteToFullAccountUpgrader,
 ) : CreateKeyboxDataStateMachine {
@@ -76,7 +76,7 @@ class CreateKeyboxDataStateMachineImpl(
                   globalAuthKey = appKeyBundle.authKey,
                   recoveryAuthKey =
                     requireNotNull(appKeyBundle.recoveryAuthKey) {
-                      "AppKeyBundle is missing AppRecoveryAuthPublicKey."
+                      "AppKeyBundle is missing PublicKey<AppRecoveryAuthKey>."
                     },
                   bitcoinNetworkType = props.templateFullAccountConfig.bitcoinNetworkType
                 )
@@ -277,7 +277,7 @@ class CreateKeyboxDataStateMachineImpl(
     return when (
       val appKeys =
         onboardingAppKeyKeystore.getAppKeyBundle(
-          localId = uuid.random(),
+          localId = uuidGenerator.random(),
           network = props.templateFullAccountConfig.bitcoinNetworkType
         )
     ) {

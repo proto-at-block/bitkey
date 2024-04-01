@@ -1,9 +1,9 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.keys.app.AppKeyImpl
 import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.bitkey.socrec.SocRecKeyPurpose
+import build.wallet.crypto.PublicKey
 import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -12,35 +12,36 @@ import com.github.michaelbull.result.map
 import kotlin.reflect.KClass
 
 class SocRecKeysDaoFake : SocRecKeysDao {
-  val keys = mutableMapOf<SocRecKeyPurpose, AppKeyImpl>()
+  val keys = mutableMapOf<SocRecKeyPurpose, AppKey<*>>()
 
-  override suspend fun <T : SocRecKey> getKey(
-    keyFactory: (AppKey) -> T,
+  override suspend fun <T : SocRecKey> getPublicKey(
     keyClass: KClass<T>,
-  ): Result<T, SocRecKeyError> {
+  ): Result<PublicKey<T>, SocRecKeyError> {
     val purpose = SocRecKeyPurpose.fromKeyType(keyClass)
-    return getKey(purpose)
-      .map { it.copy(privateKey = null) }
-      .map(keyFactory)
+    return getKey<T>(purpose)
+      .map { it.publicKey }
   }
 
   override suspend fun <T : SocRecKey> getKeyWithPrivateMaterial(
-    keyFactory: (AppKey) -> T,
     keyClass: KClass<T>,
-  ): Result<T, SocRecKeyError> {
+  ): Result<AppKey<T>, SocRecKeyError> {
     val purpose = SocRecKeyPurpose.fromKeyType(keyClass)
     return getKey(purpose)
-      .map(keyFactory)
   }
 
-  private fun getKey(purpose: SocRecKeyPurpose): Result<AppKeyImpl, SocRecKeyError> {
-    return keys[purpose]?.let { Ok(it) }
+  @Suppress("UNCHECKED_CAST")
+  private fun <T : SocRecKey> getKey(
+    purpose: SocRecKeyPurpose,
+  ): Result<AppKey<T>, SocRecKeyError> {
+    return keys[purpose]?.let { Ok(it as AppKey<T>) }
       ?: Err(SocRecKeyError.NoKeyAvailable())
   }
 
-  override suspend fun saveKey(key: SocRecKey): Result<Unit, SocRecKeyError> {
-    val appKey = key.key as AppKeyImpl
-    keys[SocRecKeyPurpose.fromKeyType(key::class)] = appKey
+  override suspend fun <T : SocRecKey> saveKey(
+    key: AppKey<T>,
+    keyClass: KClass<T>,
+  ): Result<Unit, SocRecKeyError> {
+    keys[SocRecKeyPurpose.fromKeyType(keyClass)] = key
     return Ok(Unit)
   }
 

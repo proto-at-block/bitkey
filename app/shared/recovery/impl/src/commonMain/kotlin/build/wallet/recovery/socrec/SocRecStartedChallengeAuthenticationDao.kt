@@ -1,5 +1,6 @@
 package build.wallet.recovery.socrec
 
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.database.sqldelight.SocRecStartedChallengeAuthentication
@@ -13,19 +14,25 @@ import com.github.michaelbull.result.Result
 interface SocRecStartedChallengeAuthenticationDao {
   suspend fun insert(
     recoveryRelationshipId: String,
-    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
+    protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
     pakeCode: PakeCode,
   ): Result<Unit, Throwable>
 
   suspend fun getByRelationshipId(
     recoveryRelationshipId: String,
-  ): Result<SocRecStartedChallengeAuthentication?, Throwable>
+  ): Result<SocRecStartedChallengeAuthenticationRow?, Throwable>
 
   suspend fun deleteByRelationshipId(
     recoveryRelationshipId: String,
   ): Result<Unit, DbTransactionError>
 
-  suspend fun getAll(): Result<List<SocRecStartedChallengeAuthentication>, Throwable>
+  suspend fun getAll(): Result<List<SocRecStartedChallengeAuthenticationRow>, Throwable>
 
   suspend fun clear(): Result<Unit, DbTransactionError>
+
+  data class SocRecStartedChallengeAuthenticationRow(
+    val relationshipId: String,
+    val protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
+    val pakeCode: PakeCode,
+  )
 }

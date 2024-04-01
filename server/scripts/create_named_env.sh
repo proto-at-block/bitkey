@@ -38,6 +38,28 @@ pushd ..
 export REPO_ROOT=$(pwd)
 popd
 
+NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
+
+SDN_URI_KEY_NAME="${ENV_NAMESPACE}-fromagerie/sq_sdn/s3_uri"
+SDN_CSV_URI="${NAMED_STACK_S3_BUCKET_URI}/sq_sdn.csv"
+
+# Ignore non zero exit codes for the next commands, since describe-secret will return a 0 exit code if the secret does not exist.
+set +e
+secret_exists=$(aws secretsmanager describe-secret --secret-id $SDN_URI_KEY_NAME 2>&1)
+# Set back to strict mode
+set -e
+
+echo $secret_exists
+if [[ $secret_exists == *"ResourceNotFoundException"* ]]; then
+  echo "Secret does not exist, creating it"
+  aws secretsmanager create-secret --name $SDN_URI_KEY_NAME --secret-string $SDN_CSV_URI
+  echo "Created new secret: $SDN_URI_KEY_NAME"
+else
+  echo "Secret already exists, updating it"
+  aws secretsmanager put-secret-value --secret-id $SDN_URI_KEY_NAME --secret-string $SDN_CSV_URI
+  echo "Updated existing secret: $SDN_URI_KEY_NAME"
+fi
+
 pushd ../terraform/named-stacks/api
 export NAMESPACE=$ENV_NAMESPACE
 echo "🚀 Deploying the named stack"

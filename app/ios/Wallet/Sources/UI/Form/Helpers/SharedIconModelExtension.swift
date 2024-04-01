@@ -20,6 +20,8 @@ extension IconTint {
             return .translucentForeground
         case .green:
             return .positiveForeground
+        case .warning:
+            return .warningForeground
         default:
             return .foreground
         }

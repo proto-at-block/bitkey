@@ -1,5 +1,3 @@
-@file:OptIn(DelicateCoroutinesApi::class)
-
 package build.wallet.component.keybox.wallet
 
 import app.cash.turbine.turbineScope
@@ -11,8 +9,10 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.coroutines.actualDelay
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.fakeTransact
-import build.wallet.testing.launchNewApp
 import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
@@ -25,7 +25,6 @@ import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldBeUnique
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlin.time.Duration.Companion.seconds
 
 class AppSpendingWalletFunctionalTests : FunSpec({

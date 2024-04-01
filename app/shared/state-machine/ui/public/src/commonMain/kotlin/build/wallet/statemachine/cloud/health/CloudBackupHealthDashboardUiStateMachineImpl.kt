@@ -19,7 +19,7 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.data.MimeType
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachineImpl.State.LoadingState
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachineImpl.State.RepairingMobileKeyBackupState
@@ -54,7 +54,7 @@ import kotlinx.datetime.toLocalDateTime
 
 // TODO(796): add integration tests
 class CloudBackupHealthDashboardUiStateMachineImpl(
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
@@ -111,7 +111,7 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
             cloudStoreName = cloudStoreName,
             status = currentState.eakBackupStatus,
             onShareEakClick = StandardClick {
-              shareEakUuid = uuid.random()
+              shareEakUuid = uuidGenerator.random()
             },
             onBackUpNowClick = when (currentState.eakBackupStatus) {
               // The "Back up now" option for EAK is intentionally only shown

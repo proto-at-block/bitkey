@@ -22,6 +22,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
+import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -48,6 +49,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
   val stateMachine =
     InitiatingLostHardwareRecoveryDataStateMachineImpl(
       appKeysGenerator = appKeysGenerator,
+      delayer = ControlledDelayer(),
       lostHardwareRecoveryStarter = lostHardwareRecoveryStarter,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       cancelDelayNotifyRecoveryService = cancelDelayNotifyRecoveryService

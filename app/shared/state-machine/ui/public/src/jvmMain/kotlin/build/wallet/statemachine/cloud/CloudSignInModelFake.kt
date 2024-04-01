@@ -14,7 +14,7 @@ import build.wallet.statemachine.core.BodyModel
  */
 data class CloudSignInModelFake(
   val signInSuccess: (account: CloudStoreAccount) -> Unit,
-  val signInFailure: () -> Unit,
+  val signInFailure: (Error) -> Unit,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo =
     EventTrackerScreenInfo(
       eventTrackerScreenId = CLOUD_SIGN_IN_LOADING,

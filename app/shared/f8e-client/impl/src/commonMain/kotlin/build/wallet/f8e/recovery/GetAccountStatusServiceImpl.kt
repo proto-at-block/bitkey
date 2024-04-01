@@ -13,7 +13,7 @@ import build.wallet.f8e.recovery.GetAccountStatusService.AccountStatus
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.logging.logNetworkFailure
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
 
 class GetAccountStatusServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) : GetAccountStatusService {
   override suspend fun status(
     f8eEnvironment: F8eEnvironment,
@@ -43,7 +43,7 @@ class GetAccountStatusServiceImpl(
             sourceServerSpendingKeysetId = body.sourceServerSpendingKeysetId,
             spendingKeyset =
               SpendingKeyset(
-                localId = uuid.random(),
+                localId = uuidGenerator.random(),
                 f8eSpendingKeyset =
                   F8eSpendingKeyset(
                     keysetId = body.sourceServerSpendingKeysetId,

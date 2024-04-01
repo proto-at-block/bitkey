@@ -13,8 +13,3 @@ variable "log_query" {
   type        = string
   description = "The archive query/filter. Logs matching this query are included in the archive."
 }
-
-variable "dd_api_key_secret_arn" {
-  type        = string
-  description = "The ARN of the AWS Secrets Manager Secret holding a datadog API key for the log forwarder to use"
-}

@@ -13,9 +13,7 @@ use tracing::{event, instrument};
 
 use wsm_common::enclave_log::LogBuffer;
 use wsm_common::messages::enclave::{
-    DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest,
-    EnclaveSignWithIntegrityKeyRequest, EnclaveSignWithIntegrityKeyResponse,
-    LoadIntegrityKeyRequest,
+    DerivedKey, EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, LoadIntegrityKeyRequest,
 };
 use wsm_common::messages::{
     api::SignedPsbt,
@@ -117,17 +115,6 @@ impl EnclaveClient {
     pub async fn sign_psbt(&self, req: EnclaveSignRequest) -> anyhow::Result<SignedPsbt> {
         let result = self
             .post_request_with_dek(SecretRequest::new("sign-psbt", req.dek_id.clone(), req))
-            .await?;
-        Ok(result.json().await?)
-    }
-
-    #[instrument(skip(self))]
-    pub async fn backfill_sign(
-        &self,
-        req: EnclaveSignWithIntegrityKeyRequest,
-    ) -> anyhow::Result<EnclaveSignWithIntegrityKeyResponse> {
-        let result = self
-            .post_request_with_dek(SecretRequest::new("backfill-sign", req.dek_id.clone(), req))
             .await?;
         Ok(result.json().await?)
     }

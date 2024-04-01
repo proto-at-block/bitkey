@@ -11,6 +11,7 @@ fun CancelRecoveryAlertModel(
   onDismiss = onDismiss,
   primaryButtonText = "Cancel recovery",
   onPrimaryButtonClick = onConfirm,
+  primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
   secondaryButtonText = "Nevermind",
   onSecondaryButtonClick = onDismiss
 )

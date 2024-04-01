@@ -2,11 +2,12 @@ package build.wallet.auth
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.RotateAuthKeysService
 import build.wallet.keybox.KeyboxDao
@@ -191,18 +192,20 @@ class AuthKeyRotationManagerImpl(
 
   private suspend fun validateKeySet(
     f8eEnvironment: F8eEnvironment,
-    appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
-    appRecoveryAuthPublicKey: AppRecoveryAuthPublicKey,
+    appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
+    appRecoveryAuthPublicKey: PublicKey<AppRecoveryAuthKey>,
   ): Result<Unit, KeySetValidationFailure> =
     binding {
       // TODO: What if just one of Global vs Recovery keys are invalid?
       accountAuthenticator.appAuth(
         f8eEnvironment = f8eEnvironment,
-        appAuthPublicKey = appGlobalAuthPublicKey
+        appAuthPublicKey = appGlobalAuthPublicKey,
+        authTokenScope = AuthTokenScope.Global
       ).mapAuthErrorToKeySetValidationFailure().bind()
       accountAuthenticator.appAuth(
         f8eEnvironment = f8eEnvironment,
-        appAuthPublicKey = appRecoveryAuthPublicKey
+        appAuthPublicKey = appRecoveryAuthPublicKey,
+        authTokenScope = AuthTokenScope.Recovery
       ).mapAuthErrorToKeySetValidationFailure().bind()
     }
 
@@ -323,7 +326,7 @@ class AuthKeyRotationManagerImpl(
 
   private suspend fun regenerateEndorseAndVerifyTrustedContacts(
     newAccount: FullAccount,
-    oldAppAuthKey: AppGlobalAuthPublicKey,
+    oldAppAuthKey: PublicKey<AppGlobalAuthKey>,
     oldHwAuthPublicKey: HwAuthPublicKey,
     newAppKeys: AppAuthPublicKeys,
   ): Result<Unit, Error> =

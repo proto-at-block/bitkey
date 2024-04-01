@@ -1,12 +1,13 @@
 package build.wallet.cloud.backup.v2
 
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.encrypt.SealedData
@@ -45,8 +46,8 @@ data class FullAccountFields(
    * [FullAccountKeys.rotationAppGlobalAuthKeypair] are the keys that will be rotated to, but
    * their presence here indicates the process was initiated but not confirmed successful.
    */
-  @Serializable(with = AppRecoveryAuthKeypairSerializer::class)
-  val rotationAppRecoveryAuthKeypair: AppRecoveryAuthKeypair?,
+  @Serializable(with = AppKeyKeyPairSerializer::class)
+  val rotationAppRecoveryAuthKeypair: AppKey<AppRecoveryAuthKey>?,
   val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
 ) : SocRecV1AccountFeatures
 
@@ -63,8 +64,8 @@ data class FullAccountKeys(
     @Serializable(with = SpendingKeysetSerializer::class)
     SpendingKeyset
   >,
-  @Serializable(with = AppGlobalAuthKeypairSerializer::class)
-  val appGlobalAuthKeypair: AppGlobalAuthKeypair,
+  @Serializable(with = AppKeyKeyPairSerializer::class)
+  val appGlobalAuthKeypair: AppKey<AppGlobalAuthKey>,
   val appSpendingKeys: Map<
     @Serializable(with = AppSpendingPublicKeySerializer::class)
     AppSpendingPublicKey,
@@ -82,6 +83,6 @@ data class FullAccountKeys(
    * [FullAccountFields.rotationAppRecoveryAuthKeypair] are the keys that will be rotated to, but
    * their presence here indicates the process was initiated but not confirmed successful.
    */
-  @Serializable(with = AppGlobalAuthKeypairSerializer::class)
-  val rotationAppGlobalAuthKeypair: AppGlobalAuthKeypair?,
+  @Serializable(with = AppKeyKeyPairSerializer::class)
+  val rotationAppGlobalAuthKeypair: AppKey<AppGlobalAuthKey>?,
 )

@@ -69,6 +69,8 @@ class ProofOfPossessionNfcStateMachineImpl(
             onSuccess = { request.onSuccess(HwFactorProofOfPossession(it)) },
             onCancel = props.onBack,
             isHardwareFake = props.fullAccountConfig.isHardwareFake,
+            segment = props.segment,
+            actionDescription = props.actionDescription,
             screenPresentationStyle = props.screenPresentationStyle,
             eventTrackerContext = NfcEventTrackerScreenIdContext.HW_PROOF_OF_POSSESSION
           )

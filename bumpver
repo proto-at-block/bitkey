@@ -43,7 +43,8 @@ class Version:
                 version = self.version + 1
 
             return Version(year, version, 0, 1, sq_build)
-
+        elif number_type_to_increment == "sqb":
+            return Version(self.year, self.version, self.patch, self.build, sq_build)
         else:
             raise Exception("Unsupported number type to increment: " + number_type_to_increment)
 
@@ -187,7 +188,7 @@ if __name__ == "__main__":
         Use 'patch' or 'build' as the number_type argument to instead bump those numbers.
         """
     )
-    parser.add_argument("number_type", help="The type of number to bump. Options are 'version', 'patch' or 'build'. Defaults to 'version'", default="version")
+    parser.add_argument("number_type", help="The type of number to bump. Options are 'version', 'patch', 'build' or 'sqb'. Defaults to 'version'", default="version")
     parser.add_argument("--config", default="bumpver.json")
     parser.add_argument("--env", action="store_true")
     main(parser.parse_args())

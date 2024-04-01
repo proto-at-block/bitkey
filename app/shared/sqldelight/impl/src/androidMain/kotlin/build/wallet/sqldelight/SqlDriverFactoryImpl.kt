@@ -9,7 +9,7 @@ import build.wallet.catching
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.FileDirectoryProvider
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
@@ -23,7 +23,7 @@ actual class SqlDriverFactoryImpl actual constructor(
   @Suppress("UnusedPrivateProperty")
   private val fileDirectoryProvider: FileDirectoryProvider,
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   @Suppress("UnusedPrivateProperty")
   private val appVariant: AppVariant,
 ) : SqlDriverFactory {
@@ -64,7 +64,7 @@ actual class SqlDriverFactoryImpl actual constructor(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SupportOpenHelperFactory {
-    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, uuid)
+    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, uuidGenerator)
     System.loadLibrary("sqlcipher")
     val encryptedFactory = SupportOpenHelperFactory(dbKey.toByteArray(Charsets.UTF_8))
 

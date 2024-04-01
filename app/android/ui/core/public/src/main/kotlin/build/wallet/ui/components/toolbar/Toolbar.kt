@@ -18,6 +18,8 @@ import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.iconStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Secondary
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -187,12 +189,31 @@ internal fun ToolbarWithMiddleContentOnlyPreview() {
 
 @Preview
 @Composable
-internal fun ToolbarWithTrailingContentOnlyPreview() {
+internal fun ToolbarWithTrailingContentOnlyLabelPreview() {
   PreviewWalletTheme {
     Toolbar(
       trailingContent = {
         Label(text = "Trailing", type = Label3)
       }
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun ToolbarWithTrailingContentOnlyButtonPreview() {
+  PreviewWalletTheme {
+    Toolbar(
+      model = ToolbarModel(
+        trailingAccessory = ButtonAccessory(
+          ButtonModel(
+            text = "Trailing Button",
+            size = ButtonModel.Size.Compact,
+            treatment = ButtonModel.Treatment.TertiaryDestructive,
+            onClick = StandardClick {}
+          )
+        )
+      )
     )
   }
 }

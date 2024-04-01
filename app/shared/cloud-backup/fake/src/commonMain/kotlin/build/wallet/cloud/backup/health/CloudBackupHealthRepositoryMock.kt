@@ -12,7 +12,9 @@ import kotlinx.coroutines.flow.StateFlow
 class CloudBackupHealthRepositoryMock(
   turbine: (String) -> Turbine<Any?>,
 ) : CloudBackupHealthRepository {
-  val mobileKeyBackupStatus = MutableStateFlow(LoadableValue.InitialLoading)
+  val mobileKeyBackupStatus = MutableStateFlow<LoadableValue<MobileKeyBackupStatus>>(
+    LoadableValue.InitialLoading
+  )
 
   override fun mobileKeyBackupStatus(): StateFlow<LoadableValue<MobileKeyBackupStatus>> {
     return mobileKeyBackupStatus

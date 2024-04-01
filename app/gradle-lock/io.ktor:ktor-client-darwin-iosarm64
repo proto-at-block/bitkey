@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-darwin-iosarm64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-darwin-iosarm64-2.3.8-metadata.jar": "c67d3a308d9c8cf9afa75b428c8bca209c1f5e423fec3c3501395b61b764bd53"
+                        "ktor-client-darwin-iosarm64-2.3.9-metadata.jar": "904b2cb91dc6e416ede7af84b3579fef74fcee9ce139f1597e92ca4593eb52fb"
                     }
                 },
                 {

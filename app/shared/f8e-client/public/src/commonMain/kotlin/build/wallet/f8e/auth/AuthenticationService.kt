@@ -1,8 +1,11 @@
 package build.wallet.f8e.auth
 
 import build.wallet.auth.AccountAuthTokens
+import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.RefreshToken
-import build.wallet.bitkey.auth.AuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
@@ -12,7 +15,13 @@ import kotlinx.serialization.Serializable
 interface AuthenticationService {
   suspend fun initiateAuthentication(
     f8eEnvironment: F8eEnvironment,
-    authPublicKey: AuthPublicKey,
+    authPublicKey: HwAuthPublicKey,
+  ): Result<InitiateAuthenticationSuccess, NetworkingError>
+
+  suspend fun initiateAuthentication(
+    f8eEnvironment: F8eEnvironment,
+    authPublicKey: PublicKey<out AppAuthKey>,
+    tokenScope: AuthTokenScope,
   ): Result<InitiateAuthenticationSuccess, NetworkingError>
 
   @Serializable

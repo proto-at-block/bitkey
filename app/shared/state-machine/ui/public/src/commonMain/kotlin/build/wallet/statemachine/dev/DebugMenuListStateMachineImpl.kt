@@ -101,7 +101,20 @@ class DebugMenuListStateMachineImpl(
             onActionConfirmationRequest = { actionConfirmation = it },
             onDeleteKeybox = { deleteAppDataRequest = it }
           ),
-          onboardingAppKeyDeletionUiStateMachine.model(Unit)
+          onboardingAppKeyDeletionUiStateMachine.model(
+            props = OnboardingAppKeyDeletionProps(
+              onConfirmationRequested = { accept ->
+                actionConfirmation =
+                  ActionConfirmationRequest(
+                    gatedActionTitle = "Delete Onboarding App Key",
+                    gatedAction = {
+                      accept()
+                      actionConfirmation = null
+                    }
+                  )
+              }
+            )
+          )
         ).toImmutableList(),
       alertModel =
         actionConfirmation?.let {
@@ -158,6 +171,7 @@ class DebugMenuListStateMachineImpl(
       onDismiss = onDismiss,
       primaryButtonText = "Yes",
       onPrimaryButtonClick = actionConfirmation.gatedAction,
+      primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
       secondaryButtonText = "Cancel",
       onSecondaryButtonClick = onDismiss
     )

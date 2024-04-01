@@ -134,12 +134,13 @@ interface HttpStatusConfig {
   status: "1xx" | "2xx" | "3xx" | "4xx" | "5xx",
   group: string,
   environment: string,
-  tags: string[],
+  tags: {tag: string, rateInclusion: "numerator" | "denominator" | "both"}[],
   window?: string,
   rateThreshold: string,
   countThreshold: string,
   recipients: string[],
   dataDogLink?: string,
+  runbook?: string,
 }
 
 const httpStatusConfigDefaults: Partial<HttpStatusConfig> = {
@@ -169,6 +170,7 @@ export class HttpStatusCompositeMonitor extends Construct {
       countThreshold,
       recipients,
       dataDogLink,
+      runbook,
     } = config
 
     // https://docs.datadoghq.com/monitors/guide/as-count-in-monitor-evaluations/
@@ -177,8 +179,8 @@ export class HttpStatusCompositeMonitor extends Construct {
     let rateMonitor = new Monitor(this, 'http_status_rate_high', {
       query:
         `sum(last_${window}):
-             default_zero(sum:bitkey.http.response{${[`status:${status}`, `env:${environment}`].concat(tags).join(",")}}.as_count() /
-             sum:bitkey.http.response{${[`env:${environment}`].concat(tags).join(",")}}.as_count())
+             default_zero(sum:bitkey.http.response{${[`status:${status}`, `env:${environment}`].concat(tags.filter(t => t.rateInclusion !== "denominator").map(t => t.tag)).join(",")}}.as_count() /
+             sum:bitkey.http.response{${[`env:${environment}`].concat(tags.filter(t => t.rateInclusion !== "numerator").map(t => t.tag)).join(",")}}.as_count())
          > ${rateThreshold}`,
       name: `[${group}] high ${status} http status rate on env:${environment} (Composite 1/2)`,
       message: `${status} http status rate is too high.`,
@@ -186,14 +188,14 @@ export class HttpStatusCompositeMonitor extends Construct {
         critical: rateThreshold,
       },
       type: "query alert",
-      tags,
+      tags: tags.map(t => t.tag),
       recipients: [],
     });
 
     let countMonitor = new Monitor(this, 'http_status_count_high', {
       query:
         `sum(last_${window}):
-             sum:bitkey.http.response{${[`status:${status}`, `env:${environment}`].concat(tags).join(",")}}.as_count()
+             sum:bitkey.http.response{${[`status:${status}`, `env:${environment}`].concat(tags.map(t => t.tag)).join(",")}}.as_count()
          > ${countThreshold}`,
       name: `[${group}] high ${status} http status count on env:${environment} (Composite 2/2)`,
       message: `${status} http status count is too high.`,
@@ -201,7 +203,7 @@ export class HttpStatusCompositeMonitor extends Construct {
         critical: countThreshold,
       },
       type: "query alert",
-      tags,
+      tags: tags.map(t => t.tag),
       recipients: [],
     });
 
@@ -210,9 +212,10 @@ export class HttpStatusCompositeMonitor extends Construct {
       name: `[${group}] ${status} http status thresholds exceeded on env:${environment} (Composite)`,
       message: `${status} http status thresholds exceeded.`,
       type: "composite",
-      tags,
+      tags: tags.map(t => t.tag),
       dataDogLink,
       recipients,
+      runbook,
     });
   }
 }

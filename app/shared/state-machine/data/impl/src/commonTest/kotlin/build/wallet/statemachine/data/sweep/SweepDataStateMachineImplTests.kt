@@ -3,9 +3,9 @@ package build.wallet.statemachine.data.sweep
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.blockchain.BitcoinBlockchainMock
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepositoryMock
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.TransactionRepositoryMock
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitcoin.wallet.isAppSignedWithKeyset
@@ -66,7 +66,7 @@ class SweepDataStateMachineImplTests : FunSpec({
       }
     }
   val exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
-  val transactionRepository = TransactionRepositoryMock(turbines::create)
+  val transactionRepository = OutgoingTransactionDetailRepositoryMock(turbines::create)
   val stateMachine =
     SweepDataStateMachineImpl(
       bitcoinBlockchain,

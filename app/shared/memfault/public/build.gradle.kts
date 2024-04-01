@@ -11,7 +11,7 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.okio)
-        api(projects.shared.ktorResultPublic)
+        api(projects.shared.ktorClientPublic)
         api(projects.shared.loggingPublic)
         api(projects.shared.platformPublic)
       }

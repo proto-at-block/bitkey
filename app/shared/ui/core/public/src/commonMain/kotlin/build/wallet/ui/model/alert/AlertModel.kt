@@ -6,9 +6,16 @@ data class AlertModel(
   val onDismiss: () -> Unit,
   val primaryButtonText: String,
   val onPrimaryButtonClick: () -> Unit,
+  val primaryButtonStyle: ButtonStyle = ButtonStyle.Default,
   val secondaryButtonText: String? = null,
   val onSecondaryButtonClick: (() -> Unit)? = null,
-)
+  val secondaryButtonStyle: ButtonStyle = ButtonStyle.Default,
+) {
+  enum class ButtonStyle {
+    Default,
+    Destructive,
+  }
+}
 
 /**
  * An [AlertModel] with "Disable" and "Cancel" actions.
@@ -26,6 +33,7 @@ fun DisableAlertModel(
   subline = subline,
   primaryButtonText = "Disable",
   onPrimaryButtonClick = onConfirm,
+  primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
   secondaryButtonText = "Cancel",
   onSecondaryButtonClick = onCancel,
   onDismiss = onCancel

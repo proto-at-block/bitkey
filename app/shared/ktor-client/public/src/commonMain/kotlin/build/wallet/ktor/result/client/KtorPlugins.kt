@@ -9,13 +9,16 @@ import io.ktor.client.plugins.logging.Logging as KtorLogging
 /**
  * Installs Ktor logging plugin hooked up to Kermit logger.
  */
-fun <T : HttpClientEngineConfig> HttpClientConfig<T>.installLogging(logLevel: LogLevel) {
+fun <T : HttpClientEngineConfig> HttpClientConfig<T>.installLogging(
+  tag: String,
+  logLevel: LogLevel,
+) {
   install(KtorLogging) {
     level = logLevel
     logger =
       object : KtorLogger {
         override fun log(message: String) {
-          build.wallet.logging.log { message }
+          build.wallet.logging.log(tag = tag) { message }
         }
       }
   }

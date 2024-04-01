@@ -33,6 +33,7 @@ sealed interface NoLongerRecoveringData {
    * @property retry: Retry the clearing.
    */
   data class ClearingLocalRecoveryFailedData(
+    val error: Error,
     val cancelingRecoveryLostFactor: PhysicalFactor,
     val rollback: () -> Unit,
     val retry: () -> Unit,

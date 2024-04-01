@@ -1,8 +1,9 @@
 package build.wallet.f8e.client
 
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.crypto.WsmVerifier
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -35,7 +36,7 @@ interface F8eHttpClient : UnauthenticatedF8eHttpClient {
   suspend fun authenticated(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
-    appFactorProofOfPossessionAuthKey: AppAuthPublicKey? = null,
+    appFactorProofOfPossessionAuthKey: PublicKey<out AppAuthKey>? = null,
     hwFactorProofOfPossession: HwFactorProofOfPossession? = null,
     engine: HttpClientEngine? = null,
     authTokenScope: AuthTokenScope = AuthTokenScope.Global,

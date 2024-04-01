@@ -22,10 +22,14 @@ import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
+import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SplashBodyModel
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.log
 import build.wallet.statemachine.data.app.AppData.AppLoadedData
 import build.wallet.statemachine.data.app.AppData.LoadingAppData
 import build.wallet.statemachine.data.app.AppDataStateMachine
@@ -428,10 +432,16 @@ class AppUiStateMachineImpl(
   @Composable
   private fun TrackScreenEvents(screenModel: ScreenModel) {
     val eventInfoToTrack = screenModel.eventInfoToTrack()
-
     eventInfoToTrack?.let {
       LaunchedEffect("track-screen-event", eventInfoToTrack) {
         eventTracker.track(eventInfoToTrack)
+      }
+    }
+
+    val errorData = screenModel.errorDataToTrack()
+    errorData?.let {
+      LaunchedEffect("track-error-data", errorData) {
+        errorData.log()
       }
     }
   }
@@ -442,6 +452,22 @@ class AppUiStateMachineImpl(
     return when (bottomSheetModel) {
       null -> body.eventTrackerScreenInfo
       else -> bottomSheetModel?.body?.eventTrackerScreenInfo
+    }
+  }
+
+  private fun ScreenModel.errorDataToTrack(): ErrorData? {
+    // If there is an overlay (a bottom sheet), use it for the screen info.
+    // Otherwise, use the body of the overall screen model.
+    return when (bottomSheetModel) {
+      null -> body.errorData()
+      else -> bottomSheetModel?.body?.errorData()
+    }
+  }
+
+  private fun BodyModel.errorData(): ErrorData? {
+    return when (this) {
+      is FormBodyModel -> errorData
+      else -> null
     }
   }
 }

@@ -18,5 +18,6 @@ internal class KotlinMultiplatformPlugin : Plugin<Project> {
       pluginManager.apply<DependencyLockingPlugin>()
       pluginManager.apply<DependencyLockingCommonGroupConfigurationPlugin>()
       pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
+      pluginManager.apply<AutomaticKotlinOptInPlugin>()
     }
 }

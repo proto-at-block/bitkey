@@ -1,8 +1,5 @@
-@file:OptIn(ExperimentalKermitApi::class)
-
 package build.wallet.logging.bugsnag
 
-import co.touchlab.kermit.ExperimentalKermitApi
 import co.touchlab.kermit.LogWriter
 import co.touchlab.kermit.Severity
 

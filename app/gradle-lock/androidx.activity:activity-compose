@@ -2,11 +2,11 @@
     "module-identifier": "androidx.activity:activity-compose",
     "components": [
         {
-            "version": "1.7.2",
+            "version": "1.8.2",
             "variants": [
                 {
                     "artifacts": {
-                        "activity-compose-1.7.2.aar": "c73db26b1672a63f144457271b49cc40380b5bafe60ed0710e82d0a774e36a88"
+                        "activity-compose-1.8.2.aar": "5a67e984f14ed2afc585aa3a23edff1c1791c80caa2bf68a0f799c1b11a39038"
                     }
                 }
             ],

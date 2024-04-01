@@ -20,7 +20,7 @@ use tracing::{event, instrument};
 
 use wallet_telemetry::Mode::{Datadog, Jaeger};
 use wallet_telemetry::{set_global_telemetry, Config};
-use wsm_common::bitcoin::util::bip32::DerivationPath;
+use wsm_common::bitcoin::bip32::DerivationPath;
 
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::{
@@ -29,7 +29,6 @@ use wsm_common::messages::api::{
 };
 use wsm_common::messages::enclave::{
     EnclaveCreateKeyRequest, EnclaveDeriveKeyRequest, EnclaveSignRequest,
-    EnclaveSignWithIntegrityKeyRequest,
 };
 use wsm_common::messages::DomainFactoredXpub;
 
@@ -60,7 +59,6 @@ impl From<RouteState> for Router {
             .route("/sign-psbt", post(sign_psbt))
             .route("/integrity-sig", get(integrity_sig))
             .route("/generate-integrity-key", get(generate_integrity_key))
-            .route("/backfill-integrity-hashes", get(backfill_integrity_hashes))
             .with_state(state)
     }
 }
@@ -278,47 +276,6 @@ async fn generate_integrity_key(
         wrapped_privkey: BASE64.encode(wrapped_privkey),
         pubkey: BASE64.encode(pubkey),
     }))
-}
-
-/// Look through DDB for all customer public keys and sign them with the integrity key using wsm-enclave
-/// and then store the signature in the DDB table.
-async fn backfill_integrity_hashes(State(state): State<RouteState>) -> Result<Json<()>, ApiError> {
-    let customer_keys = state
-        .customer_key_store
-        .get_all_customer_keys()
-        .await
-        .map_err(|e| ApiError::ServerError(format!("Failed to retrieve customer keys: {e}")))?;
-
-    for customer_key in customer_keys {
-        // xpub descriptor is stored in the DB, but we just want the xpub
-        let xpub_descriptor = customer_key.xpub_descriptor.clone();
-
-        let xpub_clean: Vec<&str> = xpub_descriptor.split("']").collect();
-        let xpub = xpub_clean[1].trim_end_matches("/*");
-
-        let response = state
-            .enclave
-            .backfill_sign(EnclaveSignWithIntegrityKeyRequest {
-                data: xpub.to_string(),
-                dek_id: customer_key.dek_id.clone(),
-            })
-            .await
-            .map_err(|e| {
-                ApiError::ServerError(format!("Failed to sign data with integrity key: {e}"))
-            })?;
-
-        state
-            .customer_key_store
-            .update_integrity_signature(&customer_key.root_key_id, &response.signature)
-            .await
-            .map_err(|e| {
-                ApiError::ServerError(format!(
-                    "Failed to update customer key with new signature: {e}"
-                ))
-            })?;
-    }
-
-    Ok(Json(()))
 }
 
 async fn integrity_sig(

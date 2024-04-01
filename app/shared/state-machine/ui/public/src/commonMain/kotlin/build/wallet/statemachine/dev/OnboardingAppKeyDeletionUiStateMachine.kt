@@ -6,4 +6,8 @@ import build.wallet.ui.model.list.ListGroupModel
 /**
  * State machine for deleting the persisted app key during onboarding in order to generate a new one.
  */
-interface OnboardingAppKeyDeletionUiStateMachine : StateMachine<Unit, ListGroupModel?>
+interface OnboardingAppKeyDeletionUiStateMachine : StateMachine<OnboardingAppKeyDeletionProps, ListGroupModel?>
+
+data class OnboardingAppKeyDeletionProps(
+  val onConfirmationRequested: (onAccept: () -> Unit) -> Unit,
+)

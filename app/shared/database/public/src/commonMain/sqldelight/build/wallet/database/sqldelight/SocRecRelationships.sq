@@ -1,3 +1,4 @@
+import build.wallet.crypto.PublicKey;
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias;
 import build.wallet.bitkey.socrec.TrustedContactAlias;
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState;
@@ -33,7 +34,7 @@ CREATE TABLE socRecUnendorsedTrustedContactEntity(
   rowId                        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   recoveryRelationshipId       TEXT UNIQUE NOT NULL,
   trustedContactAlias          TEXT AS TrustedContactAlias NOT NULL,
-  enrollmentPakeKey            TEXT AS TrustedContactEnrollmentPakeKey NOT NULL,
+  enrollmentPakeKey            TEXT AS PublicKey<TrustedContactEnrollmentPakeKey> NOT NULL,
   enrollmentKeyConfirmation    BLOB AS ByteString NOT NULL,
   sealedDelegatedDecryptionKey TEXT NOT NULL,
   authenticationState          TEXT AS TrustedContactAuthenticationState NOT NULL

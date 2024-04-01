@@ -51,7 +51,10 @@ public struct FeatureFlagsView: View {
             .navigationBarTitle("Feature Flags")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                Button("Back", action: viewModel.onBack)
+                ToolbarItemGroup {
+                    Button("Reset", action: viewModel.onReset)
+                    Button("Back", action: viewModel.onBack)
+                }
             }
         }
     }

@@ -1,9 +1,7 @@
 package build.wallet.emergencyaccesskit
 
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
@@ -11,6 +9,7 @@ import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
 import com.github.michaelbull.result.Result
 
@@ -45,9 +44,9 @@ interface EmergencyAccessPayloadRestorer {
       activeAppKeyBundle = AppKeyBundle(
         localId = appKeyBundleId,
         spendingKey = activeSpendingKeyset.appKey,
-        authKey = AppGlobalAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid key")),
+        authKey = PublicKey("EAK Recovery: Invalid key"),
         networkType = activeSpendingKeyset.networkType,
-        recoveryAuthKey = AppRecoveryAuthPublicKey(pubKey = Secp256k1PublicKey("EAK Recovery: Invalid recovery key"))
+        recoveryAuthKey = PublicKey("EAK Recovery: Invalid recovery key")
       ),
       activeHwKeyBundle = HwKeyBundle(
         localId = hwKeyBundleId,

@@ -38,23 +38,23 @@ data class Spake2PublicKey(
   val bytes: ByteString,
 )
 
-fun Spake2PublicKey.toPublicKey(): PublicKey {
+fun <T : PakeKey> Spake2PublicKey.toPublicKey(): PublicKey<T> {
   val publicKeyString = this.bytes.hex()
   return PublicKey(publicKeyString)
 }
 
-fun Spake2PrivateKey.toPrivateKey(): PrivateKey {
+fun <T : PakeKey> Spake2PrivateKey.toPrivateKey(): PrivateKey<T> {
   val privateKeyBytes = this.bytes
   return PrivateKey(privateKeyBytes)
 }
 
-fun PublicKey.toSpake2PublicKey(): Spake2PublicKey {
+fun <T : PakeKey> PublicKey<T>.toSpake2PublicKey(): Spake2PublicKey {
   val byteString = this.value.decodeHex()
 
   return Spake2PublicKey(byteString)
 }
 
-fun PrivateKey.toSpake2PrivateKey(): Spake2PrivateKey {
+fun PrivateKey<*>.toSpake2PrivateKey(): Spake2PrivateKey {
   val byteString = this.bytes
 
   return Spake2PrivateKey(byteString)

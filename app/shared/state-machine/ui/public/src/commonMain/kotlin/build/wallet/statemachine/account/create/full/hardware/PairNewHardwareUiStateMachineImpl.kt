@@ -15,9 +15,8 @@ import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.nfc.transaction.PairingTransactionProvider
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
-import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentRestarted
+import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentStarted
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
-import build.wallet.nfc.transaction.StartFingerprintEnrollmentTransactionProvider
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.CompleteFingerprintEnrollmentViaNfcUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingActivationInstructionsUiState
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareUiStateMachineImpl.State.ShowingCompleteFingerprintEnrollmentInstructionsUiState
@@ -35,8 +34,6 @@ import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
 class PairNewHardwareUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val pairingTransactionProvider: PairingTransactionProvider,
-  private val startFingerprintEnrollmentTransactionProvider:
-    StartFingerprintEnrollmentTransactionProvider,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
 ) : PairNewHardwareUiStateMachine {
@@ -94,7 +91,7 @@ class PairNewHardwareUiStateMachineImpl(
 
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
-            transaction = startFingerprintEnrollmentTransactionProvider(
+            transaction = pairingTransactionProvider(
               onCancel = {
                 state =
                   ShowingStartFingerprintEnrollmentInstructionsUiState(
@@ -103,11 +100,25 @@ class PairNewHardwareUiStateMachineImpl(
                   )
               },
               onSuccess = {
-                state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(s.request)
+                when (it) {
+                  is FingerprintEnrolled -> {
+                    eventTracker.track(action = ACTION_HW_FINGERPRINT_COMPLETE)
+                    s.request.onSuccess(it)
+                  }
+                  FingerprintEnrollmentStarted,
+                  FingerprintNotEnrolled,
+                  -> {
+                    state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(s.request)
+                  }
+                }
               },
-              isHardwareFake = s.request.fullAccountConfig.isHardwareFake
+              isHardwareFake = s.request.fullAccountConfig.isHardwareFake,
+              networkType = s.request.fullAccountConfig.bitcoinNetworkType,
+              appGlobalAuthPublicKey = s.request.appGlobalAuthPublicKey
             ),
             screenPresentationStyle = props.screenPresentationStyle,
+            segment = props.segment,
+            actionDescription = "Pairing new hardware",
             eventTrackerContext = NfcEventTrackerScreenIdContext.PAIR_NEW_HW_ACTIVATION,
             onInauthenticHardware = { state = ShowingHelpCenter }
           )
@@ -162,7 +173,7 @@ class PairNewHardwareUiStateMachineImpl(
                       )
                   }
 
-                  FingerprintEnrollmentRestarted -> {
+                  FingerprintEnrollmentStarted -> {
                     state = ShowingCompleteFingerprintEnrollmentInstructionsUiState(
                       s.request,
                       showingIncompleteEnrollmentError = true

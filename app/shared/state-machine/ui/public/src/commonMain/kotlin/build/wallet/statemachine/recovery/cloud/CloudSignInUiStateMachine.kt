@@ -31,6 +31,6 @@ interface CloudSignInUiStateMachine : StateMachine<CloudSignInUiProps, BodyModel
 data class CloudSignInUiProps(
   val forceSignOut: Boolean,
   val onSignedIn: (CloudStoreAccount) -> Unit,
-  val onSignInFailure: () -> Unit,
+  val onSignInFailure: (Error) -> Unit,
   val eventTrackerContext: CloudEventTrackerScreenIdContext,
 )

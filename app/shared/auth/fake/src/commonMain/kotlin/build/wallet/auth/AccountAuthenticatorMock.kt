@@ -2,9 +2,10 @@ package build.wallet.auth
 
 import app.cash.turbine.Turbine
 import build.wallet.auth.AccountAuthenticator.AuthData
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.FullAccountIdMock
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.f8e.auth.AuthenticationServiceMock
@@ -33,7 +34,8 @@ class AccountAuthenticatorMock(
 
   override suspend fun appAuth(
     f8eEnvironment: F8eEnvironment,
-    appAuthPublicKey: AppAuthPublicKey,
+    appAuthPublicKey: PublicKey<out AppAuthKey>,
+    authTokenScope: AuthTokenScope,
   ): Result<AuthData, AuthError> {
     authCalls.add(appAuthPublicKey)
     return authResults.removeFirst()

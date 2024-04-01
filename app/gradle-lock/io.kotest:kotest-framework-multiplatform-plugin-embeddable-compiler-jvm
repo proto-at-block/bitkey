@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-multiplatform-plugin-embeddable-compiler-jvm",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-multiplatform-plugin-embeddable-compiler-jvm-5.8.0.jar": "27ddf21a636e699aa94fd28d3b7a86f15b1624273fba69dfbd4da13880e281d4"
+                        "kotest-framework-multiplatform-plugin-embeddable-compiler-jvm-5.8.1.jar": "6f15dd7c2d0165fecdecaac1dc8a9b041e17a0e0e13f90f0fb6a8586c9dba6a6"
                     }
                 }
             ],

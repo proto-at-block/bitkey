@@ -3,7 +3,6 @@ package build.wallet.recovery.socrec
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
@@ -16,7 +15,7 @@ class SocialChallengeVerifierImpl(
 ) : SocialChallengeVerifier {
   override suspend fun verifyChallenge(
     account: Account,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     recoveryRelationshipId: String,
     recoveryCode: String,
   ): Result<Unit, SocialChallengeError> =
@@ -39,9 +38,7 @@ class SocialChallengeVerifierImpl(
 
       val decryptPkekOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
         password = pakePart,
-        protectedCustomerRecoveryPakeKey = ProtectedCustomerRecoveryPakeKey(
-          AppKey.fromPublicKey(challengeResponse.protectedCustomerRecoveryPakePubkey)
-        ),
+        protectedCustomerRecoveryPakeKey = challengeResponse.protectedCustomerRecoveryPakePubkey,
         delegatedDecryptionKey = delegatedDecryptionKey,
         sealedPrivateKeyEncryptionKey = XCiphertext(challengeResponse.sealedDek)
       ).mapError {
@@ -51,7 +48,7 @@ class SocialChallengeVerifierImpl(
       socRecChallengeRepository.respondToChallenge(
         account,
         challengeResponse.socialChallengeId,
-        decryptPkekOutput.trustedContactRecoveryPakeKey.publicKey,
+        decryptPkekOutput.trustedContactRecoveryPakeKey,
         decryptPkekOutput.keyConfirmation,
         decryptPkekOutput.sealedPrivateKeyEncryptionKey
       ).mapError {

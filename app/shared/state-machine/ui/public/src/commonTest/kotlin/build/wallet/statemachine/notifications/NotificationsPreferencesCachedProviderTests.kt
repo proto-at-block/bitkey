@@ -10,7 +10,6 @@ import build.wallet.notifications.NotificationPreferences
 import build.wallet.store.KeyValueStoreFactoryFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.russhwolf.settings.ExperimentalSettingsApi
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -20,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.single
 
-@OptIn(ExperimentalSettingsApi::class)
 class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   val keyValueStoreFactory = KeyValueStoreFactoryFake()

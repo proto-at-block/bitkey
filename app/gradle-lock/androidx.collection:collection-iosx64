@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.collection:collection-iosx64",
+    "components": [
+        {
+            "version": "1.4.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "collection-iosx64-1.4.0-metadata.jar": "d1a4bc5f34b8c6e363bf91a7074eb53a0bf6f28d37bb092bbba2aae0e0c2fd9d"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "collection.klib": "aae0c533c7a1418d100ba74ebb38ac8deada78bbbc9e41bc18fcec854b91245c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-1.9.21-gradle82.jar": "464eabbe0f13121fba47d0dd77db78e04cc711418ef1fa38e059fbad740174d5"
+                        "kotlin-gradle-plugin-1.9.22-gradle82.jar": "d4e718dd5f30c6ba932d93ccfc5b3015e9dd3e44143a052b877028f1fae542dc"
                     }
                 }
             ],

@@ -1,8 +1,8 @@
 package build.wallet.bitcoin.blockchain
 
 import build.wallet.bdk.bindings.BdkError
+import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionDetail
 import com.github.michaelbull.result.Result
 
 interface BitcoinBlockchain {
@@ -11,7 +11,7 @@ interface BitcoinBlockchain {
    *
    * @return the broadcast time and the transaction.
    */
-  suspend fun broadcast(psbt: Psbt): Result<TransactionDetail, BdkError>
+  suspend fun broadcast(psbt: Psbt): Result<BroadcastDetail, BdkError>
 
   /**
    * Returns the latest block height.

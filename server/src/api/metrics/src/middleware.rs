@@ -8,6 +8,17 @@ use tower::{Layer, Service};
 use crate::factory::{Counter, Histogram, UpDownCounter};
 use crate::KeyValue;
 
+const METHOD_KEY: &str = "method";
+const PATH_KEY: &str = "path";
+const ROUTER_NAME_KEY: &str = "router_name";
+const STATUS_KEY: &str = "status";
+const STATUS_EXACT_KEY: &str = "status_exact";
+const STATUS_1XX: &str = "1xx";
+const STATUS_2XX: &str = "2xx";
+const STATUS_3XX: &str = "3xx";
+const STATUS_4XX: &str = "4xx";
+const STATUS_5XX: &str = "5xx";
+
 #[derive(Clone)]
 pub struct RouterName(pub(crate) String);
 
@@ -126,9 +137,9 @@ where
             .get::<MatchedPath>()
             .map(|p| p.as_str().to_owned());
 
-        let mut attributes = vec![KeyValue::new("method", method)];
+        let mut attributes = vec![KeyValue::new(METHOD_KEY, method)];
         if let Some(path) = path {
-            attributes.push(KeyValue::new("path", path));
+            attributes.push(KeyValue::new(PATH_KEY, path));
         }
 
         let metrics = self.metrics.clone();
@@ -145,19 +156,23 @@ where
 
             let status_code = response.status();
             if status_code.is_success() {
-                attributes.push(KeyValue::new("status", "2xx"));
+                attributes.push(KeyValue::new(STATUS_KEY, STATUS_2XX));
             } else if status_code.is_redirection() {
-                attributes.push(KeyValue::new("status", "3xx"));
+                attributes.push(KeyValue::new(STATUS_KEY, STATUS_3XX));
             } else if status_code.is_client_error() {
-                attributes.push(KeyValue::new("status", "4xx"));
+                attributes.push(KeyValue::new(STATUS_KEY, STATUS_4XX));
+                attributes.push(KeyValue::new(
+                    STATUS_EXACT_KEY,
+                    status_code.as_u16().to_string(),
+                ));
             } else if status_code.is_server_error() {
-                attributes.push(KeyValue::new("status", "5xx"));
+                attributes.push(KeyValue::new(STATUS_KEY, STATUS_5XX));
             } else {
-                attributes.push(KeyValue::new("status", "1xx"));
+                attributes.push(KeyValue::new(STATUS_KEY, STATUS_1XX));
             };
 
             if let Some(RouterName(router_name)) = response.extensions().get() {
-                attributes.push(KeyValue::new("router_name", router_name.to_owned()));
+                attributes.push(KeyValue::new(ROUTER_NAME_KEY, router_name.to_owned()));
             }
 
             metrics.http_response.add(1, &attributes);

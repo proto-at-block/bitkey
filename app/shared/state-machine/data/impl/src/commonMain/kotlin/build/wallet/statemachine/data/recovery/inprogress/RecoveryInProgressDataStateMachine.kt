@@ -14,7 +14,7 @@ import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.logAuthFailure
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
@@ -30,7 +30,7 @@ import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.coroutines.delayedResult
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -38,7 +38,7 @@ import build.wallet.f8e.recovery.ServerRecovery
 import build.wallet.logging.logFailure
 import build.wallet.nfc.transaction.SignChallengeAndCsek
 import build.wallet.notifications.DeviceTokenManager
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.ChallengeToCompleteRecovery
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFailedDueToServerCancellation
@@ -99,7 +99,9 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
+import build.wallet.time.Delayer
 import build.wallet.time.nonNegativeDurationBetween
+import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.onFailure
@@ -129,7 +131,7 @@ interface RecoveryInProgressDataStateMachine :
 data class RecoveryInProgressProps(
   val fullAccountConfig: FullAccountConfig,
   val recovery: StillRecovering,
-  val oldAppGlobalAuthKey: AppGlobalAuthPublicKey?,
+  val oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
   val onRetryCloudRecovery: (() -> Unit)?,
 ) {
   init {
@@ -142,6 +144,7 @@ data class RecoveryInProgressProps(
   }
 }
 
+@Suppress("LargeClass")
 class RecoveryInProgressDataStateMachineImpl(
   private val recoveryCanceler: RecoveryCanceler,
   private val clock: Clock,
@@ -150,12 +153,13 @@ class RecoveryInProgressDataStateMachineImpl(
   private val recoveryAuthCompleter: RecoveryAuthCompleter,
   private val sweepDataStateMachine: SweepDataStateMachine,
   private val f8eSpendingKeyRotator: F8eSpendingKeyRotator,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val recoverySyncer: RecoverySyncer,
   private val recoveryNotificationVerificationDataStateMachine:
     RecoveryNotificationVerificationDataStateMachine,
   private val accountAuthenticator: AccountAuthenticator,
   private val recoveryDao: RecoveryDao,
+  private val delayer: Delayer,
   private val deviceTokenManager: DeviceTokenManager,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
@@ -224,34 +228,21 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is CheckCompletionAttemptForSuccessOrCancellation -> {
         LaunchedEffect("checking auth") {
-          delayedResult(2.seconds) {
-            accountAuthenticator
-              .appAuth(
-                f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-                appAuthPublicKey = props.recovery.appGlobalAuthKey
-              )
-
-            accountAuthenticator
-              .appAuth(
-                f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-                appAuthPublicKey = requireNotNull(props.recovery.appRecoveryAuthKey)
-              )
-          }
-            .logAuthFailure { "Error authenticating with new app auth key after recovery completed." }
+          delayer.withMinimumDelay(2.seconds) { verifyAppAuth(props) }
             .onSuccess {
               recoveryDao.setLocalRecoveryProgress(
                 LocalRecoveryAttemptProgress.RotatedAuthKeys
               )
             }
-            .onFailure {
-              when (it) {
+            .onFailure { error ->
+              when (error) {
                 is AuthProtocolError -> {
                   recoveryDao.setLocalRecoveryProgress(
                     CompletionAttemptFailedDueToServerCancellation
                   )
                 }
                 else -> {
-                  state = FailedToRotateAuthState
+                  state = FailedToRotateAuthState(cause = error)
                 }
               }
             }
@@ -299,6 +290,7 @@ class RecoveryInProgressDataStateMachineImpl(
             onError = { error ->
               state =
                 FailedToCancelRecoveryState(
+                  cause = error,
                   isNetworkError = error.isNetworkError()
                 )
             }
@@ -340,8 +332,8 @@ class RecoveryInProgressDataStateMachineImpl(
                             )
                         )
                     }
-                    .onFailure {
-                      state = FailedToRotateAuthState
+                    .onFailure { error ->
+                      state = FailedToRotateAuthState(cause = error)
                     }
                 }
               },
@@ -353,6 +345,8 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is FailedToRotateAuthState ->
         FailedToRotateAuthData(
+          cause = dataState.cause,
+          factorToRecover = props.recovery.factorToRecover,
           onConfirm = { state = ReadyToCompleteRecoveryState }
         )
 
@@ -364,8 +358,8 @@ class RecoveryInProgressDataStateMachineImpl(
         val removeProtectedCustomers = props.recovery.factorToRecover == App
         LaunchedEffect("rotate-auth-keys") {
           rotateAuthKeys(props, dataState, removeProtectedCustomers)
-            .onFailure {
-              state = FailedToRotateAuthState
+            .onFailure { error ->
+              state = FailedToRotateAuthState(error)
             }
         }
         RotatingAuthKeysWithF8eData(props.recovery.factorToRecover)
@@ -388,9 +382,10 @@ class RecoveryInProgressDataStateMachineImpl(
       is CreatingSpendingKeysWithF8eState -> {
         LaunchedEffect("create-spending-keys") {
           rotateF8eSpendingKeyToCompleteRecovery(props, dataState)
-            .onFailure {
+            .onFailure { error ->
               state =
                 FailedToCreateSpendingKeysState(
+                  cause = error,
                   sealedCsek = dataState.sealedCsek,
                   dataState.hardwareProofOfPossession
                 )
@@ -402,6 +397,7 @@ class RecoveryInProgressDataStateMachineImpl(
       is FailedToCreateSpendingKeysState ->
         FailedToCreateSpendingKeysData(
           physicalFactor = props.recovery.factorToRecover,
+          cause = dataState.cause,
           onRetry = {
             state =
               CreatingSpendingKeysWithF8eState(
@@ -414,6 +410,7 @@ class RecoveryInProgressDataStateMachineImpl(
       is FailedPerformingCloudBackupState ->
         FailedPerformingCloudBackupData(
           physicalFactor = props.recovery.factorToRecover,
+          cause = dataState.cause,
           retry = {
             state =
               PerformingCloudBackupState(
@@ -436,6 +433,7 @@ class RecoveryInProgressDataStateMachineImpl(
       is State.FailedGettingTrustedContactsState -> {
         FailedGettingTrustedContactsData(
           physicalFactor = props.recovery.factorToRecover,
+          cause = dataState.error,
           retry = {
             state =
               GettingTrustedContactsState(
@@ -457,9 +455,10 @@ class RecoveryInProgressDataStateMachineImpl(
                 .setLocalRecoveryProgress(LocalRecoveryAttemptProgress.BackedUpToCloud)
             }
           },
-          onBackupFailed = {
+          onBackupFailed = { error ->
             state =
               FailedPerformingCloudBackupState(
+                cause = error,
                 sealedCsek = dataState.sealedCsek,
                 keybox = dataState.keybox,
                 trustedContacts = dataState.trustedContacts
@@ -512,6 +511,7 @@ class RecoveryInProgressDataStateMachineImpl(
         FailedToCancelRecoveryData(
           recoveredFactor = props.recovery.factorToRecover,
           isNetworkError = dataState.isNetworkError,
+          cause = dataState.cause,
           onAcknowledge = {
             state = ReadyToCompleteRecoveryState
           }
@@ -526,6 +526,30 @@ class RecoveryInProgressDataStateMachineImpl(
       }
     }
   }
+
+  /**
+   * Verify that can authenticate with new app global and recovery auth key post recovery.
+   */
+  private suspend fun verifyAppAuth(props: RecoveryInProgressProps): Result<Unit, Error> =
+    binding {
+      accountAuthenticator
+        .appAuth(
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          appAuthPublicKey = props.recovery.appGlobalAuthKey,
+          authTokenScope = AuthTokenScope.Global
+        )
+        .logAuthFailure { "Error authenticating with new app global auth key after recovery completed." }
+        .bind()
+
+      accountAuthenticator
+        .appAuth(
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          appAuthPublicKey = requireNotNull(props.recovery.appRecoveryAuthKey),
+          authTokenScope = AuthTokenScope.Recovery
+        )
+        .logAuthFailure { "Error authenticating with new app recovery auth key after recovery completed." }
+        .bind()
+    }
 
   @Suppress("FunctionNaming")
   @Composable
@@ -550,8 +574,7 @@ class RecoveryInProgressDataStateMachineImpl(
           accountId = props.recovery.fullAccountId,
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           appAuthKey = props.recovery.appGlobalAuthKey,
-          hwAuthPublicKey = props.recovery.hardwareAuthKey,
-          hardwareProofOfPossession = null
+          hwAuthPublicKey = props.recovery.hardwareAuthKey
         ).bind()
 
         assignState(
@@ -603,14 +626,14 @@ class RecoveryInProgressDataStateMachineImpl(
   ): Keybox {
     val spendingKeyset =
       SpendingKeyset(
-        localId = uuid.random(),
+        localId = uuidGenerator.random(),
         f8eSpendingKeyset = f8eSpendingKeyset,
         networkType = fullAccountConfig.bitcoinNetworkType,
         appKey = recovery.appSpendingKey,
         hardwareKey = recovery.hardwareSpendingKey
       )
     return Keybox(
-      localId = uuid.random(),
+      localId = uuidGenerator.random(),
       fullAccountId = recovery.fullAccountId,
       activeSpendingKeyset = spendingKeyset,
       // TODO(W-3070): persist inactive keysets
@@ -618,14 +641,14 @@ class RecoveryInProgressDataStateMachineImpl(
       appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
       activeAppKeyBundle =
         AppKeyBundle(
-          localId = uuid.random(),
+          localId = uuidGenerator.random(),
           spendingKey = recovery.appSpendingKey,
           authKey = recovery.appGlobalAuthKey,
           networkType = fullAccountConfig.bitcoinNetworkType,
           recoveryAuthKey = recovery.appRecoveryAuthKey
         ),
       activeHwKeyBundle = HwKeyBundle(
-        localId = uuid.random(),
+        localId = uuidGenerator.random(),
         spendingKey = recovery.hardwareSpendingKey,
         authKey = recovery.hardwareAuthKey,
         networkType = fullAccountConfig.bitcoinNetworkType
@@ -800,12 +823,15 @@ class RecoveryInProgressDataStateMachineImpl(
      * [AwaitingCancellationProofOfPossessionState] failed.
      */
     data class FailedToCancelRecoveryState(
+      val cause: Error,
       val isNetworkError: Boolean,
     ) : State
 
     data object ReadyToCompleteRecoveryState : State
 
-    data object FailedToRotateAuthState : State
+    data class FailedToRotateAuthState(
+      val cause: Throwable,
+    ) : State
 
     data class CheckCompletionAttemptForSuccessOrCancellation(val sealedCsek: SealedCsek) : State
 
@@ -839,6 +865,7 @@ class RecoveryInProgressDataStateMachineImpl(
     }
 
     data class FailedToCreateSpendingKeysState(
+      val cause: Error,
       val sealedCsek: SealedCsek,
       val hardwareProofOfPossession: HwFactorProofOfPossession,
     ) : State
@@ -891,6 +918,7 @@ class RecoveryInProgressDataStateMachineImpl(
     ) : State
 
     data class FailedPerformingCloudBackupState(
+      val cause: Throwable?,
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
       val trustedContacts: List<TrustedContact>,

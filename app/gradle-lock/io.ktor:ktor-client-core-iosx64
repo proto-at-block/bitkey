@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-core-iosx64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-core-iosx64-2.3.8-metadata.jar": "0cd409f0e41b5f1935785177eefd09a510262a8be6f475cc002321bad03d5b72"
+                        "ktor-client-core-iosx64-2.3.9-metadata.jar": "fca88b392a98d1b49518b0f523a5bf8b5ae346aaa537bad38702ba7e81da1e27"
                     }
                 },
                 {

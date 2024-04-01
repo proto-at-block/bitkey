@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalAnimationApi::class)
-
 package build.wallet.ui.app.nfc
 
 import android.os.Build
@@ -7,7 +5,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween

@@ -4,9 +4,10 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.platform.random.UuidImpl
+import build.wallet.platform.random.uuid
 import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.label.CallToActionModel
@@ -32,6 +33,8 @@ import kotlinx.collections.immutable.ImmutableList
  * @property renderContext [RenderContext]: how the model will be displayed to the user, defaults to
  * [Screen]
  * @property eventTrackerShouldTrack: whether the screen event should be tracked for analytics
+ * @property errorData If the screen is an error screen, this will contain appropriate error data
+ * to be logged.
  */
 data class FormBodyModel(
   val id: EventTrackerScreenId?,
@@ -50,6 +53,7 @@ data class FormBodyModel(
   val onLoaded: ((BrowserNavigator) -> Unit) = {},
   val eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
   val eventTrackerShouldTrack: Boolean = true,
+  val errorData: ErrorData? = null,
 ) : BodyModel() {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo?
     get() =
@@ -61,7 +65,7 @@ data class FormBodyModel(
         )
       }
 
-  private val unique = id?.name ?: UuidImpl().random()
+  private val unique = id?.name ?: uuid().random()
   override val key: String = "${this::class.qualifiedName}-$unique."
 }
 

@@ -1,6 +1,7 @@
 package build.wallet.f8e.socrec.models
 
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.serialization.ByteStringAsHexSerializer
 import kotlinx.serialization.SerialName
@@ -14,7 +15,7 @@ internal data class AcceptTrustedContactInvitationRequestBody(
   @SerialName("customer_alias")
   val customerAlias: String,
   @SerialName("trusted_contact_enrollment_pake_pubkey")
-  val trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+  val trustedContactEnrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
   @SerialName("enrollment_pake_confirmation")
   @Serializable(with = ByteStringAsHexSerializer::class)
   val enrollmentPakeConfirmation: ByteString,
@@ -24,7 +25,7 @@ internal data class AcceptTrustedContactInvitationRequestBody(
   constructor(
     code: String,
     customerAlias: String,
-    trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+    trustedContactEnrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
     enrollmentPakeConfirmation: ByteString,
     sealedDelegateDecryptionKey: XCiphertext,
   ) : this(

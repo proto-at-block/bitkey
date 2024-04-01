@@ -148,7 +148,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
       awaitScreenWithBodyModelMock<RectifiableErrorHandlingProps> {
         messages.shouldBeEqual(RectifiableErrorCreateLiteMessages)
-        onFailure()
+        onFailure(null)
       }
       onBackupFailedCalls.awaitItem()
     }

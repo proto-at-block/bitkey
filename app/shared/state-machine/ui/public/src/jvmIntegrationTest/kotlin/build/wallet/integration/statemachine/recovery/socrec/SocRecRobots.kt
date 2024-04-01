@@ -21,7 +21,6 @@ import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.integration.statemachine.create.beTrustedContactButton
 import build.wallet.integration.statemachine.create.restoreButton
-import build.wallet.integration.statemachine.recovery.completeServerDelayNotifyPeriodForTesting
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
@@ -48,6 +47,7 @@ import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.statemachine.ui.robots.moreOptionsButton
 import build.wallet.statemachine.ui.robots.selectProtectedCustomer
 import build.wallet.testing.AppTester
+import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -112,7 +112,8 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughCreateLiteAccountScreens(
   )
     .inputTextToMainContentTextInputItem(inviteCode)
   awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE
+    SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE,
+    expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
   ) {
     clickPrimaryButton()
   }
@@ -504,7 +505,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     .clickPrimaryButton()
   awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_PENDING)
 
-  appTester.completeServerDelayNotifyPeriodForTesting(appTester.getActiveFullAccount().config.f8eEnvironment)
+  appTester.completeRecoveryDelayPeriodOnF8e()
 
   awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY)
     .clickPrimaryButton()

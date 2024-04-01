@@ -12,6 +12,8 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
@@ -34,6 +36,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
+import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
@@ -114,6 +117,11 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
         )
     ) {}
 
+  val feeBumpEnabledFeatureFlag =
+    FeeBumpIsAvailableFeatureFlag(
+      featureFlagDao = FeatureFlagDaoMock(),
+    )
+
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
       bitcoinExplorer = BitcoinExplorerMock(),
@@ -129,7 +137,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       sendUiStateMachine = sendUiStateMachine,
       clock = clock,
       durationFormatter = durationFormatter,
-      eventTracker = eventTracker
+      eventTracker = eventTracker,
+      feeBumpEnabled = feeBumpEnabledFeatureFlag
     )
 
   val onCloseCalls = turbines.create<Unit>("close-calls")
@@ -252,7 +261,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
         // Time Details
         with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
-          items[0].expect(title = "Should arrive by", sideText = "estimated-confirmation-time")
+          items[0].expect(title = "Confirmed at", sideText = "Unconfirmed")
         }
 
         // Amount Details
@@ -372,84 +381,128 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("tapping speed up should open send flow") {
-    stateMachine.test(pendingSentProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("Speed Up")
-        secondaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
-      }
-
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel> {
-        clickPrimaryButton()
-      }
-
-      // Ensure we log analytics event
-      eventTracker.eventCalls.awaitItem()
-
-      // should show loading state
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
-      }
-
-      // Show send UI with correct send entry point
-      awaitScreenWithBodyModelMock<SendUiProps> {
-        entryPoint.shouldBeTypeOf<SendEntryPoint.SpeedUp>()
-      }
+  context("Speed up feature flag is on") {
+    beforeTest {
+      feeBumpEnabledFeatureFlag.setFlagValue(true)
     }
-  }
 
-  test("correctly show late notice if current time is after promised confirmation time") {
-    // Set clock to return some time that is after transaction estimated confirmation time.
-    clock.now = pendingSentProps.transaction.estimatedConfirmationTime!!.plus(10.minutes)
+    test("pending sent transaction returns correct model") {
+      stateMachine.test(pendingSentProps) {
+        awaitScreenWithBody<FormBodyModel> { // before currency conversion
 
-    stateMachine.test(pendingSentProps) {
-      awaitScreenWithBody<FormBodyModel> {
-        testButtonsAndHeader(isPending = true, isReceive = false, isLate = true)
+          testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = false)
 
-        with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
-          items[0].title.shouldBe("Should have arrived by")
-          items[0].sideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.STRIKETHROUGH)
-          items[0].sideTextType.shouldBe(DataList.Data.SideTextType.REGULAR)
-          items[0].secondarySideText.shouldNotBeNull()
-          items[0].secondarySideTextType.shouldBe(DataList.Data.SideTextType.BOLD)
-          items[0].secondarySideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.WARNING)
-          items[0].explainer.shouldNotBeNull()
+          // Time Details
+          with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(title = "Should arrive by", sideText = "estimated-confirmation-time")
+          }
+
+          // Amount Details
+          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            items[0].expect(
+              title = "Recipient receives",
+              sideText = "100,000,000 sats"
+            )
+            items[1].expect(
+              title = "Network fees",
+              sideText = "1,000,000 sats"
+            )
+            total.shouldNotBeNull()
+              .expect(
+                title = "Total",
+                sideText = "101,000,000 sats",
+                secondarySideText = "$0.00 at time sent"
+              )
+          }
+        }
+
+        awaitScreenWithBody<FormBodyModel> { // after currency conversion
+          // Should use the historical exchange rate for broadcast time
+          with(mainContentList[1].shouldBeInstanceOf<DataList>()) {
+            total.shouldNotBeNull()
+              .secondarySideText.shouldBe("$4.04 at time sent")
+          }
         }
       }
-
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel>()
     }
-  }
 
-  test("show fee loading error if fee estimator returns insufficient funds") {
-    bitcoinTransactionFeeEstimator.feesResult =
-      Err(BitcoinTransactionFeeEstimator.FeeEstimationError.InsufficientFundsError)
+    test("correctly show late notice if current time is after promised confirmation time") {
+      // Set clock to return some time that is after transaction estimated confirmation time.
+      clock.now = pendingSentProps.transaction.estimatedConfirmationTime!!.plus(10.minutes)
 
-    stateMachine.test(pendingSentProps) {
+      stateMachine.test(pendingSentProps) {
+        awaitScreenWithBody<FormBodyModel> {
+          testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
 
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().text.shouldBe("Speed Up")
-        secondaryButton.shouldNotBeNull().text.shouldBe("View Transaction")
+          with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+            items[0].title.shouldBe("Should have arrived by")
+            items[0].sideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.STRIKETHROUGH)
+            items[0].sideTextType.shouldBe(DataList.Data.SideTextType.REGULAR)
+            items[0].secondarySideText.shouldNotBeNull()
+            items[0].secondarySideTextType.shouldBe(DataList.Data.SideTextType.BOLD)
+            items[0].secondarySideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.WARNING)
+            items[0].explainer.shouldNotBeNull()
+          }
+        }
+
+        // after currency conversion
+        awaitScreenWithBody<FormBodyModel>()
       }
+    }
 
-      // after currency conversion
-      awaitScreenWithBody<FormBodyModel> {
-        clickPrimaryButton()
+    test("tapping speed up should open send flow") {
+      stateMachine.test(pendingSentProps) {
+        awaitScreenWithBody<FormBodyModel> {
+          testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+        }
+
+        // after currency conversion
+        awaitScreenWithBody<FormBodyModel> {
+          clickPrimaryButton()
+        }
+
+        // Ensure we log analytics event
+        eventTracker.eventCalls.awaitItem()
+
+        // should show loading state
+        awaitScreenWithBody<FormBodyModel> {
+          primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+        }
+
+        // Show send UI with correct send entry point
+        awaitScreenWithBodyModelMock<SendUiProps> {
+          entryPoint.shouldBeTypeOf<SendEntryPoint.SpeedUp>()
+        }
       }
+    }
 
-      // Ensure we log analytics event
-      eventTracker.eventCalls.awaitItem()
+    test("show fee loading error if fee estimator returns insufficient funds") {
+      bitcoinTransactionFeeEstimator.feesResult =
+        Err(BitcoinTransactionFeeEstimator.FeeEstimationError.InsufficientFundsError)
 
-      // should show loading state
-      awaitScreenWithBody<FormBodyModel> {
-        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
-      }
+      stateMachine.test(pendingSentProps) {
 
-      // Show correct error
-      awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("The amount you are trying to send is too high. Please decrease the amount and try again.")
+        awaitScreenWithBody<FormBodyModel> {
+          testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+        }
+
+        // after currency conversion
+        awaitScreenWithBody<FormBodyModel> {
+          clickPrimaryButton()
+        }
+
+        // Ensure we log analytics event
+        eventTracker.eventCalls.awaitItem()
+
+        // should show loading state
+        awaitScreenWithBody<FormBodyModel> {
+          primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+        }
+
+        // Show correct error
+        awaitScreenWithBody<FormBodyModel> {
+          header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("The amount you are trying to send is too high. Please decrease the amount and try again.")
+        }
       }
     }
   }
@@ -492,11 +545,12 @@ private val TEST_SEND_TXN =
   )
 
 private fun FormBodyModel.testButtonsAndHeader(
+  isSpeedUpOn: Boolean = false,
   isPending: Boolean,
   isReceive: Boolean,
   isLate: Boolean,
 ) {
-  if (isReceive || !isPending) {
+  if (isReceive || !isPending || !isSpeedUpOn) {
     primaryButton.shouldNotBeNull().expect(SmallIconArrowUpRight, "View Transaction", Primary, Footer)
   } else {
     primaryButton.shouldNotBeNull().expect(SmallIconLightning, "Speed Up", Secondary, Footer)

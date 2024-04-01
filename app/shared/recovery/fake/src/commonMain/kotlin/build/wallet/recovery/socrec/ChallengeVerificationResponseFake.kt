@@ -30,7 +30,7 @@ private val encryptedPrivateKeyMaterialOutput =
 private val privateKeyEncryptionKey = encryptedPrivateKeyMaterialOutput.privateKeyEncryptionKey
 private val sealedPrivateKeyEncryptionKey =
   cryptoFake.encryptPrivateKeyEncryptionKey(
-    delegatedDecryptionKey,
+    delegatedDecryptionKey.publicKey,
     privateKeyEncryptionKey
   ).getOrThrow()
 

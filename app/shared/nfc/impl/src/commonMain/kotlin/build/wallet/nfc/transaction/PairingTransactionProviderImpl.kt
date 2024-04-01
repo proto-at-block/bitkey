@@ -2,35 +2,40 @@ package build.wallet.nfc.transaction
 
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.CsekGenerator
+import build.wallet.crypto.PublicKey
 import build.wallet.firmware.FingerprintEnrollmentStatus.COMPLETE
 import build.wallet.firmware.FingerprintEnrollmentStatus.INCOMPLETE
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
 import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
+import build.wallet.firmware.FirmwareCertType
+import build.wallet.firmware.HardwareAttestation
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.signChallenge
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
-import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentRestarted
+import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentStarted
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.getOrThrow
 
 class PairingTransactionProviderImpl(
   private val csekGenerator: CsekGenerator,
   private val csekDao: CsekDao,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val appInstallationDao: AppInstallationDao,
+  private val hardwareAttestation: HardwareAttestation,
 ) : PairingTransactionProvider {
   override operator fun invoke(
     networkType: BitcoinNetworkType,
-    appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
+    appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
     onSuccess: (PairingTransactionResponse) -> Unit,
     onCancel: () -> Unit,
     isHardwareFake: Boolean,
@@ -50,10 +55,10 @@ class PairingTransactionProviderImpl(
 
         FingerprintEnrolled(
           appGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature(
-            commands.signChallenge(session, appGlobalAuthPublicKey.pubKey.value)
+            commands.signChallenge(session, appGlobalAuthPublicKey.value)
           ),
           keyBundle = HwKeyBundle(
-            localId = uuid.random(),
+            localId = uuidGenerator.random(),
             spendingKey = commands.getInitialSpendingKey(session, networkType),
             authKey = commands.getAuthenticationKey(session),
             networkType = networkType
@@ -67,8 +72,14 @@ class PairingTransactionProviderImpl(
         // If the fingerprint enrollment was not in progress, we need to run
         // the command to start enrollment and then we'll let the customer
         // know they need to start enrollment from the beginning.
+
+        // Hardware attestation occurs before doing anything else.
+        if (!isHardwareFake) {
+          attestAndRecordSerial(session, commands)
+        }
+
         commands.startFingerprintEnrollment(session)
-        FingerprintEnrollmentRestarted
+        FingerprintEnrollmentStarted
       }
 
       INCOMPLETE -> FingerprintNotEnrolled
@@ -91,5 +102,62 @@ class PairingTransactionProviderImpl(
         else -> response
       }.also(onSuccess)
     }
+  }
+
+  @Suppress("ThrowsCount")
+  private suspend fun attestAndRecordSerial(
+    session: NfcSession,
+    commands: NfcCommands,
+  ) {
+    // Don't put these calls in the runCatching below, because if NFC flakes, we don't want to
+    // propagate that as InauthenticHardware
+    val identityCert = commands.getCert(session, FirmwareCertType.IDENTITY)
+    val batchCert = commands.getCert(session, FirmwareCertType.BATCH)
+
+    // TODO(W-6318): Make these exceptions again.
+
+    // NOTE: Do not remove '[hardware_attestation_failure]' from the message. We alert
+    // on this string in Datadog.
+    val serial =
+      Result.runCatching {
+        hardwareAttestation.verifyCertChain(
+          identityCert = identityCert,
+          batchCert = batchCert
+        )
+      }.getOrElse {
+        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify cert chain" }
+        return
+      }
+
+    val challenge =
+      Result.runCatching {
+        hardwareAttestation.generateChallenge()
+      }.getOrElse {
+        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to generate challenge for $serial " }
+        return
+      }
+
+    Result.runCatching {
+      require(
+        commands.signVerifyAttestationChallenge(
+          session,
+          identityCert,
+          challenge
+        )
+      )
+    }.getOrElse {
+      // TODO(W-6045): Don't look at the message string.
+      if (it.cause?.message?.contains("signature invalid") == true) {
+        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify challenge for $serial " }
+        return
+      } else {
+        log(LogLevel.Warn) {
+          "[hardware_attestation_failure] NFC flaked or firmware does not support attestation; allowing anyway... for now! Serial: $serial"
+        }
+        return
+      }
+    }
+
+    log { "Hardware attestation successful: $serial" }
   }
 }

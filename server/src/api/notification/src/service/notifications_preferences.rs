@@ -1,12 +1,18 @@
 use account::entities::{Account, CommonAccountFields, Touchpoint};
 use errors::ApiError;
 use repository::consent::Repository as ConsentRepository;
+use time::{Duration, OffsetDateTime};
 use tracing::instrument;
-use types::{consent::Consent, notification::NotificationsPreferences};
+use types::{
+    consent::Consent,
+    notification::{NotificationsPreferences, NotificationsPreferencesState},
+};
 
 use crate::clients::iterable::IterableUserId;
 
 use super::{FetchNotificationsPreferencesInput, Service, UpdateNotificationsPreferencesInput};
+
+const SYNC_FROM_ITERABLE_DELAY: Duration = Duration::minutes(5);
 
 impl Service {
     #[instrument(skip(self))]
@@ -14,7 +20,7 @@ impl Service {
         &self,
         input: FetchNotificationsPreferencesInput<'_>,
     ) -> Result<NotificationsPreferences, ApiError> {
-        let notifications_preferences = self
+        let mut notifications_preferences_state = self
             .account_repo
             .fetch(input.account_id)
             .await
@@ -22,18 +28,25 @@ impl Service {
             .map(|account| {
                 account
                     .get_common_fields()
-                    .notifications_preferences
+                    .notifications_preferences_state
                     .clone()
             })?;
 
-        // Get email subscriptions from Iterable since the customer may have unsubscribed out of band
-        let email_notification_categories = self
-            .iterable_client
-            .get_subscribed_notification_categories(IterableUserId::Account(input.account_id))
-            .await?;
+        // Give iterable time to reach consistency after our most recent update before treating it as SOT
+        if notifications_preferences_state.email_updated_at
+            < OffsetDateTime::now_utc() - SYNC_FROM_ITERABLE_DELAY
+        {
+            // Sync email subscriptions from Iterable since the customer may have unsubscribed out of band
+            let email_notification_categories = self
+                .iterable_client
+                .get_subscribed_notification_categories(IterableUserId::Account(input.account_id))
+                .await?;
 
-        Ok(notifications_preferences
-            .with_email_notification_categories(email_notification_categories))
+            notifications_preferences_state = notifications_preferences_state
+                .with_email_notification_categories(email_notification_categories);
+        }
+
+        Ok(notifications_preferences_state.into())
     }
 
     #[instrument(skip(self))]
@@ -47,9 +60,10 @@ impl Service {
             .await
             .map_err(ApiError::from)?;
 
-        if !account
-            .get_common_fields()
-            .notifications_preferences
+        let notifications_preferences_state =
+            &account.get_common_fields().notifications_preferences_state;
+
+        if !notifications_preferences_state
             .account_security
             .is_subset(&input.notifications_preferences.account_security)
             && !input
@@ -82,25 +96,26 @@ impl Service {
                 .await?;
         }
 
-        let updated_account = account
+        let updated_account = &account
             .update(CommonAccountFields {
-                notifications_preferences: input.notifications_preferences.clone(),
+                notifications_preferences_state: notifications_preferences_state
+                    .update(input.notifications_preferences),
                 ..account.get_common_fields().clone()
             })
             .map_err(ApiError::from)?;
 
         self.account_repo
-            .persist(&updated_account)
+            .persist(updated_account)
             .await
             .map_err(ApiError::from)?;
 
         capture_consents(
             &self.consent_repo,
             &account,
-            &account.get_common_fields().notifications_preferences,
+            notifications_preferences_state,
             &updated_account
                 .get_common_fields()
-                .notifications_preferences,
+                .notifications_preferences_state,
         )
         .await?;
 
@@ -111,8 +126,8 @@ impl Service {
 async fn capture_consents(
     repo: &ConsentRepository,
     account: &Account,
-    old_preferences: &NotificationsPreferences,
-    new_preferences: &NotificationsPreferences,
+    old_preferences: &NotificationsPreferencesState,
+    new_preferences: &NotificationsPreferencesState,
 ) -> Result<(), ApiError> {
     let email_address = account
         .get_common_fields()

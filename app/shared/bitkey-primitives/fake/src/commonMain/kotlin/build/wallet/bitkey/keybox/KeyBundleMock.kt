@@ -11,7 +11,7 @@ import build.wallet.bitkey.auth.HwAuthPublicKeyMock
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
-import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.crypto.PublicKey
 
 val AppKeyBundleMock =
   AppKeyBundle(
@@ -27,7 +27,7 @@ val AppKeyBundleMock2 =
     localId = "public-key-bundle-fake-id-2",
     networkType = SIGNET,
     spendingKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "spending-dpub-2")),
-    authKey = AppGlobalAuthPublicKeyMock.copy(Secp256k1PublicKey("app-dpub-2")),
+    authKey = PublicKey("app-dpub-2"),
     recoveryAuthKey = AppRecoveryAuthPublicKeyMock2
   )
 

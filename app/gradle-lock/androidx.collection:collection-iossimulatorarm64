@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.collection:collection-iossimulatorarm64",
+    "components": [
+        {
+            "version": "1.4.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "collection-iossimulatorarm64-1.4.0-metadata.jar": "d1a4bc5f34b8c6e363bf91a7074eb53a0bf6f28d37bb092bbba2aae0e0c2fd9d"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "collection.klib": "83d56e4af4731043812d80c7c2a1f421b853b3e4e8456eb1ddf3944ae8acb72f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

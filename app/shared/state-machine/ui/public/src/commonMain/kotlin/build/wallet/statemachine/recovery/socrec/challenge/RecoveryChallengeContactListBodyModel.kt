@@ -13,6 +13,7 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemSideTextTint
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -23,10 +24,23 @@ fun RecoveryChallengeContactListBodyModel(
   onVerifyClick: (TrustedContact) -> Unit,
   verifiedBy: ImmutableList<String>,
   onContinue: () -> Unit,
+  onCancelRecovery: () -> Unit,
 ) = FormBodyModel(
   id = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST,
   onBack = onExit,
-  toolbar = ToolbarModel(),
+  toolbar =
+    ToolbarModel(
+      trailingAccessory =
+        ToolbarAccessoryModel.ButtonAccessory(
+          model =
+            ButtonModel(
+              text = "Cancel recovery",
+              treatment = ButtonModel.Treatment.TertiaryDestructive,
+              size = ButtonModel.Size.Compact,
+              onClick = StandardClick(onCancelRecovery)
+            )
+        )
+    ),
   header =
     FormHeaderModel(
       headline = "Select a Trusted Contact",
@@ -74,4 +88,10 @@ fun RecoveryChallengeContactListBodyModel(
       size = ButtonModel.Size.Footer,
       onClick = StandardClick { onContinue() }
     ).takeIf { verifiedBy.isNotEmpty() }
+      ?: ButtonModel(
+        text = "Waiting for your Trusted Contact to verify you\u2026",
+        treatment = ButtonModel.Treatment.TertiaryNoUnderline,
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick {}
+      )
 )

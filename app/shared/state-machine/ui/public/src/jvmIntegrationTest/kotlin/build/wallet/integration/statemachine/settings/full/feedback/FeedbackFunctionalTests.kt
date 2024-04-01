@@ -15,7 +15,8 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.support.SupportTicketField
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.picker.ItemPickerModel
 import io.kotest.assertions.forEachAsClue

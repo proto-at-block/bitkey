@@ -24,6 +24,7 @@ kotlin {
         api(projects.shared.authPublic)
         implementation(projects.shared.coroutinesPublic)
         implementation(projects.shared.serializationPublic)
+        implementation(libs.kmp.settings)
       }
     }
 

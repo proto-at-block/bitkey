@@ -20,7 +20,6 @@ import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import okio.ByteString
-import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind.EXACTLY_ONCE
 import kotlin.contracts.contract
 
@@ -52,7 +51,6 @@ private class MetricsNfcCommandsImpl(
   private val datadogRumMonitor: DatadogRumMonitor,
   private val datadogTracer: DatadogTracer,
 ) : NfcCommands {
-  @OptIn(ExperimentalContracts::class)
   private suspend fun <T> measure(
     action: String,
     block: suspend () -> T,

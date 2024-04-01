@@ -7,14 +7,12 @@ import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import okio.ByteString.Companion.decodeHex
 
 /**
  * Persists CSEKs in a secure store, encoded as hex string.
  */
-@OptIn(ExperimentalSettingsApi::class)
 class CsekDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : CsekDao {

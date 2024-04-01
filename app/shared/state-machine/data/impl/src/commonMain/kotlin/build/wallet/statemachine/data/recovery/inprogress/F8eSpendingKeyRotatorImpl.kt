@@ -1,11 +1,12 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.onboarding.CreateAccountKeysetService
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetService
@@ -20,7 +21,7 @@ class F8eSpendingKeyRotatorImpl(
   override suspend fun rotateSpendingKey(
     fullAccountConfig: FullAccountConfig,
     fullAccountId: FullAccountId,
-    appAuthKey: AppGlobalAuthPublicKey,
+    appAuthKey: PublicKey<AppGlobalAuthKey>,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     appSpendingKey: AppSpendingPublicKey,
     hardwareSpendingKey: HwSpendingPublicKey,

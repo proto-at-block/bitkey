@@ -1,14 +1,15 @@
 package build.wallet.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Result
 
 /**
- * Onboarding app key keystore which
+ * Onboarding app key keystore which persists app keys during onboarding.
  */
 interface OnboardingAppKeyKeystore {
   /**
@@ -19,8 +20,8 @@ interface OnboardingAppKeyKeystore {
    */
   suspend fun persistAppKeys(
     spendingKey: AppSpendingPublicKey,
-    globalAuthKey: AppGlobalAuthPublicKey,
-    recoveryAuthKey: AppRecoveryAuthPublicKey,
+    globalAuthKey: PublicKey<AppGlobalAuthKey>,
+    recoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
     bitcoinNetworkType: BitcoinNetworkType,
   )
 

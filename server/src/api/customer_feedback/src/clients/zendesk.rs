@@ -20,7 +20,7 @@ use super::entities::{
 use super::error::{CustomerFeedbackClientError, GetTicketFormError, UploadAttachmentError};
 
 const ZENDESK_API_URL: &str = "https://bitkeysupport.zendesk.com/api/";
-const ZENDESK_FORM_ID: &str = "19386715141908";
+const ZENDESK_FORM_ID: &str = "24564153085204";
 
 #[derive(Deserialize, EnumString, Clone)]
 #[serde(rename_all = "lowercase", tag = "mode")]

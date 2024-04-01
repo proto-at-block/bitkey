@@ -80,6 +80,10 @@ pub enum CommandError {
     CertReadFail,
     #[error("attestation error")]
     AttestationError,
+    #[error("file not found")]
+    FileNotFound,
+    #[error("invalid state")]
+    InvalidState,
 }
 
 impl<T> From<PoisonError<T>> for CommandError {

@@ -5,6 +5,7 @@ import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.crypto.PublicKey
 import build.wallet.recovery.socrec.AcceptInvitationCodeError
 import build.wallet.recovery.socrec.RetrieveInvitationCodeError
 import build.wallet.statemachine.core.Retreat
@@ -40,7 +41,7 @@ data class TrustedContactEnrollmentUiProps(
   val acceptInvitation: suspend (
     IncomingInvitation,
     ProtectedCustomerAlias,
-    DelegatedDecryptionKey,
+    PublicKey<DelegatedDecryptionKey>,
     String,
   ) -> Result<ProtectedCustomer, AcceptInvitationCodeError>,
   val screenPresentationStyle: ScreenPresentationStyle,

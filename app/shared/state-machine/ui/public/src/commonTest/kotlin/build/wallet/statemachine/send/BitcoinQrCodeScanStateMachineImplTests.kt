@@ -196,7 +196,7 @@ class BitcoinQrCodeScanStateMachineImplTests : FunSpec({
 
       // error from self send
       awaitScreenWithBody<FormBodyModel> {
-        header?.headline.shouldBe("Sorry, you can’t send to your own address")
+        header?.headline.shouldBe("You can’t send to your own address")
       }
     }
   }
@@ -213,7 +213,7 @@ class BitcoinQrCodeScanStateMachineImplTests : FunSpec({
 
       // error from self send
       awaitScreenWithBody<FormBodyModel> {
-        header?.headline.shouldBe("Sorry, you can’t send to your own address")
+        header?.headline.shouldBe("You can’t send to your own address")
       }
     }
   }

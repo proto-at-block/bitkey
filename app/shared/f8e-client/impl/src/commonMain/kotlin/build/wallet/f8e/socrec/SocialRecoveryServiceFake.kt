@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalStdlibApi::class)
-
 package build.wallet.f8e.socrec
 
 import build.wallet.auth.AuthTokenScope
@@ -7,13 +5,13 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
@@ -23,6 +21,7 @@ import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
@@ -36,7 +35,7 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.test.HttpResponseMock
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.socrec.SocRecCryptoFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -60,7 +59,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * A functional fake implementation of the SocialRecoveryService for testing and local development.
  *
- * @param uuid - the uuid to use for generating random ids
+ * @param uuidGenerator - the uuid to use for generating random ids
  * @param backgroundScope - the scope to use for background tasks
  * @param clock - the clock to use getting the current time
  * @param isReturnFakeChallengeIfMissing - whether to return a fake social challenge if one is
@@ -69,7 +68,7 @@ import kotlin.time.Duration.Companion.seconds
  * an unendorsed trusted contact.
  */
 class SocialRecoveryServiceFake(
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val backgroundScope: CoroutineScope,
   private val clock: Clock = Clock.System,
 ) : SocialRecoveryService {
@@ -88,7 +87,7 @@ class SocialRecoveryServiceFake(
   data class FakeServerChallenge(
     var response: SocialChallenge,
     var recoveryRelationshipId: String? = null,
-    val protectedCustomerRecoveryPakePubkey: PublicKey,
+    val protectedCustomerRecoveryPakePubkey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
     val sealedDek: String,
   )
 
@@ -103,12 +102,11 @@ class SocialRecoveryServiceFake(
     return bytes.toByteString().hex()
   }
 
-  @OptIn(ExperimentalStdlibApi::class)
   override suspend fun createInvitation(
     account: FullAccount,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
   ): Result<Invitation, NetworkingError> {
     if (invitations.any { it.outgoing.trustedContactAlias == trustedContactAlias }) {
       return Err(
@@ -116,7 +114,7 @@ class SocialRecoveryServiceFake(
       )
     }
     val outgoing = Invitation(
-      recoveryRelationshipId = uuid.random(),
+      recoveryRelationshipId = uuidGenerator.random(),
       trustedContactAlias = trustedContactAlias,
       code = genServerInviteCode(),
       codeBitLength = 20,
@@ -128,12 +126,7 @@ class SocialRecoveryServiceFake(
       incoming = IncomingInvitation(
         recoveryRelationshipId = outgoing.recoveryRelationshipId,
         code = outgoing.code,
-        protectedCustomerEnrollmentPakeKey =
-          protectedCustomerEnrollmentPakeKey.copy(
-            key = AppKey.fromPublicKey(
-              protectedCustomerEnrollmentPakeKey.publicKey.value
-            )
-          )
+        protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey
       )
     )
     invitations += invitation
@@ -147,7 +140,7 @@ class SocialRecoveryServiceFake(
             recoveryRelationshipId = invitation.outgoing.recoveryRelationshipId,
             trustedContactAlias = invitation.outgoing.trustedContactAlias,
             sealedDelegatedDecryptionKey = XCiphertext("deadbeef"),
-            enrollmentPakeKey = TrustedContactEnrollmentPakeKey(AppKey.Companion.fromPublicKey("deadbeef")),
+            enrollmentPakeKey = PublicKey("deadbeef"),
             enrollmentKeyConfirmation = "deadbeef".encodeUtf8(),
             authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED
           )
@@ -181,7 +174,6 @@ class SocialRecoveryServiceFake(
   override suspend fun getRelationships(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<SocRecRelationships, NetworkingError> {
     return fakeNetworkingError?.let(::Err) ?: Ok(
       SocRecRelationships(
@@ -211,18 +203,15 @@ class SocialRecoveryServiceFake(
     return Err(UnhandledException(Exception("Relationship $relationshipId not found.")))
   }
 
-  @OptIn(ExperimentalStdlibApi::class)
   override suspend fun retrieveInvitation(
     account: Account,
     invitationCode: String,
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return Ok(
       IncomingInvitation(
-        recoveryRelationshipId = uuid.random(),
+        recoveryRelationshipId = uuidGenerator.random(),
         code = genServerInviteCode(),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKey(
-          AppKey.fromPublicKey("deadbeef")
-        )
+        protectedCustomerEnrollmentPakeKey = PublicKey("deadbeef")
       )
     )
   }
@@ -231,7 +220,7 @@ class SocialRecoveryServiceFake(
     account: Account,
     invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+    trustedContactEnrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
     enrollmentPakeConfirmation: ByteString,
     sealedDelegateDecryptionKeyCipherText: XCiphertext,
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
@@ -250,7 +239,7 @@ class SocialRecoveryServiceFake(
     trustedContacts: List<StartSocialChallengeRequestTrustedContact>,
   ): Result<SocialChallenge, NetworkingError> {
     val code = Random.nextInt(0, 100)
-    val challengeId = uuid.random() + code
+    val challengeId = uuidGenerator.random() + code
     val challenge =
       SocialChallenge(
         challengeId = challengeId,
@@ -294,7 +283,7 @@ class SocialRecoveryServiceFake(
   override suspend fun respondToChallenge(
     account: Account,
     socialChallengeId: String,
-    trustedContactRecoveryPakePubkey: PublicKey,
+    trustedContactRecoveryPakePubkey: PublicKey<TrustedContactRecoveryPakeKey>,
     recoveryPakeConfirmation: ByteString,
     resealedDek: XCiphertext,
   ): Result<Unit, NetworkingError> {

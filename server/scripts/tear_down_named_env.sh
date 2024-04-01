@@ -21,6 +21,17 @@ pushd ..
 export REPO_ROOT=$(pwd)
 popd
 
+# S3 bucket will need to be emptied before TF can destroy it
+echo "🗑️ Emptying the S3 bucket"
+NAMED_STACK_S3_BUCKET_NAME="bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
+NAMED_STACK_S3_BUCKET_URI="s3://${NAMED_STACK_S3_BUCKET_NAME}"
+echo $NAMED_STACK_S3_BUCKET_URI
+echo "Removing all versions of all objects"
+aws s3api delete-objects --bucket $NAMED_STACK_S3_BUCKET_NAME --delete "$(aws s3api list-object-versions --bucket $NAMED_STACK_S3_BUCKET_NAME --query='{Objects: Versions[].{Key:Key,VersionId:VersionId}}')"
+echo "Removing all delete markers"
+aws s3api delete-objects --bucket $NAMED_STACK_S3_BUCKET_NAME --delete "$(aws s3api list-object-versions --bucket $NAMED_STACK_S3_BUCKET_NAME --query='{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}')"
+aws s3 rm $NAMED_STACK_S3_BUCKET_URI --recursive
+
 pushd ../terraform/named-stacks/api
 export NAMESPACE=$ENV_NAMESPACE
 echo "🗑️ Destroying the named stack"
@@ -32,3 +43,6 @@ terragrunt destroy \
   -auto-approve \
   -lock=false
 popd
+
+SDN_URI_KEY_NAME="${ENV_NAMESPACE}-fromagerie/sq_sdn/s3_uri"
+aws secretsmanager delete-secret --secret-id $SDN_URI_KEY_NAME --force-delete-without-recovery

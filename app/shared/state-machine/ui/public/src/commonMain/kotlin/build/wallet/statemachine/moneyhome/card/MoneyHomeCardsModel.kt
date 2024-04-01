@@ -39,15 +39,24 @@ data class CardModel(
   val animation: ImmutableList<AnimationSet>? = null,
 ) : Model() {
   /** The style of the card */
-  enum class CardStyle {
-    Outline,
-    Gradient,
+  sealed class CardStyle {
+    data object Outline : CardStyle()
+
+    data class Gradient(val backgroundColor: BackgroundColor? = null) : CardStyle() {
+      enum class BackgroundColor {
+        Warning,
+      }
+    }
   }
 
   /** The optional image for the card */
   sealed interface CardImage {
     /** A static image that doesn't change */
-    data class StaticImage(val icon: Icon) : CardImage
+    data class StaticImage(val icon: Icon, val iconTint: IconTint? = null) : CardImage {
+      enum class IconTint {
+        Warning,
+      }
+    }
 
     /** A dynamic image that does change and is dynamically drawn */
     sealed interface DynamicImage : CardImage {

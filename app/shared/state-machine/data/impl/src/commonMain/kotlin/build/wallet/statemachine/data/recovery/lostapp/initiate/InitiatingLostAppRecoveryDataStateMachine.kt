@@ -15,7 +15,6 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.coroutines.delayedResult
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -27,27 +26,27 @@ import build.wallet.f8e.recovery.InitiateHardwareAuthService
 import build.wallet.f8e.recovery.InitiateHardwareAuthService.AuthChallenge
 import build.wallet.f8e.recovery.ListKeysetsService
 import build.wallet.keybox.keys.AppKeysGenerator
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.LostAppRecoveryAuthenticator
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError
 import build.wallet.recovery.LostAppRecoveryInitiator
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToAuthenticateWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToCancelConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToInitiateAppAuthWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToInitiateLostAppWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.InitiatingAppAuthWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.InitiatingLostAppRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.ListingKeysetsFromF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.VerifyingNotificationCommsData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToAuthenticateWithF8EViaAppData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToCancelConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToInitiateAppAuthWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToInitiateLostAppWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.InitiatingAppAuthWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.InitiatingLostAppRecoveryWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.ListingKeysetsFromF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.VerifyingNotificationCommsData
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.CancelRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.CommsVerificationTargetAction.InitiateRecovery
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl.State.AuthenticatingWithF8eViaHardwareState
@@ -67,11 +66,12 @@ import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAp
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
+import build.wallet.time.Delayer
+import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.andThen
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Data state machine for initiating Delay * Notify recovery for Lost App case.
@@ -99,7 +99,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
   private val lostAppRecoveryAuthenticator: LostAppRecoveryAuthenticator,
   private val recoveryNotificationVerificationDataStateMachine:
     RecoveryNotificationVerificationDataStateMachine,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
+  private val delayer: Delayer,
 ) : InitiatingLostAppRecoveryDataStateMachine {
   @Composable
   override fun model(props: InitiatingLostAppRecoveryProps): InitiatingLostAppRecoveryData {
@@ -138,6 +139,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is FailedToInitiateHardwareAuthWithF8eState ->
           FailedToInitiateAppAuthWithF8eData(
+            error = dataState.error,
             retry = {
               state = InitiatingHardwareAuthWithF8eState(dataState.hardwareAuthKey)
             },
@@ -162,9 +164,8 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is AuthenticatingWithF8eViaHardwareState -> {
           LaunchedEffect("authenticate-with-hardware") {
-            delayedResult(2.seconds) {
-              authenticateWithHardware(props, dataState)
-            }
+            delayer
+              .withMinimumDelay { authenticateWithHardware(props, dataState) }
               .onSuccess { accountAuthTokens ->
                 state =
                   ListingKeysetsFromF8eState(
@@ -238,6 +239,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                   signedAuthChallenge = dataState.signedAuthChallenge
                 )
             },
+            error = dataState.error,
             rollback = props.onRollback
           )
 
@@ -258,7 +260,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                   hardwareKeys =
                     HardwareKeysForRecovery(
                       newKeyBundle = HwKeyBundle(
-                        localId = uuid.random(),
+                        localId = uuidGenerator.random(),
                         spendingKey = hardwareSpendingKey,
                         authKey = dataState.hardwareAuthKey,
                         networkType = props.fullAccountConfig.bitcoinNetworkType
@@ -427,6 +429,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
                     )
                   } else {
                     FailedToCancelConflictingRecoveryState(
+                      f8eError.error,
                       dataState.hardwareKeys,
                       dataState.newAppKeys,
                       dataState.newAppGlobalAuthKeyHwSignature,
@@ -458,6 +461,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is FailedToCancelConflictingRecoveryState ->
           FailedToCancelConflictingRecoveryData(
+            cause = dataState.error,
             onAcknowledge = { state = AwaitingHardwareKeysState }
           )
       }
@@ -593,6 +597,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
      * [CancellingConflictingRecoveryWithF8eState] failed.
      */
     data class FailedToCancelConflictingRecoveryState(
+      val error: Error,
       val hardwareKeys: HardwareKeysForRecovery,
       val newAppKeys: AppKeyBundle,
       val newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,

@@ -25,7 +25,7 @@ import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.platform.clipboard.ClipItem
 import build.wallet.platform.clipboard.ClipboardMock
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
@@ -114,7 +114,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       csekDao = csekDao,
       keyboxDao = keyboxDao,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      uuid = UuidFake()
+      uuidGenerator = UuidGeneratorFake()
     )
   val validData =
     EmergencyAccessKitPayloadDecoderImpl.encode(

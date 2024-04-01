@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.analytics.events
 
 import build.wallet.account.AccountRepositoryFake
@@ -31,7 +29,6 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 

@@ -5,14 +5,12 @@ import build.wallet.coroutines.callCoroutineEvery
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class CallCoroutineEveryTests : FunSpec({
   test("calls block periodically") {
     runTest {

@@ -7,6 +7,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.money.display.CurrencyPreferenceDataMock
@@ -22,10 +23,9 @@ import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.Che
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.AttemptingCloudRecoveryLostAppRecoveryDataData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.AttemptingCloudRecoveryLostAppRecoveryDataData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps
-import build.wallet.statemachine.data.recovery.lostapp.cloud.RecoveringKeyboxFromCloudBackupData.AccessingCloudBackupData
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -36,12 +36,8 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
     object : LostAppRecoveryDataStateMachine,
       StateMachineMock<LostAppRecoveryProps, LostAppRecoveryData>(
         AttemptingCloudRecoveryLostAppRecoveryDataData(
-          AccessingCloudBackupData(
-            onCloudBackupNotAvailable = {},
-            onCloudBackupFound = {},
-            onImportEmergencyAccessKit = {},
-            rollback = {}
-          )
+          cloudBackup = CloudBackupV2WithFullAccountMock,
+          rollback = {}
         )
       ) {}
   val createFullAccountDataStateMachine =

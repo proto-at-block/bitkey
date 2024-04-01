@@ -11,7 +11,6 @@ import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onSuccess
 import io.ktor.http.Url
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -122,7 +121,6 @@ class ElectrumServerConfigRepositoryImpl(
       }
     }
 
-  @OptIn(ExperimentalCoroutinesApi::class)
   private val electrumServerEntity =
     databaseProvider.database().electrumConfigQueries
       .loadElectrumConfig()

@@ -13,9 +13,11 @@ use bdk::database::{AnyDatabase, BatchDatabase};
 use bdk::descriptor::ExtendedDescriptor;
 use bdk::electrum_client::Client as ElectrumClient;
 use bdk::electrum_client::Config as ElectrumConfig;
+use bdk::electrum_client::Error as ElectrumClientError;
 use bdk::miniscript::descriptor::DescriptorXKey;
 use bdk::miniscript::{Descriptor, DescriptorPublicKey};
 use bdk::wallet::AddressIndex;
+use bdk::Error::Electrum;
 use bdk::SyncOptions;
 use bdk::{bitcoin::Network, database::MemoryDatabase, Wallet};
 use feature_flags::service::Service as FeatureFlagsService;
@@ -41,7 +43,7 @@ pub trait TransactionBroadcasterTrait: Send + Sync {
         wallet: Wallet<AnyDatabase>,
         transaction: &mut PartiallySignedTransaction,
         rpc_uris: &ElectrumRpcUris,
-    ) -> Result<(), ApiError>;
+    ) -> Result<(), BdkUtilError>;
 }
 
 impl fmt::Debug for dyn TransactionBroadcasterTrait {
@@ -49,6 +51,8 @@ impl fmt::Debug for dyn TransactionBroadcasterTrait {
         write!(f, "Trait object of TransactionBroadcasterTrait")
     }
 }
+
+const BAD_TXNS_MISSING_OR_SPENT_MESSAGE: &str = "bad-txns-inputs-missingorspent";
 
 pub struct TransactionBroadcaster;
 
@@ -59,19 +63,34 @@ impl TransactionBroadcasterTrait for TransactionBroadcaster {
         wallet: Wallet<AnyDatabase>,
         transaction: &mut PartiallySignedTransaction,
         rpc_uris: &ElectrumRpcUris,
-    ) -> Result<(), ApiError> {
+    ) -> Result<(), BdkUtilError> {
         let network = wallet.network();
         let blockchain = get_blockchain(network, rpc_uris)?;
         blockchain
             .broadcast(&transaction.to_owned().extract_tx())
-            .map_err(|err| {
-                event!(
-                    Level::ERROR,
-                    "Failed to broadcast PSBT: {}",
-                    err.to_string()
-                );
-                ApiError::GenericInternalApplicationError("Failed to broadcast PSBT".to_string())
+            .map_err(|err| match err {
+                Electrum(ElectrumClientError::Protocol(ref json_value)) => {
+                    match json_value["message"].as_str() {
+                        // We broadcast on both App and Server, so we could get this error when the
+                        // App "wins" the race. Under those circumstances, we just return a 409 and
+                        // not consider it an error.
+                        Some(BAD_TXNS_MISSING_OR_SPENT_MESSAGE) => {
+                            event!(Level::WARN, "Failed to broadcast PSBT: {}", err.to_string());
+                            BdkUtilError::TransactionAlreadyInMempoolError
+                        }
+                        _ => {
+                            event!(
+                                Level::ERROR,
+                                "Failed to broadcast PSBT: {}",
+                                err.to_string()
+                            );
+                            BdkUtilError::TransactionBroadcastError(err)
+                        }
+                    }
+                }
+                _ => BdkUtilError::TransactionBroadcastError(err),
             })?;
+
         Ok(())
     }
 }

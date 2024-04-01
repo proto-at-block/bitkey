@@ -27,10 +27,12 @@ import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.Show
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupState.SigningIntoCloudState
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateLiteMessages
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import com.github.michaelbull.result.getOrElse
@@ -59,7 +61,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
             state = CreatingAndSavingBackupState(it)
           },
           onSignInFailed = {
-            state = CloudSignInFailedState
+            state = CloudSignInFailedState(it)
           }
         )
       }
@@ -69,12 +71,12 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
             inAppBrowserNavigator.open(
               url = uiState.urlString,
               onClose = {
-                state = CloudSignInFailedState
+                state = CloudSignInFailedState(null)
               }
             )
           }
         ).asModalScreen()
-      CloudSignInFailedState ->
+      is CloudSignInFailedState ->
         CloudSignInFailedScreenModel(
           onContactSupport = {
             state = ShowingCustomerSupportUiState(
@@ -84,7 +86,9 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
           onTryAgain = {
             state = SigningIntoCloudState
           },
-          onBack = props.onBackupFailed,
+          onBack = {
+            props.onBackupFailed(uiState.cause)
+          },
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         ).asScreen(props.presentationStyle)
       is CreatingAndSavingBackupState -> {
@@ -93,7 +97,13 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
             liteAccountCloudBackupCreator
               .create(props.liteAccount)
               .getOrElse {
-                state = NonRectifiableFailureState
+                state = NonRectifiableFailureState(
+                  errorData = ErrorData(
+                    segment = RecoverySegment.CloudBackup.LiteAccount.Creation,
+                    cause = it,
+                    actionDescription = "Creating lite account cloud backup"
+                  )
+                )
                 return@LaunchedEffect
               }
 
@@ -104,16 +114,24 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
             requireAuthRefresh = true
           )
             .onFailure { error ->
+              val errorData = ErrorData(
+                segment = RecoverySegment.CloudBackup.LiteAccount.Creation,
+                cause = error,
+                actionDescription = "Creating lite account cloud backup"
+              )
               state =
                 when (error) {
                   is RectifiableCloudBackupError -> {
                     RectifiableFailureState(
                       cloudStoreAccount = uiState.cloudStoreAccount,
-                      rectifiableCloudBackupError = error
+                      rectifiableCloudBackupError = error,
+                      errorData = errorData
                     )
                   }
                   is UnrectifiableCloudBackupError -> {
-                    NonRectifiableFailureState
+                    NonRectifiableFailureState(
+                      errorData = errorData
+                    )
                   }
                 }
             }
@@ -123,7 +141,9 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
         }
         return LoadingBodyModel(
           message = "Saving backup...",
-          onBack = props.onBackupFailed,
+          onBack = {
+            props.onBackupFailed(null)
+          },
           id = SAVE_CLOUD_BACKUP_LOADING
         ).asScreen(props.presentationStyle)
       }
@@ -142,14 +162,17 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
                     cloudStoreAccount = uiState.cloudStoreAccount
                   )
               },
-              presentationStyle = props.presentationStyle
+              presentationStyle = props.presentationStyle,
+              errorData = uiState.errorData
             )
         )
-      NonRectifiableFailureState -> {
+      is NonRectifiableFailureState -> {
         return ErrorFormBodyModel(
           title = "We were unable to create backup",
           subline = "Please try again later.",
-          primaryButton = ButtonDataModel(text = "Done", onClick = props.onBackupFailed),
+          primaryButton = ButtonDataModel(text = "Done", onClick = {
+            props.onBackupFailed(uiState.errorData.cause)
+          }),
           eventTrackerScreenId = SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT
         ).asScreen(props.presentationStyle)
       }
@@ -160,7 +183,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
   private fun SigningIntoCloudModel(
     props: LiteAccountCloudSignInAndBackupProps,
     onSignedIn: (CloudStoreAccount) -> Unit,
-    onSignInFailed: () -> Unit,
+    onSignInFailed: (Error) -> Unit,
   ): ScreenModel {
     return cloudSignInUiStateMachine.model(
       props =
@@ -168,7 +191,7 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
           forceSignOut = false,
           onSignInFailure = {
             eventTracker.track(action = Action.ACTION_APP_CLOUD_BACKUP_MISSING)
-            onSignInFailed()
+            onSignInFailed(it)
           },
           onSignedIn = { account ->
             eventTracker.track(action = Action.ACTION_APP_CLOUD_BACKUP_INITIALIZE)
@@ -189,7 +212,9 @@ private sealed class LiteAccountCloudSignInAndBackupState {
   /**
    * State entered when there was a failure signing into cloud account
    */
-  data object CloudSignInFailedState : LiteAccountCloudSignInAndBackupState()
+  data class CloudSignInFailedState(
+    val cause: Error?,
+  ) : LiteAccountCloudSignInAndBackupState()
 
   /**
    * In process of creating and saving the backup.
@@ -204,12 +229,15 @@ private sealed class LiteAccountCloudSignInAndBackupState {
   data class RectifiableFailureState(
     val cloudStoreAccount: CloudStoreAccount,
     val rectifiableCloudBackupError: RectifiableCloudBackupError,
+    val errorData: ErrorData,
   ) : LiteAccountCloudSignInAndBackupState()
 
   /**
    * Error during the process
    */
-  data object NonRectifiableFailureState : LiteAccountCloudSignInAndBackupState()
+  data class NonRectifiableFailureState(
+    val errorData: ErrorData,
+  ) : LiteAccountCloudSignInAndBackupState()
 
   data class ShowingCustomerSupportUiState(
     val urlString: String,

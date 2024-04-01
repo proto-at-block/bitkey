@@ -3,6 +3,7 @@ use std::{collections::HashSet, hash::Hash};
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
 use strum_macros::{Display as StrumDisplay, EnumIter};
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 #[derive(
@@ -27,11 +28,11 @@ pub enum NotificationChannel {
     Sms,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Default, ToSchema)]
-pub struct NotificationsPreferences {
-    pub account_security: HashSet<NotificationChannel>,
-    pub money_movement: HashSet<NotificationChannel>,
-    pub product_marketing: HashSet<NotificationChannel>,
+#[derive(Deserialize, Serialize, Clone, Debug, Copy, PartialEq, Eq, Hash, EnumIter)]
+pub enum NotificationCategory {
+    AccountSecurity,
+    MoneyMovement,
+    ProductMarketing,
 }
 
 #[derive(Clone, Debug)]
@@ -40,7 +41,72 @@ pub struct NotificationsPreferencesDiff {
     pub unsubscribes: Vec<(NotificationCategory, NotificationChannel)>,
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Default, ToSchema)]
+pub struct NotificationsPreferences {
+    pub account_security: HashSet<NotificationChannel>,
+    pub money_movement: HashSet<NotificationChannel>,
+    pub product_marketing: HashSet<NotificationChannel>,
+}
+
 impl NotificationsPreferences {
+    pub fn get_email_notification_categories(&self) -> HashSet<NotificationCategory> {
+        NotificationCategory::iter()
+            .filter(|category| match category {
+                NotificationCategory::AccountSecurity => {
+                    self.account_security.contains(&NotificationChannel::Email)
+                }
+                NotificationCategory::MoneyMovement => {
+                    self.money_movement.contains(&NotificationChannel::Email)
+                }
+                NotificationCategory::ProductMarketing => {
+                    self.product_marketing.contains(&NotificationChannel::Email)
+                }
+            })
+            .collect()
+    }
+
+    pub fn with_enabled(
+        &self,
+        notification_category: NotificationCategory,
+        notification_channel: NotificationChannel,
+    ) -> Self {
+        let mut result = self.clone();
+        match notification_category {
+            NotificationCategory::AccountSecurity => {
+                result.account_security.insert(notification_channel);
+            }
+            NotificationCategory::MoneyMovement => {
+                result.money_movement.insert(notification_channel);
+            }
+            NotificationCategory::ProductMarketing => {
+                result.product_marketing.insert(notification_channel);
+            }
+        }
+        result
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq)]
+pub struct NotificationsPreferencesState {
+    pub account_security: HashSet<NotificationChannel>,
+    pub money_movement: HashSet<NotificationChannel>,
+    pub product_marketing: HashSet<NotificationChannel>,
+    #[serde(default = "OffsetDateTime::now_utc")]
+    pub email_updated_at: OffsetDateTime,
+}
+
+impl Default for NotificationsPreferencesState {
+    fn default() -> Self {
+        Self {
+            account_security: HashSet::new(),
+            money_movement: HashSet::new(),
+            product_marketing: HashSet::new(),
+            email_updated_at: OffsetDateTime::now_utc(),
+        }
+    }
+}
+
+impl NotificationsPreferencesState {
     pub fn get_email_notification_categories(&self) -> HashSet<NotificationCategory> {
         NotificationCategory::iter()
             .filter(|category| match category {
@@ -90,24 +156,19 @@ impl NotificationsPreferences {
         result
     }
 
-    pub fn with_enabled(
-        &self,
-        notification_category: NotificationCategory,
-        notification_channel: NotificationChannel,
-    ) -> Self {
-        let mut result = self.clone();
-        match notification_category {
-            NotificationCategory::AccountSecurity => {
-                result.account_security.insert(notification_channel);
-            }
-            NotificationCategory::MoneyMovement => {
-                result.money_movement.insert(notification_channel);
-            }
-            NotificationCategory::ProductMarketing => {
-                result.product_marketing.insert(notification_channel);
-            }
+    pub fn update(&self, notifications_preferences: &NotificationsPreferences) -> Self {
+        Self {
+            account_security: notifications_preferences.account_security.clone(),
+            money_movement: notifications_preferences.money_movement.clone(),
+            product_marketing: notifications_preferences.product_marketing.clone(),
+            email_updated_at: if self.get_email_notification_categories()
+                != notifications_preferences.get_email_notification_categories()
+            {
+                OffsetDateTime::now_utc()
+            } else {
+                self.email_updated_at
+            },
         }
-        result
     }
 
     pub fn is_enabled(&self, category: NotificationCategory, channel: NotificationChannel) -> bool {
@@ -143,9 +204,12 @@ impl NotificationsPreferences {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Copy, PartialEq, Eq, Hash, EnumIter)]
-pub enum NotificationCategory {
-    AccountSecurity,
-    MoneyMovement,
-    ProductMarketing,
+impl From<NotificationsPreferencesState> for NotificationsPreferences {
+    fn from(state: NotificationsPreferencesState) -> Self {
+        Self {
+            account_security: state.account_security,
+            money_movement: state.money_movement,
+            product_marketing: state.product_marketing,
+        }
+    }
 }

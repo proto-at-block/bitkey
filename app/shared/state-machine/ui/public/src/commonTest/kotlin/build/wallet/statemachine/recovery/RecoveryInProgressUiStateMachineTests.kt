@@ -55,7 +55,8 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
         RecoveryInProgressData.FailedToCancelRecoveryData(
           recoveredFactor = PhysicalFactor.App,
           isNetworkError = false,
-          onAcknowledge = { failedToCancelDoneCalls.add(Unit) }
+          onAcknowledge = { failedToCancelDoneCalls.add(Unit) },
+          cause = Error()
         ),
       fullAccountConfig = FullAccountConfigMock,
       fiatCurrency = USD,
@@ -69,7 +70,8 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
         RecoveryInProgressData.FailedToCancelRecoveryData(
           recoveredFactor = PhysicalFactor.App,
           isNetworkError = true,
-          onAcknowledge = { failedToCancelDoneCalls.add(Unit) }
+          onAcknowledge = { failedToCancelDoneCalls.add(Unit) },
+          cause = Error()
         ),
       fullAccountConfig = FullAccountConfigMock,
       fiatCurrency = USD,

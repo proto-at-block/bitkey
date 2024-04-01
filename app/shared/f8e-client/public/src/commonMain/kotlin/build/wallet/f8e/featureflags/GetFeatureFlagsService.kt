@@ -13,13 +13,12 @@ interface GetFeatureFlagsService {
   suspend fun getF8eFeatureFlags(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId?,
+    flagKeys: List<String>,
   ): Result<List<F8eFeatureFlag>, NetworkingError>
 
   @Serializable
   data class F8eFeatureFlag(
     var key: String,
-    var name: String,
-    var description: String,
     var value: F8eFeatureFlagValue,
   )
 }

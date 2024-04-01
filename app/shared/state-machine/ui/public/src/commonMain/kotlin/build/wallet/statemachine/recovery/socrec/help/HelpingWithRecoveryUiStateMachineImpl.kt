@@ -129,7 +129,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
   ): BodyModel {
     LaunchedEffect("verifying-recovery-code") {
       socRecKeysRepository
-        .getKeyWithPrivateMaterialOrCreate(::DelegatedDecryptionKey)
+        .getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
         .flatMap { trustedContactIdentityKey ->
           socialChallengeVerifier.verifyChallenge(
             account = account,

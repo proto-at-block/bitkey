@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-concurrency-jvm",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-concurrency-jvm-5.8.0.jar": "fa3562b9b7a17d10886d955915980506683e6d4253fda2d9a610c707b6a1c534"
+                        "kotest-framework-concurrency-jvm-5.8.1.jar": "fa3562b9b7a17d10886d955915980506683e6d4253fda2d9a610c707b6a1c534"
                     }
                 }
             ],

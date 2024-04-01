@@ -17,6 +17,7 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.feature.FeatureFlagInitializer
+import build.wallet.feature.FeatureFlagSyncer
 import build.wallet.money.currency.FiatCurrencyRepository
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.CurrencyPreferenceData
@@ -45,6 +46,7 @@ class AppDataStateMachineImpl(
   private val eventTracker: EventTracker,
   private val appInstallationDao: AppInstallationDao,
   private val featureFlagInitializer: FeatureFlagInitializer,
+  private val featureFlagSyncer: FeatureFlagSyncer,
   private val accountDataStateMachine: AccountDataStateMachine,
   private val periodicEventProcessor: PeriodicProcessor,
   private val periodicFirmwareTelemetryProcessor: PeriodicProcessor,
@@ -120,7 +122,11 @@ class AppDataStateMachineImpl(
             null -> LoadingAppData
             else ->
               when (allBlockingEffectsAreComplete) {
-                true ->
+                true -> {
+                  // Wait until the local feature flags are initialized and an appInstallation has
+                  // been created before fetching remote feature flags.
+                  InitializeRemoteFeatureFlagsEffect()
+
                   AppLoadedData(
                     appInstallation,
                     lightningNodeData,
@@ -130,6 +136,7 @@ class AppDataStateMachineImpl(
                     fiatCurrencyPreferenceData,
                     eakAssociation
                   )
+                }
 
                 false -> LoadingAppData
               }
@@ -203,6 +210,13 @@ class AppDataStateMachineImpl(
     LaunchedEffect("initialize-feature-flags") {
       featureFlagInitializer.initializeAllFlags()
       onComplete()
+    }
+  }
+
+  @Composable
+  private fun InitializeRemoteFeatureFlagsEffect() {
+    LaunchedEffect("initialize-remote-feature-flags") {
+      featureFlagSyncer.sync()
     }
   }
 

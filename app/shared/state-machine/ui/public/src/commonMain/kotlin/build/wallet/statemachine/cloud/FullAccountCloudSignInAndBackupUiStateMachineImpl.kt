@@ -44,12 +44,14 @@ import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiState.Si
 import build.wallet.statemachine.cloud.RectifiableErrorMessages.Companion.RectifiableErrorCreateFullMessages
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import com.github.michaelbull.result.coroutines.binding.binding
@@ -178,7 +180,12 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                     RectifiableFailureUiState(
                       cloudStoreAccount = state.account,
                       sealedCsek = state.sealedCsek,
-                      rectifiableCloudBackupError = cloudBackupError
+                      rectifiableCloudBackupError = cloudBackupError,
+                      errorData = ErrorData(
+                        segment = RecoverySegment.CloudBackup.FullAccount.Creation,
+                        cause = cloudBackupError,
+                        actionDescription = "Checking cloud backup"
+                      )
                     )
                 }
 
@@ -195,7 +202,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                       }
                     )
                   } else {
-                    uiState = FailureUiState
+                    uiState = FailureUiState(
+                      ErrorData(
+                        segment = RecoverySegment.CloudBackup.FullAccount.Creation,
+                        cause = cloudBackupError,
+                        actionDescription = "Checking cloud backup"
+                      )
+                    )
                   }
                 }
               }
@@ -204,29 +217,32 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
 
         LoadingBodyModel(
           message = SAVING_BACKUP_MESSAGE,
-          onBack = props.onBackupFailed,
+          onBack = {
+            props.onBackupFailed(null)
+          },
           id = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_CHECK_FOR_EXISTING
         ).asRootScreen()
       }
 
       is CreatingAndSavingBackupUiState ->
         CreatingAndSavingBackupModel(
-          props,
-          state,
+          props = props,
+          state = state,
           sealedCsek = state.sealedCsek,
           onBack = {
             uiState = ShowingBackupInstructionsUiState(false)
           },
-          onRectifiableError = { rectifiableCloudBackupError ->
+          onRectifiableError = { rectifiableCloudBackupError, errorData ->
             uiState =
               RectifiableFailureUiState(
                 cloudStoreAccount = state.cloudStoreAccount,
                 rectifiableCloudBackupError = rectifiableCloudBackupError,
-                sealedCsek = state.sealedCsek
+                sealedCsek = state.sealedCsek,
+                errorData = errorData
               )
           },
           onFailure = {
-            uiState = FailureUiState
+            uiState = FailureUiState(it)
           }
         ).asScreen(props.presentationStyle)
 
@@ -246,11 +262,15 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
                     sealedCsek = state.sealedCsek
                   )
               },
-              presentationStyle = props.presentationStyle
+              presentationStyle = props.presentationStyle,
+              errorData = state.errorData
             )
         )
 
-      FailureUiState -> FailedToCreateBackupModel(props)
+      is FailureUiState -> FailedToCreateBackupModel(
+        props = props,
+        errorData = state.errorData
+      )
 
       is SealingCsekViaNfcUiState ->
         nfcSessionUIStateMachine.model(
@@ -354,8 +374,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     props: FullAccountCloudSignInAndBackupProps,
     state: CreatingAndSavingBackupUiState,
     sealedCsek: SealedCsek,
-    onRectifiableError: (RectifiableCloudBackupError) -> Unit,
-    onFailure: () -> Unit,
+    onRectifiableError: (RectifiableCloudBackupError, ErrorData) -> Unit,
+    onFailure: (ErrorData) -> Unit,
     onBack: () -> Unit,
   ): BodyModel {
     CreateAndSaveBackupEffect(
@@ -378,8 +398,8 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     props: FullAccountCloudSignInAndBackupProps,
     state: CreatingAndSavingBackupUiState,
     sealedCsek: SealedCsek,
-    onRectifiableError: (RectifiableCloudBackupError) -> Unit,
-    onFailure: () -> Unit,
+    onRectifiableError: (RectifiableCloudBackupError, ErrorData) -> Unit,
+    onFailure: (ErrorData) -> Unit,
   ) {
     LaunchedEffect("create-and-save-backup") {
       binding {
@@ -392,7 +412,15 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               trustedContacts = props.trustedContacts
             )
             .logFailure { "Error creating cloud backup" }
-            .onFailure { onFailure() }
+            .onFailure {
+              onFailure(
+                ErrorData(
+                  segment = RecoverySegment.CloudBackup.FullAccount.Creation,
+                  cause = it,
+                  actionDescription = "Creating cloud backup"
+                )
+              )
+            }
             .bind()
 
         // Save the cloud backup.
@@ -405,10 +433,18 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           )
           .logFailure { "Error saving cloud backup to cloud storage" }
           .onFailure { cloudBackupFailure ->
+            val errorData = ErrorData(
+              segment = RecoverySegment.CloudBackup.FullAccount.Upload,
+              cause = cloudBackupFailure,
+              actionDescription = "Writing backup to cloud storage"
+            )
             if (cloudBackupFailure is RectifiableCloudBackupError) {
-              onRectifiableError(cloudBackupFailure)
+              onRectifiableError(
+                cloudBackupFailure,
+                errorData
+              )
             } else {
-              onFailure()
+              onFailure(errorData)
             }
           }
           .bind()
@@ -421,7 +457,15 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
               sealedCsek = sealedCsek
             )
             .logFailure { "Error creating emergency access kit data" }
-            .onFailure { onFailure() }
+            .onFailure {
+              onFailure(
+                ErrorData(
+                  segment = RecoverySegment.EmergencyAccess.Creation,
+                  cause = it,
+                  actionDescription = "Creating emergency access kit"
+                )
+              )
+            }
             .bind()
 
         // Save the emergency access kit.
@@ -432,10 +476,18 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           )
           .logFailure { "Error saving emergency access kit to cloud file store" }
           .onFailure { writeFailure ->
+            val errorData = ErrorData(
+              segment = RecoverySegment.EmergencyAccess.Upload,
+              cause = writeFailure,
+              actionDescription = "Writing emergency access kit to cloud file store"
+            )
             if (writeFailure is RectifiableCloudError) {
-              onRectifiableError(writeFailure.toRectifiableCloudBackupError)
+              onRectifiableError(
+                writeFailure.toRectifiableCloudBackupError,
+                errorData
+              )
             } else {
-              onFailure()
+              onFailure(errorData)
             }
           }
           .bind()
@@ -446,12 +498,18 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   }
 
   @Composable
-  fun FailedToCreateBackupModel(props: FullAccountCloudSignInAndBackupProps): ScreenModel {
+  fun FailedToCreateBackupModel(
+    props: FullAccountCloudSignInAndBackupProps,
+    errorData: ErrorData,
+  ): ScreenModel {
     return ErrorFormBodyModel(
       title = "We were unable to create backup",
       subline = "Please try again later.",
-      primaryButton = ButtonDataModel(text = "Done", onClick = props.onBackupFailed),
-      eventTrackerScreenId = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT
+      primaryButton = ButtonDataModel(text = "Done", onClick = {
+        props.onBackupFailed(errorData.cause)
+      }),
+      eventTrackerScreenId = CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_FAILURE_NEW_ACCOUNT,
+      errorData = errorData
     ).asScreen(props.presentationStyle)
   }
 }
@@ -513,7 +571,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
   /**
    * Error during the process.
    */
-  data object FailureUiState : FullAccountCloudSignInAndBackupUiState()
+  data class FailureUiState(val errorData: ErrorData) : FullAccountCloudSignInAndBackupUiState()
 
   /**
    * Explaining error that may be fixable.
@@ -522,6 +580,7 @@ private sealed class FullAccountCloudSignInAndBackupUiState {
     val cloudStoreAccount: CloudStoreAccount,
     val rectifiableCloudBackupError: RectifiableCloudBackupError,
     val sealedCsek: SealedCsek,
+    val errorData: ErrorData,
   ) : FullAccountCloudSignInAndBackupUiState()
 
   /**

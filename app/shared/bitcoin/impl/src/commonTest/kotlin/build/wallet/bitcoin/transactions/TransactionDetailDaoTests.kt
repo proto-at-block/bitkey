@@ -17,22 +17,22 @@ class TransactionDetailDaoTests : FunSpec({
   val confirmationTime = someInstant + 10.toDuration(DurationUnit.MINUTES)
   val transactionId = "fake-transaction-id"
 
-  lateinit var dao: TransactionDetailDaoImpl
+  lateinit var dao: OutgoingTransactionDetailDaoImpl
 
   beforeTest {
     val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
-    dao = TransactionDetailDaoImpl(databaseProvider)
+    dao = OutgoingTransactionDetailDaoImpl(databaseProvider)
   }
 
   test("insert and retrieve broadcast time for transaction") {
     dao.broadcastTimeForTransaction(transactionId).shouldBeNull()
-    dao.insert(broadcastTime, transactionId, confirmationTime)
+    dao.insert(broadcastTime, transactionId, confirmationTime, emptyList())
     dao.broadcastTimeForTransaction(transactionId).shouldBe(broadcastTime)
     dao.confirmationTimeForTransaction(transactionId).shouldBe(confirmationTime)
   }
 
   test("clear dao") {
-    dao.insert(broadcastTime, transactionId, confirmationTime)
+    dao.insert(broadcastTime, transactionId, confirmationTime, emptyList())
     dao.broadcastTimeForTransaction(transactionId).shouldNotBeNull()
     dao.clear()
     dao.broadcastTimeForTransaction(transactionId).shouldBeNull()

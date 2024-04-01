@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.money.exchange
 
 import build.wallet.account.AccountRepository
@@ -11,7 +9,6 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll

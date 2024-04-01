@@ -106,7 +106,9 @@ message meta_rsp {
 }
 
 // A command used by the mobile client to ask the hw device to start the fingerprint enrollment process.
-message start_fingerprint_enrollment_cmd {}
+message start_fingerprint_enrollment_cmd {
+  uint32 index = 1;
+}
 
 // The response for `start_fingerprint_enrollment_cmd `
 message start_fingerprint_enrollment_rsp {
@@ -146,6 +148,21 @@ message get_fingerprint_enrollment_status_rsp {
   fingerprint_enrollment_status fingerprint_status = 2;
   uint32 pass_count = 3;
   uint32 fail_count = 4;
+}
+
+message delete_fingerprint_cmd {
+  uint32 index = 1;
+}
+
+message delete_fingerprint_rsp {
+  // Note: Uses the new-style global status code for response status.
+}
+
+message get_enrolled_fingerprints_cmd {}
+
+message get_enrolled_fingerprints_rsp {
+  uint32 count = 1;
+  uint32 max_count = 2;
 }
 
 // A command used by the mobile client to ask the hw device the authentication status.
@@ -580,18 +597,17 @@ enum status {
   ERROR = 2;
   UNAUTHENTICATED = 3;
   UNKNOWN_MESSAGE = 4;
-
   NO_SECURE_CHANNEL = 5;
   KEY_DERIVATION_FAILED = 6;
   SIGNING_FAILED = 7;
   SECURE_CHANNEL_ERROR = 8;
-
   WRONG_SECRET = 9;
   STORAGE_ERR = 10;
   NO_SECRET_PROVISIONED = 11;
   WAITING_ON_DELAY = 12;
-
   FEATURE_NOT_SUPPORTED = 13;
+  FILE_NOT_FOUND = 14;
+  INVALID_STATE = 15;
 }
 
 message wallet_cmd {
@@ -645,6 +661,8 @@ message wallet_cmd {
     derive_public_key_and_sign_cmd derive_public_key_and_sign_cmd = 49;
     provision_unlock_secret_cmd provision_unlock_secret_cmd = 50;
     configure_unlock_limit_response_cmd configure_unlock_limit_response_cmd = 51;
+    delete_fingerprint_cmd delete_fingerprint_cmd = 52;
+    get_enrolled_fingerprints_cmd get_enrolled_fingerprints_cmd = 53;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -703,6 +721,8 @@ message wallet_rsp {
     derive_public_key_and_sign_rsp derive_public_key_and_sign_rsp = 49;
     provision_unlock_secret_rsp provision_unlock_secret_rsp = 50;
     configure_unlock_limit_response_rsp configure_unlock_limit_response_rsp = 51;
+    delete_fingerprint_rsp delete_fingerprint_rsp = 52;
+    get_enrolled_fingerprints_rsp get_enrolled_fingerprints_rsp = 53;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations

@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-grpc-client-jvm",
     "components": [
         {
-            "version": "4.9.5",
+            "version": "4.9.8",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-grpc-client-jvm-4.9.5.jar": "062aa3fc374976e4dd38c4f5f871e520bb4a10e9449259a73e0cfd4f98ec4356"
+                        "wire-grpc-client-jvm-4.9.8.jar": "552fbd6f38722025c8501054e71e226ea64d9fb58ecfb77a256e096bb92c472f"
                     }
                 }
             ],

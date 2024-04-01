@@ -14,7 +14,6 @@ import build.wallet.platform.pdf.serialize
 import build.wallet.time.DateTimeFormatter
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 
@@ -34,22 +33,24 @@ class EmergencyAccessKitPdfGeneratorImpl(
       val templateBytes = templateProvider.pdfTemplateBytes().bind()
       val pdfAnnotator = pdfAnnotatorFactory.create(templateBytes).result.bind()
 
-      populateCreationDate(pdfAnnotator)
+      pdfAnnotator.use { pdfAnnotator ->
+        populateCreationDate(pdfAnnotator)
 
-      val apkParameters = apkParametersProvider.parameters()
-      populateAPKFields(pdfAnnotator, apkParameters)
+        val apkParameters = apkParametersProvider.parameters()
+        populateAPKFields(pdfAnnotator, apkParameters)
 
-      val mobileKeyParameters = mobileKeyParametersProvider.parameters(
-        keybox,
-        sealedCsek
-      ).bind()
-      populateMobileKeyFields(pdfAnnotator, mobileKeyParameters)
+        val mobileKeyParameters = mobileKeyParametersProvider.parameters(
+          keybox,
+          sealedCsek
+        ).bind()
+        populateMobileKeyFields(pdfAnnotator, mobileKeyParameters)
 
-      pdfAnnotator
-        .serialize()
-        .result
-        .map { EmergencyAccessKitData(it) }
-        .bind()
+        pdfAnnotator
+          .serialize()
+          .result
+          .map { EmergencyAccessKitData(it) }
+          .bind()
+      }
     }
 
   private suspend fun populateCreationDate(pdfAnnotator: PdfAnnotator) {

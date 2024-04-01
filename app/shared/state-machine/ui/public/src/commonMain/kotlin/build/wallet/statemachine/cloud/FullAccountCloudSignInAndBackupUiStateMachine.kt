@@ -32,7 +32,7 @@ data class FullAccountCloudSignInAndBackupProps(
   val sealedCsek: SealedCsek?,
   val keybox: Keybox,
   val trustedContacts: List<TrustedContact>,
-  val onBackupFailed: () -> Unit,
+  val onBackupFailed: (cause: Throwable?) -> Unit,
   val onBackupSaved: () -> Unit,
   val onExistingAppDataFound: (
     (

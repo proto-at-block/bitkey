@@ -9,7 +9,7 @@ import build.wallet.catching
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.FileDirectoryProvider
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import co.touchlab.sqliter.DatabaseConfiguration
 import co.touchlab.sqliter.JournalMode
@@ -24,14 +24,14 @@ actual class SqlDriverFactoryImpl actual constructor(
   platformContext: PlatformContext,
   fileDirectoryProvider: FileDirectoryProvider,
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val appVariant: AppVariant,
 ) : SqlDriverFactory {
   override fun createDriver(
     dataBaseName: String,
     dataBaseSchema: SqlSchema<QueryResult.Value<Unit>>,
   ): SqlDriver {
-    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, uuid)
+    val dbKey = loadDbKey(encryptedKeyValueStoreFactory, uuidGenerator)
 
     // Run extra check for Team builds to ensure db is encrypted on device
     if (appVariant == AppVariant.Team) {

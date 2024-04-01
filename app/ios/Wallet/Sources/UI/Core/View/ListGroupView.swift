@@ -41,10 +41,15 @@ public struct ListGroupView: View {
     public func regularList(showsDivider: Bool, minItemHeight: CGFloat? = nil, addsVerticalPadding: Bool) -> some View {
         VStack(spacing: 0) {
             viewModel.header.map { sectionHeaderText in
-                ModeledText(model: .standard(sectionHeaderText, font: .title3, textColor: .foreground60))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, addsVerticalPadding ? 20 : 0)
-                    .padding(.bottom, viewModel.items.isEmpty ? 16 : 0)
+                ModeledText(
+                    model: .standard(
+                        sectionHeaderText,
+                        font: viewModel.headerTreatment.font,
+                        textColor: viewModel.headerTreatment.textColor)
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, addsVerticalPadding ? 20 : 0)
+                .padding(.bottom, viewModel.items.isEmpty ? 16 : 0)
             }
             ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id:\.0) { index, listItem in
                 ListItemView(viewModel: listItem)
@@ -116,6 +121,7 @@ struct ListGroupView_Preview: PreviewProvider {
                     leadingAccessoryAlignment: .center,
                     leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
                     trailingAccessory: nil,
+                    specialTrailingAccessory: nil,
                     treatment: .primary,
                     sideTextTint: .primary,
                     enabled: true,
@@ -135,6 +141,7 @@ struct ListGroupView_Preview: PreviewProvider {
                     leadingAccessoryAlignment: .center,
                     leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
                     trailingAccessory: nil,
+                    specialTrailingAccessory: nil,
                     treatment: .primary,
                     sideTextTint: .primary,
                     enabled: true,
@@ -154,6 +161,7 @@ struct ListGroupView_Preview: PreviewProvider {
                     leadingAccessoryAlignment: .center,
                     leadingAccessory: nil,
                     trailingAccessory: ListItemAccessoryCompanion().drillIcon(tint: .on30),
+                    specialTrailingAccessory: nil,
                     treatment: .secondary,
                     sideTextTint: .green,
                     enabled: false,
@@ -165,6 +173,7 @@ struct ListGroupView_Preview: PreviewProvider {
                 )
             ],
             style: style,
+            headerTreatment: .secondary,
             footerButton: nil
         )
     }
@@ -196,4 +205,22 @@ extension View {
 
     }
 
+}
+
+extension ListGroupModel.HeaderTreatment {
+    var font: FontTheme {
+        return switch self {
+        case .primary: .title2
+        case .secondary: .title3
+        default: .title3
+        }
+    }
+
+    var textColor: Color {
+        return switch self {
+        case .primary: .foreground
+        case .secondary: .foreground60
+        default: .foreground60
+        }
+    }
 }

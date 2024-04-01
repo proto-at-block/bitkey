@@ -40,8 +40,6 @@ data class SettingsListUiProps(
 
     data class MobilePay(override val onClick: () -> Unit) : SettingsListRow
 
-    data class Notifications(override val onClick: () -> Unit) : SettingsListRow
-
     data class NotificationPreferences(override val onClick: () -> Unit) : SettingsListRow
 
     data class RecoveryChannels(override val onClick: () -> Unit) : SettingsListRow

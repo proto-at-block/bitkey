@@ -21,7 +21,7 @@ class OnboardingAppKeyDeletionUiStateMachineImpl(
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
 ) : OnboardingAppKeyDeletionUiStateMachine {
   @Composable
-  override fun model(props: Unit): ListGroupModel? {
+  override fun model(props: OnboardingAppKeyDeletionProps): ListGroupModel? {
     // Don't show option in Customer build
     when (appVariant) {
       AppVariant.Customer -> return null
@@ -52,7 +52,11 @@ class OnboardingAppKeyDeletionUiStateMachineImpl(
                     isLoading = isDeletingAppKey,
                     size = ButtonModel.Size.Compact,
                     treatment = ButtonModel.Treatment.TertiaryDestructive,
-                    onClick = StandardClick { isDeletingAppKey = true }
+                    onClick = StandardClick {
+                      props.onConfirmationRequested {
+                        isDeletingAppKey = true
+                      }
+                    }
                   )
               )
           )

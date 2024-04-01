@@ -2,16 +2,16 @@
     "module-identifier": "app.cash.turbine:turbine-iosx64",
     "components": [
         {
-            "version": "1.0.0",
+            "version": "1.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "Turbine-iosx64-metadata.jar": "0ff37d2b246297e703aa02ded0a57e00e5b3bce19139f3e5b04498bcda0da2ec"
+                        "Turbine-iosx64-metadata.jar": "7ea7a264935d82778139d0779b3e34cfdad9847b90545e51ca4beec4f79e2a39"
                     }
                 },
                 {
                     "artifacts": {
-                        "Turbine.klib": "532975b068ba38d20df6e239b656619af61fe1ef84f9f74cf821b49415b28fd6"
+                        "Turbine.klib": "dc335b7d7627c2d9c40d54b4edab60bc41b5b594977151e7a81611afb272373d"
                     }
                 }
             ],

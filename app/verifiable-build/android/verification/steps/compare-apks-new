@@ -36,7 +36,7 @@ declare -a aapt_differences
 for apk_file in $all_apk_files; do
   if [ ! -f "$lhs_apks/$apk_file" ]; then
     aapt_differences+=("Only in $rhs_apks: $apk_file")
-    ((diff_result++))
+    ((diff_result++)) 
     continue
   fi
   if [ ! -f "$rhs_apks/$apk_file" ]; then
@@ -60,7 +60,7 @@ for apk_file in $all_apk_files; do
     else
       echo "Skipping aapt2 diff of $apk_file as it doesn't contain resources.arsc file"
     fi
-  else
+  else 
     aapt_difference=$("$AAPT2" diff "$lhs_apks/$apk_file" "$rhs_apks/$apk_file" 2>&1)
     aapt_diff_exit_status=$?
     if [ "$aapt_difference" != "" ]; then
@@ -83,3 +83,5 @@ else
 
   exit $diff_result
 fi
+
+

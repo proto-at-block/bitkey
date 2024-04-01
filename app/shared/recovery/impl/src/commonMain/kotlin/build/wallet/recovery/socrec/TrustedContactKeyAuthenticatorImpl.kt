@@ -1,18 +1,17 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.RecoveryRelationshipId
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
-import build.wallet.database.sqldelight.SocRecEnrollmentAuthentication
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.socrec.EndorseTrustedContactsServiceProvider
 import build.wallet.logging.logFailure
@@ -20,7 +19,6 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getAll
-import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -52,9 +50,9 @@ class TrustedContactKeyAuthenticatorImpl(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     contacts: List<TrustedContact>,
-    oldAppGlobalAuthKey: AppGlobalAuthPublicKey?,
+    oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
     oldHwAuthKey: HwAuthPublicKey,
-    newAppGlobalAuthKey: AppGlobalAuthPublicKey,
+    newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, Error> =
     binding {
@@ -121,7 +119,7 @@ class TrustedContactKeyAuthenticatorImpl(
 
   private suspend fun authenticate(
     contact: UnendorsedTrustedContact,
-  ): Result<Pair<UnendorsedTrustedContact, DelegatedDecryptionKey>?, Throwable> =
+  ): Result<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>?, Throwable> =
     binding {
       // Make sure PAKE data is available
       val pakeData =
@@ -153,9 +151,9 @@ class TrustedContactKeyAuthenticatorImpl(
 
   private fun authenticateKeys(
     contact: UnendorsedTrustedContact,
-    pakeData: SocRecEnrollmentAuthentication,
-  ): DelegatedDecryptionKey? =
-    PakeCode(pakeData.pakeCode).let {
+    pakeData: SocRecEnrollmentAuthenticationDao.SocRecEnrollmentAuthenticationRow,
+  ): PublicKey<DelegatedDecryptionKey>? =
+    pakeData.pakeCode.let {
       socRecCrypto.decryptDelegatedDecryptionKey(
         password = it,
         protectedCustomerEnrollmentPakeKey = pakeData.protectedCustomerEnrollmentPakeKey,
@@ -175,7 +173,7 @@ class TrustedContactKeyAuthenticatorImpl(
 
   private suspend fun endorseAll(
     fullAccount: FullAccount,
-    authenticated: List<Pair<UnendorsedTrustedContact, DelegatedDecryptionKey>>,
+    authenticated: List<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>>,
   ): Result<Unit, Throwable> =
     binding {
       // Generate a key certificate for each authenticated contact

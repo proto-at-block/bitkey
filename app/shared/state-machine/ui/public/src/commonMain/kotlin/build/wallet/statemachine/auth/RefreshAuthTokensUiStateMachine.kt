@@ -12,8 +12,9 @@ import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.AuthTokensRepository
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachineImpl.State.AuthTokensRefreshError
@@ -34,7 +35,7 @@ interface RefreshAuthTokensUiStateMachine : StateMachine<RefreshAuthTokensProps,
 data class RefreshAuthTokensProps(
   val fullAccountId: FullAccountId,
   val fullAccountConfig: FullAccountConfig,
-  val appAuthKey: AppGlobalAuthPublicKey? = null,
+  val appAuthKey: PublicKey<AppGlobalAuthKey>? = null,
   val onSuccess: (AccountAuthTokens) -> Unit,
   val onBack: () -> Unit,
   val onTokenRefresh: (() -> ScreenModel)? = null,

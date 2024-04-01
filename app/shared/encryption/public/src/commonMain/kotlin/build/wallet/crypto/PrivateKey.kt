@@ -6,6 +6,7 @@ import kotlin.jvm.JvmInline
 
 @Redacted
 @JvmInline
-value class PrivateKey(
+@Suppress("Unused")
+value class PrivateKey<T : KeyPurpose>(
   val bytes: ByteString,
 )

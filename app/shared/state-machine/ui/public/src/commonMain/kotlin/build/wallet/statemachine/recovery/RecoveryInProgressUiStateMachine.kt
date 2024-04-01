@@ -25,6 +25,7 @@ import build.wallet.recovery.getEventId
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -222,6 +223,14 @@ class RecoveryInProgressUiStateMachineImpl(
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_CANCELLATION_ERROR
             ),
           isConnectivityError = recoveryInProgressData.isNetworkError,
+          errorData = ErrorData(
+            segment = when (recoveryInProgressData.recoveredFactor) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Cancellation
+              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Cancellation
+            },
+            actionDescription = "Cancelling conflicting recovery",
+            cause = recoveryInProgressData.cause
+          ),
           onDoneClicked = recoveryInProgressData.onAcknowledge
         )
     }
@@ -230,12 +239,14 @@ class RecoveryInProgressUiStateMachineImpl(
   private fun CancelConflictingRecoveryErrorScreenModel(
     id: EventTrackerScreenId,
     isConnectivityError: Boolean,
+    errorData: ErrorData,
     onDoneClicked: () -> Unit,
   ): ScreenModel =
     NetworkErrorFormBodyModel(
       title = "We couldn’t cancel your recovery.",
       isConnectivityError = isConnectivityError,
       onBack = onDoneClicked,
+      errorData = errorData,
       eventTrackerScreenId = id
     ).asRootScreen()
 }

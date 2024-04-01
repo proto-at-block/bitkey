@@ -2,23 +2,20 @@ package build.wallet.keybox.keys
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
-import build.wallet.bitkey.app.AppGlobalAuthPrivateKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
-import build.wallet.bitkey.app.AppRecoveryAuthPrivateKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.logging.logFailure
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 
 class AppKeysGeneratorImpl(
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val spendingKeyGenerator: SpendingKeyGenerator,
   private val appAuthKeyGenerator: AppAuthKeyGenerator,
   private val appPrivateKeyDao: AppPrivateKeyDao,
@@ -30,7 +27,7 @@ class AppKeysGeneratorImpl(
       val appSpendingPublicKey = generateAppSpendingKey(network).bind()
       val appAuthPublicKey = generateGlobalAuthKey().bind()
       AppKeyBundle(
-        localId = uuid.random(),
+        localId = uuidGenerator.random(),
         spendingKey = appSpendingPublicKey,
         authKey = appAuthPublicKey,
         networkType = network,
@@ -53,29 +50,19 @@ class AppKeysGeneratorImpl(
       appSpendingKeypair.publicKey
     }.logFailure { "Error generating new app spending key" }
 
-  override suspend fun generateGlobalAuthKey(): Result<AppGlobalAuthPublicKey, Throwable> =
+  override suspend fun generateGlobalAuthKey(): Result<PublicKey<AppGlobalAuthKey>, Throwable> =
     binding {
       val authKeypair = appAuthKeyGenerator.generateGlobalAuthKey().bind()
-      val appGlobalAuthKeypair =
-        AppGlobalAuthKeypair(
-          publicKey = AppGlobalAuthPublicKey(authKeypair.publicKey.pubKey),
-          privateKey = AppGlobalAuthPrivateKey(authKeypair.privateKey.key)
-        )
-      appPrivateKeyDao.storeAppAuthKeyPair(appGlobalAuthKeypair).bind()
+      appPrivateKeyDao.storeAppKeyPair(authKeypair).bind()
 
-      appGlobalAuthKeypair.publicKey
+      authKeypair.publicKey
     }.logFailure { "Error generating new app global auth key" }
 
-  override suspend fun generateRecoveryAuthKey(): Result<AppRecoveryAuthPublicKey, Throwable> =
+  override suspend fun generateRecoveryAuthKey(): Result<PublicKey<AppRecoveryAuthKey>, Throwable> =
     binding {
       val authKeypair = appAuthKeyGenerator.generateRecoveryAuthKey().bind()
-      val appRecoveryAuthKeypair =
-        AppRecoveryAuthKeypair(
-          publicKey = AppRecoveryAuthPublicKey(authKeypair.publicKey.pubKey),
-          privateKey = AppRecoveryAuthPrivateKey(authKeypair.privateKey.key)
-        )
-      appPrivateKeyDao.storeAppAuthKeyPair(appRecoveryAuthKeypair).bind()
+      appPrivateKeyDao.storeAppKeyPair(authKeypair).bind()
 
-      appRecoveryAuthKeypair.publicKey
+      authKeypair.publicKey
     }.logFailure { "Error generating new recovery app auth key" }
 }

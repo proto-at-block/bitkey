@@ -7,6 +7,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+// Total number of supported templates
+#define TEMPLATE_MAX_COUNT (3)
+
 typedef struct {
   bool irq_test;
   bool spi_rw_test;
@@ -21,6 +24,13 @@ typedef struct {
   uint32_t pass_count;
   uint32_t fail_count;
 } bio_enroll_stats_t;
+
+typedef enum {
+  BIO_ERR_NONE = 0,
+  BIO_ERR_GENERIC = 1,
+  BIO_ERR_TEMPLATE_DOESNT_EXIST = 2,
+  BIO_ERR_TEMPLATE_INVALID = 3,
+} bio_err_t;
 
 typedef uint16_t bio_template_id_t;
 #define BIO_TEMPLATE_ID_INVALID (UINT16_MAX)
@@ -37,6 +47,7 @@ void bio_wait_for_finger_blocking(void);
 
 // Retrieve how many fingers have already been enrolled in `count`
 void bio_storage_get_template_count(uint32_t* count);
+bio_err_t bio_storage_delete_template(bio_template_id_t id);
 
 // Returns true if there is at least one enrolled fingerprint.
 bool bio_fingerprint_exists(void);

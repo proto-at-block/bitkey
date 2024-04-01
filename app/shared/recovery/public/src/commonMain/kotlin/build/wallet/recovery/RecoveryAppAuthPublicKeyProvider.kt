@@ -1,8 +1,8 @@
 package build.wallet.recovery
 
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.app.AppAuthPublicKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
+import build.wallet.crypto.PublicKey
 import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 
@@ -17,7 +17,7 @@ interface RecoveryAppAuthPublicKeyProvider {
    */
   suspend fun getAppPublicKeyForInProgressRecovery(
     scope: AuthTokenScope,
-  ): Result<AppAuthPublicKey, RecoveryAppAuthPublicKeyProviderError>
+  ): Result<PublicKey<out AppAuthKey>, RecoveryAppAuthPublicKeyProviderError>
 }
 
 /**

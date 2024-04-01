@@ -2,11 +2,13 @@ package build.wallet.statemachine.auth
 
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
@@ -38,7 +40,7 @@ sealed interface Request {
    * - app global auth key signed with hardware
    */
   data class HwKeyProofAndAccountSignature(
-    val appAuthGlobalKey: AppGlobalAuthPublicKey,
+    val appAuthGlobalKey: PublicKey<AppGlobalAuthKey>,
     val accountId: FullAccountId,
     val onSuccess: (
       accountSignature: String,
@@ -79,8 +81,11 @@ data class ProofOfPossessionNfcProps(
   val request: Request,
   val fullAccountId: FullAccountId,
   val fullAccountConfig: FullAccountConfig,
-  val appAuthKey: AppGlobalAuthPublicKey? = null,
+  val appAuthKey: PublicKey<AppGlobalAuthKey>? = null,
   val authTokens: AccountAuthTokens? = null,
+  // TODO: BKR-1117: make non-nullable
+  val segment: AppSegment? = null,
+  val actionDescription: String? = null,
   val screenPresentationStyle: ScreenPresentationStyle,
   val onBack: () -> Unit,
   val onTokenRefresh: (() -> ScreenModel)? = null,

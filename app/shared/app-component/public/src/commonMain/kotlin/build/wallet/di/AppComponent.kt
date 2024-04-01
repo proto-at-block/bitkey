@@ -10,7 +10,6 @@ import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokensRepository
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.availability.NetworkReachabilityEventDao
 import build.wallet.availability.NetworkReachabilityProvider
@@ -26,7 +25,7 @@ import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepository
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.bitcoin.transactions.BitcoinTransactionAppSigner
-import build.wallet.bitcoin.transactions.TransactionDetailDao
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bugsnag.BugsnagContext
 import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
@@ -39,9 +38,12 @@ import build.wallet.encrypt.SignatureVerifier
 import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
+import build.wallet.f8e.featureflags.GetFeatureFlagsService
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagInitializer
+import build.wallet.feature.FeatureFlagSyncer
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.MobileTestFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareDeviceNotFoundEnabledFeatureFlag
 import build.wallet.firmware.FirmwareMetadataDao
@@ -75,15 +77,16 @@ import build.wallet.platform.data.FileManager
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.settings.LocaleCountryCodeProvider
 import build.wallet.platform.settings.LocaleCurrencyCodeProvider
+import build.wallet.platform.settings.LocaleLanguageCodeProvider
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.recovery.RecoveryDao
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormAddAttachmentsFeatureFlag
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormNewUiEnabledFeatureFlag
-import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
+import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.time.Delayer
@@ -95,6 +98,7 @@ interface AppComponent {
   val accountAuthenticator: AccountAuthenticator
   val accountRepository: AccountRepository
   val allFeatureFlags: List<FeatureFlag<BooleanFlag>>
+  val allRemoteFeatureFlags: List<FeatureFlag<BooleanFlag>>
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
   val authenticationService: AuthenticationService
   val authTokensRepository: AuthTokensRepository
@@ -134,6 +138,8 @@ interface AppComponent {
   val extendedKeyGenerator: ExtendedKeyGenerator
   val f8eHttpClient: F8eHttpClient
   val featureFlagInitializer: FeatureFlagInitializer
+  val featureFlagSyncer: FeatureFlagSyncer
+  val feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag
   val feedbackFormNewUiEnabledFeatureFlag: FeedbackFormNewUiEnabledFeatureFlag
   val feedbackFormAddAttachmentsFeatureFlag: FeedbackFormAddAttachmentsFeatureFlag
   val fiatCurrencyDao: FiatCurrencyDao
@@ -146,6 +152,7 @@ interface AppComponent {
   val fwupDataFetcher: FwupDataFetcher
   val fwupDataDao: FwupDataDao
   val fwupProgressCalculator: FwupProgressCalculator
+  val getFeatureFlagsService: GetFeatureFlagsService
   val keyboxDao: KeyboxDao
   val keyValueStoreFactory: KeyValueStoreFactory
   val ktorLogLevelPolicy: KtorLogLevelPolicy
@@ -153,13 +160,13 @@ interface AppComponent {
   val lightningIsAvailableFeatureFlag: FeatureFlag<BooleanFlag>
   val localeCountryCodeProvider: LocaleCountryCodeProvider
   val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider
+  val localeLanguageCodeProvider: LocaleLanguageCodeProvider
   val logStore: LogStore
   val logWriterContextStore: LogWriterContextStore
   val memfaultService: MemfaultService
   val messageSigner: MessageSigner
+  val mobileTestFeatureFlag: MobileTestFeatureFlag
   val signatureVerifier: SignatureVerifier
-  val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag
-  val notificationsFlowV2EnabledFeatureFlag: NotificationsFlowV2EnabledFeatureFlag
   val networkingDebugConfigRepository: NetworkingDebugConfigRepository
   val networkReachabilityEventDao: NetworkReachabilityEventDao
   val networkReachabilityProvider: NetworkReachabilityProvider
@@ -178,8 +185,8 @@ interface AppComponent {
   val sessionIdProvider: SessionIdProvider
   val spendingWalletProvider: SpendingWalletProvider
   val templateFullAccountConfigDao: TemplateFullAccountConfigDao
-  val transactionDetailDao: TransactionDetailDao
-  val uuid: Uuid
+  val outgoingTransactionDetailDao: OutgoingTransactionDetailDao
+  val uuidGenerator: UuidGenerator
   val onboardingAppKeyKeystore: OnboardingAppKeyKeystore
   val recoverySyncFrequency: Duration
   val hardwareAttestation: HardwareAttestation

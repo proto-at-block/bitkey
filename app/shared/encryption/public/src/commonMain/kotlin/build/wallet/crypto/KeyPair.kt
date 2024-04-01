@@ -1,7 +1,6 @@
 package build.wallet.crypto
 
-data class KeyPair(
-  val publicKey: PublicKey,
-  val privateKey: PrivateKey,
-  val curveType: CurveType,
-)
+interface KeyPair<T : KeyPurpose> : AsymmetricKey<T> {
+  override val publicKey: PublicKey<T>
+  val privateKey: PrivateKey<T>
+}

@@ -41,7 +41,7 @@ class TreasuryWallet(
         eventuallyConfig {
           duration = 180.seconds
           interval = 5.seconds
-          retries = 3
+          retries = 10
           expectedExceptions = setOf(BdkError::class)
           listener = {
               k,
@@ -89,7 +89,7 @@ class TreasuryWallet(
 
     println("Sync time: $timeTaken ms")
     val treasuryBalance = spendingWallet.balance().first().shouldBeLoaded()
-    println("Treasury has ${treasuryBalance.confirmed} sats available")
+    println("Treasury has Confirmed: ${treasuryBalance.confirmed} UntrustedPending: ${treasuryBalance.untrustedPending} TrustedPending: ${treasuryBalance.trustedPending} sats available")
     val treasuryAddress = spendingWallet.getLastUnusedAddress().getOrThrow()
 
     val spendableBalance =

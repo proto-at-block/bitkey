@@ -5,6 +5,7 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -175,6 +176,7 @@ fun sweepSuccessScreenModel(
 fun sweepFailedScreenModel(
   id: EventTrackerScreenId,
   presentationStyle: ScreenPresentationStyle,
+  errorData: ErrorData,
   onRetry: () -> Unit,
   onExit: () -> Unit,
 ) = ScreenModel(
@@ -203,6 +205,7 @@ fun sweepFailedScreenModel(
           onClick = StandardClick { onExit() },
           size = Footer
         ),
-      eventTrackerShouldTrack = false
+      eventTrackerShouldTrack = false,
+      errorData = errorData
     )
 )

@@ -1,6 +1,5 @@
 package build.wallet.platform.device
 
-import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
@@ -16,7 +15,6 @@ actual class DeviceInfoProviderImpl : DeviceInfoProvider {
       isEmulator = false
     )
 
-  @OptIn(ExperimentalForeignApi::class)
   private fun getDeviceModel(): String {
     memScoped {
       val systemInfo = alloc<utsname>()

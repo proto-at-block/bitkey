@@ -60,15 +60,16 @@ locals {
   # Environment variables shared by fromagerie ECS tasks
   ###############################################
   common_env_vars = {
-    APNS_PLATFORM_ARN                = local.apns_platform_arn # TODO: remove after old apps are gone [W-4150]
-    APNS_CUSTOMER_PLATFORM_ARN       = local.apns_customer_platform_arn
-    APNS_TEAM_PLATFORM_ARN           = local.apns_team_platform_arn
-    APNS_TEAM_ALPHA_PLATFORM_ARN     = local.apns_team_alpha_platform_arn
-    FCM_PLATFORM_ARN                 = local.fcm_platform_arn # TODO: remove after old apps are gone [W-4150]
-    FCM_CUSTOMER_PLATFORM_ARN        = local.fcm_customer_platform_arn
-    FCM_TEAM_PLATFORM_ARN            = local.fcm_team_platform_arn
-    DD_ENV                           = var.environment
-    OTEL_RESOURCE_ATTRIBUTES         = "deployment.environment=${var.environment}" # DD_ENV isn't respected for f8e metrics, but this is
+    APNS_PLATFORM_ARN            = local.apns_platform_arn # TODO: remove after old apps are gone [W-4150]
+    APNS_CUSTOMER_PLATFORM_ARN   = local.apns_customer_platform_arn
+    APNS_TEAM_PLATFORM_ARN       = local.apns_team_platform_arn
+    APNS_TEAM_ALPHA_PLATFORM_ARN = local.apns_team_alpha_platform_arn
+    FCM_PLATFORM_ARN             = local.fcm_platform_arn # TODO: remove after old apps are gone [W-4150]
+    FCM_CUSTOMER_PLATFORM_ARN    = local.fcm_customer_platform_arn
+    FCM_TEAM_PLATFORM_ARN        = local.fcm_team_platform_arn
+    DD_ENV                       = var.environment
+    OTEL_RESOURCE_ATTRIBUTES     = "deployment.environment=${var.environment}"
+    # DD_ENV isn't respected for f8e metrics, but this is
     RUST_LOG                         = "info"
     PUSH_QUEUE_URL                   = module.push_notification_queue.queue_url
     EMAIL_QUEUE_URL                  = module.email_notification_queue.queue_url
@@ -131,7 +132,7 @@ data "aws_secretsmanager_secret" "fromagerie_coingecko_api_key" {
 }
 
 data "aws_secretsmanager_secret" "fromagerie_sq_sdn_s3_uri" {
-  name = "fromagerie/sq_sdn/s3_uri"
+  name = "${module.this.id}/sq_sdn/s3_uri"
 }
 
 data "aws_acm_certificate" "external_certs" {
@@ -162,14 +163,15 @@ module "ecs_api" {
   namespace = var.namespace
   name      = "${var.name}-api"
 
-  internet_facing    = var.internet_facing
-  dns_hosted_zone    = var.dns_hosted_zone
-  subdomain          = var.subdomain
-  additional_certs   = data.aws_acm_certificate.external_certs[*].arn
-  port               = local.port
-  vpc_name           = var.vpc_name
-  cluster_arn        = var.cluster_arn
-  security_group_ids = [var.wsm_ingress_security_group]
+  internet_facing                    = var.internet_facing
+  load_balancer_allow_cloudflare_ips = var.load_balancer_allow_cloudflare_ips
+  dns_hosted_zone                    = var.dns_hosted_zone
+  subdomain                          = var.subdomain
+  additional_certs                   = data.aws_acm_certificate.external_certs[*].arn
+  port                               = local.port
+  vpc_name                           = var.vpc_name
+  cluster_arn                        = var.cluster_arn
+  security_group_ids                 = [var.wsm_ingress_security_group]
 
   environment = var.environment
   environment_variables = merge(local.common_env_vars, {
@@ -476,7 +478,8 @@ module "ecs_job_metrics" {
 ################################################
 
 module "screener_s3_bucket" {
-  source = "git::https://github.com/terraform-aws-modules/terraform-aws-s3-bucket//?ref=3a1c80b29fdf8fc682d2749456ec36ecbaf4ce14" // Tag v4.1.0
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-s3-bucket//?ref=3a1c80b29fdf8fc682d2749456ec36ecbaf4ce14"
+  // Tag v4.1.0
 
   bucket = local.buckets.sanctions_screener_bucket_name
 
@@ -642,6 +645,7 @@ data "aws_iam_policy_document" "secrets_iam_policy" {
   statement {
     resources = [
       "arn:aws:secretsmanager:*:*:secret:fromagerie/**",
+      "arn:aws:secretsmanager:*:*:secret:${module.this.id}/**",
     ]
     actions = [
       "secretsmanager:GetSecretValue",
@@ -761,19 +765,22 @@ module "task_api_migration_table_policy" {
 ################################################
 
 module "push_notification_queue" {
-  source = "git::https://github.com/terraform-aws-modules/terraform-aws-sqs//?ref=7ded3fe7c3b2423ad7da00ad90e651ec133e5774" // Tag v4.0.1
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-sqs//?ref=7ded3fe7c3b2423ad7da00ad90e651ec133e5774"
+  // Tag v4.0.1
 
   name = "${module.this.id}-push-notification"
 }
 
 module "email_notification_queue" {
-  source = "git::https://github.com/terraform-aws-modules/terraform-aws-sqs//?ref=7ded3fe7c3b2423ad7da00ad90e651ec133e5774" // Tag v4.0.1
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-sqs//?ref=7ded3fe7c3b2423ad7da00ad90e651ec133e5774"
+  // Tag v4.0.1
 
   name = "${module.this.id}-email-notification"
 }
 
 module "sms_notification_queue" {
-  source = "git::https://github.com/terraform-aws-modules/terraform-aws-sqs//?ref=7ded3fe7c3b2423ad7da00ad90e651ec133e5774" // Tag v4.0.1
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-sqs//?ref=7ded3fe7c3b2423ad7da00ad90e651ec133e5774"
+  // Tag v4.0.1
 
   name = "${module.this.id}-sms-notification"
 }

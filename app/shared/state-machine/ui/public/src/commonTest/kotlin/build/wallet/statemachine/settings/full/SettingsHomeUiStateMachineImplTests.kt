@@ -119,7 +119,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
               SettingsListUiProps.SettingsListRow.MobilePay::class,
               SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
               SettingsListUiProps.SettingsListRow.RecoveryChannels::class,
-              SettingsListUiProps.SettingsListRow.Notifications::class,
               SettingsListUiProps.SettingsListRow.ContactUs::class,
               SettingsListUiProps.SettingsListRow.TrustedContacts::class,
               SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
@@ -145,18 +144,12 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   test("open and close notifications") {
     stateMachine.test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.Notifications }.onClick()
+        supportedRows.first { it is SettingsListUiProps.SettingsListRow.NotificationPreferences }.onClick()
       }
 
-//      if (onboardVersionFeatureFlagProvider.isV2Enabled) {
-//        awaitScreenWithBodyModelMock<NotificationPreferencesProps> {
-//          onBack()
-//        }
-//      } else {
-      awaitScreenWithBodyModelMock<NotificationsSettingsProps> {
+      awaitScreenWithBodyModelMock<NotificationPreferencesProps> {
         onBack()
       }
-//      }
 
       awaitScreenWithBodyModelMock<SettingsListUiProps>()
     }

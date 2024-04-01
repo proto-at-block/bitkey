@@ -24,6 +24,7 @@ kotlin {
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.recoveryPublic)
         implementation(projects.shared.onboardingPublic)
+        implementation(libs.kmp.settings)
       }
     }
     commonTest {

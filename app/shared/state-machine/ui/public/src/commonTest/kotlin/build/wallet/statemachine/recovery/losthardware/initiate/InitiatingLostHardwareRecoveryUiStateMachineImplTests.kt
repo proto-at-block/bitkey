@@ -26,7 +26,6 @@ import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
-import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedBuildingKeyCrossData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.FailedInitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.InitiatingRecoveryWithF8eData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.VerifyingNotificationCommsData
@@ -115,23 +114,11 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
         )
     )
 
-  val failedBuildingKeycrossProps =
-    awaitingProps.copy(
-      initiatingLostHardwareRecoveryData =
-        FailedBuildingKeyCrossData(
-          retry = {
-            retryCalls += Unit
-          },
-          rollback = {
-            rollbackCalls += Unit
-          }
-        )
-    )
-
   val failedInitiatingF8eProps =
     awaitingProps.copy(
       initiatingLostHardwareRecoveryData =
         FailedInitiatingRecoveryWithF8eData(
+          cause = Exception(),
           retry = {
             retryCalls += Unit
           },
@@ -337,43 +324,6 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
           )
         onBack.shouldNotBeNull()()
-      }
-      rollbackCalls.awaitItem()
-    }
-  }
-
-  test("initiating lost hardware recovery ui -- key cross failure") {
-    stateMachine.test(
-      props = failedBuildingKeycrossProps
-    ) {
-      awaitScreenWithBody<FormBodyModel> {
-        id.shouldNotBeNull()
-          .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-      }
-    }
-  }
-
-  test("initiating lost hardware recovery ui -- key cross failure retry") {
-    stateMachine.test(
-      props = failedBuildingKeycrossProps
-    ) {
-      awaitScreenWithBody<FormBodyModel> {
-        id.shouldNotBeNull()
-          .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-        clickPrimaryButton()
-      }
-      retryCalls.awaitItem()
-    }
-  }
-
-  test("initiating lost hardware recovery ui -- key cross failure rollback") {
-    stateMachine.test(
-      props = failedBuildingKeycrossProps
-    ) {
-      awaitScreenWithBody<FormBodyModel> {
-        id.shouldNotBeNull()
-          .shouldBeEqual(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_ERROR)
-        clickSecondaryButton()
       }
       rollbackCalls.awaitItem()
     }

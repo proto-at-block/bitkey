@@ -4,7 +4,7 @@ import build.wallet.auth.AuthTokenScope
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -14,6 +14,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
@@ -127,10 +128,10 @@ class UpgradeAccountServiceImpl(
       val hardware: String,
     ) {
       constructor(
-        app: AppGlobalAuthPublicKey,
+        app: PublicKey<AppGlobalAuthKey>,
         hardware: HwAuthPublicKey,
       ) : this(
-        app = app.pubKey.value,
+        app = app.value,
         hardware = hardware.pubKey.value
       )
     }

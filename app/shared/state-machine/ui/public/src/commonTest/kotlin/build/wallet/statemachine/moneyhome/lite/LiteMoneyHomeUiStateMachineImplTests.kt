@@ -114,7 +114,6 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
   test(
     "Accept Invite button calls invokes props"
   ) {
-    val protectedCustomer = ProtectedCustomerFake
     stateMachine.test(props.copy(protectedCustomers = immutableListOf())) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)

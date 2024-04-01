@@ -12,7 +12,7 @@ import build.wallet.bdk.bindings.BdkTxOutMock
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.TransactionDetailDaoMock
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDaoMock
 import build.wallet.bitcoin.wallet.shouldBePending
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -32,18 +32,18 @@ import kotlin.time.toDuration
 class BdkTransactionMapperImplTests : FunSpec({
 
   val bdkAddressBuilder = BdkAddressBuilderMock(turbines::create)
-  val transactionDetailDao = TransactionDetailDaoMock(turbines::create)
+  val outgoingTransactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
   val bdkWallet = BdkWalletMock(turbines::create)
   val mapper =
     BdkTransactionMapperImpl(
       bdkAddressBuilder = bdkAddressBuilder,
-      transactionDetailDao = transactionDetailDao
+      outgoingTransactionDetailDao = outgoingTransactionDetailDao
     )
   val timestamp = someInstant
   val estimatedConfirmationTime = someInstant.plus(10.toDuration(DurationUnit.MINUTES))
 
   beforeTest {
-    transactionDetailDao.reset()
+    outgoingTransactionDetailDao.reset()
     bdkAddressBuilder.reset()
     bdkWallet.reset()
   }
@@ -75,12 +75,13 @@ class BdkTransactionMapperImplTests : FunSpec({
 
   test("Broadcast time when time is in dao") {
     val transactionId = "123"
-    transactionDetailDao.insert(
+    outgoingTransactionDetailDao.insert(
       broadcastTime = someInstant,
       transactionId = transactionId,
-      estimatedConfirmationTime = estimatedConfirmationTime
+      estimatedConfirmationTime = estimatedConfirmationTime,
+      exchangeRates = null
     )
-    transactionDetailDao.insertCalls.awaitItem()
+    outgoingTransactionDetailDao.insertCalls.awaitItem()
 
     val transaction = mapper.createTransaction(makeTransactionDetails(id = transactionId))
     transaction.broadcastTime.shouldBe(someInstant)

@@ -6,11 +6,9 @@ import build.wallet.f8e.money.FiatCurrencyDefinitionServiceMock
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class FiatCurrencyRepositoryImplTests : FunSpec({
 
   val fiatCurrencyDao = FiatCurrencyDaoMock(turbines::create)

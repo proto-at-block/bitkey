@@ -22,7 +22,6 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import kotlin.time.Duration.Companion.seconds
 
@@ -64,12 +63,14 @@ class F8eHttpClientProvider(
     }
   }
 
-  @OptIn(ExperimentalSerializationApi::class)
   fun configureCommon(
     config: HttpClientConfig<*>,
     accountId: AccountId?,
   ) {
-    config.installLogging(ktorLogLevelPolicy.level())
+    config.installLogging(
+      tag = "F8e",
+      logLevel = ktorLogLevelPolicy.level()
+    )
 
     config.install(ContentNegotiation) {
       json(
@@ -103,7 +104,8 @@ class F8eHttpClientProvider(
 
     config.install(UserAgent) {
       val platformInfo = platformInfoProvider.getPlatformInfo()
-      agent = "${appId.value}/$appVersion ${platformInfo.device_make} (${platformInfo.device_model}; ${platformInfo.os_type.name}/${platformInfo.os_version})"
+      agent =
+        "${appId.value}/$appVersion ${platformInfo.device_make} (${platformInfo.device_model}; ${platformInfo.os_type.name}/${platformInfo.os_version})"
     }
 
     config.install(datadogTracerPluginProvider.getPlugin(accountId = accountId))

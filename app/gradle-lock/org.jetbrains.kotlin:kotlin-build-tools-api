@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-build-tools-api",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-build-tools-api-1.9.21.jar": "d6242ea71fa3daa0b06ab993622ee53fbfa00483b1986028526ab60619432789"
+                        "kotlin-build-tools-api-1.9.22.jar": "dd49cb7e28f4f3382f5250cfb05c864fd5f0a96d3265bb293c77b30adcc93ff6"
                     }
                 }
             ],

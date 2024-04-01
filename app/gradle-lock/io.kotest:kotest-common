@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-common",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-common-metadata-5.8.0.jar": "6bd4202edb89e59eb54352745bd0e1fbc95c54d5d3305b98f92132404f07ae42"
+                        "kotest-common-metadata-5.8.1.jar": "90be04df1e289d5ca4cced41fd7f371cbe6f27557e2049c5e3976c403a42fd0d"
                     }
                 }
             ],

@@ -1,12 +1,11 @@
 package build.wallet.f8e.recovery
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -71,11 +70,8 @@ internal fun ServerResponseBody.toServerRecovery(
       delayStartTime = delayStartTime,
       delayEndTime = delayEndTime,
       lostFactor = lostFactorStr.toPhysicalFactor().bind(),
-      destinationAppGlobalAuthPubKey =
-        AppGlobalAuthPublicKey(
-          Secp256k1PublicKey(authKeyPair.appGlobal)
-        ),
-      destinationAppRecoveryAuthPubKey = AppRecoveryAuthPublicKey(Secp256k1PublicKey(authKeyPair.appRecovery)),
+      destinationAppGlobalAuthPubKey = PublicKey(authKeyPair.appGlobal),
+      destinationAppRecoveryAuthPubKey = PublicKey(authKeyPair.appRecovery),
       destinationHardwareAuthPubKey = HwAuthPublicKey(Secp256k1PublicKey(authKeyPair.hardware))
     )
   }

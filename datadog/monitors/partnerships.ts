@@ -1,104 +1,98 @@
 import {Construct} from "constructs";
 import {Monitor} from "./common/monitor";
-import {log_count_query, trace_analytics_count_query} from "./common/queries";
+import {log_count_query, metric_sum_query, trace_analytics_count_query} from "./common/queries";
 
 import {Environment} from "./common/environments";
-import { getErrorRecipients } from "./recipients";
+import {getCriticalRecipients, getErrorRecipients} from "./recipients";
+import {HttpStatusCompositeMonitor} from "./common/http";
 
 export class PartnershipsMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `partnerships_${environment}`);
 
-    let recipients = getErrorRecipients(environment)
+    let errorRecipients = getErrorRecipients(environment)
+    let criticalRecipients = getCriticalRecipients(environment)
 
-    let log_alert_config = {
-      recipients: recipients,
+    let logAlertConfig = {
+      recipients: errorRecipients,
       type: "log alert",
       monitorThresholds: { critical: "1" },
     }
     let window = "10m"
     let tags = [`partnerships_${environment}`]
-    let exclude_invalid_address_errors = `-@error:*Invalid\ address\ passed\ to\ partner.`
 
     new Monitor(this, "cash_app_key_expiration", {
       query: log_count_query(
         `service:fromagerie-api *API\ key\ *\ is\ about\ to\ expire* env:${environment}`,
         window,
-        log_alert_config.monitorThresholds.critical
+        logAlertConfig.monitorThresholds.critical
       ),
       name: "[Partnerships] CashApp key is too close to expiring",
       message: "Something prevented a timely rotation of the key",
-      runbook: "https://github.com/squareup/wallet/blob/main/server/src/api/partnerships/partnerships_lib/src/partners/cash_app/lambdas/README.md",
+      runbook: "https://docs.wallet.build/runbooks/apps/server/partnerships/cash-app/#cashapp-key-is-too-close-to-expiring",
       tags: tags,
-      ...log_alert_config,
+      ...logAlertConfig,
     });
 
+    let metricsAlertConfig = {
+      recipients: errorRecipients,
+      type: "metric alert",
+      monitorThresholds: { critical: "1" },
+    }
     new Monitor(this, "cash_app_key_rotation_failed", {
-      query: log_count_query(
-        `source:lambda service:cash-app-key-rotator (*ERROR* -*NO_ERROR*)`,
-        window,
-        log_alert_config.monitorThresholds.critical
+      query: metric_sum_query(
+          `sum:aws.lambda.errors{environment:${environment},functionname:partnerships-key-rotation}.as_count()`,
+          "1h",
+          metricsAlertConfig.monitorThresholds.critical
       ),
       name: "[Partnerships] CashApp key rotation has failed",
       message: "Something went wrong with the key rotation lambda",
-      runbook: "https://github.com/squareup/wallet/blob/main/server/src/api/partnerships/partnerships_lib/src/partners/cash_app/lambdas/README.md",
+      runbook: "https://docs.wallet.build/runbooks/apps/server/partnerships/cash-app/#cashapp-key-rotation-has-failed",
       tags: tags,
-      ...log_alert_config,
+      ...metricsAlertConfig,
     });
 
-    let error_thresholds = {
+    let errorThresholds = {
       critical: "10",
       warning: "5",
     }
 
     new Monitor(this, "elevated_error_rate", {
       query: log_count_query(
-        `service:fromagerie-api @target:*partnerships_lib* status:error ${exclude_invalid_address_errors}`,
+        `service:fromagerie-api @target:*partnerships_lib* status:error env:${environment}`,
         window,
-        error_thresholds.critical
+          errorThresholds.critical
       ),
       name: `[Partnerships] Too many errors on env:${environment}`,
       message: "Elevated rate of errors from partnerships_lib",
       tags: tags,
-      ...log_alert_config,
-      monitorThresholds: error_thresholds,
+      ...logAlertConfig,
+      monitorThresholds: errorThresholds,
+      runbook: "https://docs.wallet.build/runbooks/apps/server/partnerships/home/",
     });
 
-    let trace_alert_config = {
-      recipients: recipients,
-      type: "trace-analytics alert",
-      monitorThresholds: {
-        critical: "1",
-        warning: "0",
-      },
-    }
-
-    let common_trace_query = `service:fromagerie-api env:${environment} resource_name:*partnerships*`
-    let exclude_422 = `-@http.status_code:422`
-
-    new Monitor(this, "too_many_5xx_errors", {
-      query: trace_analytics_count_query(
-        `${common_trace_query} @http.status_code:5??`,
-        window,
-        trace_alert_config.monitorThresholds.critical
-      ),
-      name: `[Partnerships] Too many http 5xx errors on env:${environment}`,
-      message: "Elevated rate of 5xx errors from the partnerships APIs",
-      tags: tags,
-      ...trace_alert_config,
+    new HttpStatusCompositeMonitor(this, "too_many_5xx_errors", {
+      status: "5xx",
+      group: "Partnerships",
+      environment,
+      tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "path:*partnerships*", rateInclusion: "both"}],
+      rateThreshold: "0.5",
+      countThreshold: "20",
+      dataDogLink: "https://app.datadoghq.com/apm/traces?saved-view-id=1917895",
+      recipients: criticalRecipients,
+      runbook: "https://docs.wallet.build/runbooks/apps/server/partnerships/home/",
     });
 
-    new Monitor(this, "too_many_4xx_errors excluding 422", {
-      query: trace_analytics_count_query(
-        `${common_trace_query} @http.status_code:4?? ${exclude_422}`,
-        window,
-        trace_alert_config.monitorThresholds.critical
-      ),
-      name: `[Partnerships] Too many http 4xx errors on env:${environment}`,
-      message: "Elevated rate of 4xx errors from the partnerships APIs",
-      tags: tags,
-      ...trace_alert_config,
+    new HttpStatusCompositeMonitor(this, "too_many_4xx_errors", {
+      status: "4xx",
+      group: "Partnerships",
+      environment,
+      tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "path:*partnerships*", rateInclusion: "both"}],
+      rateThreshold: "0.5",
+      countThreshold: "20",
+      dataDogLink: "https://app.datadoghq.com/apm/traces?saved-view-id=1917896",
+      recipients: errorRecipients,
+      runbook: "https://docs.wallet.build/runbooks/apps/server/partnerships/home/",
     });
   }
-
 }

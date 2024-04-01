@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,75 +42,89 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 @Composable
 fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
   BackHandler(onBack = model.onBack)
-  Column(
+  Box(
     modifier =
       Modifier
         .padding(horizontal = 20.dp)
-        .fillMaxSize(),
-    horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    Toolbar(model = model.toolbarModel)
-    Column(
-      modifier = Modifier.fillMaxSize(),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      verticalArrangement = Arrangement.Center
-    ) {
-      when (val content = model.content) {
-        is QrCode -> {
-          QrCodeWithAddressCard(
-            addressDisplayString = content.addressDisplayString,
-            qrCodeUrl = content.addressQrImageUrl,
-            fallbackQrCodeModel = content.fallbackAddressQrCodeModel
-          )
-          Label(
-            modifier = Modifier.padding(top = 24.dp),
-            text = "This address only accepts Bitcoin (BTC). " +
-              "Sending other assets will result in permanent loss of funds.",
-            type = LabelType.Body4Regular,
-            alignment = TextAlign.Center,
-            treatment = LabelTreatment.Secondary
-          )
-          RowOfButtons(
-            modifier =
-              Modifier
-                .padding(top = 24.dp, bottom = 16.dp),
-            buttonContents =
-              ButtonContentsList(
-                listOf(
-                  {
-                    Box(
-                      modifier = Modifier.weight(1F),
-                      contentAlignment = Alignment.Center
-                    ) {
-                      Button(model = content.shareButtonModel)
-                    }
-                  },
-                  {
-                    Box(
-                      modifier = Modifier.weight(1F),
-                      contentAlignment = Alignment.Center
-                    ) {
-                      Button(model = content.copyButtonModel)
-                    }
-                  }
-                )
-              ),
-            interButtonSpacing = 16.dp
-          )
-        }
+    Column {
+      Toolbar(model = model.toolbarModel)
+      Box(
+        modifier =
+          Modifier
+            .fillMaxWidth()
+      ) {
+          val scrollState = rememberScrollState()
 
-        is Error ->
-          Header(
-            model =
-              FormHeaderModel(
-                headline = content.title,
-                subline = content.subline,
-                icon = LargeIconWarningFilled,
-                alignment = FormHeaderModel.Alignment.CENTER
-              )
-          )
+        Box(
+          contentAlignment = Alignment.Center,
+          modifier = Modifier.fillMaxSize()
+        ) {
+          Column(
+            modifier = Modifier
+              .verticalScroll(scrollState)
+              .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+          ) {
+            when (val content = model.content) {
+              is QrCode -> {
+                QrCodeWithAddressCard(
+                  addressDisplayString = content.addressDisplayString,
+                  qrCodeUrl = content.addressQrImageUrl,
+                  fallbackQrCodeModel = content.fallbackAddressQrCodeModel
+                )
+                Label(
+                  modifier = Modifier.padding(top = 24.dp),
+                  text = "This address only accepts Bitcoin (BTC). " +
+                      "Sending other assets will result in permanent loss of funds.",
+                  type = LabelType.Body4Regular,
+                  alignment = TextAlign.Center,
+                  treatment = LabelTreatment.Secondary
+                )
+                RowOfButtons(
+                  modifier =
+                  Modifier
+                    .padding(top = 24.dp, bottom = 16.dp),
+                  buttonContents =
+                  ButtonContentsList(
+                    listOf(
+                      {
+                        Box(
+                          modifier = Modifier.weight(1F),
+                          contentAlignment = Alignment.Center
+                        ) {
+                          Button(model = content.shareButtonModel)
+                        }
+                      },
+                      {
+                        Box(
+                          modifier = Modifier.weight(1F),
+                          contentAlignment = Alignment.Center
+                        ) {
+                          Button(model = content.copyButtonModel)
+                        }
+                      }
+                    )
+                  ),
+                  interButtonSpacing = 16.dp
+                )
+              }
+
+              is Error ->
+                Header(
+                  model =
+                  FormHeaderModel(
+                    headline = content.title,
+                    subline = content.subline,
+                    icon = LargeIconWarningFilled,
+                    alignment = FormHeaderModel.Alignment.CENTER
+                  )
+                )
+            }
+          }
+        }
+        }
       }
-    }
   }
 }
 

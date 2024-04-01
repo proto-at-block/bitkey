@@ -44,6 +44,7 @@ fun WalletTheme.iconStyle(
                 IconTint.OutOfDate -> colors.outOfDate
                 IconTint.OnTranslucent -> colors.translucentForeground
                 IconTint.Green -> colors.positiveForeground
+                IconTint.Warning -> colors.warningForeground
                 null ->
                   when (color) {
                     Color.Unspecified -> colors.primaryIcon

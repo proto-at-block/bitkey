@@ -308,7 +308,7 @@ class BitcoinAddressRecipientUiStateMachineImplTests : FunSpec({
       awaitBody<FormBodyModel> {
         with(mainContentList[1].shouldBeTypeOf<FormMainContentModel.Explainer>()) {
           items.first().body.shouldBeInstanceOf<LabelModel.StringModel>()
-            .string.shouldBe("Sorry, you can’t send to your own address")
+            .string.shouldBe("You can’t send to your own address")
         }
         primaryButton.shouldNotBeNull().isEnabled.shouldBeFalse()
       }

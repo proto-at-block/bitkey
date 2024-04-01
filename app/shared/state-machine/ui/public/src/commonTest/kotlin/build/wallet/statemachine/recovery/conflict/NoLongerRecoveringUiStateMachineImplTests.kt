@@ -47,6 +47,7 @@ class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
     NoLongerRecoveringUiProps(
       data =
         NoLongerRecoveringData.ClearingLocalRecoveryFailedData(
+          error = Error(),
           cancelingRecoveryLostFactor = App,
           rollback = { clearingLocalRecoveryFailedDataRollbackCalls.add(Unit) },
           retry = { clearingLocalRecoveryFailedDataRetryCalls.add(Unit) }

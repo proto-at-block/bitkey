@@ -2,11 +2,11 @@
     "module-identifier": "androidx.browser:browser",
     "components": [
         {
-            "version": "1.5.0",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "browser-1.5.0.aar": "94f24e272b3a269ff9a5ba21da5e652615dc59ac3fa2ba2d7a5ae30d1c4df748"
+                        "browser-1.7.0.aar": "e03b6ef8c6d7a148886702abcd2995ee1d4bc0492cac5fc6aa49c472fce06b93"
                     }
                 }
             ],

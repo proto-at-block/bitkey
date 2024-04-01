@@ -4,15 +4,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.AttemptingCloudRecoveryLostAppRecoveryDataData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.AttemptingCloudRecoveryLostAppRecoveryDataData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryHaveNotStartedDataStateMachineImpl.State.AttemptingCloudBackupRecoveryState
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryHaveNotStartedDataStateMachineImpl.State.InitiatingLostAppRecoveryState
-import build.wallet.statemachine.data.recovery.lostapp.cloud.RecoveringKeyboxFromCloudBackupData.RecoveringFromCloudBackupData
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryProps
 
@@ -40,7 +38,7 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
   override fun model(
     props: LostAppRecoveryHaveNotStartedProps,
   ): LostAppRecoveryHaveNotStartedData {
-    var dataState: State by remember {
+    val dataState: State by remember {
       mutableStateOf(
         if (props.cloudBackup == null) {
           InitiatingLostAppRecoveryState
@@ -54,10 +52,8 @@ class LostAppRecoveryHaveNotStartedDataStateMachineImpl(
       when (state) {
         is AttemptingCloudBackupRecoveryState ->
           AttemptingCloudRecoveryLostAppRecoveryDataData(
-            RecoveringFromCloudBackupData(
-              cloudBackup = state.cloudBackup,
-              rollback = props.onRollback
-            )
+            cloudBackup = state.cloudBackup,
+            rollback = props.onRollback
           )
 
         is InitiatingLostAppRecoveryState ->

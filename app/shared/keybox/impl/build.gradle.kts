@@ -28,6 +28,7 @@ kotlin {
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.keyValueStorePublic)
         implementation(projects.shared.recoveryPublic)
+        implementation(libs.kmp.settings)
       }
     }
 

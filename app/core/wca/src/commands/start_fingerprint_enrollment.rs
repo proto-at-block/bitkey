@@ -13,7 +13,10 @@ use crate::command_interface::command;
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn start_fingerprint_enrollment() -> Result<bool, CommandError> {
-    let apdu: apdu::Command = StartFingerprintEnrollmentCmd {}.try_into()?;
+    let apdu: apdu::Command = StartFingerprintEnrollmentCmd {
+        index: 0, // Hardcoded to zero for now, until the app supports multiple fingerprints.
+    }
+    .try_into()?;
     let data = yield_!(apdu.into());
     let response = apdu::Response::from(data);
     let message = wca::decode_and_check(response)?

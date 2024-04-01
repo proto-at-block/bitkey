@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.bitcoin.sync
 
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
@@ -11,7 +9,6 @@ import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
-import com.russhwolf.settings.ExperimentalSettingsApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map

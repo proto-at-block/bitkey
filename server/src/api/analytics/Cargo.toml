@@ -17,6 +17,7 @@ strum_macros = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 trait-variant = { workspace = true }
+utoipa = { workspace = true }
 
 [build-dependencies]
 prost-build-config = "0.6.3"

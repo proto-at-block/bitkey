@@ -16,9 +16,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                         recoveryRelationshipId: "1",
                         trustedContactAlias: "alias",
                         keyCertificate: TrustedContactKeyCertificate(
-                            delegatedDecryptionKey: .init(key: AppKeyCompanion().fromPublicKey(value: "")),
+                            delegatedDecryptionKey: "",
                             hwAuthPublicKey: .init(pubKey: .init(value: "")),
-                            appGlobalAuthPublicKey: .init(pubKey: .init(value: "")),
+                            appGlobalAuthPublicKey: "",
                             appAuthGlobalKeyHwSignature: "",
                             trustedContactIdentityKeyAppSignature: ""
                         ),
@@ -27,7 +27,8 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                 ],
                 onVerifyClick: {_ in },
                 verifiedBy: ["1"],
-                onContinue: {})
+                onContinue: {},
+                onCancelRecovery: {})
         )
 
         assertBitkeySnapshots(view: view)
@@ -42,9 +43,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                         recoveryRelationshipId: "1",
                         trustedContactAlias: "alias",
                         keyCertificate: TrustedContactKeyCertificate(
-                            delegatedDecryptionKey: .init(key: AppKeyCompanion().fromPublicKey(value: "")),
+                            delegatedDecryptionKey: "",
                             hwAuthPublicKey: .init(pubKey: .init(value: "")),
-                            appGlobalAuthPublicKey: .init(pubKey: .init(value: "")),
+                            appGlobalAuthPublicKey: "",
                             appAuthGlobalKeyHwSignature: "",
                             trustedContactIdentityKeyAppSignature: ""
                         ),
@@ -53,7 +54,8 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                 ],
                 onVerifyClick: {_ in },
                 verifiedBy: [],
-                onContinue: {})
+                onContinue: {},
+                onCancelRecovery: {})
         )
 
         assertBitkeySnapshots(view: view)
@@ -68,9 +70,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                         recoveryRelationshipId: "1",
                         trustedContactAlias: "alias1",
                         keyCertificate: TrustedContactKeyCertificate(
-                            delegatedDecryptionKey: .init(key: AppKeyCompanion().fromPublicKey(value: "")),
+                            delegatedDecryptionKey: "",
                             hwAuthPublicKey: .init(pubKey: .init(value: "")),
-                            appGlobalAuthPublicKey: .init(pubKey: .init(value: "")),
+                            appGlobalAuthPublicKey: "",
                             appAuthGlobalKeyHwSignature: "",
                             trustedContactIdentityKeyAppSignature: ""
                         ),
@@ -80,9 +82,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                         recoveryRelationshipId: "2",
                         trustedContactAlias: "alias2",
                         keyCertificate: TrustedContactKeyCertificate(
-                            delegatedDecryptionKey: .init(key: AppKeyCompanion().fromPublicKey(value: "")),
+                            delegatedDecryptionKey: "",
                             hwAuthPublicKey: .init(pubKey: .init(value: "")),
-                            appGlobalAuthPublicKey: .init(pubKey: .init(value: "")),
+                            appGlobalAuthPublicKey: "",
                             appAuthGlobalKeyHwSignature: "",
                             trustedContactIdentityKeyAppSignature: ""
                         ),
@@ -91,7 +93,8 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                 ],
                 onVerifyClick: {_ in },
                 verifiedBy: ["2"],
-                onContinue: {})
+                onContinue: {},
+                onCancelRecovery: {})
         )
 
         assertBitkeySnapshots(view: view)

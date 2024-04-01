@@ -5,7 +5,6 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_FAILED
 import build.wallet.auth.AppAuthKeyMessageSignerImpl
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
@@ -33,7 +32,8 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiProps
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.list.ListItemAccessory
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
@@ -73,7 +73,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       recoveryRelationshipId = "someRelationshipId",
       trustedContactAlias = TrustedContactAlias("someContact"),
       authenticationState = VERIFIED,
-      keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey)
+      keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey.publicKey)
     )
   val pkMat = FullAccountKeysMock
   val (privateKeyEncryptionKey, sealedPrivateKeyMaterial) =
@@ -147,7 +147,8 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
 
         onBack.shouldNotBeNull().invoke()
         onExitCalls.awaitItem()
-        primaryButton.shouldBeNull()
+        primaryButton.shouldNotBeNull()
+          .text.shouldBe("Waiting for your Trusted Contact to verify you…")
       }
     }
   }
@@ -242,7 +243,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
           .single()
         val code = appTester.app.pakeCodeBuilder.buildRecoveryCode(
           challenge.response.counter,
-          PakeCode(challengeAuth.pakeCode)
+          challengeAuth.pakeCode
         ).getOrThrow()
         mainContentList.first()
           .shouldBeTypeOf<FormMainContentModel.ListGroup>()
@@ -334,15 +335,15 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         recoveryRelationshipId = trustedContact.recoveryRelationshipId
       ).getOrThrow().shouldNotBeNull()
       val decryptOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
-        password = PakeCode(recoveryAuth.pakeCode),
-        protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey,
-        delegatedDecryptionKey = trustedContact.identityKey,
+        password = recoveryAuth.pakeCode,
+        protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
+        delegatedDecryptionKey = delegatedDecryptionKey,
         sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[trustedContact.recoveryRelationshipId].shouldNotBeNull()
       ).getOrThrow()
       appTester.app.socialRecoveryServiceFake.challengeResponses.add(
         SocialChallengeResponse(
           recoveryRelationshipId = trustedContact.recoveryRelationshipId,
-          trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey.publicKey,
+          trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey,
           recoveryPakeConfirmation = decryptOutput.keyConfirmation,
           resealedDek = decryptOutput.sealedPrivateKeyEncryptionKey
         )

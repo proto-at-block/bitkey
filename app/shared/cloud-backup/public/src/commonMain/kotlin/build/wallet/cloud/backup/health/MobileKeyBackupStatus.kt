@@ -1,11 +1,8 @@
-@file:OptIn(ExperimentalContracts::class)
-
 package build.wallet.cloud.backup.health
 
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus.Healthy
 import kotlinx.datetime.Instant
-import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 /**

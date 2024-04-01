@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalUnsignedTypes::class)
-
 package build.wallet
 
 import okio.ByteString

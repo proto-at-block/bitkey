@@ -11,14 +11,12 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_ACTIVATION_TO_SERVER
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.EMAIL_INPUT_SENDING_CODE_TO_SERVER
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.NOTIFICATIONS_HW_APPROVAL_SUCCESS_EMAIL
+import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SELECTION
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP
-import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.SMS_INPUT_ENTERING_SMS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.coroutines.turbine.awaitUntil
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
@@ -27,22 +25,23 @@ import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickMainContentListItemAtIndex
 import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.statemachine.ui.clickSecondaryButton
-import build.wallet.statemachine.ui.clickTrailingAccessoryButton
 import build.wallet.statemachine.ui.inputTextToMainContentTextInputItem
 import build.wallet.statemachine.ui.inputTextToMainContentVerificationCodeInputItem
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -54,11 +53,6 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec() {
   init {
     beforeEach {
       appTester = launchNewApp()
-      appTester.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(
-        BooleanFlag(
-          false
-        )
-      )
 
       // Set push notifications to authorized to enable us to successfully advance through
       // the notifications step in onboarding.
@@ -155,27 +149,35 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
 
       NotificationPreferences -> {
         awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SETUP)
-          .clickMainContentListItemAtIndex(1) // Tap SMS row item
-        advanceThroughSmsScreensAndSkip()
-
-        awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SETUP)
-          .clickMainContentListItemAtIndex(2) // Tap email row item
+          .clickMainContentListItemAtIndex(0) // Tap email row item
         advanceThroughEmailScreensEnterAndVerify()
 
-        awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SETUP)
+        // Check that they email touchpoint has propagated back to the state machine
+        // It propagates through the [notificationTouchpointDao], but if it hasn't been
+        // received before returning to this screen, will cause a recomposition and the
+        // continue button won't progress forward.
+        awaitUntilScreenWithBody<FormBodyModel>(
+          id = NOTIFICATION_PREFERENCES_SETUP,
+          expectedBodyContentMatch = {
+            it.mainContentList[0].shouldBeTypeOf<FormMainContentModel.ListGroup>()
+              .listGroupModel.items[0].trailingAccessory.shouldNotBeNull()
+              .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
+              .model.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon == Icon.SmallIconCheckFilled
+          }
+        )
+          .clickPrimaryButton()
+
+        // Accept the TOS
+        awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SELECTION)
+          .mainContentList[4].shouldBeTypeOf<FormMainContentModel.ListGroup>()
+          .listGroupModel.items[0].trailingAccessory.shouldNotBeNull()
+          .shouldBeTypeOf<ListItemAccessory.IconAccessory>()
+          .onClick.shouldNotBeNull().invoke()
+
+        awaitUntilScreenWithBody<FormBodyModel>(NOTIFICATION_PREFERENCES_SELECTION)
+          .clickPrimaryButton()
       }
     }
-  }
-}
-
-private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSmsScreensAndSkip() {
-  // To skip SMS, we tap the trailing accessory button which then shows a bottom sheet
-  // asking for confirmation, and we confirm it
-  awaitUntilScreenWithBody<FormBodyModel>(SMS_INPUT_ENTERING_SMS)
-    .clickTrailingAccessoryButton()
-  awaitUntil { it.bottomSheetModel != null }.apply {
-    bottomSheetModel.shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>()
-      .clickSecondaryButton()
   }
 }
 

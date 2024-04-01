@@ -3,15 +3,7 @@ use std::str::FromStr;
 // Temporary enum used to translate between 0.29.2's Network and 0.30.0 Network so WSM-API and
 // enclave can talk to each other.
 pub(crate) enum BitcoinNetwork {
-    V29(wsm_common::bitcoin::Network),
     V30(bdk::bitcoin::Network),
-}
-
-// Converts from 0.29.2's Network to version-aware enum
-impl From<wsm_common::bitcoin::Network> for BitcoinNetwork {
-    fn from(value: wsm_common::bitcoin::Network) -> Self {
-        BitcoinNetwork::V29(value)
-    }
 }
 
 // Converts from 0.30 Network to version-aware enum
@@ -24,7 +16,6 @@ impl From<bdk::bitcoin::Network> for BitcoinNetwork {
 impl BitcoinNetwork {
     pub fn as_v29_network(&self) -> wsm_common::bitcoin::Network {
         match self {
-            BitcoinNetwork::V29(network) => *network,
             BitcoinNetwork::V30(network) => match network {
                 bdk::bitcoin::Network::Bitcoin => wsm_common::bitcoin::Network::Bitcoin,
                 bdk::bitcoin::Network::Signet => wsm_common::bitcoin::Network::Signet,
@@ -38,25 +29,12 @@ impl BitcoinNetwork {
     pub fn as_v30_network(&self) -> bdk::bitcoin::Network {
         match self {
             BitcoinNetwork::V30(network) => *network,
-            BitcoinNetwork::V29(network) => match network {
-                wsm_common::bitcoin::Network::Bitcoin => bdk::bitcoin::Network::Bitcoin,
-                wsm_common::bitcoin::Network::Signet => bdk::bitcoin::Network::Signet,
-                wsm_common::bitcoin::Network::Testnet => bdk::bitcoin::Network::Testnet,
-                wsm_common::bitcoin::Network::Regtest => bdk::bitcoin::Network::Regtest,
-            },
         }
     }
 }
 
 pub(crate) enum BitcoinDerivationPath {
-    V29(wsm_common::bitcoin::util::bip32::DerivationPath),
     V30(bdk::bitcoin::bip32::DerivationPath),
-}
-
-impl From<wsm_common::bitcoin::util::bip32::DerivationPath> for BitcoinDerivationPath {
-    fn from(value: wsm_common::bitcoin::util::bip32::DerivationPath) -> Self {
-        BitcoinDerivationPath::V29(value)
-    }
 }
 
 impl From<bdk::bitcoin::bip32::DerivationPath> for BitcoinDerivationPath {
@@ -68,9 +46,6 @@ impl From<bdk::bitcoin::bip32::DerivationPath> for BitcoinDerivationPath {
 impl BitcoinDerivationPath {
     pub fn as_v30_path(&self) -> bdk::bitcoin::bip32::DerivationPath {
         match self {
-            BitcoinDerivationPath::V29(path) => {
-                bdk::bitcoin::bip32::DerivationPath::from_str(&path.to_string()).unwrap()
-            }
             BitcoinDerivationPath::V30(path) => path.clone(),
         }
     }
@@ -78,9 +53,9 @@ impl BitcoinDerivationPath {
 
 pub(crate) struct BitcoinV30ExtendedPubKey(pub bdk::bitcoin::bip32::ExtendedPubKey);
 
-impl From<BitcoinV30ExtendedPubKey> for wsm_common::bitcoin::util::bip32::ExtendedPubKey {
+impl From<BitcoinV30ExtendedPubKey> for wsm_common::bitcoin::bip32::ExtendedPubKey {
     fn from(value: BitcoinV30ExtendedPubKey) -> Self {
-        wsm_common::bitcoin::util::bip32::ExtendedPubKey {
+        wsm_common::bitcoin::bip32::ExtendedPubKey {
             network: BitcoinNetwork::V30(value.0.network).as_v29_network(),
             depth: value.0.depth,
             parent_fingerprint: BitcoinV30Fingerprint(value.0.parent_fingerprint).into(),
@@ -93,22 +68,22 @@ impl From<BitcoinV30ExtendedPubKey> for wsm_common::bitcoin::util::bip32::Extend
 
 struct BitcoinV30Fingerprint(bdk::bitcoin::bip32::Fingerprint);
 
-impl From<BitcoinV30Fingerprint> for wsm_common::bitcoin::util::bip32::Fingerprint {
+impl From<BitcoinV30Fingerprint> for wsm_common::bitcoin::bip32::Fingerprint {
     fn from(value: BitcoinV30Fingerprint) -> Self {
-        wsm_common::bitcoin::util::bip32::Fingerprint::from_str(&value.0.to_string()).unwrap()
+        wsm_common::bitcoin::bip32::Fingerprint::from_str(&value.0.to_string()).unwrap()
     }
 }
 
 struct BitcoinV30ChildNumber(bdk::bitcoin::bip32::ChildNumber);
 
-impl From<BitcoinV30ChildNumber> for wsm_common::bitcoin::util::bip32::ChildNumber {
+impl From<BitcoinV30ChildNumber> for wsm_common::bitcoin::bip32::ChildNumber {
     fn from(value: BitcoinV30ChildNumber) -> Self {
         match value.0 {
             bdk::bitcoin::bip32::ChildNumber::Normal { index } => {
-                wsm_common::bitcoin::util::bip32::ChildNumber::Normal { index }
+                wsm_common::bitcoin::bip32::ChildNumber::Normal { index }
             }
             bdk::bitcoin::bip32::ChildNumber::Hardened { index } => {
-                wsm_common::bitcoin::util::bip32::ChildNumber::Hardened { index }
+                wsm_common::bitcoin::bip32::ChildNumber::Hardened { index }
             }
         }
     }
@@ -116,9 +91,9 @@ impl From<BitcoinV30ChildNumber> for wsm_common::bitcoin::util::bip32::ChildNumb
 
 struct BitcoinV30ChainCode(bdk::bitcoin::bip32::ChainCode);
 
-impl From<BitcoinV30ChainCode> for wsm_common::bitcoin::util::bip32::ChainCode {
+impl From<BitcoinV30ChainCode> for wsm_common::bitcoin::bip32::ChainCode {
     fn from(value: BitcoinV30ChainCode) -> Self {
-        wsm_common::bitcoin::util::bip32::ChainCode::from_str(&value.0.to_string()).unwrap()
+        wsm_common::bitcoin::bip32::ChainCode::from_str(&value.0.to_string()).unwrap()
     }
 }
 

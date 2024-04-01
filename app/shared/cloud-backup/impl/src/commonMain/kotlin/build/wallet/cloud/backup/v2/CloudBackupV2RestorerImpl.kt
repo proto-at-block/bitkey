@@ -18,8 +18,9 @@ import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerErro
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.encrypt.SymmetricKeyEncryptor
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.socrec.SocRecKeysDao
+import build.wallet.recovery.socrec.saveKey
 import build.wallet.serialization.json.decodeFromStringResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
@@ -34,7 +35,7 @@ class CloudBackupV2RestorerImpl(
   private val csekDao: CsekDao,
   private val symmetricKeyEncryptor: SymmetricKeyEncryptor,
   private val appPrivateKeyDao: AppPrivateKeyDao,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val socRecKeysDao: SocRecKeysDao,
 ) : CloudBackupV2Restorer {
   override suspend fun restore(
@@ -73,10 +74,10 @@ class CloudBackupV2RestorerImpl(
     val fullAccountFields = requireNotNull(cloudBackupV2.fullAccountFields)
 
     // Store auth private keys
-    appPrivateKeyDao.storeAppAuthKeyPair(cloudBackupV2.appRecoveryAuthKeypair).mapError {
+    appPrivateKeyDao.storeAppKeyPair(cloudBackupV2.appRecoveryAuthKeypair).mapError {
       AppAuthKeypairStorageError(it)
     }.bind()
-    appPrivateKeyDao.storeAppAuthKeyPair(keysInfo.appGlobalAuthKeypair).mapError {
+    appPrivateKeyDao.storeAppKeyPair(keysInfo.appGlobalAuthKeypair).mapError {
       AppAuthKeypairStorageError(it)
     }.bind()
 
@@ -103,14 +104,14 @@ class CloudBackupV2RestorerImpl(
       inactiveKeysets = keysInfo.inactiveSpendingKeysets.toImmutableList(),
       activeAppKeyBundle =
         AppKeyBundle(
-          localId = uuid.random(),
+          localId = uuidGenerator.random(),
           spendingKey = keysInfo.activeSpendingKeyset.appKey,
           authKey = keysInfo.appGlobalAuthKeypair.publicKey,
           networkType = cloudBackupV2.bitcoinNetworkType,
           recoveryAuthKey = cloudBackupV2.appRecoveryAuthKeypair.publicKey
         ),
       activeHwKeyBundle = HwKeyBundle(
-        localId = uuid.random(),
+        localId = uuidGenerator.random(),
         spendingKey = keysInfo.activeHwSpendingKey,
         authKey = keysInfo.activeHwAuthKey,
         networkType = cloudBackupV2.bitcoinNetworkType

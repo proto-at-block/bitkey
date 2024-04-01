@@ -2,11 +2,11 @@
     "module-identifier": "com.google.firebase:firebase-common",
     "components": [
         {
-            "version": "20.3.1",
+            "version": "20.4.2",
             "variants": [
                 {
                     "artifacts": {
-                        "firebase-common-20.3.1.aar": "09002cb668179b3d8a96a196530059764e6e08b1032bff295d7e58900d209db7"
+                        "firebase-common-20.4.2.aar": "37782e3f361b6c424b5439a3f33d569433d7e266055801f51ffca0badda898da"
                     }
                 }
             ],

@@ -309,6 +309,11 @@ pub async fn create_bootstrap_with_overrides(
         social_challenge_service.clone(),
         feature_flags.clone(),
     );
+    let experimentation = experimentation::routes::RouteState(
+        config::extract(profile)?,
+        account_service.clone(),
+        feature_flags.clone(),
+    );
     let exchange_rate =
         exchange_rate::routes::RouteState(exchange_rate_service.clone(), feature_flags.clone());
     let customer_feedback_config = config::extract::<customer_feedback::routes::Config>(profile)?;
@@ -326,6 +331,7 @@ pub async fn create_bootstrap_with_overrides(
         .merge(Router::from(mobile_pay.clone()))
         .merge(recovery.authed_router())
         .merge(onboarding.authed_router())
+        .merge(experimentation.authed_router())
         .route_layer(middleware::from_fn(authorize_token_for_path));
 
     let recovery_router = Router::new()
@@ -358,6 +364,7 @@ pub async fn create_bootstrap_with_overrides(
         .merge(customer_feedback.unauthed_router())
         .merge(recovery.unauthed_router())
         .merge(exchange_rate.unauthed_router())
+        .merge(experimentation.unauthed_router())
         .merge(Router::from(health_checks))
         .merge(Router::from(analytics))
         .merge(SwaggerUi::new("/docs/swagger-ui").urls(vec![
@@ -368,6 +375,7 @@ pub async fn create_bootstrap_with_overrides(
             SwaggerEndpoint::from(exchange_rate),
             SwaggerEndpoint::from(customer_feedback),
             SwaggerEndpoint::from(authentication),
+            SwaggerEndpoint::from(experimentation),
         ]))
         .layer(HttpMetrics::new())
         .layer(OtelInResponseLayer)

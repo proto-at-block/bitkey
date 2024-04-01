@@ -11,7 +11,6 @@ import kotlin.coroutines.cancellation.CancellationException
  *   - `close` … self-explanatory
  *
  **/
-@OptIn(ExperimentalStdlibApi::class)
 interface NfcSession : AutoCloseable {
   var message: String?
   val parameters: Parameters

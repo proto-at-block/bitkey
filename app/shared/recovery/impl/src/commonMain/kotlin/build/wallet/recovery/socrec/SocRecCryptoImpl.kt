@@ -1,25 +1,26 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.auth.AppAuthKeyMessageSigner
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.keys.app.AppKeyImpl
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.PrivateKeyEncryptionKey
 import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
-import build.wallet.bitkey.socrec.ProtectedCustomerIdentityKey
+import build.wallet.bitkey.socrec.ProtectedCustomerPakeKey
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
+import build.wallet.bitkey.socrec.TrustedContactPakeKey
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.catching
 import build.wallet.crypto.CurveType
 import build.wallet.crypto.KeyPair
+import build.wallet.crypto.PakeKey
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.Spake2
@@ -41,6 +42,7 @@ import build.wallet.encrypt.XChaCha20Poly1305
 import build.wallet.encrypt.XCiphertext
 import build.wallet.encrypt.XNonceGenerator
 import build.wallet.encrypt.XSealedData
+import build.wallet.encrypt.toSecp256k1PublicKey
 import build.wallet.encrypt.toXSealedData
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.serialization.hex.decodeHexWithResult
@@ -74,19 +76,19 @@ class SocRecCryptoImpl(
   }
 
   private fun generateProtectedCustomerIdentityKey():
-    Result<ProtectedCustomerIdentityKey, SocRecCryptoError> =
+    Result<AppKey<ProtectedCustomerIdentityKey>, SocRecCryptoError> =
     Result.catching {
-      ProtectedCustomerIdentityKey(generateAsymmetricKey())
+      generateAsymmetricKeyUnwrapped<ProtectedCustomerIdentityKey>()
     }.mapError { SocRecCryptoError.KeyGenerationFailed(it) }
 
-  override fun generateDelegatedDecryptionKey(): Result<DelegatedDecryptionKey, SocRecCryptoError> =
+  override fun generateDelegatedDecryptionKey(): Result<AppKey<DelegatedDecryptionKey>, SocRecCryptoError> =
     Result.catching {
-      DelegatedDecryptionKey(generateAsymmetricKey())
+      generateAsymmetricKeyUnwrapped<DelegatedDecryptionKey>()
     }.mapError { SocRecCryptoError.KeyGenerationFailed(it) }
 
   override fun generateProtectedCustomerEnrollmentPakeKey(
     password: PakeCode,
-  ): Result<ProtectedCustomerEnrollmentPakeKey, SocRecCryptoError> =
+  ): Result<AppKey<ProtectedCustomerEnrollmentPakeKey>, SocRecCryptoError> =
     // TODO: catch and return Result in Spake2 for better error handling
     // See https://linear.app/squareup/issue/BKR-1050/catch-and-return-results-in-spake2
     Result.catching {
@@ -98,18 +100,15 @@ class SocRecCryptoImpl(
           password.bytes
         )
       )
-      val appKey = AppKeyImpl(
-        CurveType.Curve25519,
+      AppKey<ProtectedCustomerEnrollmentPakeKey>(
         keyPair.publicKey.toPublicKey(),
         keyPair.privateKey.toPrivateKey()
       )
-
-      ProtectedCustomerEnrollmentPakeKey(appKey)
     }.mapError { SocRecCryptoError.KeyGenerationFailed(it) }
 
   override fun generateProtectedCustomerRecoveryPakeKey(
     password: PakeCode,
-  ): Result<ProtectedCustomerRecoveryPakeKey, SocRecCryptoError> =
+  ): Result<AppKey<ProtectedCustomerRecoveryPakeKey>, SocRecCryptoError> =
     Result.catching {
       val keyPair = spake2.generateKeyPair(
         Spake2Params(
@@ -119,42 +118,36 @@ class SocRecCryptoImpl(
           password.bytes
         )
       )
-      val appKey = AppKeyImpl(
-        CurveType.Curve25519,
+      AppKey<ProtectedCustomerRecoveryPakeKey>(
         keyPair.publicKey.toPublicKey(),
         keyPair.privateKey.toPrivateKey()
       )
-
-      ProtectedCustomerRecoveryPakeKey(appKey)
     }.mapError { SocRecCryptoError.KeyGenerationFailed(it) }
 
   override fun encryptDelegatedDecryptionKey(
     password: PakeCode,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
   ): Result<EncryptDelegatedDecryptionKeyOutput, SocRecCryptoError> =
     Result.catching {
       // Establish PAKE secure channel
-      val pakeChannelOutput = acceptPakeChannel(
+      val pakeChannelOutput = acceptPakeChannel<ProtectedCustomerEnrollmentPakeKey, TrustedContactEnrollmentPakeKey>(
         password,
-        protectedCustomerEnrollmentPakeKey.publicKey,
+        protectedCustomerEnrollmentPakeKey,
         PAKE_ENROLLMENT_AAD.encodeUtf8()
       ).getOrThrow()
-      val trustedContactEnrollmentPakeKey = TrustedContactEnrollmentPakeKey(
-        pakeChannelOutput.trustedContactPakeKey
-      )
 
       // Encrypt delegated decryption key with PAKE secure channel
       val sealedDelegatedDecryptionKey =
         xChaCha20Poly1305.encrypt(
           key = pakeChannelOutput.encryptionKey,
           nonce = xNonceGenerator.generateXNonce(),
-          plaintext = delegatedDecryptionKey.publicKey.value.decodeHex(),
+          plaintext = delegatedDecryptionKey.value.decodeHex(),
           aad = PAKE_ENROLLMENT_AAD.encodeUtf8()
         )
 
       EncryptDelegatedDecryptionKeyOutput(
-        trustedContactEnrollmentPakeKey,
+        pakeChannelOutput.trustedContactPakeKey.publicKey,
         pakeChannelOutput.keyConfirmation,
         sealedDelegatedDecryptionKey
       )
@@ -162,37 +155,27 @@ class SocRecCryptoImpl(
 
   override fun decryptDelegatedDecryptionKey(
     password: PakeCode,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    protectedCustomerEnrollmentPakeKey: AppKey<ProtectedCustomerEnrollmentPakeKey>,
     encryptDelegatedDecryptionKeyOutput: EncryptDelegatedDecryptionKeyOutput,
-  ): Result<DelegatedDecryptionKey, SocRecCryptoError> =
+  ): Result<PublicKey<DelegatedDecryptionKey>, SocRecCryptoError> =
     Result.catching {
       val delegatedDecryptionKey =
         decryptSecureChannel(
           password,
-          KeyPair(
-            privateKey = protectedCustomerEnrollmentPakeKey.getPrivateKey(),
-            publicKey = protectedCustomerEnrollmentPakeKey.publicKey,
-            curveType = CurveType.Curve25519
-          ),
-          encryptDelegatedDecryptionKeyOutput.trustedContactEnrollmentPakeKey.key.publicKey,
+          protectedCustomerEnrollmentPakeKey,
+          encryptDelegatedDecryptionKeyOutput.trustedContactEnrollmentPakeKey,
           encryptDelegatedDecryptionKeyOutput.keyConfirmation,
           encryptDelegatedDecryptionKeyOutput.sealedDelegatedDecryptionKey,
           PAKE_ENROLLMENT_AAD.encodeUtf8()
         ).getOrThrow()
-      DelegatedDecryptionKey(
-        AppKeyImpl(
-          CurveType.Curve25519,
-          PublicKey(delegatedDecryptionKey.hex()),
-          null
-        )
-      )
+      PublicKey<DelegatedDecryptionKey>(delegatedDecryptionKey.hex())
     }.mapError { SocRecCryptoError.DecryptionFailed(it) }
 
   override fun verifyKeyCertificate(
     keyCertificate: TrustedContactKeyCertificate,
     hwAuthKey: HwAuthPublicKey?,
-    appGlobalAuthKey: AppGlobalAuthPublicKey?,
-  ): Result<DelegatedDecryptionKey, SocRecCryptoError> {
+    appGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
+  ): Result<PublicKey<DelegatedDecryptionKey>, SocRecCryptoError> {
     if (hwAuthKey == null && appGlobalAuthKey == null) {
       return Err(SocRecCryptoError.AuthKeysNotPresent)
     }
@@ -220,15 +203,15 @@ class SocRecCryptoImpl(
       if (!signatureVerifier.verifyEcdsaResult(
           signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
           publicKey = hwEndorsementKey.pubKey,
-          message = keyCertificate.appGlobalAuthPublicKey.pubKey.value.encodeUtf8()
+          message = keyCertificate.appGlobalAuthPublicKey.value.encodeUtf8()
         ).mapError {
           SocRecCryptoError.KeyCertificateVerificationFailed(it)
         }.bind() ||
         !signatureVerifier.verifyEcdsaResult(
           signature = keyCertificate.trustedContactIdentityKeyAppSignature.value,
-          publicKey = appEndorsementKey.pubKey,
+          publicKey = appEndorsementKey.toSecp256k1PublicKey(),
           message = (
-            keyCertificate.delegatedDecryptionKey.publicKey.value.decodeHexWithResult().mapError {
+            keyCertificate.delegatedDecryptionKey.value.decodeHexWithResult().mapError {
               SocRecCryptoError.KeyCertificateVerificationFailed(it)
             }.bind().toByteArray() +
               hwEndorsementKey.pubKey.value.decodeHexWithResult().mapError {
@@ -251,16 +234,16 @@ class SocRecCryptoImpl(
   }
 
   override suspend fun generateKeyCertificate(
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     hwAuthKey: HwAuthPublicKey,
-    appGlobalAuthKey: AppGlobalAuthPublicKey,
+    appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<TrustedContactKeyCertificate, SocRecCryptoError> =
     suspendBinding {
       appAuthKeyMessageSigner.signMessage(
         appGlobalAuthKey,
         (
-          delegatedDecryptionKey.publicKey.value.decodeHexWithResult().mapError {
+          delegatedDecryptionKey.value.decodeHexWithResult().mapError {
             SocRecCryptoError.KeyCertificateGenerationFailed(it)
           }.bind().toByteArray() +
             hwAuthKey.pubKey.value.decodeHexWithResult().mapError {
@@ -278,15 +261,13 @@ class SocRecCryptoImpl(
       }.mapError { SocRecCryptoError.KeyCertificateGenerationFailed(it) }.bind()
     }
 
-  override fun <T : SocRecKey> generateAsymmetricKey(
-    factory: (AppKey) -> T,
-  ): Result<T, SocRecCryptoError> = Ok(factory(generateAsymmetricKey()))
+  override fun <T> generateAsymmetricKey(): Result<AppKey<T>, SocRecCryptoError> where T : SocRecKey, T : CurveType.Curve25519 =
+    Ok(generateAsymmetricKeyUnwrapped())
 
-  private fun generateAsymmetricKey(): AppKey {
+  private fun <T> generateAsymmetricKeyUnwrapped(): AppKey<T> where T : SocRecKey, T : CurveType.Curve25519 {
     val (privKey, pubKey) = cryptoBox.generateKeyPair()
 
-    return AppKeyImpl(
-      CurveType.Curve25519,
+    return AppKey(
       PublicKey(pubKey.bytes.hex()),
       PrivateKey(privKey.bytes)
     )
@@ -312,21 +293,16 @@ class SocRecCryptoImpl(
     }.mapError { SocRecCryptoError.EncryptionFailed(it) }
   }
 
-  private fun <T : SocRecKey> T.getPrivateKey(): PrivateKey {
-    val appKeyImpl = key as? AppKeyImpl ?: throw SocRecCryptoError.InvalidKeyType
-    return appKeyImpl.privateKey ?: throw SocRecCryptoError.PrivateKeyMissing
-  }
-
   override fun encryptPrivateKeyEncryptionKey(
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     privateKeyEncryptionKey: PrivateKeyEncryptionKey,
   ): Result<XCiphertext, SocRecCryptoError> {
     return Result.catching {
       // Step 1: Encrypt the private key encryption key
       val protectedCustomerIdentityKey = generateProtectedCustomerIdentityKey().getOrThrow()
       val sealedPrivateKeyEncryptionKey = cryptoBox.encrypt(
-        theirPublicKey = CryptoBoxPublicKey(delegatedDecryptionKey.publicKey.value.decodeHex()),
-        myPrivateKey = CryptoBoxPrivateKey(protectedCustomerIdentityKey.getPrivateKey().bytes),
+        theirPublicKey = CryptoBoxPublicKey(delegatedDecryptionKey.value.decodeHex()),
+        myPrivateKey = CryptoBoxPrivateKey(protectedCustomerIdentityKey.privateKey.bytes),
         nonce = xNonceGenerator.generateXNonce(),
         plaintext = privateKeyEncryptionKey.raw
       )
@@ -344,8 +320,8 @@ class SocRecCryptoImpl(
 
   override fun decryptPrivateKeyEncryptionKey(
     password: PakeCode,
-    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    protectedCustomerRecoveryPakeKey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedPrivateKeyEncryptionKey: XCiphertext,
   ): Result<DecryptPrivateKeyEncryptionKeyOutput, SocRecCryptoError> =
     Result.catching {
@@ -359,19 +335,16 @@ class SocRecCryptoImpl(
 
       val privateKeyEncryptionKey = cryptoBox.decrypt(
         theirPublicKey = CryptoBoxPublicKey(protectedCustomerIdentityPublicKey.value.decodeHex()),
-        myPrivateKey = CryptoBoxPrivateKey(delegatedDecryptionKey.getPrivateKey().bytes),
+        myPrivateKey = CryptoBoxPrivateKey(delegatedDecryptionKey.privateKey.bytes),
         sealedData = sealedPrivateKeyEncryptionKey
       )
 
       // Step 2: Establish PAKE secure channel
-      val pakeChannelOutput = acceptPakeChannel(
+      val pakeChannelOutput = acceptPakeChannel<ProtectedCustomerRecoveryPakeKey, TrustedContactRecoveryPakeKey>(
         password,
-        protectedCustomerRecoveryPakeKey.publicKey,
+        protectedCustomerRecoveryPakeKey,
         PAKE_RECOVERY_AAD.encodeUtf8()
       ).getOrThrow()
-      val trustedContactRecoveryPakeKey = TrustedContactRecoveryPakeKey(
-        pakeChannelOutput.trustedContactPakeKey
-      )
 
       // Step 3: Re-encrypt the private key encryption key with the PAKE secure channel
       val resealedPrivateKeyEncryptionKey =
@@ -382,7 +355,7 @@ class SocRecCryptoImpl(
           aad = PAKE_RECOVERY_AAD.encodeUtf8()
         )
       DecryptPrivateKeyEncryptionKeyOutput(
-        trustedContactRecoveryPakeKey,
+        pakeChannelOutput.trustedContactPakeKey.publicKey,
         pakeChannelOutput.keyConfirmation,
         resealedPrivateKeyEncryptionKey
       )
@@ -390,7 +363,7 @@ class SocRecCryptoImpl(
 
   override fun decryptPrivateKeyMaterial(
     password: PakeCode,
-    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
+    protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
     decryptPrivateKeyEncryptionKeyOutput: DecryptPrivateKeyEncryptionKeyOutput,
     sealedPrivateKeyMaterial: XCiphertext,
   ): Result<ByteString, SocRecCryptoError> =
@@ -398,12 +371,8 @@ class SocRecCryptoImpl(
       // Step 1: Decrypt the private key encryption key with the PAKE secure channel
       val privateKeyEncryptionKey = decryptSecureChannel(
         password,
-        KeyPair(
-          privateKey = protectedCustomerRecoveryPakeKey.getPrivateKey(),
-          publicKey = protectedCustomerRecoveryPakeKey.key.publicKey,
-          curveType = CurveType.Curve25519
-        ),
-        decryptPrivateKeyEncryptionKeyOutput.trustedContactRecoveryPakeKey.key.publicKey,
+        protectedCustomerRecoveryPakeKey,
+        decryptPrivateKeyEncryptionKeyOutput.trustedContactRecoveryPakeKey,
         decryptPrivateKeyEncryptionKeyOutput.keyConfirmation,
         decryptPrivateKeyEncryptionKeyOutput.sealedPrivateKeyEncryptionKey,
         PAKE_RECOVERY_AAD.encodeUtf8()
@@ -417,17 +386,17 @@ class SocRecCryptoImpl(
       )
     }.mapError { SocRecCryptoError.DecryptionFailed(it) }
 
-  private data class AcceptPakeChannelOutput(
-    val trustedContactPakeKey: AppKey,
+  private data class AcceptPakeChannelOutput<T : PakeKey>(
+    val trustedContactPakeKey: AppKey<T>,
     val keyConfirmation: ByteString,
     val encryptionKey: SymmetricKey,
   )
 
-  private fun acceptPakeChannel(
+  private fun <P : ProtectedCustomerPakeKey, T : TrustedContactPakeKey> acceptPakeChannel(
     password: PakeCode,
-    protectedCustomerPakeKey: PublicKey,
+    protectedCustomerPakeKey: PublicKey<P>,
     aad: ByteString,
-  ): Result<AcceptPakeChannelOutput, SocRecCryptoError> =
+  ): Result<AcceptPakeChannelOutput<T>, SocRecCryptoError> =
     Result.catching {
       val spake2Params = Spake2Params(
         Spake2Role.Bob,
@@ -445,8 +414,7 @@ class SocRecCryptoImpl(
       val keyConfirmation = spake2.generateKeyConfMsg(spake2Params.role, pakeSymmetricKeys)
       val pakeEncryptionKey = SymmetricKeyImpl(raw = pakeSymmetricKeys.bobEncryptionKey)
       AcceptPakeChannelOutput(
-        AppKeyImpl(
-          CurveType.Curve25519,
+        AppKey<T>(
           spake2KeyPair.publicKey.toPublicKey(),
           spake2KeyPair.privateKey.toPrivateKey()
         ),
@@ -455,10 +423,10 @@ class SocRecCryptoImpl(
       )
     }.mapError { SocRecCryptoError.PakeChannelAcceptanceFailed(it) }
 
-  private fun decryptSecureChannel(
+  private fun <P : ProtectedCustomerPakeKey, T : TrustedContactPakeKey> decryptSecureChannel(
     password: PakeCode,
-    protectedCustomerPakeKey: KeyPair,
-    trustedContactPakeKey: PublicKey,
+    protectedCustomerPakeKey: KeyPair<P>,
+    trustedContactPakeKey: PublicKey<T>,
     keyConfirmation: ByteString,
     sealedData: XCiphertext,
     aad: ByteString,

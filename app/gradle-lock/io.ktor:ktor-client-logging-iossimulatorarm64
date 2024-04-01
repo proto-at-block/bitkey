@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-logging-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-logging-iossimulatorarm64-2.3.8-metadata.jar": "2d7dd99fa370b9e1471a5c1be669979e0cc86f7669c2b60656953c3b446170d4"
+                        "ktor-client-logging-iossimulatorarm64-2.3.9-metadata.jar": "594c4c214e116e2828e50d0869cb927fe090e9d86fbf1ab32d570eca32b8f5b9"
                     }
                 },
                 {

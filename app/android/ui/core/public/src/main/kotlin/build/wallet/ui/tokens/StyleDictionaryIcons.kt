@@ -51,6 +51,7 @@ import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
 import build.wallet.statemachine.core.Icon.SmallIconCloud
+import build.wallet.statemachine.core.Icon.SmallIconCloudError
 import build.wallet.statemachine.core.Icon.SmallIconCopy
 import build.wallet.statemachine.core.Icon.SmallIconCurrency
 import build.wallet.statemachine.core.Icon.SmallIconDigitOne
@@ -149,9 +150,11 @@ private val Icon.drawableRes
       SmallIconCheck -> R.drawable.small_icon_check
       SmallIconCheckFilled -> R.drawable.small_icon_check_filled
       SmallIconCheckStroked -> R.drawable.small_icon_check_stroked
+      SmallIconCircleStroked -> R.drawable.small_icon_circle_stroked
       SmallIconClipboard -> R.drawable.small_icon_clipboard
       SmallIconClock -> R.drawable.small_icon_clock
       SmallIconCloud -> R.drawable.small_icon_cloud
+      SmallIconCloudError -> R.drawable.small_icon_cloud_error
       SmallIconCopy -> R.drawable.small_icon_copy
       SmallIconCurrency -> R.drawable.small_icon_currency
       SmallIconDigitOne -> R.drawable.small_icon_digit_one
@@ -160,7 +163,6 @@ private val Icon.drawableRes
       SmallIconElectrum -> R.drawable.small_icon_electrum
       SmallIconEmail -> R.drawable.small_icon_email
       SmallIconExternal -> R.drawable.small_icon_external
-      SmallIconCircleStroked -> R.drawable.small_icon_circle_stroked
       SmallIconInformation -> R.drawable.small_icon_information
       SmallIconInformationFilled -> R.drawable.small_icon_information_filled
       SmallIconKey -> R.drawable.small_icon_key

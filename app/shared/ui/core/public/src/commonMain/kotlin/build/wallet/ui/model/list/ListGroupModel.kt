@@ -7,8 +7,14 @@ data class ListGroupModel(
   val header: String? = null,
   val items: ImmutableList<ListItemModel>,
   val style: ListGroupStyle,
+  val headerTreatment: HeaderTreatment = HeaderTreatment.SECONDARY,
   val footerButton: ButtonModel? = null,
-)
+) {
+  enum class HeaderTreatment {
+    PRIMARY,
+    SECONDARY,
+  }
+}
 
 /**
  * See ListGroup.kt for visual previews

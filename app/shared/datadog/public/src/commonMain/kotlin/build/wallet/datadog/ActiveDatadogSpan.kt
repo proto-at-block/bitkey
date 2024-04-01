@@ -3,7 +3,6 @@ package build.wallet.datadog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
-import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind.EXACTLY_ONCE
 import kotlin.contracts.contract
 import kotlin.coroutines.AbstractCoroutineContextElement
@@ -13,7 +12,6 @@ class ActiveDatadogSpan(val span: DatadogSpan) : AbstractCoroutineContextElement
   companion object Key : CoroutineContext.Key<ActiveDatadogSpan>
 }
 
-@OptIn(ExperimentalContracts::class)
 @Suppress("TooGenericExceptionCaught")
 suspend fun <T> DatadogTracer.span(
   spanName: String,

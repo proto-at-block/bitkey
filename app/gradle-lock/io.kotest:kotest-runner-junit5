@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-runner-junit5",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-runner-junit5-metadata-5.8.0.jar": "19895b13bd40d94c56b453fa03865203a8077398718e118b4c2dec54457fff5e"
+                        "kotest-runner-junit5-metadata-5.8.1.jar": "19895b13bd40d94c56b453fa03865203a8077398718e118b4c2dec54457fff5e"
                     }
                 }
             ],

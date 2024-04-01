@@ -1,23 +1,15 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.bitcoin
 
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
-import build.wallet.bitkey.app.AppAuthKeypair
-import build.wallet.bitkey.app.AppAuthPublicKey
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
-import build.wallet.bitkey.app.AppGlobalAuthPrivateKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
-import build.wallet.bitkey.app.AppRecoveryAuthPrivateKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.catching
+import build.wallet.crypto.KeyPurpose
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
-import build.wallet.encrypt.Secp256k1PrivateKey
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
@@ -32,7 +24,6 @@ import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.toErrorIf
-import com.russhwolf.settings.ExperimentalSettingsApi
 import okio.ByteString.Companion.decodeHex
 
 /**
@@ -89,19 +80,17 @@ class AppPrivateKeyDaoImpl(
       .logFailure { "Failed to store spending key in $STORE_NAME" }
   }
 
-  override suspend fun storeAppAuthKeyPair(keyPair: AppAuthKeypair): Result<Unit, Throwable> {
+  override suspend fun <T : AppAuthKey> storeAppKeyPair(
+    keyPair: AppKey<T>,
+  ): Result<Unit, Throwable> {
     return secureStore()
       .putStringWithResult(
-        key = keyPair.publicKey.pubKey.value,
-        value = keyPair.privateKey.key.bytes.hex()
+        key = keyPair.publicKey.value,
+        value = keyPair.privateKey.bytes.hex()
       )
       .flatMap {
         // Double check that the keys were properly stored, otherwise return error.
-        val result =
-          when (keyPair) {
-            is AppGlobalAuthKeypair -> getGlobalAuthKey(keyPair.publicKey)
-            is AppRecoveryAuthKeypair -> getRecoveryAuthKey(keyPair.publicKey)
-          }
+        val result = getAsymmetricPrivateKey(keyPair.publicKey)
 
         result
           .toErrorIf(
@@ -115,9 +104,9 @@ class AppPrivateKeyDaoImpl(
       .logFailure { "Failed to store auth key in $STORE_NAME" }
   }
 
-  override suspend fun storeAsymmetricPrivateKey(
-    publicKey: PublicKey,
-    privateKey: PrivateKey,
+  override suspend fun <T : KeyPurpose> storeAsymmetricPrivateKey(
+    publicKey: PublicKey<T>,
+    privateKey: PrivateKey<T>,
   ): Result<Unit, Throwable> {
     return secureStore()
       .putStringWithResult(
@@ -167,28 +156,12 @@ class AppPrivateKeyDaoImpl(
     }.logFailure { "Failed to get private key from $STORE_NAME" }
   }
 
-  override suspend fun getGlobalAuthKey(
-    publicKey: AppGlobalAuthPublicKey,
-  ): Result<AppGlobalAuthPrivateKey?, Throwable> {
-    return secureStore()
-      .getStringOrNullWithResult(publicKey.pubKey.value)
-      .map { it?.let { AppGlobalAuthPrivateKey(Secp256k1PrivateKey(it.decodeHex())) } }
-      .logFailure { "Error getting app global auth private key from $STORE_NAME" }
-  }
-
-  override suspend fun getRecoveryAuthKey(
-    publicKey: AppRecoveryAuthPublicKey,
-  ): Result<AppRecoveryAuthPrivateKey?, Throwable> {
-    return secureStore()
-      .getStringOrNullWithResult(publicKey.pubKey.value)
-      .map { it?.let { AppRecoveryAuthPrivateKey(Secp256k1PrivateKey(it.decodeHex())) } }
-      .logFailure { "Error getting app global auth private key from $STORE_NAME" }
-  }
-
-  override suspend fun getAsymmetricPrivateKey(key: PublicKey): Result<PrivateKey?, Throwable> {
+  override suspend fun <T : KeyPurpose> getAsymmetricPrivateKey(
+    key: PublicKey<T>,
+  ): Result<PrivateKey<T>?, Throwable> {
     return secureStore()
       .getStringOrNullWithResult(key.value)
-      .map { it?.let { PrivateKey(it.decodeHex()) } }
+      .map { it?.let { PrivateKey<T>(it.decodeHex()) } }
       .logFailure { "Error getting asymmetric private key from $STORE_NAME" }
   }
 
@@ -202,13 +175,7 @@ class AppPrivateKeyDaoImpl(
     }
       .logFailure { "Failed to remove spending key in $STORE_NAME" }
 
-  override suspend fun remove(key: AppAuthPublicKey): Result<Unit, Throwable> {
-    return secureStore()
-      .removeWithResult(key = key.pubKey.value)
-      .logFailure { "Error removing auth key in $STORE_NAME" }
-  }
-
-  override suspend fun remove(key: PublicKey): Result<Unit, Throwable> {
+  override suspend fun <T : KeyPurpose> remove(key: PublicKey<T>): Result<Unit, Throwable> {
     return secureStore()
       .removeWithResult(key = key.value)
       .logFailure { "Error removing asymmetric key in $STORE_NAME" }

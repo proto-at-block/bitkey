@@ -28,12 +28,10 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class CloudBackupRefresherImplTests : FunSpec({
 
   val cloudInstanceId = "fake"

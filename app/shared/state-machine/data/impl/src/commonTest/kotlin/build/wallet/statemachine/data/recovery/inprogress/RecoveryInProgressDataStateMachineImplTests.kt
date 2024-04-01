@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class)
-
 package build.wallet.statemachine.data.recovery.inprogress
 
 import app.cash.turbine.plusAssign
@@ -22,10 +20,7 @@ import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
 import build.wallet.notifications.DeviceTokenManagerError.NoDeviceToken
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.notifications.DeviceTokenManagerResult
-import build.wallet.platform.device.DeviceInfoProviderMock
-import build.wallet.platform.device.DevicePlatform.Android
-import build.wallet.platform.device.DevicePlatform.IOS
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.LocalRecoveryAttemptProgress.RotatedSpendingKeys
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.BackedUpToCloud
@@ -67,13 +62,13 @@ import build.wallet.statemachine.data.recovery.verification.RecoveryNotification
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.ClockFake
+import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.testCoroutineScheduler
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.minutes
 
@@ -88,7 +83,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       GeneratingPsbtsData(App)
     ) {}
   val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock()
-  val uuid = UuidFake()
+  val uuid = UuidGeneratorFake()
   val recoverySyncer = RecoverySyncerMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
   val recoveryDao = RecoveryDaoMock(turbines::create)
   val accountAuthorizer = AccountAuthenticatorMock(turbines::create)
@@ -98,13 +93,13 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
       ) {}
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
-  val deviceInfoProvider = DeviceInfoProviderMock()
   val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
   val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorMock(turbines::create)
 
   val stateMachine =
     RecoveryInProgressDataStateMachineImpl(
+      delayer = ControlledDelayer(),
       recoveryCanceler = lostAppRecoveryCanceler,
       clock = clock,
       csekGenerator = csekGenerator,
@@ -112,7 +107,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryAuthCompleter = recoveryAuthCompleter,
       sweepDataStateMachine = sweepDataStateMachine,
       f8eSpendingKeyRotator = f8eSpendingKeyRotator,
-      uuid = uuid,
+      uuidGenerator = uuid,
       recoverySyncer = recoverySyncer,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       accountAuthenticator = accountAuthorizer,
@@ -422,11 +417,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
-  test("complete recovery on jvm with socrec") {
+  test("complete recovery with socrec") {
     val recovery = recovery()
-    // Ignore failures on JVM
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
     // Move clock ahead of delay period
     clock.advanceBy(2.minutes)
     stateMachine.test(props(recovery)) {
@@ -543,605 +535,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
-  test("exit and restart sweep on jvm") {
+  test("complete recovery") {
     val recovery = recovery()
-    // Ignore failures on JVM
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndCsek(
-            signedChallenge = "",
-            sealedCsek = SealedCsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          RotatedAuthKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          CreatedSpendingKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
-      }
-
-      // Generating TC certs with new auth keys
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
-      socRecRelationshipsRepository.syncCalls.awaitItem()
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFinished()
-      }
-
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
-      updateProps(
-        props(
-          BackedUpToCloud(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock
-          )
-        )
-      )
-
-      // Sweeping funds
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
-        it.rollback()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<ExitedPerformingSweepData>()
-        it.retry()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
-      }
-    }
-  }
-
-  test("fail and retry cloud backup on jvm") {
-    val recovery = recovery()
-    // Ignore failures on JVM
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndCsek(
-            signedChallenge = "",
-            sealedCsek = SealedCsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          RotatedAuthKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-      }
-
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
-      updateProps(
-        props(
-          CreatedSpendingKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
-      }
-
-      // Generating TC certs with new auth keys
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFailed()
-      }
-
-      // Retrying
-      awaitItem().let {
-        it.shouldBeTypeOf<FailedPerformingCloudBackupData>()
-        it.retry()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-      }
-    }
-  }
-
-  test("complete recovery on ios") {
-    val recovery = recovery()
-    // Ignore failures on iOS
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    deviceInfoProvider.devicePlatformValue = IOS
-    // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndCsek(
-            signedChallenge = "",
-            sealedCsek = SealedCsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          RotatedAuthKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-          .shouldBeTypeOf<RotatedSpendingKeys>()
-      }
-
-      updateProps(
-        props(
-          CreatedSpendingKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
-      }
-
-      // Generating TC certs with new auth keys
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFinished()
-      }
-
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
-      updateProps(
-        props(
-          BackedUpToCloud(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock
-          )
-        )
-      )
-
-      // Sweeping funds
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
-      }
-    }
-  }
-
-  test("exit and restart sweep on ios") {
-    val recovery = recovery()
-    // Ignore failures on iOS
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    deviceInfoProvider.devicePlatformValue = IOS
-    // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndCsek(
-            signedChallenge = "",
-            sealedCsek = SealedCsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          RotatedAuthKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-        recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          CreatedSpendingKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
-      }
-
-      // Generating TC certs with new auth keys
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFinished()
-      }
-
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
-      updateProps(
-        props(
-          BackedUpToCloud(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            f8eSpendingKeyset = F8eSpendingKeysetMock
-          )
-        )
-      )
-
-      // Sweeping funds
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
-        it.rollback()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<ExitedPerformingSweepData>()
-        it.retry()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
-      }
-    }
-  }
-
-  test("fail and retry cloud backup on ios") {
-    val recovery = recovery()
-    // Ignore failures on iOS
-    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
-      DeviceTokenManagerResult.Err(NoDeviceToken)
-    deviceInfoProvider.devicePlatformValue = IOS
-    // Move clock ahead of delay period
-    clock.advanceBy(2.minutes)
-    stateMachine.test(props(recovery)) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
-        it.startComplete()
-      }
-
-      // Rotate auth keys
-      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
-        it.nfcTransaction.onSuccess(
-          SignedChallengeAndCsek(
-            signedChallenge = "",
-            sealedCsek = SealedCsekFake
-          )
-        )
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
-        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
-      }
-
-      updateProps(
-        props(
-          RotatedAuthKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            factorToRecover = recovery.factorToRecover,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Rotate spending keys
-      awaitItem().let {
-        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
-        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
-      }
-
-      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
-
-      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-
-      updateProps(
-        props(
-          CreatedSpendingKeys(
-            fullAccountId = recovery.fullAccountId,
-            appSpendingKey = recovery.appSpendingKey,
-            appGlobalAuthKey = recovery.appGlobalAuthKey,
-            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
-            hardwareSpendingKey = recovery.hardwareSpendingKey,
-            hardwareAuthKey = recovery.hardwareAuthKey,
-            factorToRecover = recovery.factorToRecover,
-            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
-            f8eSpendingKeyset = F8eSpendingKeysetMock,
-            sealedCsek = SealedCsekFake
-          )
-        )
-      )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
-      }
-
-      // Generating TC certs with new auth keys
-      awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
-
-      // Backing up new keybox
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-        it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFailed()
-      }
-
-      // Retrying
-      awaitItem().let {
-        it.shouldBeTypeOf<FailedPerformingCloudBackupData>()
-        it.retry()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<PerformingCloudBackupData>()
-      }
-    }
-  }
-
-  test("complete recovery on Android") {
-    val recovery = recovery()
-    deviceInfoProvider.devicePlatformValue = Android
     // Move clock ahead of delay period
     clock.advanceBy(2.minutes)
     stateMachine.test(props(recovery)) {
@@ -1257,9 +652,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
-  test("exit and restart sweep on Android") {
+  test("exit and restart sweep") {
     val recovery = recovery()
-    deviceInfoProvider.devicePlatformValue = Android
     // Move clock ahead of delay period
     clock.advanceBy(2.minutes)
     stateMachine.test(props(recovery)) {
@@ -1385,9 +779,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
     }
   }
 
-  test("fail and retry cloud backup on Android") {
+  test("fail and retry cloud backup") {
     val recovery = recovery()
-    deviceInfoProvider.devicePlatformValue = Android
     // Move clock ahead of delay period
     clock.advanceBy(2.minutes)
     stateMachine.test(props(recovery)) {
@@ -1474,7 +867,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<PerformingCloudBackupData>()
         it.sealedCsek.shouldBe(SealedCsekFake)
-        it.onBackupFailed()
+        it.onBackupFailed(Error())
       }
 
       // Retrying
@@ -1486,6 +879,102 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       awaitItem().let {
         it.shouldBeTypeOf<PerformingCloudBackupData>()
       }
+    }
+  }
+
+  test("ignore failure adding device token") {
+    val recovery = recovery()
+    deviceTokenManager.addDeviceTokenIfPresentForAccountReturn =
+      DeviceTokenManagerResult.Err(NoDeviceToken)
+    // Move clock ahead of delay period
+    clock.advanceBy(2.minutes)
+    stateMachine.test(props(recovery)) {
+      awaitItem().let {
+        it.shouldBeTypeOf<ReadyToCompleteRecoveryData>()
+        it.startComplete()
+      }
+
+      // Rotate auth keys
+      recoveryAuthCompleter.rotateAuthKeysResult = Ok(Unit)
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingChallengeAndCsekSignedWithHardwareData>()
+        it.nfcTransaction.onSuccess(
+          SignedChallengeAndCsek(
+            signedChallenge = "",
+            sealedCsek = SealedCsekFake
+          )
+        )
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<RotatingAuthKeysWithF8eData>()
+        recoveryAuthCompleter.rotateAuthKeysCalls.awaitItem()
+      }
+
+      updateProps(
+        props(
+          RotatedAuthKeys(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            factorToRecover = recovery.factorToRecover,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      // Rotate spending keys
+      awaitItem().let {
+        it.shouldBeTypeOf<AwaitingHardwareProofOfPossessionData>()
+        it.addHwFactorProofOfPossession(HwFactorProofOfPossession("signed-token"))
+      }
+
+      awaitItem().let {
+        it.shouldBeTypeOf<CreatingSpendingKeysWithF8EData>()
+      }
+
+      updateProps(
+        props(
+          CreatedSpendingKeys(
+            fullAccountId = recovery.fullAccountId,
+            appSpendingKey = recovery.appSpendingKey,
+            appGlobalAuthKey = recovery.appGlobalAuthKey,
+            appRecoveryAuthKey = recovery.appRecoveryAuthKey,
+            hardwareSpendingKey = recovery.hardwareSpendingKey,
+            hardwareAuthKey = recovery.hardwareAuthKey,
+            appGlobalAuthKeyHwSignature = recovery.appGlobalAuthKeyHwSignature,
+            factorToRecover = recovery.factorToRecover,
+            f8eSpendingKeyset = F8eSpendingKeysetMock,
+            sealedCsek = SealedCsekFake
+          )
+        )
+      )
+
+      // Getting trusted contacts
+      awaitItem().let {
+        it.shouldBeTypeOf<GettingTrustedContactsData>()
+      }
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
+
+      // Generating TC certs with new auth keys
+      awaitItem().shouldBe(RegeneratingTcCertificatesData)
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
+
+      // Backing up new keybox
+      awaitItem().let {
+        it.shouldBeTypeOf<PerformingCloudBackupData>()
+        it.sealedCsek.shouldBe(SealedCsekFake)
+      }
+
+      recoverySyncer.setLocalRecoveryProgressCalls.awaitItem()
+
+      deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
     }
   }
 })

@@ -1,7 +1,7 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keys.app.AppKey
@@ -14,6 +14,8 @@ import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
+import build.wallet.crypto.CurveType
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
@@ -25,29 +27,29 @@ interface SocRecCrypto {
   /**
    * Generates a delegated decryption key pair.
    */
-  fun generateDelegatedDecryptionKey(): Result<DelegatedDecryptionKey, SocRecCryptoError>
+  fun generateDelegatedDecryptionKey(): Result<AppKey<DelegatedDecryptionKey>, SocRecCryptoError>
 
   /**
    * Generates an enrollment key pair for a protected customer.
    */
   fun generateProtectedCustomerEnrollmentPakeKey(
     password: PakeCode,
-  ): Result<ProtectedCustomerEnrollmentPakeKey, SocRecCryptoError>
+  ): Result<AppKey<ProtectedCustomerEnrollmentPakeKey>, SocRecCryptoError>
 
   /**
    * Generates a recovery key pair for a protected customer.
    */
   fun generateProtectedCustomerRecoveryPakeKey(
     password: PakeCode,
-  ): Result<ProtectedCustomerRecoveryPakeKey, SocRecCryptoError>
+  ): Result<AppKey<ProtectedCustomerRecoveryPakeKey>, SocRecCryptoError>
 
   /**
    * Encrypts a delegated decryption key with a PAKE secure channel.
    */
   fun encryptDelegatedDecryptionKey(
     password: PakeCode,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
   ): Result<EncryptDelegatedDecryptionKeyOutput, SocRecCryptoError>
 
   /**
@@ -55,17 +57,17 @@ interface SocRecCrypto {
    */
   fun decryptDelegatedDecryptionKey(
     password: PakeCode,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    protectedCustomerEnrollmentPakeKey: AppKey<ProtectedCustomerEnrollmentPakeKey>,
     encryptDelegatedDecryptionKeyOutput: EncryptDelegatedDecryptionKeyOutput,
-  ): Result<DelegatedDecryptionKey, SocRecCryptoError>
+  ): Result<PublicKey<DelegatedDecryptionKey>, SocRecCryptoError>
 
   /**
    * Generates a key certificate for a delegated decryption key.
    */
   suspend fun generateKeyCertificate(
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     hwAuthKey: HwAuthPublicKey,
-    appGlobalAuthKey: AppGlobalAuthPublicKey,
+    appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<TrustedContactKeyCertificate, SocRecCryptoError>
 
@@ -76,8 +78,8 @@ interface SocRecCrypto {
   fun verifyKeyCertificate(
     keyCertificate: TrustedContactKeyCertificate,
     hwAuthKey: HwAuthPublicKey?,
-    appGlobalAuthKey: AppGlobalAuthPublicKey?,
-  ): Result<DelegatedDecryptionKey, SocRecCryptoError>
+    appGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
+  ): Result<PublicKey<DelegatedDecryptionKey>, SocRecCryptoError>
 
   /**
    * Verify certificates using old keys and regenerate them using new keys.
@@ -86,9 +88,9 @@ interface SocRecCrypto {
    */
   suspend fun verifyAndRegenerateKeyCertificate(
     oldCertificate: TrustedContactKeyCertificate,
-    oldAppGlobalAuthKey: AppGlobalAuthPublicKey?,
+    oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
     oldHwAuthKey: HwAuthPublicKey,
-    newAppGlobalAuthKey: AppGlobalAuthPublicKey,
+    newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<TrustedContactKeyCertificate, SocRecCryptoError> =
     binding {
@@ -109,14 +111,7 @@ interface SocRecCrypto {
   /**
    * Generic function to generate a key pair for a SocRec key.
    */
-  fun <T : SocRecKey> generateAsymmetricKey(factory: (AppKey) -> T): Result<T, SocRecCryptoError>
-
-  /**
-   * Encrypts the private key material by generating a random symmetric key,
-   * the private key encryption key, and encrypting the private key material
-   * with the private key encryption key. Returns the private key encryption
-   * key and the encrypted private key material.
-   */
+  fun <T> generateAsymmetricKey(): Result<AppKey<T>, SocRecCryptoError> where T : SocRecKey, T : CurveType.Curve25519
 
   /**
    * Encrypts the private key material by generating a random symmetric key,
@@ -132,13 +127,8 @@ interface SocRecCrypto {
    * Encrypts the private key encryption key with a shared secret derived from
    * the delegated decryption public key.
    */
-
-  /**
-   * Encrypts the private key encryption key with a shared secret derived from
-   * the delegated decryption public key.
-   */
   fun encryptPrivateKeyEncryptionKey(
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     privateKeyEncryptionKey: PrivateKeyEncryptionKey,
   ): Result<XCiphertext, SocRecCryptoError>
 
@@ -146,28 +136,19 @@ interface SocRecCrypto {
    * Used by the trusted contact to decrypt the private key encryption key and re-encrypt it with
    * the PAKE secure channel.
    */
-
-  /**
-   * Used by the trusted contact to decrypt the private key encryption key and re-encrypt it with
-   * the PAKE secure channel.
-   */
   fun decryptPrivateKeyEncryptionKey(
     password: PakeCode,
-    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    protectedCustomerRecoveryPakeKey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
+    delegatedDecryptionKey: AppKey<DelegatedDecryptionKey>,
     sealedPrivateKeyEncryptionKey: XCiphertext,
   ): Result<DecryptPrivateKeyEncryptionKeyOutput, SocRecCryptoError>
 
   /**
    * Used by the protected customer to decrypt the private key material.
    */
-
-  /**
-   * Used by the protected customer to decrypt the private key material.
-   */
   fun decryptPrivateKeyMaterial(
     password: PakeCode,
-    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
+    protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
     decryptPrivateKeyEncryptionKeyOutput: DecryptPrivateKeyEncryptionKeyOutput,
     sealedPrivateKeyMaterial: XCiphertext,
   ): Result<ByteString, SocRecCryptoError>
@@ -180,7 +161,7 @@ interface SocRecCrypto {
 fun SocRecCrypto.verifyKeyCertificate(
   account: FullAccount,
   keyCertificate: TrustedContactKeyCertificate,
-): Result<DelegatedDecryptionKey, SocRecCryptoError> =
+): Result<PublicKey<DelegatedDecryptionKey>, SocRecCryptoError> =
   verifyKeyCertificate(
     keyCertificate = keyCertificate,
     hwAuthKey = account.keybox.activeHwKeyBundle.authKey,
@@ -223,13 +204,13 @@ data class EncryptPrivateKeyMaterialOutput(
 )
 
 data class EncryptDelegatedDecryptionKeyOutput(
-  val trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+  val trustedContactEnrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
   val keyConfirmation: ByteString,
   val sealedDelegatedDecryptionKey: XCiphertext,
 )
 
 data class DecryptPrivateKeyEncryptionKeyOutput(
-  val trustedContactRecoveryPakeKey: TrustedContactRecoveryPakeKey,
+  val trustedContactRecoveryPakeKey: PublicKey<TrustedContactRecoveryPakeKey>,
   val keyConfirmation: ByteString,
   val sealedPrivateKeyEncryptionKey: XCiphertext,
 )

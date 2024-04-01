@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalTime::class)
-
 package build.wallet.bitcoin.bdk
 
 import build.wallet.availability.NetworkConnection
@@ -35,7 +33,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.datetime.asTimeSource
-import kotlin.time.ExperimentalTime
 import kotlin.time.TimedValue
 import kotlin.time.measureTimedValue
 

@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-io-jvm",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-io-jvm-2.3.8.jar": "4c33dd51a1d6d734c8c127cea96a1cfa024dc1d451ed1e2a86c297fa05f1dc29"
+                        "ktor-io-jvm-2.3.9.jar": "49ebd7a1652e3aca9f0462d054af749ddfad8f6cf5ab72d58a2c379cb4f01501"
                     }
                 }
             ],

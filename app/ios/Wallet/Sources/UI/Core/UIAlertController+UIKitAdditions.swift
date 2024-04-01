@@ -51,7 +51,7 @@ extension UIAlertController {
                 .init(
                     title: alertModel.primaryButtonText,
                     action: alertModel.onPrimaryButtonClick,
-                    style: .default
+                    style: alertModel.primaryButtonStyle.asUIAlertActionStyle
                 )
             ]
 
@@ -61,14 +61,13 @@ extension UIAlertController {
                     .init(
                         title: secondaryButtonText,
                         action: onSecondaryButtonClick,
-                        style: .default
+                        style: alertModel.secondaryButtonStyle.asUIAlertActionStyle
                     )
                 )
             }
 
             self.actions = actions
         }
-
     }
 
     public convenience init(model: Model) {
@@ -89,4 +88,15 @@ extension UIAlertController {
 private enum Strings {
     static let cancel = "Cancel".localized(comment: "Title of the button allowing a user to close an alert.")
     static let ok = "OK".localized(comment: "Title of the button allowing a user to dismiss an alert.")
+}
+
+private extension AlertModel.ButtonStyle {
+    
+    var asUIAlertActionStyle: UIAlertAction.Style {
+        switch self {
+        case .default_: return .default
+        case .destructive: return .destructive
+        default: fatalError("Unsupported alert model button style: \(self)")
+        }
+    }
 }

@@ -2,11 +2,11 @@
     "module-identifier": "com.gradle:gradle-enterprise-gradle-plugin",
     "components": [
         {
-            "version": "3.15.1",
+            "version": "3.16.2",
             "variants": [
                 {
                     "artifacts": {
-                        "gradle-enterprise-gradle-plugin-3.15.1.jar": "a25c057eb8bf6e42e5659636d5fbe66332f5966930f3b2bd64c5dd17e45b9dc6"
+                        "gradle-enterprise-gradle-plugin-3.16.2.jar": "e06ca9b1bf0fef710dc74ec969e5c0b4553b92a46224326165ceac0e5c37e0d3"
                     }
                 }
             ],

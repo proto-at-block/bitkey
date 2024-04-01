@@ -3,7 +3,6 @@ package build.wallet.statemachine.data.keybox
 import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AuthKeyRotationManagerMock
 import build.wallet.auth.AuthTokenDaoMock
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.account.FullAccount
@@ -11,8 +10,6 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.money.exchange.ExchangeRateSyncerMock
@@ -94,10 +91,6 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
 
   val authKeyRotationManager = AuthKeyRotationManagerMock(turbines::create)
 
-  val inactiveDeviceIsEnabledFeatureFlag = InactiveDeviceIsEnabledFeatureFlag(
-    featureFlagDao = FeatureFlagDaoMock()
-  )
-
   val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorMock(turbines::create)
 
   val stateMachine =
@@ -112,14 +105,13 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
       cloudBackupRefresher = cloudBackupRefresher,
       postSocRecTaskRepository = postSocRecTaskRepository,
       authKeyRotationManager = authKeyRotationManager,
-      inactiveDeviceIsEnabledFeatureFlag = inactiveDeviceIsEnabledFeatureFlag,
       trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
     )
 
   beforeTest {
     mobilePayDataStateMachine.reset()
     spendingWallet.reset()
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(BooleanFlag(false))
+    authKeyRotationManager.reset()
   }
 
   fun props(account: FullAccount = FullAccountMock) =
@@ -129,37 +121,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
       currencyPreferenceData = CurrencyPreferenceDataMock
     )
 
-  test("ignore rotate keys attempt with feature flag disabled") {
-    authKeyRotationManager.pendingKeyRotationAttempt.value =
-      PendingAuthKeyRotationAttempt.ProposedAttempt
-    stateMachine.test(props()) {
-      cloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
-        .shouldBeEqual(FullAccountMock)
-      trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorseCalls.awaitItem()
-        .shouldBeEqual(FullAccountMock)
-      awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
-
-      accountAuthTokenDao.tokensFlow.value = AccountAuthTokensMock
-      fullAccountTransactionsDataStateMachine.emitModel(KeyboxTransactionsDataMock)
-
-      awaitItem()
-        .shouldBeTypeOf<ActiveFullAccountLoadedData>()
-        .let {
-          it.account.shouldBe(FullAccountMock)
-          it.spendingWallet.shouldBe(spendingWallet)
-          it.addressData.shouldBe(KeyboxAddressDataMock)
-          it.transactionsData.shouldBe(KeyboxTransactionsDataMock)
-          it.mobilePayData.shouldBe(LoadingMobilePayData)
-          it.lostHardwareRecoveryData.shouldBe(awaitingNewHardwareData)
-          it.notificationTouchpointData.shouldBe(NotificationTouchpointDataMock)
-        }
-
-      exchangeRateSyncer.startSyncerCalls.awaitItem()
-    }
-  }
-
-  test("handle rotate keys attempt with feature flag enabled") {
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(BooleanFlag(true))
+  test("handle rotate keys") {
     authKeyRotationManager.pendingKeyRotationAttempt.value =
       PendingAuthKeyRotationAttempt.ProposedAttempt
     stateMachine.test(props()) {

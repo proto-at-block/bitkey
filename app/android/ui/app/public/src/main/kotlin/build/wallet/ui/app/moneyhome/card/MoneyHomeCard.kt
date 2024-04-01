@@ -44,6 +44,7 @@ import build.wallet.statemachine.recovery.socrec.RecoveryContactCardModel
 import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.card.CardContent
 import build.wallet.ui.components.card.GradientCard
+import build.wallet.ui.theme.WalletTheme
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
@@ -51,9 +52,7 @@ import kotlinx.datetime.Instant.Companion.DISTANT_PAST
 import kotlin.time.Duration
 import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.DurationUnit.SECONDS
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
 @Composable
 fun MoneyHomeCard(
   modifier: Modifier = Modifier,
@@ -111,7 +110,7 @@ fun MoneyHomeCard(
         .height(height.value.dp)
   }
 
-  when (model.style) {
+  when (val style = model.style) {
     Outline ->
       Card(
         modifier = cardModifier.scale(scale.value),
@@ -131,9 +130,13 @@ fun MoneyHomeCard(
         )
       }
 
-    Gradient ->
+    is Gradient ->
       GradientCard(
-        modifier = cardModifier.scale(scale.value)
+        modifier = cardModifier.scale(scale.value),
+        backgroundColor = when (style.backgroundColor) {
+          Gradient.BackgroundColor.Warning -> WalletTheme.colors.warning
+          else -> WalletTheme.colors.containerBackgroundHighlight
+        }
       ) {
         CardContent(
           model,

@@ -86,6 +86,19 @@ modulemap() {
 		$swift_root/$FRAMEWORK.modulemap > $framework_modules/module.modulemap
 }
 
+infoplist() {
+  local framework_root=$1
+  local plist="$framework_root/Info.plist"
+
+  if [ ! -f "$plist" ]; then
+    /usr/libexec/PlistBuddy -c "Add :CFBundleDevelopmentRegion string en" "$plist"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string coreFFI" "$plist"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string build.wallet.coreffi" "$plist"
+    /usr/libexec/PlistBuddy -c "Add :CFBundleInfoDictionaryVersion string 6.0" "$plist"
+    /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string FMWK" "$plist"
+  fi
+}
+
 framework() {
 	local framework_root=$RUST_BUILD_DIRECTORY/ios/$1/$FRAMEWORK.framework
 	shift
@@ -100,6 +113,7 @@ framework() {
 	bindgen $target $swift_root
 	header $framework_root $swift_root
 	modulemap $framework_root $swift_root
+	infoplist $framework_root
 }
 
 xcframework() {

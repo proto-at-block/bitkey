@@ -24,9 +24,8 @@ def python(c):
 @task
 def test_deps(c):
     """Installs dependencies for testing"""
-    _install_criterion(c, "2.4.1")
+    _install_criterion(c, "2.4.2")
     _install_openssl(c)
-    _install_clang(c)
 
 
 @task
@@ -130,9 +129,3 @@ def _install_openssl(c):
         c.run(f"brew install openssl")
     elif "linux" in sys.platform:
         c.run(f"sudo apt-get install --yes libssl-dev")
-
-
-def _install_clang(c):
-    """Install clang"""
-    if "linux" in sys.platform:
-        c.run(f"sudo apt-get install --yes clang")

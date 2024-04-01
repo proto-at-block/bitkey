@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-core-iosx64",
     "components": [
         {
-            "version": "1.6.2",
+            "version": "1.6.3",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-serialization-core-iosx64-1.6.2-metadata.jar": "6ded067663779f83b813ed8a8742e1132aa82ede699709450519346955af9420"
+                        "kotlinx-serialization-core-iosx64-1.6.3-metadata.jar": "b987b494d3785d40ba71f3c484568e82902b20e84f0b1cf9c756dece6b8a8654"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlinx-serialization-core.klib": "73411e8a5be3b4ac9e8ff5e775a291cfc75a3c90e84f315a808d8cd8e9df48d7"
+                        "kotlinx-serialization-core.klib": "f9e692bd7a471ce2667c73d5eadd93e1dc09b1ee3013572508b3ca131e489df4"
                     }
                 }
             ],

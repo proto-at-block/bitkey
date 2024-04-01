@@ -91,6 +91,18 @@ variable "internet_facing" {
   description = "A boolean flag to determine whether the ALB should be internet facing"
 }
 
+variable "load_balancer_allow_cloudflare_ips" {
+  type        = bool
+  default     = false
+  description = "Determine whether the ALB should only allow traffic from Cloudflare IPs"
+}
+
+variable "load_balancer_allow_vpn_ips" {
+  type        = bool
+  default     = false
+  description = "Determine whether the ALB should allow traffic from VPN IPs. When set, public IPs will no longer be able to reach the ALB"
+}
+
 variable "task_policy_arns" {
   type        = map(string)
   description = <<-EOT

@@ -34,6 +34,10 @@ pub enum BdkUtilError {
     MalformedURI,
     #[error("Electrum client error: {0}")]
     ElectrumClientError(#[from] bdk::electrum_client::Error),
+    #[error("Unable to broadcast transaction: {0}")]
+    TransactionBroadcastError(#[from] bdk::Error),
+    #[error("Transaction with one or more inputs already exists in the mempool.")]
+    TransactionAlreadyInMempoolError,
 }
 
 impl From<BdkUtilError> for ApiError {
@@ -42,7 +46,8 @@ impl From<BdkUtilError> for ApiError {
             BdkUtilError::GenerateWalletForDescriptorKeyset(_)
             | BdkUtilError::GenerateDescriptorForDescriptorKeyset(_)
             | BdkUtilError::WalletCacheAddresses(_)
-            | BdkUtilError::MalformedURI => {
+            | BdkUtilError::MalformedURI
+            | BdkUtilError::TransactionBroadcastError(_) => {
                 ApiError::GenericInternalApplicationError(val.to_string())
             }
             BdkUtilError::ElectrumClientError(_) | BdkUtilError::WalletSync(_) => {
@@ -57,6 +62,9 @@ impl From<BdkUtilError> for ApiError {
             | BdkUtilError::MalformedDerivationPath
             | BdkUtilError::UnsupportedBitcoinNetwork(_)
             | BdkUtilError::MissingWitnessUtxo => ApiError::GenericBadRequest(val.to_string()),
+            BdkUtilError::TransactionAlreadyInMempoolError => {
+                ApiError::GenericConflict(val.to_string())
+            }
         }
     }
 }

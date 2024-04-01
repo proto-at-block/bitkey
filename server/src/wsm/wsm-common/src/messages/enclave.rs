@@ -1,4 +1,4 @@
-use bitcoin::util::bip32::{DerivationPath, ExtendedPubKey};
+use bitcoin::bip32::{DerivationPath, ExtendedPubKey};
 use bitcoin::Network;
 use serde::{Deserialize, Serialize};
 
@@ -104,14 +104,3 @@ pub struct DerivedKey {
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeriveResponse(pub DerivedKey);
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct EnclaveSignWithIntegrityKeyRequest {
-    pub data: String,
-    pub dek_id: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct EnclaveSignWithIntegrityKeyResponse {
-    pub signature: String,
-}

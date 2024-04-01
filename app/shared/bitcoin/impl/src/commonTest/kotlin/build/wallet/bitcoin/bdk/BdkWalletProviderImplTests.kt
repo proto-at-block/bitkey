@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalKotest::class)
-
 package build.wallet.bitcoin.bdk
 
 import build.wallet.bdk.bindings.BdkWalletFactoryMock
@@ -7,7 +5,6 @@ import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.descriptor.BitcoinDescriptor.Spending
 import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import com.github.michaelbull.result.get
-import io.kotest.common.ExperimentalKotest
 import io.kotest.core.config.ProjectConfiguration.Companion.MaxConcurrency
 import io.kotest.core.spec.IsolationMode.SingleInstance
 import io.kotest.core.spec.style.FunSpec

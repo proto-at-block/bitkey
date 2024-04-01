@@ -1,9 +1,12 @@
 package build.wallet.bitkey.socrec
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.KeyPurpose
+import build.wallet.crypto.PublicKey
 import build.wallet.logging.logFailure
+import build.wallet.serialization.DelegateSerializer
 import build.wallet.serialization.json.JsonEncodingError
 import build.wallet.serialization.json.encodeToStringResult
 import com.github.michaelbull.result.Result
@@ -30,11 +33,12 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class TrustedContactKeyCertificate(
   @SerialName("delegated_decryption_key")
-  val delegatedDecryptionKey: DelegatedDecryptionKey,
+  val delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
   @SerialName("hw_endorsement_key")
   val hwAuthPublicKey: HwAuthPublicKey,
   @SerialName("app_endorsement_key")
-  val appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
+  @Serializable(with = NestedPubKeySerializer::class)
+  val appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
   @SerialName("hw_signature")
   val appAuthGlobalKeyHwSignature: AppGlobalAuthKeyHwSignature,
   @SerialName("app_signature")
@@ -51,5 +55,21 @@ data class TrustedContactKeyCertificate(
         EncodedTrustedContactKeyCertificate(base64 = json.encodeBase64())
       }
       .logFailure { "Error encoding certificate $this" }
+  }
+
+  /**
+   * We unintentionally are serializing the auth public key with an extra level of nesting as
+   * { "pubKey": "..." }. The [NestedPubKeySerializer] is preserves this behavior since we don't
+   * want to break backwards compatiblity. We shouldn't use this serializer anywhere else.
+   */
+  @Serializable
+  data class NestedPublicKey(val pubKey: String)
+
+  private class NestedPubKeySerializer : DelegateSerializer<NestedPublicKey, PublicKey<out KeyPurpose>>(NestedPublicKey.serializer()) {
+    override fun serialize(data: PublicKey<out KeyPurpose>): NestedPublicKey =
+      NestedPublicKey(data.value)
+
+    override fun deserialize(data: NestedPublicKey): PublicKey<out KeyPurpose> =
+      PublicKey(data.pubKey)
   }
 }

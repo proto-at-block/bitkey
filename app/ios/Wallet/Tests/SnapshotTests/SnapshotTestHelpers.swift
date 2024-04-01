@@ -171,12 +171,14 @@ extension ListModel {
                 header: "Pending",
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
                 style: .none, 
+                headerTreatment: .secondary,
                 footerButton: nil
             ),
             ListGroupModel(
                 header: "Confirmed",
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming], 
                 style: .none, 
+                headerTreatment: .secondary,
                 footerButton: nil
             )
         ]

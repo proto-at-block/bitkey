@@ -2,8 +2,9 @@ package build.wallet.f8e.onboarding
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
@@ -19,7 +20,7 @@ class SetActiveSpendingKeysetServiceMock(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     keysetId: String,
-    appAuthKey: AppGlobalAuthPublicKey,
+    appAuthKey: PublicKey<AppGlobalAuthKey>,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, NetworkingError> {
     setCalls += Unit

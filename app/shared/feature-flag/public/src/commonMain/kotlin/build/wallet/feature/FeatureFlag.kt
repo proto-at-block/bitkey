@@ -3,6 +3,7 @@ package build.wallet.feature
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getOrElse
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
@@ -75,6 +76,44 @@ open class FeatureFlag<T : FeatureFlagValue>(
     featureFlagDao.setFlag(
       flagValue = flagValue,
       featureFlagId = identifier
+    )
+  }
+
+  /**
+   * Returns whether this flag has been overridden. An override is when a customer goes to the
+   * Debug menu and manually changes a feature flag value.
+   */
+  suspend fun isOverridden(): Boolean =
+    featureFlagDao
+      .getFlagOverridden(identifier)
+      .getOrElse { false }
+
+  /**
+   * Sets whether this flag has been overridden. This should only be called via the Debug screen.
+   */
+  suspend fun setOverridden(overridden: Boolean) =
+    featureFlagDao
+      .setFlagOverridden(identifier, overridden)
+
+  /**
+   * A convenience function for setting the flag value and overridden state at the same time.
+   * Should only be called via the Debug screen.
+   */
+  suspend fun setFlagValue(
+    value: T,
+    overridden: Boolean,
+  ) {
+    setFlagValue(value)
+    setOverridden(overridden)
+  }
+
+  /**
+   * Reset the flag state to the default value and clear overrides. For use in the debug menu.
+   */
+  suspend fun reset() {
+    setFlagValue(
+      value = defaultFlagValue,
+      overridden = false
     )
   }
 }

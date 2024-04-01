@@ -2,11 +2,11 @@
     "module-identifier": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-extract",
     "components": [
         {
-            "version": "0.13.0",
+            "version": "0.15.0",
             "variants": [
                 {
                     "artifacts": {
-                        "secp256k1-kmp-jni-jvm-extract-0.13.0.jar": "7c340877c34c1c83390800b73ade16ffbff1a99bc8807b61255d70e38d57cec3"
+                        "secp256k1-kmp-jni-jvm-extract-0.15.0.jar": "b255626405705e3abb9937ad855a7ab699d1df209c7c287bf66a2e6f12fe36c5"
                     }
                 }
             ],

@@ -48,7 +48,8 @@ class LiteAccountCreatorImpl(
         accountAuthenticator
           .appAuth(
             f8eEnvironment = config.f8eEnvironment,
-            appAuthPublicKey = recoveryKey
+            appAuthPublicKey = recoveryKey,
+            authTokenScope = AuthTokenScope.Recovery
           )
           .mapError { LiteAccountCreationAuthError(it) }
           .bind()

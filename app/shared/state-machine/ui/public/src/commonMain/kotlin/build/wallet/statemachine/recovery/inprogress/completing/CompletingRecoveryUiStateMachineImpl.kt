@@ -18,7 +18,9 @@ import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.ErrorFormBodyModelWithOptionalErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
@@ -37,6 +39,7 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.RotatingAuthKeysWithF8eData
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.statemachine.recovery.inprogress.waiting.CancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
@@ -105,6 +108,14 @@ class CompletingRecoveryUiStateMachineImpl(
               text = "OK",
               onClick = props.completingRecoveryData.onConfirm
             ),
+          errorData = ErrorData(
+            segment = when (props.completingRecoveryData.factorToRecover) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+            },
+            actionDescription = "Rotating auth keys with f8e to complete recovery",
+            cause = props.completingRecoveryData.cause
+          ),
           eventTrackerScreenId = CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE
         ).asScreen(presentationStyle = props.presentationStyle)
 
@@ -162,6 +173,14 @@ class CompletingRecoveryUiStateMachineImpl(
               text = "Retry",
               onClick = props.completingRecoveryData.onRetry
             ),
+          errorData = ErrorData(
+            segment = when (props.completingRecoveryData.physicalFactor) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+              Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Completion
+            },
+            actionDescription = "Creating new spending keys to complete recovery",
+            cause = props.completingRecoveryData.cause
+          ),
           eventTrackerScreenId =
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
@@ -233,9 +252,16 @@ class CompletingRecoveryUiStateMachineImpl(
         ).asScreen(props.presentationStyle)
 
       is FailedPerformingCloudBackupData ->
-        ErrorFormBodyModel(
+        ErrorFormBodyModelWithOptionalErrorData(
           title = "We were unable to upload backup",
           subline = "Please try again.",
+          errorData = props.completingRecoveryData.cause?.let { cause ->
+            ErrorData(
+              cause = cause,
+              actionDescription = "Uploading backup after recovery",
+              segment = RecoverySegment.CloudBackup.FullAccount.Upload
+            )
+          },
           primaryButton =
             ButtonDataModel(
               text = "Retry",

@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.dev.lightning.LightningDebugBodyModel
-import build.wallet.statemachine.dev.lightning.LightningDebugBodyModel.FundingAddressAlertModel
+import build.wallet.statemachine.dev.lightning.fundingAddressAlertModel
 import build.wallet.ui.components.alertdialog.AlertDialog
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.card.Card
@@ -91,22 +91,9 @@ fun LightningDebugScreen(model: LightningDebugBodyModel) {
     }
 
     model.fundingAlertModel?.let { alertModel ->
-      FundingAddressAlert(model = alertModel)
+      AlertDialog(model = alertModel)
     }
   }
-}
-
-@Composable
-private fun FundingAddressAlert(model: FundingAddressAlertModel) {
-  AlertDialog(
-    title = model.title,
-    subline = model.text,
-    onDismiss = model.onDismiss,
-    onPrimaryButtonClick = model.onConfirm,
-    onSecondaryButtonClick = model.onDismiss,
-    primaryButtonText = model.confirmButtonTitle.uppercase(),
-    secondaryButtonText = model.dismissButtonTitle.uppercase()
-  )
 }
 
 @Preview
@@ -136,12 +123,11 @@ internal fun LightningDebugScreenPreviewWithFundingModal() {
       LightningDebugBodyModel(
         nodeId = "test-node-id",
         spendableOnchainBalance = "100000",
-        fundingAlertModel =
-          FundingAddressAlertModel(
-            text = "tb1qccrvx8k6wnf3glqwcvcnrzrd63vesg8etg2ctr",
-            onDismiss = {},
-            onConfirm = {}
-          ),
+        fundingAlertModel = fundingAddressAlertModel(
+          subline = "tb1qccrvx8k6wnf3glqwcvcnrzrd63vesg8etg2ctr",
+          onDismiss = {},
+          onPrimaryButtonClick = {}
+        ),
         onBack = {},
         onGetFundingAddressClicked = {},
         onSyncWalletClicked = {},

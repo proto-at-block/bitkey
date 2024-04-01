@@ -12,7 +12,6 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 
-@OptIn(ExperimentalUnsignedTypes::class)
 class SocialRecoveryCodeBuilderImplTests : FunSpec({
 
   val builder = SocialRecoveryCodeBuilderImpl(

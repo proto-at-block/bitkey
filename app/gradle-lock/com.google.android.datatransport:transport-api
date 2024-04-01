@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.datatransport:transport-api",
     "components": [
         {
-            "version": "3.0.0",
+            "version": "3.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "transport-api-3.0.0.aar": "4e6983c0703b357df6f1c6ceacb1b5dfc2c5006a789c799fec2298b2b5337466"
+                        "transport-api-3.1.0.aar": "7dafc39f0ea835473366acc346f7e67fc8443f4c645d999c3e987bcad6b88c7b"
                     }
                 }
             ],

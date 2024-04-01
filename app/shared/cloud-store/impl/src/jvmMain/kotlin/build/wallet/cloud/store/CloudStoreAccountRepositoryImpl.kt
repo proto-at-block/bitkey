@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.cloud.store
 
 import build.wallet.logging.logFailure
@@ -7,7 +5,6 @@ import build.wallet.store.KeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.russhwolf.settings.ExperimentalSettingsApi
 
 actual class CloudStoreAccountRepositoryImpl(
   private val keyValueStoreFactory: KeyValueStoreFactory,

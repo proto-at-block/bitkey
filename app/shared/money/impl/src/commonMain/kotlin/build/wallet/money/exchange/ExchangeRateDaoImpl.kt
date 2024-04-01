@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.money.exchange
 
 import build.wallet.database.BitkeyDatabaseProvider
@@ -14,7 +12,6 @@ import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
@@ -77,7 +74,6 @@ class ExchangeRateDaoImpl(
       .logFailure { "Failed to exchange rate" }
   }
 
-  @OptIn(ExperimentalCoroutinesApi::class)
   private val allExchangeRates =
     databaseProvider.database().exchangeRateQueries
       .allExchangeRates()

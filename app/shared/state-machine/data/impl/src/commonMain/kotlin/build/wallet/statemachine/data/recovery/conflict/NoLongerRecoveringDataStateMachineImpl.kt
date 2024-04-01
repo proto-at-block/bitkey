@@ -19,20 +19,20 @@ class NoLongerRecoveringDataStateMachineImpl(
   @Composable
   override fun model(props: NoLongerRecoveringDataStateMachineDataProps): NoLongerRecoveringData {
     var dataState: State by remember {
-      mutableStateOf(State.ShowingNoLongerRecoveringDataState)
+      mutableStateOf(ShowingNoLongerRecoveringDataState)
     }
 
-    return when (dataState) {
-      is State.ShowingNoLongerRecoveringDataState -> {
+    return when (val state = dataState) {
+      is ShowingNoLongerRecoveringDataState -> {
         NoLongerRecoveringData.ShowingNoLongerRecoveringData(
           canceledRecoveryLostFactor = props.cancelingRecoveryLostFactor,
           onAcknowledge = {
-            dataState = State.ClearingLocalRecoveryDataState
+            dataState = ClearingLocalRecoveryDataState
           }
         )
       }
 
-      is State.ClearingLocalRecoveryDataState -> {
+      is ClearingLocalRecoveryDataState -> {
         LaunchedEffect("clear-local-recovery") {
           recoveryDao
             .clear()
@@ -40,7 +40,7 @@ class NoLongerRecoveringDataStateMachineImpl(
               // Nothing to do
             }
             .onFailure {
-              dataState = State.ClearingLocalRecoveryFailedDataState
+              dataState = ClearingLocalRecoveryFailedDataState(it)
             }
         }
         NoLongerRecoveringData.ClearingLocalRecoveryData(
@@ -48,14 +48,15 @@ class NoLongerRecoveringDataStateMachineImpl(
         )
       }
 
-      is State.ClearingLocalRecoveryFailedDataState ->
+      is ClearingLocalRecoveryFailedDataState ->
         NoLongerRecoveringData.ClearingLocalRecoveryFailedData(
+          error = state.error,
           cancelingRecoveryLostFactor = props.cancelingRecoveryLostFactor,
           rollback = {
-            dataState = State.ShowingNoLongerRecoveringDataState
+            dataState = ShowingNoLongerRecoveringDataState
           },
           retry = {
-            dataState = State.ClearingLocalRecoveryDataState
+            dataState = ClearingLocalRecoveryDataState
           }
         )
     }
@@ -66,6 +67,8 @@ class NoLongerRecoveringDataStateMachineImpl(
 
     data object ClearingLocalRecoveryDataState : State
 
-    data object ClearingLocalRecoveryFailedDataState : State
+    data class ClearingLocalRecoveryFailedDataState(
+      val error: Error,
+    ) : State
   }
 }

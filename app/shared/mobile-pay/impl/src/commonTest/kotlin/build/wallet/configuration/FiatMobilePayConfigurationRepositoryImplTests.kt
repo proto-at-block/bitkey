@@ -12,11 +12,9 @@ import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class FiatMobilePayConfigurationRepositoryImplTests : FunSpec({
 
   val fiatMobilePayConfigurationDao = FiatMobilePayConfigurationDaoMock(turbines::create)

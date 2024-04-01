@@ -15,7 +15,7 @@ name = "server"
 async-trait = { workspace = true }
 axum = { workspace = true }
 axum-tracing-opentelemetry = { workspace = true }
-clap = { version = "4.5.1", features = ["derive", "env"] }
+clap = { version = "4.5.2", features = ["derive", "env"] }
 hex = { workspace = true }
 http = { workspace = true }
 isocountry = { workspace = true }
@@ -46,6 +46,7 @@ customer_feedback = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 exchange_rate = { workspace = true }
+experimentation = { workspace = true }
 external_identifier = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
@@ -65,10 +66,12 @@ workers = { workspace = true }
 
 [dev-dependencies]
 aws-sdk-sqs = { workspace = true }
-env_logger = "0.11.2"
+env_logger = "0.11.3"
 http-body-util = "0.1.0"
 httpmock = "0.7"
+launchdarkly-server-sdk = "2.0.2"
 mockall = "0.12.1"
+once_cell = { workspace = true }
 rstest = "0.18.1"
 tower = { workspace = true }
 

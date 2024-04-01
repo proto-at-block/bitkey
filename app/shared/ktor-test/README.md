@@ -1,1 +1,0 @@
-This module contains testing extensions and utilities for Ktor client.

@@ -898,10 +898,7 @@ pub async fn create_account(
                 .map_err(RouteError::InvalidIdentifier)?;
             // TODO: use a correctly derived spending dpub from WSM, rather than the root xpub [W-5622]
             let key = wsm_client
-                .create_root_key(
-                    &keyset_id.to_string(),
-                    BitcoinNetwork::from(spending.network).0,
-                )
+                .create_root_key(&keyset_id.to_string(), spending.network)
                 .await
                 .map_err(|e| {
                     let msg = "Failed to create new key in WSM";
@@ -997,22 +994,6 @@ impl From<(&LiteAccount, &UpgradeAccountRequest)> for AccountValidationRequest {
             auth: value.1.auth.to_owned(),
             is_test_account: value.0.common_fields.properties.is_test_account,
             spending_network: value.1.spending.network.into(),
-        }
-    }
-}
-
-// Temporary struct used to translate between 0.29.2's Network and 0.30.0 Network so F8e and WSM can
-// talk to each other.
-pub struct BitcoinNetwork(bitcoin::Network);
-
-impl From<Network> for BitcoinNetwork {
-    fn from(value: Network) -> Self {
-        match value {
-            Network::Bitcoin => BitcoinNetwork(bitcoin::Network::Bitcoin),
-            Network::Testnet => BitcoinNetwork(bitcoin::Network::Testnet),
-            Network::Signet => BitcoinNetwork(bitcoin::Network::Signet),
-            Network::Regtest => BitcoinNetwork(bitcoin::Network::Regtest),
-            _ => unimplemented!(),
         }
     }
 }
@@ -1115,10 +1096,7 @@ pub async fn upgrade_account(
         .map_err(RouteError::InvalidIdentifier)?;
     // TODO: use a correctly derived spending dpub from WSM, rather than the root xpub [W-5622]
     let create_key_result = wsm_client
-        .create_root_key(
-            &keyset_id.to_string(),
-            BitcoinNetwork::from(request.spending.network).0,
-        )
+        .create_root_key(&keyset_id.to_string(), request.spending.network)
         .await;
 
     let (xpub, xpub_sig) = match create_key_result {
@@ -1257,10 +1235,7 @@ pub async fn create_keyset(
 
     let spending_keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
     let key = wsm_client
-        .create_root_key(
-            &spending_keyset_id.to_string(),
-            BitcoinNetwork::from(request.spending.network).0,
-        )
+        .create_root_key(&spending_keyset_id.to_string(), request.spending.network)
         .await
         .map_err(|e| {
             let msg = "Failed to create new key in WSM";

@@ -14,4 +14,6 @@ pub enum Error {
     Context(String),
     #[error("Could not resolve feature flag: {0}")]
     Resolve(String),
+    #[error("Could not find flag with key: {0}")]
+    NotFound(String),
 }

@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.statemachine.core
 
 import androidx.compose.runtime.collectAsState
@@ -11,7 +9,6 @@ import app.cash.turbine.test
 import app.cash.turbine.testIn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged

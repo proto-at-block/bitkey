@@ -12,6 +12,7 @@ import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccoun
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
@@ -23,7 +24,11 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.matchers.shouldHaveTitle
 import build.wallet.statemachine.ui.robots.clickTrailingButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import io.kotest.core.NamedTag
 import io.kotest.core.spec.style.FunSpec
@@ -51,9 +56,10 @@ class CloudBackupHealthFunctionalTests : FunSpec({
     )
     appTester
       .onboardFullAccountWithFakeHardware(
-        cloudStoreAccountForBackup = CloudStoreAccount1Fake.takeIf {
-          !testCase.hasNamedTag(CLOUD_ACCESS_FAILURE)
-        }
+        cloudStoreAccountForBackup =
+          CloudStoreAccount1Fake.takeIf {
+            !testCase.hasNamedTag(CLOUD_ACCESS_FAILURE)
+          }
       )
   }
 
@@ -68,6 +74,32 @@ class CloudBackupHealthFunctionalTests : FunSpec({
         }
         awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
           cloudBackupHealthRow.shouldBeNull()
+        }
+        cancelAndIgnoreRemainingEvents()
+      }
+    }
+
+  test("Cloud backup health dashboard is visible with warning icon")
+    .withTags(CLOUD_ACCESS_FAILURE) {
+      appTester.app.appUiStateMachine.test(
+        props = Unit,
+        useVirtualTime = false
+      ) {
+        awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+          id = MONEY_HOME,
+          expectedBodyContentMatch = {
+            it.cardsModel.cards.isNotEmpty()
+          }
+        ) {
+          shouldClickSettings()
+        }
+        awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
+          cloudBackupHealthRow.shouldNotBeNull()
+            .specialTrailingIconModel.shouldNotBeNull().run {
+              iconImage.shouldBe(IconImage.LocalImage(Icon.SmallIconInformationFilled))
+              iconTint.shouldBe(IconTint.Warning)
+              iconSize.shouldBe(IconSize.Small)
+            }
         }
         cancelAndIgnoreRemainingEvents()
       }
@@ -201,9 +233,10 @@ private fun MoneyHomeBodyModel.shouldClickSettings() {
 }
 
 private val SettingsBodyModel.cloudBackupHealthRow
-  get() = sectionModels
-    .flatMap { it.rowModels }
-    .firstOrNull { it.title == "Cloud Backup" }
+  get() =
+    sectionModels
+      .flatMap { it.rowModels }
+      .firstOrNull { it.title == "Cloud Backup" }
 
 private fun namedTags(vararg tagNames: String) = tagNames.map(::NamedTag).toSet()
 

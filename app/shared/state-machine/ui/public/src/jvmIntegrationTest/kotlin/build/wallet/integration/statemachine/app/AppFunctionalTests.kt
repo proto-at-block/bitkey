@@ -10,14 +10,13 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
+import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ToxiProxyService
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import eu.rekawek.toxiproxy.model.ToxicDirection
 import io.kotest.common.runBlocking
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.seconds
 

@@ -4,7 +4,7 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.keys.DescriptorPublicKey.Wildcard.Unhardened
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe

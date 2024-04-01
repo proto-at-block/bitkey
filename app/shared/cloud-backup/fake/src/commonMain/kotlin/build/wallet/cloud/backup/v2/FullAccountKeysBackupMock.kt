@@ -1,9 +1,9 @@
 package build.wallet.cloud.backup.v2
 
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
 import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.HwAuthPublicKeyMock
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.HwSpendingPublicKeyMock
@@ -16,7 +16,7 @@ val FullAccountKeysMock =
     activeHwSpendingKey = HwSpendingPublicKeyMock,
     activeHwAuthKey = HwAuthPublicKeyMock,
     appGlobalAuthKeypair =
-      AppGlobalAuthKeypair(
+      AppKey(
         AppGlobalAuthPublicKeyMock,
         AppGlobalAuthPrivateKeyMock
       ),

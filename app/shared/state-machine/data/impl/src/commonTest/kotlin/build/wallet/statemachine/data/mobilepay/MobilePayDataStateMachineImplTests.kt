@@ -7,10 +7,8 @@ import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.limit.MobilePayBalanceMock
 import build.wallet.limit.MobilePayDisablerMock
 import build.wallet.limit.MobilePayLimitSetterMock
-import build.wallet.limit.MobilePayRemainingSpendingCalculatorMock
 import build.wallet.limit.MobilePayStatus
 import build.wallet.limit.MobilePayStatusProviderMock
 import build.wallet.limit.SpendingLimitMock
@@ -33,10 +31,6 @@ class MobilePayDataStateMachineImplTests : FunSpec({
   val mobilePayDisabler = MobilePayDisablerMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
   val currencyConverter = CurrencyConverterFake()
-  val mobilePayRemainingSpendingCalculator = MobilePayRemainingSpendingCalculatorMock()
-  mobilePayRemainingSpendingCalculator.apply {
-    remainingSpendingAmountResult = MobilePayBalanceMock.available
-  }
 
   val stateMachine =
     MobilePayDataStateMachineImpl(

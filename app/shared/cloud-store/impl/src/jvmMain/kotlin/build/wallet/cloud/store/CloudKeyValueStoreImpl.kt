@@ -1,12 +1,9 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.cloud.store
 
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.russhwolf.settings.ExperimentalSettingsApi
 
 actual class CloudKeyValueStoreImpl(
   private val keyValueStoreFactory: KeyValueStoreFactory,

@@ -199,7 +199,6 @@ class TransferAmountEntryUiStateMachineImpl(
 
         mobilePaySpendingPolicy.getDailySpendingLimitStatus(
           transactionAmount = transactionAmount,
-          latestTransactions = latestTransactions,
           mobilePayBalance =
             when (val mobilePayData = props.accountData.mobilePayData) {
               is MobilePayEnabledData -> mobilePayData.balance

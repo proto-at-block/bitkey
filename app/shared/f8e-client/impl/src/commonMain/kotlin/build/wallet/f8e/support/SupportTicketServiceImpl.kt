@@ -1,5 +1,6 @@
 package build.wallet.f8e.support
 
+import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
@@ -55,7 +56,8 @@ class SupportTicketServiceImpl(
     return f8eHttpClient
       .authenticated(
         f8eEnvironment = f8eEnvironment,
-        accountId = accountId
+        accountId = accountId,
+        authTokenScope = AuthTokenScope.Recovery
       )
       .bodyResult<TicketFormDTO> {
         get("/api/support/ticket-form")

@@ -9,10 +9,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.auth.AuthKeyRotationManager
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.feature.isEnabled
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.log
 import build.wallet.money.exchange.ExchangeRateSyncer
@@ -49,7 +47,6 @@ class HasActiveFullAccountDataStateMachineImpl(
   private val cloudBackupRefresher: CloudBackupRefresher,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val authKeyRotationManager: AuthKeyRotationManager,
-  private val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag,
   private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
 ) : HasActiveFullAccountDataStateMachine {
   @Composable
@@ -88,22 +85,20 @@ class HasActiveFullAccountDataStateMachineImpl(
         appSpendingWalletProvider.getSpendingWallet(props.account.keybox.activeSpendingKeyset).get()
     }
 
-    if (inactiveDeviceIsEnabledFeatureFlag.isEnabled()) {
-      // Using collectAsState stops and starts each recomposition because the returned flow can differ,
-      // so we use produceState directly instead.
-      val pendingAuthKeyRotationAttempt by produceState<PendingAuthKeyRotationAttempt?>(null, "observing pending attempts") {
-        authKeyRotationManager.observePendingKeyRotationAttemptUntilNull()
-          .collect { value = it }
-      }
+    // Using collectAsState stops and starts each recomposition because the returned flow can differ,
+    // so we use produceState directly instead.
+    val pendingAuthKeyRotationAttempt by produceState<PendingAuthKeyRotationAttempt?>(null, "observing pending attempts") {
+      authKeyRotationManager.observePendingKeyRotationAttemptUntilNull()
+        .collect { value = it }
+    }
 
-      // TODO: We should probably have a third "None" value, so that we can differentiate between
-      //  loading and no pending attempt to mitigate any possible screen flashes.
-      pendingAuthKeyRotationAttempt?.let {
-        return RotatingAuthKeys(
-          account = props.account,
-          pendingAttempt = it
-        )
-      }
+    // TODO: We should probably have a third "None" value, so that we can differentiate between
+    //  loading and no pending attempt to mitigate any possible screen flashes.
+    pendingAuthKeyRotationAttempt?.let {
+      return RotatingAuthKeys(
+        account = props.account,
+        pendingAttempt = it
+      )
     }
 
     return when (val sw = spendingWallet) {

@@ -46,6 +46,7 @@ private struct FeeOptionCardView: View {
                     secondarySideText: viewModel.transactionFee,
                     leadingAccessoryAlignment: .center, leadingAccessory: nil,
                     trailingAccessory: nil,
+                    specialTrailingAccessory: nil,
                     treatment: .primary,
                     sideTextTint: .primary,
                     enabled: viewModel.enabled,

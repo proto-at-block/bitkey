@@ -1,8 +1,5 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.store
 
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 
 interface KeyValueStoreFactory {

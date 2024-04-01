@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.recovery.socrec
 
 import app.cash.turbine.test
@@ -21,7 +19,6 @@ import build.wallet.f8e.socrec.shouldBeEmpty
 import build.wallet.f8e.socrec.shouldOnlyHaveEndorsed
 import build.wallet.sqldelight.InMemorySqlDriverFactory
 import io.kotest.core.spec.style.FunSpec
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -37,7 +34,7 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
 
   val socRecFake =
     SocialRecoveryServiceFake(
-      uuid = { "fake-uuid" },
+      uuidGenerator = { "fake-uuid" },
       backgroundScope = TestScope()
     )
 

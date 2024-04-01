@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-serialization-compiler-plugin-embeddable",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-serialization-compiler-plugin-embeddable-1.9.21.jar": "ba6920fe6d85049d3c586491db15df0424799d6d9c0ce987fe118824769c342b"
+                        "kotlin-serialization-compiler-plugin-embeddable-1.9.22.jar": "38547d000b1661b14b924671cfb17ab5200beb834e3a3da4277ee09062e9a500"
                     }
                 }
             ],

@@ -2,7 +2,6 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.PakeCode
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
@@ -20,7 +19,7 @@ class InviteCodeLoaderImpl(
         Error("missing pake data for ${invitation.recoveryRelationshipId}")
       }
       .flatMap {
-        recoveryCodeBuilder.buildInviteCode(invitation.code, invitation.codeBitLength, PakeCode(it.pakeCode))
+        recoveryCodeBuilder.buildInviteCode(invitation.code, invitation.codeBitLength, it.pakeCode)
       }
       .map { OutgoingInvitation(invitation, it) }
 }

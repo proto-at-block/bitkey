@@ -152,6 +152,7 @@ module "alb" {
   http_redirect                     = true
   http2_enabled                     = true
   https_enabled                     = true
+  https_ingress_cidr_blocks         = local.ingress_cidr_blocks
   certificate_arn                   = module.certificate.acm_certificate_arn
   additional_certs                  = var.additional_certs
   access_logs_enabled               = false
@@ -159,6 +160,25 @@ module "alb" {
   # TODO: Determine if we want to have a special healthcheck page
   health_check_path = "/"
   target_group_port = var.port
+}
+
+module "cloudflare_cidrs" {
+  source = "../../pieces/cloudflare-cidrs"
+
+  count = var.load_balancer_allow_cloudflare_ips ? 1 : 0
+}
+
+module "vpn_cidrs" {
+  source = "../../pieces/vpn-cidrs"
+
+  count = var.load_balancer_allow_vpn_ips ? 1 : 0
+}
+
+locals {
+  ingress_cidr_blocks = var.load_balancer_allow_vpn_ips || var.load_balancer_allow_cloudflare_ips ? concat(
+    var.load_balancer_allow_vpn_ips ? module.vpn_cidrs[0].public_egress_cidrs : [],
+    var.load_balancer_allow_cloudflare_ips ? module.cloudflare_cidrs[0].cidrs : []
+  ) : ["0.0.0.0/0"]
 }
 
 data "aws_route53_zone" "domain" {

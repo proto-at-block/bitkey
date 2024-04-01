@@ -10,13 +10,11 @@ import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import com.russhwolf.settings.ExperimentalSettingsApi
 import okio.ByteString
 
 /**
  * Persists sealed CSEKs in a secure store, encoded as hex string.
  */
-@OptIn(ExperimentalSettingsApi::class)
 class OnboardingKeyboxSealedCsekDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : OnboardingKeyboxSealedCsekDao {

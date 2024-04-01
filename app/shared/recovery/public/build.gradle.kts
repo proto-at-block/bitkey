@@ -18,7 +18,7 @@ kotlin {
         api(projects.shared.dbResultPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.f8eClientPublic)
-        api(projects.shared.ktorResultPublic)
+        api(projects.shared.ktorClientPublic)
         api(projects.shared.timePublic)
         implementation(projects.shared.serializationPublic)
       }

@@ -77,7 +77,7 @@ kotlin {
         implementation(projects.shared.stateMachineFrameworkTesting)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.timeFake)
-        implementation(projects.shared.ktorTestFake)
+        implementation(projects.shared.ktorClientFake)
       }
     }
 

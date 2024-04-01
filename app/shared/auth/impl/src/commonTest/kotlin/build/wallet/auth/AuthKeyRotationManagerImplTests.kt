@@ -3,8 +3,8 @@ package build.wallet.auth
 import build.wallet.auth.AuthKeyRotationFailure.Unexpected
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -14,7 +14,7 @@ import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader.Failur
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader.Failure.IgnorableError
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploaderMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.RotateAuthKeysServiceMock
 import build.wallet.keybox.KeyboxDaoMock
@@ -67,9 +67,9 @@ class AuthKeyRotationManagerImplTests : FunSpec({
   }
 
   val generatedGlobalAuthKey =
-    AppGlobalAuthPublicKey(pubKey = Secp256k1PublicKey("new-fake-auth-dpub"))
+    PublicKey<AppGlobalAuthKey>("new-fake-auth-dpub")
   val generatedRecoveryAuthKey =
-    AppRecoveryAuthPublicKey(Secp256k1PublicKey("new-fake-recovery-dpub"))
+    PublicKey<AppRecoveryAuthKey>("new-fake-recovery-dpub")
   val generatedGlobalAuthKeyHwSignature = AppGlobalAuthKeyHwSignature("new-fake-hw-signature")
   val generateAppAuthKeys = AppAuthPublicKeys(
     appGlobalAuthPublicKey = generatedGlobalAuthKey,

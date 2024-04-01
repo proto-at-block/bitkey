@@ -1,10 +1,10 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDao
-import build.wallet.bitkey.keys.app.AppKeyImpl
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
-import build.wallet.crypto.CurveType
+import build.wallet.crypto.PrivateKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.SocRecStartedChallengeAuthentication
 import build.wallet.db.DbTransactionError
@@ -23,18 +23,18 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
 
   override suspend fun insert(
     recoveryRelationshipId: String,
-    protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
+    protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
     pakeCode: PakeCode,
   ): Result<Unit, Throwable> =
     binding {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
         protectedCustomerRecoveryPakeKey.publicKey,
-        requireNotNull((protectedCustomerRecoveryPakeKey.key as AppKeyImpl).privateKey)
+        requireNotNull(protectedCustomerRecoveryPakeKey.privateKey)
       ).bind()
       database.awaitTransactionWithResult {
         database.socRecStartedChallengeAuthenticationQueries.insert(
           relationshipId = recoveryRelationshipId,
-          protectedCustomerRecoveryPakeKey = protectedCustomerRecoveryPakeKey,
+          protectedCustomerRecoveryPakeKey = protectedCustomerRecoveryPakeKey.publicKey,
           pakeCode = pakeCode.bytes
         )
       }.bind()
@@ -42,7 +42,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
 
   override suspend fun getByRelationshipId(
     recoveryRelationshipId: String,
-  ): Result<SocRecStartedChallengeAuthentication?, Throwable> =
+  ): Result<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow?, Throwable> =
     binding {
       val challengeAuth =
         database.awaitTransactionWithResult {
@@ -56,22 +56,14 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
       }
 
       val privateKey =
-        appPrivateKeyDao.getAsymmetricPrivateKey(challengeAuth.protectedCustomerRecoveryPakeKey.publicKey)
+        appPrivateKeyDao.getAsymmetricPrivateKey(challengeAuth.protectedCustomerRecoveryPakeKey)
           .toErrorIfNull {
             SocRecKeyError.NoPrivateKeyAvailable(
               message = "SocRec challenge authentication private key missing"
             )
           }.bind()
 
-      challengeAuth.copy(
-        protectedCustomerRecoveryPakeKey = ProtectedCustomerRecoveryPakeKey(
-          AppKeyImpl(
-            CurveType.Curve25519,
-            challengeAuth.protectedCustomerRecoveryPakeKey.publicKey,
-            privateKey
-          )
-        )
-      )
+      challengeAuth.toRow(privateKey)
     }
 
   override suspend fun deleteByRelationshipId(
@@ -83,7 +75,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
       )
     }
 
-  override suspend fun getAll(): Result<List<SocRecStartedChallengeAuthentication>, Throwable> =
+  override suspend fun getAll(): Result<List<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow>, Throwable> =
     binding {
       val challengeAuths = database.awaitTransactionWithResult {
         database.socRecStartedChallengeAuthenticationQueries
@@ -93,22 +85,14 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
 
       challengeAuths.map {
         val privateKey =
-          appPrivateKeyDao.getAsymmetricPrivateKey(it.protectedCustomerRecoveryPakeKey.publicKey)
+          appPrivateKeyDao.getAsymmetricPrivateKey(it.protectedCustomerRecoveryPakeKey)
             .toErrorIfNull {
               SocRecKeyError.NoPrivateKeyAvailable(
                 message = "SocRec challenge authentication private key missing"
               )
             }.bind()
 
-        it.copy(
-          protectedCustomerRecoveryPakeKey = ProtectedCustomerRecoveryPakeKey(
-            AppKeyImpl(
-              CurveType.Curve25519,
-              it.protectedCustomerRecoveryPakeKey.publicKey,
-              privateKey
-            )
-          )
-        )
+        it.toRow(privateKey)
       }
     }
 
@@ -117,3 +101,15 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
       database.socRecStartedChallengeAuthenticationQueries.clear()
     }
 }
+
+private fun SocRecStartedChallengeAuthentication.toRow(
+  privateKey: PrivateKey<ProtectedCustomerRecoveryPakeKey>,
+): SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow =
+  SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow(
+    relationshipId = relationshipId,
+    protectedCustomerRecoveryPakeKey = AppKey(
+      protectedCustomerRecoveryPakeKey,
+      privateKey
+    ),
+    pakeCode = PakeCode(pakeCode)
+  )

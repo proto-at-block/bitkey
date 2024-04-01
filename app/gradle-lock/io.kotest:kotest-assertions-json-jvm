@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-json-jvm",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-json-jvm-5.8.0.jar": "ac4175b5cf5a3e59b4f0e9ad587d1ba98ec0c1d289983b5030446729da0ca331"
+                        "kotest-assertions-json-jvm-5.8.1.jar": "ac4175b5cf5a3e59b4f0e9ad587d1ba98ec0c1d289983b5030446729da0ca331"
                     }
                 }
             ],

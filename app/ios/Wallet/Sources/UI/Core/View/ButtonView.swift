@@ -66,7 +66,9 @@ private struct ButtonContentView: View {
                 }
                 Text(model.text)
                     .font(FontTheme.label1.font)
-                    .if(model.treatment == .tertiary || model.treatment == .tertiaryprimary) { text in
+                    .if(model.treatment == .tertiary ||
+                        model.treatment == .tertiaryprimary ||
+                        model.treatment == .tertiarydestructive) { text in
                         text.underline()
                     }
             }

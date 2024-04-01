@@ -14,23 +14,17 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{"boolean": true}
       }
       """.trimIndent()
     val trueFlag: GetFeatureFlagsService.F8eFeatureFlag = jsonDecoder.decodeFromString(trueFlagJSON)
     trueFlag.key.shouldBe("key1")
-    trueFlag.name.shouldBe("Feature Enabled")
-    trueFlag.description.shouldBe("The feature is enabled")
     trueFlag.value.shouldBe(F8eFeatureFlagValue.BooleanValue(true))
 
     val falseFlagJSON =
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{"boolean": false}
       }
       """.trimIndent()
@@ -44,15 +38,11 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{"string": "string value"}
       }
       """.trimIndent()
     val flag: GetFeatureFlagsService.F8eFeatureFlag = jsonDecoder.decodeFromString(flagJSON)
     flag.key.shouldBe("key1")
-    flag.name.shouldBe("Feature Enabled")
-    flag.description.shouldBe("The feature is enabled")
     flag.value.shouldBe(F8eFeatureFlagValue.StringValue("string value"))
   }
 
@@ -61,15 +51,11 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{"double": 3.14}
       }
       """.trimIndent()
     val flag: GetFeatureFlagsService.F8eFeatureFlag = jsonDecoder.decodeFromString(flagJSON)
     flag.key.shouldBe("key1")
-    flag.name.shouldBe("Feature Enabled")
-    flag.description.shouldBe("The feature is enabled")
     flag.value.shouldBe(F8eFeatureFlagValue.DoubleValue(3.14))
   }
 
@@ -78,8 +64,6 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{"string": 123}
       }
       """.trimIndent()
@@ -93,8 +77,6 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{}
       }
       """.trimIndent()
@@ -109,8 +91,6 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{color: "blue"}
       }
       """.trimIndent()
@@ -125,8 +105,6 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       }
       """.trimIndent()
 
@@ -140,8 +118,6 @@ class GetFeatureFlagsServiceFakeTests : FunSpec({
       """
       {
       "key":"key1",
-      "name":"Feature Enabled",
-      "description":"The feature is enabled",
       "value":{boolean: true, string: "string value"}
       }
       """.trimIndent()

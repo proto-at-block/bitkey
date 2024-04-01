@@ -1,11 +1,10 @@
 package build.wallet.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPrivateKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPrivateKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
+import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Result
 
 /**
@@ -22,10 +21,10 @@ interface AppKeysGenerator {
   /**
    * Generates new [AppGlobalAuthPublicKey] and [AppGlobalAuthPrivateKey].
    */
-  suspend fun generateGlobalAuthKey(): Result<AppGlobalAuthPublicKey, Throwable>
+  suspend fun generateGlobalAuthKey(): Result<PublicKey<AppGlobalAuthKey>, Throwable>
 
   /**
    * Generates new [AppRecoveryAuthPublicKey] and [AppRecoveryAuthPrivateKey].
    */
-  suspend fun generateRecoveryAuthKey(): Result<AppRecoveryAuthPublicKey, Throwable>
+  suspend fun generateRecoveryAuthKey(): Result<PublicKey<AppRecoveryAuthKey>, Throwable>
 }

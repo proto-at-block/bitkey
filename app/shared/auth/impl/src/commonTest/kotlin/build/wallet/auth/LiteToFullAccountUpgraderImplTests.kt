@@ -1,12 +1,11 @@
 package build.wallet.auth
 
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.keybox.WithAppKeysAndHardwareKeysMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.onboarding.UpgradeAccountService
 import build.wallet.f8e.onboarding.UpgradeAccountServiceMock
@@ -14,7 +13,7 @@ import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.notifications.DeviceTokenManagerError
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.notifications.DeviceTokenManagerResult
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
@@ -40,7 +39,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
       deviceTokenManager = deviceTokenManager,
       keyboxDao = keyboxDao,
       upgradeAccountService = upgradeAccountService,
-      uuid = UuidFake()
+      uuidGenerator = UuidGeneratorFake()
     )
 
   beforeTest {
@@ -55,9 +54,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     keyboxDao.onboardingKeybox.value.unwrap().shouldNotBeNull().shouldBeLoaded(null)
 
     val liteAccount = LiteAccountMock.copy(
-      recoveryAuthKey = AppRecoveryAuthPublicKey(
-        Secp256k1PublicKey("other-app-recovery-auth-dpub")
-      )
+      recoveryAuthKey = PublicKey("other-app-recovery-auth-dpub")
     )
     upgradeAccountService.upgradeAccountResult =
       Ok(

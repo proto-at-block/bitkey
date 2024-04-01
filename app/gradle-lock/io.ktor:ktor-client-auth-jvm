@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-auth-jvm",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-auth-jvm-2.3.8.jar": "84217a164f8b562f3b69cb6482d6ba0af7da3bdc0a01306d7e1293685a90fe81"
+                        "ktor-client-auth-jvm-2.3.9.jar": "bea0384c1e66396eff3c9511baf8662051385f0be3f6e8cceada3a1625ccc896"
                     }
                 }
             ],

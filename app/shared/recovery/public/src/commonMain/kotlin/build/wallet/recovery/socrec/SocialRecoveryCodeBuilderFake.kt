@@ -7,7 +7,6 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.runCatching
 import okio.ByteString.Companion.toByteString
 
-@OptIn(ExperimentalStdlibApi::class)
 class SocialRecoveryCodeBuilderFake : SocialRecoveryCodeBuilder {
   override fun buildInviteCode(
     serverPart: String,

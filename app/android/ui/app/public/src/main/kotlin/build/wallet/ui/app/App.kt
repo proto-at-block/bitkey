@@ -4,7 +4,6 @@ import android.graphics.ColorSpace.Model
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -173,7 +172,6 @@ private fun NavigatorModelEffect(
  * @param modifier - the modifier to apply to the transition
  * @param content - the content to be rendered
  */
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 private fun BitkeyTransition(
   navigator: Navigator,

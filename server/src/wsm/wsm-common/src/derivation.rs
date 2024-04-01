@@ -1,4 +1,4 @@
-use bitcoin::util::bip32::{ChildNumber, DerivationPath};
+use bitcoin::bip32::{ChildNumber, DerivationPath};
 use bitcoin::Network;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -88,7 +88,7 @@ impl fmt::Display for WSMSupportedDomain {
 #[cfg(test)]
 mod tests {
     use crate::derivation::{CoinType, WSMSupportedDomain};
-    use bitcoin::util::bip32::DerivationPath;
+    use bitcoin::bip32::DerivationPath;
 
     #[test]
     fn test_derivation_path() {

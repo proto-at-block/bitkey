@@ -1,7 +1,7 @@
 package build.wallet.integration.statemachine.create
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.CHOOSE_ACCOUNT_ACCESS
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.NOTIFICATION_PREFERENCES_SETUP
 import build.wallet.cloud.store.CloudStoreAccountFake
@@ -13,8 +13,10 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
@@ -37,9 +39,11 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
     ) {
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
-      awaitUntilScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING) {
+      awaitUntilScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
         clickPrimaryButton()
       }
+
+      awaitItem().alertModel.shouldNotBeNull().onPrimaryButtonClick()
 
       // Uploading cloud backup
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING) {
@@ -71,7 +75,7 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
     ) {
       advanceThroughCreateKeyboxScreens()
       advanceThroughOnboardKeyboxScreens(listOf(OnboardingKeyboxStep.CloudBackup))
-      awaitUntilScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING) {
+      awaitUntilScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
         clickSecondaryButton()
       }
 

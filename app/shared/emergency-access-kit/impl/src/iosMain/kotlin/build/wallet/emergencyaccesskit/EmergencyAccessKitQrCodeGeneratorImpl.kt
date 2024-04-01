@@ -5,7 +5,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.toErrorIfNull
-import kotlinx.cinterop.ExperimentalForeignApi
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import platform.CoreGraphics.CGAffineTransformMakeScale
@@ -21,7 +20,6 @@ import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
 
 actual class EmergencyAccessKitQrCodeGeneratorImpl actual constructor() : EmergencyAccessKitQrCodeGenerator {
-  @OptIn(ExperimentalForeignApi::class)
   override suspend fun imageBytes(
     width: Float,
     height: Float,
@@ -31,7 +29,6 @@ actual class EmergencyAccessKitQrCodeGeneratorImpl actual constructor() : Emerge
       .map { it.toByteString() }
       .toErrorIfNull { EmergencyAccessKitQrCodeError(null) }
 
-  @OptIn(ExperimentalForeignApi::class)
   private fun generateQRCode(contents: String): Result<CIImage, EmergencyAccessKitQrCodeError> {
     // Set up QR code filter with input data.
     @Suppress("CAST_NEVER_SUCCEEDS")

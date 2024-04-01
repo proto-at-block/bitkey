@@ -194,6 +194,8 @@ pub fn decode_and_check(
         Some(crate::fwpb::Status::FeatureNotSupported) => {
             Err(crate::errors::CommandError::FeatureNotSupported)
         }
+        Some(crate::fwpb::Status::FileNotFound) => Err(crate::errors::CommandError::FileNotFound),
+        Some(crate::fwpb::Status::InvalidState) => Err(crate::errors::CommandError::InvalidState),
         None => Ok(message), // TODO(W-1211): Same as above comment.
     }
 }

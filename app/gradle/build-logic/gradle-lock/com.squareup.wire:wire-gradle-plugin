@@ -2,11 +2,11 @@
     "module-identifier": "com.squareup.wire:wire-gradle-plugin",
     "components": [
         {
-            "version": "4.9.5",
+            "version": "4.9.8",
             "variants": [
                 {
                     "artifacts": {
-                        "wire-gradle-plugin-4.9.5.jar": "b422ab8181c4f6704f376b9f1b0a61c69be41cb4429d5f8f1ff9c89ac265e997"
+                        "wire-gradle-plugin-4.9.8.jar": "9c6f3cec8b74436966ed339f0dec933264c6752f26968ced42c36ea5200d6049"
                     }
                 }
             ],

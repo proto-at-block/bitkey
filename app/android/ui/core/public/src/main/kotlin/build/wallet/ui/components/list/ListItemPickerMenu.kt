@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.runtime.Composable
@@ -21,7 +20,6 @@ import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun <Option : Any> ListItemPickerMenu(model: ListItemPickerMenu<Option>) {
   AlertDialog(

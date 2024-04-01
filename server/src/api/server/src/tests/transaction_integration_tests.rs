@@ -3,20 +3,27 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use account::entities::Network;
-use types::account::identifiers::{AccountId, KeysetId};
-
 use account::service::FetchAccountInput;
 use account::spend_limit::{Money, SpendingLimit};
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
+use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
+use bdk_utils::bdk::bitcoin::Address;
+use bdk_utils::bdk::database::AnyDatabase;
+use bdk_utils::bdk::electrum_client::Error as ElectrumClientError;
 use bdk_utils::bdk::wallet::{AddressIndex, AddressInfo};
+use bdk_utils::bdk::Error::Electrum;
 use bdk_utils::bdk::{KeychainKind, SignOptions, Wallet};
+use bdk_utils::error::BdkUtilError;
 use bdk_utils::{DescriptorKeyset, ElectrumRpcUris, TransactionBroadcasterTrait};
 use external_identifier::ExternalIdentifier;
 use http::StatusCode;
-
 use mobile_pay::routes::SignTransactionData;
 use mobile_pay::routes::SignTransactionResponse;
+use mockall::mock;
 use onboarding::routes::RotateSpendingKeysetRequest;
+use serde_json::json;
+use types::account::identifiers::{AccountId, KeysetId};
+use types::currencies::CurrencyCode::{BTC, USD};
 use ulid::Ulid;
 
 use crate::tests;
@@ -29,21 +36,13 @@ use crate::tests::mobile_pay_tests::build_mobile_pay_request;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, gen_services_with_overrides, GenServiceOverrides};
 
-use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::database::AnyDatabase;
-use errors::ApiError;
-
-use bdk_utils::bdk::bitcoin::Address;
-use mockall::mock;
-use types::currencies::CurrencyCode::{BTC, USD};
-
 #[derive(Debug)]
 struct SignTransactionTestVector {
     override_account_id: bool,
     override_psbt: Option<&'static str>,
     expected_status: StatusCode,
     expect_broadcast: bool, // Should the test expect a transaction to be broadcast?
-    fail_broadcast: bool,   // Should the test double return an ApiError?
+    broadcast_failure_mode: Option<BroadcastFailureMode>, // Should the test double return an ApiError?
 }
 
 mock! {
@@ -54,7 +53,7 @@ mock! {
             wallet: Wallet<AnyDatabase>,
             transaction: &mut PartiallySignedTransaction,
             rpc_uris: &ElectrumRpcUris
-        ) -> Result<(), ApiError>;
+        ) -> Result<(), BdkUtilError>;
     }
 }
 
@@ -63,14 +62,21 @@ async fn sign_transaction_test(vector: SignTransactionTestVector) {
     broadcaster_mock
         .expect_broadcast()
         .times(if vector.expect_broadcast { 1 } else { 0 })
-        .returning(move |_, _, _| {
-            if vector.fail_broadcast {
-                Err(ApiError::GenericInternalApplicationError(
-                    "Fail".to_string(),
-                ))
-            } else {
-                Ok(())
+        .returning(move |_, _, _| match vector.broadcast_failure_mode {
+            Some(BroadcastFailureMode::Generic) => Err(BdkUtilError::TransactionBroadcastError(
+                Electrum(ElectrumClientError::Message("Fail".to_string())),
+            )),
+            // Specific protocol failure to test true positive case
+            Some(BroadcastFailureMode::ElectrumDuplicateTx) => {
+                Err(BdkUtilError::TransactionAlreadyInMempoolError)
             }
+            // Generic protocol failure to guard against type-1 (false-positive) errors
+            Some(BroadcastFailureMode::ElectrumGeneric) => {
+                Err(BdkUtilError::TransactionBroadcastError(Electrum(
+                    ElectrumClientError::Protocol(json!({"code": -77,"message": "Fail"})),
+                )))
+            }
+            None => Ok(()),
         });
 
     let overrides = GenServiceOverrides::new().broadcaster(Arc::new(broadcaster_mock));
@@ -133,29 +139,50 @@ tests! {
         override_psbt: None,
         expected_status: StatusCode::OK,
         expect_broadcast: true,
-        fail_broadcast: false
+        broadcast_failure_mode: None
     },
     test_sign_transaction_with_no_existing_account: SignTransactionTestVector {
         override_account_id: true,
         override_psbt: Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
         expected_status: StatusCode::NOT_FOUND,
         expect_broadcast: false,
-        fail_broadcast: false
+        broadcast_failure_mode: None
     },
     test_sign_transaction_with_invalid_psbt: SignTransactionTestVector {
         override_account_id: false,
         override_psbt: Some("cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"),
         expected_status: StatusCode::BAD_REQUEST,
         expect_broadcast: false,
-        fail_broadcast: false
+        broadcast_failure_mode: None
     },
     test_sign_transaction_fail_broadcast: SignTransactionTestVector {
         override_account_id: false,
         override_psbt: None,
         expected_status: StatusCode::INTERNAL_SERVER_ERROR,
         expect_broadcast: true,
-        fail_broadcast: true
+        broadcast_failure_mode: Some(BroadcastFailureMode::Generic)
     },
+    test_sign_transaction_fail_broadcast_electrum: SignTransactionTestVector {
+        override_account_id: false,
+        override_psbt: None,
+        expected_status: StatusCode::INTERNAL_SERVER_ERROR,
+        expect_broadcast: true,
+        broadcast_failure_mode: Some(BroadcastFailureMode::ElectrumGeneric)
+    },
+    test_sign_transaction_fail_broadcast_duplicate_tx: SignTransactionTestVector {
+        override_account_id: false,
+        override_psbt: None,
+        expected_status: StatusCode::CONFLICT,
+        expect_broadcast: true,
+        broadcast_failure_mode: Some(BroadcastFailureMode::ElectrumDuplicateTx)
+    },
+}
+
+#[derive(Debug)]
+enum BroadcastFailureMode {
+    Generic,
+    ElectrumDuplicateTx,
+    ElectrumGeneric,
 }
 
 #[derive(Debug)]

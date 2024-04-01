@@ -1,12 +1,13 @@
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey;
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
 import build.wallet.bitkey.app.AppSpendingPublicKey;
 
 CREATE TABLE appKeyBundleEntity(
   id              TEXT NOT NULL PRIMARY KEY,
-  globalAuthKey   TEXT AS AppGlobalAuthPublicKey NOT NULL,
+  globalAuthKey   TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
   spendingKey     TEXT AS AppSpendingPublicKey NOT NULL,
-  recoveryAuthKey TEXT AS AppRecoveryAuthPublicKey NOT NULL
+  recoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL
 );
 
 insertKeyBundle:

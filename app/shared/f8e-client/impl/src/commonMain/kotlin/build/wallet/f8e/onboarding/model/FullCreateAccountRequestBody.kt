@@ -1,13 +1,14 @@
 package build.wallet.f8e.onboarding.model
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.serialization.toJsonString
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -60,13 +61,13 @@ data class FullCreateAccountAuthKeys(
   val recovery: String?,
 ) : CreateAccountAuthKeys {
   constructor(
-    app: AppGlobalAuthPublicKey,
+    app: PublicKey<AppGlobalAuthKey>,
     hardware: HwAuthPublicKey,
-    recovery: AppRecoveryAuthPublicKey,
+    recovery: PublicKey<AppRecoveryAuthKey>,
   ) : this(
-    app = app.pubKey.value,
+    app = app.value,
     hardware = hardware.pubKey.value,
-    recovery = recovery?.pubKey?.value
+    recovery = recovery.value
   )
 }
 

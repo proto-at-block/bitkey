@@ -116,6 +116,21 @@ class FileManagerImpl(
 
     zipFile.entries().asSequence().forEach { entry ->
       val newFile = File(targetFile, entry.name)
+
+      val canonicalTargetDirPath = targetFile.canonicalPath
+      val canonicalNewFilePath = newFile.canonicalPath
+
+      /**
+       * Validate the path of the new file before it's created.
+       * Checks if the canonical path of the new file starts with the canonical path of the target
+       * directory.
+       * Prevents a Zip Slip vulnerability attach which is a form of directory traversal attack.
+       * Without this validation, a zip entry could potentially write a file outside the target directory.
+       */
+      if (!canonicalNewFilePath.startsWith(canonicalTargetDirPath)) {
+        throw SecurityException("Zip entry is outside of the target dir: ${entry.name}")
+      }
+
       if (entry.isDirectory) {
         newFile.mkdirs()
       } else {

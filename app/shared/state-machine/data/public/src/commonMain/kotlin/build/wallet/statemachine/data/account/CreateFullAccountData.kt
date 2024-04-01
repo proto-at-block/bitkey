@@ -89,7 +89,7 @@ sealed interface CreateFullAccountData {
       val keybox: Keybox,
       val sealedCsek: SealedCsek?,
       val onBackupSaved: () -> Unit,
-      val onBackupFailed: () -> Unit,
+      val onBackupFailed: (Throwable?) -> Unit,
       val onExistingAppDataFound: (
         (
           cloudBackup: CloudBackup?,

@@ -1,5 +1,6 @@
 import build.wallet.bitcoin.BitcoinNetworkType;
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
 import build.wallet.bitkey.f8e.LiteAccountId;
 import build.wallet.f8e.F8eEnvironment;
 import kotlin.Boolean;
@@ -7,7 +8,7 @@ import kotlin.Boolean;
 -- Table for Lite Account.
 CREATE TABLE liteAccountEntity(
   accountId           TEXT AS LiteAccountId NOT NULL PRIMARY KEY,
-  appRecoveryAuthKey  TEXT AS AppRecoveryAuthPublicKey NOT NULL,
+  appRecoveryAuthKey  TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
   bitcoinNetworkType  TEXT AS BitcoinNetworkType NOT NULL,
   f8eEnvironment      TEXT AS F8eEnvironment NOT NULL,
   isTestAccount       INTEGER AS Boolean NOT NULL,

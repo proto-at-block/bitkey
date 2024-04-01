@@ -22,6 +22,7 @@ internal class AndroidLibPlugin : Plugin<Project> {
       pluginManager.apply<DependencyLockingPlugin>()
       pluginManager.apply<DependencyLockingCommonGroupConfigurationPlugin>()
       pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
+      pluginManager.apply<AutomaticKotlinOptInPlugin>()
 
       android {
         namespace = "build.wallet.${project.namespace}"

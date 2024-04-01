@@ -24,6 +24,7 @@ class ShowingNoLongerRecoveringScreenModelSnapshots : FunSpec({
           ShowingNoLongerRecoveringBodyModel(
             canceledRecoveringFactor = App,
             isLoading = false,
+            errorData = null,
             onAcknowledge = {}
           )
       )
@@ -37,6 +38,7 @@ class ShowingNoLongerRecoveringScreenModelSnapshots : FunSpec({
           ShowingNoLongerRecoveringBodyModel(
             canceledRecoveringFactor = Hardware,
             isLoading = false,
+            errorData = null,
             onAcknowledge = {}
           )
       )
@@ -50,6 +52,7 @@ class ShowingNoLongerRecoveringScreenModelSnapshots : FunSpec({
           ShowingNoLongerRecoveringBodyModel(
             canceledRecoveringFactor = App,
             isLoading = true,
+            errorData = null,
             onAcknowledge = {}
           )
       )
@@ -62,6 +65,7 @@ class ShowingNoLongerRecoveringScreenModelSnapshots : FunSpec({
         model =
           ShowingNoLongerRecoveringBodyModel(
             canceledRecoveringFactor = Hardware,
+            errorData = null,
             isLoading = true,
             onAcknowledge = {}
           )

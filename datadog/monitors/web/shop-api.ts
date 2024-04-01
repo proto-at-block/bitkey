@@ -1,7 +1,7 @@
 import { Construct } from "constructs";
 import { Monitor } from "../common/monitor";
 import { trace_analytics_count_query } from "../common/queries";
-import { AverageLatencyHighMonitor } from "../common/http";
+import { PercentileLatencyHighMonitor, AverageLatencyHighMonitor } from "../common/http";
 import { Environment } from "../common/environments";
 import { ContainerCpuUtilizationHighMonitor, ContainerMemoryUtilizationHighMonitor } from "../common/system";
 import { getErrorRecipients } from "../recipients";
@@ -13,19 +13,23 @@ interface ShopApiConfig {
   status?: "401" | "406" | "4??" | "5??",
   type?: "error" | "warn",
   message?: string,
-  environment: Environment
+  monitorThresholds?: {
+    critical: string,
+    warning?: string
+  },
+  environment: Environment,
 }
 
 class ShopApiMonitor extends Construct {
   constructor(scope: Construct, config: ShopApiConfig) {
-    const { title, status, name, resource, type, message, environment } = config
+    const { title, status, name, resource, type, message, monitorThresholds, environment } = config
     super(scope, title);
     const recipients = getErrorRecipients(environment);
 
     const trace_alert_config = {
       recipients: recipients,
       type: "trace-analytics alert",
-      monitorThresholds: {
+      monitorThresholds: monitorThresholds ?? {
         critical: "5",
         warning: "1",
       },
@@ -253,6 +257,32 @@ export class ShopApiMonitors extends Construct {
       resource: 'POST /v1/orders/cancel',
       environment
     })
+
+    
+    // Customer checkout screen error and latency monitors
+    new ShopApiMonitor(this, {
+      title: "customer_screen_error_rate_high",
+      resource: 'POST /v1/checkout/screen',
+      name: "Customer screen error rate too high",
+      type: 'error',
+      monitorThresholds: {
+        critical: "1"
+      },      
+      environment
+    });
+
+    new PercentileLatencyHighMonitor(this, "customer_screen_p90_latency_high", {
+      name: `The /v1/checkout/screen endpoint has a high p90 latency on env:${environment}`,
+      message: "[web-shop-api][/v1/checkout/screen]: p90 latency is too high",
+      percentile: 90,
+      tags: tags.concat(["resource_name:post_/v1/checkout/screen"]),
+      window: "last_4h",
+      monitorThresholds: {
+        warning: "2",
+        critical: "4"
+      },
+      recipients: getErrorRecipients(environment),
+    });
 
     new ContainerMemoryUtilizationHighMonitor(this, `${serviceName}_memory_utilization_high`, {
       name: `[${serviceName}] has a high container memory utilization on env:${environment}`,

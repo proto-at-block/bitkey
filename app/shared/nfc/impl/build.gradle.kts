@@ -17,6 +17,7 @@ kotlin {
         api(projects.shared.keyValueStorePublic)
         implementation(libs.kmp.okio)
         implementation(projects.shared.stdlibPublic)
+        implementation(libs.kmp.settings)
       }
     }
     val commonJvmMain by getting {
@@ -47,7 +48,10 @@ kotlin {
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.nfcFake)
         implementation(projects.shared.platformFake)
+        // TODO: extract reusable uuid() - https://github.com/squareup/wallet/pull/13871
+        implementation(projects.shared.platformImpl)
         implementation(projects.shared.testingPublic)
+        implementation(projects.shared.firmwareFake)
       }
     }
     val commonJvmTest by getting {

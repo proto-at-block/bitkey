@@ -6,12 +6,8 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.AttemptingCloudRecoveryLostAppRecoveryDataData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.cloud.RecoveringKeyboxFromCloudBackupData.AccessingCloudBackupData
-import build.wallet.statemachine.data.recovery.lostapp.cloud.RecoveringKeyboxFromCloudBackupData.RecoveringFromCloudBackupData
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiProps
-import build.wallet.statemachine.recovery.cloud.AccessCloudBackupUiStateMachine
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.AttemptingCloudRecoveryLostAppRecoveryDataData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiProps
 import build.wallet.statemachine.recovery.cloud.FullAccountCloudBackupRestorationUiStateMachine
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiProps
@@ -31,7 +27,6 @@ data class LostAppRecoveryHaveNotStartedUiProps(
 
 class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
   private val initiatingLostAppRecoveryUiStateMachine: InitiatingLostAppRecoveryUiStateMachine,
-  private val accessCloudBackupUiStateMachine: AccessCloudBackupUiStateMachine,
   private val fullAccountCloudBackupRestorationUiStateMachine:
     FullAccountCloudBackupRestorationUiStateMachine,
 ) : LostAppRecoveryHaveNotStartedUiStateMachine {
@@ -39,37 +34,14 @@ class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
   override fun model(props: LostAppRecoveryHaveNotStartedUiProps): ScreenModel {
     return when (props.notUndergoingRecoveryData) {
       is AttemptingCloudRecoveryLostAppRecoveryDataData -> {
-        when (val recoveringFromCloudBackupData = props.notUndergoingRecoveryData.data) {
-          is AccessingCloudBackupData ->
-            accessCloudBackupUiStateMachine.model(
-              props =
-                AccessCloudBackupUiProps(
-                  eakAssociation = props.eakAssociation,
-                  forceSignOutFromCloud = false,
-                  onBackupFound = { backup ->
-                    recoveringFromCloudBackupData.onCloudBackupFound(backup)
-                  },
-                  onCannotAccessCloudBackup = {
-                    recoveringFromCloudBackupData.onCloudBackupNotAvailable()
-                  },
-                  onImportEmergencyAccessKit = {
-                    recoveringFromCloudBackupData.onImportEmergencyAccessKit()
-                  },
-                  onExit = recoveringFromCloudBackupData.rollback
-                )
+        fullAccountCloudBackupRestorationUiStateMachine.model(
+          props =
+            FullAccountCloudBackupRestorationUiProps(
+              fullAccountConfig = props.fullAccountConfig,
+              backup = props.notUndergoingRecoveryData.cloudBackup,
+              onExit = props.notUndergoingRecoveryData.rollback
             )
-
-          is RecoveringFromCloudBackupData -> {
-            fullAccountCloudBackupRestorationUiStateMachine.model(
-              props =
-                FullAccountCloudBackupRestorationUiProps(
-                  fullAccountConfig = props.fullAccountConfig,
-                  backup = recoveringFromCloudBackupData.cloudBackup,
-                  onExit = recoveringFromCloudBackupData.rollback
-                )
-            )
-          }
-        }
+        )
       }
 
       is InitiatingLostAppRecoveryData ->

@@ -1,18 +1,20 @@
 package build.wallet.statemachine.settings
 
 import app.cash.turbine.Turbine
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
+import build.wallet.LoadableValue
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
 import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
+import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
+import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.core.BodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
@@ -22,10 +24,12 @@ import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Cu
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CustomElectrumServer
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Notifications
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.NotificationPreferences
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RotateAuthKey
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.TrustedContacts
-import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -40,15 +44,13 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
   val featureFlagDao = FeatureFlagDaoMock()
   val cloudBackupHealthFeatureFlag = CloudBackupHealthFeatureFlag(featureFlagDao)
-  val inactiveDeviceIsEnabledFeatureFlag = InactiveDeviceIsEnabledFeatureFlag(featureFlagDao)
-  val v2FeatureFlag = NotificationsFlowV2EnabledFeatureFlag(FeatureFlagDaoMock())
+  val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
 
   val stateMachine =
     SettingsListUiStateMachineImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
       cloudBackupHealthFeatureFlag = cloudBackupHealthFeatureFlag,
-      inactiveDeviceIsEnabledFeatureFlag = inactiveDeviceIsEnabledFeatureFlag,
-      notificationsFlowV2EnabledFeatureFlag = v2FeatureFlag
+      cloudBackupHealthRepository = cloudBackupHealthRepository
     )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
@@ -59,7 +61,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       CurrencyPreference::class to turbines.create("CurrencyPreference onClick calls"),
       HelpCenter::class to turbines.create("HelpCenter onClick calls"),
       MobilePay::class to turbines.create("MobilePay onClick calls"),
-      Notifications::class to turbines.create("Notifications onClick calls"),
+      NotificationPreferences::class to turbines.create("Notifications onClick calls"),
       ContactUs::class to turbines.create("SendFeedback onClick calls"),
       TrustedContacts::class to turbines.create("TrustedContacts onClick calls"),
       CloudBackupHealth::class to turbines.create("CloudBackupHealth onClick calls"),
@@ -77,7 +79,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           CurrencyPreference { propsOnClickCalls[CurrencyPreference::class]?.add(Unit) },
           HelpCenter { propsOnClickCalls[HelpCenter::class]?.add(Unit) },
           MobilePay { propsOnClickCalls[MobilePay::class]?.add(Unit) },
-          Notifications { propsOnClickCalls[Notifications::class]?.add(Unit) },
+          NotificationPreferences { propsOnClickCalls[NotificationPreferences::class]?.add(Unit) },
           ContactUs { propsOnClickCalls[ContactUs::class]?.add(Unit) },
           TrustedContacts { propsOnClickCalls[TrustedContacts::class]?.add(Unit) },
           CloudBackupHealth { propsOnClickCalls[CloudBackupHealth::class]?.add(Unit) },
@@ -87,18 +89,10 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       onDismissAlert = {}
     )
 
-  beforeEach {
-    v2FeatureFlag.apply {
-      setFlagValue(FeatureFlagValue.BooleanFlag(false))
-    }
-  }
-
   afterEach {
     appFunctionalityStatusProvider.reset()
+    cloudBackupHealthRepository.reset()
     cloudBackupHealthFeatureFlag.apply {
-      setFlagValue(defaultFlagValue)
-    }
-    inactiveDeviceIsEnabledFeatureFlag.apply {
       setFlagValue(defaultFlagValue)
     }
   }
@@ -143,6 +137,30 @@ class SettingsListUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("cloud backup health setting when mobile backup has problem") {
+    cloudBackupHealthFeatureFlag.setFlagValue(true)
+    cloudBackupHealthRepository.mobileKeyBackupStatus.value =
+      LoadableValue.LoadedValue(MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess)
+    stateMachine.test(props) {
+      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
+        sectionModels
+          .first { it.sectionHeaderTitle == "Security & Recovery" }
+          .rowModels
+          .first { it.title == "Cloud Backup" }
+          .should {
+            it.specialTrailingIconModel.shouldNotBeNull()
+              .shouldBe(
+                IconModel(
+                  icon = Icon.SmallIconInformationFilled,
+                  iconSize = IconSize.Small,
+                  iconTint = IconTint.Warning
+                )
+              )
+          }
+      }
+    }
+  }
+
   test("key rotation setting when feature flag is enabled") {
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
@@ -174,7 +192,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("Notifications updates state") {
     stateMachine
-      .testRowOnClickCallsProps<Notifications>("Notifications", props, propsOnClickCalls)
+      .testRowOnClickCallsProps<NotificationPreferences>("Notifications", props, propsOnClickCalls)
   }
 
   test("Trusted Contacts updates state") {

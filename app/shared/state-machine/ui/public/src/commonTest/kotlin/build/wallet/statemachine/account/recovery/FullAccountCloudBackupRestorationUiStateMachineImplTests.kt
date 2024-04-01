@@ -10,7 +10,6 @@ import build.wallet.auth.AppAuthKeyMessageSignerMock
 import build.wallet.auth.AuthKeyRotationManagerMock
 import build.wallet.auth.AuthTokenDaoMock
 import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.auth.RefreshToken
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
@@ -28,13 +27,11 @@ import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.recovery.InitiateHardwareAuthServiceMock
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.FeatureFlagValue
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.platform.device.DeviceInfoProviderMock
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
@@ -91,10 +88,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
   val socRecChallengeRepository = SocRecChallengeRepositoryMock()
 
-  val inactiveDeviceIsEnabledFeatureFlag = InactiveDeviceIsEnabledFeatureFlag(
-    featureFlagDao = FeatureFlagDaoMock()
-  )
-
   val initiateHardwareAuthService = InitiateHardwareAuthServiceMock(turbines::create)
 
   val keyboxDao = KeyboxDaoMock(turbines::create)
@@ -126,14 +119,13 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       keyboxDao = keyboxDao,
       recoverySyncer = recoverySyncer,
       deviceInfoProvider = deviceInfoProvider,
-      uuid = UuidFake(),
+      uuidGenerator = UuidGeneratorFake(),
       cloudBackupDao = cloudBackupDao,
       recoveryChallengeStateMachine = recoveryChallengeUiStateMachineMock,
       socialRelationshipsRepository = socRecRelationshipsRepository,
       socRecChallengeRepository = socRecChallengeRepository,
       postSocRecTaskRepository = postSocRecTaskRepository,
       socRecStartedChallengeDao = socRecPendingChallengeDao,
-      inactiveDeviceIsEnabledFeatureFlag = inactiveDeviceIsEnabledFeatureFlag,
       authKeyRotationManager = authKeyRotationManager
     )
 
@@ -161,8 +153,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   }
 
   test("happy path - restore from cloud back up") {
-    // Won't be a long-lived feature flag and we're not shipping to customers while it's off
-    inactiveDeviceIsEnabledFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
     stateMachineActiveDeviceFlagOn.test(props) {
       accountAuthorizer.authResults =
         mutableListOf(

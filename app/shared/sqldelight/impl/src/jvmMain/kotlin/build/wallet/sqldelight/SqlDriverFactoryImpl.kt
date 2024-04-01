@@ -9,7 +9,7 @@ import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.File.join
 import build.wallet.platform.data.FileDirectoryProvider
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import java.util.Properties
 
@@ -20,7 +20,7 @@ actual class SqlDriverFactoryImpl actual constructor(
   platformContext: PlatformContext,
   private val fileDirectoryProvider: FileDirectoryProvider,
   encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
-  uuid: Uuid,
+  uuidGenerator: UuidGenerator,
   appVariant: AppVariant,
 ) : SqlDriverFactory {
   override fun createDriver(

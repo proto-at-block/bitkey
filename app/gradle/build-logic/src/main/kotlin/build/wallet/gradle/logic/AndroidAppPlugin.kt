@@ -21,6 +21,7 @@ internal class AndroidAppPlugin : Plugin<Project> {
       pluginManager.apply<DependencyLockingPlugin>()
       pluginManager.apply<DependencyLockingCommonGroupConfigurationPlugin>()
       pluginManager.apply<DependencyLockingDependencyConfigurationPlugin>()
+      pluginManager.apply<AutomaticKotlinOptInPlugin>()
 
       android {
         commonConfiguration(project)

@@ -17,7 +17,7 @@
 #define BARK_PLAINTEXT_PATH ("fpc-plaintext-bark.bin")
 
 static bool bio_storage_template_id_valid(bio_template_id_t id) {
-  bool ok = id <= TEMPLATE_MAX_COUNT;
+  bool ok = id < TEMPLATE_MAX_COUNT;
   if (!ok) {
     LOGE("Invalid template id %d", id);
   }
@@ -308,6 +308,29 @@ fail:
 bool bio_storage_timestamp_save(uint32_t timestamp) {
   uint32_t t = htonl(timestamp);
   return save_data(AUTH_TIMESTAMP_PATH, (uint8_t*)&t, sizeof(timestamp));
+}
+
+bio_err_t bio_storage_delete_template(bio_template_id_t id) {
+  if (!bio_storage_template_id_valid(id)) {
+    LOGE("Invalid template id %d", id);
+    return BIO_ERR_TEMPLATE_INVALID;
+  }
+
+  char filename[TEMPLATE_PATH_LEN] = {0};
+  snprintf(filename, sizeof(filename), TEMPLATE_PATH_FORMAT, id);
+
+  if (!fs_file_exists(filename)) {
+    LOGE("Template %d does not exist", id);
+    return BIO_ERR_TEMPLATE_DOESNT_EXIST;
+  }
+
+  if (fs_remove(filename) >= 0) {
+    LOGD("Deleted template %d", id);
+    return BIO_ERR_NONE;
+  } else {
+    LOGE("Failed to delete template %d", id);
+    return BIO_ERR_GENERIC;
+  }
 }
 
 void bio_wipe_state(void) {

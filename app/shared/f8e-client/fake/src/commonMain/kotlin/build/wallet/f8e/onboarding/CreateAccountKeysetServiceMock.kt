@@ -1,12 +1,13 @@
 package build.wallet.f8e.onboarding
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
@@ -20,7 +21,7 @@ class CreateAccountKeysetServiceMock : CreateAccountKeysetService {
     hardwareSpendingKey: HwSpendingPublicKey,
     appSpendingKey: AppSpendingPublicKey,
     network: BitcoinNetworkType,
-    appAuthKey: AppGlobalAuthPublicKey?,
+    appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<F8eSpendingKeyset, NetworkingError> {
     return Ok(F8eSpendingKeysetMock)

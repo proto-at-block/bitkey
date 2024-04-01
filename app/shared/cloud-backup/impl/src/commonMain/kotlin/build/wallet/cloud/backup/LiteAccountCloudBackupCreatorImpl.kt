@@ -2,7 +2,7 @@ package build.wallet.cloud.backup
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
@@ -21,13 +21,13 @@ class LiteAccountCloudBackupCreatorImpl(
   ): Result<CloudBackupV2, LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError> =
     binding {
       val delegatedDecryptionKeypair =
-        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate(::DelegatedDecryptionKey)
+        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
           .mapError { SocRecKeysRetrievalError(it) }
           .bind()
 
       val recoveryAuthPrivateKey =
         appPrivateKeyDao
-          .getRecoveryAuthKey(account.recoveryAuthKey)
+          .getAsymmetricPrivateKey(account.recoveryAuthKey)
           .toErrorIfNull {
             IllegalStateException("Active recovery app auth private key not found.")
           }
@@ -35,7 +35,7 @@ class LiteAccountCloudBackupCreatorImpl(
           .bind()
 
       val appRecoveryAuthKeypair =
-        AppRecoveryAuthKeypair(
+        AppKey(
           publicKey = account.recoveryAuthKey,
           privateKey = recoveryAuthPrivateKey
         )

@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.50.1
-        PROJECT_BUNDLE_VERSION: 3
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.51.0
+        PROJECT_BUNDLE_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -180,6 +180,7 @@ targets:
         com.apple.developer.icloud-services: ["CloudDocuments"]
     preBuildScripts:
       - name: Verify SPM lock file
+        basedOnDependencyAnalysis: false
         shell: /usr/bin/env bash
         script: |
           "$SRCROOT/../bin/just" fast-verify-ios-lockfile
@@ -202,6 +203,20 @@ targets:
 
           if [ -e "$REPRODUCIBLE_BUILD_VARIABLES_PATH" ]; then
             cp "$REPRODUCIBLE_BUILD_VARIABLES_PATH" "$TARGET_BUILD_DIR"/"$UNLOCALIZED_RESOURCES_FOLDER_PATH"
+          fi
+      # TODO: Remove once bdk-swift's bdkFFI.framework is fixed for Xcode 15.3
+      #   https://github.com/bitcoindevkit/bdk-ffi/issues/463
+      - name: "[Xcode 15.3 workaround] Add missing Info.plist to bdkFFI.framework"
+        basedOnDependencyAnalysis: false
+        shell: /usr/bin/env bash
+        script: |
+          BDK_FFI_PLIST="$TARGET_BUILD_DIR/$FRAMEWORKS_FOLDER_PATH/bdkFFI.framework/Info.plist"
+          if [ ! -f "$BDK_FFI_PLIST" ]; then
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDevelopmentRegion string en" "$BDK_FFI_PLIST"
+            /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string bdkFFI" "$BDK_FFI_PLIST"
+            /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string bdk-swift.bdkffi" "$BDK_FFI_PLIST"
+            /usr/libexec/PlistBuddy -c "Add :CFBundleInfoDictionaryVersion string 6.0" "$BDK_FFI_PLIST"
+            /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string FMWK" "$BDK_FFI_PLIST"
           fi
 
     scheme:

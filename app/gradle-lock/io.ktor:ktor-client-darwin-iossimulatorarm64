@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-darwin-iossimulatorarm64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-darwin-iossimulatorarm64-2.3.8-metadata.jar": "3f6c8d917ddd00c78eb450458010c21b69f14504abd5d6003cd90283540b8ea9"
+                        "ktor-client-darwin-iossimulatorarm64-2.3.9-metadata.jar": "3f494c912becc1e2dc0abc9eb542011316f5a745a63ba147c653d29969828f32"
                     }
                 },
                 {

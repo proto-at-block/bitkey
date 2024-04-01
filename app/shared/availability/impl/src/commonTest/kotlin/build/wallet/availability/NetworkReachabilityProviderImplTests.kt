@@ -81,7 +81,7 @@ class NetworkReachabilityProviderImplTests : FunSpec({
       provider.updateNetworkReachabilityForConnection(REACHABLE, F8e(F8eEnvironment.Production))
       networkReachabilityEventDao.insertReachabilityEventCalls.awaitItem()
 
-      awaitItem().shouldBe(Pair(UNREACHABLE, REACHABLE))
+      awaitItem().shouldBe(Pair(REACHABLE, UNREACHABLE))
       awaitItem().shouldBe(Pair(REACHABLE, REACHABLE))
     }
   }

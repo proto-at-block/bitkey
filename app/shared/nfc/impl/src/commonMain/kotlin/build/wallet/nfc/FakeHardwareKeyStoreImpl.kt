@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.nfc
 
 import build.wallet.bdk.bindings.BdkDerivationPath
@@ -14,7 +12,6 @@ import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.bdk.bdkNetwork
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
-import build.wallet.bitkey.auth.AuthPrivateKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeypair
@@ -24,9 +21,8 @@ import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.Secp256k1PrivateKey
 import build.wallet.nfc.FakeHardwareKeyStore.FakeHwSpendingPrivateKey
 import build.wallet.store.EncryptedKeyValueStoreFactory
+import build.wallet.store.getOrPutString
 import com.github.michaelbull.result.getOrThrow
-import com.russhwolf.settings.ExperimentalSettingsApi
-import dev.zacsweers.redacted.annotations.Redacted
 import okio.ByteString.Companion.toByteString
 
 class FakeHardwareKeyStoreImpl(
@@ -38,7 +34,10 @@ class FakeHardwareKeyStoreImpl(
   private suspend fun store() = encryptedKeyValueStoreFactory.getOrCreate(STORE_NAME)
 
   override suspend fun getSeed(): FakeHardwareKeyStore.Seed {
-    return FakeHardwareKeyStore.Seed(store().getStringOrNull(SEED_KEY)!!)
+    val seed = store().getOrPutString(SEED_KEY) {
+      bdkMnemonicGenerator.generateMnemonic(WORDS_24).words
+    }
+    return FakeHardwareKeyStore.Seed(seed)
   }
 
   override suspend fun setSeed(seed: FakeHardwareKeyStore.Seed) {
@@ -46,20 +45,10 @@ class FakeHardwareKeyStoreImpl(
   }
 
   private suspend fun getRootPrivateKey(network: BitcoinNetworkType): BdkDescriptorSecretKey {
-    val store = store()
-    val words = store.getStringOrNull(SEED_KEY)
-    val mnemonic =
-      if (words == null) {
-        bdkMnemonicGenerator.generateMnemonic(WORDS_24).also {
-          store.putString(SEED_KEY, it.words)
-        }
-      } else {
-        bdkMnemonicGenerator.fromString(words)
-      }
     return bdkDescriptorSecretKeyGenerator
       .generate(
         network = network.bdkNetwork,
-        mnemonic = mnemonic
+        mnemonic = bdkMnemonicGenerator.fromString(getSeed().words)
       )
   }
 
@@ -155,9 +144,4 @@ class FakeHardwareKeyStoreImpl(
   }
 
   private data class PathParts(val coinType: Int, val account: Int)
-
-  @Redacted
-  private data class FakeHwAuthPrivateKey(
-    override val key: Secp256k1PrivateKey,
-  ) : AuthPrivateKey
 }

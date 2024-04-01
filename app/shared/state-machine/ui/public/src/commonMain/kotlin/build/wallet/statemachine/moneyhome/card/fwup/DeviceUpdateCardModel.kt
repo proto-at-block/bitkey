@@ -15,6 +15,6 @@ fun DeviceUpdateCardModel(onUpdateDevice: () -> Unit) =
     subtitle = null,
     leadingImage = CardModel.CardImage.StaticImage(BitkeyDeviceRaised),
     content = null,
-    style = Gradient,
+    style = Gradient(),
     onClick = onUpdateDevice
   )

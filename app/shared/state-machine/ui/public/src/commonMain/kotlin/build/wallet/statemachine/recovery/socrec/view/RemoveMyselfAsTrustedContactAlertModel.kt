@@ -13,6 +13,7 @@ fun RemoveMyselfAsTrustedContactAlertModel(
   onDismiss = onDismiss,
   primaryButtonText = "Remove",
   onPrimaryButtonClick = onRemove,
+  primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
   secondaryButtonText = "Cancel",
   onSecondaryButtonClick = onDismiss
 )

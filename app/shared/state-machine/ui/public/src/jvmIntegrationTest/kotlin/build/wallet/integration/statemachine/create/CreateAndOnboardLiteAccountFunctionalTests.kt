@@ -9,7 +9,9 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.createTcInvite
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull

@@ -1,5 +1,6 @@
 package build.wallet.f8e.socrec
 
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.socrec.models.RetrieveTrustedContactInvitation
 import build.wallet.f8e.socrec.models.RetrieveTrustedContactInvitationResponseBody
 import io.kotest.core.spec.style.FunSpec
@@ -28,7 +29,7 @@ class RetrieveTrustedContactInvitationServiceTests : FunSpec({
           RetrieveTrustedContactInvitation(
             recoveryRelationshipId = "test-id",
             expiresAt = Instant.fromEpochSeconds(123),
-            protectedCustomerEnrollmentPakePubkey = "deadbeef"
+            protectedCustomerEnrollmentPakePubkey = PublicKey("deadbeef")
           )
       )
     )

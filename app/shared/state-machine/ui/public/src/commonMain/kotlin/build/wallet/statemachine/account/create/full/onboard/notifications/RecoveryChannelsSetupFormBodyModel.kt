@@ -168,10 +168,11 @@ fun RequestPushAlertModel(
   title = "Recovery notifications",
   subline = "Enabling push notifications for recovery verification is highly recommended and will help keep you, and your funds, safe in case you lose your Bitkey device.",
   onDismiss = onDontAllow,
-  secondaryButtonText = "Allow",
-  onSecondaryButtonClick = onAllow,
-  primaryButtonText = "Don't allow",
-  onPrimaryButtonClick = onDontAllow
+  primaryButtonText = "Allow",
+  onPrimaryButtonClick = onAllow,
+  secondaryButtonText = "Don't allow",
+  onSecondaryButtonClick = onDontAllow,
+  secondaryButtonStyle = AlertModel.ButtonStyle.Destructive
 )
 
 /**

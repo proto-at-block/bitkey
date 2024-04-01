@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-darwin",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-darwin-metadata-2.3.8.jar": "12e84292e59f4a7b0a4f2edded42cd4e1a018483bb1193a75a9ad3ab42bf11c5"
+                        "ktor-client-darwin-metadata-2.3.9.jar": "12e84292e59f4a7b0a4f2edded42cd4e1a018483bb1193a75a9ad3ab42bf11c5"
                     }
                 }
             ],

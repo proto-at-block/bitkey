@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-compiler-impl-embeddable",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-scripting-compiler-impl-embeddable-1.9.21.jar": "8b65d03585a309c523a6c05f2f99d0b4bc26fe6f0f8edc77e3bd38922bf0954b"
+                        "kotlin-scripting-compiler-impl-embeddable-1.9.22.jar": "38991816a287ff76241f1a77e7f1116481d4e93a3db63259a657dde20e6d0f65"
                     }
                 }
             ],

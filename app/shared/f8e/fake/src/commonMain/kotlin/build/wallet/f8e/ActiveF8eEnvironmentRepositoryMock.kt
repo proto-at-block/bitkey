@@ -15,7 +15,7 @@ class ActiveF8eEnvironmentRepositoryMock(
   val activeF8eEnvironmentCalls = turbine.invoke("get active f8eEnvironment calls")
 
   override fun activeF8eEnvironment(): Flow<Result<F8eEnvironment?, Error>> {
-    activeF8eEnvironmentCalls?.add(Unit)
+    activeF8eEnvironmentCalls.add(Unit)
     return activeF8eEnvironmentValue
   }
 }

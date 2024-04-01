@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-discovery-jvm",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-discovery-jvm-5.8.0.jar": "9605cc7df0a678ac760168151d1e0c1cae4a60b5c7e1ab9f0c83fdd24d18d508"
+                        "kotest-framework-discovery-jvm-5.8.1.jar": "b9e94e3b33f4d7568ad87ab17992f401403b44e7c0a0570e76344bd3a17a3445"
                     }
                 }
             ],

@@ -4,8 +4,9 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.ChallengeAuthentication
 import build.wallet.bitkey.socrec.ChallengeWrapper
 import build.wallet.bitkey.socrec.PakeCode
-import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
+import build.wallet.crypto.PrivateKey
+import build.wallet.crypto.PublicKey
 import okio.ByteString.Companion.encodeUtf8
 
 val SocialChallengeFake =
@@ -20,8 +21,9 @@ val SocialChallengeFake =
         "fake-relationship-id",
         "123456",
         PakeCode("12345678901".encodeUtf8()),
-        ProtectedCustomerRecoveryPakeKey(
-          AppKey.Companion.fromPublicKey("fake-customer-recovery-key")
+        AppKey(
+          PublicKey("fake-customer-recovery-key"),
+          PrivateKey("fake-customer-recovery-private-key".encodeUtf8())
         )
       )
     )

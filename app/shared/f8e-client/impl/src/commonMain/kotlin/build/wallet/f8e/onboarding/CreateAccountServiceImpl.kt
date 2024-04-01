@@ -2,12 +2,13 @@ package build.wallet.f8e.onboarding
 
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.account.LiteAccountConfig
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.bitkey.keybox.KeyCrossDraft
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
@@ -81,7 +82,7 @@ class CreateAccountServiceImpl(
 
   // Lite Account
   override suspend fun createAccount(
-    recoveryKey: AppRecoveryAuthPublicKey,
+    recoveryKey: PublicKey<AppRecoveryAuthKey>,
     config: LiteAccountConfig,
   ): Result<LiteAccountId, F8eError<CreateAccountClientErrorCode>> {
     return createAccount<LiteCreateAccountResponseBody>(

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -35,7 +34,6 @@ import kotlinx.datetime.toLocalDateTime
 import androidx.compose.material3.DatePicker as MaterialDatePicker
 import androidx.compose.material3.DatePickerDialog as MaterialDatePickerDialog
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerField(
   modifier: Modifier = Modifier,
@@ -83,7 +81,6 @@ fun DatePickerField(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DatePickerDialog(
   initialDate: LocalDate?,

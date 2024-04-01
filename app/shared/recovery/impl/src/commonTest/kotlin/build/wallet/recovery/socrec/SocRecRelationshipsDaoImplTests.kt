@@ -1,6 +1,5 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
@@ -9,12 +8,11 @@ import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.crypto.CurveType
+import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -31,8 +29,8 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
 
   lateinit var dao: SocRecRelationshipsDao
 
-  val momKey = DelegatedDecryptionKey(AppKey.fromPublicKey("momKey"))
-  val sisKey = DelegatedDecryptionKey(AppKey.fromPublicKey("sisKey"))
+  val momKey = PublicKey<DelegatedDecryptionKey>("momKey")
+  val sisKey = PublicKey<DelegatedDecryptionKey>("sisKey")
 
   val socRecRelationships =
     SocRecRelationships(
@@ -92,9 +90,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
             recoveryRelationshipId = "g",
             trustedContactAlias = TrustedContactAlias("Cousin"),
             enrollmentPakeKey =
-              TrustedContactEnrollmentPakeKey(
-                AppKey.fromPublicKey("cousinEnrollmentKey", CurveType.Curve25519)
-              ),
+              PublicKey("cousinEnrollmentKey"),
             enrollmentKeyConfirmation = "cousinEnrollmentKeyConfirmation".encodeUtf8(),
             sealedDelegatedDecryptionKey = XCiphertext("cipher")
           )
@@ -128,7 +124,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
     dao.setSocRecRelationships(socRecRelationships)
 
     val invitationToAccept = socRecRelationships.invitations[0]
-    val newKey = DelegatedDecryptionKey(AppKey.fromPublicKey("newKey"))
+    val newKey = PublicKey<DelegatedDecryptionKey>("newKey")
     val newTrustedContact =
       TrustedContact(
         recoveryRelationshipId = invitationToAccept.recoveryRelationshipId,

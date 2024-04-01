@@ -1,8 +1,7 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitation
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitationRequestBody
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitationResponseBody
@@ -18,7 +17,7 @@ class CreateTrustedContactInvitationServiceTests : FunSpec({
     val request =
       CreateTrustedContactInvitationRequestBody(
         trustedContactAlias = TrustedContactAlias("test"),
-        protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKey(AppKey.fromPublicKey("key"))
+        protectedCustomerEnrollmentPakeKey = PublicKey("key")
       )
     val result = Json.encodeToString(request)
 

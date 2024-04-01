@@ -73,7 +73,7 @@ class CloudSignInUiStateMachineImplTests : FunSpec({
   }
 
   test("google sign in - failure") {
-    googleSignInStateMachine.emitModel(GoogleSignInModel.SignInFailure(message = "oops"))
+    googleSignInStateMachine.emitModel(GoogleSignInModel.SignInFailure(Error("oops")))
 
     stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel>()

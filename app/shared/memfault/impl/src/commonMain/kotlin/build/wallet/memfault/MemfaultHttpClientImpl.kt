@@ -22,7 +22,10 @@ class MemfaultHttpClientImpl(
 ) : MemfaultHttpClient {
   override fun client(): HttpClient =
     HttpClient {
-      installLogging(logLevelPolicy.level())
+      installLogging(
+        tag = "Memfault",
+        logLevel = logLevelPolicy.level()
+      )
 
       install(ContentNegotiation) {
         json(

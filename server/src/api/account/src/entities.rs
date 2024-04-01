@@ -15,7 +15,7 @@ use time::{serde::rfc3339, OffsetDateTime};
 use types::account::identifiers::TouchpointId;
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
 use types::account::PubkeysToAccount;
-use types::notification::{NotificationChannel, NotificationsPreferences};
+use types::notification::{NotificationChannel, NotificationsPreferencesState};
 use utoipa::ToSchema;
 
 use crate::error::AccountError;
@@ -257,7 +257,8 @@ pub struct CommonAccountFields {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recovery_auth_pubkey: Option<PublicKey>,
     #[serde(default)]
-    pub notifications_preferences: NotificationsPreferences,
+    #[serde(alias = "notifications_preferences")]
+    pub notifications_preferences_state: NotificationsPreferencesState,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -313,7 +314,7 @@ impl FullAccount {
                 properties,
                 onboarding_complete: false,
                 recovery_auth_pubkey,
-                notifications_preferences: Default::default(),
+                notifications_preferences_state: Default::default(),
             },
         }
     }
@@ -369,7 +370,7 @@ impl LiteAccount {
                 properties,
                 onboarding_complete: true,
                 recovery_auth_pubkey,
-                notifications_preferences: Default::default(),
+                notifications_preferences_state: Default::default(),
             },
         }
     }
@@ -659,7 +660,7 @@ mod tests {
                 properties: Default::default(),
                 onboarding_complete: false,
                 recovery_auth_pubkey: None,
-                notifications_preferences: Default::default(),
+                notifications_preferences_state: Default::default(),
             },
         };
         let set_and_enabled_spending_limit_account = FullAccount {

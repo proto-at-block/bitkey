@@ -27,6 +27,7 @@ kotlin {
     val jvmMain by getting {
       dependencies {
         implementation(projects.shared.keyValueStorePublic)
+        implementation(libs.kmp.settings)
       }
     }
   }

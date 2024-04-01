@@ -12,8 +12,41 @@ fun NetworkErrorFormBodyModel(
   isConnectivityError: Boolean,
   onBack: () -> Unit,
   eventTrackerScreenId: EventTrackerScreenId?,
+  errorData: ErrorData,
   renderContext: RenderContext = RenderContext.Screen,
-) = ErrorFormBodyModel(
+) = NetworkErrorFormBodyModelWithOptionalErrorData(
+  title = title,
+  isConnectivityError = isConnectivityError,
+  onBack = onBack,
+  eventTrackerScreenId = eventTrackerScreenId,
+  errorData = errorData,
+  renderContext = renderContext
+)
+
+@Deprecated("Specify [errorData] argument")
+fun NetworkErrorFormBodyModel(
+  title: String,
+  isConnectivityError: Boolean,
+  onBack: () -> Unit,
+  eventTrackerScreenId: EventTrackerScreenId?,
+  renderContext: RenderContext = RenderContext.Screen,
+) = NetworkErrorFormBodyModelWithOptionalErrorData(
+  title = title,
+  isConnectivityError = isConnectivityError,
+  onBack = onBack,
+  eventTrackerScreenId = eventTrackerScreenId,
+  errorData = null,
+  renderContext = renderContext
+)
+
+private fun NetworkErrorFormBodyModelWithOptionalErrorData(
+  title: String,
+  isConnectivityError: Boolean,
+  onBack: () -> Unit,
+  errorData: ErrorData?,
+  eventTrackerScreenId: EventTrackerScreenId?,
+  renderContext: RenderContext = RenderContext.Screen,
+) = ErrorFormBodyModelWithOptionalErrorData(
   title = title,
   subline =
     when {
@@ -26,6 +59,7 @@ fun NetworkErrorFormBodyModel(
       onClick = onBack
     ),
   eventTrackerScreenId = eventTrackerScreenId,
+  errorData = errorData,
   renderContext = renderContext
 )
 
@@ -37,7 +71,47 @@ fun NetworkErrorFormBodyModel(
   isConnectivityError: Boolean,
   onRetry: (() -> Unit)?,
   onBack: () -> Unit,
+  errorData: ErrorData,
   eventTrackerScreenId: EventTrackerScreenId?,
+  renderContext: RenderContext = RenderContext.Screen,
+) = NetworkErrorFormBodyModelWithOptionalErrorData(
+  title = title,
+  isConnectivityError = isConnectivityError,
+  onRetry = onRetry,
+  onBack = onBack,
+  eventTrackerScreenId = eventTrackerScreenId,
+  errorData = errorData,
+  renderContext = renderContext
+)
+
+@Deprecated("Specify [errorData] argument")
+fun NetworkErrorFormBodyModel(
+  title: String,
+  isConnectivityError: Boolean,
+  onRetry: (() -> Unit)?,
+  onBack: () -> Unit,
+  eventTrackerScreenId: EventTrackerScreenId?,
+  renderContext: RenderContext = RenderContext.Screen,
+) = NetworkErrorFormBodyModelWithOptionalErrorData(
+  title = title,
+  isConnectivityError = isConnectivityError,
+  onRetry = onRetry,
+  onBack = onBack,
+  eventTrackerScreenId = eventTrackerScreenId,
+  errorData = null,
+  renderContext = renderContext
+)
+
+/**
+ * Convenience method for common error messaging when the error is for a network request.
+ */
+fun NetworkErrorFormBodyModelWithOptionalErrorData(
+  title: String,
+  isConnectivityError: Boolean,
+  onRetry: (() -> Unit)?,
+  onBack: () -> Unit,
+  eventTrackerScreenId: EventTrackerScreenId?,
+  errorData: ErrorData?,
   renderContext: RenderContext = RenderContext.Screen,
 ): FormBodyModel {
   val backButtonModel =
@@ -46,7 +120,7 @@ fun NetworkErrorFormBodyModel(
       onClick = onBack
     )
 
-  return ErrorFormBodyModel(
+  return ErrorFormBodyModelWithOptionalErrorData(
     onBack = onBack,
     title = title,
     subline =
@@ -66,6 +140,7 @@ fun NetworkErrorFormBodyModel(
     // Show a back button as a secondary button, only if the primary is a retry button
     secondaryButton = onRetry?.let { backButtonModel },
     eventTrackerScreenId = eventTrackerScreenId,
+    errorData = errorData,
     renderContext = renderContext
   )
 }

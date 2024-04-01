@@ -90,8 +90,16 @@ private struct RowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if !model.isDisabled {
                     Spacer(minLength: 8)
+                    if let specialTrailingIconModel = model.specialTrailingIconModel {
+                        IconView(model: specialTrailingIconModel)
+                    }
                     Image(uiImage: .smallIconCaretRight)
                         .foregroundColor(.primaryForeground30)
+                } else {
+                    Spacer(minLength: 8)
+                    if let specialTrailingIconModel = model.specialTrailingIconModel {
+                        IconView(model: specialTrailingIconModel)
+                    }
                 }
             }
         }

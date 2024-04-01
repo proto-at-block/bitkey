@@ -21,38 +21,41 @@ public struct AddressQrCodeView: View {
 
     public var body: some View {
         GeometryReader { reader in
-            VStack {
-                ToolbarView(viewModel: viewModel.toolbarModel)
-
-                Spacer()
-
-                ZStack {
-                    switch viewModel.content {
-                    case let contentModel as AddressQrCodeBodyModelContentQrCode:
-                        AddressQrCodeContentView(
-                            viewModel: contentModel,
-                            qrCodeAndAddressHorizontalPadding: Metrics.qrCodeAndAddressHorizontalPadding,
-                            qrCodeSize: reader.size.width
-                                - (DesignSystemMetrics.horizontalPadding * 2)
-                                - (Metrics.qrCodeAndAddressHorizontalPadding * 2)
-                        )
-
-                    case let errorModel as AddressQrCodeBodyModelContentError:
-                        AddressQrCodeErrorView(errorModel: errorModel)
-
-                    default:
-                        fatalError("Unexpected address qr code content model: \(viewModel.content)")
+            ZStack(alignment: Alignment(horizontal: .center, vertical: .top)) {
+                ScrollView(.vertical) {
+                    Spacer(minLength: DesignSystemMetrics.verticalPadding)
+                    VStack(alignment: .center) {
+                        ZStack {
+                            switch viewModel.content {
+                            case let contentModel as AddressQrCodeBodyModelContentQrCode:
+                                AddressQrCodeContentView(
+                                    viewModel: contentModel,
+                                    qrCodeAndAddressHorizontalPadding: Metrics.qrCodeAndAddressHorizontalPadding,
+                                    qrCodeSize: reader.size.width
+                                    - (DesignSystemMetrics.horizontalPadding * 2)
+                                    - (Metrics.qrCodeAndAddressHorizontalPadding * 2)
+                                )
+                                
+                            case let errorModel as AddressQrCodeBodyModelContentError:
+                                AddressQrCodeErrorView(errorModel: errorModel)
+                                
+                            default:
+                                fatalError("Unexpected address qr code content model: \(viewModel.content)")
+                            }
+                        }
                     }
+                    .frame(minHeight: reader.size.height - DesignSystemMetrics.toolbarHeight - DesignSystemMetrics.verticalPadding)
+                    .padding(.vertical, DesignSystemMetrics.verticalPadding)
+                    .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
                 }
-
-                Spacer()
-                Spacer()
+                
+                ToolbarView(viewModel: viewModel.toolbarModel)
+                    .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
+                    .background(Color.background)
             }
             .padding(.top, reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0)
-            .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
         }
     }
-
 }
 
 // MARK: -

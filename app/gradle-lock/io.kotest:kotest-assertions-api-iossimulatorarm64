@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-api-iossimulatorarm64",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-api-iossimulatorarm64-5.8.0-metadata.jar": "e1ed992ffc298dac25b9810738bf7101a87ad5ffb5dd8bdca87642ace3b6ac3e"
+                        "kotest-assertions-api-iossimulatorarm64-5.8.1-metadata.jar": "dae2a7ab82b546aaa70e93bd681833b6e5a318ea1517a0a320fff491fda62140"
                     }
                 },
                 {

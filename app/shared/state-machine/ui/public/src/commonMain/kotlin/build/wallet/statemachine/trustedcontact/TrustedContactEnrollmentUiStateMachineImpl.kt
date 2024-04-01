@@ -15,6 +15,7 @@ import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.crypto.PublicKey
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.platform.device.DeviceInfoProvider
@@ -122,7 +123,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
 
       is State.LoadIdentityKey -> {
         LaunchedEffect("load-keys") {
-          socRecKeysRepository.getOrCreateKey(::DelegatedDecryptionKey)
+          socRecKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()
             .onSuccess { key ->
               uiState = State.AcceptingInviteWithF8e(state.invitation, state.protectedCustomerAlias, key)
             }
@@ -219,7 +220,7 @@ private sealed interface State {
   data class AcceptingInviteWithF8e(
     val invitation: IncomingInvitation,
     val protectedCustomerAlias: ProtectedCustomerAlias,
-    val delegatedDecryptionKey: DelegatedDecryptionKey,
+    val delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
   ) : State
 
   /** Server call to f8e to retrieve the invite data from the code failed */
@@ -227,7 +228,7 @@ private sealed interface State {
     val error: AcceptInvitationCodeError,
     val invitation: IncomingInvitation,
     val protectedCustomerAlias: ProtectedCustomerAlias,
-    val delegatedDecryptionKey: DelegatedDecryptionKey,
+    val delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
   ) : State
 
   /** Screen shown when enrolling as a Trusted Contact succeeded, after accepting the invite. */

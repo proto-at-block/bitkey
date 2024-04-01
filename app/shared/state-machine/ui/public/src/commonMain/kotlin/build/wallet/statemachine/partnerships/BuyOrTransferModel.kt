@@ -25,13 +25,13 @@ fun BuyOrTransferModel(
         immutableListOf(
           ListItemModel(
             title = "Purchase",
-            secondaryText = "new bitcoin with local currency",
+            secondaryText = "New bitcoin with local currency",
             onClick = onPurchase,
             trailingAccessory = ListItemAccessory.drillIcon(tint = On30)
           ),
           ListItemModel(
             title = "Transfer",
-            secondaryText = "existing bitcoin from exchange",
+            secondaryText = "Existing bitcoin from exchange",
             onClick = onTransfer,
             trailingAccessory = ListItemAccessory.drillIcon(tint = On30)
           )

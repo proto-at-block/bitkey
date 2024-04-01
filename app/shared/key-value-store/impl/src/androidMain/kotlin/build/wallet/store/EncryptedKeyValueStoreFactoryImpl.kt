@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.store
 
 import androidx.security.crypto.EncryptedSharedPreferences
@@ -8,7 +6,6 @@ import androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionSc
 import androidx.security.crypto.MasterKey
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.data.FileManager
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.SharedPreferencesSettings
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.coroutines.toSuspendSettings

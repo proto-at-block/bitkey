@@ -2,9 +2,9 @@ package build.wallet.recovery
 
 import app.cash.turbine.test
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingKeysetMock
@@ -16,6 +16,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import build.wallet.recovery.LocalRecoveryAttemptProgress.AttemptingCompletion
@@ -217,8 +218,8 @@ private suspend fun setProgressInitiated(
   dao: RecoveryDaoImpl,
   fullAccountId: FullAccountId,
   keyset: SpendingKeyset,
-  appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
-  appRecoveryAuthPublicKey: AppRecoveryAuthPublicKey,
+  appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
+  appRecoveryAuthPublicKey: PublicKey<AppRecoveryAuthKey>,
   hwAuthPublicKey: HwAuthPublicKey,
 ) {
   dao.setLocalRecoveryProgress(

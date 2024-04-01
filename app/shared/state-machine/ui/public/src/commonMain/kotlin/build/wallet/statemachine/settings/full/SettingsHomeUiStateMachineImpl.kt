@@ -102,9 +102,6 @@ class SettingsHomeUiStateMachineImpl(
                       SettingsListUiProps.SettingsListRow.NotificationPreferences {
                         state = ShowingNotificationPreferencesUiState
                       },
-                      SettingsListUiProps.SettingsListRow.Notifications {
-                        state = ShowingNotificationsSettingsUiState
-                      },
                       SettingsListUiProps.SettingsListRow.RecoveryChannels {
                         state = ShowingRecoveryChannelsUiState
                       },

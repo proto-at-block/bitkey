@@ -12,6 +12,7 @@ import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
 import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryFake
 import build.wallet.feature.FeatureFlagInitializerMock
+import build.wallet.feature.FeatureFlagSyncerMock
 import build.wallet.money.currency.FiatCurrencyRepositoryMock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.CurrencyPreferenceData
@@ -58,6 +59,7 @@ class AppDataStateMachineImplTests : FunSpec({
     PeriodicProcessorMock("periodicRegisterWatchAddressSender", turbines::create)
   val appInstallationDao = AppInstallationDaoMock()
   val featureFlagInitializer = FeatureFlagInitializerMock(turbines::create)
+  val featureFlagSyncer = FeatureFlagSyncerMock(turbines::create)
   val accountDataStateMachine =
     object : AccountDataStateMachine, StateMachineMock<AccountDataProps, AccountData>(
       initialModel = CheckingActiveAccountData
@@ -98,6 +100,7 @@ class AppDataStateMachineImplTests : FunSpec({
       eventTracker = eventTracker,
       appInstallationDao = appInstallationDao,
       featureFlagInitializer = featureFlagInitializer,
+      featureFlagSyncer = featureFlagSyncer,
       accountDataStateMachine = accountDataStateMachine,
       periodicEventProcessor = periodicEventSender,
       periodicFirmwareTelemetryProcessor = periodicFirmwareTelemetrySender,
@@ -142,6 +145,7 @@ class AppDataStateMachineImplTests : FunSpec({
 
   suspend fun shouldInitializeFeatureFlags() {
     featureFlagInitializer.initializeFeatureFlagsCalls.awaitItem().shouldBe(Unit)
+    featureFlagSyncer.syncFeatureFlagsCalls.awaitItem().shouldBe(Unit)
   }
 
   suspend fun shouldLaunchRepositories() {

@@ -5,6 +5,7 @@ import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.statemachine.recovery.cloud.CloudBackupFoundModel
 import build.wallet.statemachine.recovery.cloud.CloudBackupNotFoundBodyModel
 import build.wallet.statemachine.recovery.cloud.CloudNotSignedInBodyModel
+import build.wallet.statemachine.recovery.cloud.SocialRecoveryExplanationModel
 import build.wallet.ui.app.core.form.FormScreen
 import io.kotest.core.spec.style.FunSpec
 
@@ -51,6 +52,18 @@ class CloudRecoveryFormScreenSnapshots : FunSpec({
             onCannotAccessCloud = {},
             onImportEmergencyAccessKit = {},
             onShowTroubleshootingSteps = {}
+          )
+      )
+    }
+  }
+
+  test("social recovery explaination screen") {
+    paparazzi.snapshot {
+      FormScreen(
+        model =
+          SocialRecoveryExplanationModel(
+            onBack = {},
+            onContinue = {}
           )
       )
     }

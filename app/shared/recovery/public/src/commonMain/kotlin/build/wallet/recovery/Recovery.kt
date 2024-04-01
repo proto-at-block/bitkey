@@ -1,7 +1,7 @@
 package build.wallet.recovery
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
@@ -10,6 +10,7 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.recovery.ServerRecovery
 
 /**
@@ -38,8 +39,8 @@ sealed interface Recovery {
     val factorToRecover: PhysicalFactor
 
     val appSpendingKey: AppSpendingPublicKey
-    val appGlobalAuthKey: AppGlobalAuthPublicKey
-    val appRecoveryAuthKey: AppRecoveryAuthPublicKey
+    val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>
+    val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>
     val hardwareSpendingKey: HwSpendingPublicKey
     val hardwareAuthKey: HwAuthPublicKey
     val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature
@@ -63,8 +64,8 @@ sealed interface Recovery {
       data class InitiatedRecovery(
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
-        override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -86,8 +87,8 @@ sealed interface Recovery {
       data class MaybeNoLongerRecovering(
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
-        override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -101,8 +102,8 @@ sealed interface Recovery {
       data class RotatedAuthKeys(
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
-        override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -117,8 +118,8 @@ sealed interface Recovery {
         val f8eSpendingKeyset: F8eSpendingKeyset,
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
-        override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
@@ -133,8 +134,8 @@ sealed interface Recovery {
         val f8eSpendingKeyset: F8eSpendingKeyset,
         override val fullAccountId: FullAccountId,
         override val appSpendingKey: AppSpendingPublicKey,
-        override val appGlobalAuthKey: AppGlobalAuthPublicKey,
-        override val appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+        override val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+        override val appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
         override val hardwareSpendingKey: HwSpendingPublicKey,
         override val hardwareAuthKey: HwAuthPublicKey,
         override val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,

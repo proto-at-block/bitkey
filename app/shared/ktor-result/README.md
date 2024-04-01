@@ -1,1 +1,0 @@
-This module contains functional extensions for using `Result` type with Ktor client.

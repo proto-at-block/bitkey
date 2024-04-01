@@ -12,7 +12,7 @@ kotlin {
       dependencies {
         api(projects.shared.analyticsPublic)
         api(projects.shared.bitkeyPrimitivesFake)
-        api(projects.shared.ktorTestFake)
+        api(projects.shared.ktorClientFake)
         api(projects.shared.notificationsFake)
         api(projects.shared.timeFake)
         implementation(libs.kmp.test.kotest.assertions)

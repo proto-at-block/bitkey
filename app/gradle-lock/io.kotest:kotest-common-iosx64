@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-common-iosx64",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-common-iosx64-5.8.0-metadata.jar": "b15f7d0caa691a1cdc5dd4b5b9796309eb645ea14abc6451533b80c939c57fe6"
+                        "kotest-common-iosx64-5.8.1-metadata.jar": "c4040d43555be4dca60870ce2d63090349491c1a6e8af84ca534d1e8c32f0bfc"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-common.klib": "b4192afe0a57b35e5e1a906a5977eea02cd49002af4f0c7371205b0f78d3e92c"
+                        "kotest-common.klib": "0b04cb87f81fc3c127c46216de114bd4e4c19f7b491559a12a795be92c41b0ff"
                     }
                 }
             ],

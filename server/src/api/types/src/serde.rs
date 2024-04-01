@@ -40,6 +40,14 @@ where
 
     Currency::supported_currency_codes()
         .into_iter()
-        .find(|c| c.to_string() == s)
+        .find(|c| c.to_string() == s.to_uppercase())
         .ok_or(serde::de::Error::custom("Unsupported currency"))
+}
+
+pub fn f64_from_str<'de, D>(deserializer: D) -> Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: &str = Deserialize::deserialize(deserializer)?;
+    s.parse::<f64>().map_err(serde::de::Error::custom)
 }

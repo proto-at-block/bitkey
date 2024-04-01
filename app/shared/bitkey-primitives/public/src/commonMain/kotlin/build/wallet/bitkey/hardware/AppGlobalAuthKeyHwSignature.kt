@@ -1,6 +1,5 @@
 package build.wallet.bitkey.hardware
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log

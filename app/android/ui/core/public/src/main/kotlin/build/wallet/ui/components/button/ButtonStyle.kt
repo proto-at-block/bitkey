@@ -68,13 +68,19 @@ fun WalletTheme.buttonStyle(
     buttonTextStyle(
       type =
         when (treatment) {
-          Tertiary -> LabelType.Label2
+          Tertiary, TertiaryNoUnderline -> LabelType.Label2
           else -> LabelType.Label1
         },
-      underline = treatment == Tertiary || treatment == TertiaryPrimary,
+      underline =
+        treatment == Tertiary ||
+          treatment == TertiaryPrimary ||
+          treatment == TertiaryDestructive,
       textColor = textColor
     )
-  val isTextButton = treatment == TertiaryDestructive || treatment == Tertiary
+  val isTextButton =
+    treatment == TertiaryDestructive ||
+      treatment == Tertiary ||
+      treatment == TertiaryNoUnderline
   return ButtonStyle(
     textStyle = textStyle,
     shape = RoundedCornerShape(cornerRadius),
@@ -138,7 +144,7 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
     TertiaryNoUnderline,
     -> colors.foreground
 
-    TertiaryDestructive -> colors.destructive
+    TertiaryDestructive -> colors.destructiveForeground
     Translucent, Translucent10 -> colors.translucentForeground
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,

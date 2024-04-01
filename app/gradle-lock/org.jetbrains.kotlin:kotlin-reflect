@@ -37,7 +37,19 @@
                 }
             ],
             "dependency-locking-groups": [
-                "SQLDelight-DialectClasspath",
+                "SQLDelight-DialectClasspath"
+            ]
+        },
+        {
+            "version": "1.9.22",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-reflect-1.9.22.jar": "77f311ca1384811d519fda389fcb1268bdaa058d605046e0ede76c03b0df3e97"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
                 "build-classpath"
             ]
         }

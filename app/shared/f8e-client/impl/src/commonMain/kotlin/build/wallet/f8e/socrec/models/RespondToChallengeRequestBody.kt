@@ -1,5 +1,6 @@
 package build.wallet.f8e.socrec.models
 
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.serialization.ByteStringAsHexSerializer
@@ -10,7 +11,7 @@ import okio.ByteString
 @Serializable
 internal data class RespondToChallengeRequestBody(
   @SerialName("trusted_contact_recovery_pake_pubkey")
-  val trustedContactRecoveryPakePubkey: PublicKey,
+  val trustedContactRecoveryPakePubkey: PublicKey<TrustedContactRecoveryPakeKey>,
   @SerialName("recovery_pake_confirmation")
   @Serializable(with = ByteStringAsHexSerializer::class)
   val recoveryPakeConfirmation: ByteString,

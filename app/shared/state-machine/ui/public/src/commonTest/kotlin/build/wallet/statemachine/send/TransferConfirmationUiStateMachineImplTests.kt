@@ -11,10 +11,10 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmoun
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepositoryMock
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
-import build.wallet.bitcoin.transactions.TransactionRepositoryMock
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
@@ -128,7 +128,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val spendingWallet = SpendingWalletMock(turbines::create)
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
-  val transactionRepository = TransactionRepositoryMock(turbines::create)
+  val transactionRepository = OutgoingTransactionDetailRepositoryMock(turbines::create)
   val stateMachine =
     TransferConfirmationUiStateMachineImpl(
       mobilePaySigningService = serverSigner,
@@ -138,7 +138,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake(),
       appSpendingWalletProvider = appSpendingWalletProvider,
-      transactionRepository = transactionRepository
+      outgoingTransactionDetailRepository = transactionRepository
     )
 
   beforeTest {

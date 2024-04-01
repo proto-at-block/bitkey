@@ -28,6 +28,28 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 
 @Preview
 @Composable
+internal fun screenWithHeaderAndPrimaryButton() {
+  FormScreen(
+    model = FormBodyModel(
+      id = null,
+      onBack = null,
+      toolbar = null,
+      header = FormHeaderModel(
+        icon = Icon.LargeIconCheckFilled,
+        headline = "title",
+        subline = "message"
+      ),
+      primaryButton = ButtonModel(
+        text = "primaryButtonModel",
+        size = ButtonModel.Size.Footer,
+        onClick = StandardClick {}
+      )
+    )
+  )
+}
+
+@Preview
+@Composable
 internal fun PreviewMobilePaySheetScreen() {
   FormScreen(
     model = FormBodyModel(

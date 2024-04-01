@@ -36,5 +36,5 @@ sealed class GoogleSignInModel {
   /**
    * Google Sign In UI is no longer shown - failed or canceled by customer.
    */
-  data class SignInFailure(val message: String) : GoogleSignInModel()
+  data class SignInFailure(val cause: Error) : GoogleSignInModel()
 }

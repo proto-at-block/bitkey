@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.recovery
 
 import build.wallet.bitkey.f8e.FullAccountId
@@ -10,7 +8,6 @@ import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusServiceMock
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent

@@ -38,6 +38,7 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.TOP
@@ -163,6 +164,7 @@ fun ListItem(
           true -> trailingAccessory
           false -> trailingAccessory?.disable()
         },
+      specialTrailingAccessory = specialTrailingAccessory,
       onClick = onClick,
       pickerMenu = pickerMenu,
       testTag = testTag
@@ -188,6 +190,7 @@ fun ListItem(
   pickerMenu: ListItemPickerMenu<*>? = null,
   testTag: String? = null,
   titleLabel: LabelModel? = null,
+  specialTrailingAccessory: ListItemAccessory? = null,
 ) {
   ListItem(
     modifier = modifier,
@@ -202,6 +205,7 @@ fun ListItem(
     leadingAccessory = leadingAccessory,
     leadingAccessoryAlignment = leadingAccessoryAlignment,
     trailingAccessory = trailingAccessory,
+    specialTrailingAccessory = specialTrailingAccessory,
     onClick = onClick,
     pickerMenu = pickerMenu,
     testTag = testTag,
@@ -216,9 +220,10 @@ fun ListItem(
  * [sideText] primary side text of the item, shown after primary content.
  * [secondarySideText] secondary text shown under [sideText]
  * [trailingAccessory] an accessory to show at the end of the item, after secondary content.
+ * [specialTrailingAccessory] an accessory to show just before [trailingAccessory]
  *
  * |---------------------------------------------------------------------------------|
- * | [leadingAccessory]  [title] [sideText]  [trailingAccessory] |
+ * | [leadingAccessory]  [title] [sideText] [specialTrailingAccessory] [trailingAccessory] |
  * | [secondaryText] [secondarySideText]                      |
  * |---------------------------------------------------------------------------------|
  */
@@ -236,6 +241,7 @@ fun ListItem(
   leadingAccessory: ListItemAccessory? = null,
   leadingAccessoryAlignment: Alignment.Vertical = Alignment.CenterVertically,
   trailingAccessory: ListItemAccessory? = null,
+  specialTrailingAccessory: ListItemAccessory? = null,
   onClick: (() -> Unit)? = null,
   pickerMenu: ListItemPickerMenu<*>? = null,
   testTag: String? = null,
@@ -315,6 +321,12 @@ fun ListItem(
           )
         }
       },
+    specialTrailingAccessoryContent =
+      specialTrailingAccessory?.let {
+        {
+          ListItemAccessory(model = specialTrailingAccessory)
+        }
+      },
     trailingAccessoryContent =
       trailingAccessory?.let {
         {
@@ -346,6 +358,7 @@ private fun ListItem(
   sideContent: (@Composable BoxScope.() -> Unit)?,
   secondarySideContent: (@Composable BoxScope.() -> Unit)?,
   trailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
+  specialTrailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   pickerMenuContent: @Composable (BoxScope.() -> Unit)?,
   testTag: String? = null,
 ) {
@@ -403,6 +416,9 @@ private fun ListItem(
           }
         }
       }
+      specialTrailingAccessoryContent?.run {
+        Box { specialTrailingAccessoryContent() }
+      }
       trailingAccessoryContent?.run {
         Box { trailingAccessoryContent() }
       }
@@ -453,6 +469,33 @@ internal fun ListItemWithLeadingIconTopAlignedPreview() {
             )
         ),
       leadingAccessoryAlignment = Alignment.Top,
+      onClick = {}
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun ListItemWithSpecialTrailingAccessoryPreview() {
+  PreviewWalletTheme {
+    ListItem(
+      title = "Title",
+      leadingAccessory =
+        ListItemAccessory.IconAccessory(
+          model =
+            IconModel(
+              icon = Icon.SmallIconCloud,
+              iconSize = Small
+            )
+        ),
+      trailingAccessory = ListItemAccessory.drillIcon(),
+      specialTrailingAccessory = ListItemAccessory.IconAccessory(
+        model = IconModel(
+          icon = Icon.SmallIconInformationFilled,
+          iconSize = Small,
+          iconTint = IconTint.Warning
+        )
+      ),
       onClick = {}
     )
   }

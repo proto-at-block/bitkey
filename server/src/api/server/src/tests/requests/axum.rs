@@ -3,6 +3,9 @@ use async_trait::async_trait;
 use axum::body::Body;
 use axum::Router;
 
+use experimentation::routes::{
+    GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest, GetFeatureFlagsResponse,
+};
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
 use http_body_util::BodyExt as ExternalBodyExt;
 use recovery::state_machine::pending_recovery::PendingRecoveryResponse;
@@ -897,6 +900,30 @@ impl TestClient {
             ))
             .authenticated(&AccountId::from_str(account_id).unwrap(), false, false)
             .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_account_feature_flags(
+        &self,
+        account_id: &str,
+        request: &GetAccountFeatureFlagsRequest,
+    ) -> Response<GetFeatureFlagsResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/feature-flags"))
+            .authenticated(&AccountId::from_str(account_id).unwrap(), false, false)
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_app_installation_feature_flags(
+        &self,
+        request: &GetAppInstallationFeatureFlagsRequest,
+    ) -> Response<GetFeatureFlagsResponse> {
+        Request::builder()
+            .uri("/api/feature-flags".to_string())
+            .post(request)
             .call(&self.router)
             .await
     }

@@ -1,10 +1,11 @@
+import build.wallet.crypto.PublicKey;
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey;
 import okio.ByteString;
 
 CREATE TABLE socRecStartedChallengeAuthentication(
     rowId                             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     relationshipId                    TEXT UNIQUE NOT NULL,
-    protectedCustomerRecoveryPakeKey  TEXT AS ProtectedCustomerRecoveryPakeKey NOT NULL,
+    protectedCustomerRecoveryPakeKey  TEXT AS PublicKey<ProtectedCustomerRecoveryPakeKey> NOT NULL,
     pakeCode                          BLOB AS ByteString NOT NULL
 );
 

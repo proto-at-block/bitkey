@@ -6,10 +6,13 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.encrypt.MessageSignerImpl
 import build.wallet.encrypt.SignatureVerifierImpl
+import build.wallet.encrypt.toSecp256k1PrivateKey
+import build.wallet.encrypt.toSecp256k1PublicKey
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.ktor.utils.io.core.toByteArray
 import okio.ByteString.Companion.encodeUtf8
@@ -34,8 +37,8 @@ class SocRecCryptoFakeTests : FunSpec({
     val hwSignature =
       cryptoFake
         .sign(
-          privateKey = hwEndorsementKeyPair.privateKey.key,
-          message = appEndorsementKeyPair.publicKey.pubKey.value.encodeUtf8()
+          privateKey = hwEndorsementKeyPair.privateKey.shouldNotBeNull().toSecp256k1PrivateKey(),
+          message = appEndorsementKeyPair.publicKey.value.encodeUtf8()
         )
         .hex()
         .let(::AppGlobalAuthKeyHwSignature)
@@ -54,8 +57,8 @@ class SocRecCryptoFakeTests : FunSpec({
     val encryptTrustedContactIdentityKeyOutput =
       cryptoFake.encryptDelegatedDecryptionKey(
         enrollmentCode,
-        protectedCustomerEnrollmentPakeKey,
-        trustedContactIdentityKey
+        protectedCustomerEnrollmentPakeKey.publicKey,
+        trustedContactIdentityKey.publicKey
       ).getOrThrow()
     val decryptedTrustedContactIdentityKey =
       cryptoFake.decryptDelegatedDecryptionKey(
@@ -63,7 +66,7 @@ class SocRecCryptoFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey,
         encryptTrustedContactIdentityKeyOutput
       ).getOrThrow()
-    decryptedTrustedContactIdentityKey.publicKey.shouldBe(trustedContactIdentityKey.publicKey)
+    decryptedTrustedContactIdentityKey.shouldBe(trustedContactIdentityKey.publicKey)
     // Invalid password
     shouldThrow<SocRecCryptoError.KeyConfirmationFailed> {
       cryptoFake.decryptDelegatedDecryptionKey(
@@ -75,8 +78,8 @@ class SocRecCryptoFakeTests : FunSpec({
     val invalidEncryptTrustedContactIdentityKeyOutput =
       cryptoFake.encryptDelegatedDecryptionKey(
         invalidEnrollmentCode,
-        protectedCustomerEnrollmentPakeKey,
-        trustedContactIdentityKey
+        protectedCustomerEnrollmentPakeKey.publicKey,
+        trustedContactIdentityKey.publicKey
       ).getOrThrow()
     shouldThrow<SocRecCryptoError.KeyConfirmationFailed> {
       cryptoFake.decryptDelegatedDecryptionKey(
@@ -97,7 +100,7 @@ class SocRecCryptoFakeTests : FunSpec({
     val keyCertificate =
       cryptoFake.generateKeyCertificate(
         delegatedDecryptionKey = decryptedTrustedContactIdentityKey,
-        hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.pubKey),
+        hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
         appGlobalAuthKey = appEndorsementKeyPair.publicKey,
         appGlobalAuthKeyHwSignature = hwSignature
       ).getOrThrow()
@@ -106,25 +109,25 @@ class SocRecCryptoFakeTests : FunSpec({
       keyCertificate = keyCertificate,
       hwAuthKey = null,
       appGlobalAuthKey = appEndorsementKeyPair.publicKey
-    ).getOrThrow().publicKey.shouldBe(trustedContactIdentityKey.publicKey)
+    ).getOrThrow().shouldBe(trustedContactIdentityKey.publicKey)
     // Can verify with hw auth key only
     cryptoFake.verifyKeyCertificate(
       keyCertificate = keyCertificate,
-      hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.pubKey),
+      hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
       appGlobalAuthKey = null
-    ).getOrThrow().publicKey.shouldBe(trustedContactIdentityKey.publicKey)
+    ).getOrThrow().shouldBe(trustedContactIdentityKey.publicKey)
     // Can verify if at least app auth key is valid
     cryptoFake.verifyKeyCertificate(
       keyCertificate = keyCertificate,
-      hwAuthKey = HwAuthPublicKey(invalidHwEndorsementKeyPair.publicKey.pubKey),
+      hwAuthKey = HwAuthPublicKey(invalidHwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
       appGlobalAuthKey = appEndorsementKeyPair.publicKey
-    ).getOrThrow().publicKey.shouldBe(trustedContactIdentityKey.publicKey)
+    ).getOrThrow().shouldBe(trustedContactIdentityKey.publicKey)
     // Can verify if at least hw auth key is valid
     cryptoFake.verifyKeyCertificate(
       keyCertificate = keyCertificate,
-      hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.pubKey),
+      hwAuthKey = HwAuthPublicKey(hwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
       appGlobalAuthKey = invalidAppEndorsementKeyPair.publicKey
-    ).getOrThrow().publicKey.shouldBe(trustedContactIdentityKey.publicKey)
+    ).getOrThrow().shouldBe(trustedContactIdentityKey.publicKey)
     // Both auth keys are not provided
     cryptoFake.verifyKeyCertificate(
       keyCertificate = keyCertificate,
@@ -135,7 +138,7 @@ class SocRecCryptoFakeTests : FunSpec({
     shouldThrow<SocRecCryptoError.KeyCertificateVerificationFailed> {
       cryptoFake.verifyKeyCertificate(
         keyCertificate,
-        HwAuthPublicKey(invalidHwEndorsementKeyPair.publicKey.pubKey),
+        HwAuthPublicKey(invalidHwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
         invalidAppEndorsementKeyPair.publicKey
       ).getOrThrow()
     }
@@ -147,7 +150,7 @@ class SocRecCryptoFakeTests : FunSpec({
     shouldThrow<SocRecCryptoError.KeyCertificateVerificationFailed> {
       cryptoFake.verifyKeyCertificate(
         modifiedCertificate,
-        HwAuthPublicKey(hwEndorsementKeyPair.publicKey.pubKey),
+        HwAuthPublicKey(hwEndorsementKeyPair.publicKey.toSecp256k1PublicKey()),
         invalidAppEndorsementKeyPair.publicKey
       ).getOrThrow()
     }
@@ -184,7 +187,7 @@ class SocRecCryptoFakeTests : FunSpec({
     val encryptedPrivateKeyEncryptionKeyOutput =
       cryptoFake.decryptPrivateKeyEncryptionKey(
         recoveryCode,
-        protectedCustomerRecoveryPakeKey,
+        protectedCustomerRecoveryPakeKey.publicKey,
         trustedContactIdentityKey,
         sealedPrivateKeyEncryptionKey
       ).getOrThrow()

@@ -1,4 +1,3 @@
-from binascii import unhexlify
 import hashlib
 import logging
 
@@ -29,9 +28,10 @@ class Wallet:
         cmd.timestamp = int(time.time())
         return cmd
 
-    def start_fingerprint_enrollment(self):
+    def start_fingerprint_enrollment(self, index):
         cmd = self._build_cmd()
         msg = wallet_pb.start_fingerprint_enrollment_cmd()
+        msg.index = index
         cmd.start_fingerprint_enrollment_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
@@ -399,4 +399,17 @@ class Wallet:
         msg = wallet_pb.configure_unlock_limit_response_cmd()
         msg.unlock_limit_response = response
         cmd.configure_unlock_limit_response_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def delete_fingerprint(self, index):
+        cmd = self._build_cmd()
+        msg = wallet_pb.delete_fingerprint_cmd()
+        msg.index = index
+        cmd.delete_fingerprint_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def get_enrolled_fingerprints(self):
+        cmd = self._build_cmd()
+        msg = wallet_pb.get_enrolled_fingerprints_cmd()
+        cmd.get_enrolled_fingerprints_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)

@@ -18,7 +18,6 @@ import build.wallet.auth.AppAuthPublicKeyProviderImpl
 import build.wallet.auth.AppAuthTokenRefresherImpl
 import build.wallet.auth.AuthTokenDaoImpl
 import build.wallet.auth.AuthTokensRepositoryImpl
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
 import build.wallet.availability.F8eNetworkReachabilityServiceImpl
@@ -46,7 +45,7 @@ import build.wallet.bitcoin.lightning.LightningIsAvailableFeatureFlag
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepositoryImpl
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderImpl
 import build.wallet.bitcoin.transactions.BitcoinTransactionAppSignerImpl
-import build.wallet.bitcoin.transactions.TransactionDetailDaoImpl
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDaoImpl
 import build.wallet.bitcoin.wallet.SpendingWalletProviderImpl
 import build.wallet.bitcoin.wallet.WatchingWalletProviderImpl
 import build.wallet.bugsnag.BugsnagContextImpl
@@ -68,9 +67,12 @@ import build.wallet.f8e.client.ProofOfPossessionPluginProvider
 import build.wallet.f8e.client.UnauthenticatedOnlyF8eHttpClientImpl
 import build.wallet.f8e.debug.NetworkingDebugConfigDaoImpl
 import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryImpl
+import build.wallet.f8e.featureflags.GetFeatureFlagsServiceImpl
 import build.wallet.f8e.onboarding.AddDeviceTokenServiceImpl
 import build.wallet.feature.FeatureFlagDaoImpl
 import build.wallet.feature.FeatureFlagInitializerImpl
+import build.wallet.feature.FeatureFlagSyncerImpl
+import build.wallet.feature.MobileTestFeatureFlag
 import build.wallet.firmware.FirmwareCoredumpQueueImpl
 import build.wallet.firmware.FirmwareCoredumpSenderImpl
 import build.wallet.firmware.FirmwareDeviceInfoDaoImpl
@@ -109,10 +111,7 @@ import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryImpl
 import build.wallet.money.display.FiatCurrencyPreferenceDaoImpl
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryImpl
 import build.wallet.nfc.haptics.NfcHapticsImpl
-import build.wallet.nfc.haptics.NfcHapticsIsEnabledFeatureFlag
 import build.wallet.nfc.haptics.NfcHapticsOnConnectedIsEnabledFeatureFlag
-import build.wallet.nfc.haptics.NfcHapticsOnFailureIsEnabledFeatureFlag
-import build.wallet.nfc.haptics.NfcHapticsOnSuccessIsEnabledFeatureFlag
 import build.wallet.notifications.DeviceTokenManagerImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
@@ -127,9 +126,10 @@ import build.wallet.platform.haptics.HapticsPolicyImpl
 import build.wallet.platform.hardware.SerialNumberParserImpl
 import build.wallet.platform.permissions.PermissionCheckerImpl
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProviderImpl
-import build.wallet.platform.random.UuidImpl
+import build.wallet.platform.random.UuidGeneratorImpl
 import build.wallet.platform.settings.LocaleCountryCodeProviderImpl
 import build.wallet.platform.settings.LocaleCurrencyCodeProviderImpl
+import build.wallet.platform.settings.LocaleLanguageCodeProviderImpl
 import build.wallet.platform.versions.OsVersionInfoProviderImpl
 import build.wallet.queueprocessor.BatcherProcessorImpl
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderImpl
@@ -137,7 +137,7 @@ import build.wallet.recovery.RecoveryDaoImpl
 import build.wallet.sqldelight.SqlDriverFactoryImpl
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormAddAttachmentsFeatureFlag
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormNewUiEnabledFeatureFlag
-import build.wallet.statemachine.settings.full.notifications.NotificationsFlowV2EnabledFeatureFlag
+import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
 import build.wallet.store.KeyValueStoreFactoryImpl
 import build.wallet.time.Delayer
@@ -181,18 +181,18 @@ class AppComponentImpl(
   override val appCoroutineScope = CoroutineScopes.AppScope
   override val clock = Clock.System
   override val secureStoreFactory = EncryptedKeyValueStoreFactoryImpl(platformContext, fileManager)
-  override val uuid = UuidImpl()
+  override val uuidGenerator = UuidGeneratorImpl()
   private val databaseDriverFactory =
     SqlDriverFactoryImpl(
       platformContext,
       fileDirectoryProvider,
       secureStoreFactory,
-      uuid,
+      uuidGenerator,
       appVariant
     )
   override val bitkeyDatabaseProvider = BitkeyDatabaseProviderImpl(databaseDriverFactory)
   override val appInstallationDao =
-    AppInstallationDaoImpl(bitkeyDatabaseProvider, uuid)
+    AppInstallationDaoImpl(bitkeyDatabaseProvider, uuidGenerator)
   override val bugsnagContext = BugsnagContextImpl(appCoroutineScope, appInstallationDao)
   override val logWriterContextStore = LogWriterContextStoreImpl(appInstallationDao)
   private val logStoreWriter = LogStoreWriterImpl(logStore, clock)
@@ -354,13 +354,8 @@ class AppComponentImpl(
     FirmwareDeviceNotFoundEnabledFeatureFlag(featureFlagDao)
   override val lightningIsAvailableFeatureFlag =
     LightningIsAvailableFeatureFlag(featureFlagDao)
-  private val nfcHapticsIsEnabledFeatureFlag = NfcHapticsIsEnabledFeatureFlag(featureFlagDao)
   private val nfcHapticsOnConnectedIsEnabledFeatureFlag =
     NfcHapticsOnConnectedIsEnabledFeatureFlag(featureFlagDao)
-  private val nfcHapticsOnFailureIsEnabledFeatureFlag =
-    NfcHapticsOnFailureIsEnabledFeatureFlag(featureFlagDao)
-  private val nfcHapticsOnSuccessIsEnabledFeatureFlag =
-    NfcHapticsOnSuccessIsEnabledFeatureFlag(featureFlagDao)
   private val analyticsTrackingEnabledFeatureFlag =
     AnalyticsTrackingEnabledFeatureFlag(
       appVariant = appVariant,
@@ -372,30 +367,42 @@ class AppComponentImpl(
     FeedbackFormAddAttachmentsFeatureFlag(featureFlagDao)
   override val cloudBackupHealthFeatureFlag =
     CloudBackupHealthFeatureFlag(featureFlagDao)
-  override val inactiveDeviceIsEnabledFeatureFlag =
-    InactiveDeviceIsEnabledFeatureFlag(featureFlagDao)
-  override val notificationsFlowV2EnabledFeatureFlag =
-    NotificationsFlowV2EnabledFeatureFlag(featureFlagDao)
+  override val feeBumpIsAvailableFeatureFlag = FeeBumpIsAvailableFeatureFlag(featureFlagDao)
+
+  override val mobileTestFeatureFlag =
+    MobileTestFeatureFlag(featureFlagDao)
+
+  override val allRemoteFeatureFlags =
+    setOf(
+      mobileTestFeatureFlag
+    ).toList()
 
   override val allFeatureFlags =
     setOf(
       cloudBackupHealthFeatureFlag,
       lightningIsAvailableFeatureFlag,
-      nfcHapticsIsEnabledFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
-      nfcHapticsOnFailureIsEnabledFeatureFlag,
-      nfcHapticsOnSuccessIsEnabledFeatureFlag,
       analyticsTrackingEnabledFeatureFlag,
+      feeBumpIsAvailableFeatureFlag,
       feedbackFormNewUiEnabledFeatureFlag,
       feedbackFormAddAttachmentsFeatureFlag,
-      inactiveDeviceIsEnabledFeatureFlag,
-      firmwareDeviceNotFoundEnabledFeatureFlag,
-      notificationsFlowV2EnabledFeatureFlag
-    ).toList()
+      firmwareDeviceNotFoundEnabledFeatureFlag
+    )
+      .union(allRemoteFeatureFlags)
+      .toList()
   override val featureFlagInitializer = FeatureFlagInitializerImpl(allFeatureFlags)
-  private val appDeviceIdDao = AppDeviceIdDaoImpl(secureStoreFactory, uuid)
+  private val appDeviceIdDao = AppDeviceIdDaoImpl(secureStoreFactory, uuidGenerator)
   override val deviceInfoProvider = DeviceInfoProviderImpl()
   override val localeCountryCodeProvider = LocaleCountryCodeProviderImpl(platformContext)
+  override val localeLanguageCodeProvider = LocaleLanguageCodeProviderImpl(platformContext)
+  override val getFeatureFlagsService = GetFeatureFlagsServiceImpl(
+    f8eHttpClient = f8eHttpClient,
+    appInstallationDao = appInstallationDao,
+    platformInfoProvider = platformInfoProvider,
+    localeCountryCodeProvider = localeCountryCodeProvider,
+    localeLanguageCodeProvider = localeLanguageCodeProvider
+  )
+
   override val firmwareDeviceInfoDao =
     FirmwareDeviceInfoDaoImpl(bitkeyDatabaseProvider)
   private val hardwareInfoProvider =
@@ -412,13 +419,20 @@ class AppComponentImpl(
       batchSize = 50
     )
 
-  override val sessionIdProvider = SessionIdProviderImpl(clock, uuid)
+  override val sessionIdProvider = SessionIdProviderImpl(clock, uuidGenerator)
   override val eventStore = EventStoreImpl()
   override val templateFullAccountConfigDao =
     TemplateFullAccountConfigDaoImpl(
       appVariant,
       bitkeyDatabaseProvider
     )
+
+  override val featureFlagSyncer = FeatureFlagSyncerImpl(
+    accountRepository = accountRepository,
+    templateFullAccountConfigDao = templateFullAccountConfigDao,
+    getFeatureFlagsService = getFeatureFlagsService,
+    booleanFlags = allRemoteFeatureFlags
+  )
 
   override val eventTracker =
     EventTrackerImpl(
@@ -463,10 +477,7 @@ class AppComponentImpl(
   override val nfcHaptics =
     NfcHapticsImpl(
       haptics,
-      nfcHapticsIsEnabledFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
-      nfcHapticsOnFailureIsEnabledFeatureFlag,
-      nfcHapticsOnSuccessIsEnabledFeatureFlag,
       appCoroutineScope
     )
   override val periodicFirmwareTelemetryEventProcessor =
@@ -489,9 +500,9 @@ class AppComponentImpl(
       firmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
       teltra = teltra
     )
-  override val transactionDetailDao = TransactionDetailDaoImpl(bitkeyDatabaseProvider)
+  override val outgoingTransactionDetailDao = OutgoingTransactionDetailDaoImpl(bitkeyDatabaseProvider)
   private val bdkTransactionMapper =
-    BdkTransactionMapperImpl(bdkAddressBuilder, transactionDetailDao)
+    BdkTransactionMapperImpl(bdkAddressBuilder, outgoingTransactionDetailDao)
   private val bdkDatabaseConfigProvider = BdkDatabaseConfigProviderImpl(fileDirectoryProvider)
   private val bdkWalletProvider = BdkWalletProviderImpl(bdkWalletFactory, bdkDatabaseConfigProvider)
   override val electrumServerDao = ElectrumServerConfigRepositoryImpl(bitkeyDatabaseProvider)
@@ -568,7 +579,7 @@ class AppComponentImpl(
 
   override val appKeysGenerator =
     AppKeysGeneratorImpl(
-      uuid,
+      uuidGenerator,
       spendingKeyGenerator,
       authKeyGenerator,
       appPrivateKeyDao

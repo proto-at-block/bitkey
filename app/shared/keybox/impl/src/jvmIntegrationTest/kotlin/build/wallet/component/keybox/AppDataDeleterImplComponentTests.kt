@@ -3,7 +3,8 @@ package build.wallet.component.keybox
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 

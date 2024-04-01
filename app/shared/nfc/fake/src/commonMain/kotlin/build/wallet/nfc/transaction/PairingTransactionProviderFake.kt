@@ -1,12 +1,13 @@
 package build.wallet.nfc.transaction
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.crypto.PublicKey
 
 class PairingTransactionProviderFake : PairingTransactionProvider {
   override fun invoke(
     networkType: BitcoinNetworkType,
-    appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
+    appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
     onSuccess: (PairingTransactionResponse) -> Unit,
     onCancel: () -> Unit,
     isHardwareFake: Boolean,

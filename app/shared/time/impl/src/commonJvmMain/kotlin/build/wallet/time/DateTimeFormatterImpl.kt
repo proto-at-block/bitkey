@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
+import java.util.Locale
 import java.time.format.DateTimeFormatter as JavaDateTimeFormatter
 
 actual class DateTimeFormatterImpl : DateTimeFormatter {
@@ -11,7 +12,7 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
 
     val datePattern = "MMM d"
-    val date = JavaDateTimeFormatter.ofPattern(datePattern).format(javaLocalDateTime)
+    val date = JavaDateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH).format(javaLocalDateTime)
 
     val timePattern = "h:mm a"
     val time =
@@ -26,7 +27,7 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
 
     val datePattern = "MM/dd/yy"
-    val date = JavaDateTimeFormatter.ofPattern(datePattern).format(javaLocalDateTime)
+    val date = JavaDateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH).format(javaLocalDateTime)
 
     val timePattern = "h:mma"
     val time =
@@ -47,7 +48,7 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
     val timePattern = "h:mma"
 
-    return JavaDateTimeFormatter.ofPattern(timePattern)
+    return JavaDateTimeFormatter.ofPattern(timePattern, Locale.ENGLISH)
       .format(javaLocalDateTime)
       .lowercase()
   }
@@ -56,7 +57,7 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
     val datePattern = "MMM d"
 
-    return JavaDateTimeFormatter.ofPattern(datePattern)
+    return JavaDateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH)
       .format(javaLocalDateTime)
   }
 
@@ -64,12 +65,12 @@ actual class DateTimeFormatterImpl : DateTimeFormatter {
     val javaLocalDateTime = localDateTime.toJavaLocalDateTime()
     val datePattern = "MMM d, YYYY"
 
-    return JavaDateTimeFormatter.ofPattern(datePattern)
+    return JavaDateTimeFormatter.ofPattern(datePattern, Locale.ENGLISH)
       .format(javaLocalDateTime)
   }
 
   override fun longLocalDate(localDate: LocalDate): String {
-    val formatter = JavaDateTimeFormatter.ofPattern("MMMM d, YYYY")
+    val formatter = JavaDateTimeFormatter.ofPattern("MMMM d, YYYY", Locale.ENGLISH)
     return localDate.toJavaLocalDate().format(formatter)
   }
 }

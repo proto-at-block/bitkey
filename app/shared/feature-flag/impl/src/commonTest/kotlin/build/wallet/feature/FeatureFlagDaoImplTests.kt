@@ -27,4 +27,24 @@ class FeatureFlagDaoImplTests : FunSpec({
     dao.getFlag(flagId, kClass = BooleanFlag::class)
       .shouldBe(Ok(BooleanFlag(value = true)))
   }
+
+  test("getFlagOverridden and setFlagOverridden") {
+    // Should be false when flag is not in the database.
+    dao.getFlagOverridden(flagId)
+      .shouldBe(Ok(false))
+
+    dao.setFlagOverridden(flagId, true)
+      .shouldBe(Ok(Unit))
+
+    // Should be true when flag is set to true.
+    dao.getFlagOverridden(flagId)
+      .shouldBe(Ok(true))
+
+    dao.setFlagOverridden(flagId, false)
+      .shouldBe(Ok(Unit))
+
+    // Should be false when flag is set to false.
+    dao.getFlagOverridden(flagId)
+      .shouldBe(Ok(false))
+  }
 })

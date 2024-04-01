@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-play-services",
     "components": [
         {
-            "version": "1.7.3",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-play-services-1.7.3.jar": "64d6ea1a4d15a2c0950da9a61f49ea7c51268ee74c3b1dddc463e69554441b24"
+                        "kotlinx-coroutines-play-services-1.8.0.jar": "2d6e60b3db6300e20319f30c7c7736267f57b93324b32e94916e6f6028b5b9c5"
                     }
                 }
             ],

@@ -1,8 +1,5 @@
-@file:OptIn(ExperimentalCoroutinesApi::class, ExperimentalCoroutinesApi::class)
-
 package build.wallet.coroutines
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime

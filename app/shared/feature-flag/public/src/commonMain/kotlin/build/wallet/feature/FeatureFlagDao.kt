@@ -21,4 +21,13 @@ interface FeatureFlagDao {
     flagValue: T,
     featureFlagId: String,
   ): Result<Unit, DbError>
+
+  /** Returns true if the flag with the given ID is overridden, false otherwise. */
+  suspend fun getFlagOverridden(featureFlagId: String): Result<Boolean, DbError>
+
+  /** Sets whether the flag with the given ID is overridden or not. */
+  suspend fun setFlagOverridden(
+    featureFlagId: String,
+    overridden: Boolean,
+  ): Result<Unit, DbError>
 }

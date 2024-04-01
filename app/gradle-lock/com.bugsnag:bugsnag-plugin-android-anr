@@ -2,11 +2,11 @@
     "module-identifier": "com.bugsnag:bugsnag-plugin-android-anr",
     "components": [
         {
-            "version": "5.31.1",
+            "version": "6.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "bugsnag-plugin-android-anr-5.31.1.aar": "3094107ff4b30044251d19750179f34882b74fb701151a39b643544c292884a3"
+                        "bugsnag-plugin-android-anr-6.2.0.aar": "8d87c47695fc103bd899cb79a221eaf749c2ca180d7eb13c5cefa5105d73b0dd"
                     }
                 }
             ],

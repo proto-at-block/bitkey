@@ -11,7 +11,9 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        api(projects.shared.bitkeyPrimitivesPublic)
         api(projects.shared.dbResultPublic)
+        api(projects.shared.f8ePublic)
       }
     }
   }

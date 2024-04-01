@@ -2,11 +2,11 @@
     "module-identifier": "androidx.fragment:fragment",
     "components": [
         {
-            "version": "1.3.6",
+            "version": "1.6.2",
             "variants": [
                 {
                     "artifacts": {
-                        "fragment-1.3.6.aar": "12f0831b4f08092d5dda272c1923c11a022ff20ceffed3e801751e21bb8d1c1e"
+                        "fragment-1.6.2.aar": "df7ba73f377dbd7ccd28b112afd08d28b60ec2c6bc91ec658609c845442ace08"
                     }
                 }
             ],

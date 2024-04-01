@@ -5,17 +5,17 @@ import {
     metric_avg_query,
     metric_sum_query,
     log_count_query,
-    rum_query
 } from "./common/queries";
 import { HttpStatusCompositeMonitor } from "./common/http";
-import { getErrorRecipients } from "./recipients";
-import {MonitorVariablesEventQuery} from "@cdktf/provider-datadog/lib/monitor";
+import { getCriticalRecipients, getErrorRecipients, getWarningRecipients } from "./recipients";
 
 export class MoneyMovementMonitors extends Construct {
     constructor(scope: Construct, environment: Environment) {
         super(scope, `money-movement_${environment}`)
 
-        let recipients = getErrorRecipients(environment)
+        let warningRecipients = getWarningRecipients(environment)
+        let errorRecipients = getErrorRecipients(environment)
+        let criticalRecipients = getCriticalRecipients(environment)
         let tags = [`money-movement_${environment}`]
         let datadogLinks = {
             mobilePay4xxAPMTrace: "https://app.datadoghq.com/apm/traces?saved-view-id=2131576",
@@ -35,21 +35,21 @@ export class MoneyMovementMonitors extends Construct {
             status: "4xx",
             group: "Mobile Pay",
             environment,
-            tags: ["service:fromagerie-api", "router_name:mobile_pay"],
+            tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "router_name:mobile_pay", "rateInclusion": "both"}],
             rateThreshold: "0.5",
             countThreshold: "20",
             dataDogLink: datadogLinks.mobilePay4xxAPMTrace,
-            recipients,
+            recipients: errorRecipients,
         });
         new HttpStatusCompositeMonitor(this, "5xx_mobile_pay_status", {
             status: "5xx",
             group: "Mobile Pay",
             environment,
-            tags: ["service:fromagerie-api", "router_name:mobile_pay"],
+            tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "router_name:mobile_pay", "rateInclusion": "both"}],
             rateThreshold: "0.05",
             countThreshold: "2",
             dataDogLink: datadogLinks.mobilePay5xxAPMTrace,
-            recipients,
+            recipients: criticalRecipients,
         });
 
         // Onboarding
@@ -57,21 +57,21 @@ export class MoneyMovementMonitors extends Construct {
             status: "4xx",
             group: "Onboarding",
             environment,
-            tags: ["service:fromagerie-api", "router_name:onboarding"],
+            tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "router_name:onboarding", "rateInclusion": "both"}],
             rateThreshold: "0.5",
             countThreshold: "20",
             dataDogLink: datadogLinks.onboarding4xxAPMTrace,
-            recipients,
+            recipients: errorRecipients,
         });
         new HttpStatusCompositeMonitor(this, "5xx_onboarding_status", {
             status: "5xx",
             group: "Onboarding",
             environment,
-            tags: ["service:fromagerie-api", "router_name:onboarding"],
+            tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "router_name:onboarding", "rateInclusion": "both"}],
             rateThreshold: "0.05",
             countThreshold: "2",
             dataDogLink: datadogLinks.onboarding5xxAPMTrace,
-            recipients,
+            recipients: criticalRecipients,
         });
 
         // Notifications
@@ -79,27 +79,27 @@ export class MoneyMovementMonitors extends Construct {
             status: "4xx",
             group: "Notifications",
             environment,
-            tags: ["service:fromagerie-api", "router_name:notifications"],
+            tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "router_name:notifications", "rateInclusion": "both"}],
             rateThreshold: "0.5",
             countThreshold: "20",
             dataDogLink: datadogLinks.notifications4xxAPMTrace,
-            recipients,
+            recipients: errorRecipients,
         });
         new HttpStatusCompositeMonitor(this, "5xx_notifications_status", {
             status: "5xx",
             group: "Notifications",
             environment,
-            tags: ["service:fromagerie-api", "router_name:notifications"],
+            tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "router_name:notifications", "rateInclusion": "both"}],
             rateThreshold: "0.05",
             countThreshold: "2",
             dataDogLink: datadogLinks.notifications5xxAPMTrace,
-            recipients,
+            recipients: criticalRecipients,
         });
 
         // Security Risk Alerts
         // Alerts when something really fishy is going on. We set the window to 5m for these monitors.
         let securityRiskAlertConfig = {
-            recipients: recipients,
+            recipients: criticalRecipients,
             type: "query alert",
             monitorThresholds: {
                 critical: "1",
@@ -155,9 +155,33 @@ export class MoneyMovementMonitors extends Construct {
             }
         })
 
+        new Monitor(this, "mobilepay-sweep-outputs-do-not-belong-to-active-keyset", {
+            query: metric_sum_query(
+                `sum:bitkey.mobile_pay.outputs_dont_belong_to_active_keyset{env:${environment}}.as_count()`,
+                securityRiskAlertWindow,
+                securityRiskAlertConfig.monitorThresholds.critical
+            ),
+            name: `[Money Movement] Attempted to cosign recovery sweep to an inactive keyset. env: ${environment}`,
+            message: "Attempted signing of recovery sweep PSBT where some outputs do not belong to the customer's active keyset.",
+            tags: tags,
+            ...securityRiskAlertConfig
+        })
+
+        new Monitor(this, "mobilepay-cosign-outputs-belong-to-active-keyset", {
+            query: metric_sum_query(
+                `sum:bitkey.mobile_pay.outputs_belong_to_self{env:${environment}}.as_count()`,
+                securityRiskAlertWindow,
+                securityRiskAlertConfig.monitorThresholds.critical
+            ),
+            name: `[Money Movement] Attempted to cosign self-send Mobile Pay transaction. env: ${environment}`,
+            message: "Attempted signing of Mobile Pay PSBT where some outputs belong the customer's active keyset (self-send).",
+            tags: tags,
+            ...securityRiskAlertConfig
+        })
+
         // Latency Alerts
         let latencyConfig = {
-            recipients: recipients,
+            recipients: errorRecipients,
             type: "query alert",
             monitorThresholds: {
                 critical: "2000",

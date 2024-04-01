@@ -2,9 +2,11 @@ package build.wallet.nfc
 
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.ExtendedPrivateKey
+import build.wallet.bitkey.auth.AuthPrivateKey
 import build.wallet.bitkey.spending.SpendingKeypair
 import build.wallet.bitkey.spending.SpendingPrivateKey
 import build.wallet.bitkey.spending.SpendingPublicKey
+import build.wallet.encrypt.Secp256k1PrivateKey
 import dev.zacsweers.redacted.annotations.Redacted
 
 interface FakeHardwareKeyStore {
@@ -46,3 +48,8 @@ interface FakeHardwareKeyStore {
     val words: String,
   )
 }
+
+@Redacted
+data class FakeHwAuthPrivateKey(
+  override val key: Secp256k1PrivateKey,
+) : AuthPrivateKey

@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.component.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
@@ -11,8 +9,7 @@ import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock2
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock2
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
-import build.wallet.testing.launchNewApp
-import com.russhwolf.settings.ExperimentalSettingsApi
+import build.wallet.testing.AppTester.Companion.launchNewApp
 import com.russhwolf.settings.coroutines.SuspendSettings
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -31,10 +28,10 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
 
   test("already has keys") {
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
-    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(
       key = "app-recovery-auth-key",
-      value = AppRecoveryAuthPublicKeyMock.pubKey.value
+      value = AppRecoveryAuthPublicKeyMock.value
     )
     secureStore.putString(key = "network-key", value = "BITCOIN")
 
@@ -52,17 +49,17 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
 
   test("missing recovery auth key") {
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
-    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(key = "network-key", value = "BITCOIN")
 
     keystore.getAppKeyBundle(localId = "foo", network = BITCOIN).shouldBeNull()
   }
 
   test("missing spending key") {
-    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(
       key = "app-recovery-auth-key",
-      value = AppRecoveryAuthPublicKeyMock.pubKey.value
+      value = AppRecoveryAuthPublicKeyMock.value
     )
     secureStore.putString(key = "network-key", value = "BITCOIN")
 
@@ -73,7 +70,7 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
     secureStore.putString(
       key = "app-recovery-auth-key",
-      value = AppRecoveryAuthPublicKeyMock.pubKey.value
+      value = AppRecoveryAuthPublicKeyMock.value
     )
     secureStore.putString(key = "network-key", value = "BITCOIN")
 
@@ -82,10 +79,10 @@ class OnboardingAppKeyKeystoreComponentTests : FunSpec({
 
   test("network type mismatch") {
     secureStore.putString(key = "spending-key", value = AppSpendingPublicKeyMock.key.dpub)
-    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.pubKey.value)
+    secureStore.putString(key = "auth-key", value = AppGlobalAuthPublicKeyMock.value)
     secureStore.putString(
       key = "app-recovery-auth-key",
-      value = AppRecoveryAuthPublicKeyMock.pubKey.value
+      value = AppRecoveryAuthPublicKeyMock.value
     )
     secureStore.putString(key = "network-key", value = "SIGNET")
 

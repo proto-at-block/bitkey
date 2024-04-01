@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalObjCRefinement::class)
-
 package build.wallet.statemachine.core
 
 import androidx.compose.runtime.Composable
@@ -9,7 +7,6 @@ import build.wallet.molecule.composeFrameClock
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.plus
-import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 
 /**

@@ -2,11 +2,11 @@
     "module-identifier": "com.jayway.jsonpath:json-path",
     "components": [
         {
-            "version": "2.8.0",
+            "version": "2.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "json-path-2.8.0.jar": "9601707e95cd79fb98570a01ea8cfb857b5cde948744d6e0edf733c11002c95b"
+                        "json-path-2.9.0.jar": "11a9ee6f88bb31f1450108d1cf6441377dec84aca075eb6bb2343be157575bea"
                     }
                 }
             ],

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.cloud.health
 
 import FoundCloudBackupForDifferentAccountModel
+import OverwriteExistingBackupConfirmationAlert
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -64,6 +65,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
+import build.wallet.ui.model.alert.AlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.first
@@ -242,16 +244,32 @@ class RepairCloudBackupStateMachineImpl(
       }
 
       is FoundBackupForDifferentAccountState -> {
+        var alert by remember { mutableStateOf<AlertModel?>(null) }
+
         FoundCloudBackupForDifferentAccountModel(
           onOverwriteExistingBackup = {
-            state = UploadingBackupState(
-              cloudAccount = currentState.cloudAccount,
-              mobileKeyBackup = currentState.mobileKeyBackup,
-              eakBackup = currentState.eakBackup
+            alert = OverwriteExistingBackupConfirmationAlert(
+              onConfirm = {
+                state = UploadingBackupState(
+                  cloudAccount = currentState.cloudAccount,
+                  mobileKeyBackup = currentState.mobileKeyBackup,
+                  eakBackup = currentState.eakBackup
+                )
+              },
+              onCancel = {
+                alert = null
+              }
             )
           },
-          onClose = props.onExit
-        ).asScreen(props.presentationStyle)
+          onClose = props.onExit,
+          onTryAgain = {
+            // Try signing in again, this time force sign out to allow customer to resign in or
+            // switch accounts.
+            log { "Retrying signing into cloud account." }
+            state = SigningIntoCloudState(forceSignOut = true)
+          },
+          devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
+        ).asScreen(props.presentationStyle, alertModel = alert)
       }
 
       ProblemWithBackupState -> {

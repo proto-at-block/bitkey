@@ -23,7 +23,7 @@ class SocialRecoveryServiceProviderImplTests : FunSpec({
     )
   val socRecFake =
     SocialRecoveryServiceFake(
-      uuid = { "fake-uuid" },
+      uuidGenerator = { "fake-uuid" },
       backgroundScope = TestScope()
     )
   val provider = SocialRecoveryServiceProviderImpl(

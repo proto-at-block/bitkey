@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.limit
 
 import build.wallet.bitcoin.wallet.SpendingWallet
@@ -8,11 +6,10 @@ import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
 import build.wallet.f8e.mobilepay.MobilePayBalanceService
 import build.wallet.ktor.result.HttpError
 import build.wallet.mapLoadedValue
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -24,13 +21,13 @@ import kotlinx.coroutines.flow.transformLatest
 class MobilePayStatusProviderImpl(
   private val spendingLimitDao: SpendingLimitDao,
   private val mobilePayBalanceService: MobilePayBalanceService,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) : MobilePayStatusProvider {
   // We initialize with null so that we can filter the initialization event when merging.
   private val onDemandRefreshStatusFlow = MutableStateFlow<String?>(null)
 
   override suspend fun refreshStatus() {
-    onDemandRefreshStatusFlow.emit(uuid.random())
+    onDemandRefreshStatusFlow.emit(uuidGenerator.random())
   }
 
   override fun status(

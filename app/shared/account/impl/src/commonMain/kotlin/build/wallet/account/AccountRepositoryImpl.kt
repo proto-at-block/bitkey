@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.account
 
 import build.wallet.account.AccountStatus.ActiveAccount
@@ -11,7 +9,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 

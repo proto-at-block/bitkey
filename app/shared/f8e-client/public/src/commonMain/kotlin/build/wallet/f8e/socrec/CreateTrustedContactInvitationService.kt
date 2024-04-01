@@ -4,6 +4,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
 import com.github.michaelbull.result.Result
@@ -20,6 +21,6 @@ interface CreateTrustedContactInvitationService {
     account: FullAccount,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
   ): Result<Invitation, NetworkingError>
 }

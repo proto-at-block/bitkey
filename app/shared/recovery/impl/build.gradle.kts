@@ -25,7 +25,7 @@ kotlin {
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.f8eClientImpl)
         implementation(projects.shared.keyboxFake)
-        implementation(projects.shared.ktorTestFake)
+        implementation(projects.shared.ktorClientFake)
         implementation(projects.shared.platformFake)
         implementation(projects.shared.recoveryFake)
         implementation(projects.shared.coroutinesTesting)

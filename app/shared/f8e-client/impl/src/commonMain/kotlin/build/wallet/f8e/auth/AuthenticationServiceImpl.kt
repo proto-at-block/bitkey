@@ -2,11 +2,11 @@ package build.wallet.f8e.auth
 
 import build.wallet.auth.AccessToken
 import build.wallet.auth.AccountAuthTokens
+import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.RefreshToken
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
-import build.wallet.bitkey.auth.AuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService.InitiateAuthenticationSuccess
 import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
@@ -24,27 +24,40 @@ class AuthenticationServiceImpl(
 ) : AuthenticationService {
   override suspend fun initiateAuthentication(
     f8eEnvironment: F8eEnvironment,
-    authPublicKey: AuthPublicKey,
-  ): Result<InitiateAuthenticationSuccess, NetworkingError> {
-    return f8eHttpClient.unauthenticated(f8eEnvironment)
-      .bodyResult<InitiateAuthenticationSuccess> {
-        post("/api/authenticate") {
-          setBody(AuthenticationRequest(authPublicKey))
-        }
+    authPublicKey: HwAuthPublicKey,
+  ): Result<InitiateAuthenticationSuccess, NetworkingError> =
+    authenticate(f8eEnvironment, AuthenticationRequest(authPublicKey))
+
+  override suspend fun initiateAuthentication(
+    f8eEnvironment: F8eEnvironment,
+    authPublicKey: PublicKey<out AppAuthKey>,
+    tokenScope: AuthTokenScope,
+  ): Result<InitiateAuthenticationSuccess, NetworkingError> =
+    authenticate(f8eEnvironment, AuthenticationRequest(authPublicKey, tokenScope))
+
+  private suspend fun authenticate(
+    f8eEnvironment: F8eEnvironment,
+    req: AuthenticationRequest,
+  ) = f8eHttpClient.unauthenticated(f8eEnvironment)
+    .bodyResult<InitiateAuthenticationSuccess> {
+      post("/api/authenticate") {
+        setBody(req)
       }
-  }
+    }
 
   @Serializable
   private data class AuthenticationRequest(
     @SerialName("auth_request_key")
     val authRequestKey: Map<String, String>,
   ) {
-    constructor(authPublicKey: AuthPublicKey) : this(
-      when (authPublicKey) {
-        is AppGlobalAuthPublicKey -> mapOf("AppPubkey" to authPublicKey.pubKey.value)
-        is AppRecoveryAuthPublicKey -> mapOf("RecoveryPubkey" to authPublicKey.pubKey.value)
-        is HwAuthPublicKey -> mapOf("HwPubkey" to authPublicKey.pubKey.value)
-        else -> error("Unsupported AuthPublicKey type")
+    constructor(
+      authPublicKey: HwAuthPublicKey,
+    ) : this(mapOf("HwPubkey" to authPublicKey.pubKey.value))
+
+    constructor(authPublicKey: PublicKey<out AppAuthKey>, tokenScope: AuthTokenScope) : this(
+      when (tokenScope) {
+        AuthTokenScope.Global -> mapOf("AppPubkey" to authPublicKey.value)
+        AuthTokenScope.Recovery -> mapOf("RecoveryPubkey" to authPublicKey.value)
       }
     )
   }

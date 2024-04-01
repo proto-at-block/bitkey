@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-assertions-core-iosarm64",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-core-iosarm64-5.8.0-metadata.jar": "d41a8d672b911d17a25922d6f17e21d452d466358294a2a48d175f6707eb8ebd"
+                        "kotest-assertions-core-iosarm64-5.8.1-metadata.jar": "43ef5fd9f131a88cc3aa26ce1209be1d4cc8f62e445311602f953163e721be35"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-assertions-core.klib": "88d732802b25c6098a8555bf7e971c036ec2a63ec8ce7dcdcd5c48e026f6d072"
+                        "kotest-assertions-core.klib": "817987892f672c6500fd8bc250a5e8d6039c96871ece71f6b88814e4a4f15c87"
                     }
                 }
             ],

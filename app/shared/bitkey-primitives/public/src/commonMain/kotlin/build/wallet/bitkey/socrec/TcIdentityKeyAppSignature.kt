@@ -1,6 +1,5 @@
 package build.wallet.bitkey.socrec
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import kotlinx.serialization.Serializable
 import kotlin.jvm.JvmInline
 

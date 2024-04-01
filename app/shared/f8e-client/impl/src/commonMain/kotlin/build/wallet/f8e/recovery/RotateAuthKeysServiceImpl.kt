@@ -1,10 +1,11 @@
 package build.wallet.f8e.recovery
 
 import build.wallet.auth.AppAuthKeyMessageSigner
-import build.wallet.bitkey.app.AppAuthPublicKey
 import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
@@ -27,7 +28,7 @@ class RotateAuthKeysServiceImpl(
   override suspend fun rotateKeyset(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
-    oldAppAuthPublicKey: AppAuthPublicKey,
+    oldAppAuthPublicKey: PublicKey<AppGlobalAuthKey>,
     newAppAuthPublicKeys: AppAuthPublicKeys,
     hwAuthPublicKey: HwAuthPublicKey,
     hwSignedAccountId: String,
@@ -62,7 +63,7 @@ class RotateAuthKeysServiceImpl(
             setBody(
               RotateAuthKeysetResponse(
                 application = AuthenticationKey(
-                  newAppAuthPublicKeys.appGlobalAuthPublicKey.pubKey.value,
+                  newAppAuthPublicKeys.appGlobalAuthPublicKey.value,
                   signedAppGlobalAuthPublicKey
                 ),
                 hardware = AuthenticationKey(
@@ -70,7 +71,7 @@ class RotateAuthKeysServiceImpl(
                   hwSignedAccountId
                 ),
                 recovery = AuthenticationKey(
-                  newAppAuthPublicKeys.appRecoveryAuthPublicKey.pubKey.value,
+                  newAppAuthPublicKeys.appRecoveryAuthPublicKey.value,
                   signedAppRecoveryAuthPublicKey
                 )
               )

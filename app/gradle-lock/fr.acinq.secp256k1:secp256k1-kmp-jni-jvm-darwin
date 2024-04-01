@@ -2,11 +2,11 @@
     "module-identifier": "fr.acinq.secp256k1:secp256k1-kmp-jni-jvm-darwin",
     "components": [
         {
-            "version": "0.13.0",
+            "version": "0.15.0",
             "variants": [
                 {
                     "artifacts": {
-                        "secp256k1-kmp-jni-jvm-darwin-0.13.0.jar": "c0f4ac9fc90da3cb50adfcd0097853bd6e3ce803f30d3749bb7e93d0373e575d"
+                        "secp256k1-kmp-jni-jvm-darwin-0.15.0.jar": "3fadd4db06cde75a9a6e93207d9860a965cce8721b713e9b9fdb35d163d2bea9"
                     }
                 }
             ],

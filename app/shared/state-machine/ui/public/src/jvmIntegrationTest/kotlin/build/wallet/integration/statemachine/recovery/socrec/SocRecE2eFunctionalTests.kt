@@ -1,5 +1,3 @@
-@file:OptIn(FlowPreview::class, ExperimentalKotest::class)
-
 package build.wallet.integration.statemachine.recovery.socrec
 
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
@@ -29,11 +27,20 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.shouldHaveTrailingAccessoryButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.createTcInvite
+import build.wallet.testing.ext.deleteBackupsFromFakeCloud
+import build.wallet.testing.ext.endorseAndVerifyTc
+import build.wallet.testing.ext.getActiveAccount
+import build.wallet.testing.ext.getActiveAppGlobalAuthKey
+import build.wallet.testing.ext.getActiveFullAccount
+import build.wallet.testing.ext.getActiveHwAuthKey
+import build.wallet.testing.ext.lastSharedText
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.fail
 import io.kotest.assertions.withClue
-import io.kotest.common.ExperimentalKotest
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeSingleton
@@ -45,7 +52,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeTypeOf
 import io.kotest.property.PropTestConfig
 import io.kotest.property.checkAll
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
@@ -186,15 +192,14 @@ class SocRecE2eFunctionalTests : FunSpec({
     val socRecService = customerApp.app.socialRecoveryServiceProvider.get()
     val relationships = socRecService.getRelationships(
       customerAccount.accountId,
-      customerAccount.config.f8eEnvironment,
-      null
+      customerAccount.config.f8eEnvironment
     ).getOrThrow()
     val unendorsedTc = relationships.unendorsedTrustedContacts
       .single()
     val socRecCrypto = customerApp.app.socRecCrypto
     val badKeyCert = TrustedContactKeyCertificate(
       // This is a tampered key we are trying to get into the Protected Customer backup
-      delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow(),
+      delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow().publicKey,
       hwAuthPublicKey = customerApp.getActiveHwAuthKey().publicKey,
       appGlobalAuthPublicKey = customerApp.getActiveAppGlobalAuthKey().publicKey,
       appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature("tampered-app-auth-key-sig"),
@@ -212,8 +217,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     // Sanity check that the TC has been successfully endorsed with the tampered key certificate
     socRecService.getRelationships(
       customerAccount.accountId,
-      customerAccount.config.f8eEnvironment,
-      null
+      customerAccount.config.f8eEnvironment
     ).getOrThrow()
       .trustedContacts
       .shouldBeSingleton()
@@ -274,7 +278,8 @@ class SocRecE2eFunctionalTests : FunSpec({
       customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
 
       customerApp = launchNewApp(
-        cloudKeyValueStore = customerApp.app.cloudKeyValueStore
+        cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
+        hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
       )
       customerApp.app.appUiStateMachine.test(
         props = Unit,
@@ -388,7 +393,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     // PC: lost app & cloud D+N
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
     customerApp.deleteBackupsFromFakeCloud()
-    customerApp.fakeNfcCommands.clearHardwareKeys()
+    customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
     customerApp = launchNewApp(hardwareSeed = hardwareSeed)
     customerApp.app.appUiStateMachine.test(
@@ -476,7 +481,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     // TC: lost app & cloud D+N
     val hardwareSeed = tcApp.fakeHardwareKeyStore.getSeed()
     tcApp.deleteBackupsFromFakeCloud()
-    tcApp.fakeNfcCommands.clearHardwareKeys()
+    tcApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
     tcApp = launchNewApp(hardwareSeed = hardwareSeed)
     tcApp.app.appUiStateMachine.test(
@@ -519,7 +524,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
 
     // PC: lost hardware D+N
-    customerApp.fakeNfcCommands.clearHardwareKeys()
+    customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     customerApp.app.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
@@ -563,7 +568,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
 
     // PC: lost hardware D+N
-    recoveredApp.fakeNfcCommands.clearHardwareKeys()
+    recoveredApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     recoveredApp.app.appUiStateMachine.test(
       Unit,
       useVirtualTime = false,
@@ -663,13 +668,13 @@ suspend fun shouldSucceedSocialRestore(
 
 suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
   val account = appTester.getActiveFullAccount()
-  val appPubKey = account.keybox.activeAppKeyBundle.authKey.pubKey
+  val appPubKey = account.keybox.activeAppKeyBundle.authKey
   val hwSig = account.keybox.appGlobalAuthKeyHwSignature
   val hwPubKey = account.keybox.activeHwKeyBundle.authKey.pubKey
   hwPubKey.shouldBeEqual(appTester.fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
 
   val serverTcs = appTester.app.socialRecoveryServiceProvider.get()
-    .getRelationships(account, null).getOrThrow()
+    .getRelationships(account).getOrThrow()
     .trustedContacts
   val dbTcs = appTester.app.socRecRelationshipsDao
     .socRecRelationships().first().getOrThrow()
@@ -688,7 +693,7 @@ suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
   dbTcs.forEach {
     withClue("key certificates for ${it.trustedContactAlias} should be refreshed") {
       it.keyCertificate.hwAuthPublicKey.pubKey.shouldBeEqual(hwPubKey)
-      it.keyCertificate.appGlobalAuthPublicKey.pubKey.shouldBeEqual(appPubKey)
+      it.keyCertificate.appGlobalAuthPublicKey.shouldBeEqual(appPubKey)
       it.keyCertificate.appAuthGlobalKeyHwSignature.value.shouldBeEqual(hwSig.value)
     }
   }

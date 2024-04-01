@@ -1,10 +1,10 @@
 package build.wallet.cloud.backup
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
+import build.wallet.bitkey.app.AppRecoveryAuthKey
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.cloud.backup.v2.AppRecoveryAuthKeypairSerializer
-import build.wallet.cloud.backup.v2.DelegatedDecryptionKeySerializer
+import build.wallet.cloud.backup.v2.AppKeyKeyPairSerializer
 import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.f8e.F8eEnvironment
 import dev.zacsweers.redacted.annotations.Redacted
@@ -24,10 +24,10 @@ data class CloudBackupV2(
   val f8eEnvironment: F8eEnvironment,
   val isTestAccount: Boolean,
   // Note: It's important we override the serializers here to ensure the private keys are stored.
-  @Serializable(with = DelegatedDecryptionKeySerializer::class)
-  override val delegatedDecryptionKeypair: DelegatedDecryptionKey,
-  @Serializable(with = AppRecoveryAuthKeypairSerializer::class)
-  override val appRecoveryAuthKeypair: AppRecoveryAuthKeypair,
+  @Serializable(with = AppKeyKeyPairSerializer::class)
+  override val delegatedDecryptionKeypair: AppKey<DelegatedDecryptionKey>,
+  @Serializable(with = AppKeyKeyPairSerializer::class)
+  override val appRecoveryAuthKeypair: AppKey<AppRecoveryAuthKey>,
   override val fullAccountFields: FullAccountFields?,
   override val isUsingSocRecFakes: Boolean,
   val bitcoinNetworkType: BitcoinNetworkType,

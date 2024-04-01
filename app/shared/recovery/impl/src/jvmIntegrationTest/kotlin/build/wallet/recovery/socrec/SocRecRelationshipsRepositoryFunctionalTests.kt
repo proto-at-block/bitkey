@@ -6,7 +6,10 @@ import build.wallet.f8e.socrec.shouldHaveAlias
 import build.wallet.f8e.socrec.shouldOnlyHaveSingleEndorsedTrustedContact
 import build.wallet.f8e.socrec.shouldOnlyHaveSingleInvitation
 import build.wallet.f8e.socrec.shouldOnlyHaveSingleProtectedCustomer
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.createTcInvite
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 

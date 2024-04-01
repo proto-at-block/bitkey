@@ -1,34 +1,30 @@
 package build.wallet.bitkey.auth
 
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
-import build.wallet.bitkey.app.AppGlobalAuthPrivateKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
-import build.wallet.bitkey.app.AppRecoveryAuthPrivateKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.encrypt.Secp256k1PrivateKey
+import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.crypto.PrivateKey
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
 import okio.ByteString.Companion.encodeUtf8
 
 val AppGlobalAuthPublicKeyMock =
-  AppGlobalAuthPublicKey(pubKey = Secp256k1PublicKey("app-auth-dpub"))
+  PublicKey<AppGlobalAuthKey>("app-auth-dpub")
 val AppGlobalAuthPublicKeyMock2 =
-  AppGlobalAuthPublicKey(pubKey = Secp256k1PublicKey("app-auth-dpub-2"))
+  PublicKey<AppGlobalAuthKey>("app-auth-dpub-2")
 val AppGlobalAuthPrivateKeyMock =
-  AppGlobalAuthPrivateKey(Secp256k1PrivateKey("app-auth-private-key".encodeUtf8()))
-val AppGlobalAuthKeypairMock =
-  AppGlobalAuthKeypair(AppGlobalAuthPublicKeyMock, AppGlobalAuthPrivateKeyMock)
+  PrivateKey<AppGlobalAuthKey>("app-auth-private-key".encodeUtf8())
+val AppGlobalAuthKeypairMock = AppKey(AppGlobalAuthPublicKeyMock, AppGlobalAuthPrivateKeyMock)
 
 val HwAuthSecp256k1PublicKeyMock = HwAuthPublicKey(Secp256k1PublicKey("hw-auth-dpub"))
 
 val AppRecoveryAuthPublicKeyMock =
-  AppRecoveryAuthPublicKey(Secp256k1PublicKey("app-recovery-auth-dpub"))
+  PublicKey<AppRecoveryAuthKey>("app-recovery-auth-dpub")
 val AppRecoveryAuthPublicKeyMock2 =
-  AppRecoveryAuthPublicKey(Secp256k1PublicKey("app-recovery-auth-dpub-2"))
+  PublicKey<AppRecoveryAuthKey>("app-recovery-auth-dpub-2")
 val AppRecoveryAuthPrivateKeyMock =
-  AppRecoveryAuthPrivateKey(Secp256k1PrivateKey("app-recovery-auth-private-key".encodeUtf8()))
-val AppRecoveryAuthKeypairMock =
-  AppRecoveryAuthKeypair(AppRecoveryAuthPublicKeyMock, AppRecoveryAuthPrivateKeyMock)
+  PrivateKey<AppRecoveryAuthKey>("app-recovery-auth-private-key".encodeUtf8())
+val AppRecoveryAuthKeypairMock = AppKey(AppRecoveryAuthPublicKeyMock, AppRecoveryAuthPrivateKeyMock)
 
 val HwAuthPublicKeyMock = HwAuthPublicKey(HwAuthSecp256k1PublicKeyMock.pubKey)

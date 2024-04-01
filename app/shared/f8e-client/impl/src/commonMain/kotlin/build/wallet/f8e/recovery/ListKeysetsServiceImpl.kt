@@ -13,7 +13,7 @@ import build.wallet.f8e.serialization.fromJsonString
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.logging.logNetworkFailure
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.get
@@ -22,7 +22,7 @@ import kotlinx.serialization.Serializable
 
 class ListKeysetsServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) : ListKeysetsService {
   override suspend fun listKeysets(
     f8eEnvironment: F8eEnvironment,
@@ -38,7 +38,7 @@ class ListKeysetsServiceImpl(
           val hardwareBitcoinPublicKey = HwSpendingPublicKey(dpub = keyset.hardwareDpub)
           val serverBitcoinPublicKey = F8eSpendingPublicKey(dpub = keyset.serverDpub)
           SpendingKeyset(
-            localId = uuid.random(),
+            localId = uuidGenerator.random(),
             f8eSpendingKeyset =
               F8eSpendingKeyset(
                 keysetId = keyset.keysetId,

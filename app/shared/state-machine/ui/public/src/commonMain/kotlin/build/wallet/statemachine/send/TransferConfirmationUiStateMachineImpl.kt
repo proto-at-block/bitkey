@@ -13,10 +13,10 @@ import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetail
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepository
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.Transaction
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
-import build.wallet.bitcoin.transactions.TransactionRepository
 import build.wallet.bitcoin.transactions.toDuration
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.factor.SigningFactor.F8e
@@ -78,7 +78,7 @@ class TransferConfirmationUiStateMachineImpl(
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
-  private val transactionRepository: TransactionRepository,
+  private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -310,10 +310,10 @@ class TransferConfirmationUiStateMachineImpl(
           props.onTransferInitiated(state.twoOfThreeSignedPsbt, selectedPriority)
           // When we successfully broadcast the transaction, store the transaction details and
           // exchange rate.
-          transactionRepository.setTransaction(
-            transaction =
-              Transaction(
-                transactionDetail = it,
+          outgoingTransactionDetailRepository.persistDetails(
+            details =
+              OutgoingTransactionDetail(
+                broadcastDetail = it,
                 exchangeRates = props.exchangeRates,
                 estimatedConfirmationTime = it.broadcastTime.plus(selectedPriority.toDuration())
               )

@@ -17,4 +17,12 @@ class FeatureFlagDaoMock : FeatureFlagDao {
     flagValue: T,
     featureFlagId: String,
   ): Result<Unit, DbError> = Ok(Unit)
+
+  override suspend fun getFlagOverridden(featureFlagId: String): Result<Boolean, DbError> =
+    Ok(false)
+
+  override suspend fun setFlagOverridden(
+    featureFlagId: String,
+    overridden: Boolean,
+  ) = Ok(Unit)
 }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.collection-internal:collection",
+    "components": [
+        {
+            "version": "1.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "collection-1.6.1.jar": "94021efb94a4aa283b038bf1675c834540f0e38e133c50584fe8a6a38e7b1366"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -19,7 +19,7 @@ final class ErrorSnapshotTests: XCTestCase {
                 renderContext: RenderContext.screen,
                 eventTrackerScreenId: nil,
                 eventTrackerScreenIdContext: nil,
-                eventTrackerShouldTrack: false, 
+                eventTrackerShouldTrack: false,
                 onLoaded: {},
                 secondaryButtonIcon: Icon.smalliconarrowupright
             )

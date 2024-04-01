@@ -14,6 +14,10 @@ messages:
       auth: after_onboarding
     - name: fwpb_configure_unlock_limit_response_cmd
       auth: after_onboarding
+    - name: fwpb_delete_fingerprint_cmd
+      auth: after_onboarding
+    - name: fwpb_get_enrolled_fingerprints_cmd
+      auth: after_onboarding
   structs:
     - name: auth_set_timestamp_t
       fields:

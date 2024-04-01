@@ -4,9 +4,9 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.socrec.ChallengeAuthentication
 import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
 import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
@@ -121,7 +121,7 @@ class SocRecChallengeRepositoryImpl(
         .mapError { Error(it) }
         .bind()
         .map {
-          val pakeCode = PakeCode(it.pakeCode)
+          val pakeCode = it.pakeCode
           val fullCode = socRecCodeBuilder.buildRecoveryCode(socialChallenge.counter, pakeCode)
             .mapError { genErr -> Error(genErr) }
             .bind()
@@ -151,7 +151,7 @@ class SocRecChallengeRepositoryImpl(
   override suspend fun respondToChallenge(
     account: Account,
     socialChallengeId: String,
-    trustedContactRecoveryPakePubkey: PublicKey,
+    trustedContactRecoveryPakePubkey: PublicKey<TrustedContactRecoveryPakeKey>,
     recoveryPakeConfirmation: ByteString,
     resealedDek: XCiphertext,
   ): Result<Unit, Error> {

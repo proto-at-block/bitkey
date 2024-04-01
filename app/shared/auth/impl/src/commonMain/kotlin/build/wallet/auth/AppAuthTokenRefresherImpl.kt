@@ -2,12 +2,9 @@ package build.wallet.auth
 
 import build.wallet.availability.AuthSignatureStatus
 import build.wallet.availability.F8eAuthSignatureStatusProvider
-import build.wallet.bitkey.app.AppAuthPublicKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
-import build.wallet.bitkey.auth.AuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.logging.LogLevel
@@ -67,7 +64,7 @@ class AppAuthTokenRefresherImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     authTokenScope: AuthTokenScope,
-    appAuthKey: AppAuthPublicKey?,
+    appAuthKey: PublicKey<out AppAuthKey>?,
   ): Result<AccountAuthTokens, AuthError> =
     binding {
       log(level = LogLevel.Debug) {
@@ -97,7 +94,7 @@ class AppAuthTokenRefresherImpl(
               Err(AccountMissing)
             } else {
               accountAuthenticator
-                .appAuth(f8eEnvironment, appAuthKey)
+                .appAuth(f8eEnvironment, appAuthKey, authTokenScope)
                 .logAuthFailure { "Error when re-authenticating with app key" }
                 .map { it.authTokens }
                 .onSuccess { _ ->
@@ -137,18 +134,3 @@ class AppAuthTokenRefresherImpl(
       .mapError { AuthNetworkError(cause = it) }
   }
 }
-
-/**
- * The scope of tokens generated for the [AuthPublicKey] type.
- * Falls back to [Global] for unknown [AuthPublicKey] types.
- */
-private val AuthPublicKey.authTokenScope: AuthTokenScope
-  get() =
-    when (this) {
-      is AppGlobalAuthPublicKey, is HwAuthPublicKey ->
-        AuthTokenScope.Global
-      is AppRecoveryAuthPublicKey ->
-        AuthTokenScope.Recovery
-      else ->
-        AuthTokenScope.Global
-    }

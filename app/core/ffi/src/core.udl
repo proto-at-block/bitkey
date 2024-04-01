@@ -339,6 +339,8 @@ enum CommandError {
   "FeatureNotSupported",
   "CertReadFail",
   "AttestationError",
+  "FileNotFound",
+  "InvalidState",
 };
 
 enum FirmwareSlot {

@@ -1,10 +1,7 @@
-@file:OptIn(ExperimentalComposeUiApi::class)
-
 package build.wallet.ui.compose
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur

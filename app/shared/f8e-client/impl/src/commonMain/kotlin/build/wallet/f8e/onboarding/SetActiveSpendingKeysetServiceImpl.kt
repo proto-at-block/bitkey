@@ -1,7 +1,8 @@
 package build.wallet.f8e.onboarding
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
@@ -20,7 +21,7 @@ class SetActiveSpendingKeysetServiceImpl(
     f8eEnvironment: F8eEnvironment,
     fullAccountId: FullAccountId,
     keysetId: String,
-    appAuthKey: AppGlobalAuthPublicKey,
+    appAuthKey: PublicKey<AppGlobalAuthKey>,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, NetworkingError> {
     return f8eHttpClient

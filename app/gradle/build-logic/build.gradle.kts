@@ -51,6 +51,10 @@ gradlePlugin {
       id = "build.wallet.dependency-locking.dependency-configuration"
       implementationClass = "build.wallet.gradle.logic.DependencyLockingDependencyConfigurationPlugin"
     }
+    create("automaticKotlinOptInPlugin") {
+      id = "build.wallet.kotlin.opt-in"
+      implementationClass = "build.wallet.gradle.logic.AutomaticKotlinOptInPlugin"
+    }
   }
 }
 

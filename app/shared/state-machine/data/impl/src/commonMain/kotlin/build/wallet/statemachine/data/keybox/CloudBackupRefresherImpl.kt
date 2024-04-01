@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
-// TODO(BKR-933): merge into FullAccountCloudBackupRepairer
+// TODO(BKR-1135): merge into FullAccountCloudBackupRepairer
 class CloudBackupRefresherImpl(
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val cloudBackupDao: CloudBackupDao,

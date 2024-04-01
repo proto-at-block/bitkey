@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-okhttp",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-okhttp-metadata-2.3.8.jar": "5a46fdbc40fd2d78259883c4cc6eaf3b5e290dd07d1c46ea88eea3d48f505772"
+                        "ktor-client-okhttp-metadata-2.3.9.jar": "5a46fdbc40fd2d78259883c4cc6eaf3b5e290dd07d1c46ea88eea3d48f505772"
                     }
                 }
             ],

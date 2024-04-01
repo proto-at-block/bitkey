@@ -54,7 +54,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
   context("v2") {
     test("success") {
       val recoveryAuthKeypair = AppRecoveryAuthKeypairMock
-      appPrivateKeyDao.appAuthKeys[recoveryAuthKeypair.publicKey] = recoveryAuthKeypair.privateKey
+      appPrivateKeyDao.asymmetricKeys[recoveryAuthKeypair.publicKey] = recoveryAuthKeypair.privateKey
       backupCreator
         .create(
           keybox = keybox,
@@ -90,7 +90,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
 
     test("failure - could not get private key") {
       val throwable = Throwable("foo")
-      appPrivateKeyDao.getAppAuthPrivateKeyErrResult = Err(throwable)
+      appPrivateKeyDao.getAppPrivateKeyErrResult = Err(throwable)
       backupCreator
         .create(
           keybox = keybox,

@@ -2,11 +2,11 @@
     "module-identifier": "io.github.classgraph:classgraph",
     "components": [
         {
-            "version": "4.8.162",
+            "version": "4.8.165",
             "variants": [
                 {
                     "artifacts": {
-                        "classgraph-4.8.162.jar": "ea30b2d5e29e89d52706bcecf7a6ae3b44682d4a1566a5f22b9453f9be2a970c"
+                        "classgraph-4.8.165.jar": "5258d9218fc6413f4d14218a5a6e784528e349f60f48883b77de74bb478ebafd"
                     }
                 }
             ],

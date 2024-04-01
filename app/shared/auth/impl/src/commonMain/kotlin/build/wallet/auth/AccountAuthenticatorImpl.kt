@@ -1,8 +1,9 @@
 package build.wallet.auth
 
 import build.wallet.auth.AccountAuthenticator.AuthData
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.ktor.result.HttpError
@@ -20,7 +21,8 @@ class AccountAuthenticatorImpl(
 ) : AccountAuthenticator {
   override suspend fun appAuth(
     f8eEnvironment: F8eEnvironment,
-    appAuthPublicKey: AppAuthPublicKey,
+    appAuthPublicKey: PublicKey<out AppAuthKey>,
+    authTokenScope: AuthTokenScope,
   ): Result<AuthData, AuthError> =
     binding {
       log(level = LogLevel.Debug) {
@@ -29,7 +31,7 @@ class AccountAuthenticatorImpl(
 
       val signInResponse =
         authenticationService
-          .initiateAuthentication(f8eEnvironment, appAuthPublicKey)
+          .initiateAuthentication(f8eEnvironment, appAuthPublicKey, authTokenScope)
           .mapError { error ->
             when (error) {
               is HttpError.ClientError -> if (error.response.status == NotFound) {

@@ -30,5 +30,5 @@ fun RecoveryContactCardModel(
     ),
   onClick = onClick,
   content = null,
-  style = CardModel.CardStyle.Gradient
+  style = CardModel.CardStyle.Gradient()
 )

@@ -14,7 +14,7 @@ import build.wallet.limit.MobilePayStatus.MobilePayDisabled
 import build.wallet.limit.MobilePayStatus.MobilePayEnabled
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -33,7 +33,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
     MobilePayStatusProviderImpl(
       spendingLimitDao = spendingLimitDao,
       mobilePayBalanceService = mobilePayBalanceService,
-      uuid = UuidFake()
+      uuidGenerator = UuidGeneratorFake()
     )
 
   val limit1 = SpendingLimitMock(amount = FiatMoney.usd(100.0))

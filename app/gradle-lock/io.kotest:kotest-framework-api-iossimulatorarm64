@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-framework-api-iossimulatorarm64",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-api-iossimulatorarm64-5.8.0-metadata.jar": "cd142ed86fe8fc06db98f495d3dc227cc94e21e537ca3cca1bb477d735d52064"
+                        "kotest-framework-api-iossimulatorarm64-5.8.1-metadata.jar": "bd4422a61ff0831bf7205ac7b6d73bb0685139583bb1f5f53191270b716ad35e"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-framework-api.klib": "1024a4d9824d4270a278ae43ccacbf41e7fc7d58e7c0c9c22db1e4068eef938a"
+                        "kotest-framework-api.klib": "70d58a144bf2dff18f9d3fcb408a96eb835ee84fa9ab87991c39dbc1a9c191ba"
                     }
                 }
             ],

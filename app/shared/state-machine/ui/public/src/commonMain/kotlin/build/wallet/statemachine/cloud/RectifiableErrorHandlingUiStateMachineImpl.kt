@@ -9,7 +9,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.RECTIFY
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiState.AttemptingRectificationState
 import build.wallet.statemachine.cloud.RectifiableErrorHandlingUiState.ShowingExplanationState
 import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.ErrorFormBodyModelWithOptionalErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 
@@ -23,8 +23,10 @@ class RectifiableErrorHandlingUiStateMachineImpl(
     }
     return when (state) {
       ShowingExplanationState ->
-        ErrorFormBodyModel(
-          onBack = props.onFailure,
+        ErrorFormBodyModelWithOptionalErrorData(
+          onBack = {
+            props.onFailure(null)
+          },
           title = props.messages.title,
           subline = props.messages.subline,
           primaryButton =
@@ -37,9 +39,12 @@ class RectifiableErrorHandlingUiStateMachineImpl(
           secondaryButton =
             ButtonDataModel(
               text = "Cancel",
-              onClick = props.onFailure
+              onClick = {
+                props.onFailure(null)
+              }
             ),
-          eventTrackerScreenId = props.screenId
+          eventTrackerScreenId = props.screenId,
+          errorData = props.errorData
         )
       AttemptingRectificationState -> {
         cloudBackupRectificationNavigator.navigate(

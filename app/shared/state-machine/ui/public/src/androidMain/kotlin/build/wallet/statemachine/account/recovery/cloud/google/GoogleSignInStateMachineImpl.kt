@@ -110,8 +110,8 @@ class GoogleSignInStateMachineImpl(
       -> GoogleSignInModel.SigningIn
 
       is SignedInState -> GoogleSignInModel.SuccessfullySignedIn(s.cloudAccount)
-      is FailedToSignOutState -> GoogleSignInModel.SignInFailure(s.failure.message)
-      is FailedToSignInState -> GoogleSignInModel.SignInFailure(s.failure.message.orEmpty())
+      is FailedToSignOutState -> GoogleSignInModel.SignInFailure(s.failure)
+      is FailedToSignInState -> GoogleSignInModel.SignInFailure(s.failure)
     }
   }
 

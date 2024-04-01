@@ -1,15 +1,14 @@
 package build.wallet.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
-import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import com.github.michaelbull.result.Result
-import com.russhwolf.settings.ExperimentalSettingsApi
 
 private const val KEYSTORE_KEY = "onboarding-app-keys"
 private const val SPENDING_KEY = "spending-key"
@@ -24,7 +23,6 @@ private const val NETWORK_KEY = "network-key"
  *
  * @param encryptedKeyValueStoreFactory - factory for creating a store
  */
-@OptIn(ExperimentalSettingsApi::class)
 class OnboardingAppKeyKeystoreImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : OnboardingAppKeyKeystore {
@@ -32,14 +30,14 @@ class OnboardingAppKeyKeystoreImpl(
 
   override suspend fun persistAppKeys(
     spendingKey: AppSpendingPublicKey,
-    globalAuthKey: AppGlobalAuthPublicKey,
-    recoveryAuthKey: AppRecoveryAuthPublicKey,
+    globalAuthKey: PublicKey<AppGlobalAuthKey>,
+    recoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
     bitcoinNetworkType: BitcoinNetworkType,
   ) {
     val appKeystore = appKeystore()
     appKeystore.putString(SPENDING_KEY, spendingKey.key.dpub)
-    appKeystore.putString(APP_GLOBAL_AUTH_KEY, globalAuthKey.pubKey.value)
-    appKeystore.putString(APP_RECOVERY_AUTH_KEY, recoveryAuthKey.pubKey.value)
+    appKeystore.putString(APP_GLOBAL_AUTH_KEY, globalAuthKey.value)
+    appKeystore.putString(APP_RECOVERY_AUTH_KEY, recoveryAuthKey.value)
     appKeystore.putString(NETWORK_KEY, bitcoinNetworkType.name)
   }
 
@@ -61,9 +59,9 @@ class OnboardingAppKeyKeystoreImpl(
     return AppKeyBundle(
       localId = localId,
       spendingKey = AppSpendingPublicKey(spendingKey),
-      authKey = AppGlobalAuthPublicKey(Secp256k1PublicKey(globalAuthKey)),
+      authKey = PublicKey(globalAuthKey),
       networkType = network,
-      recoveryAuthKey = AppRecoveryAuthPublicKey(Secp256k1PublicKey(recoveryAuthKey))
+      recoveryAuthKey = PublicKey(recoveryAuthKey)
     )
   }
 

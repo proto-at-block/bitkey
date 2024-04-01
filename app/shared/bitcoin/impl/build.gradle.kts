@@ -36,6 +36,7 @@ kotlin {
         api(projects.shared.databasePublic)
         implementation(projects.shared.loggingPublic)
         implementation(libs.kmp.okio)
+        implementation(libs.kmp.settings)
       }
     }
     commonTest {

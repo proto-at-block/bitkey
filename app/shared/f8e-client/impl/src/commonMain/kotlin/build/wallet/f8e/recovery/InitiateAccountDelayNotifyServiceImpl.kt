@@ -1,10 +1,11 @@
 package build.wallet.f8e.recovery
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
@@ -33,8 +34,8 @@ class InitiateAccountDelayNotifyServiceImpl(
     fullAccountId: FullAccountId,
     // TODO(W-3092): Remove lostFactor
     lostFactor: PhysicalFactor,
-    appGlobalAuthKey: AppGlobalAuthPublicKey,
-    appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+    appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+    appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
     delayPeriod: Duration?,
     hardwareAuthKey: HwAuthPublicKey,
@@ -52,8 +53,8 @@ class InitiateAccountDelayNotifyServiceImpl(
               delayPeriodNumSec = delayPeriod?.inWholeSeconds?.toInt() ?: 20,
               auth =
                 AuthKeypairBody(
-                  appGlobal = appGlobalAuthKey.pubKey.value,
-                  appRecovery = appRecoveryAuthKey.pubKey.value,
+                  appGlobal = appGlobalAuthKey.value,
+                  appRecovery = appRecoveryAuthKey.value,
                   hardware = hardwareAuthKey.pubKey.value
                 ),
               lostFactor = lostFactor.toServerString()

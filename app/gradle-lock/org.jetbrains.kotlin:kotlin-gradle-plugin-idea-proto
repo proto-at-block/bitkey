@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-idea-proto",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-idea-proto-1.9.21.jar": "eb97958fb2354a6c0ecdc28c343c962aa42564e6bbd06998db68de589b7a3073"
+                        "kotlin-gradle-plugin-idea-proto-1.9.22.jar": "f5d82ee61966a2d98adfae19f24d6173022c15404896cdf236340035ee68c0f5"
                     }
                 }
             ],

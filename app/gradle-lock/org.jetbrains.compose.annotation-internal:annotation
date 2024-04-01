@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.annotation-internal:annotation",
+    "components": [
+        {
+            "version": "1.6.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotation-1.6.1.jar": "2102e4c0e59863b6b4eba8ba966f50293dc591d92da8eb73ee1619c80b01dbd2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

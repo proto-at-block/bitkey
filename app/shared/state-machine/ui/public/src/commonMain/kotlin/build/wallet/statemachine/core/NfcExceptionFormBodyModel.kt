@@ -5,10 +5,16 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.form.FormBodyModel
 
-/** Produce [FormBodyModel] mapped from [NfcException]. */
+/**
+ * Produce [FormBodyModel] mapped from [NfcException].
+ *
+ * TOOD(BKR-1117): make [segment] and [actionDescription] non-nullable.
+ */
 fun NfcErrorFormBodyModel(
   exception: NfcException,
   onPrimaryButtonClick: () -> Unit,
+  segment: AppSegment?,
+  actionDescription: String?,
   onSecondaryButtonClick: () -> Unit,
   eventTrackerScreenId: EventTrackerScreenId?,
   eventTrackerScreenIdContext: NfcEventTrackerScreenIdContext?,
@@ -25,11 +31,20 @@ fun NfcErrorFormBodyModel(
       else -> null
     }
 
-  return ErrorFormBodyModel(
+  return ErrorFormBodyModelWithOptionalErrorData(
     title = message.title,
     subline = message.description,
     primaryButton = ButtonDataModel("OK", onClick = onPrimaryButtonClick),
     secondaryButton = secondaryButton,
+    errorData = if (segment != null && actionDescription != null) {
+      ErrorData(
+        segment = segment,
+        cause = exception,
+        actionDescription = actionDescription
+      )
+    } else {
+      null
+    },
     eventTrackerScreenId = eventTrackerScreenId,
     eventTrackerScreenIdContext = eventTrackerScreenIdContext,
     secondaryButtonIcon = Icon.SmallIconArrowUpRight

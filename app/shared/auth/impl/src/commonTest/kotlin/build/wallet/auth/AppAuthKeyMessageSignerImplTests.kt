@@ -24,7 +24,7 @@ class AppAuthKeyMessageSignerImplTests : FunSpec({
   ).forEach { authKeypair ->
     context(authKeypair.toString()) {
       test("successfully sign a message with existing private key") {
-        appPrivateKeyDao.appAuthKeys[authKeypair.publicKey] = authKeypair.privateKey
+        appPrivateKeyDao.asymmetricKeys[authKeypair.publicKey] = authKeypair.privateKey
 
         appAuthKeyMessageSigner
           .signMessage(

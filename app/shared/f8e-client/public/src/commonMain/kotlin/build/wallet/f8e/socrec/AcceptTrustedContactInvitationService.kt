@@ -5,6 +5,7 @@ import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
@@ -20,7 +21,7 @@ interface AcceptTrustedContactInvitationService {
     account: Account,
     invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+    trustedContactEnrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
     enrollmentPakeConfirmation: ByteString,
     sealedDelegateDecryptionKeyCipherText: XCiphertext,
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>>

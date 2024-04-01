@@ -30,7 +30,6 @@ import io.ktor.http.contentType
 import io.ktor.http.encodedPath
 import io.ktor.http.fullPath
 import io.ktor.http.path
-import io.ktor.utils.io.core.toByteArray
 import kotlinx.serialization.Serializable
 import okio.ByteString
 

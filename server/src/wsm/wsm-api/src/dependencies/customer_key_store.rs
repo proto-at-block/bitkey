@@ -102,40 +102,6 @@ impl CustomerKeyStore {
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    /// TODO(W-5872) Remove after backfill. This loads all the keys into memory, but
-    /// should be fine for now as we have a small number of keys.
-    pub async fn get_all_customer_keys(&self) -> anyhow::Result<Vec<CustomerKey>> {
-        let mut customer_keys = Vec::new();
-        let mut last_evaluated_key = None;
-
-        loop {
-            let scan_output = self
-                .client
-                .scan()
-                .table_name(&self.ck_table_name)
-                .set_exclusive_start_key(last_evaluated_key)
-                .send()
-                .await?;
-
-            if let Some(items) = scan_output.items {
-                for item in items {
-                    if let Ok(customer_key) = from_item(item) {
-                        customer_keys.push(customer_key);
-                    }
-                }
-            }
-
-            if scan_output.last_evaluated_key.is_none() {
-                break;
-            }
-
-            last_evaluated_key = scan_output.last_evaluated_key;
-        }
-
-        Ok(customer_keys)
-    }
-
     pub async fn update_integrity_signature(
         &self,
         root_key_id: &str,

@@ -16,7 +16,6 @@ class FirmwareTelemetryUploaderImpl(
   private val oldCoredumpSize: Int = 4096
   private val coredumpSize: Int = 588
 
-  @OptIn(ExperimentalUnsignedTypes::class)
   override fun addEvents(
     events: ByteString,
     identifiers: TelemetryIdentifiers,

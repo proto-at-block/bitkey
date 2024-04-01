@@ -12,7 +12,6 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.SealedCsek
-import build.wallet.coroutines.delayedResult
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
@@ -24,7 +23,7 @@ import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.recovery.LostHardwareRecoveryStarter
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError.F8eInitiateDelayNotifyError
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingHardwareProofOfPossessionKeyData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
@@ -46,7 +45,8 @@ import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingL
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachineImpl.State.VerifyingNotificationCommsState.VerifyingNotificationCommsForInitiationState
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
-import com.github.michaelbull.result.getOrThrow
+import build.wallet.time.Delayer
+import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -62,6 +62,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val lostHardwareRecoveryStarter: LostHardwareRecoveryStarter,
   private val cancelDelayNotifyRecoveryService: CancelDelayNotifyRecoveryService,
+  private val delayer: Delayer,
   private val recoveryNotificationVerificationDataStateMachine:
     RecoveryNotificationVerificationDataStateMachine,
 ) : InitiatingLostHardwareRecoveryDataStateMachine {
@@ -73,16 +74,25 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
     return when (val s = state) {
       is GeneratingNewAppKeys -> {
         LaunchedEffect("building-key-cross-with-hardware-keys") {
-          val newAppKeys = appKeysGenerator
-            .generateKeyBundle(props.account.config.bitcoinNetworkType)
-            .getOrThrow()
-
-          delayedResult {
-            state = OnboardingNewHardware(newAppKeys)
-          }
+          delayer
+            .withMinimumDelay {
+              appKeysGenerator.generateKeyBundle(props.account.config.bitcoinNetworkType)
+            }
+            .onSuccess {
+              state = OnboardingNewHardware(it)
+            }
+            .onFailure {
+              state = State.ErrorGeneratingNewAppKeysState(it)
+            }
         }
         GeneratingNewAppKeysData
       }
+
+      is State.ErrorGeneratingNewAppKeysState ->
+        InitiatingLostHardwareRecoveryData.ErrorGeneratingNewAppKeysData(
+          retry = { state = GeneratingNewAppKeys },
+          cause = s.cause
+        )
 
       is OnboardingNewHardware ->
         AwaitingNewHardwareData(
@@ -127,6 +137,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
                 state =
                   // Otherwise, show a failure
                   FailedInitiatingServerRecoveryState(
+                    cause = error,
                     sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
@@ -144,6 +155,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
       is FailedInitiatingServerRecoveryState -> {
         FailedInitiatingRecoveryWithF8eData(
+          cause = s.cause,
           retry = {
             state =
               InitiatingServerRecoveryState(
@@ -240,6 +252,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
                   )
                 } else {
                   FailedToCancelConflictingRecoveryWithF8EState(
+                    cause = f8eError.error,
                     sealedCsek = s.sealedCsek,
                     destinationAppKeyBundle = s.destinationAppKeyBundle,
                     destinationHardwareKeyBundle = s.destinationHardwareKeyBundle,
@@ -271,6 +284,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
       is FailedToCancelConflictingRecoveryWithF8EState ->
         InitiatingLostHardwareRecoveryData.FailedToCancelConflictingRecoveryData(
+          cause = s.cause,
           onAcknowledge = {
             state = GeneratingNewAppKeys
           }
@@ -285,6 +299,10 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
     data object GeneratingNewAppKeys : State
 
+    data class ErrorGeneratingNewAppKeysState(
+      val cause: Throwable,
+    ) : State
+
     data class InitiatingServerRecoveryState(
       val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
@@ -293,6 +311,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
     ) : State
 
     data class FailedInitiatingServerRecoveryState(
+      val cause: Throwable,
       val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,
@@ -343,6 +362,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
      * Corresponds to [CancellingConflictingRecoveryData].
      */
     data class FailedToCancelConflictingRecoveryWithF8EState(
+      val cause: Throwable,
       val sealedCsek: SealedCsek,
       val destinationAppKeyBundle: AppKeyBundle,
       val destinationHardwareKeyBundle: HwKeyBundle,

@@ -7,7 +7,6 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.platform.permissions.PermissionStatus
 import build.wallet.recovery.socrec.syncAndVerifyRelationships
@@ -16,8 +15,11 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.createTcInvite
+import build.wallet.testing.ext.getActiveFullAccount
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
@@ -35,8 +37,6 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
       cloudKeyValueStore = appTester.app.cloudKeyValueStore
     )
-
-    onboardApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.app.cloudBackupRepository
@@ -97,8 +97,6 @@ class ReplaceFullAccountWithLiteAccountBackupFunctionalTests : FunSpec({
       cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
       cloudKeyValueStore = appTester.app.cloudKeyValueStore
     )
-
-    onboardApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
 
     // Sanity check that the cloud backup is available to the app that will now go through onboarding.
     onboardApp.app.cloudBackupRepository
@@ -172,9 +170,6 @@ private suspend fun createLiteAccountWithInvite(): Triple<AppTester, LiteAccount
   val fullApp = launchNewApp()
   fullApp.onboardFullAccountWithFakeHardware()
   val liteApp = launchNewApp()
-
-  liteApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
-  fullApp.app.appComponent.notificationsFlowV2EnabledFeatureFlag.setFlagValue(BooleanFlag(false))
 
   val (inviteCode, _) = fullApp.createTcInvite("trusted contact")
   val liteAccount =

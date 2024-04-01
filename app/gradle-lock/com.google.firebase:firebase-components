@@ -2,11 +2,11 @@
     "module-identifier": "com.google.firebase:firebase-components",
     "components": [
         {
-            "version": "17.1.0",
+            "version": "17.1.5",
             "variants": [
                 {
                     "artifacts": {
-                        "firebase-components-17.1.0.aar": "352c71f89994cb4481daeb45ed3630bbf1789bdf1be4563988e2c18618af4f60"
+                        "firebase-components-17.1.5.aar": "e4c133f8055b1894814ad169028e17f6b214838d0b6787268dcefdc09d4e9dbf"
                     }
                 }
             ],

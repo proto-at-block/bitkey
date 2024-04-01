@@ -2,11 +2,11 @@
     "module-identifier": "com.google.firebase:firebase-messaging",
     "components": [
         {
-            "version": "23.2.1",
+            "version": "23.4.1",
             "variants": [
                 {
                     "artifacts": {
-                        "firebase-messaging-23.2.1.aar": "4d00a7606eaf71693f661fe375d766e1acc49932895b36ffa9875af8b6246df7"
+                        "firebase-messaging-23.4.1.aar": "15c2637c28fb6895b6a4c998a191b663f3b78ac815f6ac59ab7d673a8d9af202"
                     }
                 }
             ],

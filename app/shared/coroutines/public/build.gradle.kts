@@ -12,7 +12,6 @@ kotlin {
     commonMain {
       dependencies {
         api(libs.kmp.kotlin.coroutines)
-        implementation(projects.shared.loggingPublic)
       }
     }
     commonTest {

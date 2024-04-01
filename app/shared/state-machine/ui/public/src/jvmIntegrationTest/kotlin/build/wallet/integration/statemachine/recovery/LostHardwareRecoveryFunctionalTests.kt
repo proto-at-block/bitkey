@@ -1,5 +1,3 @@
-@file:OptIn(DelicateCoroutinesApi::class)
-
 package build.wallet.integration.statemachine.recovery
 
 import androidx.compose.runtime.Composable
@@ -66,8 +64,13 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.addSomeFunds
+import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
+import build.wallet.testing.ext.getActiveFullAccount
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.returnFundsToTreasury
+import build.wallet.testing.ext.waitForFunds
 import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
@@ -77,7 +80,6 @@ import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
@@ -144,7 +146,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     app = appTester.app
     appSpendingWalletProvider = appTester.app.appComponent.appSpendingWalletProvider
     appTester.onboardFullAccountWithFakeHardware()
-    appTester.fakeNfcCommands.clearHardwareKeys()
+    appTester.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     recoveryStateMachine =
       TestingStateMachine(
         app.accountDataStateMachine,
@@ -154,7 +156,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       )
   }
 
-  fun resetApp() {
+  suspend fun resetApp() {
     appTester = appTester.relaunchApp()
     app = appTester.app
     recoveryStateMachine =
@@ -175,8 +177,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       testTimeout = 60.seconds,
       turbineTimeout = 30.seconds
     ) {
-      startRecoveryAndAdvanceToDelayNotify()
-      appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+      startRecoveryAndAdvanceToDelayNotify(appTester)
 
       awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
@@ -209,8 +210,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify()
-        appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+        startRecoveryAndAdvanceToDelayNotify(appTester)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -338,8 +338,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify()
-        appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+        startRecoveryAndAdvanceToDelayNotify(appTester)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -389,8 +388,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify()
-        appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+        startRecoveryAndAdvanceToDelayNotify(appTester)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -418,8 +416,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify()
-        appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+        startRecoveryAndAdvanceToDelayNotify(appTester)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -482,7 +479,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     // Create new blank app, persist cloud backups
     val newApp = launchNewApp(
       cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = appTester.app.cloudKeyValueStore
+      cloudKeyValueStore = appTester.app.cloudKeyValueStore,
+      hardwareSeed = appTester.fakeHardwareKeyStore.getSeed()
     )
 
     // Lost App recovery from Cloud
@@ -513,7 +511,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
 
-    newApp.fakeNfcCommands.clearHardwareKeys()
+    newApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
     recoveryStateMachine =
       TestingStateMachine(
         newApp.app.accountDataStateMachine,
@@ -532,8 +530,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify()
-        newApp.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+        startRecoveryAndAdvanceToDelayNotify(appTester)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -581,8 +578,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         testTimeout = 30.seconds,
         turbineTimeout = 5.seconds
       ) {
-        startRecoveryAndAdvanceToDelayNotify()
-        appTester.completeServerDelayNotifyPeriodForTesting(keybox.config.f8eEnvironment)
+        startRecoveryAndAdvanceToDelayNotify(appTester)
 
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
@@ -612,10 +608,11 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       }
     }
 
-    // Create new blank app, persist cloud backups
+    // Create new blank app, persist cloud backups, keep hardware
     val newApp = launchNewApp(
       cloudStoreAccountRepository = appTester.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = appTester.app.cloudKeyValueStore
+      cloudKeyValueStore = appTester.app.cloudKeyValueStore,
+      hardwareSeed = appTester.fakeHardwareKeyStore.getSeed()
     )
 
     // Lost App recovery from Cloud
@@ -648,7 +645,9 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 })
 
-private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNotify() {
+private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNotify(
+  appTester: AppTester,
+) {
   awaitUntilScreenWithBody<FormBodyModel>(RECOVERY_NOT_STARTED)
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
     .clickPrimaryButton()
@@ -661,4 +660,5 @@ private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNo
   awaitUntilScreenWithBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
     .clickPrimaryButton()
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_PENDING)
+  appTester.completeRecoveryDelayPeriodOnF8e()
 }

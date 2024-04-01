@@ -6,11 +6,13 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.signResult
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EventFragment
 import build.wallet.firmware.FingerprintEnrollmentStatus
+import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareFeatureFlag
@@ -21,18 +23,25 @@ import build.wallet.firmware.SecureBootConfig
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.toByteString
+import build.wallet.toUByteList
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Instant
 import okio.ByteString
+import okio.ByteString.Companion.decodeHex
+import okio.ByteString.Companion.encodeUtf8
 
 class NfcCommandsFake(
   private val messageSigner: MessageSigner,
   val fakeHardwareKeyStore: FakeHardwareKeyStore,
   private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
 ) : NfcCommands {
-  suspend fun clearHardwareKeys() {
+  private var fingerprintEnrollmentStatus: FingerprintEnrollmentStatus = NOT_IN_PROGRESS
+
+  suspend fun clearHardwareKeysAndFingerprintEnrollment() {
     fakeHardwareKeyStore.clear()
+    fingerprintEnrollmentStatus = NOT_IN_PROGRESS
   }
 
   override suspend fun fwupStart(
@@ -101,7 +110,7 @@ class NfcCommandsFake(
   }
 
   override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
-    FingerprintEnrollmentStatus.COMPLETE
+    fingerprintEnrollmentStatus
 
   override suspend fun getFirmwareMetadata(session: NfcSession) =
     FirmwareMetadata(
@@ -135,18 +144,55 @@ class NfcCommandsFake(
 
   override suspend fun queryAuthentication(session: NfcSession) = true
 
+  /** See [NfcCommandsFake.sealKey] for implementation details. */
+  private val sealKeySeparator = "---"
+
+  /**
+   * "Seals" a CSEK using actual fake auth key. The sealing process is a simple concatenation of the
+   * auth private key and the unsealed key in following format: "unsealedKey---authPrivateKey".
+   *
+   * Unsealing process is a simple split of the sealed key by the same separator and then checking if
+   * the auth private key is the same as the one used for sealing.
+   */
   override suspend fun sealKey(
     session: NfcSession,
     unsealedKey: Csek,
-  ) = unsealedKey.key.raw
+  ): SealedCsek {
+    val hwAuthPrivateKey = fakeHardwareKeyStore.getAuthKeypair().privateKey.key
+    return buildString {
+      append(unsealedKey.key.raw.hex())
+      append(sealKeySeparator)
+      append(hwAuthPrivateKey.bytes.hex())
+    }.encodeUtf8()
+  }
+
+  /**
+   * See [NfcCommandsFake.sealKey] for implementation details.
+   */
+  override suspend fun unsealKey(
+    session: NfcSession,
+    sealedKey: List<UByte>,
+  ): List<UByte> {
+    val (sealedCsekRaw, hwAuthPrivateKeyPart) = sealedKey.toByteString()
+      .utf8()
+      .split(sealKeySeparator)
+    // Simulate the sealing process by checking if the private key is the same as the one.
+    // If hw auth private keys don't match, effectively means that the csek was not sealed with
+    // this fake hardware's auth private key.
+    require(hwAuthPrivateKeyPart == fakeHardwareKeyStore.getAuthKeypair().privateKey.key.bytes.hex()) {
+      "Appropriate fake hw auth private key missing"
+    }
+    return sealedCsekRaw.decodeHex().toUByteList()
+  }
 
   override suspend fun signChallenge(
     session: NfcSession,
     challenge: ByteString,
-  ) = messageSigner
-    .signResult(challenge, fakeHardwareKeyStore.getAuthKeypair().privateKey.key)
-    .mapError { NfcException.CommandError(cause = it) }
-    .getOrThrow()
+  ): String =
+    messageSigner
+      .signResult(challenge, fakeHardwareKeyStore.getAuthKeypair().privateKey.key)
+      .mapError { NfcException.CommandError(cause = it) }
+      .getOrThrow()
 
   override suspend fun signTransaction(
     session: NfcSession,
@@ -159,16 +205,18 @@ class NfcCommandsFake(
       .getOrThrow()
   }
 
-  override suspend fun startFingerprintEnrollment(session: NfcSession) = true
-
-  override suspend fun unsealKey(
-    session: NfcSession,
-    sealedKey: List<UByte>,
-  ) = sealedKey
+  override suspend fun startFingerprintEnrollment(session: NfcSession): Boolean {
+    // Skip straight to complete state.
+    fingerprintEnrollmentStatus = FingerprintEnrollmentStatus.COMPLETE
+    return true
+  }
 
   override suspend fun version(session: NfcSession): UShort = 1u
 
-  override suspend fun wipeDevice(session: NfcSession) = true.also { fakeHardwareKeyStore.clear() }
+  override suspend fun wipeDevice(session: NfcSession): Boolean {
+    clearHardwareKeysAndFingerprintEnrollment()
+    return true
+  }
 
   override suspend fun getCert(
     session: NfcSession,

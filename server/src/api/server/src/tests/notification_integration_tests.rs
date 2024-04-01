@@ -212,36 +212,6 @@ async fn test_notifications_preferences() {
         .await;
     assert_eq!(complete_response.status_code, StatusCode::OK);
 
-    // Out of band unsubscribe
-    store.lock().await.insert(
-        account.id.to_string(),
-        HashSet::from([NotificationCategory::AccountSecurity]),
-    );
-    let get_response = client
-        .get_notifications_preferences(&account.id.to_string())
-        .await;
-    assert_eq!(get_response.status_code, StatusCode::OK);
-    assert_eq!(
-        get_response.body.unwrap(),
-        NotificationsPreferences {
-            account_security: HashSet::from([
-                NotificationChannel::Push,
-                NotificationChannel::Email,
-            ]),
-            money_movement: HashSet::default(),
-            product_marketing: HashSet::from([NotificationChannel::Sms,]),
-        },
-    );
-    assert_eq!(
-        store
-            .lock()
-            .await
-            .get(&account.id.to_string())
-            .cloned()
-            .unwrap_or_default(),
-        HashSet::from([NotificationCategory::AccountSecurity]),
-    );
-
     let set_response = client
         .set_notifications_preferences(
             &account.id.to_string(),

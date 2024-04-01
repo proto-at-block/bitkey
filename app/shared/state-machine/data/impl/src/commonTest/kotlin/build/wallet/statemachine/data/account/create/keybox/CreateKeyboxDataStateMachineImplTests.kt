@@ -22,7 +22,7 @@ import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoFake
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData
@@ -48,7 +48,7 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
   val liteToFullAccountUpgrader = LiteToFullAccountUpgraderMock(turbines::create)
 
   val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
-  val uuid = UuidFake()
+  val uuid = UuidGeneratorFake()
 
   val dataStateMachine =
     CreateKeyboxDataStateMachineImpl(
@@ -56,7 +56,7 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
       appKeysGenerator = appKeysGenerator,
       onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
-      uuid = uuid,
+      uuidGenerator = uuid,
       onboardingAppKeyKeystore = onboardingAppKeyKeystore,
       liteToFullAccountUpgrader = liteToFullAccountUpgrader
     )

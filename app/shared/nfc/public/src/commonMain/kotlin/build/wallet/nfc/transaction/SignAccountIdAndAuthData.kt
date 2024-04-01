@@ -1,10 +1,11 @@
 package build.wallet.nfc.transaction
 
 import build.wallet.auth.AccessToken
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.signAccessToken
@@ -15,7 +16,7 @@ import build.wallet.nfc.transaction.SignAccountIdAndAuthData.SignedAccountIdAndA
  * NFC transaction that signs: [fullAccountId], [accessToken], [appAuthGlobalAuthPublicKey]
  */
 class SignAccountIdAndAuthData(
-  private val appAuthGlobalAuthPublicKey: AppGlobalAuthPublicKey,
+  private val appAuthGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
   private val accessToken: AccessToken,
   private val fullAccountId: FullAccountId,
   private val success: suspend (SignedAccountIdAndAuthData) -> Unit,
@@ -31,7 +32,7 @@ class SignAccountIdAndAuthData(
   ) = SignedAccountIdAndAuthData(
     appGlobalAuthKeyHwSignature =
       commands
-        .signChallenge(session, appAuthGlobalAuthPublicKey.pubKey.value)
+        .signChallenge(session, appAuthGlobalAuthPublicKey.value)
         .let(::AppGlobalAuthKeyHwSignature),
     signedAccessToken = commands.signAccessToken(session, accessToken),
     signedAccountId = commands.signChallenge(session, fullAccountId.serverId),

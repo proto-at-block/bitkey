@@ -3,19 +3,19 @@ package build.wallet.recovery.socrec
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -63,8 +63,7 @@ class SocRecRelationshipsRepositoryImpl(
   ): SocRecRelationships =
     socRecService().getRelationships(
       accountId,
-      f8eEnvironment,
-      hardwareProofOfPossession = null
+      f8eEnvironment
     ).getOr(SocRecRelationships.EMPTY)
 
   override fun syncLoop(
@@ -144,7 +143,7 @@ class SocRecRelationshipsRepositoryImpl(
           account = account,
           hardwareProofOfPossession = hardwareProofOfPossession,
           trustedContactAlias = trustedContactAlias,
-          protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey
+          protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey.publicKey
         )
         .flatMap { invitation ->
           socRecEnrollmentAuthenticationDao
@@ -178,7 +177,7 @@ class SocRecRelationshipsRepositoryImpl(
         socRecEnrollmentAuthenticationDao.getByRelationshipId(relationshipId)
           .mapError { Error("Failed to get PAKE data", it) }
           .toErrorIfNull { Error("Can't refresh invitation if PAKE data isn't present") }
-          .map { PakeCode(it.pakeCode) }
+          .map { it.pakeCode }
           .flatMap {
             socialRecoveryCodeBuilder.buildInviteCode(
               serverPart = invitation.code,
@@ -218,7 +217,7 @@ class SocRecRelationshipsRepositoryImpl(
     account: Account,
     invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     inviteCode: String,
   ): Result<ProtectedCustomer, AcceptInvitationCodeError> {
     return socialRecoveryCodeBuilder.parseInviteCode(inviteCode)
@@ -254,7 +253,7 @@ class SocRecRelationshipsRepositoryImpl(
     binding {
       // Fetch latest relationships from f8e
       val relationships = socRecService()
-        .getRelationships(accountId, f8eEnvironment, hardwareProofOfPossession = null)
+        .getRelationships(accountId, f8eEnvironment)
         .bind()
 
       socRecRelationshipsDao.setSocRecRelationships(relationships)
@@ -268,14 +267,13 @@ class SocRecRelationshipsRepositoryImpl(
   override suspend fun syncAndVerifyRelationships(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
-    appAuthKey: AppGlobalAuthPublicKey?,
+    appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
   ): Result<SocRecRelationships, Error> =
     binding {
       // Fetch latest relationships from f8e
       val relationships = socRecService()
-        .getRelationships(accountId, f8eEnvironment, hardwareProofOfPossession)
+        .getRelationships(accountId, f8eEnvironment)
         .bind()
 
       // If full account, verify relationships using the account's auth keys
@@ -298,7 +296,7 @@ class SocRecRelationshipsRepositoryImpl(
    * auth keys.
    */
   private fun SocRecRelationships.verified(
-    appAuthKey: AppGlobalAuthPublicKey?,
+    appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
   ): SocRecRelationships =
     copy(trustedContacts = trustedContacts.map { it.verified(appAuthKey, hwAuthPublicKey) })
@@ -308,7 +306,7 @@ class SocRecRelationshipsRepositoryImpl(
    * [account]'s active app and/or auth key.
    */
   private fun TrustedContact.verified(
-    appAuthKey: AppGlobalAuthPublicKey?,
+    appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
   ): TrustedContact {
     val isVerified = socRecCrypto

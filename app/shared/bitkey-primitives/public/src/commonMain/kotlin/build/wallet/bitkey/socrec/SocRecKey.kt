@@ -1,10 +1,8 @@
 package build.wallet.bitkey.socrec
 
-import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.crypto.KeyPurpose
 
 /**
- * Represents an asymmetric key used within the SocRec verification protocol.
+ * Represents a key used within the SocRec verification protocol.
  */
-sealed interface SocRecKey : AppKey {
-  val key: AppKey
-}
+interface SocRecKey : KeyPurpose

@@ -76,4 +76,15 @@ final class CloudSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
+    func test_cloud_social_recovery_explaination() {
+        let view = FormView(
+            viewModel: FormScreenModel_CloudRecoveryKt.SocialRecoveryExplanationModel(
+                onBack: {},
+                onContinue: {}
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
+
 }

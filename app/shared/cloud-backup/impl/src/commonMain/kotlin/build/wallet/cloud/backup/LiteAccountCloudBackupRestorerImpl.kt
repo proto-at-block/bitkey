@@ -12,6 +12,7 @@ import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestorationError
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.recovery.socrec.SocRecKeysDao
+import build.wallet.recovery.socrec.saveKey
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
 
@@ -29,7 +30,7 @@ class LiteAccountCloudBackupRestorerImpl(
 
       // Store auth private keys
       appPrivateKeyDao
-        .storeAppAuthKeyPair(liteAccountCloudBackup.appRecoveryAuthKeypair)
+        .storeAppKeyPair(liteAccountCloudBackup.appRecoveryAuthKeypair)
         .mapError(::AccountBackupRestorationError)
         .bind()
 
@@ -43,7 +44,8 @@ class LiteAccountCloudBackupRestorerImpl(
         accountAuthenticator
           .appAuth(
             f8eEnvironment = liteAccountCloudBackup.f8eEnvironment,
-            appAuthPublicKey = liteAccountCloudBackup.appRecoveryAuthKeypair.publicKey
+            appAuthPublicKey = liteAccountCloudBackup.appRecoveryAuthKeypair.publicKey,
+            authTokenScope = AuthTokenScope.Recovery
           )
           .logAuthFailure { "Error authenticating with new app auth key after recovery completed." }
           .mapError(::AccountBackupRestorationError)

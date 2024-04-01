@@ -2,10 +2,8 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.keys.app.AppKeyImpl
 import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.bitkey.socrec.SocRecKeyPurpose
-import build.wallet.crypto.CurveType
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
@@ -21,73 +19,63 @@ class SocRecKeysDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val appPrivateKeyDao: AppPrivateKeyDao,
 ) : SocRecKeysDao {
-  override suspend fun <T : SocRecKey> getKey(
-    keyFactory: (AppKey) -> T,
+  override suspend fun <T : SocRecKey> getPublicKey(
     keyClass: KClass<T>,
-  ) = getPublicKey(SocRecKeyPurpose.fromKeyType(keyClass))
-    .map {
-      keyFactory(
-        AppKeyImpl(
-          curveType = CurveType.SECP256K1,
-          publicKey = it,
-          privateKey = null
-        )
-      )
-    }
+  ): Result<PublicKey<T>, SocRecKeyError> = getPublicKey(SocRecKeyPurpose.fromKeyType(keyClass))
 
   override suspend fun <T : SocRecKey> getKeyWithPrivateMaterial(
-    keyFactory: (AppKey) -> T,
     keyClass: KClass<T>,
-  ): Result<T, SocRecKeyError> =
+  ): Result<AppKey<T>, SocRecKeyError> =
     binding {
-      val publicKey = getPublicKey(SocRecKeyPurpose.fromKeyType(keyClass)).bind()
+      val publicKey = getPublicKey<T>(SocRecKeyPurpose.fromKeyType(keyClass)).bind()
       val privateKey =
         appPrivateKeyDao.getAsymmetricPrivateKey(publicKey)
           .mapError { SocRecKeyError.UnableToRetrieveKey(it) }
           .toErrorIfNull { SocRecKeyError.NoPrivateKeyAvailable() }
           .bind()
-      keyFactory(
-        AppKeyImpl(
-          curveType = CurveType.SECP256K1,
-          publicKey = publicKey,
-          privateKey = privateKey
-        )
+      AppKey(
+        publicKey = publicKey,
+        privateKey = privateKey
       )
     }
 
-  override suspend fun saveKey(key: SocRecKey): Result<Unit, SocRecKeyError> {
-    return saveKey(SocRecKeyPurpose.fromKeyType(key::class), key)
+  override suspend fun <T : SocRecKey> saveKey(
+    key: AppKey<T>,
+    keyClass: KClass<T>,
+  ): Result<Unit, SocRecKeyError> {
+    return saveKey(SocRecKeyPurpose.fromKeyType(keyClass), key)
   }
 
-  private suspend fun saveKey(
+  private suspend fun <T : SocRecKey> saveKey(
     purpose: SocRecKeyPurpose,
-    key: SocRecKey,
+    appKey: AppKey<T>,
   ) = binding {
-    val appKey = key.key as AppKeyImpl
     val db = databaseProvider.database()
 
-    if (appKey.privateKey != null) {
-      appPrivateKeyDao.storeAsymmetricPrivateKey(
-        publicKey = key.publicKey,
-        privateKey = appKey.privateKey!!
-      )
-        .mapError { SocRecKeyError.UnableToPersistKey(it) }
-        .bind()
-    }
+    appPrivateKeyDao.storeAsymmetricPrivateKey(
+      publicKey = appKey.publicKey,
+      privateKey = appKey.privateKey
+    )
+      .mapError { SocRecKeyError.UnableToPersistKey(it) }
+      .bind()
 
+    @Suppress("UNCHECKED_CAST")
     db.socRecKeysQueries
       .awaitTransactionWithResult {
-        insertKey(purpose, key.publicKey)
+        insertKey(purpose, appKey.publicKey as PublicKey<Nothing>)
       }
       .mapError { SocRecKeyError.UnableToPersistKey(it) }
       .bind()
   }
 
-  private suspend fun getPublicKey(purpose: SocRecKeyPurpose): Result<PublicKey, SocRecKeyError> {
+  private suspend fun <T : SocRecKey> getPublicKey(
+    purpose: SocRecKeyPurpose,
+  ): Result<PublicKey<T>, SocRecKeyError> {
     val db = databaseProvider.database()
+    @Suppress("UNCHECKED_CAST")
     return db.socRecKeysQueries
       .awaitTransactionWithResult {
-        getKeyByPurpose(purpose).executeAsOneOrNull()?.key
+        getKeyByPurpose(purpose).executeAsOneOrNull()?.key as PublicKey<T>?
       }
       .mapError { SocRecKeyError.UnableToRetrieveKey(it) }
       .toErrorIfNull { SocRecKeyError.NoKeyAvailable() }

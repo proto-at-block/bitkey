@@ -78,16 +78,16 @@ class SomeoneElseIsRecoveringDataStateMachineImpl(
             recoverySyncer.clear()
           }.onFailure {
             val f8eError = it as? SpecificClientError<CancelDelayNotifyRecoveryErrorCode>
-            if (f8eError != null && f8eError.errorCode == COMMS_VERIFICATION_REQUIRED) {
-              state =
-                VerifyingNotificationCommsState(
-                  hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
-                )
-            } else {
-              state =
+            state = when {
+              f8eError != null && f8eError.errorCode == COMMS_VERIFICATION_REQUIRED -> {
+                VerifyingNotificationCommsState(hwFactorProofOfPossession = dataState.hwFactorProofOfPossession)
+              }
+              else -> {
                 CancelingSomeoneElsesRecoveryFailedDataState(
+                  cause = it.error,
                   hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
                 )
+              }
             }
           }
         }
@@ -100,6 +100,7 @@ class SomeoneElseIsRecoveringDataStateMachineImpl(
           rollback = {
             state = ShowingSomeoneElseIsRecoveringDataState
           },
+          error = dataState.cause,
           retry = {
             state =
               CancelingSomeoneElsesRecoveryDataState(
@@ -156,6 +157,7 @@ class SomeoneElseIsRecoveringDataStateMachineImpl(
     ) : State
 
     data class CancelingSomeoneElsesRecoveryFailedDataState(
+      val cause: Error,
       val hwFactorProofOfPossession: HwFactorProofOfPossession?,
     ) : State
 

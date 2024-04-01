@@ -5,7 +5,6 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
@@ -16,6 +15,7 @@ import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
@@ -69,13 +69,11 @@ class SocialRecoveryServiceImpl(
   override suspend fun getRelationships(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
   ): Result<SocRecRelationships, NetworkingError> {
     return f8eHttpClient
       .authenticated(
         f8eEnvironment = f8eEnvironment,
         accountId = accountId,
-        hwFactorProofOfPossession = hardwareProofOfPossession,
         authTokenScope = AuthTokenScope.Recovery
       )
       .bodyResult<GetRecoveryRelationshipsResponseBody> {
@@ -96,7 +94,7 @@ class SocialRecoveryServiceImpl(
     account: FullAccount,
     hardwareProofOfPossession: HwFactorProofOfPossession,
     trustedContactAlias: TrustedContactAlias,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    protectedCustomerEnrollmentPakeKey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
   ): Result<Invitation, NetworkingError> {
     return f8eHttpClient.authenticated(
       f8eEnvironment = account.config.f8eEnvironment,
@@ -237,7 +235,7 @@ class SocialRecoveryServiceImpl(
   override suspend fun respondToChallenge(
     account: Account,
     socialChallengeId: String,
-    trustedContactRecoveryPakePubkey: PublicKey,
+    trustedContactRecoveryPakePubkey: PublicKey<TrustedContactRecoveryPakeKey>,
     recoveryPakeConfirmation: ByteString,
     resealedDek: XCiphertext,
   ): Result<Unit, NetworkingError> {
@@ -319,7 +317,7 @@ class SocialRecoveryServiceImpl(
     account: Account,
     invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    trustedContactEnrollmentPakeKey: TrustedContactEnrollmentPakeKey,
+    trustedContactEnrollmentPakeKey: PublicKey<TrustedContactEnrollmentPakeKey>,
     enrollmentPakeConfirmation: ByteString,
     sealedDelegateDecryptionKeyCipherText: XCiphertext,
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
@@ -363,7 +361,5 @@ private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode
   IncomingInvitation(
     recoveryRelationshipId = recoveryRelationshipId,
     code = invitationCode,
-    protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKey(
-      AppKey.fromPublicKey(protectedCustomerEnrollmentPakePubkey)
-    )
+    protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakePubkey
   )

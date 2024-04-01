@@ -1,14 +1,14 @@
 package build.wallet.analytics.events
 
 import build.wallet.logging.log
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.minutes
 
 class SessionIdProviderImpl(
   private val clock: Clock,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) : SessionIdProvider {
   // Keep track of the time the application entered the background
   // in order to calculate how long it was backgrounded
@@ -17,7 +17,7 @@ class SessionIdProviderImpl(
   // Generate the initial session ID at initialization of this class.
   // It should be unique for each app launch and only refreshed if backgrounded
   // for more than 5 minutes.
-  private var sessionId = uuid.random()
+  private var sessionId = uuidGenerator.random()
 
   override fun getSessionId(): String = sessionId
 
@@ -33,7 +33,7 @@ class SessionIdProviderImpl(
     // Update the session ID if the app spent > 5 minutes backgrounded
     val timeInBackground = clock.now() - applicationDidEnterBackgroundTime!!
     if (timeInBackground > 5.minutes) {
-      sessionId = uuid.random()
+      sessionId = uuidGenerator.random()
       log { "Refreshing session ID" }
     }
     applicationDidEnterBackgroundTime = null

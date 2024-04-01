@@ -36,6 +36,7 @@ fun GradientCard(
       horizontal = 16.dp,
       vertical = 12.dp
     ),
+  backgroundColor: Color = Color(0xFFF5F8FE),
   content: @Composable ColumnScope.() -> Unit,
 ) {
   Column(
@@ -54,7 +55,7 @@ fun GradientCard(
           ambientColor = Color(0xFFBDCFF0)
         )
         .background(
-          color = Color(0xFFF5F8FE),
+          color = backgroundColor,
           shape = RoundedCornerShape(size = 16.dp)
         )
         .padding(paddingValues),

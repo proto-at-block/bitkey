@@ -1,6 +1,7 @@
 package build.wallet.f8e.socrec
 
 import build.wallet.bitkey.account.Account
+import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
@@ -39,7 +40,7 @@ interface VerifySocialChallengeService {
   suspend fun respondToChallenge(
     account: Account,
     socialChallengeId: String,
-    trustedContactRecoveryPakePubkey: PublicKey,
+    trustedContactRecoveryPakePubkey: PublicKey<TrustedContactRecoveryPakeKey>,
     recoveryPakeConfirmation: ByteString,
     resealedDek: XCiphertext,
   ): Result<Unit, NetworkingError>

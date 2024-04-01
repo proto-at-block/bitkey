@@ -3,7 +3,6 @@ import click
 import pathlib
 import tempfile
 import subprocess
-import hashlib
 
 from . import bitlog
 
@@ -44,9 +43,10 @@ def cli(ctx, debug, serial_port):
 
 
 @cli.command()
+@click.option('--index', type=click.INT, required=False)
 @click.pass_context
-def start_fingerprint_enrollment(ctx):
-    result = ctx.obj.start_fingerprint_enrollment()
+def start_fingerprint_enrollment(ctx, index=0):
+    result = ctx.obj.start_fingerprint_enrollment(index)
     if result.start_fingerprint_enrollment_rsp.rsp_status == result.start_fingerprint_enrollment_rsp.start_fingerprint_enrollment_rsp_status.SUCCESS:
         click.echo("Fingerprint enrollment started")
     else:
@@ -426,6 +426,21 @@ def derive_public_key_and_sign(ctx, digest, curve, label):
 def configure_unlock_limit_response(ctx, response):
     wallet = ctx.obj
     print_proto(wallet.configure_unlock_limit_response(response))
+
+
+@cli.command()
+@click.option('--index', type=click.INT, required=True)
+@click.pass_context
+def delete_fingerprint(ctx, index):
+    wallet = ctx.obj
+    print_proto(wallet.delete_fingerprint(index))
+
+
+@cli.command()
+@click.pass_context
+def get_enrolled_fingerprints(ctx):
+    wallet = ctx.obj
+    print_proto(wallet.get_enrolled_fingerprints())
 
 
 if __name__ == "__main__":

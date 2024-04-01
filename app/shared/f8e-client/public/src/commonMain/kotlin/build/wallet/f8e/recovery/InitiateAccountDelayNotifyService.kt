@@ -1,10 +1,11 @@
 package build.wallet.f8e.recovery
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
@@ -37,8 +38,8 @@ interface InitiateAccountDelayNotifyService {
     fullAccountId: FullAccountId,
     lostFactor: PhysicalFactor,
     // TODO(W-2863): use auth keys for Recovery V2
-    appGlobalAuthKey: AppGlobalAuthPublicKey,
-    appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+    appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
+    appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
     hwFactorProofOfPossession: HwFactorProofOfPossession? = null,
     delayPeriod: Duration? = null,
     hardwareAuthKey: HwAuthPublicKey,

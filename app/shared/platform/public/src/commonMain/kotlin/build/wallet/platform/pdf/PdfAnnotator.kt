@@ -14,7 +14,6 @@ import okio.ByteString
  * can fail because of link placement. Calling serialize multiple times will
  * remove previously added links.
  */
-@OptIn(ExperimentalStdlibApi::class)
 interface PdfAnnotator : AutoCloseable {
   /**
    * Serialize the annotated PDF to a byte array for storage.

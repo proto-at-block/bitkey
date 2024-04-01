@@ -31,9 +31,15 @@ class ToolbarSnapshots : FunSpec({
     }
   }
 
-  test("toolbar with trailing only content") {
+  test("toolbar with trailing only content label") {
     paparazzi.snapshot {
-      ToolbarWithTrailingContentOnlyPreview()
+      ToolbarWithTrailingContentOnlyLabelPreview()
+    }
+  }
+
+  test("toolbar with trailing only content button") {
+    paparazzi.snapshot {
+      ToolbarWithTrailingContentOnlyButtonPreview()
     }
   }
 

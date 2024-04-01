@@ -6,9 +6,6 @@
 #include "fpc_sensor_spi.h"
 #include "key_management.h"
 
-// Total number of supported templates
-#define TEMPLATE_MAX_COUNT (2)
-
 bool bio_capture_image(fpc_bep_image_t* image, uint8_t max_tries);
 void bio_perf_init(void);
 

@@ -29,6 +29,12 @@ variable "internet_facing" {
   description = "A boolean flag to determine whether the ALB should be internet facing"
 }
 
+variable "load_balancer_allow_cloudflare_ips" {
+  type        = bool
+  default     = false
+  description = "Determine whether the ALB should only allow traffic from Cloudflare IPs"
+}
+
 variable "cluster_arn" {
   type        = string
   description = "ARN of the ECS cluster"

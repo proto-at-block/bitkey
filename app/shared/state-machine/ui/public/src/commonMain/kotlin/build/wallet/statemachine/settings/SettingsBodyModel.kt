@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
+import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -27,6 +28,7 @@ data class SettingsBodyModel(
     val icon: Icon,
     val title: String,
     val isDisabled: Boolean,
+    val specialTrailingIconModel: IconModel? = null,
     val onClick: () -> Unit,
   )
 

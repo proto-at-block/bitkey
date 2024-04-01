@@ -13,7 +13,7 @@ pub struct Spake2Context {
     role: Spake2Role,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Spake2Keys {
     pub alice_encryption_key: Vec<u8>,
     pub bob_encryption_key: Vec<u8>,
@@ -375,6 +375,41 @@ pub enum Spake2Error {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck::{Arbitrary, Gen};
+    use quickcheck_macros::quickcheck;
+
+    #[derive(Debug, Clone)]
+    struct ValidName(String);
+
+    impl Arbitrary for ValidName {
+        fn arbitrary(g: &mut Gen) -> Self {
+            let mut name = String::arbitrary(g);
+            // Remove any null bytes from the generated string
+            name.retain(|c| c != '\0');
+            ValidName(name)
+        }
+    }
+
+    impl Arbitrary for Spake2Role {
+        fn arbitrary(g: &mut Gen) -> Self {
+            if bool::arbitrary(g) {
+                Spake2Role::Alice
+            } else {
+                Spake2Role::Bob
+            }
+        }
+    }
+
+    impl Arbitrary for Spake2Keys {
+        fn arbitrary(g: &mut Gen) -> Self {
+            Spake2Keys {
+                alice_encryption_key: Vec::<u8>::arbitrary(g),
+                bob_encryption_key: Vec::<u8>::arbitrary(g),
+                alice_conf_key: Vec::<u8>::arbitrary(g),
+                bob_conf_key: Vec::<u8>::arbitrary(g),
+            }
+        }
+    }
 
     fn setup_contexts() -> (Spake2Context, Spake2Context) {
         (
@@ -388,6 +423,8 @@ mod tests {
         bob_ctx: &Spake2Context,
         alice_password: &str,
         bob_password: &str,
+        alice_aad: Option<&str>,
+        bob_aad: Option<&str>,
     ) -> (Spake2Keys, Spake2Keys) {
         let alice_msg = alice_ctx
             .generate_msg(alice_password.as_bytes().to_vec())
@@ -396,8 +433,12 @@ mod tests {
             .generate_msg(bob_password.as_bytes().to_vec())
             .unwrap();
         (
-            alice_ctx.process_msg(bob_msg, None).unwrap(),
-            bob_ctx.process_msg(alice_msg, None).unwrap(),
+            alice_ctx
+                .process_msg(bob_msg, alice_aad.map(|aad| aad.as_bytes().to_vec()))
+                .unwrap(),
+            bob_ctx
+                .process_msg(alice_msg, bob_aad.map(|aad| aad.as_bytes().to_vec()))
+                .unwrap(),
         )
     }
 
@@ -405,7 +446,32 @@ mod tests {
     fn test_good() {
         let (alice_ctx, bob_ctx) = setup_contexts();
         let (alice_keys, bob_keys) =
-            generate_and_process_msgs(&alice_ctx, &bob_ctx, "password", "password");
+            generate_and_process_msgs(&alice_ctx, &bob_ctx, "password", "password", None, None);
+
+        assert_eq!(alice_keys, bob_keys);
+
+        let alice_key_conf_msg = alice_ctx.generate_key_conf_msg(&alice_keys).unwrap();
+        let bob_key_conf_msg = bob_ctx.generate_key_conf_msg(&bob_keys).unwrap();
+
+        assert!(alice_ctx
+            .process_key_conf_msg(bob_key_conf_msg, &alice_keys)
+            .is_ok());
+        assert!(bob_ctx
+            .process_key_conf_msg(alice_key_conf_msg, &bob_keys)
+            .is_ok());
+    }
+
+    #[test]
+    fn test_good_with_aad() {
+        let (alice_ctx, bob_ctx) = setup_contexts();
+        let (alice_keys, bob_keys) = generate_and_process_msgs(
+            &alice_ctx,
+            &bob_ctx,
+            "password",
+            "password",
+            Some("aad"),
+            Some("aad"),
+        );
 
         assert_eq!(alice_keys, bob_keys);
 
@@ -424,7 +490,32 @@ mod tests {
     fn test_alice_wrong_password() {
         let (alice_ctx, bob_ctx) = setup_contexts();
         let (alice_keys, bob_keys) =
-            generate_and_process_msgs(&alice_ctx, &bob_ctx, "passworf", "password");
+            generate_and_process_msgs(&alice_ctx, &bob_ctx, "passworf", "password", None, None);
+
+        assert_ne!(alice_keys, bob_keys);
+
+        let alice_key_conf_msg = alice_ctx.generate_key_conf_msg(&alice_keys).unwrap();
+        let bob_key_conf_msg = bob_ctx.generate_key_conf_msg(&bob_keys).unwrap();
+
+        assert!(alice_ctx
+            .process_key_conf_msg(bob_key_conf_msg, &alice_keys)
+            .is_err());
+        assert!(bob_ctx
+            .process_key_conf_msg(alice_key_conf_msg, &bob_keys)
+            .is_err());
+    }
+
+    #[test]
+    fn test_alice_wrong_aad() {
+        let (alice_ctx, bob_ctx) = setup_contexts();
+        let (alice_keys, bob_keys) = generate_and_process_msgs(
+            &alice_ctx,
+            &bob_ctx,
+            "password",
+            "password",
+            Some("aad"),
+            Some("and"),
+        );
 
         assert_ne!(alice_keys, bob_keys);
 
@@ -443,7 +534,7 @@ mod tests {
     fn test_bob_wrong_password() {
         let (alice_ctx, bob_ctx) = setup_contexts();
         let (alice_keys, bob_keys) =
-            generate_and_process_msgs(&alice_ctx, &bob_ctx, "password", "passworf");
+            generate_and_process_msgs(&alice_ctx, &bob_ctx, "password", "passworf", None, None);
 
         assert_ne!(alice_keys, bob_keys);
 
@@ -476,7 +567,7 @@ mod tests {
         // First run
         let (alice_ctx, bob_ctx) = setup_contexts();
         let (alice_keys, bob_keys) =
-            generate_and_process_msgs(&alice_ctx, &bob_ctx, "password", "password");
+            generate_and_process_msgs(&alice_ctx, &bob_ctx, "password", "password", None, None);
 
         assert_eq!(alice_keys, bob_keys);
 
@@ -493,7 +584,7 @@ mod tests {
         // Second run
         let (alice_ctx2, bob_ctx2) = setup_contexts();
         let (alice_keys2, bob_keys2) =
-            generate_and_process_msgs(&alice_ctx2, &bob_ctx2, "password", "password");
+            generate_and_process_msgs(&alice_ctx2, &bob_ctx2, "password", "password", None, None);
 
         assert_eq!(alice_keys, bob_keys);
 
@@ -566,5 +657,185 @@ mod tests {
         assert!(new_alice_ctx
             .process_key_conf_msg(bob_key_conf_msg, &alice_shared_secrets_from_new_ctx)
             .is_ok());
+    }
+
+    #[quickcheck]
+    fn test_new_with_arbitrary_names(role: Spake2Role, my_name: String, their_name: String) {
+        let result = Spake2Context::new(role, my_name, their_name);
+
+        assert!(result.is_ok() || matches!(result, Err(Spake2Error::InvalidName)))
+    }
+
+    #[quickcheck]
+    fn test_new_with_arbitrary_valid_names(
+        role: Spake2Role,
+        my_name: ValidName,
+        their_name: ValidName,
+    ) {
+        let result = Spake2Context::new(role, my_name.0, their_name.0);
+        assert!(result.is_ok())
+    }
+
+    #[quickcheck]
+    fn test_good_with_arbitrary_inputs(
+        role: Spake2Role,
+        password: Vec<u8>,
+        aad: Option<Vec<u8>>,
+        first_name: ValidName,
+        second_name: ValidName,
+    ) {
+        let opposite_role = match role {
+            Spake2Role::Alice => Spake2Role::Bob,
+            Spake2Role::Bob => Spake2Role::Alice,
+        };
+        let first_ctx =
+            Spake2Context::new(role, first_name.0.clone(), second_name.0.clone()).unwrap();
+        let second_ctx = Spake2Context::new(opposite_role, second_name.0, first_name.0).unwrap();
+
+        let alice_msg = first_ctx.generate_msg(password.clone()).unwrap();
+        let bob_msg = second_ctx.generate_msg(password).unwrap();
+        let alice_keys = first_ctx.process_msg(bob_msg, aad.clone()).unwrap();
+        let bob_keys = second_ctx.process_msg(alice_msg, aad).unwrap();
+
+        assert_eq!(alice_keys, bob_keys);
+
+        let alice_key_conf_msg = first_ctx.generate_key_conf_msg(&alice_keys).unwrap();
+        let bob_key_conf_msg = second_ctx.generate_key_conf_msg(&bob_keys).unwrap();
+
+        assert!(first_ctx
+            .process_key_conf_msg(bob_key_conf_msg, &alice_keys)
+            .is_ok());
+        assert!(second_ctx
+            .process_key_conf_msg(alice_key_conf_msg, &bob_keys)
+            .is_ok());
+    }
+
+    #[quickcheck]
+    fn test_general_with_arbitrary_inputs(
+        role: Spake2Role,
+        password: Vec<u8>,
+        aad: Option<Vec<u8>>,
+        first_name: String,
+        second_name: String,
+    ) {
+        let opposite_role = match role {
+            Spake2Role::Alice => Spake2Role::Bob,
+            Spake2Role::Bob => Spake2Role::Alice,
+        };
+        let first_ctx = Spake2Context::new(role, first_name.clone(), second_name.clone());
+        let second_ctx = Spake2Context::new(opposite_role, second_name, first_name);
+
+        assert!(first_ctx.is_ok() || matches!(first_ctx, Err(Spake2Error::InvalidName)));
+        assert!(second_ctx.is_ok() || matches!(second_ctx, Err(Spake2Error::InvalidName)));
+
+        if first_ctx.is_ok() && second_ctx.is_ok() {
+            let first_ctx = first_ctx.unwrap();
+            let second_ctx = second_ctx.unwrap();
+
+            let first_msg = first_ctx.generate_msg(password.clone()).unwrap();
+            let second_msg = second_ctx.generate_msg(password).unwrap();
+            let first_keys = first_ctx.process_msg(second_msg, aad.clone());
+            let second_keys = second_ctx.process_msg(first_msg, aad);
+
+            let is_both_ok = first_keys.is_ok() && second_keys.is_ok();
+            let is_both_valid_err = matches!(first_keys, Err(Spake2Error::ProcessMessageError))
+                && matches!(second_keys, Err(Spake2Error::ProcessMessageError));
+            assert!(is_both_ok || is_both_valid_err);
+
+            if is_both_ok {
+                let alice_keys = first_keys.unwrap();
+                let bob_keys = second_keys.unwrap();
+
+                assert_eq!(alice_keys, bob_keys);
+
+                let alice_key_conf_msg = first_ctx.generate_key_conf_msg(&alice_keys).unwrap();
+                let bob_key_conf_msg = second_ctx.generate_key_conf_msg(&bob_keys).unwrap();
+
+                assert!(first_ctx
+                    .process_key_conf_msg(bob_key_conf_msg, &alice_keys)
+                    .is_ok());
+                assert!(second_ctx
+                    .process_key_conf_msg(alice_key_conf_msg, &bob_keys)
+                    .is_ok());
+            }
+        }
+    }
+
+    #[quickcheck]
+    fn test_process_msg_with_arbitrary_messages(
+        role: Spake2Role,
+        first_name: ValidName,
+        second_name: ValidName,
+        message: Vec<u8>,
+    ) {
+        let ctx = Spake2Context::new(role, first_name.0, second_name.0).unwrap();
+
+        let result = ctx.process_msg(message, None);
+        assert!(result.is_ok() || matches!(result, Err(Spake2Error::ProcessMessageError)))
+    }
+
+    #[quickcheck]
+    fn test_generate_key_conf_msg_with_arbitrary_keys(
+        role: Spake2Role,
+        first_name: ValidName,
+        second_name: ValidName,
+        keys: Spake2Keys,
+    ) {
+        let ctx = Spake2Context::new(role, first_name.0, second_name.0).unwrap();
+        let result = ctx.generate_key_conf_msg(&keys);
+
+        assert!(result.is_ok() || matches!(result, Err(Spake2Error::MacError)))
+    }
+
+    #[quickcheck]
+    fn test_process_key_conf_msg_with_arbitrary_messages(
+        role: Spake2Role,
+        first_name: ValidName,
+        second_name: ValidName,
+        message: Vec<u8>,
+        keys: Spake2Keys,
+    ) {
+        let ctx = Spake2Context::new(role, first_name.0, second_name.0).unwrap();
+        let result = ctx.process_key_conf_msg(message, &keys);
+
+        assert!(result.is_ok() || matches!(result, Err(Spake2Error::MacError)))
+    }
+
+    #[quickcheck]
+    fn test_read_private_key_with_arbitrary_contexts(
+        role: Spake2Role,
+        first_name: ValidName,
+        second_name: ValidName,
+    ) {
+        let ctx = Spake2Context::new(role, first_name.0, second_name.0).unwrap();
+        let result = ctx.read_private_key();
+
+        assert_eq!(result.len(), 32);
+    }
+
+    #[quickcheck]
+    fn test_read_public_key_with_arbitrary_contexts(
+        role: Spake2Role,
+        first_name: ValidName,
+        second_name: ValidName,
+    ) {
+        let ctx = Spake2Context::new(role, first_name.0, second_name.0).unwrap();
+        let result = ctx.read_public_key();
+
+        assert_eq!(result.len(), 32);
+    }
+
+    #[quickcheck]
+    fn test_write_key_pair_with_arbitrary_inputs(
+        role: Spake2Role,
+        first_name: ValidName,
+        second_name: ValidName,
+        private_key: Vec<u8>,
+        public_key: Vec<u8>,
+    ) {
+        let ctx = Spake2Context::new(role, first_name.0, second_name.0).unwrap();
+        let result = ctx.write_key_pair(private_key, public_key);
+
+        assert!(result.is_ok() || matches!(result, Err(Spake2Error::LengthError)))
     }
 }

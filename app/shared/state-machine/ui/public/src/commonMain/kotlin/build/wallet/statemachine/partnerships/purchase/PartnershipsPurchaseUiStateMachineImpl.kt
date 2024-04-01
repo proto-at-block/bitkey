@@ -42,7 +42,6 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
-import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 // TODO: W-5675 - defaulting to card for now, but will eventually support other payment methods
@@ -234,7 +233,6 @@ class PartnershipsPurchaseUiStateMachineImpl(
       }
   }
 
-  @OptIn(ExperimentalContracts::class)
   private fun isValidPurchaseAmount(
     purchaseAmount: FiatMoney?,
     currency: FiatCurrency,

@@ -1,10 +1,10 @@
 {
   "name": "nodes",
   "devDependencies": {
-    "aws-cdk": "^2.126.0"
+    "aws-cdk": "^2.132.0"
   },
   "dependencies": {
-    "aws-cdk-lib": "^2.126.0",
+    "aws-cdk-lib": "^2.132.0",
     "ts-node": "^10.9.2"
   }
 }

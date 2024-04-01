@@ -8,9 +8,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetail
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepository
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.Transaction
-import build.wallet.bitcoin.transactions.TransactionRepository
 import build.wallet.bitcoin.transactions.toDuration
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
@@ -60,7 +60,7 @@ class SweepDataStateMachineImpl(
   private val mobilePaySigningService: MobilePaySigningService,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val exchangeRateSyncer: ExchangeRateSyncer,
-  private val transactionRepository: TransactionRepository,
+  private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
 ) : SweepDataStateMachine {
   private sealed interface State {
     data object GeneratingPsbtsState : State
@@ -263,9 +263,9 @@ class SweepDataStateMachineImpl(
         .onSuccess {
           // When we successfully broadcast the transaction, store the transaction details and
           // exchange rate.
-          transactionRepository.setTransaction(
-            Transaction(
-              transactionDetail = it,
+          outgoingTransactionDetailRepository.persistDetails(
+            OutgoingTransactionDetail(
+              broadcastDetail = it,
               exchangeRates = exchangeRates,
               estimatedConfirmationTime =
                 it.broadcastTime.plus(

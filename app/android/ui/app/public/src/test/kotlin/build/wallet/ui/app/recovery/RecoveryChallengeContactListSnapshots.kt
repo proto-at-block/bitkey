@@ -26,7 +26,8 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           ),
           onVerifyClick = {},
           verifiedBy = immutableListOf("1"),
-          onContinue = {}
+          onContinue = {},
+          onCancelRecovery = {}
         )
       )
     }
@@ -46,7 +47,8 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           ),
           onVerifyClick = {},
           verifiedBy = immutableListOf(),
-          onContinue = {}
+          onContinue = {},
+          onCancelRecovery = {}
         )
       )
     }
@@ -71,7 +73,8 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           ),
           onVerifyClick = {},
           verifiedBy = immutableListOf("2"),
-          onContinue = {}
+          onContinue = {},
+          onCancelRecovery = {}
         )
       )
     }

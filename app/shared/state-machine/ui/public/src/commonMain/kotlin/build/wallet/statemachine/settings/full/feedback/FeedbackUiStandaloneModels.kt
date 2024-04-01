@@ -12,6 +12,7 @@ object FeedbackUiStandaloneModels {
     onDismiss = onDismiss,
     primaryButtonText = "Leave",
     onPrimaryButtonClick = onConfirm,
+    primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
     secondaryButtonText = "Stay",
     onSecondaryButtonClick = onDismiss
   )

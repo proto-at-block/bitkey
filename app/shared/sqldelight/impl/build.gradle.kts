@@ -14,6 +14,7 @@ kotlin {
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.loggingPublic)
         api(projects.shared.platformPublic)
+        implementation(libs.kmp.settings)
       }
     }
 

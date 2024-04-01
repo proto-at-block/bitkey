@@ -1,5 +1,7 @@
 package build.wallet.bitkey.socrec
 
+import build.wallet.bitkey.keys.app.AppKey
+
 /***
  * Social Recovery Challenge Authentication
  * This object is created when the protected customer starts a challenge
@@ -14,5 +16,5 @@ data class ChallengeAuthentication(
   val relationshipId: String,
   val fullCode: String,
   val pakeCode: PakeCode,
-  val protectedCustomerRecoveryPakeKey: ProtectedCustomerRecoveryPakeKey,
+  val protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
 )

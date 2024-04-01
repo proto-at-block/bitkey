@@ -14,8 +14,10 @@ terraform {
 inputs = {
   name = "web-site"
 
-  internet_facing = true
-  port            = 3000
+  internet_facing                    = true
+  load_balancer_allow_cloudflare_ips = true
+  load_balancer_allow_vpn_ips        = true
+  port                               = 3000
 
   image_name    = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/web-site"
   desired_count = 2

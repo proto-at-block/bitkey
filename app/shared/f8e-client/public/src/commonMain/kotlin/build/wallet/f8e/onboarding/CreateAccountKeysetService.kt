@@ -1,11 +1,12 @@
 package build.wallet.f8e.onboarding
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.NetworkingError
@@ -22,7 +23,7 @@ interface CreateAccountKeysetService {
     hardwareSpendingKey: HwSpendingPublicKey,
     appSpendingKey: AppSpendingPublicKey,
     network: BitcoinNetworkType,
-    appAuthKey: AppGlobalAuthPublicKey?,
+    appAuthKey: PublicKey<AppGlobalAuthKey>?,
     // TODO(W-3070):  Nullable for compatibility reasons with Recovery v1.make non-nullable when
     //                recovery v1 code is deleted.
     hardwareProofOfPossession: HwFactorProofOfPossession?,

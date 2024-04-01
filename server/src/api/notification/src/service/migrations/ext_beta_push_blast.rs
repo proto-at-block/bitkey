@@ -24,17 +24,13 @@ impl<'a> ExtBetaPushBlast<'a> {
 #[async_trait]
 impl<'a> Migration for ExtBetaPushBlast<'a> {
     fn name(&self) -> &str {
-        // TODO: for real blast, update name
-        "20240228_extbetapushblast_test01"
+        "20240321_extbetapushblast"
     }
 
     async fn run(&self) -> Result<(), MigrationError> {
-        // TODO: for real blast, replace with beta app platforms
-        let target_platforms =
-            HashSet::from([TouchpointPlatform::ApnsTeam, TouchpointPlatform::FcmTeam]);
+        let target_platforms = HashSet::from([TouchpointPlatform::Apns, TouchpointPlatform::Fcm]);
 
-        // TODO: for real blast, replace with appropriate message
-        let message = "Ext beta push blast test message";
+        let message = "The Bitkey Beta is winding down in the coming weeks. Return to the Bitkey app or check your email to learn more.";
 
         for account in self
             .service
@@ -43,15 +39,8 @@ impl<'a> Migration for ExtBetaPushBlast<'a> {
             .await
             .map_err(|err| MigrationError::CantEnumerateTable(err.to_string()))?
         {
-            // TODO: for real blast, reverse or remove this condition
-            if !account.get_common_fields().properties.is_test_account {
-                // Skip if account is not a test account
-                continue;
-            }
-
-            // TODO: for real blast, filter only known integration email addresses
-            if !account.get_common_fields().touchpoints.iter().any(|t| matches!(t, Touchpoint::Email { email_address, .. } if email_address.ends_with("@squareup.com") || email_address.ends_with("@block.xyz"))) {
-                // Skip non-employee email addresses
+            if account.get_common_fields().properties.is_test_account {
+                // Skip if account is a test account to reduce volume
                 continue;
             }
 
@@ -71,12 +60,9 @@ impl<'a> Migration for ExtBetaPushBlast<'a> {
                 .await
                 .map_err(|e| MigrationError::ExtBetaPushBlast(e.to_string()))?
                 .iter()
-                .any(|c| {
-                    // TODO: for real blast, update to start of day we run migration
-                    c.created_at > datetime!(2024-02-28 0:00 -8)
-                })
+                .any(|c| c.created_at > datetime!(2024-03-21 0:00 -8))
             {
-                // Skip if account already received a push blast since the start of the day we run this migration
+                // Skip if account already received this push blast
                 continue;
             }
 

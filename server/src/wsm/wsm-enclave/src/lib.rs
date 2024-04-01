@@ -35,15 +35,13 @@ use serde::Serialize;
 use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 
-use bdk::bitcoin::base58::from_check;
 use wsm_common::bitcoin::Network::Signet;
 use wsm_common::derivation::WSMSupportedDomain;
 use wsm_common::messages::api::SignedPsbt;
 use wsm_common::messages::enclave::{
     CreateResponse, CreatedKey, DeriveResponse, DerivedKey, EnclaveCreateKeyRequest,
-    EnclaveDeriveKeyRequest, EnclaveSignRequest, EnclaveSignWithIntegrityKeyRequest,
-    EnclaveSignWithIntegrityKeyResponse, KmsRequest, LoadIntegrityKeyRequest, LoadSecretRequest,
-    LoadedSecret,
+    EnclaveDeriveKeyRequest, EnclaveSignRequest, KmsRequest, LoadIntegrityKeyRequest,
+    LoadSecretRequest, LoadedSecret,
 };
 use wsm_common::messages::TEST_KEY_IDS;
 use wsm_common::{
@@ -349,7 +347,7 @@ async fn sign_psbt(
     let derivation_path = BitcoinDerivationPath::from(
         // DerivationPath::from is only supported from wsm-common, which expects a 0.29
         // DerivationPath, so we initialize one here.
-        wsm_common::bitcoin::util::bip32::DerivationPath::from(WSMSupportedDomain::Spend(
+        wsm_common::bitcoin::bip32::DerivationPath::from(WSMSupportedDomain::Spend(
             request.network.unwrap_or(Signet).into(),
         )),
     )
@@ -572,45 +570,6 @@ async fn create_root_key_internal(
     Ok((xprv, xpub))
 }
 
-/// Temporary endpoint to sign a hash with the integrity key to backfill the DDB.
-async fn backfill_sign(
-    State(route_state): State<RouteState>,
-    Json(request): Json<EnclaveSignWithIntegrityKeyRequest>,
-) -> Result<Json<EnclaveSignWithIntegrityKeyResponse>, WsmError> {
-    let mut log_buffer = LogBuffer::new();
-
-    wsm_log!(log_buffer, "About to backfill sign");
-
-    // Base58-check decode
-    let xpub_bytes = from_check(&request.data).map_err(|_| {
-        WsmError::BadRequest(
-            "failed to base58 check decode".to_string(),
-            log_buffer.clone(),
-        )
-    })?;
-    if xpub_bytes.len() != 78 {
-        return Err(WsmError::BadRequest(
-            format!("xpub bytes was the wrong length {}", xpub_bytes.len()),
-            log_buffer.clone(),
-        ));
-    }
-
-    let secp = Secp256k1::new();
-    let keystore = route_state.keystore.clone();
-    let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await?;
-
-    let signature = sign_with_integrity_key(
-        secp,
-        &mut log_buffer,
-        &integrity_key,
-        b"CreateKeyV1",
-        &xpub_bytes,
-    )?;
-    Ok(Json(EnclaveSignWithIntegrityKeyResponse {
-        signature: hex::encode(signature.serialize_compact()),
-    }))
-}
-
 fn encrypt_root_key(
     root_key_id: &String,
     datakey: &Aes256Gcm,
@@ -820,7 +779,6 @@ impl From<RouteState> for Router {
             .route("/sign-psbt", post(sign_psbt))
             .route("/create-key", post(create_key))
             .route("/derive-key", post(derive_key))
-            .route("/backfill-sign", post(backfill_sign))
             .with_state(state)
     }
 }
@@ -857,7 +815,7 @@ mod tests {
     use tower::ServiceExt;
     use wsm_common::bitcoin::Network::Signet; // for `collect`
 
-    use wsm_common::bitcoin::util::bip32::DerivationPath;
+    use wsm_common::bitcoin::bip32::DerivationPath;
     use wsm_common::derivation::{CoinType, WSMSupportedDomain};
     use wsm_common::enclave_log::LogBuffer;
     use wsm_common::messages::enclave::{

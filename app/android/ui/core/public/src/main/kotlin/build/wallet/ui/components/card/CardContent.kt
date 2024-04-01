@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
@@ -104,7 +105,14 @@ fun CardContent(
 private fun CardImage(model: CardModel.CardImage) {
   when (model) {
     is CardModel.CardImage.StaticImage ->
-      Icon(icon = model.icon, size = Small)
+      Icon(
+        icon = model.icon,
+        size = Small,
+        color = when (model.iconTint) {
+          null -> Color.Unspecified
+          CardModel.CardImage.StaticImage.IconTint.Warning -> WalletTheme.colors.warningForeground
+        }
+      )
 
     is CardModel.CardImage.DynamicImage.HardwareReplacementStatusProgress ->
       Box(

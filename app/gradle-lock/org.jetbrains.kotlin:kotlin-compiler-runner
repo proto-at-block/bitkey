@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-compiler-runner",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-compiler-runner-1.9.21.jar": "d7948fa2ac8cf624a3fbaa768f1b03bbb310d5d90c57e05be74d6b879eba561f"
+                        "kotlin-compiler-runner-1.9.22.jar": "73ec75bb99ebffa8b24a24a3b853f3f66096bc46a9351af0dac93debb69c15eb"
                     }
                 }
             ],

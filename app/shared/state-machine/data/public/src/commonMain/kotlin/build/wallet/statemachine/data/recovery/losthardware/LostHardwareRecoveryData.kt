@@ -1,9 +1,10 @@
 package build.wallet.statemachine.data.recovery.losthardware
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
@@ -21,11 +22,16 @@ sealed interface LostHardwareRecoveryData {
      */
     data object GeneratingNewAppKeysData : InitiatingLostHardwareRecoveryData
 
+    data class ErrorGeneratingNewAppKeysData(
+      val retry: () -> Unit,
+      val cause: Throwable,
+    ) : InitiatingLostHardwareRecoveryData
+
     /**
      * Indicates that we are awaiting new hardware keys.
      */
     data class AwaitingNewHardwareData(
-      val newAppGlobalAuthKey: AppGlobalAuthPublicKey,
+      val newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
       val addHardwareKeys: (SealedCsek, HwKeyBundle, AppGlobalAuthKeyHwSignature) -> Unit,
     ) : InitiatingLostHardwareRecoveryData
 
@@ -40,12 +46,8 @@ sealed interface LostHardwareRecoveryData {
       val onCancelRecovery: () -> Unit,
     ) : InitiatingLostHardwareRecoveryData
 
-    data class FailedBuildingKeyCrossData(
-      val retry: () -> Unit,
-      val rollback: () -> Unit,
-    ) : InitiatingLostHardwareRecoveryData
-
     data class FailedInitiatingRecoveryWithF8eData(
+      val cause: Throwable,
       val retry: () -> Unit,
       val rollback: () -> Unit,
     ) : InitiatingLostHardwareRecoveryData
@@ -57,6 +59,7 @@ sealed interface LostHardwareRecoveryData {
     data object CancellingConflictingRecoveryData : InitiatingLostHardwareRecoveryData
 
     data class FailedToCancelConflictingRecoveryData(
+      val cause: Throwable,
       val onAcknowledge: () -> Unit,
     ) : InitiatingLostHardwareRecoveryData
 

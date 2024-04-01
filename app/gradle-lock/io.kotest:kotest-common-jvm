@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-common-jvm",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-common-jvm-5.8.0.jar": "f7e713bba225fba5879741665a3b6193fa528bc27be54752a7763808a4f29513"
+                        "kotest-common-jvm-5.8.1.jar": "60bd9521ec83c6c4255dcc05aa09f55c12c0aa58f1e35bd914f7ce6d2dcd5070"
                     }
                 }
             ],

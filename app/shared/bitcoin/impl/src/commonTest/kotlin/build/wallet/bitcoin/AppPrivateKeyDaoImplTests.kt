@@ -87,61 +87,61 @@ class AppPrivateKeyDaoImplTests : FunSpec({
 
   context("recovery auth key") {
     test("private key is not present") {
-      dao.getRecoveryAuthKey(AppRecoveryAuthPublicKeyMock)
+      dao.getAsymmetricPrivateKey(AppRecoveryAuthPublicKeyMock)
         .shouldBeOk(null)
     }
 
     test("private key is found") {
       encryptedKeyValueStoreFactory.store.putString(
-        key = AppRecoveryAuthPublicKeyMock.pubKey.value,
-        value = AppRecoveryAuthPrivateKeyMock.key.bytes.hex()
+        key = AppRecoveryAuthPublicKeyMock.value,
+        value = AppRecoveryAuthPrivateKeyMock.bytes.hex()
       )
 
-      dao.getRecoveryAuthKey(AppRecoveryAuthPublicKeyMock)
+      dao.getAsymmetricPrivateKey(AppRecoveryAuthPublicKeyMock)
         .shouldBeOk(AppRecoveryAuthPrivateKeyMock)
     }
 
     test("store keys") {
-      dao.storeAppAuthKeyPair(AppRecoveryAuthKeypairMock).shouldBeOk()
+      dao.storeAppKeyPair(AppRecoveryAuthKeypairMock).shouldBeOk()
 
-      dao.getRecoveryAuthKey(AppRecoveryAuthPublicKeyMock)
+      dao.getAsymmetricPrivateKey(AppRecoveryAuthPublicKeyMock)
         .shouldBeOk(AppRecoveryAuthPrivateKeyMock)
     }
   }
 
   context("global auth key") {
     test("private key is not present") {
-      dao.getGlobalAuthKey(AppGlobalAuthPublicKeyMock)
+      dao.getAsymmetricPrivateKey(AppGlobalAuthPublicKeyMock)
         .shouldBeOk(null)
     }
 
     test("private key is found") {
       encryptedKeyValueStoreFactory.store.putString(
-        key = AppGlobalAuthPublicKeyMock.pubKey.value,
-        value = AppGlobalAuthPrivateKeyMock.key.bytes.hex()
+        key = AppGlobalAuthPublicKeyMock.value,
+        value = AppGlobalAuthPrivateKeyMock.bytes.hex()
       )
 
-      dao.getGlobalAuthKey(AppGlobalAuthPublicKeyMock)
+      dao.getAsymmetricPrivateKey(AppGlobalAuthPublicKeyMock)
         .shouldBeOk(AppGlobalAuthPrivateKeyMock)
     }
 
     test("store keys") {
-      dao.storeAppAuthKeyPair(AppGlobalAuthKeypairMock).shouldBeOk()
+      dao.storeAppKeyPair(AppGlobalAuthKeypairMock).shouldBeOk()
 
-      dao.getGlobalAuthKey(AppGlobalAuthPublicKeyMock)
+      dao.getAsymmetricPrivateKey(AppGlobalAuthPublicKeyMock)
         .shouldBeOk(AppGlobalAuthPrivateKeyMock)
     }
   }
 
   context("asymmetric key") {
     test("private key is not present") {
-      dao.getAsymmetricPrivateKey(PublicKey("pubkey"))
+      dao.getAsymmetricPrivateKey(PublicKey<Nothing>("pubkey"))
         .shouldBeOk(null)
     }
 
     test("private key is found") {
-      val publicKey = PublicKey("pubkey")
-      val privateKey = PrivateKey("privkey".toByteArray().toByteString())
+      val publicKey = PublicKey<Nothing>("pubkey")
+      val privateKey = PrivateKey<Nothing>("privkey".toByteArray().toByteString())
       encryptedKeyValueStoreFactory.store.putString(
         key = publicKey.value,
         value = privateKey.bytes.hex()
@@ -152,8 +152,8 @@ class AppPrivateKeyDaoImplTests : FunSpec({
     }
 
     test("store keys") {
-      val publicKey = PublicKey("pubkey")
-      val privateKey = PrivateKey("privkey".toByteArray().toByteString())
+      val publicKey = PublicKey<Nothing>("pubkey")
+      val privateKey = PrivateKey<Nothing>("privkey".toByteArray().toByteString())
       dao.storeAsymmetricPrivateKey(publicKey, privateKey).shouldBeOk()
 
       dao.getAsymmetricPrivateKey(publicKey)
@@ -168,14 +168,14 @@ class AppPrivateKeyDaoImplTests : FunSpec({
       AppSpendingKeypair(AppSpendingPublicKeyMock, AppSpendingPrivateKeyMock)
     keystore.storeAppSpendingKeyPair(spendingKeypair).shouldBeOk()
     val globalAuthKeypair = AppGlobalAuthKeypairMock
-    keystore.storeAppAuthKeyPair(globalAuthKeypair).shouldBeOk()
+    keystore.storeAppKeyPair(globalAuthKeypair).shouldBeOk()
     val recoveryAuthKeypair = AppRecoveryAuthKeypairMock
-    keystore.storeAppAuthKeyPair(recoveryAuthKeypair).shouldBeOk()
+    keystore.storeAppKeyPair(recoveryAuthKeypair).shouldBeOk()
 
     keystore.clear().shouldBeOk()
 
     keystore.getAppSpendingPrivateKey(AppSpendingPublicKeyMock).shouldBeOk(null)
-    keystore.getGlobalAuthKey(AppGlobalAuthPublicKeyMock).shouldBeOk(null)
-    keystore.getRecoveryAuthKey(AppRecoveryAuthPublicKeyMock).shouldBeOk(null)
+    keystore.getAsymmetricPrivateKey(AppGlobalAuthPublicKeyMock).shouldBeOk(null)
+    keystore.getAsymmetricPrivateKey(AppRecoveryAuthPublicKeyMock).shouldBeOk(null)
   }
 })

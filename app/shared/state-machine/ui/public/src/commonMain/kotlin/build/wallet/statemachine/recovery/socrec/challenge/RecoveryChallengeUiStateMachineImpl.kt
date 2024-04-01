@@ -9,12 +9,10 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.ChallengeAuthentication
 import build.wallet.bitkey.socrec.ChallengeWrapper
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.bitkey.socrec.TrustedContact
-import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.encrypt.XCiphertext
 import build.wallet.logging.logFailure
@@ -146,7 +144,8 @@ class RecoveryChallengeUiStateMachineImpl(
                     it.relationshipId == response.recoveryRelationshipId
                   }
               )
-          }
+          },
+          onCancelRecovery = props.onExit
         ).asRootScreen()
       }
       is State.ShareChallengeCode -> {
@@ -178,10 +177,7 @@ class RecoveryChallengeUiStateMachineImpl(
             password = current.challengeAuth.pakeCode,
             protectedCustomerRecoveryPakeKey = current.challengeAuth.protectedCustomerRecoveryPakeKey,
             decryptPrivateKeyEncryptionKeyOutput = DecryptPrivateKeyEncryptionKeyOutput(
-              trustedContactRecoveryPakeKey =
-                TrustedContactRecoveryPakeKey(
-                  AppKey.fromPublicKey(current.response.trustedContactRecoveryPakePubkey.value)
-                ),
+              trustedContactRecoveryPakeKey = current.response.trustedContactRecoveryPakePubkey,
               keyConfirmation = current.response.recoveryPakeConfirmation,
               sealedPrivateKeyEncryptionKey = current.response.resealedDek
             ),

@@ -2,6 +2,8 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.SocRecKey
+import build.wallet.crypto.CurveType
+import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
@@ -20,50 +22,47 @@ class SocRecKeysRepository(
   /**
    * Gets a socrec key of the given type, generating one if none is available.
    */
-  suspend fun <T : SocRecKey> getOrCreateKey(
-    keyFactory: (AppKey) -> T,
+  suspend fun <T> getOrCreateKey(
     keyClass: KClass<T>,
-  ): Result<T, SocRecKeyError> =
+  ): Result<PublicKey<T>, SocRecKeyError> where T : SocRecKey, T : CurveType.Curve25519 =
     binding {
-      socRecKeysDao.getKey(keyFactory, keyClass)
+      socRecKeysDao.getPublicKey(keyClass)
         .recoverIf({ it is SocRecKeyError.NoKeyAvailable }) {
           withContext(Dispatchers.Default) {
-            socRecCrypto.generateAsymmetricKey(keyFactory)
+            socRecCrypto.generateAsymmetricKey<T>()
               .mapError { SocRecKeyError.UnableToGenerateKey(it) }
               .bind()
-              .also { socRecKeysDao.saveKey(it) }
+              .also { socRecKeysDao.saveKey(it, keyClass) }
+              .publicKey
           }
         }
         .bind()
     }
 
-  suspend inline fun <reified T : SocRecKey> getOrCreateKey(
-    noinline keyFactory: (AppKey) -> T,
-  ): Result<T, SocRecKeyError> = getOrCreateKey(keyFactory, T::class)
+  suspend inline fun <reified T> getOrCreateKey(): Result<PublicKey<T>, SocRecKeyError> where T : SocRecKey, T : CurveType.Curve25519 =
+    getOrCreateKey(T::class)
 
   /**
    * Gets a socrec key of the given type, generating one if none is available. The returned key
    * will include private key material. If a key exists in the data store but private key does not,
    * [SocRecKeyError.NoPrivateKeyAvailable] will be returned.
    */
-  suspend fun <T : SocRecKey> getKeyWithPrivateMaterialOrCreate(
-    keyFactory: (AppKey) -> T,
+  suspend fun <T> getKeyWithPrivateMaterialOrCreate(
     keyClass: KClass<T>,
-  ): Result<T, SocRecKeyError> =
+  ): Result<AppKey<T>, SocRecKeyError> where T : SocRecKey, T : CurveType.Curve25519 =
     binding {
-      socRecKeysDao.getKeyWithPrivateMaterial(keyFactory, keyClass)
+      socRecKeysDao.getKeyWithPrivateMaterial(keyClass)
         .recoverIf({ it is SocRecKeyError.NoKeyAvailable }) {
           withContext(Dispatchers.Default) {
-            socRecCrypto.generateAsymmetricKey(keyFactory)
+            socRecCrypto.generateAsymmetricKey<T>()
               .mapError { SocRecKeyError.UnableToGenerateKey(it) }
               .bind()
-              .also { socRecKeysDao.saveKey(it) }
+              .also { socRecKeysDao.saveKey(it, keyClass) }
           }
         }
         .bind()
     }
 
-  suspend inline fun <reified T : SocRecKey> getKeyWithPrivateMaterialOrCreate(
-    noinline keyFactory: (AppKey) -> T,
-  ): Result<T, SocRecKeyError> = getKeyWithPrivateMaterialOrCreate(keyFactory, T::class)
+  suspend inline fun <reified T> getKeyWithPrivateMaterialOrCreate(): Result<AppKey<T>, SocRecKeyError> where T : SocRecKey, T : CurveType.Curve25519 =
+    getKeyWithPrivateMaterialOrCreate(T::class)
 }

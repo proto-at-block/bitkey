@@ -437,7 +437,7 @@ class SendUiStateMachineImplTests : FunSpec({
           ) {
             transferBitcoinAmount.shouldBe(transferAmount)
             newFeeAmount.shouldBe(intendedFee!!.amount)
-            totalBitcoinAmount.shouldBe(intendedFee!!.amount + transferAmount)
+            totalBitcoinAmount.shouldBe(intendedFee.amount + transferAmount)
           }
         }
       }

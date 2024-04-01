@@ -1,13 +1,18 @@
 package build.wallet.smoke.bitcoin.account
 
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getActiveWallet
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.setupMobilePay
 import build.wallet.testing.shouldBeOk
 import build.wallet.testing.tags.TestTag.ServerSmoke
+import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 
@@ -59,9 +64,37 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
           appSignedPsbt
         ).getOrThrow()
 
-      bitcoinBlockchain.broadcast(serverSigned).getOrThrow()
+      bitcoinBlockchain.broadcast(serverSigned).fold(
+        success = { /* broadcast succeeded */ },
+        failure = { error ->
+          if (error.isExpectedRaceError()) {
+            println("F8e won publishing race, continue... Error: ${error.message}")
+          } else {
+            println("Unexpected error rethrowing... Error: ${error.message}")
+            throw error
+          }
+        }
+      )
 
       println("\uD83C\uDF89 success! \uD83C\uDF89")
     }
   }
 })
+
+/**
+ * Mobile Pay intentionally broadcasts both on F8e and App for redundancy. More often than not, F8e
+ * would beat the App to a successful broadcast, and we'd receive either an `inputs-missing-or-spent`
+ * error, or an error saying that the transaction is already in the blockchain.
+ *
+ * This extension function screens for those.
+ */
+private fun BdkError.isExpectedRaceError(): Boolean {
+  val whiteListedErrorCodes = listOf(
+    "Transaction already in block chain",
+    "bad-txns-inputs-missingorspent"
+  )
+
+  return whiteListedErrorCodes.any { code ->
+    message?.contains(code) == true
+  }
+}

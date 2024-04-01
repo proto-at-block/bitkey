@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-client-mock-jvm",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-mock-jvm-2.3.8.jar": "38665bc6d3d6d73690ddcf2263f0155ff2218b8de9258fb5116c1a6ef9feea84"
+                        "ktor-client-mock-jvm-2.3.9.jar": "7b3fffc81ef61228a19569d081956475bc27769c7874fa961d6666ed85782d05"
                     }
                 }
             ],

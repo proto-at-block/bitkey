@@ -1,12 +1,8 @@
-@file:OptIn(ExperimentalCoroutinesApi::class, DelicateCoroutinesApi::class)
-
 package build.wallet.bdk.bindings
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlin.coroutines.CoroutineContext
 

@@ -1,12 +1,9 @@
-@file:OptIn(ExperimentalSerializationApi::class)
-
 package build.wallet.serialization.json
 
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 

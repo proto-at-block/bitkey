@@ -1,3 +1,4 @@
+import build.wallet.crypto.PublicKey;
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey;
 import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey;
 import kotlin.Boolean;
@@ -5,7 +6,7 @@ import okio.ByteString;
 
 CREATE TABLE socRecEnrollmentAuthentication(
   recoveryRelationshipId                   TEXT UNIQUE NOT NULL,
-  protectedCustomerEnrollmentPakeKey       TEXT AS ProtectedCustomerEnrollmentPakeKey NOT NULL,
+  protectedCustomerEnrollmentPakeKey       TEXT AS PublicKey<ProtectedCustomerEnrollmentPakeKey> NOT NULL,
   pakeCode                                 BLOB AS ByteString NOT NULL
 );
 

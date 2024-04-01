@@ -10,7 +10,7 @@ import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.LiteAccountCloudBackupRestorer
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgrader.UpgradeError
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
@@ -21,7 +21,7 @@ class LiteAccountBackupToFullAccountUpgraderImpl(
   private val liteAccountCloudBackupRestorer: LiteAccountCloudBackupRestorer,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val liteToFullAccountUpgrader: LiteToFullAccountUpgrader,
 ) : LiteAccountBackupToFullAccountUpgrader {
   override suspend fun upgradeAccount(
@@ -37,7 +37,7 @@ class LiteAccountBackupToFullAccountUpgraderImpl(
           .bind()
       val appKeyBundle =
         onboardingAppKeyKeystore.getAppKeyBundle(
-          uuid.random(),
+          uuidGenerator.random(),
           liteAccount.config.bitcoinNetworkType
         ).toResultOr { UpgradeError("Missing onboarding app key bundle") }.bind()
       val hwKeys =
@@ -49,7 +49,7 @@ class LiteAccountBackupToFullAccountUpgraderImpl(
         KeyCrossDraft.WithAppKeysAndHardwareKeys(
           appKeyBundle = appKeyBundle,
           hardwareKeyBundle = HwKeyBundle(
-            localId = uuid.random(),
+            localId = uuidGenerator.random(),
             spendingKey = onboardingKeybox.activeSpendingKeyset.hardwareKey,
             authKey = hwKeys.hwAuthPublicKey,
             networkType = liteAccount.config.bitcoinNetworkType

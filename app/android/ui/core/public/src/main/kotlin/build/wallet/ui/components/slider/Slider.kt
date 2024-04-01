@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SliderPositions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -59,7 +58,6 @@ import androidx.compose.material3.Slider as MaterialSlider
  * [Interaction]s and customize the appearance / behavior of this slider in different states.
  */
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 fun Slider(
   modifier: Modifier = Modifier,
   value: Float,
@@ -97,7 +95,6 @@ private val ThumbPressedElevation = 6.dp
 private val TrackHeight = 8.dp
 
 @Composable
-@ExperimentalMaterial3Api
 private fun Track(
   sliderPositions: SliderPositions,
   modifier: Modifier = Modifier,

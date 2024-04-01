@@ -90,6 +90,9 @@ struct CardImage: View {
         switch viewModel {
         case let staticImage as CardModelCardImageStaticImage:
             Image(uiImage: staticImage.icon.uiImage)
+                .if(staticImage.iconTint == .warning) { image in
+                    image.foregroundColor(Color.warningForeground)
+                }
 
         case let hwRecoveryProgress as CardModelCardImageDynamicImageHardwareReplacementStatusProgress:
             ZStack {
@@ -116,7 +119,7 @@ private extension View {
     @ViewBuilder
     func padding(style: CardModel.CardStyle, hasContent: Bool) -> some View {
         switch style {
-        case .outline:
+        case _ as CardModel.CardStyleOutline:
             if hasContent {
                 self
                     .padding(.top, 20)
@@ -127,10 +130,11 @@ private extension View {
                     .padding(20)
             }
 
-        case .gradient:
+        case _ as CardModel.CardStyleGradient:
             self
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+
         default:
             fatalError("Unexpected card style: \(style)")
         }

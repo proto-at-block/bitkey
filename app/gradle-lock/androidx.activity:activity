@@ -2,11 +2,11 @@
     "module-identifier": "androidx.activity:activity",
     "components": [
         {
-            "version": "1.7.2",
+            "version": "1.8.2",
             "variants": [
                 {
                     "artifacts": {
-                        "activity-1.7.2.aar": "2a1abf8e0a598d246b1edcb71e2395e39f32332195ebe5ea40a3dd21355ba3ae"
+                        "activity-1.8.2.aar": "ecc119262530a6e2f9f373207e472d476306bed3d4b216fe61b1ea42e3bef688"
                     }
                 }
             ],

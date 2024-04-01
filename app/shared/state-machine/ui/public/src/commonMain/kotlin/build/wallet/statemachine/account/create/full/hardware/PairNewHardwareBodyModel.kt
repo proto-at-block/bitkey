@@ -1,7 +1,7 @@
 package build.wallet.statemachine.account.create.full.hardware
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.platform.random.UuidImpl
+import build.wallet.platform.random.uuid
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -47,7 +47,7 @@ data class PairNewHardwareBodyModel(
     }
   }
 
-  private val unique = eventTrackerScreenInfo?.eventTrackerScreenId?.name ?: UuidImpl().random()
+  private val unique = eventTrackerScreenInfo?.eventTrackerScreenId?.name ?: uuid().random()
   override val key: String = "${this::class.qualifiedName}-$unique."
 
   fun toolbarModel(onRefreshClick: () -> Unit) =

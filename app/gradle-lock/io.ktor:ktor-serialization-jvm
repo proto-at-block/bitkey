@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-serialization-jvm",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-serialization-jvm-2.3.8.jar": "7d942475bf3995fe080c5f103532e51736d0c474aea3d9f6133a4031ae08799a"
+                        "ktor-serialization-jvm-2.3.9.jar": "34c0b98a888863b295599581d5a4d281169e2f021e3d15fc095024133836e2af"
                     }
                 }
             ],

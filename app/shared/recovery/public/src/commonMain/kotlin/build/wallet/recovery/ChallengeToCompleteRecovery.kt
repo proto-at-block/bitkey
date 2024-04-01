@@ -1,9 +1,10 @@
 package build.wallet.recovery
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
@@ -22,11 +23,11 @@ data class ChallengeToCompleteRecovery(
   val bytes: ByteString,
 ) {
   constructor(
-    app: AppGlobalAuthPublicKey,
-    recovery: AppRecoveryAuthPublicKey,
+    app: PublicKey<AppGlobalAuthKey>,
+    recovery: PublicKey<AppRecoveryAuthKey>,
     hw: HwAuthPublicKey,
   ) : this(
-    bytes = "CompleteDelayNotify${hw.pubKey.value}${app.pubKey.value}${recovery?.pubKey?.value ?: ""}".encodeUtf8()
+    bytes = "CompleteDelayNotify${hw.pubKey.value}${app.value}${recovery.value ?: ""}".encodeUtf8()
   )
 }
 

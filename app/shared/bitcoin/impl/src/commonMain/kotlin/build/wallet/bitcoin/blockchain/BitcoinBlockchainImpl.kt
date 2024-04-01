@@ -6,8 +6,8 @@ import build.wallet.bdk.bindings.broadcast
 import build.wallet.bdk.bindings.getBlockHash
 import build.wallet.bdk.bindings.getHeight
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
+import build.wallet.bitcoin.transactions.BroadcastDetail
 import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionDetail
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
@@ -19,7 +19,7 @@ class BitcoinBlockchainImpl(
   private val bdkPsbtBuilder: BdkPartiallySignedTransactionBuilder,
   private val clock: Clock,
 ) : BitcoinBlockchain {
-  override suspend fun broadcast(psbt: Psbt): Result<TransactionDetail, BdkError> =
+  override suspend fun broadcast(psbt: Psbt): Result<BroadcastDetail, BdkError> =
     binding {
       val bdkPsbt =
         bdkPsbtBuilder.build(psbtBase64 = psbt.base64)
@@ -35,7 +35,7 @@ class BitcoinBlockchainImpl(
       blockchain.broadcast(bdkPsbt.extractTx()).result.bind()
       log { "Successfully broadcast psbt" }
 
-      TransactionDetail(
+      BroadcastDetail(
         broadcastTime = clock.now(),
         transactionId = bdkPsbt.txid()
       )

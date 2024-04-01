@@ -1,6 +1,7 @@
 package build.wallet.f8e.onboarding.model
 
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
+import build.wallet.crypto.PublicKey
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -16,7 +17,7 @@ internal data class LiteCreateAccountRequestBody(
   override val isTestAccount: Boolean?,
 ) : CreateAccountRequestBody {
   constructor(
-    appRecoveryAuthKey: AppRecoveryAuthPublicKey,
+    appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
     isTestAccount: Boolean?,
   ) : this(
     auth = LiteCreateAccountAuthKeys(recovery = appRecoveryAuthKey),
@@ -29,11 +30,5 @@ data class LiteCreateAccountAuthKeys(
   /**
    * Represents the recovery app auth key, corresponds to [AppRecoveryAuthPublicKey]
    */
-  val recovery: String,
-) : CreateAccountAuthKeys {
-  constructor(
-    recovery: AppRecoveryAuthPublicKey,
-  ) : this(
-    recovery = recovery.pubKey.value
-  )
-}
+  val recovery: PublicKey<AppRecoveryAuthKey>,
+) : CreateAccountAuthKeys

@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "3.25.1",
+            "version": "3.25.2",
             "variants": [
                 {
                     "artifacts": {
-                        "protobuf-java-3.25.1.jar": "48a8e58a1a8f82eff141a7a388d38dfe77d7a48d5e57c9066ee37f19147e20df"
+                        "protobuf-java-3.25.2.jar": "cabe49981b86f5913b7fd130b4628e6ee11586e28ca069815d9744f929271902"
                     }
                 }
             ],

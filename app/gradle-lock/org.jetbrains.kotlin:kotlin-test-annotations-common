@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-test-annotations-common",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-test-annotations-common-1.9.21.jar": "59259647859f3f289bcc30958877b010537a280f44a4ce6aec2ecfdbfabec81c"
+                        "kotlin-test-annotations-common-1.9.22.jar": "51140670bc82220ab4dc25538aafa4cb879987ad02cd03004e3f9e59abe4df76"
                     }
                 }
             ],

@@ -1,5 +1,3 @@
-@file:OptIn(DelicateCoroutinesApi::class)
-
 package build.wallet.integration.statemachine.recovery
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
@@ -30,8 +28,13 @@ import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInPro
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
+import build.wallet.testing.ext.deleteBackupsFromFakeCloud
+import build.wallet.testing.ext.getActiveFullAccount
+import build.wallet.testing.ext.getActiveWallet
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
@@ -39,7 +42,6 @@ import io.kotest.assertions.nondeterministic.eventually
 import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
@@ -74,7 +76,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       )
   }
 
-  fun resetApp() {
+  suspend fun resetApp() {
     appTester = appTester.relaunchApp()
     app = appTester.app
     recoveryStateMachine =
@@ -102,7 +104,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
+        appTester.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -154,7 +156,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
+        appTester.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -191,7 +193,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
+        appTester.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -240,7 +242,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
+        appTester.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -303,7 +305,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       ) {
         awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-        appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
+        appTester.completeRecoveryDelayPeriodOnF8e()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
@@ -331,7 +333,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         .clickPrimaryButton()
       awaitUntilScreenWithBody<AppDelayNotifyInProgressBodyModel>(LOST_APP_DELAY_NOTIFY_PENDING)
 
-      appTester.completeServerDelayNotifyPeriodForTesting(fullAccountConfig.f8eEnvironment)
+      appTester.completeRecoveryDelayPeriodOnF8e()
       awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_READY)
         .clickPrimaryButton()
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {

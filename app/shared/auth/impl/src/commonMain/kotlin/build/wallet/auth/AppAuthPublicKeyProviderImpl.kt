@@ -6,8 +6,9 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.requireAppRecoveryAuthKey
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError
@@ -27,7 +28,7 @@ class AppAuthPublicKeyProviderImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
     tokenScope: AuthTokenScope,
-  ): Result<AppAuthPublicKey, AuthError> {
+  ): Result<PublicKey<out AppAuthKey>, AuthError> {
     return binding {
       // First, try to get the active or onboarding account
       val account =
@@ -105,7 +106,7 @@ class AppAuthPublicKeyProviderImpl(
  */
 private fun Account.appAuthPublicKey(
   tokenScope: AuthTokenScope,
-): Result<AppAuthPublicKey, AuthError> {
+): Result<PublicKey<out AppAuthKey>, AuthError> {
   return when (this) {
     // Full accounts can generate either [Global] or [RecoveryApp] auth tokens.
     is FullAccount ->

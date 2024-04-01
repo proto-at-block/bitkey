@@ -22,12 +22,14 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.input.NameInputBodyModel
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.EnterTcNameState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.FailedToSaveState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.SaveWithBitkeyRequestState
@@ -157,6 +159,11 @@ class AddingTrustedContactUiStateMachineImpl(
           eventTrackerScreenId = null,
           title = "Unable to save contact",
           isConnectivityError = current.error is HttpError.NetworkError,
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+            actionDescription = "Saving Trusted contact to F8e",
+            cause = current.error
+          ),
           onRetry = {
             state =
               SavingWithBitkeyState(

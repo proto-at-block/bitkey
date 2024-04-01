@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-annotations",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-annotations-1.9.21.jar": "bc71e4e481271cf2ad4150d9f65134f3b50faaed1fb52085217c232d7a7a0db4"
+                        "kotlin-gradle-plugin-annotations-1.9.22.jar": "967683cb98d9910145607fbf5b456295b43f0aaf93b1bba7bf6992e731cb24ec"
                     }
                 }
             ],

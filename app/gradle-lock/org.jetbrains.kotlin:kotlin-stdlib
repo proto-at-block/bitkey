@@ -20,18 +20,30 @@
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-1.9.21-all.jar": "cec38bc3302e72a8aaf9cde436b5a9071ee0331e2ad05e84d8bb897334d7e9d4"
-                    }
-                },
-                {
-                    "artifacts": {
                         "kotlin-stdlib-1.9.21.jar": "3b479313ab6caea4e5e25d3dee8ca80c302c89ba73e1af4dafaa100f6ef9296a"
                     }
                 }
             ],
             "dependency-locking-groups": [
                 "SQLDelight-DialectClasspath",
-                "SQLDelight-InternalClasspath",
+                "SQLDelight-InternalClasspath"
+            ]
+        },
+        {
+            "version": "1.9.22",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-1.9.22-all.jar": "cec38bc3302e72a8aaf9cde436b5a9071ee0331e2ad05e84d8bb897334d7e9d4"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-1.9.22.jar": "6abe146c27864138b874ccccfe5f534e3eb923c99a1b7b5d45494ee5694f3e0a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
                 "build-classpath",
                 "kotlin-compiler"
             ]

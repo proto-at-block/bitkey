@@ -14,7 +14,6 @@ class NfcTransactorImpl(
   private val sessionProvider: NfcSessionProvider,
   private val interceptors: List<NfcTransactionInterceptor>,
 ) : NfcTransactor {
-  @OptIn(ExperimentalStdlibApi::class)
   override suspend fun <T> transact(
     parameters: Parameters,
     transaction: TransactionFn<T>,

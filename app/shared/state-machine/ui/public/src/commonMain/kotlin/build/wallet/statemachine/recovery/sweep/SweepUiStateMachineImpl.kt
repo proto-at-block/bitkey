@@ -4,7 +4,10 @@ import androidx.compose.runtime.Composable
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
+import build.wallet.bitkey.factor.PhysicalFactor.App
+import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.recovery.getEventId
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.data.recovery.sweep.SweepData.AwaitingHardwareSignedSweepsData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratePsbtsFailedData
@@ -18,6 +21,7 @@ import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.recovery.RecoverySegment
 import kotlinx.collections.immutable.toImmutableList
 
 class SweepUiStateMachineImpl(
@@ -136,7 +140,15 @@ class SweepUiStateMachineImpl(
             ),
           onRetry = sweepData.retry,
           onExit = props.onExit,
-          presentationStyle = props.presentationStyle
+          presentationStyle = props.presentationStyle,
+          errorData = ErrorData(
+            segment = when (sweepData.recoveredFactor) {
+              App -> RecoverySegment.DelayAndNotify.LostApp.Completion
+              Hardware -> RecoverySegment.DelayAndNotify.LostApp.Completion
+            },
+            actionDescription = "Sweeping funds",
+            cause = sweepData.cause
+          )
         )
     }
   }

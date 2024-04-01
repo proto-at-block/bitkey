@@ -22,6 +22,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.Retreat
@@ -29,27 +30,28 @@ import build.wallet.statemachine.core.RetreatStyle.Back
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToAuthenticateWithF8EViaAppData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToCancelConflictingRecoveryData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToInitiateAppAuthWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.FailedToInitiateLostAppWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.InitiatingAppAuthWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.InitiatingLostAppRecoveryWithF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.ListingKeysetsFromF8eData
-import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.StartingLostAppRecoveryData.InitiatingLostAppRecoveryData.VerifyingNotificationCommsData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AuthenticatingWithF8EViaAppData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingAppSignedAuthChallengeData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingHardwareProofOfPossessionAndKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingHwKeysData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.AwaitingPushNotificationPermissionData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.CancellingConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.DisplayingConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToAuthenticateWithF8EViaAppData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToCancelConflictingRecoveryData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToInitiateAppAuthWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.FailedToInitiateLostAppWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.InitiatingAppAuthWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.InitiatingLostAppRecoveryWithF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.ListingKeysetsFromF8eData
+import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.InitiatingLostAppRecoveryData.VerifyingNotificationCommsData
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.inprogress.RecoverYourMobileKeyBodyModel
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.InitiatingViaNfcState
 import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppRecoveryUiStateMachineImpl.UiState.ShowingInstructionsState
@@ -136,6 +138,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       is FailedToAuthenticateWithF8EViaAppData ->
         InitiateRecoveryErrorScreenModel(
+          cause = recoveryData.error,
           onDoneClicked = recoveryData.rollback
         )
 
@@ -149,6 +152,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       is FailedToInitiateAppAuthWithF8eData ->
         InitiateRecoveryErrorScreenModel(
+          cause = recoveryData.error,
           onDoneClicked = recoveryData.rollback
         )
 
@@ -185,7 +189,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
               // Sign the new app global auth key with the hardware auth key.
               val appGlobalAuthKeyHwSignature = commands
-                .signChallenge(session, recoveryData.newAppGlobalAuthKey.pubKey.value)
+                .signChallenge(session, recoveryData.newAppGlobalAuthKey.value)
                 .let(::AppGlobalAuthKeyHwSignature)
 
               RotateHwKeysResponse(proof, spendingKey, appGlobalAuthKeyHwSignature)
@@ -213,6 +217,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
 
       is FailedToInitiateLostAppWithF8eData ->
         InitiateRecoveryErrorScreenModel(
+          cause = recoveryData.error,
           onDoneClicked = recoveryData.rollback
         )
 
@@ -239,23 +244,40 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
         ).asRootScreen()
 
       is FailedToCancelConflictingRecoveryData ->
-        CancelConflictingRecoveryErrorScreenModel {
-          recoveryData.onAcknowledge
-        }
+        CancelConflictingRecoveryErrorScreenModel(
+          error = recoveryData.cause,
+          onDoneClicked = recoveryData.onAcknowledge
+        )
     }
   }
 
-  private fun InitiateRecoveryErrorScreenModel(onDoneClicked: () -> Unit): ScreenModel =
+  private fun InitiateRecoveryErrorScreenModel(
+    cause: Throwable,
+    onDoneClicked: () -> Unit,
+  ): ScreenModel =
     ErrorFormBodyModel(
       title = "We couldn’t initiate recovery process.",
       primaryButton = ButtonDataModel(text = "OK", onClick = onDoneClicked),
+      errorData = ErrorData(
+        segment = RecoverySegment.DelayAndNotify.LostApp.Initiation,
+        actionDescription = "Initiating lost app recovery",
+        cause = cause
+      ),
       eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_ERROR
     ).asRootScreen()
 
-  private fun CancelConflictingRecoveryErrorScreenModel(onDoneClicked: () -> Unit): ScreenModel =
+  private fun CancelConflictingRecoveryErrorScreenModel(
+    error: Error,
+    onDoneClicked: () -> Unit,
+  ): ScreenModel =
     ErrorFormBodyModel(
       title = "We couldn’t cancel the existing recovery. Please try your recovery again.",
       primaryButton = ButtonDataModel(text = "OK", onClick = onDoneClicked),
+      errorData = ErrorData(
+        segment = RecoverySegment.DelayAndNotify.LostApp.Cancellation,
+        actionDescription = "Cancelling conflicting recovery",
+        cause = error
+      ),
       eventTrackerScreenId = DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CANCELLATION_ERROR
     ).asRootScreen()
 

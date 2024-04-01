@@ -44,6 +44,7 @@ impl SecretKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck_macros::quickcheck;
     use rand::RngCore;
 
     #[test]
@@ -67,5 +68,26 @@ mod tests {
         assert!(secp
             .verify_ecdsa(&hashed_message, &invalid_signature, &secret_key.as_public())
             .is_err());
+    }
+
+    #[quickcheck]
+    fn test_new_with_arbitrary_bytes(secret_bytes: Vec<u8>) {
+        let key = SecretKey::new(secret_bytes);
+
+        assert!(key.is_ok() || matches!(key, Err(SecretKeyError::InvalidSecretBytes(_))));
+    }
+
+    #[quickcheck]
+    fn test_sign_message_with_arbitrary_bytes(message: Vec<u8>) {
+        let mut random_bytes = [0u8; 32];
+        rand::thread_rng().fill_bytes(&mut random_bytes);
+        let secret_key = SecretKey::new(random_bytes.to_vec()).unwrap();
+        let signature = secret_key.sign_message(message.clone());
+        let secp = Secp256k1::verification_only();
+        let hashed_message = Message::from_hashed_data::<sha256::Hash>(&message);
+
+        assert!(secp
+            .verify_ecdsa(&hashed_message, &signature, &secret_key.as_public())
+            .is_ok());
     }
 }

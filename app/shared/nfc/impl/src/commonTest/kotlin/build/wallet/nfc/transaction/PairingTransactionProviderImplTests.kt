@@ -12,9 +12,10 @@ import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekGeneratorMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.firmware.HardwareAttestationMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactly
@@ -29,8 +30,10 @@ class PairingTransactionProviderImplTests : FunSpec({
   val csekGenerator = CsekGeneratorMock()
   val csek = csekGenerator.csek
   val csekDao = CsekDaoFake()
-  val uuid = UuidFake()
+  val uuid = UuidGeneratorFake()
   val appInstallationDao = AppInstallationDaoMock()
+  val hardwareAttestation = HardwareAttestationMock()
+
   appInstallationDao.appInstallation =
     AppInstallation(localId = "foo", hardwareSerialNumber = null)
 
@@ -40,8 +43,9 @@ class PairingTransactionProviderImplTests : FunSpec({
     PairingTransactionProviderImpl(
       csekGenerator = csekGenerator,
       csekDao = csekDao,
-      uuid = uuid,
-      appInstallationDao = appInstallationDao
+      uuidGenerator = uuid,
+      appInstallationDao = appInstallationDao,
+      hardwareAttestation = hardwareAttestation
     )
 
   test("cancel") {

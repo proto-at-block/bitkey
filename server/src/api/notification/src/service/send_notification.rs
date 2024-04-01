@@ -39,7 +39,7 @@ impl Service {
                     return t.is_active()
                         && account
                             .get_common_fields()
-                            .notifications_preferences
+                            .notifications_preferences_state
                             .is_enabled(notification_category, notification_channel);
                 };
 

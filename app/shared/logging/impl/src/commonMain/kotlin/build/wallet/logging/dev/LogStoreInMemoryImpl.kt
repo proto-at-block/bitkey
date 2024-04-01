@@ -1,10 +1,7 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.logging.dev
 
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore.Entity
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged

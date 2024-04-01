@@ -5,32 +5,30 @@ import androidx.compose.runtime.LaunchedEffect
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
-import build.wallet.coroutines.delayedResult
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
+import build.wallet.time.Delayer
+import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlin.time.Duration.Companion.seconds
 
 @Suppress("unused") // Used by iOS code.
 class CloudSignInUiStateMachineImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
+  private val delayer: Delayer,
 ) : CloudSignInUiStateMachine {
   @Composable
   override fun model(props: CloudSignInUiProps): BodyModel {
     LaunchedEffect("checking-account") {
-      delayedResult(minimumDuration = 1.5.seconds) {
-        cloudStoreAccountRepository.currentAccount(cloudServiceProvider())
-      }
+      delayer
+        .withMinimumDelay { cloudStoreAccountRepository.currentAccount(cloudServiceProvider()) }
         .onSuccess { account ->
           when (account) {
-            null -> props.onSignInFailure()
+            null -> props.onSignInFailure(Error("No cloud store account found."))
             else -> props.onSignedIn(account)
           }
         }
-        .onFailure {
-          props.onSignInFailure()
-        }
+        .onFailure(props.onSignInFailure)
     }
 
     return LoadingBodyModel(

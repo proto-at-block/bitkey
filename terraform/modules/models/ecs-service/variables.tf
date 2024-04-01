@@ -46,6 +46,18 @@ variable "internet_facing" {
   description = "A boolean flag to determine whether the ALB should be internet facing"
 }
 
+variable "load_balancer_allow_cloudflare_ips" {
+  type        = bool
+  default     = false
+  description = "Determine whether the ALB should only allow traffic from Cloudflare IPs. When set, public IPs will no longer be able to reach the ALB"
+}
+
+variable "load_balancer_allow_vpn_ips" {
+  type        = bool
+  default     = false
+  description = "Determine whether the ALB should allow traffic from VPN IPs. When set, public IPs will no longer be able to reach the ALB"
+}
+
 variable "additional_certs" {
   type        = list(string)
   description = "A list of additonal certs to add to the https listerner"

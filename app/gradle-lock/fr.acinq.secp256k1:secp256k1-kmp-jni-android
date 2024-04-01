@@ -2,11 +2,11 @@
     "module-identifier": "fr.acinq.secp256k1:secp256k1-kmp-jni-android",
     "components": [
         {
-            "version": "0.13.0",
+            "version": "0.15.0",
             "variants": [
                 {
                     "artifacts": {
-                        "secp256k1-kmp-jni-android-0.13.0.aar": "72c98a44842487337d1f2f922d95336a5b15be41c9ea2ab315a6f1c316597fd0"
+                        "secp256k1-kmp-jni-android-0.15.0.aar": "11f219f92a5ce37b14a3f695a6d937f6224e3c8a84a901e387d42081eeb63922"
                     }
                 }
             ],

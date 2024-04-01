@@ -72,7 +72,8 @@ class SendUiStateMachineImpl(
                 Variant.SpeedUp(
                   txid = entryPoint.speedUpTransactionDetails.txid,
                   oldFee = entryPoint.speedUpTransactionDetails.oldFee,
-                  // TODO: [W-5869] Remove when flipping feature flag.
+                  // For test accounts, we manually choose a fee rate that is twice the previous
+                  // one. This is particularly useful for QA when testing.
                   newFeeRate =
                     if (props.accountData.account.config.isTestAccount) {
                       FeeRate(

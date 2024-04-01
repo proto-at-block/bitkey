@@ -213,7 +213,14 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
     private func handleNavigationAnimationCompletion() {
         currentAnimationState = .none
-        for queuedAction in queuedActions {
+        // Always clear the queue prior to attempting to run the queued actions.
+        // Any action that cannot be completed due to an animation will be requeued.
+        // This prevent a pushOrPop getting stuck in the queue and shown later,
+        // which would get the view model and navigation state out of sync.
+        // See [W-6300] for an example of this.
+        let queueToDrain = queuedActions
+        queuedActions = []
+        for queuedAction in queueToDrain {
             switch queuedAction {
             case let .pushOrPop(vc, stateKey, animation):
                 pushOrPopTo(vc: vc, forStateKey: stateKey, animation: animation)

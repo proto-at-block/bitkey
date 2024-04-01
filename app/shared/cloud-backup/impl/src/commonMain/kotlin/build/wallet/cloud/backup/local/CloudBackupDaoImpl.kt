@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.cloud.backup.local
 
 import build.wallet.cloud.backup.CloudBackup
@@ -15,7 +13,6 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.coroutines.SuspendSettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -30,13 +27,11 @@ import kotlinx.serialization.json.Json
 class CloudBackupDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : CloudBackupDao {
-  @OptIn(ExperimentalSettingsApi::class)
   private suspend fun secureStore(): SuspendSettings =
     encryptedKeyValueStoreFactory.getOrCreate(storeName = "BackupStore")
 
   private val backupFlow = MutableSharedFlow<CloudBackup?>()
 
-  @OptIn(ExperimentalSettingsApi::class)
   override suspend fun set(
     accountId: String,
     backup: CloudBackup,

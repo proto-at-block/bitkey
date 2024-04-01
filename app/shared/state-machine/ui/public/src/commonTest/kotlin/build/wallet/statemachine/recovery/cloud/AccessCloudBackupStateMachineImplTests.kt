@@ -164,7 +164,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   test("cloud account sign in failed from trusted contact flow - does not show recovery options") {
     stateMachine.test(props.copy(showErrorOnBackupMissing = false)) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
       }
 
       awaitScreenWithBody<FormBodyModel>(SAVE_CLOUD_BACKUP_NOT_SIGNED_IN)
@@ -188,7 +188,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   test("cloud account sign in failed - emergency access row always available in EAK build") {
     stateMachine.test(props.copy(eakAssociation = EmergencyAccessKitAssociation.EakBuild)) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -208,7 +208,7 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
   test("cloud account sign in failed - start emergency access recovery") {
     stateMachine.test(props) {
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
       }
 
       awaitScreenWithBody<FormBodyModel> {

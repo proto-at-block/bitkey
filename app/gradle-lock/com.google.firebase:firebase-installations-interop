@@ -2,11 +2,11 @@
     "module-identifier": "com.google.firebase:firebase-installations-interop",
     "components": [
         {
-            "version": "17.1.0",
+            "version": "17.1.1",
             "variants": [
                 {
                     "artifacts": {
-                        "firebase-installations-interop-17.1.0.aar": "891f3ea799bb3f39b24bf94bb6d951424dde784b5c9b5af1def4bab798705d8d"
+                        "firebase-installations-interop-17.1.1.aar": "fac650680f7921f4ab92f0bb21a09234b12cdaefab2cf70188281d7ea52b8dad"
                     }
                 }
             ],

@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-klib-1.9.21.jar": "ecf40f6c6b255dc65e836183f58ad7aa15cc05d7314b3e59a2fe58d6317b0483"
+                        "kotlin-util-klib-1.9.22.jar": "a679ee2f510f3ab92691818de5eb5b0902e86d88c97674e7db44dc4f2252c5f9"
                     }
                 }
             ],

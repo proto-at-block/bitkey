@@ -5,7 +5,6 @@ import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +29,6 @@ class ExchangeRateSyncerImpl(
    * Launches non blocking coroutine and keeps syncing exchange rates as long as [CoroutineScope] is
    * alive.
    */
-  @OptIn(ExperimentalCoroutinesApi::class)
   override fun launchSync(
     scope: CoroutineScope,
     syncFrequency: Duration,

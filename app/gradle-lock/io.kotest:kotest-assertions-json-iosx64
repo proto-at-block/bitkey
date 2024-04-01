@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-json-iosx64",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-json-iosx64-5.8.0-metadata.jar": "f54eade13a7827782e9c3f57c00fcfd02a2a276c5cab2cfdd1aca9de9bfe5d6f"
+                        "kotest-assertions-json-iosx64-5.8.1-metadata.jar": "527c1a38397a80178cf5c3f8b3ec0e042850a1f41e0ba3564dd0125298c237f1"
                     }
                 },
                 {

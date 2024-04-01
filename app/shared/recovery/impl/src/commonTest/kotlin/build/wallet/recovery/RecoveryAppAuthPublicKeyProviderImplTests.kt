@@ -16,7 +16,7 @@ class RecoveryAppAuthPublicKeyProviderImplTests : FunSpec({
       recoveryDao = recoveryDao
     )
 
-  test("Returns AppGlobalAuthPublicKey when recovery is StillRecovering") {
+  test("Returns PublicKey<AppGlobalAuthKey> when recovery is StillRecovering") {
     recoveryDao.recovery = StillRecoveringInitiatedRecoveryMock
     provider.getAppPublicKeyForInProgressRecovery(AuthTokenScope.Global)
       .get().shouldBe(StillRecoveringInitiatedRecoveryMock.appGlobalAuthKey)

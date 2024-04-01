@@ -197,6 +197,7 @@ internal fun ScreenWithBodyAndAlertPreview() {
           onDismiss = {},
           primaryButtonText = "Primary",
           onPrimaryButtonClick = {},
+          primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
           secondaryButtonText = "Secondary",
           onSecondaryButtonClick = {}
         )

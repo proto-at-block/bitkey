@@ -1,11 +1,12 @@
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey;
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature;
 
 CREATE TABLE authKeyRotationAttemptEntity(
   rowId                                     INTEGER NOT NULL PRIMARY KEY,
-  destinationAppGlobalAuthKey               TEXT AS AppGlobalAuthPublicKey,
-  destinationAppRecoveryAuthKey             TEXT AS AppRecoveryAuthPublicKey,
+  destinationAppGlobalAuthKey               TEXT AS PublicKey<AppGlobalAuthKey>,
+  destinationAppRecoveryAuthKey             TEXT AS PublicKey<AppRecoveryAuthKey>,
   destinationAppGlobalAuthKeyHwSignature    TEXT AS AppGlobalAuthKeyHwSignature
 );
 

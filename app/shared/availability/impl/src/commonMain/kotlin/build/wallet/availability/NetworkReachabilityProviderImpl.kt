@@ -60,10 +60,6 @@ class NetworkReachabilityProviderImpl(
   }
 
   private suspend fun updateFlowsForReachableConnection(connection: NetworkConnection) {
-    // If a connection is reporting REACHABLE, immediately update the internet status flow
-    // because if any connection succeeds, there is an internet connection.
-    internetStatusMutableFlow.emit(REACHABLE)
-
     if (connection is F8e) {
       // If the connection is F8e and it is reporting REACHABLE, immediately update the flow.
       f8eStatusMutableFlow(connection.environment).emit(REACHABLE)
@@ -77,6 +73,10 @@ class NetworkReachabilityProviderImpl(
         }
       }
     }
+    // Wait to check for f8e connectivity before updating reachability.
+    // Prevents showing the "some features may not be available" banner when transitioning
+    // to fully online.
+    internetStatusMutableFlow.emit(REACHABLE)
   }
 
   private suspend fun updateFlowsForUnreachableConnection(connection: NetworkConnection) {

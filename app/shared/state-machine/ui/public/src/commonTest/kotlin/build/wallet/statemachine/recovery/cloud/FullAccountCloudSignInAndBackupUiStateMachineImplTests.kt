@@ -217,7 +217,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
         awaitCloudBackupMissingEvent()
       }
 
@@ -237,7 +237,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
         awaitCloudBackupMissingEvent()
       }
 
@@ -246,7 +246,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
         awaitCloudBackupMissingEvent()
       }
 
@@ -263,7 +263,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure()
+        onSignInFailure(Error())
         awaitCloudBackupMissingEvent()
       }
 

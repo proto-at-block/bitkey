@@ -2,7 +2,6 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.money.BitcoinMoney
 
 class MobilePaySpendingPolicyMock(
@@ -12,7 +11,6 @@ class MobilePaySpendingPolicyMock(
 
   override fun getDailySpendingLimitStatus(
     transactionAmount: BitcoinMoney,
-    latestTransactions: List<BitcoinTransaction>,
     mobilePayBalance: MobilePayBalance?,
   ): DailySpendingLimitStatus {
     getDailySpendingLimitStatusCalls += transactionAmount

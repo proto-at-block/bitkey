@@ -1,7 +1,6 @@
 package build.wallet.recovery
 
 import build.wallet.bitkey.app.AppAuthPublicKeys
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.f8e.F8eEnvironment

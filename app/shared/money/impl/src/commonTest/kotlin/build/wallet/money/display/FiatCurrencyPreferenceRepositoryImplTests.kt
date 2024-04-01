@@ -10,11 +10,9 @@ import build.wallet.platform.settings.LocaleCurrencyCodeProviderMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class FiatCurrencyPreferenceRepositoryImplTests : FunSpec({
 
   val fiatCurrencyDao = FiatCurrencyDaoMock(turbines::create)

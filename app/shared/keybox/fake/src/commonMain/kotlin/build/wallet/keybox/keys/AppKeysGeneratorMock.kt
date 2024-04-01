@@ -1,12 +1,12 @@
 package build.wallet.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
-import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -21,17 +21,17 @@ class AppKeysGeneratorMock : AppKeysGenerator {
     return keyBundleResult
   }
 
-  var globalAuthKeyResult: Result<AppGlobalAuthPublicKey, Throwable> =
-    Ok(AppGlobalAuthPublicKey(Secp256k1PublicKey("fake-auth-dpub")))
+  var globalAuthKeyResult: Result<PublicKey<AppGlobalAuthKey>, Throwable> =
+    Ok(PublicKey("fake-auth-dpub"))
 
-  override suspend fun generateGlobalAuthKey(): Result<AppGlobalAuthPublicKey, Throwable> {
+  override suspend fun generateGlobalAuthKey(): Result<PublicKey<AppGlobalAuthKey>, Throwable> {
     return globalAuthKeyResult
   }
 
-  var recoveryAuthKeyResult: Result<AppRecoveryAuthPublicKey, Throwable> =
+  var recoveryAuthKeyResult: Result<PublicKey<AppRecoveryAuthKey>, Throwable> =
     Ok(AppRecoveryAuthPublicKeyMock)
 
-  override suspend fun generateRecoveryAuthKey(): Result<AppRecoveryAuthPublicKey, Throwable> {
+  override suspend fun generateRecoveryAuthKey(): Result<PublicKey<AppRecoveryAuthKey>, Throwable> {
     return recoveryAuthKeyResult
   }
 

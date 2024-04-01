@@ -34,6 +34,9 @@ impl CryptoBox {
     }
 
     pub fn encrypt(&self, nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, CryptoBoxError> {
+        if nonce.len() != 24 {
+            return Err(CryptoBoxError::EncryptError);
+        }
         let cipher = self.chacha_box_mutex.lock().unwrap();
         let nonce = crypto_box::Nonce::from_slice(nonce);
 
@@ -43,6 +46,9 @@ impl CryptoBox {
     }
 
     pub fn decrypt(&self, nonce: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, CryptoBoxError> {
+        if nonce.len() != 24 {
+            return Err(CryptoBoxError::DecryptError);
+        }
         let cipher = self.chacha_box_mutex.lock().unwrap();
         let nonce = crypto_box::Nonce::from_slice(nonce);
 
@@ -88,6 +94,7 @@ impl CryptoBoxKeyPair {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use quickcheck_macros::quickcheck;
     use rand::RngCore;
 
     #[test]
@@ -183,5 +190,77 @@ mod tests {
 
         // Check that decryption fails
         assert!(result.is_err(), "Decryption should fail due to wrong key");
+    }
+
+    #[quickcheck]
+    fn test_new_with_arbitrary_bytes(public_key: Vec<u8>, secret_key: Vec<u8>) {
+        let crypto_box = CryptoBox::new(&public_key, &secret_key);
+
+        assert!(
+            crypto_box.is_ok()
+                || matches!(
+                    crypto_box,
+                    Err(CryptoBoxError::CryptoBoxInstantiationError(_))
+                )
+        );
+    }
+
+    #[quickcheck]
+    fn test_encrypt_decrypt_with_arbitrary_plaintext(plaintext: Vec<u8>) {
+        let alice_keypair = CryptoBoxKeyPair::new();
+        let bob_keypair = CryptoBoxKeyPair::new();
+
+        // Alice encrypts
+        let alice_crypto_box =
+            CryptoBox::new(&bob_keypair.public_key(), &alice_keypair.secret_key()).unwrap();
+        let mut nonce = [0u8; 24];
+        rand::thread_rng().fill_bytes(&mut nonce);
+        let ciphertext = alice_crypto_box.encrypt(&nonce, &plaintext).unwrap();
+
+        // Bob decrypts
+        let bob_crypto_box =
+            CryptoBox::new(&alice_keypair.public_key(), &bob_keypair.secret_key()).unwrap();
+        let decrypted_data = bob_crypto_box.decrypt(&nonce, &ciphertext).unwrap();
+
+        assert_eq!(plaintext.to_vec(), decrypted_data);
+    }
+
+    #[quickcheck]
+    fn test_encrypt_with_arbitrary_inputs(nonce: Vec<u8>, plaintext: Vec<u8>) {
+        let alice_keypair = CryptoBoxKeyPair::new();
+        let bob_keypair = CryptoBoxKeyPair::new();
+
+        let alice_crypto_box =
+            CryptoBox::new(&bob_keypair.public_key(), &alice_keypair.secret_key()).unwrap();
+        let ciphertext = alice_crypto_box.encrypt(&nonce, &plaintext);
+
+        assert!(ciphertext.is_ok() || matches!(ciphertext, Err(CryptoBoxError::EncryptError)));
+    }
+
+    #[quickcheck]
+    fn test_decrypt_with_arbitrary_ciphertext(ciphertext: Vec<u8>) {
+        let alice_keypair = CryptoBoxKeyPair::new();
+        let bob_keypair = CryptoBoxKeyPair::new();
+
+        let mut nonce = [0u8; 24];
+        rand::thread_rng().fill_bytes(&mut nonce);
+
+        let bob_crypto_box =
+            CryptoBox::new(&alice_keypair.public_key(), &bob_keypair.secret_key()).unwrap();
+        let decrypted_data = bob_crypto_box.decrypt(&nonce, &ciphertext);
+
+        assert!(matches!(decrypted_data, Err(CryptoBoxError::DecryptError)));
+    }
+
+    #[quickcheck]
+    fn test_decrypt_with_arbitrary_inputs(nonce: Vec<u8>, ciphertext: Vec<u8>) {
+        let alice_keypair = CryptoBoxKeyPair::new();
+        let bob_keypair = CryptoBoxKeyPair::new();
+
+        let bob_crypto_box =
+            CryptoBox::new(&alice_keypair.public_key(), &bob_keypair.secret_key()).unwrap();
+        let decrypted_data = bob_crypto_box.decrypt(&nonce, &ciphertext);
+
+        assert!(matches!(decrypted_data, Err(CryptoBoxError::DecryptError)));
     }
 }

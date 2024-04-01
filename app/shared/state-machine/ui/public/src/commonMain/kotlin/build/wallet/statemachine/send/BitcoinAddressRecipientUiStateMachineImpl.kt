@@ -71,7 +71,7 @@ class BitcoinAddressRecipientUiStateMachineImpl(
               bitcoinAddress == null -> null
               bitcoinAddress.address.isBlank() -> null
               wallet?.isMine(bitcoinAddress)
-                ?.get() == true -> "Sorry, you can’t send to your own address"
+                ?.get() == true -> "You can’t send to your own address"
 
               else -> null
             }

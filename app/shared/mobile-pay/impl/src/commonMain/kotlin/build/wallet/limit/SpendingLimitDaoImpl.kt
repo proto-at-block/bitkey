@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.limit
 
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
@@ -23,7 +21,6 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.integer.toBigInteger
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
@@ -31,7 +28,6 @@ import kotlinx.coroutines.flow.transformLatest
 class SpendingLimitDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
 ) : SpendingLimitDao {
-  @OptIn(ExperimentalCoroutinesApi::class)
   override fun activeSpendingLimit(): Flow<SpendingLimit?> {
     return databaseProvider.database().spendingLimitQueries.activeLimit()
       .asFlowOfOneOrNull()

@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package build.wallet.home
 
 import build.wallet.database.BitkeyDatabaseProvider
@@ -13,7 +11,6 @@ import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.mapOr
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
 

@@ -10,13 +10,9 @@ import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.device.DevicePlatform.IOS
 import build.wallet.platform.device.DevicePlatform.Jvm
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconDigitOne
-import build.wallet.statemachine.core.Icon.SmallIconDigitTwo
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
-import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -27,6 +23,7 @@ import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.ListItemAccessoryAlignment
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
@@ -244,27 +241,32 @@ fun SocialRecoveryExplanationModel(
   id = SOCIAL_RECOVERY_EXPLANATION,
   onBack = onBack,
   toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
-  header =
-    FormHeaderModel(
-      headline = "Recover your wallet using Trusted Contacts",
-      // TODO(BKR-740): Make this a list header.
-      subline = "What you need to do"
-    ),
+  header = FormHeaderModel(
+    headline = "Recover your wallet using Trusted Contacts"
+  ),
   mainContentList =
     immutableListOf(
-      Explainer(
-        items =
-          immutableListOf(
-            Statement(
-              leadingIcon = SmallIconDigitOne,
-              title = "Verify via a Trusted Contact",
-              body = "You’ll provide a recovery code to one of your Trusted Contacts to enter into their Bitkey app. Once they verify you’re really you, your wallet will be restored to this device."
-            ),
-            Statement(
-              leadingIcon = SmallIconDigitTwo,
-              title = "Pair a new Bitkey device",
-              body = "Once paired you’ll have a 7-day security waiting period. You can cancel this process anytime and continue using your existing Bitkey device."
-            )
+      FormMainContentModel.ListGroup(
+        listGroupModel =
+          ListGroupModel(
+            header = "What you need to do",
+            headerTreatment = ListGroupModel.HeaderTreatment.PRIMARY,
+            items =
+              immutableListOf(
+                ListItemModel(
+                  leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '1'),
+                  leadingAccessoryAlignment = ListItemAccessoryAlignment.TOP,
+                  title = "Verify via a Trusted Contact",
+                  secondaryText = "You’ll provide a recovery code to one of your Trusted Contacts to enter into their Bitkey app. Once they verify you’re really you, your wallet will be restored to this device."
+                ),
+                ListItemModel(
+                  leadingAccessory = ListItemAccessory.CircularCharacterAccessory(character = '2'),
+                  leadingAccessoryAlignment = ListItemAccessoryAlignment.TOP,
+                  title = "Pair a new Bitkey device",
+                  secondaryText = "Once paired you’ll have a 7-day security waiting period. You can cancel this process anytime and continue using your existing Bitkey device."
+                )
+              ),
+            style = ListGroupStyle.NONE
           )
       )
     ),

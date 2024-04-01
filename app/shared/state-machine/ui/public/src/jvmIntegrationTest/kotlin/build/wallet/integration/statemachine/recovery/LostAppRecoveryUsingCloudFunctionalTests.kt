@@ -1,5 +1,3 @@
-@file:OptIn(DelicateCoroutinesApi::class)
-
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.test
@@ -24,14 +22,15 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getActiveWallet
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.ext.returnFundsToTreasury
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
@@ -46,10 +45,11 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
       cloudStoreAccountForBackup = CloudStoreAccount1Fake
     )
 
-    // copy cloud stores to new app
+    // copy cloud stores to new app, keep hardware
     val newApp = launchNewApp(
       cloudStoreAccountRepository = app.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.app.cloudKeyValueStore
+      cloudKeyValueStore = app.app.cloudKeyValueStore,
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
     )
 
     newApp.app.appUiStateMachine.test(
@@ -90,10 +90,11 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
     val treasury = app.treasuryWallet
     treasury.fund(app.getActiveWallet(), BitcoinMoney.sats(10_000))
 
-    // copy cloud stores to new app
+    // copy cloud stores to new app, keep hardware
     val newApp = launchNewApp(
       cloudStoreAccountRepository = app.app.cloudStoreAccountRepository,
-      cloudKeyValueStore = app.app.cloudKeyValueStore
+      cloudKeyValueStore = app.app.cloudKeyValueStore,
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
     )
 
     newApp.app.appUiStateMachine.test(

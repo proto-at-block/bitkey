@@ -2,11 +2,11 @@
     "module-identifier": "com.google.android.gms:play-services-cloud-messaging",
     "components": [
         {
-            "version": "17.0.1",
+            "version": "17.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "play-services-cloud-messaging-17.0.1.aar": "1e759adcf0350731ce4dc73b035705e4c7d08bdf7db069cc0468eca3e7bb9dc2"
+                        "play-services-cloud-messaging-17.1.0.aar": "f2052066c74c831ae356b374227cbb9fe9c4877eaa5a1ac91a572455a0f346a5"
                     }
                 }
             ],

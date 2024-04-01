@@ -15,9 +15,9 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
                         recoveryRelationshipId: "",
                         trustedContactAlias: "Bob",
                         keyCertificate: TrustedContactKeyCertificate(
-                            delegatedDecryptionKey: .init(key: AppKeyCompanion().fromPublicKey(value: "")),
+                            delegatedDecryptionKey: "",
                             hwAuthPublicKey: .init(pubKey: .init(value: "")),
-                            appGlobalAuthPublicKey: .init(pubKey: .init(value: "")),
+                            appGlobalAuthPublicKey: "",
                             appAuthGlobalKeyHwSignature: "",
                             trustedContactIdentityKeyAppSignature: ""
                         ),

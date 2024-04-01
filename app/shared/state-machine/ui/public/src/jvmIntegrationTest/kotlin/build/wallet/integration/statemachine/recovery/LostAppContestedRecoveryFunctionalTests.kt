@@ -39,7 +39,9 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.clickTrailingAccessoryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.deleteBackupsFromFakeCloud
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -52,7 +54,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
   test("complete lost hardware recovery then lost app recovery") {
     testWithTwoApps(
       isContested = false
-    ) { lostHwAppTester, lostAppAppTester, resetHardwareAndClearBackups ->
+    ) { lostHwAppTester, lostAppAppTester, resetHardwareAndClearBackups, _ ->
       lostHwAppTester.initiateAndCompleteLostHardwareRecovery(isConflicted = false)
 
       resetHardwareAndClearBackups()
@@ -65,7 +67,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     testWithTwoApps(
       isContested = false,
       isUsingSocRecFakes = true
-    ) { _, lostAppAppTester, resetHardwareAndClearBackups ->
+    ) { _, lostAppAppTester, resetHardwareAndClearBackups, _ ->
       lostAppAppTester.initiateAndCompleteLostAppRecovery(isConflicted = false)
 
       resetHardwareAndClearBackups()
@@ -78,12 +80,14 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     testWithTwoApps(
       isContested = true,
       isUsingSocRecFakes = true
-    ) { lostHwAppTester, _, resetHardware ->
+    ) { lostHwAppTester, _, resetHardwareAndClearBackups, resetLostHwAppHardware ->
+
+      resetLostHwAppHardware()
 
       // Initiate and complete recovery
       lostHwAppTester.initiateAndCompleteLostHardwareRecovery(isConflicted = true)
 
-      resetHardware()
+      resetHardwareAndClearBackups()
 
       lostHwAppTester.initiateAndCompleteLostHardwareRecovery(isConflicted = false)
     }
@@ -99,7 +103,8 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
       }
 
     test("initiate lost hw recovery and cancel using hardware: $type") {
-      testWithTwoApps(isContested = isContested) { lostHwAppTester, lostAppAppTester, _ ->
+      testWithTwoApps(isContested = isContested) { lostHwAppTester, lostAppAppTester, _, resetLostHwAppHardware ->
+        resetLostHwAppHardware()
         lostHwAppTester.initiateLostHardwareRecovery(isContested = isContested)
         lostAppAppTester.initiateLostAppRecovery(
           cancelOtherRecovery = true,
@@ -109,8 +114,9 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     }
 
     test("initiate lost app recovery and cancel from onboarded app: $type") {
-      testWithTwoApps(isContested = isContested) { lostHwAppTester, lostAppAppTester, _ ->
+      testWithTwoApps(isContested = isContested) { lostHwAppTester, lostAppAppTester, resetHardwareAndClearBackups, _ ->
         lostAppAppTester.initiateLostAppRecovery(isContested = isContested)
+        resetHardwareAndClearBackups()
         lostHwAppTester.initiateLostHardwareRecovery(
           isContested = isContested,
           cancelOtherRecovery = true
@@ -119,7 +125,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     }
 
     test("initiate lost app recovery and cancel own recovery: $type") {
-      testWithTwoApps(isContested = isContested) { _, lostAppAppTester, _ ->
+      testWithTwoApps(isContested = isContested) { _, lostAppAppTester, _, _ ->
         lostAppAppTester.initiateLostAppRecovery(
           isContested = isContested,
           cancelOtherRecovery = false
@@ -131,7 +137,8 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
     }
 
     test("initiate lost hardware recovery and cancel own recovery: $type") {
-      testWithTwoApps(isContested = isContested) { lostHwAppTester, _, _ ->
+      testWithTwoApps(isContested = isContested) { lostHwAppTester, _, _, resetLostHwAppHardware ->
+        resetLostHwAppHardware()
         lostHwAppTester.initiateLostHardwareRecovery(
           isContested = isContested
         ).clickTrailingAccessoryButton()
@@ -328,6 +335,7 @@ private suspend fun testWithTwoApps(
     lostHwAppTester: StateMachineTester<Unit, ScreenModel>,
     lostAppAppTester: StateMachineTester<Unit, ScreenModel>,
     resetHardwareAndClearBackups: suspend () -> Unit,
+    resetLostHwAppHardware: suspend () -> Unit,
   ) -> Unit,
 ) {
   // Setup lost hardware
@@ -335,11 +343,13 @@ private suspend fun testWithTwoApps(
   lostHwApp.onboardFullAccountWithFakeHardware(true, delayNotifyDuration = 2.seconds)
   val fakeHardwareSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
   lostHwApp.deleteBackupsFromFakeCloud()
-  lostHwApp.fakeNfcCommands.clearHardwareKeys()
+  lostHwApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
   // Move the hardware that was lost to a new device
-  val lostAppApp = launchNewApp(isUsingSocRecFakes = isUsingSocRecFakes)
-  lostAppApp.fakeNfcCommands.fakeHardwareKeyStore.setSeed(fakeHardwareSeed)
+  val lostAppApp = launchNewApp(
+    isUsingSocRecFakes = isUsingSocRecFakes,
+    hardwareSeed = fakeHardwareSeed
+  )
 
   turbineScope(timeout = 30.seconds) {
     val lostAppAppTester =
@@ -372,16 +382,26 @@ private suspend fun testWithTwoApps(
         .onClick()
     }
 
-    testContent(this, lostHwAppTester, lostAppAppTester) {
-      // Set seed if it wasn't set already
-      lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getAuthKeypair()
+    // Set seed if it wasn't set already
+    lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getAuthKeypair()
+    val oldSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
 
-      val oldSeed = lostHwApp.fakeNfcCommands.fakeHardwareKeyStore.getSeed()
-      lostHwApp.fakeNfcCommands.clearHardwareKeys()
-      lostHwApp.deleteBackupsFromFakeCloud()
-      lostAppApp.fakeNfcCommands.clearHardwareKeys()
-      lostAppApp.fakeNfcCommands.fakeHardwareKeyStore.setSeed(oldSeed)
-    }
+    testContent(
+      this,
+      lostHwAppTester,
+      lostAppAppTester,
+      // Reset hardware and clear backups
+      {
+        lostHwApp.deleteBackupsFromFakeCloud()
+        lostHwApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+        lostAppApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+        lostAppApp.fakeNfcCommands.fakeHardwareKeyStore.setSeed(oldSeed)
+      },
+      // Reset lostHwAppTester's hardware
+      {
+        lostHwApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+      }
+    )
 
     lostHwAppTester.cancelAndIgnoreRemainingEvents()
     lostAppAppTester.cancelAndIgnoreRemainingEvents()

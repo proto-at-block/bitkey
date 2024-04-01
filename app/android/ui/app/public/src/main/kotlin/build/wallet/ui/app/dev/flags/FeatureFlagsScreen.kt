@@ -15,11 +15,14 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsBodyModel
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -40,7 +43,14 @@ fun FeatureFlagsScreen(model: FeatureFlagsBodyModel) {
         model =
           ToolbarModel(
             leadingAccessory = BackAccessory(onClick = model.onBack),
-            middleAccessory = ToolbarMiddleAccessoryModel(title = "Feature Flags")
+            middleAccessory = ToolbarMiddleAccessoryModel(title = "Feature Flags"),
+            trailingAccessory = ToolbarAccessoryModel.ButtonAccessory(
+              ButtonModel(
+                text = "Reset",
+                size = ButtonModel.Size.Compact,
+                onClick = StandardClick(model.onReset)
+              )
+            )
           )
       )
     }
@@ -80,7 +90,8 @@ internal fun FeatureFlagsScreenPreview() {
                 )
               )
           ),
-        onBack = {}
+        onBack = {},
+        onReset = {}
       )
     )
   }

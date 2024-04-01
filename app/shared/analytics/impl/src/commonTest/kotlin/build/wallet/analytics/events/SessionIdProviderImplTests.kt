@@ -1,6 +1,6 @@
 package build.wallet.analytics.events
 
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -17,7 +17,7 @@ class SessionIdProviderImplTests : FunSpec({
     provider =
       SessionIdProviderImpl(
         clock = clock,
-        uuid = UuidFake()
+        uuidGenerator = UuidGeneratorFake()
       )
   }
 

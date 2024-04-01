@@ -20,6 +20,9 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
 import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.feature.FeatureFlag
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.isEnabled
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
@@ -64,6 +67,7 @@ class TransactionDetailsUiStateMachineImpl(
   private val clock: Clock,
   private val durationFormatter: DurationFormatter,
   private val eventTracker: EventTracker,
+  private val feeBumpEnabled: FeatureFlag<FeatureFlagValue.BooleanFlag>,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -84,7 +88,8 @@ class TransactionDetailsUiStateMachineImpl(
     val fiatString = moneyDisplayFormatter.format(fiatAmount)
     val feeBumpEnabled by remember {
       mutableStateOf(
-        !props.transaction.incoming &&
+        feeBumpEnabled.flagValue().value.value &&
+          !props.transaction.incoming &&
           props.transaction.confirmationStatus == Pending
       )
     }
@@ -336,39 +341,45 @@ class TransactionDetailsUiStateMachineImpl(
   }
 
   private fun pendingDataListItem(estimatedConfirmationTime: Instant?): Data {
-    return estimatedConfirmationTime?.let { confirmationTime ->
-      val currentTime = clock.now()
-      if (confirmationTime < currentTime) {
-        Data(
-          title = "Should have arrived by",
-          sideText =
+    val fallbackData =  Data(
+      title = "Confirmed at",
+      sideText = "Unconfirmed"
+    )
+
+    return if (feeBumpEnabled.flagValue().value.value) {
+      estimatedConfirmationTime?.let { confirmationTime ->
+        val currentTime = clock.now()
+        if (confirmationTime < currentTime) {
+          Data(
+            title = "Should have arrived by",
+            sideText =
             dateTimeFormatter.shortDateWithTime(
               localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
             ),
-          sideTextTreatment = Data.SideTextTreatment.STRIKETHROUGH,
-          sideTextType = Data.SideTextType.REGULAR,
-          secondarySideText = "${durationFormatter.formatWithAlphabet(currentTime - confirmationTime)} late",
-          secondarySideTextType = Data.SideTextType.BOLD,
-          secondarySideTextTreatment = Data.SideTextTreatment.WARNING,
-          explainer =
+            sideTextTreatment = Data.SideTextTreatment.STRIKETHROUGH,
+            sideTextType = Data.SideTextType.REGULAR,
+            secondarySideText = "${durationFormatter.formatWithAlphabet(currentTime - confirmationTime)} late",
+            secondarySideTextType = Data.SideTextType.BOLD,
+            secondarySideTextTreatment = Data.SideTextTreatment.WARNING,
+            explainer =
             Data.Explainer(
               title = "Taking longer than usual",
               subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee."
             )
-        )
-      } else {
-        Data(
-          title = "Should arrive by",
-          sideText =
+          )
+        } else {
+          Data(
+            title = "Should arrive by",
+            sideText =
             dateTimeFormatter.shortDateWithTime(
               localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
             )
-        )
-      }
-    } ?: Data(
-      title = "Confirmed at",
-      sideText = "Unconfirmed"
-    )
+          )
+        }
+      } ?: fallbackData
+    } else {
+      fallbackData
+    }
   }
 
   private sealed interface UiState {

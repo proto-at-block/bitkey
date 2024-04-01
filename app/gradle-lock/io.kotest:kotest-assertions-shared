@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-shared",
     "components": [
         {
-            "version": "5.8.0",
+            "version": "5.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-shared-metadata-5.8.0.jar": "4325fc011e36ecaa64c8dcd1568e97841a827c1a85bf28dc30f7606fe2ea8974"
+                        "kotest-assertions-shared-metadata-5.8.1.jar": "c6b97f68821211a14bbd44d320f7e86b96da38be094f7fde0727ed74b4bd9ea1"
                     }
                 }
             ],

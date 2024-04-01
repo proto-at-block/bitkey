@@ -69,6 +69,9 @@ private fun SettingsSection(model: SettingsBodyModel.SectionModel) {
               )
           ),
         trailingAccessory = ListItemAccessory.drillIcon().takeIf { !rowModel.isDisabled },
+        specialTrailingAccessory = rowModel.specialTrailingIconModel?.let { model ->
+          ListItemAccessory.IconAccessory(model = model)
+        },
         onClick = rowModel.onClick
       )
       Divider()
@@ -103,6 +106,16 @@ internal fun SettingsScreenPreview() {
                     icon = Icon.SmallIconQuestion,
                     title = "Help Center",
                     isDisabled = false
+                  ) {},
+                  SettingsBodyModel.RowModel(
+                    icon = Icon.SmallIconCloud,
+                    title = "Cloud Backup",
+                    isDisabled = false,
+                    specialTrailingIconModel = IconModel(
+                      icon = Icon.SmallIconInformationFilled,
+                      iconSize = Small,
+                      iconTint = IconTint.Warning
+                    )
                   ) {}
                 )
             )

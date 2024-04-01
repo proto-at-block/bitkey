@@ -1,5 +1,6 @@
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey;
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey;
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
 import build.wallet.bitkey.app.AppSpendingPublicKey;
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey;
 import build.wallet.bitkey.f8e.FullAccountId;
@@ -17,16 +18,16 @@ CREATE TABLE activeServerRecoveryEntity(
   startTime                     INTEGER AS Instant NOT NULL,
   endTime                       INTEGER AS Instant NOT NULL,
   lostFactor                    TEXT AS PhysicalFactor NOT NULL,
-  destinationAppGlobalAuthKey   TEXT AS AppGlobalAuthPublicKey NOT NULL,
-  destinationAppRecoveryAuthKey TEXT AS AppRecoveryAuthPublicKey NOT NULL,
+  destinationAppGlobalAuthKey   TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  destinationAppRecoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
   destinationHardwareAuthKey    TEXT AS HwAuthPublicKey NOT NULL
 );
 
 CREATE TABLE localRecoveryAttemptEntity(
   rowId                           INTEGER NOT NULL PRIMARY KEY,
   account                         TEXT AS FullAccountId NOT NULL,
-  destinationAppGlobalAuthKey     TEXT AS AppGlobalAuthPublicKey NOT NULL,
-  destinationAppRecoveryAuthKey   TEXT AS AppRecoveryAuthPublicKey NOT NULL,
+  destinationAppGlobalAuthKey     TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  destinationAppRecoveryAuthKey   TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
   destinationHardwareAuthKey      TEXT AS HwAuthPublicKey NOT NULL,
   destinationAppSpendingKey       TEXT AS AppSpendingPublicKey NOT NULL,
   destinationHardwareSpendingKey  TEXT AS HwSpendingPublicKey NOT NULL,

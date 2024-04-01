@@ -1,10 +1,11 @@
 package build.wallet.f8e.recovery
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import kotlinx.datetime.Instant
 
 /**
@@ -34,12 +35,12 @@ data class ServerRecovery(
    * [destinationAppGlobalAuthPubKey] the app global auth pub key that will be made active on the
    * account once the recovery is complete
    */
-  val destinationAppGlobalAuthPubKey: AppGlobalAuthPublicKey,
+  val destinationAppGlobalAuthPubKey: PublicKey<AppGlobalAuthKey>,
   /**
    * [destinationAppRecoveryAuthPubKey] the app recovery auth pub key that will be made active on
    * the account once the recovery is complete
    */
-  val destinationAppRecoveryAuthPubKey: AppRecoveryAuthPublicKey,
+  val destinationAppRecoveryAuthPubKey: PublicKey<AppRecoveryAuthKey>,
   /**
    * [destinationHardwareAuthPubKey] the hardware auth pub key that will be made active on the
    * account once the recovery is complete

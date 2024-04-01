@@ -8,16 +8,12 @@ import kotlin.reflect.KClass
  * IMPORTANT: Renaming enum values would require a migration.
  */
 enum class SocRecKeyPurpose {
-  ProtectedCustomerEphemeral,
-  ProtectedCustomerIdentity,
   DelegatedDecryption,
   ;
 
   companion object {
     fun <T : SocRecKey> fromKeyType(keyClass: KClass<T>): SocRecKeyPurpose =
       when (keyClass) {
-        ProtectedCustomerEphemeralKey::class -> ProtectedCustomerEphemeral
-        ProtectedCustomerIdentityKey::class -> ProtectedCustomerIdentity
         DelegatedDecryptionKey::class -> DelegatedDecryption
         else -> error("Unknown SocRecKey type: $keyClass")
       }

@@ -27,6 +27,7 @@ suspend fun <
           TConfigBuilder : CredentialsProviderConfig.Builder =
   fromEnvironment {
     if (System.getenv("AWS_PROFILE") == null && System.getenv("AWS_ACCESS_KEY_ID") == null) {
+      @Suppress("OPT_IN_USAGE_FUTURE_ERROR")
       credentialsProvider = ProfileCredentialsProvider(profileName = "w1-development--admin")
     }
     if (System.getenv("AWS_REGION") == null) {

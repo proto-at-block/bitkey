@@ -2,11 +2,11 @@
     "module-identifier": "fr.acinq.secp256k1:secp256k1-kmp",
     "components": [
         {
-            "version": "0.13.0",
+            "version": "0.15.0",
             "variants": [
                 {
                     "artifacts": {
-                        "secp256k1-kmp-metadata-0.13.0.jar": "fd5350f8c7aea26b475c69bd530daf734c1211bc6baba45b17ad6be67a510517"
+                        "secp256k1-kmp-metadata-0.15.0.jar": "cbc059d8d546f5b37c0a1cb9f88a060473cbfe1f5f3881a148eb3f0193a8c551"
                     }
                 }
             ],

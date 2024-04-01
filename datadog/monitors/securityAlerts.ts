@@ -56,5 +56,17 @@ export class SecurityAlertMonitors extends Construct {
       tags: [`env:${environment}`, "socrec_key_certificate_verification_failure"],
       ...logAlertConfig,
     });
+
+    new Monitor(this, "socrec_enrollment_pake_failure", {
+      query: log_count_query(
+        `socrec_enrollment_pake_failure env:${environment}`,
+        "10m", // Window
+        logAlertConfig.monitorThresholds.critical
+      ),
+      name: "socrec enrollment pake failure",
+      message: "Protected customer app failed PAKE confirmation for trusted contact enrollment",
+      tags: [`env:${environment}`, "socrec_enrollment_pake_failure"],
+      ...logAlertConfig,
+    });
   }
 }

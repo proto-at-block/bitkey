@@ -39,7 +39,7 @@ pub struct Cli {
     auth_client_id: String,
 
     /// URL for the Electrum node
-    #[clap(short, long, default_value = "ssl://electrum.nodes.wallet.build:51002")]
+    #[clap(short, long, default_value = "ssl://bitkey.mempool.space:50002")]
     electrum: String,
 
     #[clap(subcommand)]

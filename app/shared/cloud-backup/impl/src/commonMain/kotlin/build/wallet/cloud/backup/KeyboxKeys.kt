@@ -1,11 +1,12 @@
 package build.wallet.cloud.backup
 
 import build.wallet.bitcoin.AppPrivateKeyDao
-import build.wallet.bitkey.app.AppGlobalAuthKeypair
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -19,22 +20,22 @@ import com.github.michaelbull.result.toErrorIfNull
 /** Get [appGlobalAuthKeypair]. */
 internal suspend fun Keybox.appGlobalAuthKeypair(
   appPrivateKeyDao: AppPrivateKeyDao,
-): Result<AppGlobalAuthKeypair, Throwable> {
+): Result<AppKey<AppGlobalAuthKey>, Throwable> {
   val appAuthPublicKey = activeAppKeyBundle.authKey
   return appPrivateKeyDao
-    .getGlobalAuthKey(appAuthPublicKey)
+    .getAsymmetricPrivateKey(appAuthPublicKey)
     .toErrorIfNull { IllegalStateException("Active global app auth private key not found.") }
-    .map { appAuthPrivateKey -> AppGlobalAuthKeypair(appAuthPublicKey, appAuthPrivateKey) }
+    .map { appAuthPrivateKey -> AppKey(appAuthPublicKey, appAuthPrivateKey) }
 }
 
 internal suspend fun Keybox.appRecoveryAuthKeypair(
   appPrivateKeyDao: AppPrivateKeyDao,
-): Result<AppRecoveryAuthKeypair, Throwable> {
+): Result<AppKey<AppRecoveryAuthKey>, Throwable> {
   val appAuthPublicKey = activeAppKeyBundle.recoveryAuthKey
   return appPrivateKeyDao
-    .getRecoveryAuthKey(appAuthPublicKey)
+    .getAsymmetricPrivateKey(appAuthPublicKey)
     .toErrorIfNull { IllegalStateException("Active recovery app auth private key not found.") }
-    .map { appAuthPrivateKey -> AppRecoveryAuthKeypair(appAuthPublicKey, appAuthPrivateKey) }
+    .map { appAuthPrivateKey -> AppKey(appAuthPublicKey, appAuthPrivateKey) }
 }
 
 /** Collect all private app spending keys into a map for later to be encrypted in a backup. */

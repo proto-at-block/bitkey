@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.annotation:annotation-iosarm64",
+    "components": [
+        {
+            "version": "1.7.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "annotation-iosarm64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "annotation.klib": "f9c18678c2ccb637be2f7e7ccf05399ba43201d66b98c0a9667ab74717d7a334"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

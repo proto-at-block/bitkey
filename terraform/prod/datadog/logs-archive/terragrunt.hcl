@@ -13,9 +13,7 @@ terraform {
 
 inputs = {
   bucket_name = "bitkey-datadog-logs-archive"
-  # TODO: Change to "env:production" after we launch prod.
-  log_query             = ""
-  dd_api_key_secret_arn = "arn:aws:secretsmanager:us-west-2:000000000000:secret:atlantis/datadog-app-key-mXfidI"
+  log_query   = "env:production"
 }
 
 # This creates an AWS provider targeted to us-east-1. Should extract this somewhere

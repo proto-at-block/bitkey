@@ -15,9 +15,11 @@ import build.wallet.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
+import build.wallet.statemachine.core.NetworkErrorFormBodyModelWithOptionalErrorData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.input.VerificationCodeInputProps
 import build.wallet.statemachine.core.input.VerificationCodeInputProps.ResendCodeCallbacks
@@ -42,7 +44,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
           .asModalScreen()
 
       is LoadingNotificationTouchpointFailureData ->
-        LoadingNotificationTouchpointFailureModel(data)
+        LoadingNotificationTouchpointFailureModel(props, data)
           .asModalScreen()
 
       is ChoosingNotificationTouchpointData ->
@@ -57,7 +59,7 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
           .asModalScreen()
 
       is SendingNotificationTouchpointToServerFailureData ->
-        SendingNotificationTouchpointToServerFailureModel(data)
+        SendingNotificationTouchpointToServerFailureModel(props, data)
           .asModalScreen()
 
       is EnteringVerificationCodeData ->
@@ -75,26 +77,46 @@ class RecoveryNotificationVerificationUiStateMachineImpl(
 
   @Composable
   private fun LoadingNotificationTouchpointFailureModel(
+    props: RecoveryNotificationVerificationUiProps,
     data: LoadingNotificationTouchpointFailureData,
   ): BodyModel {
-    return NetworkErrorFormBodyModel(
+    return NetworkErrorFormBodyModelWithOptionalErrorData(
       title = "We couldn’t load verification for recovery",
       isConnectivityError = data.error is HttpError.NetworkError,
       onRetry = data.retry,
       onBack = data.rollback,
+      errorData = if (props.segment != null && props.actionDescription != null) {
+        ErrorData(
+          segment = props.segment,
+          cause = data.error,
+          actionDescription = props.actionDescription
+        )
+      } else {
+        null
+      },
       eventTrackerScreenId = null
     )
   }
 
   @Composable
   private fun SendingNotificationTouchpointToServerFailureModel(
+    props: RecoveryNotificationVerificationUiProps,
     data: SendingNotificationTouchpointToServerFailureData,
   ): BodyModel {
-    return NetworkErrorFormBodyModel(
+    return NetworkErrorFormBodyModelWithOptionalErrorData(
       title = "We couldn’t send a verification code",
       isConnectivityError = data.error is HttpError.NetworkError,
       onRetry = data.retry,
       onBack = data.rollback,
+      errorData = if (props.segment != null && props.actionDescription != null) {
+        ErrorData(
+          segment = props.segment,
+          cause = data.error,
+          actionDescription = props.actionDescription
+        )
+      } else {
+        null
+      },
       eventTrackerScreenId = null
     )
   }

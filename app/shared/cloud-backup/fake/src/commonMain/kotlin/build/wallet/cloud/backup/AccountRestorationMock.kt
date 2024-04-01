@@ -4,7 +4,6 @@ import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.BitcoinNetworkType.TESTNET
 import build.wallet.bitcoin.keys.DescriptorPublicKeyMock
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
@@ -16,7 +15,7 @@ import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
 import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.encrypt.Secp256k1PublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment.Development
 
 val AccountRestorationMock =
@@ -47,7 +46,7 @@ val AccountRestorationMock =
       AppKeyBundle(
         localId = "fake-uuid",
         spendingKey = AppSpendingPublicKey(DescriptorPublicKeyMock(identifier = "spending-dpub")),
-        authKey = AppGlobalAuthPublicKey(Secp256k1PublicKey("auth-dpub")),
+        authKey = PublicKey("auth-dpub"),
         networkType = TESTNET,
         recoveryAuthKey = AppRecoveryAuthPublicKeyMock
       ),

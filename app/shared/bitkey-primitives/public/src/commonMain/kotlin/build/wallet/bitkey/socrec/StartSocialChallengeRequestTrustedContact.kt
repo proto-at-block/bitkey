@@ -9,7 +9,7 @@ data class StartSocialChallengeRequestTrustedContact(
   @SerialName("recovery_relationship_id")
   val recoveryRelationshipId: String,
   @SerialName("protected_customer_recovery_pake_pubkey")
-  val protectedCustomerRecoveryPakePubkey: PublicKey,
+  val protectedCustomerRecoveryPakePubkey: PublicKey<ProtectedCustomerRecoveryPakeKey>,
   @SerialName("sealed_dek")
   val sealedDek: String,
 )

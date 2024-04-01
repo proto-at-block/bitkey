@@ -1,14 +1,13 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.socrec.models.CreateTrustedContactInvitation
 import build.wallet.f8e.socrec.models.GetRecoveryRelationshipsResponseBody
@@ -79,9 +78,7 @@ class GetRecoveryRelationshipsServiceTests : FunSpec({
             UnendorsedTrustedContact(
               recoveryRelationshipId = "unendorsed-trusted-contact-recovery-relationship-id",
               sealedDelegatedDecryptionKey = XCiphertext("sealed-delegated-decryption-pubkey"),
-              enrollmentPakeKey = TrustedContactEnrollmentPakeKey(
-                AppKey.fromPublicKey("enrollment-pake-pubkey")
-              ),
+              enrollmentPakeKey = PublicKey("enrollment-pake-pubkey"),
               enrollmentKeyConfirmation = "deadbeef".decodeHex(),
               trustedContactAlias = TrustedContactAlias("trusted-contact-alias")
             )

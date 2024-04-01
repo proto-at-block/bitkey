@@ -1,12 +1,13 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
@@ -53,7 +54,7 @@ sealed interface RecoveryInProgressData {
   }
 
   data class AwaitingProofOfPossessionForCancellationData(
-    val appAuthKey: AppGlobalAuthPublicKey,
+    val appAuthKey: PublicKey<AppGlobalAuthKey>,
     val addHardwareProofOfPossession: (HwFactorProofOfPossession) -> Unit,
     val rollback: () -> Unit,
     val fullAccountId: FullAccountId,
@@ -69,6 +70,7 @@ sealed interface RecoveryInProgressData {
    */
   data class FailedToCancelRecoveryData(
     val recoveredFactor: PhysicalFactor,
+    val cause: Error,
     val isNetworkError: Boolean,
     val onAcknowledge: () -> Unit,
   ) : RecoveryInProgressData
@@ -120,6 +122,8 @@ sealed interface RecoveryInProgressData {
       ) : RotatingAuthData
 
       data class FailedToRotateAuthData(
+        val cause: Throwable,
+        val factorToRecover: PhysicalFactor,
         val onConfirm: () -> Unit,
       ) : RotatingAuthData
 
@@ -148,7 +152,7 @@ sealed interface RecoveryInProgressData {
       data class AwaitingHardwareProofOfPossessionData(
         val fullAccountId: FullAccountId,
         val fullAccountConfig: FullAccountConfig,
-        val appAuthKey: AppGlobalAuthPublicKey,
+        val appAuthKey: PublicKey<AppGlobalAuthKey>,
         val addHwFactorProofOfPossession: (HwFactorProofOfPossession) -> Unit,
         val rollback: () -> Unit,
       ) : CreatingSpendingKeysData
@@ -163,6 +167,7 @@ sealed interface RecoveryInProgressData {
 
       data class FailedToCreateSpendingKeysData(
         val physicalFactor: PhysicalFactor,
+        val cause: Error,
         val onRetry: () -> Unit,
       ) : CreatingSpendingKeysData
     }
@@ -172,6 +177,7 @@ sealed interface RecoveryInProgressData {
 
     data class FailedGettingTrustedContactsData(
       val physicalFactor: PhysicalFactor,
+      val cause: Error,
       val retry: () -> Unit,
     ) : CompletingRecoveryData
 
@@ -191,11 +197,12 @@ sealed interface RecoveryInProgressData {
       val keybox: Keybox,
       val trustedContacts: List<TrustedContact>,
       val onBackupFinished: () -> Unit,
-      val onBackupFailed: () -> Unit,
+      val onBackupFailed: (Throwable?) -> Unit,
     ) : CompletingRecoveryData
 
     data class FailedPerformingCloudBackupData(
       val physicalFactor: PhysicalFactor,
+      val cause: Throwable?,
       val retry: () -> Unit,
     ) : CompletingRecoveryData
 

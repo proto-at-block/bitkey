@@ -2,8 +2,10 @@ package build.wallet.statemachine.account.create.full.hardware
 
 import build.wallet.analytics.events.screen.context.PairHardwareEventTrackerScreenIdContext
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.crypto.PublicKey
 import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
+import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
@@ -15,6 +17,8 @@ interface PairNewHardwareUiStateMachine :
 data class PairNewHardwareProps(
   val request: Request,
   val onExit: () -> Unit,
+  // TODO: BKR-1117: make non-nullable
+  val segment: AppSegment? = null,
   val eventTrackerContext: PairHardwareEventTrackerScreenIdContext,
   val screenPresentationStyle: ScreenPresentationStyle,
 ) {
@@ -37,7 +41,7 @@ data class PairNewHardwareProps(
      */
     data class Ready(
       val fullAccountConfig: FullAccountConfig,
-      val appGlobalAuthPublicKey: AppGlobalAuthPublicKey,
+      val appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
       val onSuccess: (FingerprintEnrolled) -> Unit,
     ) : Request
   }

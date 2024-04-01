@@ -36,6 +36,7 @@ final class RecoveryConflictSnapshotTests: XCTestCase {
             viewModel: ShowingNoLongerRecoveringBodyModelKt.ShowingNoLongerRecoveringBodyModel(
                 canceledRecoveringFactor: .hardware,
                 isLoading: false,
+                errorData: nil,
                 onAcknowledge: {}
             )
         )
@@ -48,6 +49,7 @@ final class RecoveryConflictSnapshotTests: XCTestCase {
             viewModel: ShowingNoLongerRecoveringBodyModelKt.ShowingNoLongerRecoveringBodyModel(
                 canceledRecoveringFactor: .app,
                 isLoading: false,
+                errorData: nil,
                 onAcknowledge: {}
             )
         )

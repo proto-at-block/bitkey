@@ -4,9 +4,10 @@ import build.wallet.auth.AccessToken
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.AuthTokensRepository
-import build.wallet.bitkey.app.AppAuthPublicKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.AppFactorProofOfPossession
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.keybox.KeyboxDao
@@ -31,7 +32,7 @@ class ProofOfPossessionPluginProvider(
 ) {
   fun getPlugin(
     accountId: AccountId?,
-    appAuthKey: AppAuthPublicKey?,
+    appAuthKey: PublicKey<out AppAuthKey>?,
     hwProofOfPossession: HwFactorProofOfPossession?,
   ) = createClientPlugin("ProofOfPossessionPluginProvider") {
     onRequest { request, _ ->
@@ -46,7 +47,7 @@ class ProofOfPossessionPluginProvider(
         // We only use the [Global] auth token type here, because this PoP is only meant to
         // differentiate between tokens generated via the app public key or via the hw public key
         authTokensRepository.getAuthTokens(accountId, AuthTokenScope.Global).get()?.let { tokens ->
-          val authKey: AppAuthPublicKey? =
+          val authKey: PublicKey<out AppAuthKey>? =
             when (appAuthKey) {
               null -> getAppAuthKeyFromKeybox()
               else -> {
@@ -73,7 +74,7 @@ class ProofOfPossessionPluginProvider(
     }
   }
 
-  private suspend fun getAppAuthKeyFromKeybox(): AppGlobalAuthPublicKey? {
+  private suspend fun getAppAuthKeyFromKeybox(): PublicKey<AppGlobalAuthKey>? {
     return keyboxDao.getActiveOrOnboardingKeybox()
       .fold(
         success = { keybox ->
@@ -102,7 +103,7 @@ class ProofOfPossessionPluginProvider(
   }
 
   private suspend fun createAppProofOfPossession(
-    authKey: AppAuthPublicKey,
+    authKey: PublicKey<out AppAuthKey>,
     accessToken: AccessToken,
   ): Result<AppFactorProofOfPossession, Throwable> {
     return appAuthKeyMessageSigner

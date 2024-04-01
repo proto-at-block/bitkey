@@ -5,19 +5,20 @@ import build.wallet.auth.AccountCreationError.AccountCreationDatabaseError.Faile
 import build.wallet.auth.AccountCreationError.AccountCreationDatabaseError.FailedToSaveKeybox
 import build.wallet.auth.AccountCreationError.AccountCreationF8eError
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.notifications.NotificationTouchpointService
 import build.wallet.f8e.onboarding.CreateFullAccountService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.NotificationTouchpointDao
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.get
@@ -30,7 +31,7 @@ class FullAccountCreatorImpl(
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokenDao: AuthTokenDao,
   private val deviceTokenManager: DeviceTokenManager,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val notificationTouchpointService: NotificationTouchpointService,
   private val notificationTouchpointDao: NotificationTouchpointDao,
 ) : FullAccountCreator {
@@ -48,7 +49,7 @@ class FullAccountCreatorImpl(
       val customerAccountId = accountServerResponse.fullAccountId
 
       val spendingKeyset = SpendingKeyset(
-        localId = uuid.random(),
+        localId = uuidGenerator.random(),
         appKey = keyCrossDraft.appKeyBundle.spendingKey,
         networkType = fullAccountConfig.bitcoinNetworkType,
         hardwareKey = keyCrossDraft.hardwareKeyBundle.spendingKey,
@@ -84,7 +85,7 @@ class FullAccountCreatorImpl(
       // We now have everything we need for our Keyset (app/hw/server spending keys)
       val keybox =
         Keybox(
-          localId = uuid.random(),
+          localId = uuidGenerator.random(),
           fullAccountId = customerAccountId,
           activeSpendingKeyset = spendingKeyset,
           activeAppKeyBundle = keyCrossDraft.appKeyBundle,
@@ -127,7 +128,7 @@ class FullAccountCreatorImpl(
    */
   private suspend fun authenticateWithF8eAndStoreAuthTokens(
     accountId: FullAccountId,
-    appAuthPublicKey: AppAuthPublicKey,
+    appAuthPublicKey: PublicKey<out AppAuthKey>,
     f8eEnvironment: F8eEnvironment,
     tokenScope: AuthTokenScope,
   ): Result<Unit, AccountCreationError> {
@@ -136,7 +137,8 @@ class FullAccountCreatorImpl(
         accountAuthenticator
           .appAuth(
             f8eEnvironment = f8eEnvironment,
-            appAuthPublicKey = appAuthPublicKey
+            appAuthPublicKey = appAuthPublicKey,
+            authTokenScope = tokenScope
           )
           .mapError { AccountCreationAuthError(it) }
           .bind()

@@ -1,5 +1,3 @@
-use std::result::Result::Ok;
-
 use async_trait::async_trait;
 use lambda_runtime::{Error as LambdaError, LambdaEvent};
 use serde_json::Value;

@@ -8,11 +8,9 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.testCoroutineScheduler
 import io.kotest.matchers.equals.shouldBeEqual
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalStdlibApi::class, ExperimentalCoroutinesApi::class)
 class SyncSequencerTests : FunSpec({
   val fullAccount1 = FullAccountMock
   val fullAccount2 = FullAccountMock.copy(

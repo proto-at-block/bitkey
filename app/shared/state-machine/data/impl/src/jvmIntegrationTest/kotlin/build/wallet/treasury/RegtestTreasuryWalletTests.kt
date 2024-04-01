@@ -11,7 +11,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletDescriptor
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.money.BitcoinMoney
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.EnabledIf

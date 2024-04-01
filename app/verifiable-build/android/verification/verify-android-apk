@@ -20,7 +20,7 @@ if [ -e "$2" ]; then
   exit 3
 fi
 
-package_name="world.bitkey.app"
+package_name="${3:-world.bitkey.app}"
 
 mkdir -p "$2"
 

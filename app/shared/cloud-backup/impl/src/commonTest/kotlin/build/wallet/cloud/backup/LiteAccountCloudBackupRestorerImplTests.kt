@@ -69,7 +69,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       )
     )
     appPrivateKeyDaoFake
-      .appAuthKeys
+      .asymmetricKeys
       .shouldBe(
         mapOf(
           AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
@@ -126,7 +126,7 @@ class LiteAccountCloudBackupRestorerImplTests : FunSpec({
       )
     )
     appPrivateKeyDaoFake
-      .appAuthKeys
+      .asymmetricKeys
       .shouldBe(
         mapOf(
           AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock

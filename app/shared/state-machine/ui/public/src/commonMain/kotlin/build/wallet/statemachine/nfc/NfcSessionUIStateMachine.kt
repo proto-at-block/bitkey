@@ -20,6 +20,7 @@ import build.wallet.nfc.NfcTransactor
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.statemachine.core.AppSegment
 import build.wallet.statemachine.core.NfcErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -55,6 +56,9 @@ class NfcSessionUIStateMachineProps<T>(
   val isHardwareFake: Boolean,
   val needsAuthentication: Boolean = true,
   val shouldLock: Boolean = true,
+  // TODO(BKR-1117): make non-nullable
+  val segment: AppSegment? = null,
+  val actionDescription: String? = null,
   val screenPresentationStyle: ScreenPresentationStyle,
   val eventTrackerContext: NfcEventTrackerScreenIdContext,
 ) {
@@ -62,6 +66,8 @@ class NfcSessionUIStateMachineProps<T>(
     transaction: NfcTransaction<T>,
     screenPresentationStyle: ScreenPresentationStyle,
     eventTrackerContext: NfcEventTrackerScreenIdContext,
+    segment: AppSegment? = null,
+    actionDescription: String? = null,
     onInauthenticHardware: () -> Unit = {},
   ) : this(
     session = transaction::session,
@@ -70,6 +76,8 @@ class NfcSessionUIStateMachineProps<T>(
     isHardwareFake = transaction.isHardwareFake,
     needsAuthentication = transaction.needsAuthentication,
     shouldLock = transaction.shouldLock,
+    segment = segment,
+    actionDescription = actionDescription,
     screenPresentationStyle = screenPresentationStyle,
     eventTrackerContext = eventTrackerContext,
     onInauthenticHardware = onInauthenticHardware
@@ -199,6 +207,8 @@ class NfcSessionUIStateMachineImpl(
           exception = currentState.nfcException,
           onPrimaryButtonClick = props.onCancel,
           onSecondaryButtonClick = props.onInauthenticHardware,
+          segment = props.segment,
+          actionDescription = props.actionDescription,
           eventTrackerScreenId = NfcEventTrackerScreenId.NFC_FAILURE,
           eventTrackerScreenIdContext = props.eventTrackerContext
         ).asScreen(props.screenPresentationStyle)

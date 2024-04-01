@@ -11,8 +11,20 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.6.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-serialization-core-jvm-1.6.3.jar": "29c821a8d4e25cbfe4f2ce96cdd4526f61f8f4e69a135f9612a34a81d93b65f1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

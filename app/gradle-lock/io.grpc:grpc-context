@@ -2,11 +2,11 @@
     "module-identifier": "io.grpc:grpc-context",
     "components": [
         {
-            "version": "1.27.2",
+            "version": "1.60.1",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-context-1.27.2.jar": "bcbf9055dff453fd6508bd7cca2a0aa2d5f059a9c94beed1f5fda1dc015607b8"
+                        "grpc-context-1.60.1.jar": "4ab6efb9cbadc88f8dc723ada3a61785da367697373d4432aef5222312aa70f6"
                     }
                 }
             ],

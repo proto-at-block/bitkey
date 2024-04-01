@@ -1,7 +1,8 @@
 package build.wallet.recovery
 
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
+import build.wallet.crypto.PublicKey
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.FailedToReadRecoveryEntity
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.NoRecoveryInProgress
 import com.github.michaelbull.result.Err
@@ -16,7 +17,7 @@ class RecoveryAppAuthPublicKeyProviderImpl(
 ) : RecoveryAppAuthPublicKeyProvider {
   override suspend fun getAppPublicKeyForInProgressRecovery(
     scope: AuthTokenScope,
-  ): Result<AppAuthPublicKey, RecoveryAppAuthPublicKeyProviderError> {
+  ): Result<PublicKey<out AppAuthKey>, RecoveryAppAuthPublicKeyProviderError> {
     return binding {
       // Get the recovery status from the Dao
       val recovery =

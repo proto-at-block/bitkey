@@ -18,15 +18,15 @@ kotlin {
         api(libs.kmp.ktor.client.json)
         api(libs.kmp.ktor.client.logging)
         api(libs.kmp.okio)
-        api(projects.shared.ktorResultPublic)
         api(projects.shared.platformPublic)
+        api(projects.shared.resultPublic)
         implementation(projects.shared.loggingPublic)
       }
     }
 
     commonTest {
       dependencies {
-        implementation(projects.shared.ktorTestFake)
+        implementation(projects.shared.ktorClientFake)
       }
     }
 

@@ -1,6 +1,5 @@
 package build.wallet.limit
 
-import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.money.BitcoinMoney
 
 /**
@@ -11,12 +10,10 @@ interface MobilePaySpendingPolicy {
    * Computes if the [transactionAmount] is above the spending limit
    *
    * @param transactionAmount - The amount to determine the status for
-   * @param latestTransactions - The existing transactions to use to calculate the
-   * total daily amount spent
+   * @param mobilePayBalance - The current balance of mobile pay for the account
    */
   fun getDailySpendingLimitStatus(
     transactionAmount: BitcoinMoney,
-    latestTransactions: List<BitcoinTransaction>,
     mobilePayBalance: MobilePayBalance?,
   ): DailySpendingLimitStatus
 }

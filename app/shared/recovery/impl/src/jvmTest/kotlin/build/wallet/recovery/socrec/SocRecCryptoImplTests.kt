@@ -2,17 +2,15 @@ package build.wallet.recovery.socrec
 
 import build.wallet.auth.AppAuthKeyMessageSignerImpl
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.app.AppGlobalAuthPrivateKey
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.keys.app.AppKeyImpl
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.PrivateKeyEncryptionKey
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
-import build.wallet.crypto.CurveType
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.Spake2Impl
@@ -24,6 +22,8 @@ import build.wallet.encrypt.SymmetricKeyGeneratorImpl
 import build.wallet.encrypt.XChaCha20Poly1305Impl
 import build.wallet.encrypt.XNonceGeneratorImpl
 import build.wallet.encrypt.signResult
+import build.wallet.encrypt.toPrivateKey
+import build.wallet.encrypt.toPublicKey
 import build.wallet.testing.shouldBeErr
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.getOrThrow
@@ -35,6 +35,7 @@ import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 
+@Suppress("UNCHECKED_CAST")
 class SocRecCryptoImplTests : FunSpec({
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val messageSigner = MessageSignerImpl()
@@ -55,14 +56,14 @@ class SocRecCryptoImplTests : FunSpec({
     // Endorsement
     val (hwPubKey, hwPrivKey) = secp256k1KeyGenerator.generateKeypair()
     val (appPubKey, appPrivKey) = secp256k1KeyGenerator.generateKeypair()
-    appPrivateKeyDao.appAuthKeys[AppGlobalAuthPublicKey(appPubKey)] =
-      AppGlobalAuthPrivateKey(appPrivKey)
+    appPrivateKeyDao.asymmetricKeys[appPubKey.toPublicKey<AppGlobalAuthKey>()] =
+      appPrivKey.toPrivateKey<AppGlobalAuthKey>()
     val hwSignature = messageSigner.signResult(appPubKey.value.encodeUtf8(), hwPrivKey).getOrThrow()
 
     val invalidHwEndorsementPublicKey =
       HwAuthPublicKey(secp256k1KeyGenerator.generateKeypair().publicKey)
     val invalidAppEndorsementPublicKey =
-      AppGlobalAuthPublicKey(secp256k1KeyGenerator.generateKeypair().publicKey)
+      secp256k1KeyGenerator.generateKeypair().publicKey.toPublicKey<AppGlobalAuthKey>()
 
     // Enrollment
     val delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow()
@@ -75,8 +76,8 @@ class SocRecCryptoImplTests : FunSpec({
     val encryptDelegatedDecryptionKeyOutput =
       socRecCrypto.encryptDelegatedDecryptionKey(
         enrollmentCode,
-        protectedCustomerEnrollmentPakeKey,
-        delegatedDecryptionKey
+        protectedCustomerEnrollmentPakeKey.publicKey,
+        delegatedDecryptionKey.publicKey
       ).getOrThrow()
     val decryptedDelegatedDecryptionKey =
       socRecCrypto.decryptDelegatedDecryptionKey(
@@ -84,7 +85,7 @@ class SocRecCryptoImplTests : FunSpec({
         protectedCustomerEnrollmentPakeKey,
         encryptDelegatedDecryptionKeyOutput
       ).getOrThrow()
-    decryptedDelegatedDecryptionKey.publicKey.shouldBe(delegatedDecryptionKey.publicKey)
+    decryptedDelegatedDecryptionKey.shouldBe(delegatedDecryptionKey.publicKey)
     // Invalid password
     shouldThrow<SocRecCryptoError.DecryptionFailed> {
       socRecCrypto.decryptDelegatedDecryptionKey(
@@ -96,8 +97,8 @@ class SocRecCryptoImplTests : FunSpec({
     val invalidEncryptDelegatedDecryptionKeyOutput =
       socRecCrypto.encryptDelegatedDecryptionKey(
         invalidEnrollmentCode,
-        protectedCustomerEnrollmentPakeKey,
-        delegatedDecryptionKey
+        protectedCustomerEnrollmentPakeKey.publicKey,
+        delegatedDecryptionKey.publicKey
       ).getOrThrow()
     shouldThrow<SocRecCryptoError.DecryptionFailed> {
       socRecCrypto.decryptDelegatedDecryptionKey(
@@ -119,33 +120,33 @@ class SocRecCryptoImplTests : FunSpec({
       socRecCrypto.generateKeyCertificate(
         decryptedDelegatedDecryptionKey,
         HwAuthPublicKey(hwPubKey),
-        AppGlobalAuthPublicKey(appPubKey),
+        appPubKey.toPublicKey(),
         AppGlobalAuthKeyHwSignature(hwSignature)
       ).getOrThrow()
     // Can verify with app auth key only
     socRecCrypto.verifyKeyCertificate(
       keyCertificate = keyCertificate,
       hwAuthKey = null,
-      appGlobalAuthKey = AppGlobalAuthPublicKey(appPubKey)
-    ).getOrThrow().publicKey.shouldBe(delegatedDecryptionKey.publicKey)
+      appGlobalAuthKey = appPubKey.toPublicKey()
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
     // Can verify with hw auth key only
     socRecCrypto.verifyKeyCertificate(
       keyCertificate = keyCertificate,
       hwAuthKey = HwAuthPublicKey(hwPubKey),
       appGlobalAuthKey = null
-    ).getOrThrow().publicKey.shouldBe(delegatedDecryptionKey.publicKey)
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
     // Can verify if at least hw auth key is valid
     socRecCrypto.verifyKeyCertificate(
       keyCertificate = keyCertificate,
       hwAuthKey = HwAuthPublicKey(hwPubKey),
       appGlobalAuthKey = invalidAppEndorsementPublicKey
-    ).getOrThrow().publicKey.shouldBe(delegatedDecryptionKey.publicKey)
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
     // Can verify if at least app auth key is valid
     socRecCrypto.verifyKeyCertificate(
       keyCertificate = keyCertificate,
       hwAuthKey = invalidHwEndorsementPublicKey,
-      appGlobalAuthKey = AppGlobalAuthPublicKey(appPubKey)
-    ).getOrThrow().publicKey.shouldBe(delegatedDecryptionKey.publicKey)
+      appGlobalAuthKey = appPubKey.toPublicKey()
+    ).getOrThrow().shouldBe(delegatedDecryptionKey.publicKey)
     // Both auth keys are not provided
     socRecCrypto.verifyKeyCertificate(
       keyCertificate = keyCertificate,
@@ -205,7 +206,7 @@ class SocRecCryptoImplTests : FunSpec({
     val decryptPrivateKeyEncryptionKeyOutput =
       socRecCrypto.decryptPrivateKeyEncryptionKey(
         recoveryCode,
-        protectedCustomerRecoveryPakeKey,
+        protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey,
         sealedPrivateKeyEncryptionKey
       ).getOrThrow()
@@ -222,7 +223,7 @@ class SocRecCryptoImplTests : FunSpec({
     val invalidEncryptedPrivateKeyEncryptionKeyOutput =
       socRecCrypto.decryptPrivateKeyEncryptionKey(
         recoveryCode,
-        protectedCustomerRecoveryPakeKey,
+        protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey,
         sealedPrivateKeyEncryptionKey
       ).getOrThrow()
@@ -256,7 +257,7 @@ class SocRecCryptoImplTests : FunSpec({
     val privateKeyEncryptionKey = PrivateKeyEncryptionKey(SymmetricKeyGeneratorImpl().generate())
     val sealedPrivateKeyEncryptionKey =
       socRecCrypto.encryptPrivateKeyEncryptionKey(
-        delegatedDecryptionKey,
+        delegatedDecryptionKey.publicKey,
         privateKeyEncryptionKey
       ).getOrThrow()
     val recoveryCode = PakeCode("12345678901".toByteArray().toByteString())
@@ -265,24 +266,17 @@ class SocRecCryptoImplTests : FunSpec({
     val encryptedPrivateKeyEncryptionKeyOutput =
       socRecCrypto.decryptPrivateKeyEncryptionKey(
         recoveryCode,
-        protectedCustomerRecoveryPakeKey,
+        protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey,
         sealedPrivateKeyEncryptionKey
       ).getOrThrow()
 
     // Invalid keys
     val (pubKey, _) = Secp256k1KeyGeneratorImpl().generateKeypair()
-    val keypairWithMissingPrivateKey =
-      AppKeyImpl(
-        CurveType.SECP256K1,
-        PublicKey(pubKey.value),
-        null
-      )
     val invalidPrivateKey =
-      PrivateKey("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".decodeHex())
+      PrivateKey<Nothing>("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF".decodeHex())
     val keypairWithInvalidPrivateKey =
-      AppKeyImpl(
-        CurveType.SECP256K1,
+      AppKey<Nothing>(
         PublicKey(pubKey.value),
         invalidPrivateKey
       )
@@ -290,39 +284,15 @@ class SocRecCryptoImplTests : FunSpec({
     // decryptPrivateKeyEncryptionKey
     socRecCrypto.decryptPrivateKeyEncryptionKey(
       recoveryCode,
-      protectedCustomerRecoveryPakeKey,
-      DelegatedDecryptionKey(DelegatedDecryptionKey(keypairWithMissingPrivateKey)),
-      sealedPrivateKeyEncryptionKey
-    ).shouldBeErr(SocRecCryptoError.DecryptionFailed(SocRecCryptoError.InvalidKeyType))
-    socRecCrypto.decryptPrivateKeyEncryptionKey(
-      recoveryCode,
-      protectedCustomerRecoveryPakeKey,
-      DelegatedDecryptionKey(keypairWithMissingPrivateKey),
-      sealedPrivateKeyEncryptionKey
-    ).shouldBeErr(SocRecCryptoError.DecryptionFailed(SocRecCryptoError.PrivateKeyMissing))
-    socRecCrypto.decryptPrivateKeyEncryptionKey(
-      recoveryCode,
-      protectedCustomerRecoveryPakeKey,
-      DelegatedDecryptionKey(keypairWithInvalidPrivateKey),
+      protectedCustomerRecoveryPakeKey.publicKey,
+      keypairWithInvalidPrivateKey as AppKey<DelegatedDecryptionKey>,
       sealedPrivateKeyEncryptionKey
     ).shouldBeErrOfType<SocRecCryptoError.DecryptionFailed>()
 
     // decryptPrivateKeyMaterial
     socRecCrypto.decryptPrivateKeyMaterial(
       recoveryCode,
-      ProtectedCustomerRecoveryPakeKey(ProtectedCustomerRecoveryPakeKey(keypairWithMissingPrivateKey)),
-      encryptedPrivateKeyEncryptionKeyOutput,
-      sealedPrivateKeyEncryptionKey
-    ).shouldBeErr(SocRecCryptoError.DecryptionFailed(SocRecCryptoError.InvalidKeyType))
-    socRecCrypto.decryptPrivateKeyMaterial(
-      recoveryCode,
-      ProtectedCustomerRecoveryPakeKey(keypairWithMissingPrivateKey),
-      encryptedPrivateKeyEncryptionKeyOutput,
-      sealedPrivateKeyEncryptionKey
-    ).shouldBeErr(SocRecCryptoError.DecryptionFailed(SocRecCryptoError.PrivateKeyMissing))
-    socRecCrypto.decryptPrivateKeyMaterial(
-      recoveryCode,
-      ProtectedCustomerRecoveryPakeKey(keypairWithInvalidPrivateKey),
+      keypairWithInvalidPrivateKey as AppKey<ProtectedCustomerRecoveryPakeKey>,
       encryptedPrivateKeyEncryptionKeyOutput,
       sealedPrivateKeyEncryptionKey
     ).shouldBeErrOfType<SocRecCryptoError.DecryptionFailed>()

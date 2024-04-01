@@ -2,11 +2,11 @@
     "module-identifier": "com.google.accompanist:accompanist-systemuicontroller",
     "components": [
         {
-            "version": "0.30.1",
+            "version": "0.34.0",
             "variants": [
                 {
                     "artifacts": {
-                        "accompanist-systemuicontroller-0.30.1.aar": "82a6e25cf7ba1aa1e7e8505056b1651a785360e78aebcbc1f1c1731ddba39c26"
+                        "accompanist-systemuicontroller-0.34.0.aar": "3a2ab2b07f37d3d0dc843ce623a1b9f8c9079aecc409fb406f39e5d136281295"
                     }
                 }
             ],

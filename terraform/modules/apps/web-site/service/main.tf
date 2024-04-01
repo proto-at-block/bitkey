@@ -21,10 +21,12 @@ module "service" {
   namespace = var.namespace
   name      = var.name
 
-  subdomain        = var.subdomain
-  additional_certs = data.aws_acm_certificate.external_certs[*].arn
-  dns_hosted_zone  = var.dns_hosted_zone
-  internet_facing  = var.internet_facing
+  subdomain                          = var.subdomain
+  additional_certs                   = data.aws_acm_certificate.external_certs[*].arn
+  dns_hosted_zone                    = var.dns_hosted_zone
+  internet_facing                    = var.internet_facing
+  load_balancer_allow_cloudflare_ips = var.load_balancer_allow_cloudflare_ips
+  load_balancer_allow_vpn_ips        = var.load_balancer_allow_vpn_ips
 
   cluster_arn = var.cluster_arn
   environment = var.environment

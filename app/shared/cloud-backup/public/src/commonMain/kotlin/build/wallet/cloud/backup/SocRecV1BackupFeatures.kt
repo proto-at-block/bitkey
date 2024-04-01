@@ -1,7 +1,8 @@
 package build.wallet.cloud.backup
 
-import build.wallet.bitkey.app.AppRecoveryAuthKeypair
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.keys.app.AppKey
+import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.backup.v2.SocRecV1AccountFeatures
 
@@ -14,8 +15,8 @@ interface SocRecV1BackupFeatures {
    * for testing.
    */
   val isUsingSocRecFakes: Boolean
-  val appRecoveryAuthKeypair: AppRecoveryAuthKeypair
-  val delegatedDecryptionKeypair: AppKey
+  val appRecoveryAuthKeypair: AppKey<AppRecoveryAuthKey>
+  val delegatedDecryptionKeypair: AppKey<DelegatedDecryptionKey>
 
   /**
    * Account backup used to restore and authenticate the account during recovery.

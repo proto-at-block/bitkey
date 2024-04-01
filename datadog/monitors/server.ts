@@ -8,8 +8,8 @@ export class FromagerieMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `fromagerie_${environment}`);
 
-    const highPriorityRecipients = getCriticalRecipients(environment);
-    const lowPriorityRecipients = getErrorRecipients(environment);
+    const criticalRecipients = getCriticalRecipients(environment);
+    const errorRecipients = getErrorRecipients(environment);
 
     new ErrorRateHighMonitor(this, "error_rate_high", {
       name: `Service fromagerie-api has a high error rate on env:${environment}`,
@@ -18,7 +18,7 @@ export class FromagerieMonitors extends Construct {
       monitorThresholds: {
         critical: "0.05",
       },
-      recipients: highPriorityRecipients,
+      recipients: criticalRecipients,
     });
 
     new HttpStatusCompositeMonitor(this, "4xx_fromagerie_api_status", {
@@ -26,31 +26,35 @@ export class FromagerieMonitors extends Construct {
       group: "Fromagerie API",
       environment,
       tags: [
-        "service:fromagerie-api",
+        {tag: "service:fromagerie-api", rateInclusion: "both"},
         // Filter out root path (healthcheck) & no matched path (path-based 404s, as opposed to application 404s)
-        "!path:/",
-        "path:*",
+        {tag: "!path:/", rateInclusion: "both"},
+        {tag: "path:*", rateInclusion: "both"},
+        // Filter out 401s, monitor separately
+        {tag: "!status_exact:401", rateInclusion: "numerator"},
       ],
-      rateThreshold: "0.5",
-      countThreshold: "50",
+      rateThreshold: "0.1",
+      countThreshold: "150",
       dataDogLink: "https://app.datadoghq.com/apm/traces?saved-view-id=2141502",
-      recipients: lowPriorityRecipients,
+      recipients: errorRecipients,
     });
+
+    // TODO: 401 is a special case, we should monitor it separately
 
     new HttpStatusCompositeMonitor(this, "5xx_fromagerie_api_status", {
       status: "5xx",
       group: "Fromagerie API",
       environment,
       tags: [
-        "service:fromagerie-api",
+        {tag: "service:fromagerie-api", rateInclusion: "both"},
         // Filter out root path (healthcheck) & no matched path (path-based 404s, as opposed to application 404s)
-        "!path:/",
-        "path:*",
+        {tag: "!path:/", rateInclusion: "both"},
+        {tag: "path:*", rateInclusion: "both"},
       ],
-      rateThreshold: "0.05",
-      countThreshold: "5",
+      rateThreshold: "0.01",
+      countThreshold: "15",
       dataDogLink: "https://app.datadoghq.com/apm/traces?saved-view-id=2141503",
-      recipients: highPriorityRecipients,
+      recipients: criticalRecipients,
     });
 
     for (const service of ["fromagerie-api", "fromagerie-job-blockchain-polling", "fromagerie-job-email", "fromagerie-job-metrics", "fromagerie-job-push", "fromagerie-job-scheduled-notification", "fromagerie-job-sms"]) {
@@ -62,7 +66,7 @@ export class FromagerieMonitors extends Construct {
           critical: "0.75", // Whole percent
         },
         dataDogLink: `https://app.datadoghq.com/dashboard/2qa-q5e-yzc/wip-fromagerie-system-health?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&tpl_var_service%5B0%5D=${service}&live=true`,
-        recipients: highPriorityRecipients,
+        recipients: criticalRecipients,
       });
 
       new ContainerMemoryUtilizationHighMonitor(this, `${service}_memory_utilization_high`, {
@@ -73,7 +77,7 @@ export class FromagerieMonitors extends Construct {
           critical: "0.75", // Whole percent
         },
         dataDogLink: `https://app.datadoghq.com/dashboard/2qa-q5e-yzc/wip-fromagerie-system-health?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&tpl_var_service%5B0%5D=${service}&live=true`,
-        recipients: highPriorityRecipients,
+        recipients: criticalRecipients,
       });
 
       new TokioBusyRatioHighMonitor(this, `${service}_tokio_busy_ratio_high`, {
@@ -84,7 +88,7 @@ export class FromagerieMonitors extends Construct {
           critical: "75", // Whole percent
         },
         dataDogLink: `https://app.datadoghq.com/dashboard/2qa-q5e-yzc/wip-fromagerie-system-health?refresh_mode=sliding&tpl_var_env%5B0%5D=${environment}&tpl_var_service%5B0%5D=${service}&live=true`,
-        recipients: highPriorityRecipients,
+        recipients: criticalRecipients,
       });
     }
   }

@@ -28,7 +28,6 @@ object Base32 {
     18, 19, 1, 20, 21, 0, 22, 23, 24, 25, 26, -1, 27, 28, 29, 30, 31
   )
 
-  @OptIn(ExperimentalUnsignedTypes::class)
   fun encode(
     input: ByteString,
     alphabet: Alphabet = Alphabet.Crockford,

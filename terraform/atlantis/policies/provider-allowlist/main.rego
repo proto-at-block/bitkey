@@ -1,6 +1,8 @@
 package main
 
 provider_allowlist = {
+    "registry.terraform.io/cloudflare/cloudflare",
+    "registry.terraform.io/datadog/datadog",
     "registry.terraform.io/hashicorp/archive",
     "registry.terraform.io/hashicorp/aws",
     "registry.terraform.io/hashicorp/github",

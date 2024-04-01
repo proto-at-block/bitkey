@@ -16,6 +16,6 @@ sealed interface PairingTransactionResponse {
   /** Fingerprint enrollment was incomplete. */
   data object FingerprintNotEnrolled : PairingTransactionResponse
 
-  /** Fingerprint enrollment was not in progress and needed to be restarted. */
-  data object FingerprintEnrollmentRestarted : PairingTransactionResponse
+  /** Fingerprint enrollment was not in progress and needed to be started/restarted. */
+  data object FingerprintEnrollmentStarted : PairingTransactionResponse
 }

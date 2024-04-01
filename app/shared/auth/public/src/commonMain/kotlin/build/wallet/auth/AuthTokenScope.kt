@@ -1,8 +1,5 @@
 package build.wallet.auth
 
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
-
 /**
  * Scope of Auth Token stored in the AuthTokenDao based on the public key
  * used to authenticate with the server.

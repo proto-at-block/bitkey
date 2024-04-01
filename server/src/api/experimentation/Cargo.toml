@@ -1,0 +1,23 @@
+[package]
+edition = { workspace = true }
+name = "experimentation"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+axum = { workspace = true }
+axum-macros = { workspace = true }
+http_server = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+utoipa = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+analytics = { workspace = true }
+errors = { workspace = true }
+feature_flags = { workspace = true }
+types = { workspace = true, features = ["account"] }

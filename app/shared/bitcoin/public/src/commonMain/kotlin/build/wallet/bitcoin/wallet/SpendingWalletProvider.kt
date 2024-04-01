@@ -2,7 +2,7 @@ package build.wallet.bitcoin.wallet
 
 import com.github.michaelbull.result.Result
 
-interface SpendingWalletProvider {
+fun interface SpendingWalletProvider {
   /**
    * Provides a [SpendingWallet] for a [SpendingWalletDescriptor].
    */

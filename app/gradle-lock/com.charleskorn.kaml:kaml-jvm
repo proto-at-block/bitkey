@@ -2,11 +2,11 @@
     "module-identifier": "com.charleskorn.kaml:kaml-jvm",
     "components": [
         {
-            "version": "0.56.0",
+            "version": "0.57.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kaml-jvm-0.56.0.jar": "3af54b7f6c375f0217acef31b22e479f9310480fcc3f10d7ef3ad328e3ff68c5"
+                        "kaml-jvm-0.57.0.jar": "1ec1cfd673913569db9b12134c7cda030758e73f7be769f81ce4eaf1df5e6f48"
                     }
                 }
             ],

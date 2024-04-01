@@ -12,7 +12,6 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
@@ -86,7 +85,6 @@ fun <Option : Any> ItemPickerField(
   }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun <Option : Any> ItemPickerDialog(
   selectedOption: Option?,

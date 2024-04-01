@@ -6,5 +6,5 @@ import build.wallet.bitkey.socrec.InvitationFake
 val IncomingInvitationFake = IncomingInvitation(
   recoveryRelationshipId = InvitationFake.recoveryRelationshipId,
   code = InvitationFake.code,
-  protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake
+  protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
 )

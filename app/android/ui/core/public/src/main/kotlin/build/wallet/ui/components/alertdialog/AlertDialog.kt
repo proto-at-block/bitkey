@@ -4,6 +4,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.compose.resId
@@ -18,71 +19,60 @@ fun AlertDialog(
   model: AlertModel,
   modifier: Modifier = Modifier,
 ) {
-  AlertDialog(
-    modifier = modifier,
-    title = model.title,
-    subline = model.subline,
-    onPrimaryButtonClick = model.onPrimaryButtonClick,
-    primaryButtonText = model.primaryButtonText.uppercase(),
-    onDismiss = model.onDismiss,
-    onSecondaryButtonClick = model.onSecondaryButtonClick,
-    secondaryButtonText = model.secondaryButtonText?.uppercase()
-  )
-}
-
-@Composable
-fun AlertDialog(
-  modifier: Modifier = Modifier,
-  title: String,
-  subline: String?,
-  onDismiss: (() -> Unit)? = null,
-  onSecondaryButtonClick: (() -> Unit)? = null,
-  onPrimaryButtonClick: (() -> Unit)? = null,
-  primaryButtonText: String,
-  secondaryButtonText: String? = null,
-) {
   MaterialAlertDialog(
     modifier = modifier,
-    title = { Label(text = title, type = LabelType.Body1Medium) },
-    text = { subline?.let { Label(text = it, type = LabelType.Body3Regular) } },
+    title = { Label(text = model.title, type = LabelType.Body1Medium) },
+    text = { model.subline?.let { Label(text = it, type = LabelType.Body3Regular) } },
     containerColor = WalletTheme.colors.containerBackground,
     titleContentColor = WalletTheme.colors.foreground,
     textContentColor = WalletTheme.colors.foreground,
-    onDismissRequest = { onDismiss?.invoke() },
+    onDismissRequest = { model.onDismiss.invoke() },
     confirmButton = {
       TextButton(modifier = Modifier.resId("confirm-alert"), onClick = {
-        onPrimaryButtonClick?.invoke()
+        model.onPrimaryButtonClick.invoke()
       }) {
         Text(
-          text = primaryButtonText,
-          color = WalletTheme.colors.destructive
+          text = model.primaryButtonText.uppercase(),
+          color = model.primaryButtonStyle.toComposeColor()
         )
       }
     },
     dismissButton = {
-      secondaryButtonText?.let {
+      model.secondaryButtonText?.let { secondaryButtonText ->
         TextButton(onClick = {
-          onSecondaryButtonClick?.invoke()
+          model.onSecondaryButtonClick?.invoke()
         }) {
-          Text(text = secondaryButtonText)
+          Text(
+            text = secondaryButtonText.uppercase(),
+            color = model.secondaryButtonStyle.toComposeColor()
+          )
         }
       }
     }
   )
 }
 
+@Composable
+private fun AlertModel.ButtonStyle.toComposeColor(): Color =
+  when (this) {
+    AlertModel.ButtonStyle.Default -> Color.Unspecified
+    AlertModel.ButtonStyle.Destructive -> WalletTheme.colors.destructive
+  }
+
 @Preview
 @Composable
 internal fun AlertDialogPreview() {
   PreviewWalletTheme {
     AlertDialog(
-      title = "Alert Title",
-      subline = "Alert Text",
-      onDismiss = {},
-      onSecondaryButtonClick = {},
-      onPrimaryButtonClick = {},
-      primaryButtonText = "Confirm",
-      secondaryButtonText = "Dismiss"
+      AlertModel(
+        title = "Alert Title",
+        subline = "Alert Text",
+        onDismiss = {},
+        onSecondaryButtonClick = {},
+        onPrimaryButtonClick = {},
+        primaryButtonText = "Confirm",
+        secondaryButtonText = "Dismiss"
+      )
     )
   }
 }

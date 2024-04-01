@@ -30,7 +30,7 @@ class CloudSignInUiStateMachineImpl(
 
       is SignInFailure -> {
         LaunchedEffect("on-sign-in-failure") {
-          props.onSignInFailure()
+          props.onSignInFailure(signInResult.cause)
         }
       }
 

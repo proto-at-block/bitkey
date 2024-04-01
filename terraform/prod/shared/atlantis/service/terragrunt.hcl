@@ -9,7 +9,7 @@ terraform {
 
 locals {
   atlantis_repo = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/atlantis"
-  atlantis_tag  = "fd9d599a00e6697d105f2a48c7adc909f472bfb2"
+  atlantis_tag  = "d4c905bbecd83a01743945a7b9ef998e98f59d59"
 
   dev_vars   = read_terragrunt_config("${get_parent_terragrunt_dir()}/dev/account.hcl")
   stage_vars = read_terragrunt_config("${get_parent_terragrunt_dir()}/stage/account.hcl")

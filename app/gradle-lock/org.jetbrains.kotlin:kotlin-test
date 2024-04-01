@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-test",
     "components": [
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-test-1.9.21.jar": "17ffee70f07df33f5be7cd9d8fb29b136594b0ba3b5f8f226b9c988bca7b9da9"
+                        "kotlin-test-1.9.22.jar": "6fe4985dfb021ff4161f29bafc55348d61a570e0cd29cff188bdf9fe1f310345"
                     }
                 }
             ],

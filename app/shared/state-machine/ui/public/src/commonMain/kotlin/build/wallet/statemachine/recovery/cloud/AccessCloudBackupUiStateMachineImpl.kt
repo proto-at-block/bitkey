@@ -172,12 +172,15 @@ class AccessCloudBackupUiStateMachineImpl(
               messages = RectifiableErrorAccessMessages,
               rectifiableError = currentState.rectifiableCloudBackupError,
               cloudStoreAccount = currentState.cloudStoreAccount,
-              onFailure = props.onExit,
+              onFailure = {
+                props.onExit()
+              },
               onReturn = {
                 state = CheckingCloudBackupUiState(currentState.cloudStoreAccount)
               },
               screenId = CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP,
-              presentationStyle = Root
+              presentationStyle = Root,
+              errorData = null
             )
         )
     }

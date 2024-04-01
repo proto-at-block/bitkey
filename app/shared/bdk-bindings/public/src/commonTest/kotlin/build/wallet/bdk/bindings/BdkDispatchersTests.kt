@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalStdlibApi::class)
-
 package build.wallet.bdk.bindings
 
 import io.kotest.core.spec.style.FunSpec

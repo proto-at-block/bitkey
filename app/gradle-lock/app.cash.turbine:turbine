@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.turbine:turbine",
     "components": [
         {
-            "version": "1.0.0",
+            "version": "1.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "Turbine-metadata.jar": "a65b488d928152a91b52d1a0f783fd150ff291998f103db6592f26393d701365"
+                        "Turbine-metadata.jar": "ef32d46a2e2e04b748f8e105ebb96508ba2f7c0cf28f689a3160774f33bee22d"
                     }
                 }
             ],

@@ -32,7 +32,7 @@ public extension ButtonModel {
         case .tertiarynounderline:          return .foreground
         case .tertiaryprimary:              return .primary
         case .tertiaryprimarynounderline:   return .primary
-        case .tertiarydestructive:          return .destructive
+        case .tertiarydestructive:          return .destructiveForeground
         case .translucent:                  return .translucentForeground
         case .translucent10:                return .translucentForeground
         case .white:                        return .black

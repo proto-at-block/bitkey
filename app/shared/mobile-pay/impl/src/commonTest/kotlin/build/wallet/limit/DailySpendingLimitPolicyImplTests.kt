@@ -22,7 +22,6 @@ class DailySpendingLimitPolicyImplTests : FunSpec({
   ) {
     policy.getDailySpendingLimitStatus(
       transactionAmount = BitcoinMoney.sats(140_000),
-      latestTransactions = listOf(),
       mobilePayBalance = MobilePayBalanceMock
     ).shouldBe(
       DailySpendingLimitStatus.MobilePayAvailable(MobilePayBalanceMock.limit)
@@ -32,7 +31,6 @@ class DailySpendingLimitPolicyImplTests : FunSpec({
   test("Given that transaction amount is above the limit, hardware is required") {
     policy.getDailySpendingLimitStatus(
       transactionAmount = BitcoinMoney.sats(140_001),
-      latestTransactions = listOf(),
       mobilePayBalance = MobilePayBalanceMock
     ).shouldBe(
       DailySpendingLimitStatus.RequiresHardware(MobilePayBalanceMock.limit)

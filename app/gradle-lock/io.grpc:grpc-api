@@ -2,11 +2,24 @@
     "module-identifier": "io.grpc:grpc-api",
     "components": [
         {
-            "version": "1.60.0",
+            "version": "1.60.1",
             "variants": [
                 {
                     "artifacts": {
-                        "grpc-api-1.60.0.jar": "9ddf7351aedf035325676660590e72c084983d31fbefc267c60ea0f1bcffc035"
+                        "grpc-api-1.60.1.jar": "bdcefde43d7c542e748adb7b2bccc46db16313ba86ab46f8ba3b54677c7c5883"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
+            "version": "1.61.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-api-1.61.0.jar": "30f314fd84e03053d07b4ddf84bcc5889cf30aac219bb1d08d8fc2f8c54f4255"
                     }
                 }
             ],

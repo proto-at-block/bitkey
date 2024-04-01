@@ -1,5 +1,8 @@
 package build.wallet.testing
 
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getActiveFullAccount
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.equals.shouldNotBeEqual

@@ -3,11 +3,12 @@ package build.wallet.recovery.socrec
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -22,9 +23,9 @@ class TrustedContactKeyAuthenticatorMock(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     contacts: List<TrustedContact>,
-    oldAppGlobalAuthKey: AppGlobalAuthPublicKey?,
+    oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
     oldHwAuthKey: HwAuthPublicKey,
-    newAppGlobalAuthKey: AppGlobalAuthPublicKey,
+    newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, Error> {
     return Ok(Unit)

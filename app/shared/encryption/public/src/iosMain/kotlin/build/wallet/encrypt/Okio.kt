@@ -1,9 +1,5 @@
-@file:OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
-
 package build.wallet.encrypt
 
-import kotlinx.cinterop.BetaInteropApi
-import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.allocArrayOf
 import kotlinx.cinterop.memScoped
 import okio.ByteString

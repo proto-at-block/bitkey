@@ -75,6 +75,7 @@ pub fn debug(
         .unwrap();
     println!("keysets in ddb: {:?}", keysets);
     println!("******************************************************");
+    println!("Electrum Server: {}", electrum_server_url);
     for (keyset_id, keyset) in keysets {
         println!("Looking at keyset {keyset_id}");
         let spend_keyset = keyset.as_m().unwrap();
@@ -91,7 +92,9 @@ pub fn debug(
             .as_str()
         {
             "bitcoin-main" => Network::Bitcoin,
-            _ => Network::Signet,
+            "bitcoin-signet" => Network::Signet,
+            "bitcoin-testnet" => Network::Testnet,
+            _ => Network::Bitcoin,
         };
 
         let descriptor_strs = [app, hardware, server];
@@ -139,7 +142,12 @@ pub fn debug(
             validate_domain: true,
         })
         .expect("Could not build electrum client");
-        wallet.sync(&blockchain, SyncOptions::default()).unwrap();
+        wallet
+            .sync(&blockchain, SyncOptions::default())
+            .map_err(|e| {
+                println!("Error syncing wallet: {}", e);
+            })
+            .unwrap();
         let balance = wallet.get_balance().unwrap();
         println!("Wallet balance: {}", balance);
 

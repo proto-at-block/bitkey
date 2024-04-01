@@ -7,13 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.coroutines.delayedResult
 import build.wallet.f8e.demo.DemoModeService
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
+import build.wallet.time.Delayer
+import build.wallet.time.withMinimumDelay
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
@@ -21,10 +22,10 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import kotlin.time.Duration.Companion.seconds
 
 class DemoModeCodeEntryUiStateMachineImpl(
   private val demoModeService: DemoModeService,
+  private val delayer: Delayer,
 ) : DemoModeCodeEntryUiStateMachine {
   @Composable
   override fun model(props: DemoCodeEntryUiProps): ScreenModel {
@@ -65,7 +66,7 @@ class DemoModeCodeEntryUiStateMachineImpl(
 
       is DemoModeState.DemoCodeEntrySubmissionState -> {
         LaunchedEffect("submit-demo-code") {
-          val result = delayedResult(1.5.seconds) {
+          val result = delayer.withMinimumDelay {
             demoModeService.initiateDemoMode(
               f8eEnvironment = props.accountData.templateFullAccountConfigData.config.f8eEnvironment,
               code = demoModeCode

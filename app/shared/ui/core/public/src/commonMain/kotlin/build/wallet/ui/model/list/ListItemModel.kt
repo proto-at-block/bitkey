@@ -23,6 +23,7 @@ data class ListItemModel(
   val leadingAccessoryAlignment: ListItemAccessoryAlignment = CENTER,
   val leadingAccessory: ListItemAccessory? = null,
   val trailingAccessory: ListItemAccessory? = null,
+  val specialTrailingAccessory: ListItemAccessory? = null,
   var treatment: ListItemTreatment = ListItemTreatment.PRIMARY,
   val sideTextTint: ListItemSideTextTint = ListItemSideTextTint.PRIMARY,
   val enabled: Boolean = true,

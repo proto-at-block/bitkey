@@ -49,4 +49,21 @@ class FeatureFlagDaoImpl(
       else -> TODO("Not yet implemented")
     }
   }
+
+  override suspend fun getFlagOverridden(featureFlagId: String): Result<Boolean, DbError> =
+    database
+      .featureFlagOverrideQueries
+      .getFlagOverridden(featureFlagId)
+      .awaitAsOneOrNullResult()
+      .map { it ?: false }
+
+  override suspend fun setFlagOverridden(
+    featureFlagId: String,
+    overridden: Boolean,
+  ): Result<Unit, DbError> =
+    database
+      .featureFlagOverrideQueries
+      .awaitTransaction {
+        setFlagOverridden(featureFlagId, overridden)
+      }
 }

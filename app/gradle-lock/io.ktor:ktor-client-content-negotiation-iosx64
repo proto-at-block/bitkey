@@ -2,16 +2,16 @@
     "module-identifier": "io.ktor:ktor-client-content-negotiation-iosx64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-client-content-negotiation-iosx64-2.3.8-metadata.jar": "393332a6474e67c6027e98ffc79c8a84d6f5a4b233b166af8490708d5e91d6f3"
+                        "ktor-client-content-negotiation-iosx64-2.3.9-metadata.jar": "6c0f6f14ebe3e5e853003bcf69950f97888927caec8c2f9eb5e96cd4546c9880"
                     }
                 },
                 {
                     "artifacts": {
-                        "ktor-client-content-negotiation.klib": "e182c653c01041acd996eba473b9e207b7d717de826eb6d8c38204284e7370b3"
+                        "ktor-client-content-negotiation.klib": "b16119d75e83faec7c8a5b535a6ff92c3f707fa431d5783948c9039fa2c4eee2"
                     }
                 }
             ],

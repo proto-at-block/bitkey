@@ -15,6 +15,7 @@ kotlin {
         api(projects.shared.databasePublic)
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.serializationPublic)
+        implementation(libs.kmp.settings)
       }
     }
 

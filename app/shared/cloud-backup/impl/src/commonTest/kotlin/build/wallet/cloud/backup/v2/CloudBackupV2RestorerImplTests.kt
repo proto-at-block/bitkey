@@ -27,7 +27,7 @@ import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.encrypt.SymmetricKeyEncryptorMock
 import build.wallet.f8e.F8eEnvironment.Development
-import build.wallet.platform.random.UuidFake
+import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
 import build.wallet.recovery.socrec.SocRecKeysDaoFake
 import build.wallet.testing.shouldBeErrOfType
@@ -79,7 +79,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
       symmetricKeyEncryptor = symmetricKeyEncryptor,
       appPrivateKeyDao = appPrivateKeyDao,
       socRecKeysDao = socRecKeysDao,
-      uuid = UuidFake()
+      uuidGenerator = UuidGeneratorFake()
     )
 
   test("test restoration from backup to an AccountRestoration") {
@@ -87,7 +87,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
     symmetricKeyEncryptor.unsealResult = Json.encodeToString(FullAccountKeysMock).encodeUtf8()
     val accountRestorationResult = restorer.restore(CloudBackupV2WithFullAccountMock)
     accountRestorationResult.shouldBeOk(accountRestoration)
-    appPrivateKeyDao.appAuthKeys.shouldBeEqual(
+    appPrivateKeyDao.asymmetricKeys.shouldBeEqual(
       mapOf(
         AppGlobalAuthPublicKeyMock to AppGlobalAuthPrivateKeyMock,
         AppRecoveryAuthPublicKeyMock to AppRecoveryAuthPrivateKeyMock
@@ -100,7 +100,7 @@ class CloudBackupV2RestorerImplTests : FunSpec({
     )
     socRecKeysDao.keys.shouldBeEqual(
       mapOf(
-        SocRecKeyPurpose.DelegatedDecryption to DelegatedDecryptionKeyFake.key
+        SocRecKeyPurpose.DelegatedDecryption to DelegatedDecryptionKeyFake
       )
     )
   }

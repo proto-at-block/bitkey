@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.nfc
 
 import build.wallet.bdk.BdkDescriptorSecretKeyGeneratorImpl
@@ -9,7 +7,6 @@ import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.spending.SpendingKeypair
 import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
 import build.wallet.store.EncryptedKeyValueStoreFactoryFake
-import com.russhwolf.settings.ExperimentalSettingsApi
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue

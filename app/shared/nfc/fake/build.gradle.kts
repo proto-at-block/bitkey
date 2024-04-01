@@ -13,6 +13,8 @@ kotlin {
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.firmwareFake)
         implementation(projects.shared.keyValueStorePublic)
+        // TODO: extract reusable uuid() - https://github.com/squareup/wallet/pull/13871
+        implementation(projects.shared.platformImpl)
       }
     }
   }

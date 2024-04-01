@@ -79,6 +79,7 @@ class SomeoneElseIsRecoveringUiStateMachineImplTests : FunSpec({
     SomeoneElseIsRecoveringUiProps(
       data =
         SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryFailedData(
+          error = Error(),
           cancelingRecoveryLostFactor = App,
           rollback = { cancelingSomeoneElsesRecoveryFailedDataRollbackCalls.add(Unit) },
           retry = { cancelingSomeoneElsesRecoveryFailedDataRetryCalls.add(Unit) }

@@ -1,26 +1,23 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.analytics.events
 
 import build.wallet.logging.logFailure
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import com.russhwolf.settings.ExperimentalSettingsApi
 
 /**
  * A dao for storing and retrieving the AppDeviceID.
  */
 class AppDeviceIdDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
-  uuid: Uuid,
+  uuidGenerator: UuidGenerator,
 ) : AppDeviceIdDao {
   private suspend fun secureStore() = encryptedKeyValueStoreFactory.getOrCreate(STORE_NAME)
 
-  private val uuid = uuid
+  private val uuid = uuidGenerator
 
   override suspend fun getOrCreateAppDeviceIdIfNotExists(): Result<String, Throwable> {
     val secureStore = secureStore()

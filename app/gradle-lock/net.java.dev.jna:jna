@@ -2,22 +2,22 @@
     "module-identifier": "net.java.dev.jna:jna",
     "components": [
         {
-            "version": "5.13.0",
+            "version": "5.14.0",
             "variants": [
                 {
                     "artifacts": {
-                        "jna-5.13.0.aar": "3a03daf5a7212201c3a9b44f734dfc9babb3addcb5cbfa639f9f535e887925c0"
+                        "jna-5.14.0.aar": "81a8b9afc65f9d6b205338c25908af8de0ff8411a00985104c9d83fffdfab380"
                     }
                 },
                 {
                     "artifacts": {
-                        "jna-5.13.0.aar": "3a03daf5a7212201c3a9b44f734dfc9babb3addcb5cbfa639f9f535e887925c0",
-                        "jna-5.13.0.jar": "66d4f819a062a51a1d5627bffc23fac55d1677f0e0a1feba144aabdd670a64bb"
+                        "jna-5.14.0.aar": "81a8b9afc65f9d6b205338c25908af8de0ff8411a00985104c9d83fffdfab380",
+                        "jna-5.14.0.jar": "34ed1e1f27fa896bca50dbc4e99cf3732967cec387a7a0d5e3486c09673fe8c6"
                     }
                 },
                 {
                     "artifacts": {
-                        "jna-5.13.0.jar": "66d4f819a062a51a1d5627bffc23fac55d1677f0e0a1feba144aabdd670a64bb"
+                        "jna-5.14.0.jar": "34ed1e1f27fa896bca50dbc4e99cf3732967cec387a7a0d5e3486c09673fe8c6"
                     }
                 }
             ],

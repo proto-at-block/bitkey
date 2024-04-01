@@ -9,7 +9,7 @@ import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.TransactionDetailDaoMock
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDaoMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.AppGlobalAuthKeypairMock
@@ -62,7 +62,7 @@ class AppDataDeleterImplTests : FunSpec({
   val authTokenDao = AuthTokenDaoMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val spendingLimitDao = SpendingLimitDaoMock(turbines::create)
-  val transactionDetailDao = TransactionDetailDaoMock(turbines::create)
+  val transactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
   val fwupDataDao = FwupDataDaoMock(turbines::create)
   val firmwareDeviceIdentifiersDao =
     FirmwareDeviceInfoDaoMock(turbines::create)
@@ -94,7 +94,7 @@ class AppDataDeleterImplTests : FunSpec({
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
       spendingLimitDao = spendingLimitDao,
-      transactionDetailDao = transactionDetailDao,
+      outgoingTransactionDetailDao = transactionDetailDao,
       fwupDataDao = fwupDataDao,
       firmwareDeviceInfoDao = firmwareDeviceIdentifiersDao,
       firmwareMetadataDao = firmwareMetadataDao,
@@ -132,7 +132,7 @@ class AppDataDeleterImplTests : FunSpec({
   listOf(AppVariant.Development, AppVariant.Team).forEach { variant ->
     test("delete app data for $variant") {
       accountRepository.setActiveAccount(FullAccountMock)
-      appPrivateKeyDao.storeAppAuthKeyPair(AppGlobalAuthKeypairMock)
+      appPrivateKeyDao.storeAppKeyPair(AppGlobalAuthKeypairMock)
       appPrivateKeyDao.storeAppSpendingKeyPair(AppSpendingKeypair)
       onboardingAppKeyKeystoreFake
         .persistAppKeys(
@@ -154,7 +154,7 @@ class AppDataDeleterImplTests : FunSpec({
       appDataDeleter(variant).deleteAll()
 
       accountRepository.accountState.value.shouldBeOk(NoAccount)
-      appPrivateKeyDao.appAuthKeys.shouldBeEmpty()
+      appPrivateKeyDao.asymmetricKeys.shouldBeEmpty()
       authTokenDao.clearCalls.awaitItem()
       gettingStartedTaskDao.clearTasksCalls.awaitItem()
       keyboxDao.clearCalls.awaitItem()

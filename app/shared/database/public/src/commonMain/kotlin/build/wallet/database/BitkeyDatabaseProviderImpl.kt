@@ -2,10 +2,6 @@ package build.wallet.database
 
 import app.cash.sqldelight.EnumColumnAdapter
 import build.wallet.analytics.v1.Event
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
-import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
-import build.wallet.crypto.CurveType
 import build.wallet.database.adapters.BitcoinAddressColumnAdapter
 import build.wallet.database.adapters.DurationColumnAdapter
 import build.wallet.database.adapters.EmailColumnAdapter
@@ -16,12 +12,9 @@ import build.wallet.database.adapters.MobilePaySnapValueColumnAdapter
 import build.wallet.database.adapters.NetworkConnectionColumnAdapter
 import build.wallet.database.adapters.ProtectedCustomerAliasColumnAdapter
 import build.wallet.database.adapters.PublicKeyColumnAdapter
-import build.wallet.database.adapters.SocRecKeyColumnAdapter
 import build.wallet.database.adapters.TimeZoneColumnAdapter
 import build.wallet.database.adapters.TrustedContactAliasColumnAdapter
 import build.wallet.database.adapters.bitkey.AppGlobalAuthKeyHwSignatureColumnAdapter
-import build.wallet.database.adapters.bitkey.AppGlobalAuthPublicKeyColumnAdapter
-import build.wallet.database.adapters.bitkey.AppRecoveryAuthPublicKeyColumnAdapter
 import build.wallet.database.adapters.bitkey.AppSpendingPublicKeyColumnAdapter
 import build.wallet.database.adapters.bitkey.F8eEnvironmentColumnAdapter
 import build.wallet.database.adapters.bitkey.F8eSpendingPublicKeyColumnAdapter
@@ -103,7 +96,7 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       liteAccountEntityAdapter =
         LiteAccountEntity.Adapter(
           accountIdAdapter = LiteAccountIdColumnAdapter,
-          appRecoveryAuthKeyAdapter = AppRecoveryAuthPublicKeyColumnAdapter,
+          appRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
           bitcoinNetworkTypeAdapter = EnumColumnAdapter(),
           f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter
         ),
@@ -170,8 +163,8 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         ),
       appKeyBundleEntityAdapter =
         AppKeyBundleEntity.Adapter(
-          globalAuthKeyAdapter = AppGlobalAuthPublicKeyColumnAdapter,
-          recoveryAuthKeyAdapter = AppRecoveryAuthPublicKeyColumnAdapter,
+          globalAuthKeyAdapter = PublicKeyColumnAdapter(),
+          recoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
           spendingKeyAdapter = AppSpendingPublicKeyColumnAdapter
         ),
       hwKeyBundleEntityAdapter =
@@ -196,15 +189,15 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           startTimeAdapter = InstantColumnAdapter,
           endTimeAdapter = InstantColumnAdapter,
           lostFactorAdapter = EnumColumnAdapter(),
-          destinationAppGlobalAuthKeyAdapter = AppGlobalAuthPublicKeyColumnAdapter,
-          destinationAppRecoveryAuthKeyAdapter = AppRecoveryAuthPublicKeyColumnAdapter,
+          destinationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+          destinationAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationHardwareAuthKeyAdapter = HwAuthPublicKeyColumnAdapter
         ),
       localRecoveryAttemptEntityAdapter =
         LocalRecoveryAttemptEntity.Adapter(
           accountAdapter = FullAccountColumnAdapter,
-          destinationAppGlobalAuthKeyAdapter = AppGlobalAuthPublicKeyColumnAdapter,
-          destinationAppRecoveryAuthKeyAdapter = AppRecoveryAuthPublicKeyColumnAdapter,
+          destinationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+          destinationAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationHardwareAuthKeyAdapter = HwAuthPublicKeyColumnAdapter,
           destinationAppSpendingKeyAdapter = AppSpendingPublicKeyColumnAdapter,
           destinationHardwareSpendingKeyAdapter = HwSpendingPublicKeyColumnAdapter,
@@ -279,36 +272,26 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       socRecEnrollmentAuthenticationAdapter =
         SocRecEnrollmentAuthentication.Adapter(
           protectedCustomerEnrollmentPakeKeyAdapter =
-            SocRecKeyColumnAdapter(
-              ::ProtectedCustomerEnrollmentPakeKey,
-              CurveType.Curve25519
-            ),
+            PublicKeyColumnAdapter(),
           pakeCodeAdapter = ByteStringColumnAdapter
         ),
       socRecStartedChallengeAuthenticationAdapter =
         SocRecStartedChallengeAuthentication.Adapter(
           protectedCustomerRecoveryPakeKeyAdapter =
-            SocRecKeyColumnAdapter(
-              ::ProtectedCustomerRecoveryPakeKey,
-              CurveType.Curve25519
-            ),
+            PublicKeyColumnAdapter(),
           pakeCodeAdapter = ByteStringColumnAdapter
         ),
       socRecUnendorsedTrustedContactEntityAdapter =
         SocRecUnendorsedTrustedContactEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
-          enrollmentPakeKeyAdapter =
-            SocRecKeyColumnAdapter(
-              ::TrustedContactEnrollmentPakeKey,
-              CurveType.Curve25519
-            ),
+          enrollmentPakeKeyAdapter = PublicKeyColumnAdapter(),
           enrollmentKeyConfirmationAdapter = ByteStringColumnAdapter,
           authenticationStateAdapter = EnumColumnAdapter()
         ),
       socRecKeysAdapter =
         SocRecKeys.Adapter(
           purposeAdapter = EnumColumnAdapter(),
-          keyAdapter = PublicKeyColumnAdapter
+          keyAdapter = PublicKeyColumnAdapter()
         ),
       networkReachabilityEventEntityAdapter =
         NetworkReachabilityEventEntity.Adapter(
@@ -323,8 +306,8 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         ),
       authKeyRotationAttemptEntityAdapter =
         AuthKeyRotationAttemptEntity.Adapter(
-          destinationAppGlobalAuthKeyAdapter = AppGlobalAuthPublicKeyColumnAdapter,
-          destinationAppRecoveryAuthKeyAdapter = AppRecoveryAuthPublicKeyColumnAdapter,
+          destinationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+          destinationAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationAppGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter
         )
     )

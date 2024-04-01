@@ -11,7 +11,6 @@ import build.wallet.logging.log
 import build.wallet.platform.clipboard.ClipItem.PlainText
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.dev.lightning.LightningDebugBodyModel.FundingAddressAlertModel
 import build.wallet.statemachine.dev.lightning.LightningDebugMenuUiStateMachine.LightningDebugMenuUiProps
 import build.wallet.statemachine.dev.lightning.UiState.ConnectingAndOpeningChannelUiState
 import build.wallet.statemachine.dev.lightning.UiState.LoadingFundingAddressUiState
@@ -89,9 +88,9 @@ class LightningDebugMenuUiStateMachineImpl(
             when (s.fundingAddress) {
               null -> null
               else -> {
-                FundingAddressAlertModel(
-                  text = s.fundingAddress,
-                  onConfirm = { clipboard.setItem(item = PlainText(data = s.fundingAddress)) },
+                fundingAddressAlertModel(
+                  subline = s.fundingAddress,
+                  onPrimaryButtonClick = { clipboard.setItem(item = PlainText(data = s.fundingAddress)) },
                   onDismiss = { uiState = s.copy(fundingAddress = null) }
                 )
               }

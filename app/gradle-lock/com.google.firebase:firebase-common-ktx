@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.firebase:firebase-common-ktx",
+    "components": [
+        {
+            "version": "20.4.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "firebase-common-ktx-20.4.2.aar": "170b44690e480d1dde79a8d163586a1025ab5542ee0aac3874b76e7d1c27718f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

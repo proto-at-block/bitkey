@@ -13,7 +13,6 @@ import okio.ByteString.Companion.toByteString
 import build.wallet.recovery.socrec.InviteCodeParts.Schema as InviteSchema
 import build.wallet.recovery.socrec.RecoveryCodeParts.Schema as RecoverySchema
 
-@OptIn(ExperimentalStdlibApi::class)
 class SocialRecoveryCodeBuilderImpl(
   val base32Encoding: Base32Encoding,
 ) : SocialRecoveryCodeBuilder {

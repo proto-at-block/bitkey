@@ -5,8 +5,9 @@ import build.wallet.auth.AuthTokensRepository
 import build.wallet.availability.NetworkConnection
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.networkReachabilityPlugin
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.crypto.PublicKey
 import build.wallet.crypto.WsmVerifier
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -40,7 +41,7 @@ class F8eHttpClientImpl(
   override suspend fun authenticated(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
-    appFactorProofOfPossessionAuthKey: AppAuthPublicKey?,
+    appFactorProofOfPossessionAuthKey: PublicKey<out AppAuthKey>?,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
     engine: HttpClientEngine?,
     authTokenScope: AuthTokenScope,

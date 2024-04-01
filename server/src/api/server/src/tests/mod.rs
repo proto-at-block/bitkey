@@ -8,6 +8,7 @@ mod blockchain_polling_integration_tests;
 mod cloud_recovery_integration_tests;
 mod currency_exchange_integration_tests;
 mod exchange_rate_integration_tests;
+mod experimentation_integration_tests;
 mod lib;
 mod mobile_pay_tests;
 mod notification_integration_tests;

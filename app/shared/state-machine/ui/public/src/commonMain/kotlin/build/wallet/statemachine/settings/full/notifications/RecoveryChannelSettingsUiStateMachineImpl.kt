@@ -467,6 +467,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                                   )
                                 )
                               },
+                              primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
                               secondaryButtonText = "Keep SMS recovery",
                               onSecondaryButtonClick = {
                                 updateState(ShowingNotificationsSettingsUiState())
@@ -581,6 +582,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                           )
                         )
                       },
+                      primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
                       secondaryButtonText = "Keep push notifications",
                       onSecondaryButtonClick = {
                         updateState(ShowingNotificationsSettingsUiState())

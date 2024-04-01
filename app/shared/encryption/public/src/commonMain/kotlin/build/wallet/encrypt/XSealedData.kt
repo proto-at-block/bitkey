@@ -20,7 +20,7 @@ data class XSealedData(
   val header: Header,
   val ciphertext: ByteString,
   val nonce: XNonce,
-  val publicKey: PublicKey? = null,
+  val publicKey: PublicKey<*>? = null,
 ) {
   /**
    * Encode this `XSealedData` as a `XCiphertext`.
@@ -87,7 +87,7 @@ fun XCiphertext.toXSealedData(): XSealedData {
   val nonce = XNonce(parts[2].decodeBase64() ?: throw IllegalArgumentException("Invalid base64 nonce: ${parts[2]}"))
   val publicKey = if (decodedHeader.version >= 2) {
     parts[3].decodeBase64()?.hex()
-      ?.let { PublicKey(it) }
+      ?.let { PublicKey<Nothing>(it) }
   } else {
     null
   }

@@ -111,7 +111,7 @@ private fun FixedColumnCardListGroup(
 private fun CardListGroup(model: ListGroupModel) {
   Column {
     model.header?.let { header ->
-      ListSectionHeader(title = header)
+      ListSectionHeader(title = header, treatment = model.headerTreatment)
     }
     model.items.forEachIndexed { index, item ->
       Card(backgroundColor = Color.Black.copy(alpha = 0.03f)) {
@@ -142,7 +142,8 @@ private fun RegularListGroup(
               top = if (addsVerticalPadding) 12.dp else 0.dp,
               bottom = if (model.items.isEmpty()) 16.dp else 0.dp
             ),
-        title = header
+        title = header,
+        treatment = model.headerTreatment
       )
     }
     model.items.forEachIndexed { index, item ->

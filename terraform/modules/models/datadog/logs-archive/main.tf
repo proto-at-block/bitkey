@@ -87,15 +87,3 @@ resource "datadog_logs_archive" "logs_archive" {
     role_name  = var.datadog_role_name
   }
 }
-
-# Use the Datadog Forwarder to ship logs from S3 and CloudWatch, as well as observability data from Lambda functions to Datadog. For more information, see https://github.com/DataDog/datadog-serverless-functions/tree/master/aws/logs_monitoring
-resource "aws_cloudformation_stack" "datadog_forwarder" {
-  name         = "datadog-forwarder"
-  capabilities = ["CAPABILITY_IAM", "CAPABILITY_NAMED_IAM", "CAPABILITY_AUTO_EXPAND"]
-  parameters = {
-    DdApiKeySecretArn = var.dd_api_key_secret_arn,
-    DdSite            = "datadoghq.com",
-    FunctionName      = "datadog-forwarder"
-  }
-  template_url = "https://datadog-cloudformation-template.s3.amazonaws.com/aws/forwarder/latest.yaml"
-}

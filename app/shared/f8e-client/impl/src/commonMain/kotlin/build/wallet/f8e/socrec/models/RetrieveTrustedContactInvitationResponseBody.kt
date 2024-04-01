@@ -1,5 +1,7 @@
 package build.wallet.f8e.socrec.models
 
+import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.crypto.PublicKey
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -16,5 +18,5 @@ internal data class RetrieveTrustedContactInvitation(
   @SerialName("recovery_relationship_id")
   val recoveryRelationshipId: String,
   @SerialName("protected_customer_enrollment_pake_pubkey")
-  val protectedCustomerEnrollmentPakePubkey: String,
+  val protectedCustomerEnrollmentPakePubkey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
 )

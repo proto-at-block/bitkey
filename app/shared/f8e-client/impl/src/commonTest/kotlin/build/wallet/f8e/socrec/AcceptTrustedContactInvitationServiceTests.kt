@@ -1,9 +1,8 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.socrec.models.AcceptTrustedContactInvitationRequestBody
 import build.wallet.f8e.socrec.models.AcceptTrustedContactInvitationResponseBody
@@ -20,7 +19,7 @@ class AcceptTrustedContactInvitationServiceTests : FunSpec({
       AcceptTrustedContactInvitationRequestBody(
         code = "1234",
         customerAlias = "Some Alias",
-        trustedContactEnrollmentPakeKey = TrustedContactEnrollmentPakeKey(AppKey.fromPublicKey("fake")),
+        trustedContactEnrollmentPakeKey = PublicKey("fake"),
         enrollmentPakeConfirmation = "enrollmentPakeConfirmation".encodeUtf8(),
         sealedDelegateDecryptionKey = XCiphertext("sealedDelegateDecryptionKey")
       )

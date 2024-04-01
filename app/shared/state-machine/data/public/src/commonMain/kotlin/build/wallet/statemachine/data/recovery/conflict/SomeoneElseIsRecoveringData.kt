@@ -41,6 +41,7 @@ sealed interface SomeoneElseIsRecoveringData {
    * @property retry: Retry the cancellation.
    */
   data class CancelingSomeoneElsesRecoveryFailedData(
+    val error: Error,
     val cancelingRecoveryLostFactor: PhysicalFactor,
     val rollback: () -> Unit,
     val retry: () -> Unit,

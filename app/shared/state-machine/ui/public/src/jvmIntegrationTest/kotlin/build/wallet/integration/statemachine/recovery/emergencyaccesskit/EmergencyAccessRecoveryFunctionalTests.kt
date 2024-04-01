@@ -6,9 +6,7 @@ import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.RESTORE_YOUR_WALLET
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.SELECT_IMPORT_METHOD
-import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoderImpl
@@ -26,15 +24,18 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.getActiveFullAccount
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.testing.fakeTransact
 import build.wallet.ui.model.list.ListItemModel
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
-import okio.ByteString.Companion.decodeHex
 import kotlin.time.Duration.Companion.seconds
 
 class EmergencyAccessRecoveryFunctionalTests : FunSpec({
@@ -48,32 +49,43 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
     // Onboard a new account, and generate an EAK payload.
     app.onboardFullAccountWithFakeHardware()
 
-    // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
-    // creation of an emergency access kit PDF. This simulates the same creation so that
-    // the account that restores from it can validate it's the same spending keys.
-    val csekFake =
-      Csek(key = SymmetricKeyImpl(raw = "b8ef0c208d341bf262638a7ecf142beab8ef0c208d341bf262638a7ecf142bea".decodeHex()))
+    val csek = app.app.csekGenerator.generate()
+
+    val sealedCsek =
+      app.app.nfcTransactor.fakeTransact(
+        transaction = { session, commands ->
+          commands.sealKey(session, csek)
+        }
+      ).getOrThrow()
+
     val spendingKeys = app.getActiveFullAccount().keybox.activeSpendingKeyset
     val xprv = app.app.appComponent.appPrivateKeyDao.getAppSpendingPrivateKey(spendingKeys.appKey)
       .get().shouldNotBeNull()
+
+    // TODO (BKR-923): There is no PDF creation implementation for the JVM, preventing the real
+    //      creation of an emergency access kit PDF. This simulates the same creation so that
+    //      the account that restores from it can validate it's the same spending keys.
+    val sealedSpendingKeys = SymmetricKeyEncryptorImpl().seal(
+      unsealedData = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
+        EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
+          spendingKeyset = spendingKeys,
+          appSpendingKeyXprv = xprv
+        )
+      ),
+      key = csek.key
+    )
     val validData =
       EmergencyAccessKitPayloadDecoderImpl.encode(
         EmergencyAccessKitPayloadV1(
-          sealedHwEncryptionKey = csekFake.key.raw,
-          sealedActiveSpendingKeys = SymmetricKeyEncryptorImpl().seal(
-            unsealedData = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
-              EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
-                spendingKeyset = spendingKeys,
-                appSpendingKeyXprv = xprv
-              )
-            ),
-            key = csekFake.key
-          )
+          sealedHwEncryptionKey = sealedCsek,
+          sealedActiveSpendingKeys = sealedSpendingKeys
         )
       )
 
-    // Don't set a cloud store, so the backup isn't "found".
-    val newApp = launchNewApp()
+    // New app, same hardware, no cloud backup.
+    val newApp = launchNewApp(
+      hardwareSeed = app.fakeHardwareKeyStore.getSeed()
+    )
 
     newApp.app.appUiStateMachine.test(
       Unit,

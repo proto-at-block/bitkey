@@ -5,7 +5,7 @@ import app.cash.turbine.plusAssign
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
@@ -15,6 +15,7 @@ import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -40,8 +41,7 @@ class SocRecRelationshipsRepositoryMock(
   override suspend fun syncAndVerifyRelationships(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-    hardwareProofOfPossession: HwFactorProofOfPossession?,
-    appAuthKey: AppGlobalAuthPublicKey?,
+    appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
   ): Result<SocRecRelationships, Error> {
     syncCalls.add(Unit)
@@ -138,7 +138,7 @@ class SocRecRelationshipsRepositoryMock(
     account: Account,
     invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     inviteCode: String,
   ): Result<ProtectedCustomer, AcceptInvitationCodeError> {
     return acceptInvitationResult

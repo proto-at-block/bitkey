@@ -22,6 +22,7 @@ kotlin {
         api(projects.shared.timePublic)
         api(projects.shared.databasePublic)
         api(projects.shared.firmwarePublic)
+        implementation(libs.kmp.settings)
       }
     }
 

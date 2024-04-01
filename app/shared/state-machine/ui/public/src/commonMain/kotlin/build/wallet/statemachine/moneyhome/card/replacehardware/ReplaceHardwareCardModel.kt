@@ -14,6 +14,6 @@ fun ReplaceHardwareCardModel(onReplaceDevice: () -> Unit) =
     subtitle = null,
     leadingImage = CardModel.CardImage.StaticImage(Icon.BitkeyDeviceRaised),
     content = null,
-    style = CardModel.CardStyle.Gradient,
+    style = CardModel.CardStyle.Gradient(),
     onClick = onReplaceDevice
   )

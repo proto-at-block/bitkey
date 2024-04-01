@@ -2,11 +2,11 @@
     "module-identifier": "net.minidev:json-smart",
     "components": [
         {
-            "version": "2.4.10",
+            "version": "2.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "json-smart-2.4.10.jar": "70cab5e9488630dc631b1fc6e7fa550d95cddd19ba14db39ceca7cabfbd4e5ae"
+                        "json-smart-2.5.0.jar": "432b9e545848c4141b80717b26e367f83bf33f19250a228ce75da6e967da2bc7"
                     }
                 }
             ],

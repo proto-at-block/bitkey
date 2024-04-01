@@ -1,11 +1,8 @@
-@file:OptIn(ExperimentalSettingsApi::class)
-
 package build.wallet.store
 
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.getOrThrow
-import com.russhwolf.settings.ExperimentalSettingsApi
 import com.russhwolf.settings.PropertiesSettings
 import com.russhwolf.settings.coroutines.SuspendSettings
 import com.russhwolf.settings.coroutines.toSuspendSettings

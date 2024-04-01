@@ -1,8 +1,11 @@
 package build.wallet.f8e.auth
 
 import build.wallet.auth.AccountAuthTokens
+import build.wallet.auth.AuthTokenScope
 import build.wallet.auth.RefreshToken
-import build.wallet.bitkey.auth.AuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
+import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService.InitiateAuthenticationSuccess
 import build.wallet.ktor.result.HttpError.UnhandledException
@@ -30,10 +33,16 @@ class AuthenticationServiceMock(
 
   override suspend fun initiateAuthentication(
     f8eEnvironment: F8eEnvironment,
-    authPublicKey: AuthPublicKey,
+    authPublicKey: HwAuthPublicKey,
   ): Result<InitiateAuthenticationSuccess, NetworkingError> {
     return initiateAuthenticationResult
   }
+
+  override suspend fun initiateAuthentication(
+    f8eEnvironment: F8eEnvironment,
+    authPublicKey: PublicKey<out AppAuthKey>,
+    tokenScope: AuthTokenScope,
+  ): Result<InitiateAuthenticationSuccess, NetworkingError> = initiateAuthenticationResult
 
   override suspend fun completeAuthentication(
     f8eEnvironment: F8eEnvironment,

@@ -1,7 +1,8 @@
 package build.wallet.bitkey.account
 
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.f8e.LiteAccountId
+import build.wallet.crypto.PublicKey
 
 /**
  * Represents Lite Account.
@@ -19,5 +20,5 @@ import build.wallet.bitkey.f8e.LiteAccountId
 data class LiteAccount(
   override val accountId: LiteAccountId,
   override val config: AccountConfig,
-  val recoveryAuthKey: AppRecoveryAuthPublicKey,
+  val recoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
 ) : Account

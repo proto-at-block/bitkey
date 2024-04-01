@@ -3,6 +3,7 @@ package build.wallet.statemachine.cloud
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.cloud.backup.CloudBackupError
 import build.wallet.cloud.store.CloudStoreAccount
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
@@ -13,10 +14,12 @@ data class RectifiableErrorHandlingProps(
   val messages: RectifiableErrorMessages,
   val rectifiableError: CloudBackupError.RectifiableCloudBackupError,
   val cloudStoreAccount: CloudStoreAccount,
-  val onFailure: () -> Unit,
+  val onFailure: (Error?) -> Unit,
   val onReturn: () -> Unit,
   val screenId: CloudEventTrackerScreenId,
   val presentationStyle: ScreenPresentationStyle,
+  // TODO(BKR-1120): Make this non-nullable
+  val errorData: ErrorData?,
 )
 
 data class RectifiableErrorMessages(

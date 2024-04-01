@@ -115,7 +115,7 @@ class BitcoinQrCodeScanUiStateMachineImpl(
   @Composable
   private fun SelfSendErrorScreen(onDoneClick: () -> Unit): ScreenModel {
     return ErrorFormBodyModel(
-      title = "Sorry, you can’t send to your own address",
+      title = "You can’t send to your own address",
       primaryButton =
         ButtonDataModel(
           text = "Done",

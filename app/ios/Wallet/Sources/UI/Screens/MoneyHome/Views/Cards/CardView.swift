@@ -81,16 +81,22 @@ private extension View {
     @ViewBuilder
     func background(style: CardModel.CardStyle) -> some View {
         switch style {
-        case .outline:
+        case _ as CardModel.CardStyleOutline:
             self
                 .background(.background)
                 .cornerRadius(16)
                 .shadow(color: .black.opacity(0.10), radius: 1, x: 0, y: 0)
                 .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 3)
 
-        case .gradient:
+        case let gradient as CardModel.CardStyleGradient:
+            let backgroundColor = switch gradient.backgroundColor {
+            case .some(.warning):
+                Color.warning
+            default:
+                Color(red: 0.96, green: 0.97, blue: 1)
+            }
             self
-                .background(Color(red: 0.96, green: 0.97, blue: 1))
+                .background(backgroundColor)
                 .cornerRadius(16)
                 .shadow(color: Color(red: 0.3, green: 0.33, blue: 0.37).opacity(0.04), radius: 4, x: 0, y: 3)
                 .shadow(color: Color(red: 0.74, green: 0.81, blue: 0.94), radius: 0.5, x: 0, y: 0)
@@ -111,6 +117,11 @@ struct CardView_Previews: PreviewProvider {
             )
 
             CardView(
+                viewModel: CloudBackupHealthCardModelKt.CloudBackupHealthCardModel(
+                    title: "Problem with iCloud\naccount access", onActionClick: {})
+            )
+
+            CardView(
                 viewModel: GettingStartedCardModelKt.GettingStartedCardModel(
                     animations: nil,
                     taskModels: [
@@ -127,10 +138,10 @@ struct CardView_Previews: PreviewProvider {
                     title: LabelModelStringWithStyledSubstringModel.Companion()
                         .from(string: "Bitkey approval required", boldedSubstrings: []),
                     subtitle: nil,
-                    leadingImage: CardModelCardImageStaticImage(icon: .smalliconbitkey),
+                    leadingImage: CardModelCardImageStaticImage(icon: .smalliconbitkey, iconTint: nil),
                     trailingButton: nil,
                     content: nil,
-                    style: .outline,
+                    style: CardModel.CardStyleOutline(),
                     onClick: nil,
                     animation: nil
                 )

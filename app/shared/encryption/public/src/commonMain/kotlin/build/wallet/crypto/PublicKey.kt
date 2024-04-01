@@ -8,4 +8,5 @@ import kotlin.jvm.JvmInline
  */
 @Serializable
 @JvmInline
-value class PublicKey(val value: String)
+@Suppress("Unused")
+value class PublicKey<T : KeyPurpose>(val value: String)

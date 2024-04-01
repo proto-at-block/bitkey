@@ -29,6 +29,7 @@ kotlin {
         api(projects.shared.f8eClientImpl)
         api(projects.shared.featureFlagImpl)
         api(projects.shared.firmwareImpl)
+        api(projects.shared.firmwareFake)
         api(projects.shared.fwupImpl)
         api(projects.shared.homeImpl)
         api(projects.shared.keyValueStoreImpl)

@@ -19,7 +19,6 @@ import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import kotlin.experimental.and
 
-@OptIn(ExperimentalStdlibApi::class)
 class SocialRecoveryCodeBuilderImplGeneratorTests : FunSpec({
   // Generate a random left-justified byte array of the given bit length
   suspend fun ArbitraryBuilderContext.getBitsLeftJustified(numBits: Int): ByteArray {

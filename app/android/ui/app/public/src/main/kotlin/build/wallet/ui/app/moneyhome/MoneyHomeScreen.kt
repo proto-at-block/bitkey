@@ -341,3 +341,21 @@ internal fun MoneyHomeScreenLite() {
     )
   }
 }
+
+@Preview
+@Composable
+internal fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
+  PreviewWalletTheme {
+    LiteMoneyHomeScreen(
+      model =
+        LiteMoneyHomeBodyModel(
+          onSettings = {},
+          buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
+          protectedCustomers = immutableListOf(),
+          onProtectedCustomerClick = {},
+          onBuyOwnBitkeyClick = {},
+          onAcceptInviteClick = {}
+        )
+    )
+  }
+}

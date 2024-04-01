@@ -28,11 +28,11 @@
             ]
         },
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-1.9.21.jar": "0702d64baaa90e5c56e467737824c9be3ade1e51562473c143ad03581c955127"
+                        "kotlin-stdlib-jdk8-1.9.22.jar": "47046c3edc32fe0db1a36bfe3d3822958bb5be4411c5ba80f3ae895a3ec27291"
                     }
                 }
             ],

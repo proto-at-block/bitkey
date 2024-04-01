@@ -10,9 +10,7 @@ import build.wallet.store.clearWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import com.russhwolf.settings.ExperimentalSettingsApi
 
-@OptIn(ExperimentalSettingsApi::class)
 class AuthTokenDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
 ) : AuthTokenDao {

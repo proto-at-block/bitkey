@@ -9,7 +9,7 @@ import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.f8e.onboarding.UpgradeAccountService
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
@@ -20,7 +20,7 @@ class LiteToFullAccountUpgraderImpl(
   private val deviceTokenManager: DeviceTokenManager,
   private val keyboxDao: KeyboxDao,
   private val upgradeAccountService: UpgradeAccountService,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) : LiteToFullAccountUpgrader {
   override suspend fun upgradeAccount(
     liteAccount: LiteAccount,
@@ -37,7 +37,7 @@ class LiteToFullAccountUpgraderImpl(
 
       val spendingKeyset =
         SpendingKeyset(
-          localId = uuid.random(),
+          localId = uuidGenerator.random(),
           appKey = keyCrossDraft.appKeyBundle.spendingKey,
           networkType = fullAccountConfig.bitcoinNetworkType,
           hardwareKey = keyCrossDraft.hardwareKeyBundle.spendingKey,
@@ -50,7 +50,8 @@ class LiteToFullAccountUpgraderImpl(
         accountAuthenticator
           .appAuth(
             f8eEnvironment = liteAccount.config.f8eEnvironment,
-            appAuthPublicKey = keyCrossDraft.appKeyBundle.authKey
+            appAuthPublicKey = keyCrossDraft.appKeyBundle.authKey,
+            authTokenScope = AuthTokenScope.Global
           )
           .mapError { AccountCreationError.AccountCreationAuthError(it) }
           .bind()
@@ -78,7 +79,7 @@ class LiteToFullAccountUpgraderImpl(
       // We now have everything we need for our Keyset (app/hw/server spending keys)
       val keybox =
         Keybox(
-          localId = uuid.random(),
+          localId = uuidGenerator.random(),
           fullAccountId = accountId,
           activeSpendingKeyset = spendingKeyset,
           activeAppKeyBundle = adjustedKeyCross,

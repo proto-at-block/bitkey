@@ -5,7 +5,6 @@ import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.setFlagValue
 import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -17,9 +16,8 @@ import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
 import build.wallet.statemachine.settings.SettingsBodyModel
 import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.formScreen
-import build.wallet.testing.AppTester
-import build.wallet.testing.launchNewApp
-import build.wallet.testing.relaunchApp
+import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -27,15 +25,8 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class RotateAuthKeyFunctionalTests : FunSpec({
-
-  lateinit var appTester: AppTester
-  beforeTest {
-    appTester = launchNewApp()
-    appTester.app.appComponent.inactiveDeviceIsEnabledFeatureFlag.setFlagValue(true)
-  }
-
   test("Proposed rotation flag is persisted") {
-    val firstAppRun = inactiveDeviceEnabledAppTester()
+    val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
     firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
@@ -56,7 +47,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
   }
 
   test("User can clear proposed rotation flag") {
-    val firstAppRun = inactiveDeviceEnabledAppTester()
+    val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
     firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
@@ -82,7 +73,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
   }
 
   test("User can successfully rotate keys from proposal") {
-    val app = inactiveDeviceEnabledAppTester()
+    val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
@@ -112,7 +103,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
   }
 
   test("User can successfully rotate keys from settings") {
-    val app = inactiveDeviceEnabledAppTester()
+    val app = launchNewApp()
     val account = app.onboardFullAccountWithFakeHardware()
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
@@ -149,7 +140,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
   }
 
   test("Key rotation resumes from previous attempt") {
-    val firstAppRun = inactiveDeviceEnabledAppTester()
+    val firstAppRun = launchNewApp()
     val account = firstAppRun.onboardFullAccountWithFakeHardware()
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
@@ -188,12 +179,12 @@ class RotateAuthKeyFunctionalTests : FunSpec({
   }
 
   test("Key rotation fails with a cleared hardware") {
-    val firstAppRun = inactiveDeviceEnabledAppTester()
+    val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
     firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
 
-    firstAppRun.fakeNfcCommands.clearHardwareKeys()
+    firstAppRun.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
@@ -233,7 +224,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
    * were shown as "overlay".
    */
   test("Rotating from settings doesn't trigger overlay for MoneyHome") {
-    val firstAppRun = inactiveDeviceEnabledAppTester()
+    val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
@@ -283,15 +274,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
       cancelAndIgnoreRemainingEvents()
     }
   }
-}) {
-  companion object {
-    suspend fun inactiveDeviceEnabledAppTester(): AppTester {
-      val appTester = launchNewApp()
-      appTester.app.appComponent.inactiveDeviceIsEnabledFeatureFlag.setFlagValue(true)
-      return appTester
-    }
-  }
-}
+})
 
 suspend fun ReceiveTurbine<ScreenModel>.screenDecideIfShouldRotate(
   validate: FormBodyModel.() -> Unit,

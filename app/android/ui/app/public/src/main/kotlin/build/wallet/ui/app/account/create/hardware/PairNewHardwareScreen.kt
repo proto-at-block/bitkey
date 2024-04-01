@@ -4,7 +4,6 @@ import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.tween
@@ -110,7 +109,6 @@ fun PairNewHardwareScreen(model: PairNewHardwareBodyModel) {
   )
 }
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun PairNewHardwareScreen(
   onBack: (() -> Unit)?,

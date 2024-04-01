@@ -49,6 +49,7 @@ public extension UIImage {
   static let smallIconClipboard = UIImage(named: "SmallIconClipboard", in: .main, compatibleWith: nil)!
   static let smallIconClock = UIImage(named: "SmallIconClock", in: .main, compatibleWith: nil)!
   static let smallIconCloud = UIImage(named: "SmallIconCloud", in: .main, compatibleWith: nil)!
+  static let smallIconCloudError = UIImage(named: "SmallIconCloudError", in: .main, compatibleWith: nil)!
   static let smallIconCopy = UIImage(named: "SmallIconCopy", in: .main, compatibleWith: nil)!
   static let smallIconCurrency = UIImage(named: "SmallIconCurrency", in: .main, compatibleWith: nil)!
   static let smallIconDigitOne = UIImage(named: "SmallIconDigitOne", in: .main, compatibleWith: nil)!
@@ -147,9 +148,11 @@ public extension Icon {
         case .smalliconcheck: return .smallIconCheck
         case .smalliconcheckfilled: return .smallIconCheckFilled
         case .smalliconcheckstroked: return .smallIconCheckStroked
+        case .smalliconcirclestroked: return .smallIconCircleStroked
         case .smalliconclipboard: return .smallIconClipboard
         case .smalliconclock: return .smallIconClock
         case .smalliconcloud: return .smallIconCloud
+        case .smalliconclouderror: return .smallIconCloudError
         case .smalliconcopy: return .smallIconCopy
         case .smalliconcurrency: return .smallIconCurrency
         case .smallicondigitone: return .smallIconDigitOne
@@ -162,7 +165,6 @@ public extension Icon {
         case .smalliconinformationfilled: return .smallIconInformationFilled
         case .smalliconkey: return .smallIconKey
         case .smalliconkeyboard: return .smallIconKeyboard
-        case .smalliconcirclestroked: return .smallIconCircleStroked
         case .smalliconlightning: return .smallIconLightning
         case .smalliconmessage: return .smallIconMessage
         case .smalliconminus: return .smallIconMinus

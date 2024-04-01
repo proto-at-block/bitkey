@@ -14,14 +14,14 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.TransactionDetailDao
+import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
 
 class BdkTransactionMapperImpl(
   private val bdkAddressBuilder: BdkAddressBuilder,
-  private val transactionDetailDao: TransactionDetailDao,
+  private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
 ) : BdkTransactionMapper {
   override suspend fun createTransaction(
     bdkTransaction: BdkTransactionDetails,
@@ -78,11 +78,11 @@ class BdkTransactionMapperImpl(
           incoming
         ),
       broadcastTime =
-        transactionDetailDao.broadcastTimeForTransaction(
+        outgoingTransactionDetailDao.broadcastTimeForTransaction(
           transactionId = bdkTransaction.txid
         ),
       estimatedConfirmationTime =
-        transactionDetailDao.confirmationTimeForTransaction(
+        outgoingTransactionDetailDao.confirmationTimeForTransaction(
           transactionId = bdkTransaction.txid
         ),
       confirmationStatus = bdkTransaction.confirmationStatus(),

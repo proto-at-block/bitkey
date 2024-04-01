@@ -30,7 +30,7 @@ class LiteAccountCloudBackupCreatorImplTests : FunSpec({
 
   test("success") {
     val recoveryAuthKeypair = AppRecoveryAuthKeypairMock
-    appPrivateKeyDao.appAuthKeys[recoveryAuthKeypair.publicKey] = recoveryAuthKeypair.privateKey
+    appPrivateKeyDao.asymmetricKeys[recoveryAuthKeypair.publicKey] = recoveryAuthKeypair.privateKey
     backupCreator
       .create(
         account = LiteAccountMock

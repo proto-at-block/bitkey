@@ -3,6 +3,7 @@ package build.wallet.statemachine.recovery.conflict.model
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -13,6 +14,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 fun ShowingNoLongerRecoveringBodyModel(
   canceledRecoveringFactor: PhysicalFactor,
   isLoading: Boolean,
+  errorData: ErrorData?,
   onAcknowledge: () -> Unit,
 ): FormBodyModel {
   return FormBodyModel(
@@ -42,11 +44,13 @@ fun ShowingNoLongerRecoveringBodyModel(
         onClick = StandardClick(onAcknowledge),
         size = ButtonModel.Size.Footer,
         isLoading = isLoading
-      )
+      ),
+    errorData = errorData
   )
 }
 
-private const val CANCELED_HW_SUBLINE_BOLD = "If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again."
+private const val CANCELED_HW_SUBLINE_BOLD =
+  "If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again."
 private const val CANCELED_HW_SUBLINE = """
 Your paired Bitkey device was used with another phone to cancel your replacement process.
   
@@ -55,7 +59,8 @@ If you didn’t cancel this process, immediately go to support.bitkey.build to l
 Your funds might be at risk.
 """
 
-private const val CANCELED_APP_SUBLINE_BOLD = "If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again."
+private const val CANCELED_APP_SUBLINE_BOLD =
+  "If you didn’t cancel this process, immediately go to support.bitkey.build to learn more before attempting your recovery again."
 private const val CANCELED_APP_SUBLINE = """
 Your paired mobile phone was used to cancel your mobile key recovery process on this phone.
   

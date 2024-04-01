@@ -3,7 +3,7 @@ package build.wallet.statemachine.core
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
-import build.wallet.platform.random.UuidImpl
+import build.wallet.platform.random.uuid
 
 /**
  * Model for a screen that seamlessly transitions from loading to success
@@ -35,6 +35,6 @@ data class LoadingSuccessBodyModel(
         )
       }
 
-  private val unique = id?.name ?: UuidImpl().random()
+  private val unique = id?.name ?: uuid().random()
   override val key: String = "${this::class.qualifiedName}-$unique."
 }

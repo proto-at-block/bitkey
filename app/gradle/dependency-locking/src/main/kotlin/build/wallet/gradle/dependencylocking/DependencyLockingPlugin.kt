@@ -18,6 +18,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Usage
 import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
@@ -40,7 +41,7 @@ class DependencyLockingPlugin : Plugin<Project> {
 
   private val allProjectsLockFilesConfigurationName = "allProjectsLockFiles"
 
-  private val lockFileConfigurationUsageAttributeValue = "lock-file"
+  private val lockFileConfigurationAttributeValue = "lock-file"
 
   override fun apply(target: Project) {
     with(target) {
@@ -186,10 +187,8 @@ class DependencyLockingPlugin : Plugin<Project> {
       description = "Used for passing local lock file to the global updateDependencyLock task."
 
       attributes {
-        attribute(
-          Usage.USAGE_ATTRIBUTE,
-          objects.named(lockFileConfigurationUsageAttributeValue)
-        )
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(lockFileConfigurationAttributeValue))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(lockFileConfigurationAttributeValue))
       }
     }
 
@@ -253,7 +252,8 @@ class DependencyLockingPlugin : Plugin<Project> {
       description = "Used for fetching all local lock files."
 
       attributes {
-        attribute(Usage.USAGE_ATTRIBUTE, objects.named(lockFileConfigurationUsageAttributeValue))
+        attribute(Usage.USAGE_ATTRIBUTE, objects.named(lockFileConfigurationAttributeValue))
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(lockFileConfigurationAttributeValue))
       }
     }
 

@@ -12,7 +12,7 @@ data class SocialChallengeResponse(
   @SerialName("recovery_relationship_id")
   val recoveryRelationshipId: String,
   @SerialName("trusted_contact_recovery_pake_pubkey")
-  val trustedContactRecoveryPakePubkey: PublicKey,
+  val trustedContactRecoveryPakePubkey: PublicKey<TrustedContactRecoveryPakeKey>,
   @SerialName("recovery_pake_confirmation")
   @Serializable(with = ByteStringAsHexSerializer::class)
   val recoveryPakeConfirmation: ByteString,

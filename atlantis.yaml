@@ -48,9 +48,11 @@ projects:
         - ../../../../modules/apps/fromagerie/service/*.tf*
         - ../../../../modules/apps/fromagerie/service/db/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/dynamodb-iam-policy/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/dev/apps/fromagerie/service
     name: terraform_dev_apps_fromagerie_service
     workflow: terragrunt
@@ -240,9 +242,11 @@ projects:
         - ../../../../modules/apps/fromagerie/service/*.tf*
         - ../../../../modules/apps/fromagerie/service/db/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/dynamodb-iam-policy/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/prod/apps/fromagerie/service
     name: terraform_prod_apps_fromagerie_service
     workflow: terragrunt
@@ -309,8 +313,10 @@ projects:
         - ../../../../modules/lookup/db/*.tf*
         - ../../../../modules/lookup/namespacer/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/prod/apps/web-shop-api/service
     name: terraform_prod_apps_web-shop-api_service
     workflow: terragrunt
@@ -328,8 +334,10 @@ projects:
         - ../../../../modules/apps/web-site/service/*.tf*
         - ../../../../modules/lookup/namespacer/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/prod/apps/web-site/service
     name: terraform_prod_apps_web-site_service
     workflow: terragrunt
@@ -398,6 +406,17 @@ projects:
         - ../../../modules/models/datadog/logs-archive/*.tf*
     dir: terraform/prod/datadog/logs-archive
     name: terraform_prod_datadog_logs-archive
+    workflow: terragrunt
+    execution_order_group: 3
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
+        - ../../../terragrunt.hcl
+        - ../../../modules/models/datadog/logs-forwarder/*.tf*
+    dir: terraform/prod/datadog/logs-forwarder
+    name: terraform_prod_datadog_logs-forwarder
     workflow: terragrunt
     execution_order_group: 3
   - autoplan:
@@ -506,6 +525,17 @@ projects:
         - '*.hcl'
         - '*.tf*'
         - ../../../terragrunt.hcl
+        - ../../../modules/models/iam-role-ops/*.tf*
+    dir: terraform/prod/shared/iam-role-ops
+    name: terraform_prod_shared_iam-role-ops
+    workflow: terragrunt
+    execution_order_group: 3
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
+        - ../../../terragrunt.hcl
         - ../../../modules/models/square-il3-vpce/*.tf*
         - ../../../modules/lookup/vpc/*.tf*
     dir: terraform/prod/shared/square-il3-vpce
@@ -577,9 +607,11 @@ projects:
         - ../../../../modules/apps/fromagerie/service/*.tf*
         - ../../../../modules/apps/fromagerie/service/db/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/dynamodb-iam-policy/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/stage/apps/fromagerie/service
     name: terraform_stage_apps_fromagerie_service
     workflow: terragrunt
@@ -612,8 +644,10 @@ projects:
         - ../../../../modules/lookup/db/*.tf*
         - ../../../../modules/lookup/namespacer/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/stage/apps/web-shop-api/service
     name: terraform_stage_apps_web-shop-api_service
     workflow: terragrunt
@@ -631,8 +665,10 @@ projects:
         - ../../../../modules/apps/web-site/service/*.tf*
         - ../../../../modules/lookup/namespacer/*.tf*
         - ../../../../modules/models/ecs-service/*.tf*
+        - ../../../../modules/pieces/cloudflare-cidrs/*.tf*
         - ../../../../modules/pieces/ecs-containers/*.tf*
         - ../../../../modules/pieces/ecs-iam-roles/*.tf*
+        - ../../../../modules/pieces/vpn-cidrs/*.tf*
     dir: terraform/stage/apps/web-site/service
     name: terraform_stage_apps_web-site_service
     workflow: terragrunt
@@ -719,6 +755,17 @@ projects:
       when_modified:
         - '*.hcl'
         - '*.tf*'
+        - ../../../../terragrunt.hcl
+        - ../../../../modules/models/datadog/logs-forwarder/*.tf*
+    dir: terraform/stage/shared/datadog/logs-forwarder
+    name: terraform_stage_shared_datadog_logs-forwarder
+    workflow: terragrunt
+    execution_order_group: 2
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
         - ../../../terragrunt.hcl
         - ../../../modules/models/ecr-repos/*.tf*
         - ../../../modules/pieces/ecr-repo/*.tf*
@@ -755,6 +802,17 @@ projects:
         - ../../../terragrunt.hcl
     dir: terraform/stage/shared/hosted-zones
     name: terraform_stage_shared_hosted-zones
+    workflow: terragrunt
+    execution_order_group: 2
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
+        - ../../../terragrunt.hcl
+        - ../../../modules/models/iam-role-ops/*.tf*
+    dir: terraform/stage/shared/iam-role-ops
+    name: terraform_stage_shared_iam-role-ops
     workflow: terragrunt
     execution_order_group: 2
   - autoplan:

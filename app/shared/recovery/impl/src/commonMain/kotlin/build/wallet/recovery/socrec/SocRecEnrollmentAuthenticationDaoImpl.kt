@@ -1,12 +1,10 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDao
-import build.wallet.bitkey.keys.app.AppKeyImpl
+import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
-import build.wallet.crypto.CurveType
 import build.wallet.database.BitkeyDatabaseProvider
-import build.wallet.database.sqldelight.SocRecEnrollmentAuthentication
 import build.wallet.db.DbTransactionError
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Ok
@@ -22,18 +20,18 @@ class SocRecEnrollmentAuthenticationDaoImpl(
 
   override suspend fun insert(
     recoveryRelationshipId: String,
-    protectedCustomerEnrollmentPakeKey: ProtectedCustomerEnrollmentPakeKey,
+    protectedCustomerEnrollmentPakeKey: AppKey<ProtectedCustomerEnrollmentPakeKey>,
     pakeCode: PakeCode,
   ): Result<Unit, Throwable> =
     binding {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
         protectedCustomerEnrollmentPakeKey.publicKey,
-        requireNotNull((protectedCustomerEnrollmentPakeKey.key as AppKeyImpl).privateKey)
+        requireNotNull(protectedCustomerEnrollmentPakeKey.privateKey)
       ).bind()
       database.awaitTransactionWithResult {
         database.socRecEnrollmentAuthenticationQueries.insert(
           recoveryRelationshipId,
-          protectedCustomerEnrollmentPakeKey,
+          protectedCustomerEnrollmentPakeKey.publicKey,
           pakeCode.bytes
         )
       }.bind()
@@ -41,7 +39,7 @@ class SocRecEnrollmentAuthenticationDaoImpl(
 
   override suspend fun getByRelationshipId(
     recoveryRelationshipId: String,
-  ): Result<SocRecEnrollmentAuthentication?, Throwable> =
+  ): Result<SocRecEnrollmentAuthenticationDao.SocRecEnrollmentAuthenticationRow?, Throwable> =
     binding {
       val auth =
         database.awaitTransactionWithResult {
@@ -53,22 +51,21 @@ class SocRecEnrollmentAuthenticationDaoImpl(
         return@binding Ok(null).bind()
       }
       val privateKey =
-        appPrivateKeyDao.getAsymmetricPrivateKey(auth.protectedCustomerEnrollmentPakeKey.publicKey)
+        appPrivateKeyDao.getAsymmetricPrivateKey(auth.protectedCustomerEnrollmentPakeKey)
           .toErrorIfNull {
             SocRecKeyError.NoPrivateKeyAvailable(
               message = "Protected customer enrollment private key missing"
             )
           }
           .bind()
-      auth.copy(
+      SocRecEnrollmentAuthenticationDao.SocRecEnrollmentAuthenticationRow(
+        recoveryRelationshipId = auth.recoveryRelationshipId,
         protectedCustomerEnrollmentPakeKey =
-          ProtectedCustomerEnrollmentPakeKey(
-            AppKeyImpl(
-              CurveType.Curve25519,
-              auth.protectedCustomerEnrollmentPakeKey.publicKey,
-              privateKey
-            )
-          )
+          AppKey(
+            auth.protectedCustomerEnrollmentPakeKey,
+            privateKey
+          ),
+        pakeCode = PakeCode(auth.pakeCode)
       )
     }
 

@@ -51,17 +51,11 @@ fun CloudSignInFailedScreenModel(
       Android, Jvm -> immutableListOf()
       IOS -> iCloudTroubleshootingStepsMainContentList()
     },
-  primaryButton =
-    ButtonModel(
-      leadingIcon = Icon.SmallIconRefresh.takeIf { devicePlatform == IOS },
-      text =
-        when (devicePlatform) {
-          Android, Jvm -> "Sign in to Google"
-          IOS -> "Check again"
-        },
-      onClick = StandardClick(onTryAgain),
-      size = ButtonModel.Size.Footer
-    ),
+  primaryButton = RetryCloudSignInButton(
+    androidText = "Sign in to Google",
+    onTryAgain = onTryAgain,
+    devicePlatform = devicePlatform
+  ),
   secondaryButton =
     ButtonModel(
       leadingIcon = Icon.SmallIconArrowUpRight,
@@ -72,3 +66,21 @@ fun CloudSignInFailedScreenModel(
         StandardClick { onContactSupport() }
     ).takeIf { devicePlatform == IOS }
 )
+
+fun RetryCloudSignInButton(
+  androidText: String,
+  iOSText: String = "Check again",
+  onTryAgain: () -> Unit,
+  devicePlatform: DevicePlatform,
+  treatment: ButtonModel.Treatment = ButtonModel.Treatment.Primary,
+): ButtonModel =
+  ButtonModel(
+    leadingIcon = Icon.SmallIconRefresh.takeIf { devicePlatform == IOS },
+    treatment = treatment,
+    text = when (devicePlatform) {
+      Android, Jvm -> androidText
+      IOS -> iOSText
+    },
+    onClick = StandardClick(onTryAgain),
+    size = ButtonModel.Size.Footer
+  )

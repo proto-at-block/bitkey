@@ -1,7 +1,6 @@
 package build.wallet.ui.components.qr
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.size
@@ -33,7 +32,6 @@ import com.google.zxing.qrcode.encoder.Encoder
  * @param [data] - content that will be encoded in the QR code. If `null`, loading spinner is shown.
  * @param [cellShape] - shape of the QR code cells
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun QrCode(
   modifier: Modifier = Modifier,

@@ -14,10 +14,9 @@ import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AuthKeyRotationManager
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
-import build.wallet.auth.InactiveDeviceIsEnabledFeatureFlag
 import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.AppPrivateKeyDao
-import build.wallet.bitkey.app.AppAuthPublicKey
+import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.CloudBackupV2
@@ -31,6 +30,7 @@ import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.SocRecV1AccountFeatures
+import build.wallet.crypto.PublicKey
 import build.wallet.crypto.SymmetricKeyImpl
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.keybox.KeyboxDao
@@ -38,7 +38,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.logFailure
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecChallengeRepository
@@ -46,12 +46,14 @@ import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
 import build.wallet.recovery.socrec.toActions
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.CloudBackupFoundUiState
 import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.CompletingCloudRecoveryUiState
 import build.wallet.statemachine.recovery.cloud.CloudBackupRestorationUiState.RecoveryAuthenticationState
@@ -98,9 +100,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val socialRelationshipsRepository: SocRecRelationshipsRepository,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
   private val authKeyRotationManager: AuthKeyRotationManager,
-  private val inactiveDeviceIsEnabledFeatureFlag: InactiveDeviceIsEnabledFeatureFlag,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudBackupRestorationUiProps): ScreenModel {
@@ -164,7 +165,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform,
           onBack = props.onExit,
           onRestore = {
-            // TODO(W-4833): Handle for Lite Account.
             uiState = UnsealingCsek
           },
           showSocRecButton = props.backup.socRecDataAvailable,
@@ -184,7 +184,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
             uiState =
               if (account == null) {
-                RestoringFromBackupFailureUiState
+                RestoringFromBackupFailureUiState(
+                  errorData = ErrorData(
+                    segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+                    actionDescription = "Reading full account from backup",
+                    cause = Error("Backup did not contain data for full account")
+                  ),
+                  onBack = { uiState = SocialRecoveryExplanationState }
+                )
               } else {
                 RecoveryAuthenticationState(
                   f8eEnvironment = backup.f8eEnvironment,
@@ -221,7 +228,9 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             onCancel = { uiState = CloudBackupFoundUiState },
             isHardwareFake = props.fullAccountConfig.isHardwareFake,
             screenPresentationStyle = Root,
-            eventTrackerContext = UNSEAL_CLOUD_BACKUP
+            eventTrackerContext = UNSEAL_CLOUD_BACKUP,
+            segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+            actionDescription = "Unsealing CSEK for full account cloud restoration"
           )
         )
       }
@@ -234,7 +243,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       }
 
       is CompletingCloudRecoveryUiState -> {
-        CompleteCloudRecoveryEffect(props, state)
+        CompleteCloudRecoveryEffect(props, state, setState = { uiState = it })
         loadingRestoringFromBackupModel
       }
 
@@ -248,7 +257,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 uiState = SocialRecoveryExplanationState
               }
             ),
-          eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP
+          eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP,
+          errorData = state.errorData
         ).asRootScreen()
 
       is SocRecRestorationFailedState ->
@@ -266,7 +276,12 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                   )
               }
             ),
-          eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP
+          eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_CLOUD_BACKUP,
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+            actionDescription = "Restoring full account from backup",
+            cause = state.cause
+          )
         ).asRootScreen()
     }
   }
@@ -281,7 +296,16 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         .restoreFromBackup(cloudBackup = props.backup)
         .logFailure { "Error restoring keybox from cloud backup" }
         .onFailure {
-          setState(RestoringFromBackupFailureUiState)
+          setState(
+            RestoringFromBackupFailureUiState(
+              errorData = ErrorData(
+                segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                actionDescription = "Restoring full account from backup",
+                cause = it
+              ),
+              onBack = props.onExit
+            )
+          )
         }
         .onSuccess { accountRestoration ->
           setState(CompletingCloudRecoveryUiState(accountRestoration))
@@ -293,14 +317,39 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private fun CompleteCloudRecoveryEffect(
     props: FullAccountCloudBackupRestorationUiProps,
     state: CompletingCloudRecoveryUiState,
+    setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("completing-cloud-recovery") {
-      handleCloudKeyRecovered(props, state.accountRestoration).onSuccess {
-        if (inactiveDeviceIsEnabledFeatureFlag.flagValue().value.value) {
-          authKeyRotationManager.recommendKeyRotation()
+      handleCloudKeyRecovered(props, state.accountRestoration)
+        .onFailure {
+          setState(
+            RestoringFromBackupFailureUiState(
+              errorData = ErrorData(
+                segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                actionDescription = "Authenticating with new app auth key and applying cloud backup",
+                cause = it
+              ),
+              onBack = props.onExit
+            )
+          )
         }
-        keyboxDao.saveKeyboxAsActive(state.accountRestoration.asKeybox(uuid.random(), it))
-      }
+        .onSuccess {
+          authKeyRotationManager.recommendKeyRotation()
+          keyboxDao
+            .saveKeyboxAsActive(state.accountRestoration.asKeybox(uuidGenerator.random(), it))
+            .onFailure { dbError ->
+              setState(
+                RestoringFromBackupFailureUiState(
+                  errorData = ErrorData(
+                    segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
+                    actionDescription = "Saving keybox as active",
+                    cause = dbError
+                  ),
+                  onBack = props.onExit
+                )
+              )
+            }
+        }
     }
   }
 
@@ -314,8 +363,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       binding {
         val restoration =
           backupRestorer.restoreFromBackupWithDecryptedKeys(
-            props.backup,
-            state.fullAccountKeys
+            cloudBackup = props.backup,
+            keysInfo = state.fullAccountKeys
           ).bind()
 
         // Set the flag to show the replace hardware card nudge
@@ -332,14 +381,20 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
             keyboxDao
               .saveKeyboxAsActive(
                 restoration.asKeybox(
-                  keyboxId = uuid.random(),
+                  keyboxId = uuidGenerator.random(),
                   fullAccountId = accountId
                 )
               )
           }
           .bind()
       }.onFailure {
-        setState(SocRecRestorationFailedState(state.accountId, state.fullAccountKeys))
+        setState(
+          SocRecRestorationFailedState(
+            accountId = state.accountId,
+            fullAccountKeys = state.fullAccountKeys,
+            cause = it
+          )
+        )
       }
     }
   }
@@ -403,7 +458,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
    * tokens in [AuthTokenDao] keyed by the given [AuthTokenScope]
    */
   private suspend fun authenticateWithF8eAndStoreAuthTokens(
-    appAuthPublicKey: AppAuthPublicKey,
+    appAuthPublicKey: PublicKey<out AppAuthKey>,
     f8eEnvironment: F8eEnvironment,
     tokenScope: AuthTokenScope,
   ): Result<AccountAuthenticator.AuthData, Error> {
@@ -412,7 +467,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         accountAuthenticator
           .appAuth(
             f8eEnvironment = f8eEnvironment,
-            appAuthPublicKey = appAuthPublicKey
+            appAuthPublicKey = appAuthPublicKey,
+            authTokenScope = tokenScope
           )
           .logAuthFailure { "Error authenticating with new app auth key after recovery completed." }
           .bind()
@@ -433,9 +489,18 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("lost-bitkey-auth") {
-      appPrivateKeyDao.storeAppAuthKeyPair(state.backupFeatures.appRecoveryAuthKeypair)
+      appPrivateKeyDao.storeAppKeyPair(state.backupFeatures.appRecoveryAuthKeypair)
         .onFailure {
-          setState(RestoringFromBackupFailureUiState)
+          setState(
+            RestoringFromBackupFailureUiState(
+              errorData = ErrorData(
+                segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+                actionDescription = "Storing app recovery auth key",
+                cause = it
+              ),
+              onBack = { setState(SocialRecoveryExplanationState) }
+            )
+          )
           return@LaunchedEffect
         }
 
@@ -444,12 +509,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         appAuthPublicKey = state.backupFeatures.appRecoveryAuthKeypair.publicKey,
         tokenScope = AuthTokenScope.Recovery
       ).flatMap { authData ->
-        socialRelationshipsRepository.syncRelationshipsWithoutVerification(
-          accountId = FullAccountId(authData.accountId),
-          f8eEnvironment = state.f8eEnvironment
-        ).map {
-          Pair(authData, it)
-        }
+        socialRelationshipsRepository
+          .syncRelationshipsWithoutVerification(
+            accountId = FullAccountId(authData.accountId),
+            f8eEnvironment = state.f8eEnvironment
+          )
+          .map {
+            Pair(authData, it)
+          }
       }.onSuccess { (authData, relationships) ->
         setState(
           SocRecChallengeState(
@@ -462,7 +529,16 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           )
         )
       }.onFailure {
-        setState(RestoringFromBackupFailureUiState)
+        setState(
+          RestoringFromBackupFailureUiState(
+            errorData = ErrorData(
+              segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+              actionDescription = "Authenticating with new app recovery auth key, storing tokens, and syncing socrec relationships",
+              cause = it
+            ),
+            onBack = { setState(SocialRecoveryExplanationState) }
+          )
+        )
       }
     }
   }
@@ -472,25 +548,28 @@ private sealed interface CloudBackupRestorationUiState {
   /**
    * Initial state – found wallet backup on the cloud storage. Confirm with user they want to restore.
    */
-  object CloudBackupFoundUiState : CloudBackupRestorationUiState
+  data object CloudBackupFoundUiState : CloudBackupRestorationUiState
 
   /**
    * Customer has chosen to restore. Show NFC prompt to unseal the CSEK.
    */
-  object UnsealingCsek : CloudBackupRestorationUiState
+  data object UnsealingCsek : CloudBackupRestorationUiState
 
   /**
    * Restoring the account from the backup using the CSEK.
-   * We also track the hw authenticatino key since it's needed
+   * We also track the hw authentication key since it's needed
    * if the customer wishes to rotate the authentication keys after the
    * cloud backup restoration.
    */
   data object RestoringFromBackupUiState : CloudBackupRestorationUiState
 
   /**
-   * Failure when restoring the account from the backup using the CSEK.
+   * Failure when restoring the account from the backup.
    */
-  data object RestoringFromBackupFailureUiState : CloudBackupRestorationUiState
+  data class RestoringFromBackupFailureUiState(
+    val errorData: ErrorData,
+    val onBack: () -> Unit,
+  ) : CloudBackupRestorationUiState
 
   /**
    * Used at the end of the Cloud restoration flow
@@ -540,5 +619,6 @@ private sealed interface CloudBackupRestorationUiState {
   data class SocRecRestorationFailedState(
     val accountId: FullAccountId,
     val fullAccountKeys: FullAccountKeys,
+    val cause: Error,
   ) : CloudBackupRestorationUiState
 }

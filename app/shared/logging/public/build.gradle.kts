@@ -13,9 +13,6 @@ kotlin {
         api(projects.shared.resultPublic)
         api(libs.kmp.kotlin.datetime)
         api(libs.kmp.kermit)
-
-        // For NetworkingError
-        implementation(projects.shared.ktorResultPublic)
       }
     }
 

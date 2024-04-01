@@ -33,7 +33,7 @@ pub enum OverrideMode {
     Object(HashMap<String, String>),
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
     Test,
@@ -42,7 +42,8 @@ pub enum Mode {
 
 impl Config {
     pub async fn to_service(self) -> Result<Service, Error> {
-        let config = match self.launchdarkly {
+        let mode = self.launchdarkly;
+        let config = match mode {
             Mode::Test => ConfigBuilder::new("fake-launchdarkly-sdk-key")
                 .offline(true)
                 .build(),
@@ -65,7 +66,7 @@ impl Config {
             _ => HashMap::new(),
         };
 
-        Ok(Service::new(client, overrides))
+        Ok(Service::new(client, mode, overrides))
     }
 }
 

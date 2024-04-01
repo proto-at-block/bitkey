@@ -10,6 +10,7 @@ import build.wallet.ui.model.list.ListGroupModel
 data class FeatureFlagsBodyModel(
   val flagsModel: ListGroupModel,
   override val onBack: () -> Unit,
+  val onReset: () -> Unit,
   // This is only used by the debug menu, it doesn't need a screen ID
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
 ) : BodyModel()

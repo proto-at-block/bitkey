@@ -48,7 +48,8 @@ class RectifiableErrorHandlingUiStateMachineImplTests : FunSpec({
         returnCalls += Unit
       },
       screenId = CloudEventTrackerScreenId.ACCESS_CLOUD_BACKUP_FAILURE_RECTIFIABLE,
-      presentationStyle = ScreenPresentationStyle.Root
+      presentationStyle = ScreenPresentationStyle.Root,
+      errorData = null
     )
 
   test("Pressing Back calls onFailure") {

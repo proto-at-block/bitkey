@@ -1,3 +1,6 @@
+[profile.dev]
+incremental = true
+
 [workspace]
 exclude = ["auth/auth_lambda_handlers"]
 members = [
@@ -49,8 +52,8 @@ argon2 = { version = "0.5.3", features = ["std"] }
 async-trait = "0.1.77"
 aws-config = "1.1.7"
 aws-credential-types = "1.1.7"
-aws-sdk-cognitoidentityprovider = "1.17.0"
-aws-sdk-dynamodb = "1.16.0"
+aws-sdk-cognitoidentityprovider = "1.18.0"
+aws-sdk-dynamodb = "1.16.1"
 aws-sdk-kms = "1.15.0"
 aws-sdk-s3 = "1.17.0"
 aws-sdk-secretsmanager = "1.17.0"
@@ -67,7 +70,7 @@ axum-tracing-opentelemetry = "0.16.0"
 base64 = "0.21.7"
 bdk = { version = "0.29.0", default-features = false }
 config = { version = "0.13.1", features = ["toml"] }
-ctrlc = "3.4.2"
+ctrlc = "3.4.4"
 derive_builder = "0.13.1"
 dyn-clone = "1.0.17"
 futures = "0.3.30"
@@ -83,7 +86,7 @@ opentelemetry = { version = "0.21.0", feature = ["metrics", "rt-tokio"] }
 prost = "0.12.1"
 rand = "0.8.5"
 regex = "1.10.3"
-reqwest = { version = "0.11.24", default-features = false, features = [
+reqwest = { version = "0.11.25", default-features = false, features = [
   "json",
   "rustls-tls",
 ] }
@@ -95,7 +98,7 @@ rust-embed = { version = "8.3.0", features = [
 ] }
 serde = { version = "1.0.197", features = ["derive"] }
 serde_dynamo = { version = "4.2.13", features = ["aws-sdk-dynamodb+1"] }
-serde_json = "1.0.113"
+serde_json = "1.0.114"
 strum = "0.25.0"
 strum_macros = "0.25.3"
 thiserror = "1.0.57"
@@ -126,6 +129,7 @@ customer_feedback = { path = "src/api/customer_feedback" }
 database = { path = "src/api/database" }
 errors = { path = "src/api/errors" }
 exchange_rate = { path = "src/api/exchange_rate" }
+experimentation = { path = "src/api/experimentation" }
 external_identifier = { path = "src/api/external_identifier" }
 feature_flags = { path = "src/feature_flags" }
 http_server = { path = "src/api/http_server" }

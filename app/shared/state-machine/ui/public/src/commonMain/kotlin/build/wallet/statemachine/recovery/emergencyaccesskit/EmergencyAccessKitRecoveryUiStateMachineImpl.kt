@@ -19,7 +19,7 @@ import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
-import build.wallet.platform.random.Uuid
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
@@ -43,7 +43,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
   private val csekDao: CsekDao,
   private val keyboxDao: KeyboxDao,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
-  private val uuid: Uuid,
+  private val uuidGenerator: UuidGenerator,
 ) :
   EmergencyAccessKitRecoveryUiStateMachine {
   @Composable
@@ -184,7 +184,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
 
       is State.RestoreCompleted -> {
         LaunchedEffect("applying-backup") {
-          currentState.completeRestore(keyboxDao = keyboxDao, uuid = uuid)
+          currentState.completeRestore(keyboxDao = keyboxDao, uuidGenerator = uuidGenerator)
         }
         importingBackupScreen().asRootScreen()
       }
@@ -322,14 +322,14 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
     ) : State {
       suspend fun completeRestore(
         keyboxDao: KeyboxDao,
-        uuid: Uuid,
+        uuidGenerator: UuidGenerator,
       ) = binding {
         // Only set the active keybox. This will leave the app in a "server offline" state
         // but able to transfer funds.
         val activeKeybox = accountRestoration.asKeybox(
-          keyboxId = uuid.random(),
-          appKeyBundleId = uuid.random(),
-          hwKeyBundleId = uuid.random()
+          keyboxId = uuidGenerator.random(),
+          appKeyBundleId = uuidGenerator.random(),
+          hwKeyBundleId = uuidGenerator.random()
         )
 
         keyboxDao

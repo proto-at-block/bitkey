@@ -67,7 +67,6 @@ import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.time.Delayer
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import kotlinx.coroutines.test.TestScope
 import kotlinx.datetime.Instant
 
 class AppUiStateMachineImplTests : FunSpec({
@@ -112,7 +111,6 @@ class AppUiStateMachineImplTests : FunSpec({
         id = "rotate-auth-key"
       ) {}
   lateinit var stateMachine: AppUiStateMachineImpl
-  val testScope = TestScope()
 
   // Fakes are stateful, need to reinitialize before each test to reset the state.
   beforeTest {

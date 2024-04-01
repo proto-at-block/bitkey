@@ -34,7 +34,7 @@ class BooleanFlagItemUiStateMachineImpl : BooleanFlagItemUiStateMachine {
                 scope.launch {
                   props.featureFlag.canSetValue(BooleanFlag(newValue))
                     .onSuccess {
-                      props.featureFlag.setFlagValue(BooleanFlag(newValue))
+                      props.featureFlag.setFlagValue(BooleanFlag(newValue), overridden = true)
                     }
                     .onFailure { alertMessage ->
                       props.onShowAlertMessage(alertMessage)

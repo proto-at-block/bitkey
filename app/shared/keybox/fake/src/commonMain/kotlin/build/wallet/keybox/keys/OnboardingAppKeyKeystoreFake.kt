@@ -1,11 +1,12 @@
 package build.wallet.keybox.keys
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.app.AppGlobalAuthPublicKey
+import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.app.AppKeyBundle
-import build.wallet.bitkey.app.AppRecoveryAuthPublicKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
+import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -14,8 +15,8 @@ class OnboardingAppKeyKeystoreFake : OnboardingAppKeyKeystore {
 
   override suspend fun persistAppKeys(
     spendingKey: AppSpendingPublicKey,
-    globalAuthKey: AppGlobalAuthPublicKey,
-    recoveryAuthKey: AppRecoveryAuthPublicKey,
+    globalAuthKey: PublicKey<AppGlobalAuthKey>,
+    recoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
     bitcoinNetworkType: BitcoinNetworkType,
   ) {
     appKeys =

@@ -26,7 +26,10 @@ class MempoolHttpClientImpl(
 ) : MempoolHttpClient {
   override fun client(networkType: BitcoinNetworkType): HttpClient =
     HttpClient {
-      installLogging(logLevelPolicy.level())
+      installLogging(
+        tag = "Mempool",
+        logLevel = logLevelPolicy.level()
+      )
 
       install(ContentNegotiation) {
         json(

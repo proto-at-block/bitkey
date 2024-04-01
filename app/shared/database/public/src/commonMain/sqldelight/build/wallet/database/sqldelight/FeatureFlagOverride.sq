@@ -1,0 +1,17 @@
+import kotlin.Boolean;
+
+CREATE TABLE featureFlagOverrideEntity(
+  featureFlagId   TEXT NOT NULL PRIMARY KEY,
+  overridden      INTEGER AS Boolean NOT NULL
+);
+
+setFlagOverridden:
+INSERT OR REPLACE INTO featureFlagOverrideEntity(featureFlagId, overridden)
+VALUES(?, ?);
+
+getFlagOverridden:
+SELECT overridden FROM featureFlagOverrideEntity
+WHERE featureFlagId = ?;
+
+clear:
+DELETE FROM featureFlagOverrideEntity;

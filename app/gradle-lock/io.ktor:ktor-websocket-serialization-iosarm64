@@ -2,11 +2,11 @@
     "module-identifier": "io.ktor:ktor-websocket-serialization-iosarm64",
     "components": [
         {
-            "version": "2.3.8",
+            "version": "2.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "ktor-websocket-serialization-iosarm64-2.3.8-metadata.jar": "88ab086e3b21d014fe6f3aab7f25d7b045d325b121ab9d416bd68669fa433d4a"
+                        "ktor-websocket-serialization-iosarm64-2.3.9-metadata.jar": "fca88b392a98d1b49518b0f523a5bf8b5ae346aaa537bad38702ba7e81da1e27"
                     }
                 },
                 {

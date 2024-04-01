@@ -127,7 +127,8 @@ class AppContext {
             ),
             cloudFileStore: CloudFileStoreImpl(iCloudDriveFileStore: iCloudDriveFileStore()),
             cloudSignInUiStateMachine: CloudSignInUiStateMachineImpl(
-                cloudStoreAccountRepository: cloudStoreAccountRepository
+                cloudStoreAccountRepository: cloudStoreAccountRepository,
+                delayer: appComponent.delayer
             ),
             cloudDevOptionsStateMachine: CloudDevOptionsStateMachineImpl(
                 iCloudAccountRepository: iCloudAccountRepository

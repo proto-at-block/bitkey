@@ -9,7 +9,7 @@ The directory also contains `steps` directory which holds scripts for each of th
 
 > [!NOTE]
 > To run the verification build,
-> you need an x86_64 machine.
+> you need either an x86_64 machine.
 > So either one of:
 >
 > - Intel macOS
@@ -39,7 +39,7 @@ You'll need:
 ### Prep work
 
 1. Clone the bitkey repository
-
+  
     ```sh
     git clone https://github.com/proto-at-block/bitkey.git
     cd bitkey
@@ -98,7 +98,7 @@ It should end with builds being identical.
 > Then navigate to `verify-apk/locally-built/apks` and note any missing languages.
 > Once you find missing languages, go to your phone's settings.
 > Add all the languages thare were missing as secondary languages.
->
+> 
 > Once added, rerun verification.
 > If the verification still fails,
 > please reach out to us.

@@ -91,7 +91,7 @@ fun disableDemoMode(
   onDismiss: () -> Unit,
 ) = DisableAlertModel(
   title = "Disable Demo Mode?",
-  subline = "You will be return to the default settings once you hit “Disable”",
+  subline = "You will be returned to the default settings once you hit “Disable”",
   onConfirm = onConfirm,
   onCancel = onDismiss
 )

@@ -1,10 +1,7 @@
-@file:OptIn(ExperimentalForeignApi::class)
-
 package build.wallet.molecule
 
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.MonotonicFrameClock
-import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ExportObjCClass
 import kotlinx.cinterop.ObjCAction
 import platform.Foundation.NSDefaultRunLoopMode

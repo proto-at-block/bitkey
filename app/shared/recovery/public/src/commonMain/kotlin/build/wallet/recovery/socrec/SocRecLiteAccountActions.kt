@@ -6,6 +6,7 @@ import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.crypto.PublicKey
 
 /**
  * Encapsulates actions trusted contacts can take that can produce side effects.
@@ -40,7 +41,7 @@ open class SocRecLiteAccountActions internal constructor(
   suspend fun acceptInvitation(
     invitation: IncomingInvitation,
     protectedCustomerAlias: ProtectedCustomerAlias,
-    delegatedDecryptionKey: DelegatedDecryptionKey,
+    delegatedDecryptionKey: PublicKey<DelegatedDecryptionKey>,
     inviteCode: String,
   ) = repository.acceptInvitation(
     account = account,

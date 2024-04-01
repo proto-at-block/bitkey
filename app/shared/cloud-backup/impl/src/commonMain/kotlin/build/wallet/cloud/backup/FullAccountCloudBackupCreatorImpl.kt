@@ -40,7 +40,7 @@ class FullAccountCloudBackupCreatorImpl(
       }
 
     val delegatedDecryptionKey =
-      socRecKeysRepository.getKeyWithPrivateMaterialOrCreate(::DelegatedDecryptionKey)
+      socRecKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
         .logFailure { "Error getting delegated decryption key" }
         .getOrElse { return Err(FullAccountCloudBackupCreatorError.SocRecKeysRetrievalError(it)) }
 
