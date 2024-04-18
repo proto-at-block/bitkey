@@ -9,7 +9,6 @@ axum = { workspace = true }
 figment = { version = "0.10.14", features = ["env", "toml"] }
 serde = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true }
 ulid = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }

@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.socrec
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.recovery.socrec.SocRecFullAccountActions
+import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -14,7 +14,7 @@ interface TrustedContactManagementUiStateMachine : StateMachine<TrustedContactMa
 data class TrustedContactManagementProps(
   val account: FullAccount,
   val socRecRelationships: SocRecRelationships,
-  val socRecActions: SocRecFullAccountActions,
+  val socRecActions: SocRecProtectedCustomerActions,
   val onExit: () -> Unit,
   val inviteCode: String? = null,
 )

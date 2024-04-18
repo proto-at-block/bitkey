@@ -14,11 +14,13 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.SuccessBodyModel
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.add.ShareInviteBodyModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -111,6 +113,11 @@ class ReinviteTrustedContactUiStateMachineImpl(
                 tcName = current.tcName
               )
           },
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+            actionDescription = "Saving Re-invited Trusted contact to F8e",
+            cause = current.error
+          ),
           onBack = {
             state =
               State.SaveWithBitkeyRequestState(

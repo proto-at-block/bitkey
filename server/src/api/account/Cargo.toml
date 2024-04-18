@@ -16,8 +16,6 @@ strum_macros = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true }
-ulid = { workspace = true }
-urn = { workspace = true }
 utoipa = { workspace = true }
 
 # path dependencies

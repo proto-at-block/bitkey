@@ -24,8 +24,6 @@ dependencies = [
  "time",
  "tracing",
  "types",
- "ulid",
- "urn",
  "userpool",
  "utoipa",
 ]
@@ -82,9 +80,9 @@ dependencies = [
 
 [[package]]
 name = "ahash"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a824f2aa7e75a0c98c5a504fceb80649e9c35265d44525b5f94de4771a395cd"
+checksum = "891477e0c6a8957309ee5c45a6368af3ae14bb510732d2684ffa19af310920f9"
 dependencies = [
  "getrandom 0.2.11",
  "once_cell",
@@ -1027,11 +1025,7 @@ dependencies = [
  "aws-config",
  "aws-credential-types",
  "aws-sdk-secretsmanager",
- "base64 0.21.7",
- "futures",
- "http 1.0.0",
  "lambda_runtime",
- "serde",
  "serde_json",
  "thiserror",
  "tokio",
@@ -1302,6 +1296,7 @@ dependencies = [
  "metrics",
  "once_cell",
  "serde",
+ "serde_json",
  "thiserror",
  "tracing",
  "url",
@@ -1917,7 +1912,6 @@ dependencies = [
  "axum-macros",
  "errors",
  "http_server",
- "metrics",
  "reqwest",
  "rust-embed",
  "serde",
@@ -1925,10 +1919,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "thiserror",
- "time",
- "tokio",
  "tracing",
- "types",
  "utoipa",
 ]
 
@@ -2020,12 +2011,10 @@ dependencies = [
  "aws-types",
  "errors",
  "http 1.0.0",
- "http_server",
  "regex",
  "serde",
  "serde_dynamo",
  "thiserror",
- "tracing",
 ]
 
 [[package]]
@@ -2418,9 +2407,7 @@ dependencies = [
  "errors",
  "feature_flags",
  "http_server",
- "regex",
  "serde",
- "serde_json",
  "thiserror",
  "tracing",
  "types",
@@ -2982,7 +2969,6 @@ dependencies = [
  "figment",
  "serde",
  "thiserror",
- "tokio",
  "ulid",
  "utoipa",
  "utoipa-swagger-ui",
@@ -3395,7 +3381,6 @@ dependencies = [
  "aws-utils",
  "lambda_runtime",
  "partnerships-lib",
- "serde",
  "serde_json",
  "tokio",
  "tracing",
@@ -4289,6 +4274,7 @@ dependencies = [
  "external_identifier",
  "http-body-util",
  "http_server",
+ "jwt-authorizer",
  "mime",
  "partnerships-lib",
  "serde",
@@ -4296,7 +4282,6 @@ dependencies = [
  "server",
  "tokio",
  "tower",
- "tracing",
  "types",
  "ulid",
  "userpool",
@@ -4905,7 +4890,6 @@ dependencies = [
  "time",
  "tracing",
  "types",
- "ulid",
  "userpool",
  "utoipa",
  "wsm-rust-client",
@@ -5364,7 +5348,6 @@ dependencies = [
  "csv",
  "rstest",
  "serde",
- "serde_json",
  "strum",
  "strum_macros",
  "tokio",
@@ -5641,7 +5624,6 @@ dependencies = [
  "types",
  "ulid",
  "userpool",
- "utoipa",
  "utoipa-swagger-ui",
  "wallet-telemetry",
  "workers",
@@ -6735,9 +6717,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "futures-util",
- "http 1.0.0",
  "isahc",
- "once_cell",
  "opentelemetry",
  "opentelemetry-jaeger",
  "opentelemetry-otlp",
@@ -6749,7 +6729,6 @@ dependencies = [
  "thiserror",
  "time",
  "tracing",
- "tracing-core",
  "tracing-log",
  "tracing-opentelemetry",
  "tracing-serde",
@@ -7167,13 +7146,9 @@ name = "workers"
 version = "0.1.0"
 dependencies = [
  "account",
- "async-trait",
  "aws-config",
  "aws-sdk-sesv2",
  "aws-sdk-sns",
- "aws-types",
- "axum 0.7.4",
- "axum-macros",
  "bdk_utils",
  "chain_indexer",
  "ctrlc",
@@ -7188,7 +7163,6 @@ dependencies = [
  "notification_validation",
  "queue",
  "recovery",
- "reqwest",
  "serde",
  "serde_json",
  "strum",
@@ -7197,7 +7171,6 @@ dependencies = [
  "time",
  "tokio",
  "tracing",
- "tracing-subscriber",
  "types",
 ]
 

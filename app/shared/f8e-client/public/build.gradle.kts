@@ -20,7 +20,7 @@ kotlin {
         api(projects.shared.notificationsPublic)
         api(projects.shared.mobilePayPublic)
         api(projects.shared.timePublic)
-
+        api(projects.shared.partnershipsPublic)
         api(libs.kmp.kotlin.result)
         api(libs.kmp.ktor.client.core)
       }

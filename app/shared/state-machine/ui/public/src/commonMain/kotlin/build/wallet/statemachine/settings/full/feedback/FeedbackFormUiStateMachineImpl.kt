@@ -2,7 +2,6 @@ package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,7 +60,6 @@ class FeedbackFormUiStateMachineImpl(
   private val supportTicketFormValidator: SupportTicketFormValidator,
   private val dateTimeFormatter: DateTimeFormatter,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
-  private val feedbackFormAddAttachments: FeedbackFormAddAttachmentsFeatureFlag,
 ) : FeedbackFormUiStateMachine {
   @Composable
   override fun model(props: FeedbackFormUiProps): ScreenModel {
@@ -74,16 +72,11 @@ class FeedbackFormUiStateMachineImpl(
         StateMapBackedSupportTicketData(props.initialData)
       }
 
-    val addAttachmentsEnabled by remember {
-      feedbackFormAddAttachments.flagValue()
-    }.collectAsState()
-
     return when (uiState) {
       is FeedbackFormUiState.FillingForm ->
         FillingForm(
           structure = props.formStructure,
           formData = formData,
-          addAttachmentsEnabled = props.addAttachmentsEnabled,
           onBack = props.onBack,
           onSubmitData = {
             uiState = FeedbackFormUiState.SubmittingFormData
@@ -99,7 +92,6 @@ class FeedbackFormUiStateMachineImpl(
           accountId = props.accountId,
           structure = props.formStructure,
           data = formData,
-          addAttachmentsEnabled = addAttachmentsEnabled.value,
           onSuccess = {
             uiState = FeedbackFormUiState.SubmitSuccessful
           },
@@ -141,7 +133,6 @@ class FeedbackFormUiStateMachineImpl(
   private fun FillingForm(
     structure: SupportTicketForm,
     formData: StateMapBackedSupportTicketData,
-    addAttachmentsEnabled: Boolean,
     onBack: () -> Unit,
     onSubmitData: (SupportTicketData) -> Unit,
     onPrivacyPolicyClick: () -> Unit,
@@ -194,7 +185,6 @@ class FeedbackFormUiStateMachineImpl(
               }
               +AttachmentsModel(
                 attachments = formData.attachments.toImmutableList(),
-                addAttachmentsEnabled,
                 addAttachment = {
                   isPickingMedia = true
                 },
@@ -428,51 +418,46 @@ class FeedbackFormUiStateMachineImpl(
   @Composable
   private fun AttachmentsModel(
     attachments: ImmutableList<SupportTicketAttachment>,
-    addAttachmentsEnabled: Boolean,
     addAttachment: () -> Unit,
     removeAttachment: (SupportTicketAttachment) -> Unit,
-  ): FormMainContentModel? {
-    if (addAttachmentsEnabled) {
-      return FormMainContentModel.ListGroup(
-        listGroupModel =
-          ListGroupModel(
-            header = "Attachments",
-            items =
-              attachments.mapNotNull { attachment ->
-                when (attachment) {
-                  is SupportTicketAttachment.Media ->
-                    ListItemModel(
-                      attachment.name,
-                      trailingAccessory =
-                        ListItemAccessory.ButtonAccessory(
-                          model =
-                            ButtonModel(
-                              text = "Remove",
-                              treatment = ButtonModel.Treatment.TertiaryDestructive,
-                              size = ButtonModel.Size.Compact,
-                              onClick =
-                                StandardClick {
-                                  removeAttachment(attachment)
-                                }
-                            )
-                        )
-                    )
+  ): FormMainContentModel {
+    return FormMainContentModel.ListGroup(
+      listGroupModel =
+        ListGroupModel(
+          header = "Attachments",
+          items =
+            attachments.mapNotNull { attachment ->
+              when (attachment) {
+                is SupportTicketAttachment.Media ->
+                  ListItemModel(
+                    attachment.name,
+                    trailingAccessory =
+                      ListItemAccessory.ButtonAccessory(
+                        model =
+                          ButtonModel(
+                            text = "Remove",
+                            treatment = ButtonModel.Treatment.TertiaryDestructive,
+                            size = ButtonModel.Size.Compact,
+                            onClick =
+                              StandardClick {
+                                removeAttachment(attachment)
+                              }
+                          )
+                      )
+                  )
 
-                  is SupportTicketAttachment.Logs -> null
-                }
-              }.toImmutableList(),
-            style = ListGroupStyle.CARD_GROUP,
-            footerButton =
-              ButtonModel(
-                text = "Add attachment",
-                size = ButtonModel.Size.Footer,
-                onClick = StandardClick(addAttachment)
-              )
-          )
-      )
-    } else {
-      return null
-    }
+                is SupportTicketAttachment.Logs -> null
+              }
+            }.toImmutableList(),
+          style = ListGroupStyle.CARD_GROUP,
+          footerButton =
+            ButtonModel(
+              text = "Add attachment",
+              size = ButtonModel.Size.Footer,
+              onClick = StandardClick(addAttachment)
+            )
+        )
+    )
   }
 
   @Composable
@@ -481,7 +466,6 @@ class FeedbackFormUiStateMachineImpl(
     accountId: AccountId,
     structure: SupportTicketForm,
     data: SupportTicketData,
-    addAttachmentsEnabled: Boolean,
     onSuccess: () -> Unit,
     // TODO[W-5853]: Provide error
     onError: () -> Unit,
@@ -492,8 +476,7 @@ class FeedbackFormUiStateMachineImpl(
           f8eEnvironment = f8eEnvironment,
           accountId = accountId,
           form = structure,
-          data = data,
-          addAttachmentsEnabled = addAttachmentsEnabled
+          data = data
         )
       when (result) {
         is Ok -> onSuccess()

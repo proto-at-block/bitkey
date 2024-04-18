@@ -4,7 +4,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.count.id.SocialRecoveryEventTrackerCounterId
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -57,9 +58,10 @@ class CloudBackupRefresherImpl(
     scope.launch {
       combine(
         socRecRelationshipsRepository.relationships
+          .filterNotNull()
           // Only endorsed and verified trusted contacts are interesting for cloud backups.
           .map {
-            it.trustedContacts
+            it.endorsedTrustedContacts
           }
           .distinctUntilChanged(),
         cloudBackupDao
@@ -77,9 +79,9 @@ class CloudBackupRefresherImpl(
               refreshCloudBackup(
                 fullAccount = fullAccount,
                 hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek,
-                trustedContacts = trustedContacts
+                endorsedTrustedContacts = trustedContacts
               ).onSuccess {
-                log { "Refreshed cloud backup" }
+                log { "Refreshed cloud backup ${trustedContacts.size}" }
               }.bind()
             }
           }
@@ -108,7 +110,7 @@ class CloudBackupRefresherImpl(
 
   /** returns the [StoredBackupState] indicating whether the cloud backup needs to be refreshed. */
   private fun CloudBackup?.getStoredBackupState(
-    trustedContacts: List<TrustedContact>,
+    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<StoredBackupState, Error> {
     return when (this) {
       is CloudBackupV2 -> {
@@ -117,11 +119,11 @@ class CloudBackupRefresherImpl(
             ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))
 
         val backedUpRelationshipIds = fields.socRecSealedDekMap.keys
-        val newRelationshipIds = trustedContacts.map { it.recoveryRelationshipId }.toSet()
+        val newRelationshipIds = endorsedTrustedContacts.map { it.recoveryRelationshipId }.toSet()
         if (backedUpRelationshipIds == newRelationshipIds) {
           Ok(UpToDate)
         } else {
-          val count: Int = trustedContacts.count {
+          val count: Int = endorsedTrustedContacts.count {
             it.authenticationState == TrustedContactAuthenticationState.VERIFIED
           }
 
@@ -150,7 +152,7 @@ class CloudBackupRefresherImpl(
   private suspend fun refreshCloudBackup(
     fullAccount: FullAccount,
     hwekEncryptedPkek: SealedCsek,
-    trustedContacts: List<TrustedContact>,
+    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<Unit, Error> =
     binding {
       // Get the customer's cloud store account.
@@ -170,7 +172,7 @@ class CloudBackupRefresherImpl(
           .create(
             keybox = fullAccount.keybox,
             sealedCsek = hwekEncryptedPkek,
-            trustedContacts = trustedContacts
+            endorsedTrustedContacts = endorsedTrustedContacts
           )
           .bind()
 

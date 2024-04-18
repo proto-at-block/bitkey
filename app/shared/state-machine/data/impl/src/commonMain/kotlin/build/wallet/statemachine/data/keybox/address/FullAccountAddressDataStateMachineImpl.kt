@@ -39,7 +39,7 @@ class FullAccountAddressDataStateMachineImpl(
       latestAddress = latestAddress,
       generateAddress = {
         appSpendingWalletProvider
-          .getSpendingWallet(props.account.keybox.activeSpendingKeyset)
+          .getSpendingWallet(props.account)
           .flatMap { it.getNewAddress() }
           .logFailure { "Failed to generate bitcoin address" }
           .onSuccess {

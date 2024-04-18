@@ -11,6 +11,7 @@ import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
 class SocRecRelationshipsRepositoryFunctionalTests : FunSpec({
@@ -26,7 +27,8 @@ class SocRecRelationshipsRepositoryFunctionalTests : FunSpec({
 
     // Protected Customer sees pending TC invitation
     customerApp.app.socRecRelationshipsRepository.relationships.test {
-      awaitUntil { it.invitations.isNotEmpty() }.run {
+      awaitUntil { it != null && it.invitations.isNotEmpty() }.run {
+        shouldNotBeNull()
         shouldOnlyHaveSingleInvitation {
           it.shouldHaveAlias(tcName)
           it.recoveryRelationshipId.shouldBe(tcInvitation.recoveryRelationshipId)
@@ -40,7 +42,8 @@ class SocRecRelationshipsRepositoryFunctionalTests : FunSpec({
 
     // Trusted Contact sees Protected Customer
     tcApp.app.socRecRelationshipsRepository.relationships.test {
-      awaitUntil { it.protectedCustomers.isNotEmpty() }.run {
+      awaitUntil { it != null && it.protectedCustomers.isNotEmpty() }.run {
+        shouldNotBeNull()
         shouldOnlyHaveSingleProtectedCustomer {
           it.shouldHaveAlias(customerName)
         }
@@ -54,7 +57,8 @@ class SocRecRelationshipsRepositoryFunctionalTests : FunSpec({
 
     // Protected Customer sees Trusted Contact, no longer pending
     customerApp.app.socRecRelationshipsRepository.relationships.test {
-      awaitUntil { it.trustedContacts.isNotEmpty() }.run {
+      awaitUntil { it != null && it.endorsedTrustedContacts.isNotEmpty() }.run {
+        shouldNotBeNull()
         shouldOnlyHaveSingleEndorsedTrustedContact {
           it.shouldHaveAlias(tcName)
           it.recoveryRelationshipId.shouldBe(tcInvitation.recoveryRelationshipId)

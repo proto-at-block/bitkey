@@ -11,8 +11,8 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.socrec.ChallengeAuthentication
 import build.wallet.bitkey.socrec.ChallengeWrapper
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.SocialChallengeResponse
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.encrypt.XCiphertext
 import build.wallet.logging.logFailure
@@ -26,6 +26,7 @@ import build.wallet.recovery.socrec.DecryptPrivateKeyEncryptionKeyOutput
 import build.wallet.recovery.socrec.SocRecCrypto
 import build.wallet.serialization.json.decodeFromStringResult
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.Retreat
@@ -34,6 +35,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiProps
 import build.wallet.statemachine.platform.permissions.EnableNotificationsUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationRationale
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.START_SOCIAL_RECOVERY_MESSAGE
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.flatMap
@@ -75,6 +77,11 @@ class RecoveryChallengeUiStateMachineImpl(
               text = "Back",
               onClick = props.onExit
             ),
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+            actionDescription = "Creating a new social recovery challenge",
+            cause = current.error
+          ),
           eventTrackerScreenId = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_FAILED
         ).asRootScreen()
       is State.EnablePushNotifications ->
@@ -117,7 +124,7 @@ class RecoveryChallengeUiStateMachineImpl(
 
         RecoveryChallengeContactListBodyModel(
           onExit = props.onExit,
-          trustedContacts = props.trustedContacts,
+          endorsedTrustedContacts = props.endorsedTrustedContacts,
           onVerifyClick = {
             state =
               State.ShareChallengeCode(
@@ -131,7 +138,7 @@ class RecoveryChallengeUiStateMachineImpl(
           onContinue = {
             val response = current.challenge.challenge.responses.first()
             val respondingContact =
-              props.trustedContacts.first { contact ->
+              props.endorsedTrustedContacts.first { contact ->
                 contact.recoveryRelationshipId == response.recoveryRelationshipId
               }
             state =
@@ -209,6 +216,11 @@ class RecoveryChallengeUiStateMachineImpl(
                 state = State.StartingChallengeState
               }
             ),
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Restoration,
+            actionDescription = "Restoring app key after successful challenge response",
+            cause = current.error
+          ),
           eventTrackerScreenId = SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_RECOVERY_FAILED
         ).asRootScreen()
       }
@@ -223,7 +235,7 @@ class RecoveryChallengeUiStateMachineImpl(
       val currentChallenge = props.actions.getCurrentChallenge().bind()
       val challenge =
         currentChallenge ?: props.actions.startChallenge(
-          props.trustedContacts,
+          props.endorsedTrustedContacts,
           props.relationshipIdToSocRecPkekMap
         ).bind()
 
@@ -256,14 +268,14 @@ class RecoveryChallengeUiStateMachineImpl(
     ) : State
 
     data class ShareChallengeCode(
-      val selectedContact: TrustedContact,
+      val selectedContact: EndorsedTrustedContact,
       val challenge: ChallengeWrapper,
     ) : State
 
     data class RestoringAppKey(
       val sealedPrivateKeyMaterial: XCiphertext,
       val response: SocialChallengeResponse,
-      val contact: TrustedContact,
+      val contact: EndorsedTrustedContact,
       val challengeAuth: ChallengeAuthentication,
     ) : State
 

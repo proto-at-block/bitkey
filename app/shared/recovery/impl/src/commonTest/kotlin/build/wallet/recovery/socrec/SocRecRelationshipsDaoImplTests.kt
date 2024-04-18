@@ -1,10 +1,10 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
@@ -58,15 +58,15 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
             expiresAt = Instant.fromEpochMilliseconds(0)
           )
         ),
-      trustedContacts =
+      endorsedTrustedContacts =
         listOf(
-          TrustedContact(
+          EndorsedTrustedContact(
             recoveryRelationshipId = "a",
             trustedContactAlias = TrustedContactAlias("Mom"),
             authenticationState = AWAITING_VERIFY,
             keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = momKey)
           ),
-          TrustedContact(
+          EndorsedTrustedContact(
             recoveryRelationshipId = "b",
             trustedContactAlias = TrustedContactAlias("Sis"),
             authenticationState = AWAITING_VERIFY,
@@ -107,7 +107,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
       Ok(
         SocRecRelationships(
           invitations = emptyList(),
-          trustedContacts = emptyList(),
+          endorsedTrustedContacts = emptyList(),
           protectedCustomers = immutableListOf(),
           unendorsedTrustedContacts = emptyList()
         )
@@ -125,8 +125,8 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
 
     val invitationToAccept = socRecRelationships.invitations[0]
     val newKey = PublicKey<DelegatedDecryptionKey>("newKey")
-    val newTrustedContact =
-      TrustedContact(
+    val newEndorsedTrustedContact =
+      EndorsedTrustedContact(
         recoveryRelationshipId = invitationToAccept.recoveryRelationshipId,
         trustedContactAlias = invitationToAccept.trustedContactAlias,
         authenticationState = AWAITING_VERIFY,
@@ -136,7 +136,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
     val socRecRelationshipsWithAcceptedInvite =
       socRecRelationships.copy(
         invitations = socRecRelationships.invitations.filter { it != invitationToAccept },
-        trustedContacts = socRecRelationships.trustedContacts + newTrustedContact
+        endorsedTrustedContacts = socRecRelationships.endorsedTrustedContacts + newEndorsedTrustedContact
       )
 
     dao.setSocRecRelationships(socRecRelationshipsWithAcceptedInvite)

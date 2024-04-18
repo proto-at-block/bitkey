@@ -21,7 +21,9 @@ import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Size
 import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
+import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -44,6 +46,19 @@ fun AnalyticsScreen(model: AnalyticsBodyModel) {
           middleAccessory = ToolbarMiddleAccessoryModel(title = "Analytics")
         )
     )
+    Spacer(Modifier.height(24.dp))
+    Card {
+      ListItem(
+        title = "Enable analytics",
+        secondaryText = "This controls whether analytics are tracked. This is always enabled in customer builds",
+        trailingAccessory = ListItemAccessory.SwitchAccessory(
+          model = SwitchModel(
+            checked = model.isEnabled,
+            onCheckedChange = model.onEnableChanged
+          )
+        )
+      )
+    }
     Spacer(Modifier.height(24.dp))
     Card {
       Button(

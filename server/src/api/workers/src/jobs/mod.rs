@@ -25,7 +25,7 @@ pub struct Config {
     pub(crate) twilio: TwilioMode,
 }
 
-#[derive(Clone, axum_macros::FromRef)]
+#[derive(Clone)]
 pub struct WorkerState {
     pub config: Config,
     pub notification_service: NotificationService,

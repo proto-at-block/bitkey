@@ -1,5 +1,9 @@
 package build.wallet.ui.components.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -7,6 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -57,8 +66,34 @@ fun Screen(
         }
       },
       statusBannerContent = {
-        model.statusBannerModel?.let {
-          UiModelContent(model = it)
+        var statusBannerModel by remember {
+          mutableStateOf(model.statusBannerModel)
+        }
+
+        if (model.statusBannerModel != null) {
+          statusBannerModel = model.statusBannerModel
+        }
+
+        AnimatedVisibility(
+          visible = model.statusBannerModel != null,
+          enter = slideInVertically(
+            initialOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+          ),
+          exit = slideOutVertically(
+            targetOffsetY = { fullHeight -> -fullHeight },
+            animationSpec = tween(durationMillis = 300)
+          )
+        ) {
+          statusBannerModel?.let {
+            UiModelContent(model = it)
+          }
+
+          LaunchedEffect("reset-banner-model") {
+            if (model.statusBannerModel == null) {
+              statusBannerModel = null
+            }
+          }
         }
       },
       alertModel = model.alertModel,
@@ -79,7 +114,7 @@ private fun Screen(
   addSystemBarsPadding: Boolean = false,
   bodyContent: @Composable () -> Unit,
   tabBarContent: @Composable (() -> Unit)? = null,
-  statusBannerContent: @Composable (() -> Unit)? = null,
+  statusBannerContent: @Composable () -> Unit = {},
   alertModel: AlertModel? = null,
   bottomSheetModel: SheetModel? = null,
   systemUiModel: SystemUIModel? = null,
@@ -128,7 +163,7 @@ private fun Screen(
 private fun ScreenContents(
   modifier: Modifier = Modifier,
   addSystemBarsPadding: Boolean,
-  statusBannerContent: @Composable (() -> Unit)? = null,
+  statusBannerContent: @Composable () -> Unit,
   bodyContent: @Composable () -> Unit,
   tabBarContent: @Composable (() -> Unit)? = null,
   onTwoFingerDoubleTap: (() -> Unit)? = null,

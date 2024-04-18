@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use account::entities::{Factor, FullAccountAuthKeys, FullAccountAuthKeysPayload, Network};
 use account::service::FetchAccountInput;
 use http_body_util::BodyExt;
@@ -277,7 +279,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
     let customer_notifications_types = customer_notifications
         .iter()
         .map(|n| n.payload_type)
-        .collect::<Vec<NotificationPayloadType>>();
+        .collect::<HashSet<NotificationPayloadType>>();
 
     let mut expected_scheduled_notification_types = vec![];
 
@@ -296,19 +298,27 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
     ]);
 
     // One of each type for each channel, account only has 1 touchpoint so we expect only 1
-    let mut expected_customer_notification_types = vec![];
+    let mut expected_customer_notification_types =
+        HashSet::from([NotificationPayloadType::RecoveryPendingDelayPeriod]);
     if vector.prior_contest {
-        expected_customer_notification_types.push(NotificationPayloadType::CommsVerification);
+        expected_customer_notification_types.insert(NotificationPayloadType::CommsVerification);
     }
-    expected_customer_notification_types.push(NotificationPayloadType::RecoveryPendingDelayPeriod);
 
     assert_eq!(
         scheduled_notifications_types,
         expected_scheduled_notification_types
     );
-    assert_eq!(
-        customer_notifications_types,
-        expected_customer_notification_types
+    assert!(
+        // Depending on the timing of the tests, either the completed notification could have been sent out or not
+        customer_notifications_types.is_superset(&expected_customer_notification_types)
+            && match customer_notifications_types
+                .difference(&expected_customer_notification_types)
+                .collect::<Vec<_>>()
+                .as_slice()
+            {
+                [] | [NotificationPayloadType::RecoveryCompletedDelayPeriod] => true,
+                _ => false,
+            }
     );
     assert!(scheduled_notifications
         .iter()

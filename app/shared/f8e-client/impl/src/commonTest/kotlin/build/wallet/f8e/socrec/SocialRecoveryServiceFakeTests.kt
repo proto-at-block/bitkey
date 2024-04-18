@@ -92,7 +92,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
-      relationships.trustedContacts.shouldBeEmpty()
+      relationships.endorsedTrustedContacts.shouldBeEmpty()
     }
 
     // Create a second invitation
@@ -150,7 +150,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
-      relationships.trustedContacts.shouldBeEmpty()
+      relationships.endorsedTrustedContacts.shouldBeEmpty()
     }
 
     // Remove the invitation
@@ -169,7 +169,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
     ).shouldBeOk { relationships ->
       relationships.invitations.shouldBeEmpty()
       relationships.protectedCustomers.shouldBeEmpty()
-      relationships.trustedContacts.shouldBeEmpty()
+      relationships.endorsedTrustedContacts.shouldBeEmpty()
     }
   }
 
@@ -197,7 +197,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
-      relationships.trustedContacts.shouldBeEmpty()
+      relationships.endorsedTrustedContacts.shouldBeEmpty()
     }
 
     // Attempt to remove a nonexistent invitation - error
@@ -221,7 +221,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
-      relationships.trustedContacts.shouldBeEmpty()
+      relationships.endorsedTrustedContacts.shouldBeEmpty()
     }
   }
 
@@ -273,7 +273,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
         it.isExpired(clock).shouldBe(false)
       }
       relationships.protectedCustomers.shouldBeEmpty()
-      relationships.trustedContacts.shouldBeEmpty()
+      relationships.endorsedTrustedContacts.shouldBeEmpty()
     }
   }
 

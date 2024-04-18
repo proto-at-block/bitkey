@@ -258,7 +258,7 @@ fun NetworkingErrorSheetModel(
       header = FormHeaderModel(
         icon = Icon.LargeIconNetworkError,
         headline = "A networking error has occurred. Please try again.",
-        subline = networkingError?.message,
+        subline = networkingError.message,
         alignment = FormHeaderModel.Alignment.LEADING
       ),
       onBack = onClose,

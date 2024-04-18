@@ -1,7 +1,7 @@
 package build.wallet.cloud.backup.v2
 
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator.FullAccountFieldsCreationError
 import com.github.michaelbull.result.Ok
@@ -14,7 +14,7 @@ class FullAccountFieldsCreatorMock : FullAccountFieldsCreator {
   override suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
-    trustedContacts: List<TrustedContact>,
+    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<FullAccountFields, FullAccountFieldsCreationError> {
     return createResult
   }

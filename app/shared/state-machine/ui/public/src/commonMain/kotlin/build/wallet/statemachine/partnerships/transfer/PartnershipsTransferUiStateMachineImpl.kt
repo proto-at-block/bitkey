@@ -17,13 +17,15 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANS
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.GetTransferPartnerListService
 import build.wallet.f8e.partnerships.GetTransferRedirectService
-import build.wallet.f8e.partnerships.PartnerInfo
 import build.wallet.f8e.partnerships.RedirectInfo
 import build.wallet.f8e.partnerships.RedirectUrlType.DEEPLINK
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
+import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnershipTransactionType
+import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -50,7 +52,7 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.github.michaelbull.result.flatMap
+import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
@@ -59,6 +61,7 @@ import kotlinx.collections.immutable.toImmutableList
 class PartnershipsTransferUiStateMachineImpl(
   private val getTransferPartnerListService: GetTransferPartnerListService,
   private val getTransferRedirectService: GetTransferRedirectService,
+  private val partnershipsRepository: PartnershipTransactionsStatusRepository,
 ) : PartnershipsTransferUiStateMachine {
   @Composable
   override fun model(props: PartnershipsTransferUiProps): SheetModel {
@@ -131,32 +134,35 @@ class PartnershipsTransferUiStateMachineImpl(
       }
       is State.LoadingPartnerRedirect -> {
         LaunchedEffect("load-transfer-partner-redirect-info") {
-          props.generateAddress()
-            .flatMap { address ->
-              getTransferRedirectService
-                .getTransferRedirect(
-                  fullAccountId = props.keybox.fullAccountId,
-                  f8eEnvironment = props.keybox.config.f8eEnvironment,
-                  partner = currentState.partnerInfo.partner,
-                  address = address
-                )
-                .onSuccess {
-                  state =
-                    State.PartnerRedirectInformationLoaded(
-                      partnerInfo = currentState.partnerInfo,
-                      redirectInfo = it.redirectInfo
-                    )
-                }
-                .onFailure {
-                  state =
-                    State.LoadingPartnerRedirectFailure(
-                      error = it,
-                      partnerInfo = currentState.partnerInfo,
-                      transferPartners = currentState.transferPartners,
-                      rollback = { state = State.LoadingPartnershipsTransfer }
-                    )
-                }
-            }
+          binding {
+            val localTransaction = partnershipsRepository.create(
+              partnerInfo = currentState.partnerInfo,
+              type = PartnershipTransactionType.TRANSFER
+            ).bind()
+            val address = props.generateAddress().bind()
+            val result = getTransferRedirectService
+              .getTransferRedirect(
+                fullAccountId = props.keybox.fullAccountId,
+                f8eEnvironment = props.keybox.config.f8eEnvironment,
+                partner = currentState.partnerInfo.partner,
+                address = address,
+                partnerTransactionId = localTransaction.id
+              ).bind()
+
+            state =
+              State.PartnerRedirectInformationLoaded(
+                partnerInfo = currentState.partnerInfo,
+                redirectInfo = result.redirectInfo
+              )
+          }.onFailure { error ->
+            state =
+              State.LoadingPartnerRedirectFailure(
+                error = error,
+                partnerInfo = currentState.partnerInfo,
+                transferPartners = currentState.transferPartners,
+                rollback = { state = State.LoadingPartnershipsTransfer }
+              )
+          }
         }
         return Loading(
           id = LOADING_TRANSFER_PARTNER_REDIRECT,
@@ -380,7 +386,7 @@ private sealed interface State {
    * to the partners list
    */
   data class LoadingPartnerRedirectFailure(
-    val error: NetworkingError,
+    val error: Throwable,
     val partnerInfo: PartnerInfo,
     val transferPartners: ImmutableList<PartnerInfo>,
     val rollback: () -> Unit,

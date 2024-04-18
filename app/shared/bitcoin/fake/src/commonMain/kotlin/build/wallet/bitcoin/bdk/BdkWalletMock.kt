@@ -6,6 +6,7 @@ import build.wallet.bdk.bindings.BdkAddressIndex
 import build.wallet.bdk.bindings.BdkAddressInfo
 import build.wallet.bdk.bindings.BdkBalance
 import build.wallet.bdk.bindings.BdkBlockchain
+import build.wallet.bdk.bindings.BdkOutPoint
 import build.wallet.bdk.bindings.BdkPartiallySignedTransaction
 import build.wallet.bdk.bindings.BdkProgress
 import build.wallet.bdk.bindings.BdkResult
@@ -13,6 +14,8 @@ import build.wallet.bdk.bindings.BdkResult.Err
 import build.wallet.bdk.bindings.BdkResult.Ok
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkTransactionDetails
+import build.wallet.bdk.bindings.BdkTxOutMock
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bdk.bindings.BdkWallet
 import build.wallet.bdk.bindings.someBdkError
 
@@ -53,6 +56,20 @@ class BdkWalletMock(
     isMineCalls += script
     return isMineResultMap[script]?.let { Ok(it) }
       ?: Err(someBdkError)
+  }
+
+  var listUnspentBlockingResult: BdkResult<List<BdkUtxo>>? = null
+
+  override fun listUnspentBlocking(): BdkResult<List<BdkUtxo>> {
+    return listUnspentBlockingResult ?: Ok(
+      listOf(
+        BdkUtxo(
+          outPoint = BdkOutPoint(txid = "abc", vout = 0u),
+          txOut = BdkTxOutMock,
+          isSpent = false
+        )
+      )
+    )
   }
 
   fun reset() {

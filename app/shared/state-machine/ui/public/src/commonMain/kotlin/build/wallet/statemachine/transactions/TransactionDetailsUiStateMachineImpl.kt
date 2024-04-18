@@ -15,6 +15,7 @@ import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityChecker
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
@@ -22,7 +23,6 @@ import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.isEnabled
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
@@ -67,6 +67,7 @@ class TransactionDetailsUiStateMachineImpl(
   private val clock: Clock,
   private val durationFormatter: DurationFormatter,
   private val eventTracker: EventTracker,
+  private val bitcoinTransactionBumpabilityChecker: BitcoinTransactionBumpabilityChecker,
   private val feeBumpEnabled: FeatureFlag<FeatureFlagValue.BooleanFlag>,
 ) : TransactionDetailsUiStateMachine {
   @Composable
@@ -89,8 +90,10 @@ class TransactionDetailsUiStateMachineImpl(
     val feeBumpEnabled by remember {
       mutableStateOf(
         feeBumpEnabled.flagValue().value.value &&
-          !props.transaction.incoming &&
-          props.transaction.confirmationStatus == Pending
+          bitcoinTransactionBumpabilityChecker.isBumpable(
+            transaction = props.transaction,
+            walletUnspentOutputs = props.accountData.transactionsData.unspentOutputs
+          )
       )
     }
 
@@ -191,8 +194,8 @@ class TransactionDetailsUiStateMachineImpl(
 
       is InsufficientFundsUiState ->
         ErrorFormBodyModel(
-          title = "We couldn’t send this transaction",
-          subline = "The amount you are trying to send is too high. Please decrease the amount and try again.",
+          title = "We couldn’t speed up this transaction",
+          subline = "There are not enough funds to speed up the transaction. Please add more funds and try again.",
           primaryButton = ButtonDataModel(
             text = "Go Back",
             onClick = { uiState = ShowingTransactionDetailUiState() }
@@ -223,8 +226,7 @@ class TransactionDetailsUiStateMachineImpl(
           else ->
             bitcoinTransactionFeeEstimator.getFeesForTransaction(
               priorities = EstimatedTransactionPriority.entries,
-              keyset = props.accountData.account.keybox.activeSpendingKeyset,
-              fullAccountConfig = props.accountData.account.keybox.config,
+              account = props.accountData.account,
               recipientAddress = recipientAddress,
               amount = BitcoinTransactionSendAmount.ExactAmount(sendAmount)
             )
@@ -341,7 +343,7 @@ class TransactionDetailsUiStateMachineImpl(
   }
 
   private fun pendingDataListItem(estimatedConfirmationTime: Instant?): Data {
-    val fallbackData =  Data(
+    val fallbackData = Data(
       title = "Confirmed at",
       sideText = "Unconfirmed"
     )
@@ -353,27 +355,27 @@ class TransactionDetailsUiStateMachineImpl(
           Data(
             title = "Should have arrived by",
             sideText =
-            dateTimeFormatter.shortDateWithTime(
-              localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
-            ),
+              dateTimeFormatter.shortDateWithTime(
+                localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
+              ),
             sideTextTreatment = Data.SideTextTreatment.STRIKETHROUGH,
             sideTextType = Data.SideTextType.REGULAR,
             secondarySideText = "${durationFormatter.formatWithAlphabet(currentTime - confirmationTime)} late",
             secondarySideTextType = Data.SideTextType.BOLD,
             secondarySideTextTreatment = Data.SideTextTreatment.WARNING,
             explainer =
-            Data.Explainer(
-              title = "Taking longer than usual",
-              subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee."
-            )
+              Data.Explainer(
+                title = "Taking longer than usual",
+                subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee."
+              )
           )
         } else {
           Data(
             title = "Should arrive by",
             sideText =
-            dateTimeFormatter.shortDateWithTime(
-              localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
-            )
+              dateTimeFormatter.shortDateWithTime(
+                localDateTime = confirmationTime.toLocalDateTime(timeZoneProvider.current())
+              )
           )
         }
       } ?: fallbackData

@@ -7,6 +7,7 @@ import build.wallet.f8e.partnerships.GetTransferPartnerListService.Success
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.logging.logNetworkFailure
+import build.wallet.partnerships.PartnerInfo
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map

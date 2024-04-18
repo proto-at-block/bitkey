@@ -48,7 +48,7 @@ fun BeTrustedContactIntroductionModel(
                 }
             ),
             FormMainContentModel.Explainer.Statement(
-              leadingIcon = Icon.SmallIconShieldPerson,
+              leadingIcon = Icon.SmallIconCheckStroked,
               title = "Sit back and relax",
               body = "If your contact ever needs your help, they’ll reach out to you with a code you can enter using this app to assist in their recovery."
             )

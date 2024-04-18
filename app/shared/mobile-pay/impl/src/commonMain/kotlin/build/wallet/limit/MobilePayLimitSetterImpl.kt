@@ -1,6 +1,6 @@
 package build.wallet.limit
 
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitService
 import build.wallet.limit.MobilePayLimitSetter.SetMobilePayLimitError
@@ -17,15 +17,15 @@ class MobilePayLimitSetterImpl(
   private val spendingLimitDao: SpendingLimitDao,
 ) : MobilePayLimitSetter {
   override suspend fun setLimit(
-    keybox: Keybox,
+    account: FullAccount,
     spendingLimit: SpendingLimit,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, SetMobilePayLimitError> {
     return binding {
       mobilePaySpendingLimitService
         .setSpendingLimit(
-          fullAccountId = keybox.fullAccountId,
-          f8eEnvironment = keybox.config.f8eEnvironment,
+          fullAccountId = account.accountId,
+          f8eEnvironment = account.config.f8eEnvironment,
           limit = spendingLimit,
           hwFactorProofOfPossession = hwFactorProofOfPossession
         )

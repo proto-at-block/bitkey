@@ -41,4 +41,8 @@ class BdkWalletMock : BdkWallet {
   override fun isMineBlocking(script: BdkScript): BdkResult<Boolean> {
     return Ok(false)
   }
+
+  override fun listUnspentBlocking(): BdkResult<List<BdkUtxo>> {
+    return Ok(listOf())
+  }
 }

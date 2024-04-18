@@ -6,8 +6,10 @@ import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT
 import build.wallet.recovery.socrec.RetrieveInvitationCodeError
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
+import build.wallet.statemachine.recovery.RecoverySegment
 
 fun RetrievingInviteWithF8eFailureBodyModel(
   onBack: () -> Unit,
@@ -23,13 +25,23 @@ fun RetrievingInviteWithF8eFailureBodyModel(
         title = title,
         subline = "The provided code was incorrect. Please try again.",
         primaryButton = ButtonDataModel(text = "Back", onClick = onBack),
-        eventTrackerScreenId = eventTrackerScreenId
+        eventTrackerScreenId = eventTrackerScreenId,
+        errorData = ErrorData(
+          segment = RecoverySegment.SocRec.TrustedContact.Setup,
+          actionDescription = "Parsing Invitation Code",
+          cause = error.cause
+        )
       )
     is RetrieveInvitationCodeError.InvitationCodeVersionMismatch ->
       ErrorFormBodyModel(
         title = "Bitkey app out of date",
         subline = "The invite could not be accepted - please make sure both you and the sender have updated to the most recent Bitkey app version, and then try again",
         primaryButton = ButtonDataModel(text = "Back", onClick = onBack),
+        errorData = ErrorData(
+          segment = RecoverySegment.SocRec.TrustedContact.Setup,
+          cause = error.cause,
+          actionDescription = "Invitation Data parsing"
+        ),
         eventTrackerScreenId = eventTrackerScreenId
       )
     is RetrieveInvitationCodeError.F8ePropagatedError -> {
@@ -41,7 +53,12 @@ fun RetrievingInviteWithF8eFailureBodyModel(
                 title = title,
                 subline = "The provided code was incorrect. Please try again.",
                 primaryButton = ButtonDataModel(text = "Back", onClick = onBack),
-                eventTrackerScreenId = eventTrackerScreenId
+                eventTrackerScreenId = eventTrackerScreenId,
+                errorData = ErrorData(
+                  segment = RecoverySegment.SocRec.TrustedContact.Setup,
+                  cause = error.cause,
+                  actionDescription = "Retrieving Invitation from F8e"
+                )
               )
           }
         }
@@ -53,7 +70,12 @@ fun RetrievingInviteWithF8eFailureBodyModel(
             isConnectivityError = isConnectivityError,
             onRetry = onRetry.takeIf { isConnectivityError },
             onBack = onBack,
-            eventTrackerScreenId = eventTrackerScreenId
+            eventTrackerScreenId = eventTrackerScreenId,
+            errorData = ErrorData(
+              segment = RecoverySegment.SocRec.TrustedContact.Setup,
+              cause = error.cause,
+              actionDescription = "Retrieving Invitation from F8e"
+            )
           )
         }
       }

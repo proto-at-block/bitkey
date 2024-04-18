@@ -5,6 +5,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.partnerships.GetTransferPartnerListService.Success
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.partnerships.PartnerInfo
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 

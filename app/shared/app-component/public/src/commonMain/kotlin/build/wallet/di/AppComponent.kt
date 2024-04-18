@@ -2,10 +2,11 @@ package build.wallet.di
 
 import build.wallet.account.AccountRepository
 import build.wallet.account.analytics.AppInstallationDao
+import build.wallet.analytics.events.AnalyticsTrackingPreference
+import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.EventStore
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.PlatformInfoProvider
-import build.wallet.analytics.events.SessionIdProvider
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenDao
@@ -24,11 +25,9 @@ import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepository
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
-import build.wallet.bitcoin.transactions.BitcoinTransactionAppSigner
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bugsnag.BugsnagContext
-import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
@@ -45,7 +44,6 @@ import build.wallet.feature.FeatureFlagSyncer
 import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.MobileTestFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.firmware.FirmwareDeviceNotFoundEnabledFeatureFlag
 import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.firmware.FirmwareTelemetryUploader
 import build.wallet.firmware.HardwareAttestation
@@ -84,8 +82,6 @@ import build.wallet.platform.settings.LocaleLanguageCodeProvider
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.recovery.RecoveryDao
-import build.wallet.statemachine.settings.full.feedback.FeedbackFormAddAttachmentsFeatureFlag
-import build.wallet.statemachine.settings.full.feedback.FeedbackFormNewUiEnabledFeatureFlag
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
@@ -120,11 +116,9 @@ interface AppComponent {
   val bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilder
   val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository
   val bitcoinMultiSigDescriptorBuilder: BitcoinMultiSigDescriptorBuilder
-  val bitcoinTransactionAppSigner: BitcoinTransactionAppSigner
   val bitkeyDatabaseProvider: BitkeyDatabaseProvider
   val bugsnagContext: BugsnagContext
   val clock: Clock
-  val cloudBackupHealthFeatureFlag: CloudBackupHealthFeatureFlag
   val datadogRumMonitor: DatadogRumMonitor
   val datadogTracer: DatadogTracer
   val delayer: Delayer
@@ -140,8 +134,6 @@ interface AppComponent {
   val featureFlagInitializer: FeatureFlagInitializer
   val featureFlagSyncer: FeatureFlagSyncer
   val feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag
-  val feedbackFormNewUiEnabledFeatureFlag: FeedbackFormNewUiEnabledFeatureFlag
-  val feedbackFormAddAttachmentsFeatureFlag: FeedbackFormAddAttachmentsFeatureFlag
   val fiatCurrencyDao: FiatCurrencyDao
   val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository
   val fileManager: FileManager
@@ -157,7 +149,6 @@ interface AppComponent {
   val keyValueStoreFactory: KeyValueStoreFactory
   val ktorLogLevelPolicy: KtorLogLevelPolicy
   val ldkNodeService: LdkNodeService
-  val lightningIsAvailableFeatureFlag: FeatureFlag<BooleanFlag>
   val localeCountryCodeProvider: LocaleCountryCodeProvider
   val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider
   val localeLanguageCodeProvider: LocaleLanguageCodeProvider
@@ -182,7 +173,7 @@ interface AppComponent {
   val pushNotificationPermissionStatusProvider: PushNotificationPermissionStatusProvider
   val recoveryDao: RecoveryDao
   val secureStoreFactory: EncryptedKeyValueStoreFactory
-  val sessionIdProvider: SessionIdProvider
+  val appSessionManager: AppSessionManager
   val spendingWalletProvider: SpendingWalletProvider
   val templateFullAccountConfigDao: TemplateFullAccountConfigDao
   val outgoingTransactionDetailDao: OutgoingTransactionDetailDao
@@ -191,5 +182,5 @@ interface AppComponent {
   val recoverySyncFrequency: Duration
   val hardwareAttestation: HardwareAttestation
   val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider
-  val firmwareDeviceNotFoundEnabledFeatureFlag: FirmwareDeviceNotFoundEnabledFeatureFlag
+  val analyticsTrackingPreference: AnalyticsTrackingPreference
 }

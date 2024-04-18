@@ -8,6 +8,7 @@ import build.wallet.f8e.partnerships.GetPurchaseRedirectService.Success
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.FiatMoney
+import build.wallet.partnerships.PartnershipTransactionId
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -29,6 +30,7 @@ class GetPurchaseRedirectServiceMock(
     partner: String,
     paymentMethod: String,
     quoteId: String?,
+    partnerTransactionId: PartnershipTransactionId?,
   ): Result<Success, NetworkingError> {
     getPurchasePartnersRedirectCall.add(Unit)
     return purchaseRedirectResult

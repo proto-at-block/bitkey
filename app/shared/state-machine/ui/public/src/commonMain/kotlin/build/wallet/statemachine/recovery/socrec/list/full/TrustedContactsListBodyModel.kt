@@ -1,10 +1,10 @@
 package build.wallet.statemachine.recovery.socrec.list.full
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.RecoveryContact
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -29,7 +29,7 @@ fun TrustedContactsListBodyModel(
   /**
    * List of the current user's trusted contacts to be displayed.
    */
-  contacts: List<TrustedContact>,
+  contacts: List<EndorsedTrustedContact>,
   /**
    * List of the current user's trusted contacts to be displayed.
    */

@@ -17,7 +17,9 @@ import build.wallet.testing.ext.getHardwareFactorProofOfPossession
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -28,10 +30,12 @@ import okio.ByteString.Companion.toByteString
 import kotlin.time.Duration
 
 class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
+
+  coroutineTestScope = true
+
   lateinit var appTester: AppTester
   lateinit var socRecRepository: SocRecRelationshipsRepository
   lateinit var socialRecoveryService: SocialRecoveryServiceFake
-  lateinit var trustedContactKeyAuthenticator: TrustedContactKeyAuthenticatorImpl
   lateinit var socRecCrypto: SocRecCryptoFake
   lateinit var socRecRelationshipsDao: SocRecRelationshipsDao
   lateinit var socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao
@@ -47,20 +51,25 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     socRecRelationshipsDao = appTester.app.socRecRelationshipsDao
     socRecEnrollmentAuthenticationDao = appTester.app.socRecEnrollmentAuthenticationDao
     socRecCrypto = appTester.app.socRecCryptoFake
+  }
+
+  fun TestScope.trustedContactKeyAuthenticator(): TrustedContactKeyAuthenticatorImpl {
     socRecRepository = SocRecRelationshipsRepositoryImpl(
-      { socialRecoveryService },
-      appTester.app.socRecRelationshipsDao,
-      socRecEnrollmentAuthenticationDao,
-      socRecCrypto,
-      appTester.app.pakeCodeBuilder
+      appScope = backgroundScope,
+      socialRecoveryServiceProvider = { socialRecoveryService },
+      socRecRelationshipsDao = socRecRelationshipsDao,
+      socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
+      socRecCrypto = socRecCrypto,
+      socialRecoveryCodeBuilder = appTester.app.pakeCodeBuilder,
+      appSessionManager = appTester.app.appComponent.appSessionManager
     )
 
-    trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorImpl(
-      socRecRepository,
-      socRecRelationshipsDao,
-      socRecEnrollmentAuthenticationDao,
-      socRecCrypto,
-      suspend { socialRecoveryService }
+    return TrustedContactKeyAuthenticatorImpl(
+      socRecRelationshipsRepository = socRecRepository,
+      socRecRelationshipsDao = socRecRelationshipsDao,
+      socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
+      socRecCrypto = socRecCrypto,
+      endorseTrustedContactsServiceProvider = suspend { socialRecoveryService }
     )
   }
 
@@ -118,6 +127,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("happy path") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     // Onboard new account
     val account = appTester.onboardFullAccountWithFakeHardware()
 
@@ -142,7 +152,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // TC should be completely endorsed
     relationships
-      .trustedContacts
+      .endorsedTrustedContacts
       .single()
       .run {
         trustedContactAlias.shouldBe(alias)
@@ -155,21 +165,25 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("Authenticate/regenerate/endorse - Empty") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     // Onboard new account
     val account = appTester.onboardFullAccountWithFakeHardware()
 
     // Generate new Certs
     val newAppKey = socRecCrypto.generateAppAuthKeypair()
     val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(
+      newAppKey.publicKey.value.encodeUtf8(),
+      newHwKey.privateKey
+    ).getOrThrow()
 
     // Verify test setup
-    socialRecoveryService.trustedContacts.shouldBeEmpty()
+    socialRecoveryService.endorsedTrustedContacts.shouldBeEmpty()
 
     val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
-      contacts = socialRecoveryService.trustedContacts,
+      contacts = socialRecoveryService.endorsedTrustedContacts,
       oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
       oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
       newAppGlobalAuthKey = newAppKey.publicKey,
@@ -180,6 +194,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("Authenticate/regenerate/endorse - Success") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     // Onboard new account
     val account = appTester.onboardFullAccountWithFakeHardware()
 
@@ -195,15 +210,18 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Generate new Certs
     val newAppKey = socRecCrypto.generateAppAuthKeypair()
     val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(
+      newAppKey.publicKey.value.encodeUtf8(),
+      newHwKey.privateKey
+    ).getOrThrow()
 
     // Verify test setup
-    socialRecoveryService.trustedContacts.shouldNotBeEmpty()
+    socialRecoveryService.endorsedTrustedContacts.shouldNotBeEmpty()
 
     val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
-      contacts = socialRecoveryService.trustedContacts,
+      contacts = socialRecoveryService.endorsedTrustedContacts,
       oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
       oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
       newAppGlobalAuthKey = newAppKey.publicKey,
@@ -214,6 +232,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("Authenticate/regenerate/endorse - Tamper") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     // Onboard new account
     val account = appTester.onboardFullAccountWithFakeHardware()
 
@@ -229,16 +248,19 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Generate New Certs
     val newAppKey = socRecCrypto.generateAppAuthKeypair()
     val newHwKey = appTester.app.appComponent.secp256k1KeyGenerator.generateKeypair()
-    val hwSignature = appTester.app.appComponent.messageSigner.signResult(newAppKey.publicKey.value.encodeUtf8(), newHwKey.privateKey).getOrThrow()
+    val hwSignature = appTester.app.appComponent.messageSigner.signResult(
+      newAppKey.publicKey.value.encodeUtf8(),
+      newHwKey.privateKey
+    ).getOrThrow()
 
     // Verify test setup
-    socialRecoveryService.trustedContacts.shouldNotBeEmpty()
+    socialRecoveryService.endorsedTrustedContacts.shouldNotBeEmpty()
 
     val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
       contacts = listOf(
-        socialRecoveryService.trustedContacts.single().copy(
+        socialRecoveryService.endorsedTrustedContacts.single().copy(
           keyCertificate = TrustedContactKeyCertificateFake2
         )
       ),
@@ -249,11 +271,14 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     )
     val relationships = socRecRelationshipsDao.socRecRelationships().first().getOrThrow()
 
-    relationships.trustedContacts.single().authenticationState.shouldBe(TrustedContactAuthenticationState.TAMPERED)
+    relationships.endorsedTrustedContacts.single().authenticationState.shouldBe(
+      TrustedContactAuthenticationState.TAMPERED
+    )
     result.shouldBeOk()
   }
 
   test("missing pake data") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     // Onboard new account
     val account = appTester.onboardFullAccountWithFakeHardware()
 
@@ -270,7 +295,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     // Fetch relationships
     val relationships = socRecRelationshipsDao.socRecRelationships().first().getOrThrow()
 
-    relationships.trustedContacts.shouldBeEmpty()
+    relationships.endorsedTrustedContacts.shouldBeEmpty()
 
     // Verify that the unendorsed TC is in a failed state
     relationships
@@ -281,6 +306,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("authentication failed due to invalid key confirmation") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     val account = appTester.onboardFullAccountWithFakeHardware()
 
     simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")
@@ -298,6 +324,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("authentication failed due to wrong pake password") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     val account = appTester.onboardFullAccountWithFakeHardware()
 
     simulateAcceptedInvite(account, overridePakeCode = "F00DBAD")
@@ -315,6 +342,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   }
 
   test("one bad contact does not block a good contact") {
+    val trustedContactKeyAuthenticator = trustedContactKeyAuthenticator()
     // Onboard new account
     val account = appTester.onboardFullAccountWithFakeHardware()
     val (tcBad, _) = simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")
@@ -338,7 +366,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // Verify that the unendorsed TC is in the endorsed state
     relationships
-      .trustedContacts
+      .endorsedTrustedContacts
       .single()
       .run {
         identityKey.shouldBe(tcGoodIdentityKey)

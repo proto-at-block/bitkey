@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.socrec.list.full
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.recovery.socrec.SocRecFullAccountActions
+import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -16,6 +16,6 @@ data class ListingTrustedContactsUiProps(
   val relationships: SocRecRelationships,
   val onAddTCButtonPressed: () -> Unit,
   val onAcceptTrustedContactInvite: () -> Unit,
-  val socRecFullAccountActions: SocRecFullAccountActions,
+  val socRecProtectedCustomerActions: SocRecProtectedCustomerActions,
   val onExit: () -> Unit,
 )

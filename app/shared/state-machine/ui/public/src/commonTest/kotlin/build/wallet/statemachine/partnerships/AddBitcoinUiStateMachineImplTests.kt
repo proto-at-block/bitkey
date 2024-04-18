@@ -11,6 +11,7 @@ import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.awaitSheetWithBody
@@ -32,6 +33,11 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   val getPurchaseRedirectServiceMock = GetPurchaseRedirectServiceMock(turbines::create)
   val getTransferPartnerListService = GetTransferPartnerListServiceMock(turbines::create)
   val getTransferRedirectService = GetTransferRedirectServiceMock(turbines::create)
+  val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
+    clearCalls = turbines.create("clear calls"),
+    syncCalls = turbines.create("sync calls"),
+    createCalls = turbines.create("create calls")
+  )
 
   // state machines
   val stateMachine =
@@ -39,14 +45,16 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
       partnershipsTransferUiStateMachine =
         PartnershipsTransferUiStateMachineImpl(
           getTransferPartnerListService = getTransferPartnerListService,
-          getTransferRedirectService = getTransferRedirectService
+          getTransferRedirectService = getTransferRedirectService,
+          partnershipsRepository = partnershipRepositoryMock
         ),
       partnershipsPurchaseUiStateMachine =
         PartnershipsPurchaseUiStateMachineImpl(
           moneyDisplayFormatter = MoneyDisplayFormatterFake,
           getPurchaseOptionsService = getPurchaseAmountsServiceMock,
           getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-          getPurchaseRedirectService = getPurchaseRedirectServiceMock
+          getPurchaseRedirectService = getPurchaseRedirectServiceMock,
+          partnershipsRepository = partnershipRepositoryMock
         )
     )
 

@@ -2,9 +2,7 @@ package build.wallet.f8e.socrec
 
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
@@ -83,13 +81,11 @@ class GetRecoveryRelationshipsServiceTests : FunSpec({
               trustedContactAlias = TrustedContactAlias("trusted-contact-alias")
             )
           ),
-        endorsedTrustedContacts =
+        endorsedEndorsedTrustedContacts =
           listOf(
-            TrustedContact(
+            F8eEndorsedTrustedContact(
               recoveryRelationshipId = "trusted-contact-recovery-relationship-id",
               trustedContactAlias = TrustedContactAlias("trusted-contact-alias"),
-              // Default auth state is AWAITING_VERIFY, until the app verifies the TC.
-              authenticationState = AWAITING_VERIFY,
               keyCertificate = TrustedContactKeyCertificateFake
             )
           ),

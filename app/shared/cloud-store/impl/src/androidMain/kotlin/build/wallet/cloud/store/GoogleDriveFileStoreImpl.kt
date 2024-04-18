@@ -184,7 +184,7 @@ class GoogleDriveFileStoreImpl(
         }
       }
       .map { it.files }
-      .map { if (it.count() == 1) it[0].id else null }
+      .map { it.getOrNull(0)?.id }
       .mapError { GoogleDriveError(cause = it) }
 
   private suspend fun Drive.getFileIdInFolder(
@@ -202,7 +202,7 @@ class GoogleDriveFileStoreImpl(
         }
       }
       .map { it.files }
-      .map { if (it.count() == 1) it[0].id else null }
+      .map { it.getOrNull(0)?.id }
       .mapError { GoogleDriveError(cause = it) }
 
   private suspend fun Drive.updateFile(

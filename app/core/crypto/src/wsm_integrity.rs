@@ -1,7 +1,7 @@
+use bitcoin::base58::decode_check;
 use bitcoin::hashes::sha256;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::secp256k1::{Message, Secp256k1};
-use bitcoin::util::base58::from_check as decode_check;
 use hex;
 use std::sync::Mutex;
 use thiserror::Error;

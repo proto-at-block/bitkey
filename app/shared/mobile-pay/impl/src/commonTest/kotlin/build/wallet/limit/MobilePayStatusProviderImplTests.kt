@@ -4,10 +4,11 @@ import app.cash.turbine.test
 import build.wallet.LoadableValue.LoadedValue
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
 import build.wallet.f8e.mobilepay.MobilePayBalanceServiceMock
+import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.limit.MobilePayStatus.MobilePayDisabled
@@ -29,11 +30,13 @@ class MobilePayStatusProviderImplTests : FunSpec({
       mobilePayBalance = MobilePayBalanceMock
     )
   val spendingWallet = SpendingWalletMock(turbines::create)
+  val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
   val statusProvider =
     MobilePayStatusProviderImpl(
       spendingLimitDao = spendingLimitDao,
       mobilePayBalanceService = mobilePayBalanceService,
-      uuidGenerator = UuidGeneratorFake()
+      uuidGenerator = UuidGeneratorFake(),
+      appSpendingWalletProvider = appSpendingWalletProvider
     )
 
   val limit1 = SpendingLimitMock(amount = FiatMoney.usd(100.0))
@@ -49,7 +52,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
     }
 
     test("local and f8e are active") {
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
         awaitItem().shouldBe(
           MobilePayEnabled(
@@ -68,7 +71,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
       // Mock F8e returning inactive
       mobilePayBalanceService.mobilePayBalanceResult = Ok(disabledMobilePayBalance)
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         // On the first network call, we realize that our spending limits don't match. We then
         // defer and persist the version from F8e instead, and check again.
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
@@ -87,7 +90,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
         )
       mobilePayBalanceService.mobilePayBalanceResult = Ok(f8eMobilePayBalance)
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         // On the first network call, we realize that our spending limits don't match. We then
         // defer and persist the version from F8e instead, and check again.
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
@@ -103,9 +106,10 @@ class MobilePayStatusProviderImplTests : FunSpec({
     }
 
     test("show enabled with local information if network error is returned") {
-      mobilePayBalanceService.mobilePayBalanceResult = Err(MobilePayBalanceFailure.F8eError(HttpError.NetworkError(Throwable())))
+      mobilePayBalanceService.mobilePayBalanceResult =
+        Err(MobilePayBalanceFailure.F8eError(HttpError.NetworkError(Throwable())))
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
 
         awaitItem().shouldBe(
@@ -127,7 +131,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
           )
         )
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
         spendingLimitDao.removeAllLimitsCalls.awaitItem()
 
@@ -138,7 +142,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
     test("disabling Mobile Pay should return previous limit") {
       mobilePayBalanceService.mobilePayBalanceResult = Ok(MobilePayBalanceMock)
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
         awaitItem().shouldBe(
           MobilePayEnabled(
@@ -183,7 +187,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
         )
 
       // We should show Mobile Pay as disabled.
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
         awaitItem().shouldBe(MobilePayDisabled(mostRecentSpendingLimit = null))
       }
@@ -198,7 +202,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
           )
         )
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
         awaitItem().shouldBe(MobilePayDisabled(mostRecentSpendingLimit = disabledLimit))
 
@@ -219,7 +223,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
     test("local is inactive, but f8e is active") {
       mobilePayBalanceService.mobilePayBalanceResult = Ok(MobilePayBalanceMock)
 
-      statusProvider.status(KeyboxMock, spendingWallet).test {
+      statusProvider.status(FullAccountMock).test {
         // On the first network call, we realize that our spending limits don't match. We then
         // defer and persist the version from F8e instead, and check again.
         mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
@@ -239,7 +243,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
     val newSpent = MobilePayBalanceMock.copy(spent = BitcoinMoney.sats(1))
     mobilePayBalanceService.mobilePayBalanceResult = Ok(newSpent)
 
-    statusProvider.status(KeyboxMock, spendingWallet).test {
+    statusProvider.status(FullAccountMock).test {
       mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
       awaitItem().shouldBe(
         MobilePayEnabled(
@@ -261,7 +265,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
   }
 
   test("on demand refresh should refetch MobilePayBalance") {
-    statusProvider.status(KeyboxMock, spendingWallet).test {
+    statusProvider.status(FullAccountMock).test {
       mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
       awaitItem().shouldBe(
         MobilePayEnabled(

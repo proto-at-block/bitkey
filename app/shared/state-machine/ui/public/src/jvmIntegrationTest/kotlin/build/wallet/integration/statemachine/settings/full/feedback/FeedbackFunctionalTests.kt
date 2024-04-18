@@ -2,7 +2,6 @@ package build.wallet.integration.statemachine.settings.full.feedback
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
@@ -41,8 +40,6 @@ class FeedbackFunctionalTests : FunSpec({
   beforeTest {
     val appTester = launchNewApp()
     account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.appComponent.feedbackFormNewUiEnabledFeatureFlag.setFlagValue(true)
-    appTester.app.appComponent.feedbackFormAddAttachmentsFeatureFlag.setFlagValue(true)
     feedbackStateMachine = appTester.app.feedbackUiStateMachine
   }
 

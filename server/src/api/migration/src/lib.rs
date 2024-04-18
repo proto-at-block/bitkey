@@ -19,6 +19,8 @@ pub enum MigrationError {
     MissingCriticalField(String, String),
     #[error("Could not update account due to error: {0}")]
     UpdateAccount(String),
+    #[error("Could not delete account")]
+    DeleteAccount,
     #[error("Could not update notifications preferences due to error: {0}")]
     UpdateNotificationsPreferences(String),
     #[error("Could not send ext beta push blast due to error: {0}")]

@@ -9,7 +9,6 @@ import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETT
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudFileStoreResult
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
 import build.wallet.statemachine.core.Icon
@@ -41,7 +40,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
-private const val DISABLE_CLOUD_BACKUP_HEALTH = "disable-cloud-backup-health"
 private const val CLOUD_ACCESS_FAILURE = "cloud-access-failure"
 
 class CloudBackupHealthFunctionalTests : FunSpec({
@@ -49,11 +47,6 @@ class CloudBackupHealthFunctionalTests : FunSpec({
   lateinit var appTester: AppTester
   beforeTest { testCase ->
     appTester = launchNewApp()
-    appTester.app.appComponent.cloudBackupHealthFeatureFlag.setFlagValue(
-      BooleanFlag(
-        !testCase.hasNamedTag(DISABLE_CLOUD_BACKUP_HEALTH)
-      )
-    )
     appTester
       .onboardFullAccountWithFakeHardware(
         cloudStoreAccountForBackup =
@@ -62,22 +55,6 @@ class CloudBackupHealthFunctionalTests : FunSpec({
           }
       )
   }
-
-  test("Cloud backup health dashboard is hidden")
-    .withTags(DISABLE_CLOUD_BACKUP_HEALTH) {
-      appTester.app.appUiStateMachine.test(
-        props = Unit,
-        useVirtualTime = false
-      ) {
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
-          shouldClickSettings()
-        }
-        awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
-          cloudBackupHealthRow.shouldBeNull()
-        }
-        cancelAndIgnoreRemainingEvents()
-      }
-    }
 
   test("Cloud backup health dashboard is visible with warning icon")
     .withTags(CLOUD_ACCESS_FAILURE) {

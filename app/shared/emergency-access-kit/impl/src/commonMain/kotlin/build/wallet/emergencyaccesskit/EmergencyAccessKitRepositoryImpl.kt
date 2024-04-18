@@ -22,7 +22,7 @@ class EmergencyAccessKitRepositoryImpl(
       .result
       .map { EmergencyAccessKitData(it) }
       .mapPossibleRectifiableErrors()
-      .logFailure { "Error reading EAK from Cloud Storage." }
+      .logFailure { "Error reading EAK from Cloud Storage" }
 
   override suspend fun write(
     account: CloudStoreAccount,

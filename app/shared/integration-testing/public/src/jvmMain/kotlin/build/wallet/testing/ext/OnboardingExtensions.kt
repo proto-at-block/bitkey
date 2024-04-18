@@ -127,7 +127,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
         app.fullAccountCloudBackupCreator.create(
           keybox = account.keybox,
           sealedCsek = hwActivation.sealedCsek,
-          trustedContacts = emptyList()
+          endorsedTrustedContacts = emptyList()
         )
           .getOrThrow()
       app.cloudBackupRepository.writeBackup(

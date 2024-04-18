@@ -2,9 +2,9 @@ use miniscript::DescriptorPublicKey;
 
 use crate::{EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, SignatureContext};
 use bitcoin::{
+    bip32::ChildNumber,
     hashes::{sha256, Hash},
     secp256k1::{ecdsa::Signature, PublicKey},
-    util::bip32::ChildNumber,
 };
 use next_gen::generator;
 
@@ -58,7 +58,9 @@ fn get_authentication_key_v2() -> Result<PublicKeyHandle, CommandError> {
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn sign_challenge_v2(challenge: Vec<u8>) -> Result<SignatureContext, CommandError> {
-    let hash = <sha256::Hash as Hash>::hash(&challenge).to_vec();
+    let hash = <sha256::Hash as Hash>::hash(&challenge)
+        .to_byte_array()
+        .to_vec();
     let apdu: apdu::Command = DerivePublicKeyAndSignCmd {
         curve: Curve::Ed25519 as i32,
         label: AUTHENTICATION_KEY_LABEL.into(),
@@ -109,6 +111,7 @@ fn get_authentication_key() -> Result<PublicKey, CommandError> {
                     let dpub: DescriptorPublicKey = descriptor.try_into()?;
                     match dpub {
                         DescriptorPublicKey::Single(_) => Err(CommandError::InvalidResponse),
+                        DescriptorPublicKey::MultiXPub(_) => Err(CommandError::InvalidResponse),
                         DescriptorPublicKey::XPub(xpub) => Ok(xpub.xkey.public_key),
                     }
                 }
@@ -126,7 +129,9 @@ fn get_authentication_key() -> Result<PublicKey, CommandError> {
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
 fn sign_challenge(challenge: Vec<u8>) -> Result<Signature, CommandError> {
-    let hash = <sha256::Hash as Hash>::hash(&challenge).to_vec();
+    let hash = <sha256::Hash as Hash>::hash(&challenge)
+        .to_byte_array()
+        .to_vec();
     let apdu: apdu::Command = DeriveKeyDescriptorAndSignCmd {
         derivation_path: Some(AUTHENTICATION_DERIVATION_PATH.as_ref().into()),
         hash,

@@ -11,7 +11,7 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
         let view = FormView(
             viewModel: RecoveryChallengeContactListBodyModelKt.RecoveryChallengeContactListBodyModel(
                 onExit: {},
-                trustedContacts: [
+                endorsedTrustedContacts: [
                     .init(
                         recoveryRelationshipId: "1",
                         trustedContactAlias: "alias",
@@ -38,7 +38,7 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
         let view = FormView(
             viewModel: RecoveryChallengeContactListBodyModelKt.RecoveryChallengeContactListBodyModel(
                 onExit: {},
-                trustedContacts: [
+                endorsedTrustedContacts: [
                     .init(
                         recoveryRelationshipId: "1",
                         trustedContactAlias: "alias",
@@ -65,7 +65,7 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
         let view = FormView(
             viewModel: RecoveryChallengeContactListBodyModelKt.RecoveryChallengeContactListBodyModel(
                 onExit: {},
-                trustedContacts: [
+                endorsedTrustedContacts: [
                     .init(
                         recoveryRelationshipId: "1",
                         trustedContactAlias: "alias1",

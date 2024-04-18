@@ -2,12 +2,12 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use aws_sdk_dynamodb::types::AttributeValue;
-use bdk::bitcoin::util::bip32::ChildNumber;
+use bdk::bitcoin::bip32::ChildNumber;
 use bdk::bitcoin::Network;
 use bdk::blockchain::{ConfigurableBlockchain, ElectrumBlockchain, ElectrumBlockchainConfig};
 use bdk::database::MemoryDatabase;
-use bdk::descriptor::{DescriptorPublicKey, DescriptorXKey};
 use bdk::electrum_client::ElectrumApi;
+use bdk::miniscript::descriptor::{DescriptorPublicKey, DescriptorXKey};
 use bdk::miniscript::Descriptor;
 use bdk::wallet::AddressIndex;
 use bdk::{SyncOptions, Wallet};
@@ -109,6 +109,7 @@ pub fn debug(
                 dpks.iter()
                     .map(|dpk| match dpk {
                         DescriptorPublicKey::Single(_) => unimplemented!(),
+                        DescriptorPublicKey::MultiXPub(_) => unimplemented!(),
                         DescriptorPublicKey::XPub(xpub) => {
                             DescriptorPublicKey::XPub(DescriptorXKey {
                                 derivation_path: xpub.derivation_path.extend(path),

@@ -1,6 +1,6 @@
 use std::{num::TryFromIntError, str::Utf8Error, sync::PoisonError};
 
-use bitcoin::util::psbt::PsbtParseError;
+use bitcoin::psbt::PsbtParseError;
 use miniscript::descriptor::DescriptorKeyParseError;
 use thiserror::Error;
 

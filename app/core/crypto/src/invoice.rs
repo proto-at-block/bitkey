@@ -1,6 +1,6 @@
 use crate::keys::PublicKey;
 pub use bitcoin::hashes::sha256::Hash as Sha256;
-use lightning_invoice::Invoice as LNInvoice;
+use lightning_invoice::Bolt11Invoice as LNInvoice;
 use std::sync::Mutex;
 
 /// Errors that can be thrown by [`Invoice`](crate::invoice::Invoice)
@@ -53,7 +53,6 @@ impl Invoice {
 #[cfg(test)]
 mod tests {
     use crate::invoice::{Invoice, InvoiceError};
-    use bitcoin::hashes::hex::ToHex;
 
     #[test]
     fn test_valid_invoice_with_amount() {
@@ -66,7 +65,7 @@ mod tests {
         ) {
             Ok(lightning_invoice) => {
                 assert_eq!(
-                    lightning_invoice.payment_hash().to_hex(),
+                    lightning_invoice.payment_hash().to_string(),
                     "0001020304050607080900010203040506070809000102030405060708090102"
                 );
                 assert!(lightning_invoice.is_expired());

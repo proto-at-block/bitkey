@@ -20,6 +20,7 @@ import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.toErrorIfNull
 import com.github.michaelbull.result.toResultOr
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.firstOrNull
 
 class BestEffortFullAccountCloudBackupUploaderImpl(
@@ -35,10 +36,11 @@ class BestEffortFullAccountCloudBackupUploaderImpl(
     binding {
       val trustedContacts = socRecRelationshipsRepository
         .relationships
+        .filterNotNull()
         .firstOrNull()
         .toResultOr { BreakingError("Error reading trusted contacts") }
         .bind()
-        .trustedContacts
+        .endorsedTrustedContacts
 
       val currentCloudBackup = cloudBackupDao
         .get(accountId = fullAccount.accountId.serverId)
@@ -57,7 +59,7 @@ class BestEffortFullAccountCloudBackupUploaderImpl(
           .create(
             keybox = fullAccount.keybox,
             sealedCsek = hwekEncryptedPkek,
-            trustedContacts = trustedContacts
+            endorsedTrustedContacts = trustedContacts
           )
           .logFailure(LogLevel.Warn) { "Could not create cloud backup" }
           .mapError { BreakingError("Error creating cloud backup", it) }

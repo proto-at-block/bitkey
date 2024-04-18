@@ -10,8 +10,7 @@ import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationErr
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.SpendingBelowDustLimitError
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Source
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -35,8 +34,7 @@ class BitcoinTransactionFeeEstimatorImpl(
 ) : BitcoinTransactionFeeEstimator {
   override suspend fun getFeesForTransaction(
     priorities: List<EstimatedTransactionPriority>,
-    keyset: SpendingKeyset,
-    fullAccountConfig: FullAccountConfig,
+    account: FullAccount,
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> {
@@ -44,7 +42,7 @@ class BitcoinTransactionFeeEstimatorImpl(
       // Fetch the fee rates for transaction priorities and use them to create transactions for each
       // of the priorities passed in the function
       val feeRates =
-        bitcoinFeeRateEstimator.getEstimatedFeeRates(fullAccountConfig.bitcoinNetworkType)
+        bitcoinFeeRateEstimator.getEstimatedFeeRates(account.config.bitcoinNetworkType)
           .mapError {
             FeeEstimationError.CannotGetFeesError(
               isConnectivityError = it is HttpError.NetworkError
@@ -53,7 +51,7 @@ class BitcoinTransactionFeeEstimatorImpl(
           .bind()
 
       val wallet =
-        appSpendingWalletProvider.getSpendingWallet(keyset)
+        appSpendingWalletProvider.getSpendingWallet(account)
           .logFailure { "Error creating spending wallet to get fees for a transaction" }
           .mapError { CannotGetSpendingWalletError }
           .bind()

@@ -5,18 +5,13 @@ publish = { workspace = true }
 version = "0.1.0"
 
 [dependencies]
-async-trait = { workspace = true }
 aws-config = { workspace = true }
-aws-sdk-sesv2 = { workspace = true }
+aws-sdk-sesv2 = "1.16.0"
 aws-sdk-sns = { workspace = true }
-aws-types = { workspace = true }
-axum = { workspace = true }
-axum-macros = { workspace = true }
 ctrlc = { workspace = true }
 futures = { workspace = true }
 isocountry = { workspace = true }
 itertools = { workspace = true }
-reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strum = { workspace = true }
@@ -25,7 +20,6 @@ thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { version = "0.3.17", features = ["env-filter", "json"] }
 
 # path dependencies
 account = { workspace = true }

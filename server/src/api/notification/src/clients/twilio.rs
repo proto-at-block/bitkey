@@ -90,6 +90,8 @@ pub enum TwilioMode {
     Environment {
         default_messaging_service_sid: String,
         messaging_service_sid_overrides: Option<HashMap<CountryCode, String>>,
+        #[serde(default)]
+        status_callback_override: Option<String>,
     },
 }
 
@@ -128,6 +130,7 @@ impl TwilioClient {
             TwilioMode::Environment {
                 default_messaging_service_sid,
                 messaging_service_sid_overrides,
+                status_callback_override,
             } => Self::Real {
                 endpoint: reqwest::Url::parse(TWILIO_API_URL).unwrap(),
                 client: Client::new(),
@@ -142,11 +145,11 @@ impl TwilioClient {
                 default_messaging_service_sid,
                 messaging_service_sid_overrides: messaging_service_sid_overrides
                     .unwrap_or_default(),
-                status_callback: format!(
+                status_callback: status_callback_override.unwrap_or(format!(
                     "{}/api/twilio/status-callback",
                     env::var("SERVER_FROMAGERIE_ENDPOINT")
                         .expect("SERVER_FROMAGERIE_ENDPOINT environment variable not set")
-                ),
+                )),
             },
             TwilioMode::Test => Self::Test,
         }

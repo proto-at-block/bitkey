@@ -2,7 +2,7 @@ package build.wallet.cloud.backup.v2
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.appGlobalAuthKeypair
 import build.wallet.cloud.backup.appKeys
 import build.wallet.cloud.backup.csek.CsekDao
@@ -31,7 +31,7 @@ class FullAccountFieldsCreatorImpl(
   override suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
-    trustedContacts: List<TrustedContact>,
+    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<FullAccountFields, FullAccountFieldsCreationError> =
     binding {
       val appAuthKeypair =
@@ -81,7 +81,7 @@ class FullAccountFieldsCreatorImpl(
           .bind()
 
       val socRecRelationshipsMap =
-        trustedContacts.associate {
+        endorsedTrustedContacts.associate {
           it.recoveryRelationshipId to
             socRecCrypto
               .encryptPrivateKeyEncryptionKey(

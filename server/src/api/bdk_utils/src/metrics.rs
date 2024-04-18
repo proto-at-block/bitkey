@@ -2,7 +2,6 @@ use metrics::{factory::Histogram, factory::MetricsFactory, Unit};
 use once_cell::sync::Lazy;
 
 pub(crate) const FACTORY_NAME: &str = "bdk_utils";
-pub(crate) const IS_BDK_UTILS: &str = "is_bdk_utils";
 
 //TODO[W-5630]: Replace with std once stabilized
 pub(crate) static FACTORY: Lazy<MetricsFactory> = Lazy::new(|| MetricsFactory::new(FACTORY_NAME));

@@ -3,7 +3,7 @@ package build.wallet.recovery.socrec
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
@@ -23,7 +23,7 @@ interface SocRecChallengeRepository {
   suspend fun startChallenge(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
-    trustedContacts: ImmutableList<TrustedContact>,
+    endorsedTrustedContacts: ImmutableList<EndorsedTrustedContact>,
     sealedDekMap: Map<String, XCiphertext>,
     isUsingSocRecFakes: Boolean,
   ): Result<ChallengeWrapper, Error>

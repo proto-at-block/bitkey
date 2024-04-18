@@ -5,8 +5,8 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_FAILED
 import build.wallet.auth.AppAuthKeyMessageSignerImpl
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.SocialChallengeResponse
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
@@ -68,8 +68,8 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       cryptoBox = CryptoBoxImpl()
     )
   val delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow()
-  val trustedContact =
-    TrustedContact(
+  val endorsedTrustedContact =
+    EndorsedTrustedContact(
       recoveryRelationshipId = "someRelationshipId",
       trustedContactAlias = TrustedContactAlias("someContact"),
       authenticationState = VERIFIED,
@@ -83,11 +83,11 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
 
   beforeAny {
     appTester.app.socialRecoveryServiceFake.reset()
-    appTester.app.socialRecoveryServiceFake.trustedContacts.add(trustedContact)
+    appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.add(endorsedTrustedContact)
     appTester.app.socRecPendingChallengeDao.clear()
-    relationshipIdToPkekMap[trustedContact.recoveryRelationshipId] =
+    relationshipIdToPkekMap[endorsedTrustedContact.recoveryRelationshipId] =
       socRecCrypto.encryptPrivateKeyEncryptionKey(
-        trustedContact.identityKey,
+        endorsedTrustedContact.identityKey,
         privateKeyEncryptionKey
       ).getOrThrow()
   }
@@ -107,7 +107,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
             ),
           relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
           sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          trustedContacts = appTester.app.socialRecoveryServiceFake.trustedContacts.toImmutableList(),
+          endorsedTrustedContacts = appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.toImmutableList(),
           onExit = { onExitCalls.add(Unit) },
           onKeyRecovered = { onRecoveryCalls.add(it) }
         ),
@@ -170,7 +170,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
             ),
           relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
           sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          trustedContacts = appTester.app.socialRecoveryServiceFake.trustedContacts.toImmutableList(),
+          endorsedTrustedContacts = appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.toImmutableList(),
           onExit = { onExitCalls.add(Unit) },
           onKeyRecovered = { onRecoveryCalls.add(it) }
         ),
@@ -201,7 +201,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
             ),
           relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
           sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          trustedContacts = appTester.app.socialRecoveryServiceFake.trustedContacts.toImmutableList(),
+          endorsedTrustedContacts = appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.toImmutableList(),
           onExit = { onExitCalls.add(Unit) },
           onKeyRecovered = { onRecoveryCalls.add(it) }
         ),
@@ -277,7 +277,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
             ),
           relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
           sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          trustedContacts = appTester.app.socialRecoveryServiceFake.trustedContacts.toImmutableList(),
+          endorsedTrustedContacts = appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.toImmutableList(),
           onExit = { onExitCalls.add(Unit) },
           onKeyRecovered = { onRecoveryCalls.add(it) }
         ),
@@ -307,7 +307,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
             ),
           relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
           sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          trustedContacts = appTester.app.socialRecoveryServiceFake.trustedContacts.toImmutableList(),
+          endorsedTrustedContacts = appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.toImmutableList(),
           onExit = { onExitCalls.add(Unit) },
           onKeyRecovered = { onRecoveryCalls.add(it) }
         ),
@@ -332,17 +332,17 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
 
     suspend fun simulateRespondToChallenge() {
       val recoveryAuth = appTester.app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
-        recoveryRelationshipId = trustedContact.recoveryRelationshipId
+        recoveryRelationshipId = endorsedTrustedContact.recoveryRelationshipId
       ).getOrThrow().shouldNotBeNull()
       val decryptOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
         password = recoveryAuth.pakeCode,
         protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey = delegatedDecryptionKey,
-        sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[trustedContact.recoveryRelationshipId].shouldNotBeNull()
+        sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[endorsedTrustedContact.recoveryRelationshipId].shouldNotBeNull()
       ).getOrThrow()
       appTester.app.socialRecoveryServiceFake.challengeResponses.add(
         SocialChallengeResponse(
-          recoveryRelationshipId = trustedContact.recoveryRelationshipId,
+          recoveryRelationshipId = endorsedTrustedContact.recoveryRelationshipId,
           trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey,
           recoveryPakeConfirmation = decryptOutput.keyConfirmation,
           resealedDek = decryptOutput.sealedPrivateKeyEncryptionKey
@@ -361,7 +361,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         ),
       relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
       sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-      trustedContacts = appTester.app.socialRecoveryServiceFake.trustedContacts.toImmutableList(),
+      endorsedTrustedContacts = appTester.app.socialRecoveryServiceFake.endorsedTrustedContacts.toImmutableList(),
       onExit = { onExitCalls.add(Unit) },
       onKeyRecovered = { onRecoveryCalls.add(it) }
     )

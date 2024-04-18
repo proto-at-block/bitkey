@@ -49,7 +49,38 @@ public struct AnalyticsView: View {
                         ListItemView(viewModel: eventModel)
                     }
                 } header: {
-                    ButtonView(model: .tertiaryDestructive(text: "Clear events", onClick: viewModel.onClear))
+                    VStack {
+                        ListItemView(
+                            viewModel: ListItemModel(
+                                title: "Enable analytics",
+                                titleAlignment: .left,
+                                listItemTitleBackgroundTreatment: nil,
+                                secondaryText: "This controls whether analytics are tracked. This is always enabled in customer builds",
+                                sideText: nil,
+                                secondarySideText: nil,
+                                leadingAccessoryAlignment: .center,
+                                leadingAccessory: nil,
+                                trailingAccessory: ListItemAccessorySwitchAccessory(
+                                    model: SwitchModel(
+                                        checked: viewModel.isEnabled,
+                                        onCheckedChange: viewModel.onEnableChanged,
+                                        enabled: true,
+                                        testTag: nil
+                                    )
+                                ),
+                                specialTrailingAccessory: nil,
+                                treatment: .primary,
+                                sideTextTint: .primary,
+                                enabled: true,
+                                selected: false,
+                                onClick: nil,
+                                pickerMenu: nil,
+                                testTag: nil,
+                                titleLabel: nil
+                            )
+                        )
+                        ButtonView(model: .tertiaryDestructive(text: "Clear events", onClick: viewModel.onClear))
+                    }
                 }
             }
             .listStyle(.plain)

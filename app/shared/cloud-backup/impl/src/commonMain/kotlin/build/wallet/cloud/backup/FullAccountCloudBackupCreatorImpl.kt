@@ -3,7 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
@@ -25,14 +25,14 @@ class FullAccountCloudBackupCreatorImpl(
   override suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
-    trustedContacts: List<TrustedContact>,
+    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<CloudBackup, FullAccountCloudBackupCreatorError> {
     val fullAccountFields = fullAccountFieldsCreator
       .create(
         keybox = keybox,
         sealedCsek = sealedCsek,
         // Exclude trusted contacts that have not been verified.
-        trustedContacts = trustedContacts.filter { it.authenticationState == VERIFIED }
+        endorsedTrustedContacts = endorsedTrustedContacts.filter { it.authenticationState == VERIFIED }
       )
       .logFailure { "Error creating full account backup" }
       .getOrElse {

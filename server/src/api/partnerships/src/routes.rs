@@ -1,4 +1,5 @@
 use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
+use axum::extract::Path;
 use axum::extract::Query;
 use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
@@ -12,7 +13,7 @@ use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
 use http_server::swagger::{SwaggerEndpoint, Url};
-use partnerships_lib::models::PurchaseOptions;
+use partnerships_lib::models::{PartnerTransaction, PurchaseOptions};
 use types::currencies::CurrencyCode;
 
 #[derive(Clone, axum_macros::FromRef)]
@@ -51,6 +52,10 @@ impl From<RouteState> for Router {
             .route(
                 "/api/partnerships/purchases/options",
                 get(get_purchase_options),
+            )
+            .route(
+                "/api/partnerships/partners/:partner/transactions/:id",
+                get(get_partner_transaction),
             )
             .with_state(value)
     }
@@ -128,6 +133,7 @@ async fn list_transfer_partners(
 pub struct GetTransferRedirectRequest {
     pub partner: String,
     pub address: String,
+    pub partner_transaction_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -151,7 +157,11 @@ async fn get_transfer_redirect(
     Json(request): Json<GetTransferRedirectRequest>,
 ) -> Result<Json<GetTransferRedirectResponse>, ApiError> {
     let redirect_info = partnerships
-        .transfer_redirect_url(request.address, request.partner)
+        .transfer_redirect_url(
+            request.address,
+            request.partner,
+            request.partner_transaction_id,
+        )
         .await?;
     Ok(Json(GetTransferRedirectResponse { redirect_info }))
 }
@@ -207,6 +217,7 @@ pub struct GetPurchaseRedirectRequest {
     pub partner: String,
     pub payment_method: PaymentMethod,
     pub quote_id: Option<String>,
+    pub partner_transaction_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
@@ -237,6 +248,7 @@ async fn get_purchase_redirect(
             request.partner,
             request.payment_method,
             request.quote_id,
+            request.partner_transaction_id,
         )
         .await?;
     Ok(Json(GetPurchaseRedirectResponse { redirect_info }))
@@ -264,7 +276,7 @@ pub struct PurchaseOptionsResponse {
         ("fiat_currency" = FiatCurrency, Query, description = "Currency code")
     ),
     responses(
-    (status = 200, description = "Purchase options were successfully retrieved", body=PurchaseOptionsRequest),
+    (status = 200, description = "Purchase options were successfully retrieved", body=PurchaseOptionsResponse),
     (status = 422, description = "Invalid parameters"),
     ),
 )]
@@ -276,4 +288,39 @@ async fn get_purchase_options(
         .purchase_options(request.country.clone(), request.fiat_currency.clone())
         .await;
     Ok(Json(PurchaseOptionsResponse { purchase_options }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetPartnerTransactionRequest {
+    partner: String,
+    id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetPartnerTransactionResponse {
+    transaction: PartnerTransaction,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/partnerships/partners/:partner/transactions/:id",
+    params(
+        ("partner" = String, Path, description = "Partner name"),
+        ("id" = String, Path, description = "Partner Transaction ID")
+    ),
+    responses(
+        (status = 200, description = "Partner transaction was successfully retrieved", body=GetPartnerTransactionResponse),
+        (status = 404, description = "Partner transaction not found"),
+    ),
+)]
+async fn get_partner_transaction(
+    State(partnerships): State<Partnerships>,
+    request: Path<GetPartnerTransactionRequest>,
+) -> Result<Json<GetPartnerTransactionResponse>, ApiError> {
+    let partner_transaction = partnerships
+        .get_partner_transaction(&request.id, &request.partner)
+        .await?;
+    Ok(Json(GetPartnerTransactionResponse {
+        transaction: partner_transaction,
+    }))
 }

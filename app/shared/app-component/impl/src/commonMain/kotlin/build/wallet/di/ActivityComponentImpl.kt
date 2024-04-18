@@ -28,6 +28,8 @@ import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoderImpl
 import build.wallet.bitcoin.invoice.PaymentDataParserImpl
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
 import build.wallet.bitcoin.lightning.LightningPreferenceImpl
+import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityCheckerImpl
+import build.wallet.bitcoin.transactions.BitcoinTransactionSweepCheckerImpl
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepositoryImpl
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceImpl
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploaderImpl
@@ -138,6 +140,8 @@ import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgraderImpl
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoImpl
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoImpl
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoImpl
+import build.wallet.partnerships.PartnershipTransactionsDaoImpl
+import build.wallet.partnerships.PartnershipTransactionsRepositoryImpl
 import build.wallet.phonenumber.PhoneNumberFormatterImpl
 import build.wallet.phonenumber.PhoneNumberValidatorImpl
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
@@ -341,7 +345,6 @@ import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiSt
 import build.wallet.statemachine.settings.full.electrum.SetElectrumServerUiStateMachineImpl
 import build.wallet.statemachine.settings.full.feedback.FeedbackFormUiStateMachineImpl
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachineImpl
-import build.wallet.statemachine.settings.full.feedback.old.OldFeedbackUiStateMachineImpl
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachineImpl
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusUiStateMachineImpl
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiStateMachineImpl
@@ -583,7 +586,8 @@ class ActivityComponentImpl(
     ExchangeRateSyncerImpl(
       exchangeRateDao = exchangeRateDao,
       f8eExchangeRateService = f8eExchangeRateService,
-      activeF8eEnvironmentRepository = activeF8eEnvironmentRepository
+      activeF8eEnvironmentRepository = activeF8eEnvironmentRepository,
+      appSessionManager = appComponent.appSessionManager
     )
 
   val currencyConverter =
@@ -603,7 +607,8 @@ class ActivityComponentImpl(
   val recoverySyncer =
     RecoverySyncerImpl(
       recoveryDao = appComponent.recoveryDao,
-      getRecoveryStatusService = getDelayNotifyRecoveryStatusService
+      getRecoveryStatusService = getDelayNotifyRecoveryStatusService,
+      appSessionManager = appComponent.appSessionManager
     )
 
   val getAccountStatusService =
@@ -801,11 +806,13 @@ class ActivityComponentImpl(
 
   val socRecRelationshipsRepository =
     SocRecRelationshipsRepositoryImpl(
+      appScope = appComponent.appCoroutineScope,
       socialRecoveryServiceProvider = socialRecoveryServiceProvider,
       socRecRelationshipsDao = socRecRelationshipsDao,
       socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
       socRecCrypto = socRecCrypto,
-      socialRecoveryCodeBuilder = pakeCodeBuilder
+      socialRecoveryCodeBuilder = pakeCodeBuilder,
+      appSessionManager = appComponent.appSessionManager
     )
 
   val bestEffortFullAccountCloudBackupUploader =
@@ -876,7 +883,8 @@ class ActivityComponentImpl(
     MobilePayStatusProviderImpl(
       spendingLimitDao = spendingLimitDao,
       mobilePayBalanceService = mobilePayBalanceService,
-      uuidGenerator = appComponent.uuidGenerator
+      uuidGenerator = appComponent.uuidGenerator,
+      appSpendingWalletProvider = appComponent.appSpendingWalletProvider
     )
 
   val moneyAmountUiStateMachine =
@@ -1464,8 +1472,7 @@ class ActivityComponentImpl(
 
   val lightningOptionsStateMachine =
     LightningOptionsUiStateMachineImpl(
-      lightningPreference = lightningPreference,
-      lightningIsAvailableFeatureFlag = appComponent.lightningIsAvailableFeatureFlag
+      lightningPreference = lightningPreference
     )
 
   val firmwareMetadataStateMachine =
@@ -1523,7 +1530,8 @@ class ActivityComponentImpl(
 
   val analyticsStateMachine =
     AnalyticsUiStateMachineImpl(
-      eventStore = appComponent.eventStore
+      eventStore = appComponent.eventStore,
+      analyticsTrackingPreference = appComponent.analyticsTrackingPreference
     )
 
   val logsStateMachine =
@@ -1631,16 +1639,19 @@ class ActivityComponentImpl(
   val transactionDetailStateMachine =
     build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl(
       bitcoinExplorer = bitcoinExplorer,
-      timeZoneProvider = timeZoneProvider,
-      dateTimeFormatter = dateTimeFormatter,
-      currencyConverter = currencyConverter,
-      moneyDisplayFormatter = moneyDisplayFormatter,
-      sendUiStateMachine = sendStateMachine,
+      bitcoinTransactionBumpabilityChecker = BitcoinTransactionBumpabilityCheckerImpl(
+        sweepChecker = BitcoinTransactionSweepCheckerImpl()
+      ),
       bitcoinTransactionFeeEstimator = bitcoinTransactionFeeEstimator,
       clock = appComponent.clock,
+      currencyConverter = currencyConverter,
+      dateTimeFormatter = dateTimeFormatter,
       durationFormatter = durationFormatter,
       eventTracker = appComponent.eventTracker,
       feeBumpEnabled = appComponent.feeBumpIsAvailableFeatureFlag,
+      moneyDisplayFormatter = moneyDisplayFormatter,
+      sendUiStateMachine = sendStateMachine,
+      timeZoneProvider = timeZoneProvider
     )
 
   val homeUiBottomSheetDao = HomeUiBottomSheetDaoImpl(appComponent.bitkeyDatabaseProvider)
@@ -1706,7 +1717,6 @@ class ActivityComponentImpl(
     )
 
   val cloudBackupHealthCardUiStateMachine = CloudBackupHealthCardUiStateMachineImpl(
-    cloudBackupHealthFeatureFlag = appComponent.cloudBackupHealthFeatureFlag,
     cloudBackupHealthRepository = cloudBackupHealthRepository
   )
 
@@ -1725,6 +1735,14 @@ class ActivityComponentImpl(
       platformContext = appComponent.platformContext
     )
 
+  val partnershipsTransactionsDao = PartnershipTransactionsDaoImpl(appComponent.bitkeyDatabaseProvider)
+
+  val partnershipTransactionsStatusRepository = PartnershipTransactionsRepositoryImpl(
+    dao = partnershipsTransactionsDao,
+    uuidGenerator = appComponent.uuidGenerator,
+    clock = appComponent.clock
+  )
+
   val partnershipsTransferUiStateMachine =
     PartnershipsTransferUiStateMachineImpl(
       getTransferPartnerListService =
@@ -1732,7 +1750,8 @@ class ActivityComponentImpl(
           countryCodeGuesser,
           appComponent.f8eHttpClient
         ),
-      getTransferRedirectService = GetTransferRedirectServiceImpl(appComponent.f8eHttpClient)
+      getTransferRedirectService = GetTransferRedirectServiceImpl(appComponent.f8eHttpClient),
+      partnershipsRepository = partnershipTransactionsStatusRepository
     )
 
   val partnershipsPurchaseUiStateMachine =
@@ -1748,7 +1767,8 @@ class ActivityComponentImpl(
           countryCodeGuesser,
           appComponent.f8eHttpClient
         ),
-      getPurchaseRedirectService = GetPurchaseRedirectServiceImpl(appComponent.f8eHttpClient)
+      getPurchaseRedirectService = GetPurchaseRedirectServiceImpl(appComponent.f8eHttpClient),
+      partnershipsRepository = partnershipTransactionsStatusRepository
     )
 
   val addBitcoinUiStateMachine =
@@ -1965,11 +1985,6 @@ class ActivityComponentImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider
     )
 
-  val oldFeedbackUiStateMachine =
-    OldFeedbackUiStateMachineImpl(
-      inAppBrowserNavigator = inAppBrowserNavigator
-    )
-
   val customerFeedbackService =
     SupportTicketServiceImpl(
       f8eHttpClient = appComponent.f8eHttpClient
@@ -1996,23 +2011,18 @@ class ActivityComponentImpl(
       supportTicketRepository = supportTicketRepository,
       supportTicketFormValidator = supportTicketFormValidator,
       dateTimeFormatter = dateTimeFormatter,
-      inAppBrowserNavigator = inAppBrowserNavigator,
-      feedbackFormAddAttachments = appComponent.feedbackFormAddAttachmentsFeatureFlag
+      inAppBrowserNavigator = inAppBrowserNavigator
     )
 
   val feedbackUiStateMachine =
     FeedbackUiStateMachineImpl(
       supportTicketRepository = supportTicketRepository,
-      feedbackFormNewUiEnabled = appComponent.feedbackFormNewUiEnabledFeatureFlag,
-      feedbackFormAddAttachments = appComponent.feedbackFormAddAttachmentsFeatureFlag,
-      feedbackFormUiStateMachine = feedbackFormUiStateMachine,
-      oldFeedbackUiStateMachine = oldFeedbackUiStateMachine
+      feedbackFormUiStateMachine = feedbackFormUiStateMachine
     )
 
   val settingsListUiStateMachine =
     SettingsListUiStateMachineImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
-      cloudBackupHealthFeatureFlag = appComponent.cloudBackupHealthFeatureFlag,
       cloudBackupHealthRepository = cloudBackupHealthRepository
     )
   val cloudBackupHealthDashboardUiStateMachine = CloudBackupHealthDashboardUiStateMachineImpl(
@@ -2128,7 +2138,6 @@ class ActivityComponentImpl(
 
   val firmwareDataStateMachine =
     FirmwareDataStateMachineImpl(
-      firmwareDeviceNotFoundEnabledFeatureFlag = appComponent.firmwareDeviceNotFoundEnabledFeatureFlag,
       firmwareDeviceInfoDao = appComponent.firmwareDeviceInfoDao,
       fwupDataFetcher = appComponent.fwupDataFetcher,
       fwupDataDao = appComponent.fwupDataDao
@@ -2394,7 +2403,6 @@ class ActivityComponentImpl(
 
   val lightningNodeDataStateMachine =
     LightningNodeDataStateMachineImpl(
-      lightningIsAvailableFeatureFlag = appComponent.lightningIsAvailableFeatureFlag,
       lightningPreference = lightningPreference,
       ldkNodeService = appComponent.ldkNodeService
     )
@@ -2424,7 +2432,6 @@ class ActivityComponentImpl(
   val appDataStateMachine =
     AppDataStateMachineImpl(
       eventTracker = appComponent.eventTracker,
-      appInstallationDao = appComponent.appInstallationDao,
       featureFlagInitializer = appComponent.featureFlagInitializer,
       featureFlagSyncer = appComponent.featureFlagSyncer,
       accountDataStateMachine = accountDataStateMachine,

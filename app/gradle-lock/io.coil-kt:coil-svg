@@ -2,11 +2,11 @@
     "module-identifier": "io.coil-kt:coil-svg",
     "components": [
         {
-            "version": "2.5.0",
+            "version": "2.6.0",
             "variants": [
                 {
                     "artifacts": {
-                        "coil-svg-2.5.0.aar": "7de98cca36256cfbd8a60f20e96b3870a28155fe0f9926c3204e51f34ca34868"
+                        "coil-svg-2.6.0.aar": "c070b7096014dfa377cab6f7433951d9dad9f9d71ee8b52a193f484dfedbf5b3"
                     }
                 }
             ],

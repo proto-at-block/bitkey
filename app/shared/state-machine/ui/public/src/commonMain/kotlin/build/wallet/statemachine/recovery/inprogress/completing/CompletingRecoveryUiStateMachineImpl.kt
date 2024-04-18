@@ -207,7 +207,12 @@ class CompletingRecoveryUiStateMachineImpl(
             props.completingRecoveryData.physicalFactor.getEventId(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_CREATING_SPENDING_KEYS_ERROR,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_TRUSTED_CONTACT_SYNC_ERROR
-            )
+            ),
+          errorData = ErrorData(
+            segment = RecoverySegment.DelayAndNotify.LostApp.Completion,
+            actionDescription = "Fetching trusted contacts to complete recovery",
+            cause = props.completingRecoveryData.cause
+          )
         ).asScreen(props.presentationStyle)
 
       is PerformingCloudBackupData -> {
@@ -217,7 +222,7 @@ class CompletingRecoveryUiStateMachineImpl(
             keybox = props.completingRecoveryData.keybox,
             onBackupSaved = props.completingRecoveryData.onBackupFinished,
             onBackupFailed = props.completingRecoveryData.onBackupFailed,
-            trustedContacts = props.completingRecoveryData.trustedContacts,
+            endorsedTrustedContacts = props.completingRecoveryData.endorsedTrustedContacts,
             presentationStyle = props.presentationStyle,
             requireAuthRefreshForCloudBackup = false
           )
@@ -248,7 +253,21 @@ class CompletingRecoveryUiStateMachineImpl(
               DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_EXITED,
               HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_EXITED
             ),
-          eventTrackerShouldTrack = false
+          eventTrackerShouldTrack = false,
+          errorData = when (props.completingRecoveryData.physicalFactor) {
+            App ->
+              ErrorData(
+                segment = RecoverySegment.DelayAndNotify.LostApp.Sweep,
+                actionDescription = "Failed sweeping funds to complete recovery for lost app",
+                cause = Error("Failed sweeping funds to complete recovery for lost app")
+              )
+            Hardware ->
+              ErrorData(
+                segment = RecoverySegment.DelayAndNotify.LostHardware.Sweep,
+                actionDescription = "Failed sweeping funds to complete recovery for lost hardware",
+                cause = Error("Failed sweeping funds to complete recovery for lost hardware")
+              )
+          }
         ).asScreen(props.presentationStyle)
 
       is FailedPerformingCloudBackupData ->

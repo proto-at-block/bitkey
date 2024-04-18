@@ -64,6 +64,7 @@ kotlin {
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.testingPublic)
         implementation(libs.kmp.test.ktor.client.mock)
+        implementation(projects.shared.analyticsFake)
       }
     }
 

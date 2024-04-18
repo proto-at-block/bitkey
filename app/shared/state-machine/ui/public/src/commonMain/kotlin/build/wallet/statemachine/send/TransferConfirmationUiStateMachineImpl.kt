@@ -19,9 +19,9 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
 import build.wallet.bitcoin.transactions.toDuration
 import build.wallet.bitcoin.wallet.SpendingWallet
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.factor.SigningFactor.F8e
 import build.wallet.bitkey.factor.SigningFactor.Hardware
-import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.mobilepay.MobilePaySigningService
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.limit.SpendingLimit
@@ -370,7 +370,7 @@ class TransferConfirmationUiStateMachineImpl(
             }
           val psbtResult =
             createAppSignedPsbt(
-              activeSpendingKeyset = props.accountData.account.keybox.activeSpendingKeyset,
+              account = props.accountData.account,
               constructionMethod = constructionMethod
             )
 
@@ -519,13 +519,13 @@ class TransferConfirmationUiStateMachineImpl(
   }
 
   private suspend fun createAppSignedPsbt(
-    activeSpendingKeyset: SpendingKeyset,
+    account: FullAccount,
     constructionMethod: SpendingWallet.PsbtConstructionMethod,
   ): Result<Psbt, Throwable> =
     binding {
       val wallet =
         appSpendingWalletProvider
-          .getSpendingWallet(activeSpendingKeyset)
+          .getSpendingWallet(account)
           .bind()
 
       wallet

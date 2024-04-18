@@ -1,5 +1,12 @@
 [profile.dev]
 incremental = true
+opt-level = 0
+
+[profile.test]
+incremental = false
+
+[profile.release]
+overflow-checks = true
 
 [workspace]
 exclude = ["auth/auth_lambda_handlers"]
@@ -52,12 +59,8 @@ argon2 = { version = "0.5.3", features = ["std"] }
 async-trait = "0.1.77"
 aws-config = "1.1.7"
 aws-credential-types = "1.1.7"
-aws-sdk-cognitoidentityprovider = "1.18.0"
 aws-sdk-dynamodb = "1.16.1"
-aws-sdk-kms = "1.15.0"
-aws-sdk-s3 = "1.17.0"
 aws-sdk-secretsmanager = "1.17.0"
-aws-sdk-sesv2 = "1.16.0"
 aws-sdk-sns = "1.16.0"
 aws-sdk-sqs = "1.15.0"
 aws-smithy-async = "1.1.7"
@@ -81,6 +84,7 @@ itertools = "0.12.1"
 jwt-authorizer = { version = "0.14.0", default-features = false, features = [
   "rustls-tls",
 ] }
+launchdarkly-server-sdk = "2.0.2"
 once_cell = "1.19.0"
 opentelemetry = { version = "0.21.0", feature = ["metrics", "rt-tokio"] }
 prost = "0.12.1"

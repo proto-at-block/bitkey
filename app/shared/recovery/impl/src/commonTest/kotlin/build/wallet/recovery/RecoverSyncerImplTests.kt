@@ -1,6 +1,8 @@
 package build.wallet.recovery
 
+import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
@@ -18,15 +20,18 @@ class RecoverSyncerImplTests : FunSpec({
 
   val recoveryDao = RecoveryDaoMock(turbines::create)
   val getRecoveryStatusService = GetDelayNotifyRecoveryStatusServiceMock()
+  val sessionProvider = AppSessionManagerFake()
   val recoverySyncer =
     RecoverySyncerImpl(
       recoveryDao = recoveryDao,
-      getRecoveryStatusService = getRecoveryStatusService
+      getRecoveryStatusService = getRecoveryStatusService,
+      appSessionManager = sessionProvider
     )
 
   beforeTest {
     recoveryDao.reset()
     getRecoveryStatusService.reset()
+    sessionProvider.reset()
   }
 
   test(
@@ -76,5 +81,24 @@ class RecoverSyncerImplTests : FunSpec({
   test("clear") {
     recoverySyncer.clear()
     recoveryDao.clearCalls.awaitItem().shouldBe(Unit)
+  }
+
+  test("recovery syncer doesn't run in the background") {
+    runTest {
+      sessionProvider.appDidEnterBackground()
+
+      recoverySyncer.launchSync(
+        scope = backgroundScope,
+        syncFrequency = 3.seconds,
+        fullAccountId = FullAccountIdMock,
+        f8eEnvironment = Development
+      )
+      advanceTimeBy(3.seconds)
+      recoveryDao.setLocalRecoveryProgressCalls.expectNoEvents()
+
+      sessionProvider.appDidEnterForeground()
+      advanceTimeBy(3.seconds)
+      recoveryDao.setActiveServerRecoveryCalls.awaitItem().shouldBe(Unit)
+    }
   }
 })

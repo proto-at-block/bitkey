@@ -120,7 +120,7 @@ class SocialRecoveryCodeBuilderImpl(
   override fun parseInviteCode(
     inviteCode: String,
   ): Result<InviteCodeParts, SocialRecoveryCodeBuilderError> {
-    val inviteCode = inviteCode.replace("-", "")
+    val inviteCode = inviteCode.toSanitizedCode()
     val expectedMinBitLength = (InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + InviteSchema.MIN_SERVER_BITS + InviteSchema.CRC_BITS)
     val expectedMinCharacters = expectedMinBitLength / Base32Encoding.BITS_PER_CHAR
 
@@ -183,7 +183,7 @@ class SocialRecoveryCodeBuilderImpl(
   override fun parseRecoveryCode(
     recoveryCode: String,
   ): Result<RecoveryCodeParts, SocialRecoveryCodeBuilderError> {
-    val recoveryCode = recoveryCode.replace("-", "")
+    val recoveryCode = recoveryCode.toSanitizedCode()
     lateinit var fullData: BigInteger
     try {
       fullData = recoveryCode.toBigInteger()
@@ -271,3 +271,8 @@ class SocialRecoveryCodeBuilderImpl(
     return if (this == BigInteger.ZERO) other else or(other)
   }
 }
+
+private fun String.toSanitizedCode(): String =
+  this
+    .replace("-", "")
+    .trim()

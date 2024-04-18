@@ -63,7 +63,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
               )
             }
             .onSuccess { fullAccount -> props.data.onAccountUpgraded(fullAccount) }
-            .onFailure { uiState = State.Failed }
+            .onFailure { uiState = State.Failed(it) }
         }
         LoadingBodyModel(
           message = SAVING_BACKUP_MESSAGE,
@@ -78,6 +78,7 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
         // backup.
         CloudBackupFailedScreenModel(
           eventTrackerScreenId = CloudEventTrackerScreenId.FAILURE_RESTORE_FROM_LITE_ACCOUNT_CLOUD_BACKUP_AFTER_ONBOARDING,
+          error = state.error,
           onTryAgain = { uiState = State.ScanningHardware }
         ).asRootScreen()
     }
@@ -88,6 +89,6 @@ class ReplaceWithLiteAccountRestoreUiStateMachineImpl(
 
     data class DeleteAndRestore(val hwFactorProofOfPossession: HwFactorProofOfPossession) : State
 
-    data object Failed : State
+    data class Failed(val error: Error) : State
   }
 }

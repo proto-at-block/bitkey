@@ -56,7 +56,7 @@ fn translate_events(bundle: EventBundle) -> SegmentTrackEventBundle {
         .into_iter()
         .map(|e| {
             let properties = e.clone();
-            let action = Action::from_i32(e.action).unwrap_or(Action::Unspecified);
+            let action = Action::try_from(e.action).unwrap_or(Action::Unspecified);
             SegmentTrackEvent {
                 user_id: e.app_device_id,
                 event: Action::as_str_name(&action).to_owned(),

@@ -5,9 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
@@ -39,13 +39,13 @@ class ListingTrustedContactsUiStateMachineImpl(
         onContactPressed = {
           state =
             when (it) {
-              is TrustedContact -> State.ViewingTrustedContactDetailsState(it)
+              is EndorsedTrustedContact -> State.ViewingTrustedContactDetailsState(it)
               is Invitation -> State.ViewingInvitationDetailsState(it)
               is UnendorsedTrustedContact -> error("TODO BKR-852")
             }
         },
         onProtectedCustomerPressed = { state = State.ViewingProtectedCustomerDetail(it) },
-        contacts = props.relationships.trustedContacts,
+        contacts = props.relationships.endorsedTrustedContacts,
         invitations = props.relationships.invitations,
         protectedCustomers = props.relationships.protectedCustomers,
         now = clock.now().toEpochMilliseconds()
@@ -58,8 +58,8 @@ class ListingTrustedContactsUiStateMachineImpl(
             hostScreen = ScreenModel(screenBody),
             invitation = current.invitation,
             fullAccount = props.account,
-            onRefreshInvitation = props.socRecFullAccountActions::refreshInvitation,
-            onRemoveInvitation = props.socRecFullAccountActions::removeTrustedContact,
+            onRefreshInvitation = props.socRecProtectedCustomerActions::refreshInvitation,
+            onRemoveInvitation = props.socRecProtectedCustomerActions::removeTrustedContact,
             onExit = {
               state = State.ViewingListState
             }
@@ -70,9 +70,9 @@ class ListingTrustedContactsUiStateMachineImpl(
         viewingRecoveryContactUiStateMachine.model(
           ViewingRecoveryContactProps(
             screenBody = screenBody,
-            recoveryContact = current.trustedContact,
+            recoveryContact = current.endorsedTrustedContact,
             account = props.account,
-            onRemoveContact = props.socRecFullAccountActions::removeTrustedContact,
+            onRemoveContact = props.socRecProtectedCustomerActions::removeTrustedContact,
             afterContactRemoved = {
               state = State.ViewingListState
             },
@@ -95,7 +95,7 @@ class ListingTrustedContactsUiStateMachineImpl(
                 )
             },
             onRemoveProtectedCustomer = {
-              props.socRecFullAccountActions.removeProtectedCustomer(current.protectedCustomer)
+              props.socRecProtectedCustomerActions.removeProtectedCustomer(current.protectedCustomer)
             }
           )
         )
@@ -117,7 +117,7 @@ class ListingTrustedContactsUiStateMachineImpl(
     data object ViewingListState : State
 
     data class ViewingTrustedContactDetailsState(
-      val trustedContact: TrustedContact,
+      val endorsedTrustedContact: EndorsedTrustedContact,
     ) : State
 
     data class ViewingInvitationDetailsState(

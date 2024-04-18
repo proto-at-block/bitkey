@@ -5,6 +5,7 @@ import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.USD
 import build.wallet.money.exchange.CurrencyConverterFake
@@ -137,7 +138,9 @@ private val TEST_RECEIVE_TXN =
     fee = null,
     weight = null,
     vsize = null,
-    incoming = true
+    incoming = true,
+    inputs = immutableListOf(),
+    outputs = immutableListOf()
   )
 private val TEST_SEND_TXN =
   BitcoinTransaction(
@@ -154,5 +157,7 @@ private val TEST_SEND_TXN =
     fee = BitcoinMoney.sats(100),
     weight = null,
     vsize = null,
-    incoming = false
+    incoming = false,
+    inputs = immutableListOf(),
+    outputs = immutableListOf()
   )

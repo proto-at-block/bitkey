@@ -1,6 +1,8 @@
 package build.wallet.f8e.sync
 
 import build.wallet.bitkey.account.Account
+import build.wallet.logging.LogLevel.Error
+import build.wallet.logging.log
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -32,9 +34,13 @@ class F8eSyncSequencer {
     }
 
     if (lastAccount != null && lastAccount != account) {
-      error("sync sequencer called with different account while previous coroutine was active")
+      log(Error) {
+        "sync sequencer called with different account while previous coroutine was active. " +
+          "Last account: $lastAccount, new account: $account"
+      }
+    } else {
+      syncLock.withLock { doLocked(account, task) }
     }
-    syncLock.withLock { doLocked(account, task) }
   }
 
   private suspend fun doLocked(

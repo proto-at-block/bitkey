@@ -4,6 +4,8 @@ import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.LoadableValue
 import build.wallet.LoadableValue.InitialLoading
+import build.wallet.bdk.bindings.BdkScript
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
@@ -31,6 +33,7 @@ class SpendingWalletMock(
     initializeCalls.add(Unit)
     balanceFlow.value = LoadableValue.LoadedValue(BitcoinBalance.ZeroBalance)
     transactionsFlow.value = LoadableValue.LoadedValue(emptyList())
+    unspentOutputsFlow.value = LoadableValue.LoadedValue(emptyList())
   }
 
   override suspend fun sync(): Result<Unit, Error> {
@@ -57,8 +60,14 @@ class SpendingWalletMock(
     return lastUnusedAddressResult
   }
 
+  var isMineResult: Result<Boolean, Error> = Ok(false)
+
   override suspend fun isMine(address: BitcoinAddress): Result<Boolean, Error> {
-    TODO("Not yet implemented")
+    return isMineResult
+  }
+
+  override suspend fun isMine(scriptPubKey: BdkScript): Result<Boolean, Error> {
+    return isMineResult
   }
 
   var balanceFlow = MutableStateFlow<LoadableValue<BitcoinBalance>>(InitialLoading)
@@ -68,6 +77,10 @@ class SpendingWalletMock(
   var transactionsFlow = MutableStateFlow<LoadableValue<List<BitcoinTransaction>>>(InitialLoading)
 
   override fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>> = transactionsFlow
+
+  var unspentOutputsFlow = MutableStateFlow<LoadableValue<List<BdkUtxo>>>(InitialLoading)
+
+  override fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>> = unspentOutputsFlow
 
   val signPsbtCalls = turbine("$identifier: sign psbt calls for wallet")
   var signPsbtResult: Result<Psbt, Throwable>? = null
@@ -82,11 +95,13 @@ class SpendingWalletMock(
     newAddressResult = Ok(someBitcoinAddress)
     balanceFlow.value = InitialLoading
     transactionsFlow.value = InitialLoading
+    unspentOutputsFlow.value = InitialLoading
     signPsbtResult = null
     createSignedPsbtResult = null
     createSignedPsbtResults.clear()
     createPsbtResult = null
     createPsbtResults.clear()
+    isMineResult = Ok(false)
   }
 
   var createPsbtResult: Result<Psbt, Throwable>? = null

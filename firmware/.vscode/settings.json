@@ -23,5 +23,6 @@
   "editor.formatOnSave": true,
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
-  "git.detectSubmodules": false
+  "git.detectSubmodules": false,
+  "python.defaultInterpreterPath": "${workspaceFolder:Firmware}/bin/python"
 }

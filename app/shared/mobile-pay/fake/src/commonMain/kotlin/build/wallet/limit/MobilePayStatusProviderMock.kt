@@ -2,8 +2,7 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -18,10 +17,7 @@ class MobilePayStatusProviderMock(
     refreshStatusCalls += Unit
   }
 
-  override fun status(
-    keybox: Keybox,
-    wallet: SpendingWallet,
-  ): Flow<MobilePayStatus> = status.filterNotNull()
+  override fun status(account: FullAccount): Flow<MobilePayStatus> = status.filterNotNull()
 
   fun reset() {
     status.value = null

@@ -157,7 +157,7 @@ class MainActivity : ComponentActivity() {
   private fun registerLifecycleObservers() {
     val appLifecycleObserver =
       AppLifecycleObserver(
-        sessionIdProvider = appComponent.sessionIdProvider
+        appSessionManager = appComponent.appSessionManager
       )
     lifecycle.apply {
       addObserver(appLifecycleObserver)

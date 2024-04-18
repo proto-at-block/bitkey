@@ -111,8 +111,8 @@ class SocRecE2eFunctionalTests : FunSpec({
           it.unendorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED
       }
       customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.trustedContacts.size == 1 &&
-          it.trustedContacts.single().authenticationState == TrustedContactAuthenticationState.VERIFIED
+        it.endorsedTrustedContacts.size == 1 &&
+          it.endorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.VERIFIED
       }
       customerApp.awaitCloudBackupRefreshed(relationshipId)
       cancelAndIgnoreRemainingEvents()
@@ -219,7 +219,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
     ).getOrThrow()
-      .trustedContacts
+      .endorsedTrustedContacts
       .shouldBeSingleton()
 
     // Detect whether the Trusted Contact gets written to cloud backup even though it's in the
@@ -246,8 +246,8 @@ class SocRecE2eFunctionalTests : FunSpec({
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
       customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.trustedContacts.size == 1 &&
-          it.trustedContacts.single().authenticationState == TrustedContactAuthenticationState.TAMPERED
+        it.endorsedTrustedContacts.size == 1 &&
+          it.endorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.TAMPERED
       }
       cancelAndIgnoreRemainingEvents()
     }
@@ -471,8 +471,8 @@ class SocRecE2eFunctionalTests : FunSpec({
           it.unendorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED
       }
       customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.trustedContacts.size == 1 &&
-          it.trustedContacts.single().authenticationState == TrustedContactAuthenticationState.VERIFIED
+        it.endorsedTrustedContacts.size == 1 &&
+          it.endorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.VERIFIED
       }
       customerApp.awaitCloudBackupRefreshed(relationshipId)
       cancelAndIgnoreRemainingEvents()
@@ -500,7 +500,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       useVirtualTime = false
     ) {
       customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.trustedContacts.isEmpty()
+        it.endorsedTrustedContacts.isEmpty()
       }
       customerApp.awaitCloudBackupRefreshed(relationshipId)
       cancelAndIgnoreRemainingEvents()
@@ -586,6 +586,7 @@ private suspend fun SocRecRelationshipsRepository.awaitRelationships(
   predicate: (SocRecRelationships) -> Boolean,
 ): SocRecRelationships =
   relationships
+    .filterNotNull()
     .transform { relationships ->
       if (predicate(relationships)) {
         emit(relationships)
@@ -675,10 +676,10 @@ suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
 
   val serverTcs = appTester.app.socialRecoveryServiceProvider.get()
     .getRelationships(account).getOrThrow()
-    .trustedContacts
+    .endorsedTrustedContacts
   val dbTcs = appTester.app.socRecRelationshipsDao
     .socRecRelationships().first().getOrThrow()
-    .trustedContacts
+    .endorsedTrustedContacts
 
   withClue("Server and DB Trusted Contacts should match") {
     serverTcs.shouldContainExactlyInAnyOrder(

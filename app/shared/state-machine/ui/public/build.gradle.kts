@@ -72,7 +72,6 @@ kotlin {
 
     commonTest {
       dependencies {
-        implementation(projects.shared.analyticsFake)
         implementation(projects.shared.accountFake)
         implementation(projects.shared.analyticsFake)
         implementation(projects.shared.authFake)
@@ -100,6 +99,7 @@ kotlin {
         implementation(projects.shared.onboardingFake)
         implementation(projects.shared.nfcFake)
         implementation(projects.shared.emailFake)
+        implementation(projects.shared.partnershipsFake)
         implementation(projects.shared.phoneNumberFake)
         implementation(projects.shared.mobilePayFake)
         implementation(projects.shared.timeFake)

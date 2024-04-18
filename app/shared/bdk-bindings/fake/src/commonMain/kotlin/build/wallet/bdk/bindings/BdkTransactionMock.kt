@@ -1,6 +1,7 @@
 package build.wallet.bdk.bindings
 
 class BdkTransactionMock(
+  private val input: List<BdkTxIn> = emptyList(),
   private val output: List<BdkTxOut> = emptyList(),
 ) : BdkTransaction {
   override fun txid(): String = ""
@@ -13,7 +14,7 @@ class BdkTransactionMock(
 
   override fun vsize(): ULong = ULong.MAX_VALUE
 
-  override fun input(): List<BdkTxIn> = emptyList()
+  override fun input(): List<BdkTxIn> = input
 
   override fun output(): List<BdkTxOut> = output
 }

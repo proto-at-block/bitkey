@@ -5,10 +5,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.feature.isEnabled
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.firmware.FirmwareDeviceNotFoundEnabledFeatureFlag
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.SecureBootConfig
 import build.wallet.fwup.FirmwareDownloadError.NoUpdateNeeded
@@ -31,7 +29,6 @@ import kotlinx.datetime.Clock
 import kotlin.time.Duration.Companion.hours
 
 class FirmwareDataStateMachineImpl(
-  private val firmwareDeviceNotFoundEnabledFeatureFlag: FirmwareDeviceNotFoundEnabledFeatureFlag,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   private val fwupDataFetcher: FwupDataFetcher,
   private val fwupDataDao: FwupDataDao,
@@ -39,7 +36,7 @@ class FirmwareDataStateMachineImpl(
   @Composable
   override fun model(props: FirmwareDataProps): FirmwareData {
     if (props.isHardwareFake) {
-      return getFakeFirmwareData(firmwareDeviceNotFoundEnabledFeatureFlag.isEnabled())
+      return getFakeFirmwareData()
     }
 
     val firmwareDeviceInfo = rememberFirmwareDeviceInfo()
@@ -140,9 +137,9 @@ class FirmwareDataStateMachineImpl(
       .logFailure(LogLevel.Warn) { "Check for new firmware failed" }
   }
 
-  private fun getFakeFirmwareData(deviceInfoNotFound: Boolean): FirmwareData {
+  private fun getFakeFirmwareData(): FirmwareData {
     return FirmwareData(
-      firmwareUpdateState = FirmwareData.FirmwareUpdateState.UpToDate,
+      firmwareUpdateState = UpToDate,
       firmwareDeviceInfo =
         FirmwareDeviceInfo(
           version = "1.0.0",
@@ -156,7 +153,7 @@ class FirmwareDataStateMachineImpl(
           batteryCycles = 1234,
           secureBootConfig = SecureBootConfig.PROD,
           timeRetrieved = Clock.System.now().epochSeconds
-        ).takeUnless { deviceInfoNotFound },
+        ),
       checkForNewFirmware = {}
     )
   }

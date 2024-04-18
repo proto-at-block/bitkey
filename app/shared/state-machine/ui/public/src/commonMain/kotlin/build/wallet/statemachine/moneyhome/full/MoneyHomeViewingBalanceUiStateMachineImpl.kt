@@ -214,7 +214,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               accountData = props.accountData,
               appFunctionalityStatus = appFunctionalityStatus,
               trustedContacts =
-                props.socRecRelationships.trustedContacts +
+                props.socRecRelationships.endorsedTrustedContacts +
                   props.socRecRelationships.invitations,
               onAddBitcoin = {
                 props.setState(ViewingBalanceUiState(bottomSheetDisplayState = Partners()))

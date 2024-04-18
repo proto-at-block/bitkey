@@ -9,6 +9,7 @@ pub(crate) struct AddAppAuthPubkey<'a> {
 }
 
 impl<'a> AddAppAuthPubkey<'a> {
+    #[allow(dead_code)]
     pub fn new(service: &'a Service) -> Self {
         Self { service }
     }

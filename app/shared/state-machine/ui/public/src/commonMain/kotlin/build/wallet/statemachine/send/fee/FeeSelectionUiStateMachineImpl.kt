@@ -199,8 +199,7 @@ class FeeSelectionUiStateMachineImpl(
     LaunchedEffect("fetching-fee-options") {
       bitcoinTransactionFeeEstimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
-        keyset = props.accountData.account.keybox.activeSpendingKeyset,
-        fullAccountConfig = props.accountData.account.keybox.config,
+        account = props.accountData.account,
         recipientAddress = props.recipientAddress,
         amount = props.sendAmount
       )

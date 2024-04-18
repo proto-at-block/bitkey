@@ -62,6 +62,7 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
   val failedCloudBackupDataRetryCalls = turbines.create<Unit>("FailedCloudBackupData retry calls")
   val failedCloudBackupData =
     FailedCloudBackupDataFull(
+      error = Error("failed cloud backup"),
       retry = {
         failedCloudBackupDataRetryCalls.add(Unit)
       }

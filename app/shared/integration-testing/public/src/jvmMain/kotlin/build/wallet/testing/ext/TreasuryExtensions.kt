@@ -16,9 +16,7 @@ import com.github.michaelbull.result.getOrThrow
 suspend fun AppTester.returnFundsToTreasury(account: FullAccount) {
   app.apply {
     val spendingWallet =
-      appComponent.appSpendingWalletProvider.getSpendingWallet(
-        account.keybox.activeSpendingKeyset
-      ).getOrThrow()
+      appComponent.appSpendingWalletProvider.getSpendingWallet(account).getOrThrow()
 
     spendingWallet.sync().getOrThrow()
 
@@ -52,9 +50,8 @@ suspend fun AppTester.returnFundsToTreasury(account: FullAccount) {
 suspend fun AppTester.addSomeFunds(
   amount: BitcoinMoney = BitcoinMoney.sats(10_000L),
 ): FundingResult {
-  val keybox = getActiveFullAccount().keybox
   val wallet = app.appComponent.appSpendingWalletProvider
-    .getSpendingWallet(keybox.activeSpendingKeyset)
+    .getSpendingWallet(getActiveFullAccount())
     .getOrThrow()
   return treasuryWallet.fund(wallet, amount)
 }

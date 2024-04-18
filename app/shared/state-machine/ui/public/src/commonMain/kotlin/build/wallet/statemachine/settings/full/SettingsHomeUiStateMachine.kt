@@ -2,7 +2,7 @@ package build.wallet.statemachine.settings.full
 
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.money.display.CurrencyPreferenceData
-import build.wallet.recovery.socrec.SocRecFullAccountActions
+import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
@@ -24,7 +24,7 @@ data class SettingsHomeUiProps(
   val firmwareData: FirmwareData,
   val currencyPreferenceData: CurrencyPreferenceData,
   val socRecRelationships: SocRecRelationships,
-  val socRecActions: SocRecFullAccountActions,
+  val socRecActions: SocRecProtectedCustomerActions,
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
 )

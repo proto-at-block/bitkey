@@ -1,5 +1,7 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bdk.bindings.BdkTxIn
+import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
@@ -11,6 +13,7 @@ import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import com.ionspin.kotlin.bignum.integer.BigInteger
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.datetime.Instant
 
 data class BitcoinTransaction(
@@ -66,6 +69,14 @@ data class BitcoinTransaction(
    * customer.
    */
   val estimatedConfirmationTime: Instant?,
+  /**
+   * The transaction's inputs.
+   */
+  val inputs: ImmutableList<BdkTxIn>,
+  /**
+   * The transaction's outputs.
+   */
+  val outputs: ImmutableList<BdkTxOut>,
 ) {
   init {
     require(!subtotal.isNegative)

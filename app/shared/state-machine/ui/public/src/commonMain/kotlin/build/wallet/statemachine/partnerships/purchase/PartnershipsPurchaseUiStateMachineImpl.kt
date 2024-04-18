@@ -12,7 +12,6 @@ import build.wallet.f8e.partnerships.GetPurchaseOptionsService
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListService
 import build.wallet.f8e.partnerships.GetPurchaseRedirectService
 import build.wallet.f8e.partnerships.NoPurchaseOptionsError
-import build.wallet.f8e.partnerships.PartnerInfo
 import build.wallet.f8e.partnerships.PurchaseMethodAmounts
 import build.wallet.f8e.partnerships.Quote
 import build.wallet.f8e.partnerships.RedirectInfo
@@ -23,6 +22,9 @@ import build.wallet.logging.log
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnershipTransactionType
+import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -37,6 +39,7 @@ import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.QuotesState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.RedirectState
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -53,6 +56,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val getPurchaseOptionsService: GetPurchaseOptionsService,
   private val getPurchaseQuoteListService: GetPurchaseQuoteListService,
   private val getPurchaseRedirectService: GetPurchaseRedirectService,
+  private val partnershipsRepository: PartnershipTransactionsStatusRepository,
 ) : PartnershipsPurchaseUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseUiProps): SheetModel {
@@ -218,20 +222,27 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private suspend fun fetchRedirectInfo(
     props: PartnershipsPurchaseUiProps,
     redirectLoadingState: RedirectState.Loading,
-  ): Result<GetPurchaseRedirectService.Success, Throwable> {
-    return props.generateAddress()
-      .flatMap { address ->
-        getPurchaseRedirectService.purchaseRedirect(
-          fullAccountId = props.keybox.fullAccountId,
-          address = address,
-          f8eEnvironment = props.keybox.config.f8eEnvironment,
-          fiatAmount = redirectLoadingState.amount,
-          partner = redirectLoadingState.quote.partnerInfo.partner,
-          paymentMethod = redirectLoadingState.paymentMethod,
-          quoteId = redirectLoadingState.quote.quoteId
-        )
-      }
-  }
+  ): Result<GetPurchaseRedirectService.Success, Throwable> =
+    binding {
+      val localTransaction = partnershipsRepository.create(
+        partnerInfo = redirectLoadingState.quote.partnerInfo,
+        type = PartnershipTransactionType.PURCHASE
+      ).bind()
+
+      props.generateAddress()
+        .flatMap { address ->
+          getPurchaseRedirectService.purchaseRedirect(
+            fullAccountId = props.keybox.fullAccountId,
+            address = address,
+            f8eEnvironment = props.keybox.config.f8eEnvironment,
+            fiatAmount = redirectLoadingState.amount,
+            partner = redirectLoadingState.quote.partnerInfo.partner,
+            paymentMethod = redirectLoadingState.paymentMethod,
+            quoteId = redirectLoadingState.quote.quoteId,
+            partnerTransactionId = localTransaction.id
+          )
+        }.bind()
+    }
 
   private fun isValidPurchaseAmount(
     purchaseAmount: FiatMoney?,

@@ -2,7 +2,7 @@ package build.wallet.limit
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.limit.MobilePayLimitSetter.SetMobilePayLimitError
 import com.github.michaelbull.result.Result
@@ -14,7 +14,7 @@ class MobilePayLimitSetterMock(
   val setLimitCalls = turbine("set spending limit calls")
 
   override suspend fun setLimit(
-    keybox: Keybox,
+    account: FullAccount,
     spendingLimit: SpendingLimit,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, SetMobilePayLimitError> {

@@ -68,31 +68,51 @@ impl TransactionBroadcasterTrait for TransactionBroadcaster {
         let blockchain = get_blockchain(network, rpc_uris)?;
         blockchain
             .broadcast(&transaction.to_owned().extract_tx())
-            .map_err(|err| match err {
-                Electrum(ElectrumClientError::Protocol(ref json_value)) => {
-                    match json_value["message"].as_str() {
-                        // We broadcast on both App and Server, so we could get this error when the
-                        // App "wins" the race. Under those circumstances, we just return a 409 and
-                        // not consider it an error.
-                        Some(BAD_TXNS_MISSING_OR_SPENT_MESSAGE) => {
-                            event!(Level::WARN, "Failed to broadcast PSBT: {}", err.to_string());
-                            BdkUtilError::TransactionAlreadyInMempoolError
-                        }
-                        _ => {
-                            event!(
-                                Level::ERROR,
-                                "Failed to broadcast PSBT: {}",
-                                err.to_string()
-                            );
-                            BdkUtilError::TransactionBroadcastError(err)
-                        }
-                    }
-                }
-                _ => BdkUtilError::TransactionBroadcastError(err),
-            })?;
+            .map_err(as_bdk_util_err)?;
 
         Ok(())
     }
+}
+
+fn as_bdk_util_err(value: bdk::Error) -> BdkUtilError {
+    match value {
+        Electrum(ElectrumClientError::Protocol(ref json_value)) => {
+            if let Some(message) = json_value["message"].as_str() {
+                // We broadcast on both App and Server, so we could get this error when the
+                // App "wins" the race. Under those circumstances, we just return a 409 and
+                // not consider it an error.
+                if message == BAD_TXNS_MISSING_OR_SPENT_MESSAGE {
+                    event!(
+                        Level::WARN,
+                        "Failed to broadcast PSBT with message: {}",
+                        BAD_TXNS_MISSING_OR_SPENT_MESSAGE
+                    );
+                    return BdkUtilError::TransactionAlreadyInMempoolError;
+                }
+
+                event!(
+                    Level::ERROR,
+                    "Failed to broadcast PSBT with message: {}",
+                    message.to_string()
+                );
+            } else {
+                event!(
+                    Level::ERROR,
+                    "Failed to broadcast PSBT {}",
+                    json_value.to_string()
+                );
+            }
+        }
+        _ => {
+            event!(
+                Level::ERROR,
+                "Failed to broadcast PSBT {}",
+                value.to_string()
+            );
+        }
+    }
+
+    BdkUtilError::TransactionBroadcastError(value)
 }
 
 pub fn get_electrum_client(
@@ -449,14 +469,22 @@ mod tests {
     use bdk::bitcoin::Network;
     use bdk::database::{AnyDatabase, BatchOperations, MemoryDatabase};
     use bdk::descriptor::IntoWalletDescriptor;
+
+    use bdk::electrum_client::Error as ElectrumClientError;
     use bdk::keys::GeneratableKey;
     use bdk::template::{Bip84, DescriptorTemplate};
     use bdk::wallet::tx_builder::TxOrdering;
     use bdk::wallet::AddressIndex;
     use bdk::BlockTime;
+    use bdk::Error::Electrum;
     use bdk::{bitcoin, populate_test_db, testutils, KeychainKind, Wallet};
+    use serde_json::json;
 
-    use crate::{get_electrum_server, AttributableWallet, ElectrumRpcUris, PsbtWithDerivation};
+    use crate::error::BdkUtilError;
+    use crate::{
+        as_bdk_util_err, get_electrum_server, AttributableWallet, ElectrumRpcUris,
+        PsbtWithDerivation,
+    };
 
     fn get_test_wallet() -> Wallet<AnyDatabase> {
         let xprv = ExtendedPrivKey::generate(()).unwrap();
@@ -587,5 +615,16 @@ mod tests {
         assert!(get_electrum_server(Network::Testnet, &rpc_uris).is_ok());
         assert!(get_electrum_server(Network::Signet, &rpc_uris).is_ok());
         assert!(get_electrum_server(Network::Regtest, &rpc_uris).is_err());
+    }
+
+    #[test]
+    fn test_convert_bdk_error_to_bdk_util_error() {
+        match as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json!({
+            "code": -25,
+            "message": "bad-txns-inputs-missingorspent"
+        })))) {
+            BdkUtilError::TransactionAlreadyInMempoolError => assert!(true),
+            _ => assert!(false),
+        }
     }
 }

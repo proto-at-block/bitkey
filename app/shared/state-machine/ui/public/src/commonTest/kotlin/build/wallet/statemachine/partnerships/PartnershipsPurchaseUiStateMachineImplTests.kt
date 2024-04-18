@@ -11,6 +11,9 @@ import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
+import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
+import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.awaitSheetWithBody
@@ -24,6 +27,7 @@ import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiSta
 import build.wallet.ui.model.list.ListItemModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
@@ -39,13 +43,19 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     turbines.create<Pair<FiatMoney, FiatMoney>>(
       "on select custom amount"
     )
+  val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
+    clearCalls = turbines.create("clear calls"),
+    syncCalls = turbines.create("sync calls"),
+    createCalls = turbines.create("create calls")
+  )
 
   val stateMachine =
     PartnershipsPurchaseUiStateMachineImpl(
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
       getPurchaseOptionsService = getPurchaseOptionsService,
       getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-      getPurchaseRedirectService = getPurchaseRedirectServiceMock
+      getPurchaseRedirectService = getPurchaseRedirectServiceMock,
+      partnershipsRepository = partnershipRepositoryMock
     )
 
   fun props(
@@ -178,6 +188,17 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
       awaitSheetWithBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
+
+        partnershipRepositoryMock.createCalls.awaitItem().should { (partnerInfo, type) ->
+          type.shouldBe(PartnershipTransactionType.PURCHASE)
+          partnerInfo.shouldBe(
+            PartnerInfo(
+              logoUrl = "https://logo.url.example.com",
+              name = "partner",
+              partner = "partner"
+            )
+          )
+        }
         onPartnerRedirectedCalls.awaitItem().shouldBe(
           PartnerRedirectionMethod.Web(
             "http://example.com/redirect_url"

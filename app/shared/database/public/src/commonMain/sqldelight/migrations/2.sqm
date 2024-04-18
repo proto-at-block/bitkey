@@ -1,0 +1,24 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import build.wallet.partnerships.PartnershipTransactionId;
+import build.wallet.partnerships.PartnershipTransactionStatus;
+import build.wallet.partnerships.PartnershipTransactionType;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE partnershipTransactionEntity (
+    transactionId TEXT AS PartnershipTransactionId NOT NULL PRIMARY KEY,
+    type TEXT AS PartnershipTransactionType NOT NULL,
+    status TEXT AS PartnershipTransactionStatus,
+    context TEXT,
+    partnerLogoUrl TEXT,
+    partnerName TEXT NOT NULL,
+    partnerId TEXT NOT NULL,
+    cryptoAmount REAL,
+    txid TEXT,
+    fiatAmount REAL,
+    fiatCurrency TEXT AS IsoCurrencyTextCode,
+    paymentMethod TEXT,
+    created INTEGER AS Instant NOT NULL,
+    updated INTEGER AS Instant NOT NULL
+);
+
+PRAGMA foreign_key_check;

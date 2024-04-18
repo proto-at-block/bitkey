@@ -3,6 +3,7 @@ package build.wallet.bitcoin.wallet
 import build.wallet.LoadableValue
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.LoadableValue.LoadedValue
+import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkAddressIndex
 import build.wallet.bdk.bindings.BdkAddressIndex.LAST_UNUSED
@@ -13,8 +14,10 @@ import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkIO
 import build.wallet.bdk.bindings.BdkPartiallySignedTransaction
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
+import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkTxBuilderFactory
 import build.wallet.bdk.bindings.BdkTxBuilderResult
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bdk.bindings.BdkWallet
 import build.wallet.bdk.bindings.getAddress
 import build.wallet.bdk.bindings.getBalance
@@ -38,6 +41,7 @@ import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.Regular
 import build.wallet.catching
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
+import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -49,12 +53,13 @@ import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 
 class SpendingWalletImpl(
@@ -67,14 +72,18 @@ class SpendingWalletImpl(
   private val bdkTxBuilderFactory: BdkTxBuilderFactory,
   private val bdkAddressBuilder: BdkAddressBuilder,
   private val bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
+  private val appSessionManager: AppSessionManager,
+  private val syncContext: CoroutineContext = Dispatchers.IO,
 ) : SpendingWallet {
   private val balanceState = MutableStateFlow<LoadableValue<BitcoinBalance>>(InitialLoading)
   private val transactionsState =
     MutableStateFlow<LoadableValue<List<BitcoinTransaction>>>(InitialLoading)
+  private val unspentOutputsState = MutableStateFlow<LoadableValue<List<BdkUtxo>>>(InitialLoading)
 
   override suspend fun initializeBalanceAndTransactions() {
     getBalance().onSuccess { balanceState.value = LoadedValue(it) }
     getTransactions().onSuccess { transactionsState.value = LoadedValue(it) }
+    getUnspentOutputs().onSuccess { unspentOutputsState.value = LoadedValue(it) }
   }
 
   override suspend fun sync(): Result<Unit, Error> =
@@ -92,6 +101,11 @@ class SpendingWalletImpl(
         .logFailure { "Error getting balance" }
         .bind()
         .also { balanceState.value = LoadedValue(it) }
+
+      getUnspentOutputs()
+        .logFailure { "Error retrieving UTXOs" }
+        .bind()
+        .also { unspentOutputsState.value = LoadedValue(it) }
     }
 
   override fun launchPeriodicSync(
@@ -99,9 +113,11 @@ class SpendingWalletImpl(
     interval: Duration,
   ) {
     // Set up periodic syncs based on the given frequency
-    scope.launch(Dispatchers.IO) {
-      while (true) {
-        sync()
+    scope.launch(syncContext) {
+      while (isActive) {
+        if (appSessionManager.isAppForegrounded()) {
+          sync()
+        }
         delay(interval)
       }
     }
@@ -126,13 +142,19 @@ class SpendingWalletImpl(
     return bdkAddressBuilder.build(address.address, networkType.bdkNetwork)
       .result
       .flatMap { bdkAddress ->
-        bdkWallet.isMine(bdkAddress.scriptPubkey()).result
+        isMine(bdkAddress.scriptPubkey())
       }
+  }
+
+  override suspend fun isMine(scriptPubKey: BdkScript): Result<Boolean, Error> {
+    return bdkWallet.isMine(scriptPubKey).result
   }
 
   override fun balance(): Flow<LoadableValue<BitcoinBalance>> = balanceState
 
   override fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>> = transactionsState
+
+  override fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>> = unspentOutputsState
 
   private suspend fun getBalance(): Result<BitcoinBalance, Error> {
     return bdkWallet
@@ -259,6 +281,10 @@ class SpendingWalletImpl(
           .bind()
       }
     }
+
+  private fun getUnspentOutputs(): Result<List<BdkUtxo>, Error> {
+    return bdkWallet.listUnspentBlocking().result
+  }
 
   /*
    * Creates a fee-bumped PSBT with BDK

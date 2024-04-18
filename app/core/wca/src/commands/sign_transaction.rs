@@ -1,6 +1,4 @@
-use bitcoin::{
-    psbt::PartiallySignedTransaction, secp256k1::Secp256k1, util::bip32::DerivationPath,
-};
+use bitcoin::{bip32::DerivationPath, psbt::PartiallySignedTransaction, secp256k1::Secp256k1};
 use miniscript::{psbt::PsbtExt, DescriptorPublicKey};
 use next_gen::prelude::*;
 use std::result::Result;

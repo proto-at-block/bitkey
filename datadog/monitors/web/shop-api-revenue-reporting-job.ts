@@ -73,5 +73,19 @@ export class ShopApiRevenueReportingJobMonitors extends Construct {
             tags: tags,
             ...executionRateConfig,
         });
+
+        const revenueEndpoint = "/api/revenuedata"
+        new Monitor(this, "revenue_data_integration_error_rate_too_high", {
+            query: trace_analytics_count_query(
+                `${error_query} @http.path_group:"${revenueEndpoint}"`,
+                window,
+                trace_alert_config.monitorThresholds.critical,
+            ),
+            name: `$[web-shop-api-revenue-reporting-job]: Revenue data endpoint error rate too high`,
+            message:
+            `[web-shop-api-revenue-reporting-job]: throughput deviated too much from its usual value.`,
+            tags: tags,
+            ...trace_alert_config,
+        });
     }
 }

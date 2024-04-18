@@ -35,10 +35,9 @@ class MobilePayDataStateMachineImpl(
 ) : MobilePayDataStateMachine {
   @Composable
   override fun model(props: MobilePayProps): MobilePayData {
-    val mobilePayStatus =
-      remember(props.account.keybox, props.spendingWallet) {
-        mobilePayStatusProvider.status(props.account.keybox, props.spendingWallet)
-      }.collectAsState(null).value
+    val mobilePayStatus = remember(props.account) {
+      mobilePayStatusProvider.status(props.account)
+    }.collectAsState(null).value
 
     val scope = rememberStableCoroutineScope()
 
@@ -50,14 +49,11 @@ class MobilePayDataStateMachineImpl(
           balance = mobilePayStatus.balance,
           disableMobilePay = {
             scope.launch {
-              mobilePayDisabler.disable(
-                f8eEnvironment = props.account.config.f8eEnvironment,
-                fullAccountId = props.account.accountId
-              ).onSuccess {
-                eventTracker.track(
-                  ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
-                )
-              }
+              mobilePayDisabler
+                .disable(account = props.account)
+                .onSuccess {
+                  eventTracker.track(ACTION_APP_MOBILE_TRANSACTIONS_DISABLED)
+                }
             }
           },
           remainingFiatSpendingAmount =
@@ -114,7 +110,7 @@ class MobilePayDataStateMachineImpl(
   ): Result<Unit, SetMobilePayLimitError> =
     mobilePayLimitSetter
       .setLimit(
-        keybox = props.account.keybox,
+        account = props.account,
         spendingLimit = newSpendingLimit,
         hwFactorProofOfPossession = hwFactorProofOfPossession
       )

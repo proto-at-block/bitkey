@@ -4,7 +4,6 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock2
 import build.wallet.bitkey.keybox.LiteAccountMock
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.core.test.testCoroutineScheduler
 import io.kotest.matchers.equals.shouldBeEqual
@@ -21,7 +20,7 @@ class SyncSequencerTests : FunSpec({
   val liteAccount = LiteAccountMock
 
   test(
-    "second call throws if first call is running and account IDs differ"
+    "second call is not executed if first call is running and account IDs differ"
   ).config(coroutineTestScope = true) {
     val channel = Channel<Int>()
 
@@ -31,15 +30,16 @@ class SyncSequencerTests : FunSpec({
     }
     testCoroutineScheduler.runCurrent()
 
-    shouldThrow<IllegalStateException> {
+    launch {
       sync.run(fullAccount2) { channel.send(2) }
     }
+    testCoroutineScheduler.runCurrent()
 
     channel.receive().shouldBeEqual(1)
   }
 
   test(
-    "second call throws if first call is running and account types differ"
+    "second call is not executed if first call is running and account types differ"
   ).config(coroutineTestScope = true) {
     val channel = Channel<Int>()
 
@@ -49,9 +49,10 @@ class SyncSequencerTests : FunSpec({
     }
     testCoroutineScheduler.runCurrent()
 
-    shouldThrow<IllegalStateException> {
+    launch {
       sync.run(liteAccount) { channel.send(2) }
     }
+    testCoroutineScheduler.runCurrent()
 
     channel.receive().shouldBeEqual(1)
   }

@@ -2,16 +2,16 @@
     "module-identifier": "com.ionspin.kotlin:bignum-iosx64",
     "components": [
         {
-            "version": "0.3.8",
+            "version": "0.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "bignum-iosx64-0.3.8-metadata.jar": "508379cd1a4675c71ba1ee85fe219110028165e9351761901f237d72351e5d40"
+                        "bignum-iosx64-0.3.9-metadata.jar": "eabe10075f24c9347f72e68738f4d563bc093bda6213ed54471b7d9fafae5674"
                     }
                 },
                 {
                     "artifacts": {
-                        "bignum.klib": "052f81fa04516fcbcfc08824ef29303abaed6f65dd0dadac96cf6a8e51fc8dee"
+                        "bignum.klib": "d983e4215cc164e0c97577dd5309b6dbed1597dcd84c7c77b6788eeb3cecef95"
                     }
                 }
             ],

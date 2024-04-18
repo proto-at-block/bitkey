@@ -54,7 +54,7 @@ fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
           Modifier
             .fillMaxWidth()
       ) {
-          val scrollState = rememberScrollState()
+        val scrollState = rememberScrollState()
 
         Box(
           contentAlignment = Alignment.Center,
@@ -64,7 +64,7 @@ fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
             modifier = Modifier
               .verticalScroll(scrollState)
               .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            horizontalAlignment = Alignment.CenterHorizontally
           ) {
             when (val content = model.content) {
               is QrCode -> {
@@ -76,36 +76,36 @@ fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
                 Label(
                   modifier = Modifier.padding(top = 24.dp),
                   text = "This address only accepts Bitcoin (BTC). " +
-                      "Sending other assets will result in permanent loss of funds.",
+                    "Sending other assets will result in permanent loss of funds.",
                   type = LabelType.Body4Regular,
                   alignment = TextAlign.Center,
                   treatment = LabelTreatment.Secondary
                 )
                 RowOfButtons(
                   modifier =
-                  Modifier
-                    .padding(top = 24.dp, bottom = 16.dp),
+                    Modifier
+                      .padding(top = 24.dp, bottom = 16.dp),
                   buttonContents =
-                  ButtonContentsList(
-                    listOf(
-                      {
-                        Box(
-                          modifier = Modifier.weight(1F),
-                          contentAlignment = Alignment.Center
-                        ) {
-                          Button(model = content.shareButtonModel)
+                    ButtonContentsList(
+                      listOf(
+                        {
+                          Box(
+                            modifier = Modifier.weight(1F),
+                            contentAlignment = Alignment.Center
+                          ) {
+                            Button(model = content.shareButtonModel)
+                          }
+                        },
+                        {
+                          Box(
+                            modifier = Modifier.weight(1F),
+                            contentAlignment = Alignment.Center
+                          ) {
+                            Button(model = content.copyButtonModel)
+                          }
                         }
-                      },
-                      {
-                        Box(
-                          modifier = Modifier.weight(1F),
-                          contentAlignment = Alignment.Center
-                        ) {
-                          Button(model = content.copyButtonModel)
-                        }
-                      }
-                    )
-                  ),
+                      )
+                    ),
                   interButtonSpacing = 16.dp
                 )
               }
@@ -113,18 +113,18 @@ fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
               is Error ->
                 Header(
                   model =
-                  FormHeaderModel(
-                    headline = content.title,
-                    subline = content.subline,
-                    icon = LargeIconWarningFilled,
-                    alignment = FormHeaderModel.Alignment.CENTER
-                  )
+                    FormHeaderModel(
+                      headline = content.title,
+                      subline = content.subline,
+                      icon = LargeIconWarningFilled,
+                      alignment = FormHeaderModel.Alignment.CENTER
+                    )
                 )
             }
           }
         }
-        }
       }
+    }
   }
 }
 

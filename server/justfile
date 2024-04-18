@@ -53,7 +53,7 @@ build-bins:
 
 # Run all tests
 test: sidecars
-  {{cargo}} test
+  {{cargo}} nextest run
 
 # Run server tests
 test-server: sidecars

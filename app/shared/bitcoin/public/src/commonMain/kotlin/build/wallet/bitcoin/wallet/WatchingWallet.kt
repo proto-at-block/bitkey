@@ -1,6 +1,8 @@
 package build.wallet.bitcoin.wallet
 
 import build.wallet.LoadableValue
+import build.wallet.bdk.bindings.BdkScript
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
@@ -20,6 +22,7 @@ import kotlin.time.Duration
  *
  * Instances of this interfaces can be created using [WatchingWalletProvider].
  */
+@Suppress("TooManyFunctions")
 interface WatchingWallet {
   /**
    * The identifier of the wallet. Unique to descriptor associated with the wallet. Does not expose
@@ -61,6 +64,11 @@ interface WatchingWallet {
   suspend fun isMine(address: BitcoinAddress): Result<Boolean, Error>
 
   /**
+   * Checks if the scriptPubKey belongs to the [WatchingWallet]
+   */
+  suspend fun isMine(scriptPubKey: BdkScript): Result<Boolean, Error>
+
+  /**
    * Emits the current balance of the wallet. The balance is pulled after every sync.
    *
    * At first emits [LoadableValue.InitialLoading] and then [LoadableValue.LoadedValue] after
@@ -75,6 +83,14 @@ interface WatchingWallet {
    * every successful [sync].
    */
   fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>>
+
+  /**
+   * Emits current list of unspent transaction outputs. It is pulled after every sync.
+   *
+   * At first emits [LoadableValue.InitialLoading] and then [LoadableValue.LoadedValue] after
+   * every successful [sync].
+   */
+  fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>>
 
   /**
    * Creates a PSBT using utxos from this wallet.

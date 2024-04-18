@@ -1,7 +1,7 @@
 package build.wallet.statemachine.cloud
 
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.statemachine.core.ScreenModel
@@ -31,7 +31,7 @@ interface FullAccountCloudSignInAndBackupUiStateMachine : StateMachine<FullAccou
 data class FullAccountCloudSignInAndBackupProps(
   val sealedCsek: SealedCsek?,
   val keybox: Keybox,
-  val trustedContacts: List<TrustedContact>,
+  val endorsedTrustedContacts: List<EndorsedTrustedContact>,
   val onBackupFailed: (cause: Throwable?) -> Unit,
   val onBackupSaved: () -> Unit,
   val onExistingAppDataFound: (

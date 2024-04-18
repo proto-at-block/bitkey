@@ -4,6 +4,9 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
 import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
+import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
+import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -14,6 +17,7 @@ import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiPro
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
@@ -28,12 +32,18 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     )
   val getTransferPartnerListService = GetTransferPartnerListServiceMock(turbines::create)
   val getTransferRedirectService = GetTransferRedirectServiceMock(turbines::create)
+  val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
+    clearCalls = turbines.create("clear calls"),
+    syncCalls = turbines.create("sync calls"),
+    createCalls = turbines.create("create calls")
+  )
 
   // state machine
   val stateMachine =
     PartnershipsTransferUiStateMachineImpl(
       getTransferPartnerListService = getTransferPartnerListService,
-      getTransferRedirectService = getTransferRedirectService
+      getTransferRedirectService = getTransferRedirectService,
+      partnershipsRepository = partnershipRepositoryMock
     )
 
   fun props() =
@@ -80,6 +90,16 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
 
           awaitSheetWithBody<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()
+            partnershipRepositoryMock.createCalls.awaitItem().should { (partnerInfo, type) ->
+              type.shouldBe(PartnershipTransactionType.TRANSFER)
+              partnerInfo.shouldBe(
+                PartnerInfo(
+                  logoUrl = null,
+                  name = "Partner 2",
+                  partner = "Partner2"
+                )
+              )
+            }
             onPartnerRedirectedCalls.awaitItem().shouldBe(
               PartnerRedirectionMethod.Web(
                 "http://example.com/redirect_url"

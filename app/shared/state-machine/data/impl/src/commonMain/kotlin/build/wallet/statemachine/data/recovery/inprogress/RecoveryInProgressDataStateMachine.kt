@@ -22,7 +22,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
@@ -416,7 +416,7 @@ class RecoveryInProgressDataStateMachineImpl(
               PerformingCloudBackupState(
                 sealedCsek = dataState.sealedCsek,
                 keybox = dataState.keybox,
-                trustedContacts = dataState.trustedContacts
+                endorsedTrustedContacts = dataState.endorsedTrustedContacts
               )
           }
         )
@@ -448,7 +448,7 @@ class RecoveryInProgressDataStateMachineImpl(
         PerformingCloudBackupData(
           sealedCsek = dataState.sealedCsek,
           keybox = dataState.keybox,
-          trustedContacts = dataState.trustedContacts,
+          endorsedTrustedContacts = dataState.endorsedTrustedContacts,
           onBackupFinished = {
             scope.launch {
               recoverySyncer
@@ -461,7 +461,7 @@ class RecoveryInProgressDataStateMachineImpl(
                 cause = error,
                 sealedCsek = dataState.sealedCsek,
                 keybox = dataState.keybox,
-                trustedContacts = dataState.trustedContacts
+                endorsedTrustedContacts = dataState.endorsedTrustedContacts
               )
           }
         )
@@ -563,7 +563,7 @@ class RecoveryInProgressDataStateMachineImpl(
         trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           accountId = props.recovery.fullAccountId,
-          contacts = dataState.trustedContacts,
+          contacts = dataState.endorsedTrustedContacts,
           oldAppGlobalAuthKey = props.oldAppGlobalAuthKey,
           oldHwAuthKey = props.recovery.hardwareAuthKey,
           newAppGlobalAuthKey = props.recovery.appGlobalAuthKey,
@@ -581,7 +581,7 @@ class RecoveryInProgressDataStateMachineImpl(
           PerformingCloudBackupState(
             dataState.sealedCsek,
             dataState.keybox,
-            dataState.trustedContacts
+            dataState.endorsedTrustedContacts
           )
         )
       }
@@ -596,7 +596,7 @@ class RecoveryInProgressDataStateMachineImpl(
     assignState: (State) -> Unit,
   ) {
     LaunchedEffect("get-trusted-contacts") {
-      socRecRelationshipsRepository.syncRelationshipsWithoutVerification(
+      socRecRelationshipsRepository.getRelationshipsWithoutSyncing(
         accountId = props.recovery.fullAccountId,
         f8eEnvironment = props.fullAccountConfig.f8eEnvironment
       ).onSuccess { relationships ->
@@ -604,7 +604,7 @@ class RecoveryInProgressDataStateMachineImpl(
           State.RegeneratingTcCertificatesState(
             sealedCsek = dataState.sealedCsek,
             keybox = dataState.keybox,
-            trustedContacts = relationships.trustedContacts
+            endorsedTrustedContacts = relationships.endorsedTrustedContacts
           )
         )
       }.onFailure { error ->
@@ -886,7 +886,7 @@ class RecoveryInProgressDataStateMachineImpl(
     ) : State
 
     /**
-     * Getting [TrustedContact]s.
+     * Getting [EndorsedTrustedContact]s.
      */
     data class GettingTrustedContactsState(
       val sealedCsek: SealedCsek,
@@ -905,7 +905,7 @@ class RecoveryInProgressDataStateMachineImpl(
     data class RegeneratingTcCertificatesState(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val trustedContacts: List<TrustedContact>,
+      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
     ) : State
 
     /**
@@ -914,14 +914,14 @@ class RecoveryInProgressDataStateMachineImpl(
     data class PerformingCloudBackupState(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val trustedContacts: List<TrustedContact>,
+      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
     ) : State
 
     data class FailedPerformingCloudBackupState(
       val cause: Throwable?,
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val trustedContacts: List<TrustedContact>,
+      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
     ) : State
 
     /**

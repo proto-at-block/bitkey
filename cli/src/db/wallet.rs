@@ -1,6 +1,6 @@
 use anyhow::Result;
 use bdk::{
-    bitcoin::util::bip32::ChildNumber,
+    bitcoin::bip32::ChildNumber,
     descriptor::{DescriptorPublicKey, ExtendedDescriptor},
     miniscript::Descriptor,
     signer::SignerOrdering,

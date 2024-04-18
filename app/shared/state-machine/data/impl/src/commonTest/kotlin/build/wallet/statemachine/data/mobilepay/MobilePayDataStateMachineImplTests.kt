@@ -3,7 +3,6 @@ package build.wallet.statemachine.data.mobilepay
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
-import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -42,7 +41,6 @@ class MobilePayDataStateMachineImplTests : FunSpec({
     )
 
   val account = FullAccountMock
-  val spendingWallet = SpendingWalletMock(turbines::create)
   val limit1 = SpendingLimitMock(amount = FiatMoney.usd(100))
   val fiatLimit2 = FiatMoney.usd(200)
   val limit2 = SpendingLimitMock(amount = fiatLimit2)
@@ -50,7 +48,6 @@ class MobilePayDataStateMachineImplTests : FunSpec({
   val props =
     MobilePayProps(
       account = account,
-      spendingWallet = spendingWallet,
       transactionsData = KeyboxTransactionsDataMock,
       fiatCurrency = USD
     )

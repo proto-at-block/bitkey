@@ -11,7 +11,7 @@ name = "feature_flags"
 debug-embed = ["rust-embed/debug-embed"]
 
 [dependencies]
-launchdarkly-server-sdk = "2.0.2"
+launchdarkly-server-sdk = { workspace = true }
 rust-embed = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

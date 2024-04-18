@@ -64,7 +64,7 @@ fn fund_wallet_from_treasury(
 ) -> Result<Address> {
     let key_str = parse_or_fetch_key(treasury_root_key)?;
 
-    let key = bitcoin::util::bip32::ExtendedPrivKey::from_str(&key_str)?;
+    let key = bitcoin::bip32::ExtendedPrivKey::from_str(&key_str)?;
     let treasury_wallet = Wallet::new(
         Bip84(key, KeychainKind::External),
         Some(Bip84(key, KeychainKind::Internal)),

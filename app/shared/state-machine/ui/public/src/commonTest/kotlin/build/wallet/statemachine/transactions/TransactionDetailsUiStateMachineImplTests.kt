@@ -10,7 +10,9 @@ import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityCheckerFake
 import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.setFlagValue
@@ -119,8 +121,9 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
   val feeBumpEnabledFeatureFlag =
     FeeBumpIsAvailableFeatureFlag(
-      featureFlagDao = FeatureFlagDaoMock(),
+      featureFlagDao = FeatureFlagDaoMock()
     )
+  val bitcoinTransactionBumpabilityChecker = BitcoinTransactionBumpabilityCheckerFake(isBumpable = false)
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
@@ -138,7 +141,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       clock = clock,
       durationFormatter = durationFormatter,
       eventTracker = eventTracker,
-      feeBumpEnabled = feeBumpEnabledFeatureFlag
+      feeBumpEnabled = feeBumpEnabledFeatureFlag,
+      bitcoinTransactionBumpabilityChecker = bitcoinTransactionBumpabilityChecker
     )
 
   val onCloseCalls = turbines.create<Unit>("close-calls")
@@ -261,7 +265,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
         // Time Details
         with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
-          items[0].expect(title = "Confirmed at", sideText = "Unconfirmed")
+          items[0].expect(title = "Should arrive by", sideText = "estimated-confirmation-time")
         }
 
         // Amount Details
@@ -384,6 +388,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
   context("Speed up feature flag is on") {
     beforeTest {
       feeBumpEnabledFeatureFlag.setFlagValue(true)
+      bitcoinTransactionBumpabilityChecker.isBumpable = true
     }
 
     test("pending sent transaction returns correct model") {
@@ -501,7 +506,7 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
 
         // Show correct error
         awaitScreenWithBody<FormBodyModel> {
-          header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("The amount you are trying to send is too high. Please decrease the amount and try again.")
+          header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldBe("There are not enough funds to speed up the transaction. Please add more funds and try again.")
         }
       }
     }
@@ -524,7 +529,9 @@ private val TEST_RECEIVE_TXN =
     fee = null,
     weight = 253UL,
     vsize = 63UL,
-    incoming = true
+    incoming = true,
+    inputs = immutableListOf(),
+    outputs = immutableListOf()
   )
 private val TEST_SEND_TXN =
   BitcoinTransaction(
@@ -541,7 +548,9 @@ private val TEST_SEND_TXN =
     fee = BitcoinMoney.sats(1_000_000),
     weight = 253UL,
     vsize = 63UL,
-    incoming = false
+    incoming = false,
+    inputs = immutableListOf(),
+    outputs = immutableListOf()
   )
 
 private fun FormBodyModel.testButtonsAndHeader(

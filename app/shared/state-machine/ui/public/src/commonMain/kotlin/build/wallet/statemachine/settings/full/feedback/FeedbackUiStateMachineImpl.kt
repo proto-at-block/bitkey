@@ -2,7 +2,6 @@ package build.wallet.statemachine.settings.full.feedback
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,8 +12,6 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.settings.full.feedback.old.OldFeedbackUiProps
-import build.wallet.statemachine.settings.full.feedback.old.OldFeedbackUiStateMachine
 import build.wallet.support.SupportTicketData
 import build.wallet.support.SupportTicketForm
 import build.wallet.support.SupportTicketRepository
@@ -23,25 +20,10 @@ import com.github.michaelbull.result.Ok
 
 class FeedbackUiStateMachineImpl(
   private val supportTicketRepository: SupportTicketRepository,
-  private val feedbackFormNewUiEnabled: FeedbackFormNewUiEnabledFeatureFlag,
-  private val feedbackFormAddAttachments: FeedbackFormAddAttachmentsFeatureFlag,
   private val feedbackFormUiStateMachine: FeedbackFormUiStateMachine,
-  private val oldFeedbackUiStateMachine: OldFeedbackUiStateMachine,
 ) : FeedbackUiStateMachine {
   @Composable
   override fun model(props: FeedbackUiProps): ScreenModel {
-    val newUiEnabled by remember {
-      feedbackFormNewUiEnabled.flagValue()
-    }.collectAsState()
-
-    val addAttachmentsEnabled by remember {
-      feedbackFormAddAttachments.flagValue()
-    }.collectAsState()
-
-    if (!newUiEnabled.value) {
-      return oldFeedbackUiStateMachine.model(OldFeedbackUiProps(onBack = props.onBack))
-    }
-
     var uiState: FeedbackUiState by remember {
       mutableStateOf(FeedbackUiState.LoadingFormStructure)
     }
@@ -77,7 +59,6 @@ class FeedbackUiStateMachineImpl(
               accountId = props.accountId,
               formStructure = state.structure,
               initialData = state.initialData,
-              addAttachmentsEnabled = addAttachmentsEnabled.value,
               onBack = props.onBack
             )
         )

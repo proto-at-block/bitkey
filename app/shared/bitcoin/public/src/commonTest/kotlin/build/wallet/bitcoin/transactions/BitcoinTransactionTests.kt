@@ -1,8 +1,11 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bdk.bindings.BdkTxIn
+import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
 import build.wallet.time.someInstant
@@ -11,6 +14,7 @@ import io.kotest.assertions.throwables.shouldNotThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.collections.immutable.ImmutableList
 
 class BitcoinTransactionTests : FunSpec({
 
@@ -51,6 +55,8 @@ private fun makeTransaction(
   total: BitcoinMoney = BitcoinMoney.sats(1_000),
   fee: BitcoinMoney? = null,
   incoming: Boolean = false,
+  inputs: ImmutableList<BdkTxIn> = emptyImmutableList(),
+  outputs: ImmutableList<BdkTxOut> = emptyImmutableList(),
 ): BitcoinTransaction =
   BitcoinTransaction(
     id = id,
@@ -66,5 +72,7 @@ private fun makeTransaction(
     fee = fee,
     weight = 1300UL,
     vsize = 325UL,
-    incoming = incoming
+    incoming = incoming,
+    inputs = inputs,
+    outputs = outputs
   )

@@ -6,13 +6,10 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
-import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.setFlagValue
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
@@ -42,14 +39,11 @@ import kotlin.reflect.KClass
 class SettingsListUiStateMachineImplTests : FunSpec({
 
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
-  val featureFlagDao = FeatureFlagDaoMock()
-  val cloudBackupHealthFeatureFlag = CloudBackupHealthFeatureFlag(featureFlagDao)
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
 
   val stateMachine =
     SettingsListUiStateMachineImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
-      cloudBackupHealthFeatureFlag = cloudBackupHealthFeatureFlag,
       cloudBackupHealthRepository = cloudBackupHealthRepository
     )
 
@@ -92,9 +86,6 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   afterEach {
     appFunctionalityStatusProvider.reset()
     cloudBackupHealthRepository.reset()
-    cloudBackupHealthFeatureFlag.apply {
-      setFlagValue(defaultFlagValue)
-    }
   }
 
   test("onBack calls props onBack") {
@@ -122,23 +113,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("cloud backup health setting when feature flag is enabled") {
-    cloudBackupHealthFeatureFlag.setFlagValue(true)
-    stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
-        sectionModels
-          .first { it.sectionHeaderTitle == "Security & Recovery" }
-          .rowModels
-          .first { it.title == "Cloud Backup" }
-          .should {
-            it.isDisabled.shouldBeFalse()
-          }
-      }
-    }
-  }
-
   test("cloud backup health setting when mobile backup has problem") {
-    cloudBackupHealthFeatureFlag.setFlagValue(true)
     cloudBackupHealthRepository.mobileKeyBackupStatus.value =
       LoadableValue.LoadedValue(MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess)
     stateMachine.test(props) {

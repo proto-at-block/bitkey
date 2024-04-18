@@ -55,7 +55,7 @@ class LiteSettingsHomeUiStateMachineImpl(
             LiteTrustedContactManagementProps(
               accountData = props.accountData,
               protectedCustomers = props.protectedCustomers,
-              actions = props.socRecLiteAccountActions,
+              actions = props.socRecTrustedContactActions,
               acceptInvite = null,
               onExit = { uiState = State.ShowingAllSettingsList }
             )

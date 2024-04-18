@@ -59,7 +59,6 @@ use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use notification::clients::iterable::{IterableClient, IterableMode};
 use notification::clients::twilio::{TwilioClient, TwilioMode};
-use notification::service::Service as NotificationService;
 use recovery::repository::Repository as RecoveryService;
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
 use wsm_rust_client::{SigningService, WsmClient};
@@ -89,7 +88,6 @@ pub struct RouteState(
     pub UserPoolService,
     pub Config,
     pub IdentifierGenerator,
-    pub NotificationService,
     pub AccountService,
     pub RecoveryService,
     pub WsmClient,
@@ -1381,7 +1379,7 @@ pub struct CompleteOnboardingRequest {}
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct CompleteOnboardingResponse {}
 
-#[instrument(skip(account_service, notification_service))]
+#[instrument(skip(account_service))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/complete-onboarding",
@@ -1395,7 +1393,6 @@ pub struct CompleteOnboardingResponse {}
 pub async fn complete_onboarding(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
-    State(notification_service): State<NotificationService>,
     Json(request): Json<CompleteOnboardingRequest>,
 ) -> Result<Json<CompleteOnboardingResponse>, ApiError> {
     account_service

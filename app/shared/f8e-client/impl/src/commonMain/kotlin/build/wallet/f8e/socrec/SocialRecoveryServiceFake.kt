@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.PakeCode
@@ -15,7 +16,6 @@ import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
@@ -76,7 +76,7 @@ class SocialRecoveryServiceFake(
   private val invitations = mutableListOf<InvitationPair>()
   val unendorsedTrustedContacts = mutableListOf<UnendorsedTrustedContact>()
   val keyCertificates = mutableListOf<TrustedContactKeyCertificate>()
-  val trustedContacts = mutableListOf<TrustedContact>()
+  val endorsedTrustedContacts = mutableListOf<EndorsedTrustedContact>()
   val challengeResponses = mutableListOf<SocialChallengeResponse>()
   val protectedCustomers = mutableListOf<ProtectedCustomer>()
   val challenges = mutableListOf<FakeServerChallenge>()
@@ -178,7 +178,7 @@ class SocialRecoveryServiceFake(
     return fakeNetworkingError?.let(::Err) ?: Ok(
       SocRecRelationships(
         invitations = invitations.map { it.outgoing },
-        trustedContacts = trustedContacts.toList(),
+        endorsedTrustedContacts = endorsedTrustedContacts.toList(),
         unendorsedTrustedContacts = unendorsedTrustedContacts.toList(),
         protectedCustomers = protectedCustomers.toImmutableList()
       )
@@ -195,7 +195,7 @@ class SocialRecoveryServiceFake(
     fakeNetworkingError?.let { return Err(it) }
 
     if (invitations.removeAll { it.outgoing.recoveryRelationshipId == relationshipId } ||
-      trustedContacts.removeAll { it.recoveryRelationshipId == relationshipId } ||
+      endorsedTrustedContacts.removeAll { it.recoveryRelationshipId == relationshipId } ||
       protectedCustomers.removeAll { it.recoveryRelationshipId == relationshipId }
     ) {
       return Ok(Unit)
@@ -325,8 +325,8 @@ class SocialRecoveryServiceFake(
 
         // Promote an unendorsed TC to an endorsed TC
         unendorsedTrustedContacts.remove(unendorsedContact)
-        trustedContacts.add(
-          TrustedContact(
+        endorsedTrustedContacts.add(
+          EndorsedTrustedContact(
             recoveryRelationshipId = relationshipId.value,
             trustedContactAlias = unendorsedContact.trustedContactAlias,
             authenticationState = TrustedContactAuthenticationState.VERIFIED,
@@ -361,7 +361,7 @@ class SocialRecoveryServiceFake(
   fun reset() {
     invitations.clear()
     unendorsedTrustedContacts.clear()
-    trustedContacts.clear()
+    endorsedTrustedContacts.clear()
     protectedCustomers.clear()
     challenges.clear()
     keyCertificates.clear()

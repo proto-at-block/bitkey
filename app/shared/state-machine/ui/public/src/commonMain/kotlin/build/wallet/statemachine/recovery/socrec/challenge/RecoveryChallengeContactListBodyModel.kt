@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.challenge
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -20,8 +20,8 @@ import kotlinx.collections.immutable.toImmutableList
 
 fun RecoveryChallengeContactListBodyModel(
   onExit: () -> Unit,
-  trustedContacts: ImmutableList<TrustedContact>,
-  onVerifyClick: (TrustedContact) -> Unit,
+  endorsedTrustedContacts: ImmutableList<EndorsedTrustedContact>,
+  onVerifyClick: (EndorsedTrustedContact) -> Unit,
   verifiedBy: ImmutableList<String>,
   onContinue: () -> Unit,
   onCancelRecovery: () -> Unit,
@@ -53,7 +53,7 @@ fun RecoveryChallengeContactListBodyModel(
           header = "Your Trusted Contacts",
           style = ListGroupStyle.CARD_GROUP_DIVIDER,
           items =
-            trustedContacts.map { contact ->
+            endorsedTrustedContacts.map { contact ->
               ListItemModel(
                 leadingAccessory =
                   ListItemAccessory.CircularCharacterAccessory(

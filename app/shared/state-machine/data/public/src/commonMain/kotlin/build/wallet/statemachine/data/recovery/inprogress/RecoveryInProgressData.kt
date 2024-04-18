@@ -5,7 +5,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -195,7 +195,7 @@ sealed interface RecoveryInProgressData {
     data class PerformingCloudBackupData(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val trustedContacts: List<TrustedContact>,
+      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
       val onBackupFinished: () -> Unit,
       val onBackupFailed: (Throwable?) -> Unit,
     ) : CompletingRecoveryData

@@ -1,8 +1,8 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
@@ -58,7 +58,7 @@ class TrustedContactManagementFunctionalTests : FunSpec({
   test("trusted contacts loaded") {
     val account = appTester.onboardFullAccountWithFakeHardware()
     val testContact =
-      TrustedContact(
+      EndorsedTrustedContact(
         recoveryRelationshipId = "test-id",
         trustedContactAlias = TrustedContactAlias("test-contact"),
         keyCertificate = TrustedContactKeyCertificateFake,
@@ -69,7 +69,7 @@ class TrustedContactManagementFunctionalTests : FunSpec({
       TrustedContactManagementProps(
         account = account,
         onExit = { onExitCalls.add(Unit) },
-        socRecRelationships = SocRecRelationships.EMPTY.copy(trustedContacts = listOf(testContact)),
+        socRecRelationships = SocRecRelationships.EMPTY.copy(endorsedTrustedContacts = listOf(testContact)),
         socRecActions = appTester.app.socRecRelationshipsRepository.toActions(account)
       ),
       useVirtualTime = false

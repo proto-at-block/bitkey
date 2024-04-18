@@ -42,6 +42,7 @@ class BdkTransactionImpl : BdkTransaction {
 private extension TxIn {
     func bdkTxIn() -> BdkTxIn {
         return BdkTxIn(
+            outpoint: self.previousOutput.toBdkOutPoint(),
             sequence: self.sequence,
             witness: self.witness.map { $0.map { KotlinUByte(value: $0) } }
         )

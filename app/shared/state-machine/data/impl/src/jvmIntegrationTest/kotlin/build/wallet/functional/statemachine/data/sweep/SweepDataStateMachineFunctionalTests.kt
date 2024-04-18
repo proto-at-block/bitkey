@@ -133,10 +133,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
         awaitItem().shouldBeTypeOf<SigningAndBroadcastingSweepsData>()
         awaitItem().shouldBeTypeOf<SweepCompleteData>()
 
-        val activeWallet =
-          appSpendingWalletProvider.getSpendingWallet(
-            account.keybox.activeSpendingKeyset
-          ).getOrThrow()
+        val activeWallet = appSpendingWalletProvider.getSpendingWallet(account).getOrThrow()
 
         eventually(
           eventuallyConfig {

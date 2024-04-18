@@ -1,7 +1,6 @@
 package build.wallet.limit
 
-import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
 import kotlinx.coroutines.flow.Flow
 
 interface MobilePayStatusProvider {
@@ -11,10 +10,7 @@ interface MobilePayStatusProvider {
   suspend fun refreshStatus()
 
   /**
-   * Provides currently active spending limit for active keybox.
+   * Provides currently active spending limit for active account.
    */
-  fun status(
-    keybox: Keybox,
-    wallet: SpendingWallet,
-  ): Flow<MobilePayStatus>
+  fun status(account: FullAccount): Flow<MobilePayStatus>
 }

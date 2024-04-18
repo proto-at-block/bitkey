@@ -1,6 +1,5 @@
 package build.wallet.statemachine.app
 
-import build.wallet.account.analytics.AppInstallationMock
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
@@ -159,7 +158,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - ActiveKeyboxLoadedData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData = ActiveKeyboxLoadedDataMock,
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
@@ -179,7 +177,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - CreatingAccountData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoActiveAccountData.CreatingFullAccountData(
             createFullAccountData = OnboardingKeyboxDataMock(),
@@ -201,7 +198,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - ReadyToChooseAccountAccessKeyboxData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           GettingStartedData(
             startFullAccountCreation = {},
@@ -232,7 +228,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - RecoveringKeyboxData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoActiveAccountData.RecoveringAccountData(
             templateFullAccountConfig = FullAccountConfigMock,
@@ -264,7 +259,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - RecoveringLiteAccountData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoActiveAccountData.RecoveringLiteAccountData(
             cloudBackup = CloudBackupV2WithLiteAccountMock,
@@ -287,7 +281,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - RecoveringAccountWithEmergencyAccessKit") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit(
             templateFullAccountConfig = FullAccountConfigMock,
@@ -309,7 +302,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - NoLongerRecoveringKeyboxData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           AccountData.NoLongerRecoveringFullAccountData(
             data = NoLongerRecoveringData.ShowingNoLongerRecoveringData(App, {})
@@ -330,7 +322,6 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - SomeoneElseIsRecoveringKeyboxData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        appInstallation = AppInstallationMock,
         accountData =
           AccountData.SomeoneElseIsRecoveringFullAccountData(
             data = SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {}),

@@ -3,6 +3,7 @@ package build.wallet.database
 import app.cash.sqldelight.EnumColumnAdapter
 import build.wallet.analytics.v1.Event
 import build.wallet.database.adapters.BitcoinAddressColumnAdapter
+import build.wallet.database.adapters.DelegatedColumnAdapter
 import build.wallet.database.adapters.DurationColumnAdapter
 import build.wallet.database.adapters.EmailColumnAdapter
 import build.wallet.database.adapters.FullAccountColumnAdapter
@@ -52,6 +53,7 @@ import build.wallet.database.sqldelight.OnboardingKeyboxHwAuthPublicKey
 import build.wallet.database.sqldelight.OnboardingLiteAccountEntity
 import build.wallet.database.sqldelight.OnboardingStepSkipConfigEntity
 import build.wallet.database.sqldelight.OnboardingStepStateEntity
+import build.wallet.database.sqldelight.PartnershipTransactionEntity
 import build.wallet.database.sqldelight.PriorityPreferenceEntity
 import build.wallet.database.sqldelight.RegisterWatchAddressEntity
 import build.wallet.database.sqldelight.SocRecEnrollmentAuthentication
@@ -65,6 +67,8 @@ import build.wallet.database.sqldelight.SpendingKeysetEntity
 import build.wallet.database.sqldelight.SpendingLimitEntity
 import build.wallet.database.sqldelight.TemplateFullAccountConfigEntity
 import build.wallet.database.sqldelight.TransactionDetailEntity
+import build.wallet.money.currency.code.IsoCurrencyTextCode
+import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.adapter.ByteStringColumnAdapter
 import build.wallet.sqldelight.adapter.InstantColumnAdapter
@@ -309,7 +313,15 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           destinationAppGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationAppRecoveryAuthKeyAdapter = PublicKeyColumnAdapter(),
           destinationAppGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter
-        )
+        ),
+      partnershipTransactionEntityAdapter = PartnershipTransactionEntity.Adapter(
+        transactionIdAdapter = DelegatedColumnAdapter(::PartnershipTransactionId, PartnershipTransactionId::value),
+        fiatCurrencyAdapter = DelegatedColumnAdapter(::IsoCurrencyTextCode, IsoCurrencyTextCode::code),
+        typeAdapter = EnumColumnAdapter(),
+        statusAdapter = EnumColumnAdapter(),
+        createdAdapter = InstantColumnAdapter,
+        updatedAdapter = InstantColumnAdapter
+      )
     )
   }
 

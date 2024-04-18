@@ -68,6 +68,7 @@ import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import build.wallet.ui.model.alert.AlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 
 // TODO(796): add integration tests
@@ -284,14 +285,15 @@ class RepairCloudBackupStateMachineImpl(
         LaunchedEffect("creating-mobile-key-backup") {
           log { "Creating mobile key backup" }
           val trustedContacts = socRecRelationshipsRepository.relationships
+            .filterNotNull()
             .first()
-            .trustedContacts
+            .endorsedTrustedContacts
 
           fullAccountCloudBackupCreator
             .create(
               keybox = props.account.keybox,
               sealedCsek = currentState.sealedCsek,
-              trustedContacts = trustedContacts
+              endorsedTrustedContacts = trustedContacts
             )
             .onSuccess { mobileKeyBackup ->
               state = CreatingEakBackupState(

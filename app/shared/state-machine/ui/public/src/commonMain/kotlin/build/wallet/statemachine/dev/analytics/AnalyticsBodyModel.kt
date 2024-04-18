@@ -11,6 +11,8 @@ import kotlinx.collections.immutable.ImmutableList
  * @property onClear - if called, in-memory events will be wiped.
  */
 data class AnalyticsBodyModel(
+  val isEnabled: Boolean,
+  val onEnableChanged: (Boolean) -> Unit,
   val onClear: () -> Unit,
   val events: ImmutableList<ListItemModel>,
   override val onBack: () -> Unit,

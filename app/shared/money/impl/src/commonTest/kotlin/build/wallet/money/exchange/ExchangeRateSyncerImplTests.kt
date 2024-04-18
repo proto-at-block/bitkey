@@ -1,5 +1,6 @@
 package build.wallet.money.exchange
 
+import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.coroutines.advanceTimeBy
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.ActiveF8eEnvironmentRepositoryMock
@@ -18,23 +19,28 @@ class ExchangeRateSyncerImplTests : FunSpec({
   val f8eExchangeRateService = F8eExchangeRateServiceMock()
   val activeF8eEnvironmentRepository =
     ActiveF8eEnvironmentRepositoryMock(turbines::create)
+  val appSessionManager = AppSessionManagerFake()
 
   val syncer =
     ExchangeRateSyncerImpl(
       exchangeRateDao = exchangeRateDao,
       f8eExchangeRateService = f8eExchangeRateService,
-      activeF8eEnvironmentRepository = activeF8eEnvironmentRepository
+      activeF8eEnvironmentRepository = activeF8eEnvironmentRepository,
+      appSessionManager = appSessionManager
     )
 
   val exchangeRate1 = USDtoBTC(0.5)
   val exchangeRate2 = USDtoBTC(1.0)
   val eurtoBtcExchangeRate = EURtoBTC(0.7)
 
+  beforeEach {
+    appSessionManager.reset()
+  }
+
   test("sync immediately") {
     runTest {
       syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
 
-//      bitstampExchangeRateService.btcToUsdExchangeRate.value = Ok(exchangeRate1)
       activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
@@ -110,6 +116,24 @@ class ExchangeRateSyncerImplTests : FunSpec({
 
       activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRates.forEach {
+        exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(it)
+      }
+    }
+  }
+
+  test("sync does not occur while app is backgrounded and resumes once foregrounded") {
+    runTest {
+      appSessionManager.appDidEnterBackground()
+
+      syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
+      advanceTimeBy(3.seconds)
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.expectNoEvents()
+
+      appSessionManager.appDidEnterForeground()
+      advanceTimeBy(3.seconds)
+
+      activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
+      listOf(exchangeRate1, eurtoBtcExchangeRate).forEach {
         exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(it)
       }
     }

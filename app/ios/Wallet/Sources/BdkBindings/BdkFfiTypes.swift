@@ -25,3 +25,5 @@ typealias FfiTxBuilder = BitcoinDevKit.TxBuilder
 typealias FfiTxBuilderResult = BitcoinDevKit.TxBuilderResult
 typealias FfiWallet = BitcoinDevKit.Wallet
 typealias FfiWordCount = BitcoinDevKit.WordCount
+typealias FfiOutPoint = BitcoinDevKit.OutPoint
+typealias FfiTxOut = BitcoinDevKit.TxOut

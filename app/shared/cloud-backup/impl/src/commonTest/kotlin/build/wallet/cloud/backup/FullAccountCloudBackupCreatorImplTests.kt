@@ -5,7 +5,7 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.auth.AppRecoveryAuthKeypairMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.socrec.TrustedContactFake1
+import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
 import build.wallet.bitkey.socrec.TrustedContactFake2
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.FullAccountFieldsCreationError
@@ -34,7 +34,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
   val socRecKeysRepository = SocRecKeysRepository(socRecCrypto, SocRecKeysDaoFake())
   val trustedContacts =
     listOf(
-      TrustedContactFake1,
+      EndorsedTrustedContactFake1,
       TrustedContactFake2
     )
 
@@ -59,7 +59,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
         .create(
           keybox = keybox,
           sealedCsek = SealedCsekFake,
-          trustedContacts = trustedContacts
+          endorsedTrustedContacts = trustedContacts
         )
         .shouldBeEqual(
           Ok(
@@ -83,7 +83,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
         .create(
           keybox = keybox,
           sealedCsek = SealedCsekFake,
-          trustedContacts = trustedContacts
+          endorsedTrustedContacts = trustedContacts
         )
         .shouldBeErrOfType<FullAccountFieldsCreationError>()
     }
@@ -95,7 +95,7 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
         .create(
           keybox = keybox,
           sealedCsek = SealedCsekFake,
-          trustedContacts = trustedContacts
+          endorsedTrustedContacts = trustedContacts
         )
         .shouldBeErrOfType<AppRecoveryAuthKeypairRetrievalError>()
     }

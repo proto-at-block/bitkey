@@ -1,8 +1,10 @@
+rfal = '../../third-party/st-rfal/'
+
 ## NFC HAL
 
 if system == 'darwin' or system == 'linux'
   hal_srcs = [
-    'src/posix/rfal_isoDep.c',
+    rfal/'source/rfal_isoDepPATCHED.c',
   ]
   hal_private_includes = ['src/posix']
   deps = [secutils_dep]
@@ -26,8 +28,6 @@ features = [
   '-DST25R3916',
   '-DUSE_HAL_DRIVER'
 ]
-
-rfal = '../../third-party/st-rfal/'
 
 chip_srcs = [
   rfal/'source/st25r3916/st25r3916_aat.c',
@@ -89,10 +89,9 @@ hal_nfc_w1a_posix_dep = declare_dependency(
   include_directories : ['inc', includes],
 )
 
-# TODO(W-3578)
-# nfc_fuzz = executable('nfc-fuzz',
-#   'src/posix/nfc_fuzz.cc',
-#   cpp_args : fuzz_args,
-#   link_args : fuzz_args,
-#   dependencies : [deps, fff_dep, fuzzed_data_provider_dep, hal_nfc_w1a_posix_dep]
-# )
+nfc_fuzz = executable('nfc-fuzz',
+  'src/posix/nfc_fuzz.cc',
+  cpp_args : fuzz_args,
+  link_args : fuzz_args,
+  dependencies : [deps, fff_dep, fuzzed_data_provider_dep, hal_nfc_w1a_posix_dep]
+)

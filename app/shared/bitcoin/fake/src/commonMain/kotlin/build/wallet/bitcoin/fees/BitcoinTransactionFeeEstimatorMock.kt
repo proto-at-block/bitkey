@@ -7,8 +7,7 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
-import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -26,8 +25,7 @@ class BitcoinTransactionFeeEstimatorMock(
 ) : BitcoinTransactionFeeEstimator {
   override suspend fun getFeesForTransaction(
     priorities: List<EstimatedTransactionPriority>,
-    keyset: SpendingKeyset,
-    fullAccountConfig: FullAccountConfig,
+    account: FullAccount,
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> {

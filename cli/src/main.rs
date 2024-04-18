@@ -12,7 +12,7 @@ mod signers;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bdk::bitcoin::network::constants::Network;
+use bdk::bitcoin::{address::NetworkUnchecked, network::constants::Network};
 
 use bdk::bitcoin::Address;
 use bdk::blockchain::ElectrumBlockchain;
@@ -117,11 +117,19 @@ enum WalletCommands {
     /// Receive funds
     Receive {},
     /// Drain a wallet (send all funds to an address)
-    Drain { recipient: Address },
+    Drain {
+        recipient: Address<NetworkUnchecked>,
+    },
     /// Send funds (with server authorisation)
-    ServerSend { recipient: Address, amount: u64 },
+    ServerSend {
+        recipient: Address<NetworkUnchecked>,
+        amount: u64,
+    },
     /// Send funds (with hardware authorisation)
-    HardwareSend { recipient: Address, amount: u64 },
+    HardwareSend {
+        recipient: Address<NetworkUnchecked>,
+        amount: u64,
+    },
     /// Display server status
     ServerStatus {},
     /// Setup mobilepay
@@ -208,14 +216,22 @@ fn main() -> Result<()> {
                 commands::wallet::transactions(&client, &db, blockchain)?
             }
             WalletCommands::Drain { recipient } => {
-                commands::wallet::drain(&client, &db, blockchain, recipient)?
+                commands::wallet::drain(&client, &db, blockchain, recipient.assume_checked())?
             }
-            WalletCommands::ServerSend { recipient, amount } => {
-                commands::wallet::server_send(&client, &db, blockchain, recipient, amount)?
-            }
-            WalletCommands::HardwareSend { recipient, amount } => {
-                commands::wallet::hardware_send(&client, &db, blockchain, recipient, amount)?
-            }
+            WalletCommands::ServerSend { recipient, amount } => commands::wallet::server_send(
+                &client,
+                &db,
+                blockchain,
+                recipient.assume_checked(),
+                amount,
+            )?,
+            WalletCommands::HardwareSend { recipient, amount } => commands::wallet::hardware_send(
+                &client,
+                &db,
+                blockchain,
+                recipient.assume_checked(),
+                amount,
+            )?,
             WalletCommands::Receive {} => commands::wallet::receive(&client, &db)?,
             WalletCommands::ServerStatus {} => commands::wallet::server_status(&client, &db)?,
             WalletCommands::SetupMobilePay { amount } => {

@@ -2,7 +2,6 @@ import BitcoinDevKit
 import Shared
 
 class BdkWalletImpl : BdkWallet {
-    
     let wallet: Wallet
     
     init(wallet: Wallet) {
@@ -84,7 +83,18 @@ class BdkWalletImpl : BdkWallet {
             .init(bool: (try wallet.isMine(script: realBdkScript.ffiScript)))
         }
     }
-
+    
+    func listUnspentBlocking() -> BdkResult<NSArray> {
+        return BdkResult {
+            return try wallet.listUnspent().map { utxo in
+                BdkUtxo(
+                    outPoint: utxo.outpoint.toBdkOutPoint(),
+                    txOut: utxo.txout.toBdkTxOut(),
+                    isSpent: utxo.isSpent
+                )
+            } as NSArray
+        }
+    }
 }
 
 private class Progress: FfiProgress {

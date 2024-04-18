@@ -2,11 +2,11 @@
     "module-identifier": "cafe.adriel.voyager:voyager-transitions-android",
     "components": [
         {
-            "version": "1.0.0-rc05",
+            "version": "1.1.0-alpha03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-transitions-release.aar": "6de456429abf80d6e58bc8a46da69e9b94e0f631eff893b16940557b424eaa90"
+                        "voyager-transitions-release.aar": "60bc75da86fcae975e5f1eb7178118fe2d72cec2514951cd15c07685d80896e3"
                     }
                 }
             ],

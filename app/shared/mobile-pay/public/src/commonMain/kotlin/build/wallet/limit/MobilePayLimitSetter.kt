@@ -1,12 +1,12 @@
 package build.wallet.limit
 
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
 
 interface MobilePayLimitSetter {
   suspend fun setLimit(
-    keybox: Keybox,
+    account: FullAccount,
     spendingLimit: SpendingLimit,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, SetMobilePayLimitError>

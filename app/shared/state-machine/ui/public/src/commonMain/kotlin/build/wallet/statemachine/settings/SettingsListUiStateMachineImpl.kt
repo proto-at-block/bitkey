@@ -8,10 +8,8 @@ import build.wallet.LoadableValue
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
-import build.wallet.feature.isEnabled
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconAnnouncement
 import build.wallet.statemachine.core.Icon.SmallIconBitkey
@@ -46,12 +44,10 @@ import kotlin.reflect.KClass
 
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
-  private val cloudBackupHealthFeatureFlag: CloudBackupHealthFeatureFlag,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
-    val cloudBackupHealthEnabled = remember { cloudBackupHealthFeatureFlag.isEnabled() }
     val appFunctionalityStatus =
       remember {
         appFunctionalityStatusProvider.appFunctionalityStatus(props.f8eEnvironment)
@@ -80,7 +76,7 @@ class SettingsListUiStateMachineImpl(
             rowTypes =
               listOfNotNull(
                 RotateAuthKey::class,
-                CloudBackupHealth::class.takeIf { cloudBackupHealthEnabled },
+                CloudBackupHealth::class,
                 TrustedContacts::class,
                 RecoveryChannels::class
               )

@@ -6,6 +6,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
+import build.wallet.partnerships.PartnershipTransactionId
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.post
@@ -21,6 +22,7 @@ class GetTransferRedirectServiceImpl(
     address: BitcoinAddress,
     f8eEnvironment: F8eEnvironment,
     partner: String,
+    partnerTransactionId: PartnershipTransactionId?,
   ): Result<GetTransferRedirectService.Success, NetworkingError> {
     return f8eHttpClient
       .authenticated(
@@ -32,7 +34,8 @@ class GetTransferRedirectServiceImpl(
           setBody(
             RequestBody(
               address.address,
-              partner
+              partner,
+              partnerTransactionId
             )
           )
         }
@@ -49,6 +52,8 @@ class GetTransferRedirectServiceImpl(
   private data class RequestBody(
     val address: String,
     val partner: String,
+    @SerialName("partner_transaction_id")
+    val partnerTransactionId: PartnershipTransactionId?,
   )
 
   @Serializable

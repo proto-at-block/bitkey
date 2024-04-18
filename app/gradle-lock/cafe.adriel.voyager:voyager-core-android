@@ -2,11 +2,11 @@
     "module-identifier": "cafe.adriel.voyager:voyager-core-android",
     "components": [
         {
-            "version": "1.0.0-rc05",
+            "version": "1.1.0-alpha03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-core-release.aar": "8cb3bea6d47f7a818be147f56ae0011ead5233ac345d713aaf4f42ad4c3a444d"
+                        "voyager-core-release.aar": "70069749c7673186351fb852a09d2e926c5c42250c871323ec5e5d9ccc1e7976"
                     }
                 }
             ],

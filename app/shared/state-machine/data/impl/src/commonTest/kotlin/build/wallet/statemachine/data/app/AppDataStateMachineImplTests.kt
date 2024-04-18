@@ -1,7 +1,5 @@
 package build.wallet.statemachine.data.app
 
-import build.wallet.account.analytics.AppInstallationDaoMock
-import build.wallet.account.analytics.AppInstallationMock
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_INITIALIZE
@@ -57,7 +55,6 @@ class AppDataStateMachineImplTests : FunSpec({
     PeriodicProcessorMock("periodicFirmwareCoredumpSender", turbines::create)
   val periodicRegisterWatchAddressSender =
     PeriodicProcessorMock("periodicRegisterWatchAddressSender", turbines::create)
-  val appInstallationDao = AppInstallationDaoMock()
   val featureFlagInitializer = FeatureFlagInitializerMock(turbines::create)
   val featureFlagSyncer = FeatureFlagSyncerMock(turbines::create)
   val accountDataStateMachine =
@@ -98,7 +95,6 @@ class AppDataStateMachineImplTests : FunSpec({
   val stateMachine =
     AppDataStateMachineImpl(
       eventTracker = eventTracker,
-      appInstallationDao = appInstallationDao,
       featureFlagInitializer = featureFlagInitializer,
       featureFlagSyncer = featureFlagSyncer,
       accountDataStateMachine = accountDataStateMachine,
@@ -118,10 +114,6 @@ class AppDataStateMachineImplTests : FunSpec({
       fiatMobilePayConfigurationRepository = fiatMobilePayConfigurationRepository,
       emergencyAccessKitDataProvider = emergencyAccessKitDataProviderFake
     )
-
-  beforeTest {
-    appInstallationDao.reset()
-  }
 
   suspend fun shouldStartPeriodicEventSender() {
     periodicEventSender.startCalls.awaitItem().shouldBe(Unit)
@@ -168,7 +160,6 @@ class AppDataStateMachineImplTests : FunSpec({
   val accountData = ActiveKeyboxLoadedDataMock
 
   test("load app") {
-    appInstallationDao.appInstallation = AppInstallationMock
     permissionChecker.permissionsOn = true
 
     stateMachine.test(props = Unit) {
@@ -180,7 +171,6 @@ class AppDataStateMachineImplTests : FunSpec({
       // App data updated, loading keybox
       awaitItem().shouldBe(
         AppLoadedData(
-          appInstallation = AppInstallationMock,
           accountData = CheckingActiveAccountData,
           lightningNodeData = LightningNodeDisabledData,
           electrumServerData = PlaceholderElectrumServerDataMock,
@@ -196,7 +186,6 @@ class AppDataStateMachineImplTests : FunSpec({
       // App data updated, keybox loaded
       awaitItem().shouldBe(
         AppLoadedData(
-          appInstallation = AppInstallationMock,
           accountData = accountData,
           lightningNodeData = LightningNodeDisabledData,
           electrumServerData = PlaceholderElectrumServerDataMock,

@@ -9,6 +9,7 @@ import build.wallet.bdk.bindings.BdkProgress
 import build.wallet.bdk.bindings.BdkResult
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkTransactionDetails
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bdk.bindings.BdkWallet
 
 /**
@@ -53,5 +54,9 @@ internal class BdkWalletImpl(
 
   override fun isMineBlocking(script: BdkScript): BdkResult<Boolean> {
     return runCatchingBdkError { ffiWallet.isMine(script.ffiScript) }
+  }
+
+  override fun listUnspentBlocking(): BdkResult<List<BdkUtxo>> {
+    return runCatchingBdkError { ffiWallet.listUnspent().map { it.bdkUtxo } }
   }
 }

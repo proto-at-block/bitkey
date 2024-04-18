@@ -2,7 +2,7 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
@@ -19,13 +19,13 @@ class SocRecChallengeActions(
   private val isUsingSocRecFakes: Boolean,
 ) {
   suspend fun startChallenge(
-    trustedContacts: ImmutableList<TrustedContact>,
+    endorsedTrustedContacts: ImmutableList<EndorsedTrustedContact>,
     sealedDekMap: Map<String, XCiphertext>,
   ): Result<ChallengeWrapper, Error> =
     repository.startChallenge(
       accountId = accountId,
       f8eEnvironment = f8eEnvironment,
-      trustedContacts = trustedContacts,
+      endorsedTrustedContacts = endorsedTrustedContacts,
       sealedDekMap = sealedDekMap,
       isUsingSocRecFakes = isUsingSocRecFakes
     )

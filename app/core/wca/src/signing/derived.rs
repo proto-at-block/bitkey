@@ -1,9 +1,7 @@
 use bitcoin::{
+    bip32::{DerivationPath, Fingerprint},
     psbt::PartiallySignedTransaction,
-    util::{
-        bip32::{DerivationPath, Fingerprint},
-        sighash::SighashCache,
-    },
+    sighash::SighashCache,
 };
 
 use super::{is_finalised, sighash, DescriptorExtendedKey, Error, Signable, Signer};

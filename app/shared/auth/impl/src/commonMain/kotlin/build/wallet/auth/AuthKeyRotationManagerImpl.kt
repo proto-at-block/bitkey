@@ -30,6 +30,7 @@ import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
@@ -331,11 +332,13 @@ class AuthKeyRotationManagerImpl(
     newAppKeys: AppAuthPublicKeys,
   ): Result<Unit, Error> =
     binding {
-      val relationships = socRecRelationshipsRepository.relationships.first()
+      val relationships = socRecRelationshipsRepository.relationships
+        .filterNotNull()
+        .first()
       trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
         accountId = newAccount.accountId,
         f8eEnvironment = newAccount.config.f8eEnvironment,
-        contacts = relationships.trustedContacts,
+        contacts = relationships.endorsedTrustedContacts,
         oldAppGlobalAuthKey = oldAppAuthKey,
         oldHwAuthKey = oldHwAuthPublicKey,
         newAppGlobalAuthKey = newAppKeys.appGlobalAuthPublicKey,

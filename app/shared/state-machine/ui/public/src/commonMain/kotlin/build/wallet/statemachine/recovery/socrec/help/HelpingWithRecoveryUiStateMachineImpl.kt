@@ -15,9 +15,11 @@ import build.wallet.recovery.socrec.SocialChallengeError
 import build.wallet.recovery.socrec.SocialChallengeVerifier
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ButtonDataModel
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.SecurityNoticeFormBodyModel
@@ -109,7 +111,13 @@ class HelpingWithRecoveryUiStateMachineImpl(
               text = "Cancel",
               onClick = props.onExit
             ),
-          eventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_FAILURE
+          eventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_FAILURE,
+          errorData =
+            ErrorData(
+              segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+              actionDescription = "Verifying recovery code failed",
+              cause = state.error
+            )
         ).asModalScreen()
 
       UiState.SuccessfullyVerified ->

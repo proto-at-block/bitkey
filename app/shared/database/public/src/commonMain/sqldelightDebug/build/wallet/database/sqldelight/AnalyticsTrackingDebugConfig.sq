@@ -1,0 +1,15 @@
+import kotlin.Boolean;
+
+CREATE TABLE analyticsTrackingDebugConfigEntity(
+    id      INTEGER NOT NULL PRIMARY KEY,
+    enabled INTEGER AS Boolean NOT NULL
+);
+
+setConfig:
+INSERT OR REPLACE INTO analyticsTrackingDebugConfigEntity(id, enabled)
+-- Use stable row ID to ensure we only ever have a single config in table.
+VALUES(0, ?);
+
+getConfig:
+SELECT * FROM analyticsTrackingDebugConfigEntity
+WHERE id = 0;

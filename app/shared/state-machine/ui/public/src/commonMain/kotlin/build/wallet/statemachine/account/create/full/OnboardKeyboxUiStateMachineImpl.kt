@@ -36,7 +36,10 @@ class OnboardKeyboxUiStateMachineImpl(
         BackingUpKeyboxScreen(props.onboardKeyboxData)
 
       is FailedCloudBackupDataFull ->
-        FailedCloudBackupScreen(props.onboardKeyboxData)
+        FailedCloudBackupScreen(
+          props.onboardKeyboxData,
+          props.onboardKeyboxData.error
+        )
 
       is CompletingCloudBackupDataFull ->
         LoadingBodyModel(id = SAVE_CLOUD_BACKUP_LOADING).asRootScreen()
@@ -57,7 +60,7 @@ class OnboardKeyboxUiStateMachineImpl(
         FullAccountCloudSignInAndBackupProps(
           sealedCsek = data.sealedCsek,
           keybox = data.keybox,
-          trustedContacts = emptyList(),
+          endorsedTrustedContacts = emptyList(),
           onBackupFailed = data.onBackupFailed,
           onBackupSaved = data.onBackupSaved,
           onExistingAppDataFound = data.onExistingAppDataFound,
@@ -69,9 +72,13 @@ class OnboardKeyboxUiStateMachineImpl(
   }
 
   @Composable
-  fun FailedCloudBackupScreen(data: FailedCloudBackupDataFull): ScreenModel {
+  fun FailedCloudBackupScreen(
+    data: FailedCloudBackupDataFull,
+    error: Error,
+  ): ScreenModel {
     return CloudBackupFailedScreenModel(
       eventTrackerScreenId = SAVE_CLOUD_BACKUP_FAILED,
+      error = error,
       onTryAgain = data.retry
     ).asRootScreen()
   }

@@ -4,8 +4,8 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.socrec.ChallengeAuthentication
 import build.wallet.bitkey.socrec.ChallengeWrapper
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.random.SecureRandom
@@ -35,7 +35,7 @@ class SocRecChallengeRepositoryImpl(
   override suspend fun startChallenge(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
-    trustedContacts: ImmutableList<TrustedContact>,
+    endorsedTrustedContacts: ImmutableList<EndorsedTrustedContact>,
     sealedDekMap: Map<String, XCiphertext>,
     isUsingSocRecFakes: Boolean,
   ): Result<ChallengeWrapper, Error> =
@@ -44,7 +44,7 @@ class SocRecChallengeRepositoryImpl(
       socRecStartedChallengeAuthenticationDao.clear()
 
       // for each trusted contact...
-      val startSocialChallengeTcs = trustedContacts.map { trustedContact ->
+      val startSocialChallengeTcs = endorsedTrustedContacts.map { trustedContact ->
         // generate a pake code
         val pakeCode = Schema.maskPakeData(SecureRandom().nextBytes(Schema.pakeByteArraySize()))
         // and a ProtectedCustomerRecoveryPakeKey

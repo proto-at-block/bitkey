@@ -17,6 +17,5 @@ data class FeedbackFormUiProps(
   val accountId: AccountId,
   val formStructure: SupportTicketForm,
   val initialData: SupportTicketData,
-  val addAttachmentsEnabled: Boolean,
   val onBack: () -> Unit,
 )

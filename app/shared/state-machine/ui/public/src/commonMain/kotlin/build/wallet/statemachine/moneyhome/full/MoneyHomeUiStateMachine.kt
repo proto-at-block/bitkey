@@ -3,7 +3,7 @@ package build.wallet.statemachine.moneyhome.full
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.recovery.socrec.SocRecFullAccountActions
+import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
@@ -31,7 +31,7 @@ data class MoneyHomeUiProps(
   val convertedFiatBalance: FiatMoney,
   val fiatCurrency: FiatCurrency,
   val socRecRelationships: SocRecRelationships,
-  val socRecActions: SocRecFullAccountActions,
+  val socRecActions: SocRecProtectedCustomerActions,
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,

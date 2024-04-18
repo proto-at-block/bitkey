@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec
 
 import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.recovery.socrec.SocRecLiteAccountActions
+import build.wallet.recovery.socrec.SocRecTrustedContactActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData
@@ -19,7 +19,7 @@ interface LiteTrustedContactManagementUiStateMachine :
 data class LiteTrustedContactManagementProps(
   val accountData: AccountData.HasActiveLiteAccountData,
   val protectedCustomers: ImmutableList<ProtectedCustomer>,
-  val actions: SocRecLiteAccountActions,
+  val actions: SocRecTrustedContactActions,
   val acceptInvite: AcceptInvite?,
   val onExit: () -> Unit,
 ) {

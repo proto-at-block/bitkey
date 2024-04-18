@@ -5,6 +5,7 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
@@ -13,6 +14,7 @@ import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
@@ -82,7 +84,9 @@ class SocialRecoveryServiceImpl(
       .map {
         SocRecRelationships(
           invitations = it.invitations.map { invite -> invite.toInvitation() },
-          trustedContacts = it.endorsedTrustedContacts,
+          endorsedTrustedContacts = it.endorsedEndorsedTrustedContacts.map { endorsement ->
+            endorsement.toEndorsedTrustedContact()
+          },
           unendorsedTrustedContacts = it.unendorsedTrustedContacts,
           protectedCustomers = it.customers.toImmutableList()
         )
@@ -355,6 +359,18 @@ private fun CreateTrustedContactInvitation.toInvitation() =
     code = code,
     codeBitLength = codeBitLength,
     expiresAt = expiresAt
+  )
+
+private fun F8eEndorsedTrustedContact.toEndorsedTrustedContact() =
+  EndorsedTrustedContact(
+    recoveryRelationshipId = recoveryRelationshipId,
+    trustedContactAlias = trustedContactAlias,
+    keyCertificate = keyCertificate,
+    /**
+     * The default auth state is [AWAITING_VERIFY] because the server does not store the auth state,
+     * and the app cannot assume that the contact is verified.
+     */
+    authenticationState = AWAITING_VERIFY
   )
 
 private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode: String) =

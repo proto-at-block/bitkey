@@ -26,6 +26,7 @@ import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiProps
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiStateMachine
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
+import kotlinx.coroutines.flow.filterNotNull
 
 class LiteHomeUiStateMachineImpl(
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
@@ -115,7 +116,7 @@ class LiteHomeUiStateMachineImpl(
                   firmwareData = props.firmwareData,
                   protectedCustomers = socRecRelationships.protectedCustomers,
                   homeStatusBannerModel = homeStatusBannerModel,
-                  socRecLiteAccountActions = socRecLiteAccountActions,
+                  socRecTrustedContactActions = socRecLiteAccountActions,
                   onBack = { uiState = uiState.copy(rootScreen = MoneyHome) }
                 )
             )
@@ -145,6 +146,7 @@ class LiteHomeUiStateMachineImpl(
     }
     return remember {
       socRecRelationshipsRepository.relationships
+        .filterNotNull()
     }.collectAsState(SocRecRelationships.EMPTY).value
   }
 }

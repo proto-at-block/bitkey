@@ -44,12 +44,12 @@ class EventTrackerImpl(
   private val hardwareInfoProvider: HardwareInfoProvider,
   private val appInstallationDao: AppInstallationDao,
   private val platformInfoProvider: PlatformInfoProvider,
-  private val sessionIdProvider: SessionIdProvider,
+  private val appSessionManager: AppSessionManager,
   private val eventStore: EventStore,
-  private val analyticsTrackingEnabledFeatureFlag: AnalyticsTrackingEnabledFeatureFlag,
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider,
+  private val analyticsTrackingPreference: AnalyticsTrackingPreference,
 ) : EventTracker {
   private sealed interface ActionType {
     data class Generic(val action: Action, val screenId: String?) : ActionType
@@ -155,7 +155,7 @@ class EventTrackerImpl(
       val event =
         Event(
           event_time = clock.now().toString(),
-          session_id = sessionIdProvider.getSessionId(),
+          session_id = appSessionManager.getSessionId(),
           account_id = accountId,
           action = action,
           country = countryCodeProvider.countryCode(),
@@ -175,8 +175,8 @@ class EventTrackerImpl(
       // Always add the event to the local store
       eventStore.add(event)
 
-      // But only actually track the event if the feature flag is on
-      if (analyticsTrackingEnabledFeatureFlag.flagValue().value.value) {
+      // But only actually track the event if the preference is enabled
+      if (analyticsTrackingPreference.get()) {
         eventProcessor.process(QueueAnalyticsEvent(f8eEnvironment, event))
           .logFailure { "Failed to append event to queue: $event" }
       }

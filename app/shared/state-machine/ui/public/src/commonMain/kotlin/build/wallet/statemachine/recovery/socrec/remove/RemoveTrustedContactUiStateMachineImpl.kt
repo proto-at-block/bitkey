@@ -13,10 +13,12 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
+import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.NetworkErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.recovery.RecoverySegment
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.datetime.Clock
@@ -93,6 +95,11 @@ class RemoveTrustedContactUiStateMachineImpl(
           eventTrackerScreenId = SocialRecoveryEventTrackerScreenId.TC_MANAGEMENT_REMOVAL_FAILED,
           title = "Unable to remove contact",
           isConnectivityError = current.error is HttpError.NetworkError,
+          errorData = ErrorData(
+            segment = RecoverySegment.SocRec.ProtectedCustomer.Setup,
+            actionDescription = "Removing trusted contact",
+            cause = current.error
+          ),
           onRetry = {
             state =
               State.RemovingWithBitkeyState(

@@ -91,7 +91,6 @@ class CloudBackupHealthRepositoryImpl(
 
   override suspend fun performSync(account: FullAccount): CloudBackupStatus {
     return syncLock.withLock {
-//      log(Debug) { "Performing Cloud Backup Health sync." }
       getCurrentCloudAccount()
         .fold(
           success = { cloudAccount ->
@@ -140,8 +139,6 @@ class CloudBackupHealthRepositoryImpl(
     cloudAccount: CloudStoreAccount,
     account: FullAccount,
   ): MobileKeyBackupStatus {
-//    log { "Syncing mobile key backup status" }
-
     val localCloudBackup = cloudBackupDao
       .get(account.accountId.serverId)
       .toErrorIfNull { Error("No local backup found") }
@@ -162,9 +159,9 @@ class CloudBackupHealthRepositoryImpl(
                 log { "Cloud backup does not match local backup" }
                 MobileKeyBackupStatus.ProblemWithBackup.InvalidBackup(cloudBackup)
               } else {
-                // TODO(BKR-932): do we need to perform additional integrity checks?
+                // TODO(BKR-1155): do we need to perform additional integrity checks?
                 MobileKeyBackupStatus.Healthy(
-                  // TODO(BKR-796): use actual timestamp from backup
+                  // TODO(BKR-1154): use actual timestamp from backup
                   lastUploaded = Clock.System.now()
                 )
               }
@@ -172,29 +169,26 @@ class CloudBackupHealthRepositoryImpl(
           }
         },
         failure = {
-          // TODO(BKR-796): handle unknown loading errors
+          // TODO(BKR-1156): handle unknown loading errors
           MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
         }
       )
-//      .also { log(Debug) { "Mobile key backup status: $it" } }
   }
 
   private suspend fun syncEakBackupStatus(cloudAccount: CloudStoreAccount): EakBackupStatus {
-//    log { "Syncing EAK backup status" }
     return emergencyAccessKitRepository
       .read(cloudAccount)
       .fold(
         success = {
           EakBackupStatus.Healthy(
-            // TODO(BKR-796): use actual timestamp from backup
+            // TODO(BKR-1154): use actual timestamp from backup
             lastUploaded = Clock.System.now()
           )
         },
         failure = {
-          // TODO(BKR-796): handle unknown loading errors
+          // TODO(BKR-1153): handle unknown loading errors
           EakBackupStatus.ProblemWithBackup.BackupMissing
         }
       )
-//      .also { log(Debug) { "EAK backup status: $it" } }
   }
 }

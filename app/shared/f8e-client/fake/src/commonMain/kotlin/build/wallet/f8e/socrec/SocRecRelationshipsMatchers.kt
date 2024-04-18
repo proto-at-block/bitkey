@@ -1,9 +1,9 @@
 package build.wallet.f8e.socrec
 
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.RecoveryContact
-import build.wallet.bitkey.socrec.TrustedContact
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
@@ -17,7 +17,7 @@ fun SocRecRelationships.isEmpty() = this == SocRecRelationships.EMPTY
 fun SocRecRelationships.shouldBeEmpty() =
   apply {
     invitations.shouldBeEmpty()
-    trustedContacts.shouldBeEmpty()
+    endorsedTrustedContacts.shouldBeEmpty()
     unendorsedTrustedContacts.shouldBeEmpty()
     protectedCustomers.shouldBeEmpty()
   }
@@ -25,15 +25,15 @@ fun SocRecRelationships.shouldBeEmpty() =
 /**
  * Asserts that the [SocRecRelationships] exactly has the given [contacts] as trusted contacts.
  */
-fun SocRecRelationships.shouldHaveEndorsed(vararg contacts: TrustedContact) =
+fun SocRecRelationships.shouldHaveEndorsed(vararg contacts: EndorsedTrustedContact) =
   apply {
-    trustedContacts.shouldContainExactlyInAnyOrder(*contacts)
+    endorsedTrustedContacts.shouldContainExactlyInAnyOrder(*contacts)
   }
 
 /**
  * Asserts that the [SocRecRelationships] exactly has the given [contacts] and no other relationships.
  */
-fun SocRecRelationships.shouldOnlyHaveEndorsed(vararg contacts: TrustedContact) =
+fun SocRecRelationships.shouldOnlyHaveEndorsed(vararg contacts: EndorsedTrustedContact) =
   apply {
     shouldHaveEndorsed(*contacts)
     invitations.shouldBeEmpty()
@@ -48,7 +48,7 @@ fun SocRecRelationships.shouldOnlyHaveEndorsed(vararg contacts: TrustedContact) 
 fun SocRecRelationships.shouldOnlyHaveSingleInvitation(block: (Invitation) -> Unit) =
   apply {
     invitations.shouldBeSingleton(block)
-    trustedContacts.shouldBeEmpty()
+    endorsedTrustedContacts.shouldBeEmpty()
     unendorsedTrustedContacts.shouldBeEmpty()
     protectedCustomers.shouldBeEmpty()
   }
@@ -61,7 +61,7 @@ fun SocRecRelationships.shouldOnlyHaveSingleProtectedCustomer(block: (ProtectedC
   apply {
     protectedCustomers.shouldBeSingleton(block)
     invitations.shouldBeEmpty()
-    trustedContacts.shouldBeEmpty()
+    endorsedTrustedContacts.shouldBeEmpty()
     unendorsedTrustedContacts.shouldBeEmpty()
   }
 
@@ -70,9 +70,9 @@ fun SocRecRelationships.shouldOnlyHaveSingleProtectedCustomer(block: (ProtectedC
  * Applies the given [block] to the trusted contact.
  */
 fun SocRecRelationships.shouldOnlyHaveSingleEndorsedTrustedContact(
-  block: (TrustedContact) -> Unit,
+  block: (EndorsedTrustedContact) -> Unit,
 ) = apply {
-  trustedContacts.shouldBeSingleton(block)
+  endorsedTrustedContacts.shouldBeSingleton(block)
   unendorsedTrustedContacts.shouldBeEmpty()
   protectedCustomers.shouldBeEmpty()
   invitations.shouldBeEmpty()

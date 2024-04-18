@@ -17,7 +17,6 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true }
-ulid = { workspace = true }
 utoipa = { workspace = true }
 
 # path dependencies

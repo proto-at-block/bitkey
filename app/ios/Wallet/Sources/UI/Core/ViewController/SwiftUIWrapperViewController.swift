@@ -15,9 +15,7 @@ public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperV
 
     public init(_ wrappedView: T, screenModel: ScreenModel) {
         log { "Initializing \(wrappedView)" }
-        super.init(
-            rootView: WrapperView(wrappedView: wrappedView, screenModel: screenModel)
-        )
+        super.init(rootView: WrapperView(wrappedView: wrappedView, screenModel: screenModel))
     }
 
     required dynamic init?(coder aDecoder: NSCoder) {
@@ -25,7 +23,7 @@ public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperV
     }
 
     public func updateWrappedView(_ wrappedView: T, screenModel: ScreenModel) {
-        rootView = WrapperView(wrappedView: wrappedView, screenModel: screenModel)
+        self.rootView.updateWrappedView(wrappedView, screenModel: screenModel)
     }
 
     public func updateWrappedView(_ update: (_ view: T) -> Void) {
@@ -36,18 +34,34 @@ public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperV
 
 // MARK: -
 
+public class ObservableObjectHolder<T> : ObservableObject {
+    @Published var value: T
+    
+    init(value: T) {
+        self.value = value
+    }
+}
+
 public struct WrapperView<T: View>: View {
 
     // MARK: - Private Properties
 
-    private var screenModel: ScreenModel
-    let wrappedView: T
+    @ObservedObject var wrappedViewHolder: ObservableObjectHolder<T>
+    @ObservedObject var screenModelHolder: ObservableObjectHolder<ScreenModel>
+    
+    var wrappedView: T {
+        wrappedViewHolder.value
+    }
+    
+    var screenModel: ScreenModel {
+        screenModelHolder.value
+    }
 
     // MARK: - Life Cycle
 
     init(wrappedView: T, screenModel: ScreenModel) {
-        self.screenModel = screenModel
-        self.wrappedView = wrappedView
+        self.wrappedViewHolder = ObservableObjectHolder(value: wrappedView)
+        self.screenModelHolder = ObservableObjectHolder(value: screenModel)
     }
 
     public var body: some View {
@@ -60,8 +74,13 @@ public struct WrapperView<T: View>: View {
                 StatusBannerView(viewModel: statusBannerModel)
             }
         }
+        .animation(.easeInOut(duration: 0.4), value: screenModel.statusBannerModel)
     }
 
+    public func updateWrappedView(_ wrappedView: T, screenModel: ScreenModel) {
+        self.wrappedViewHolder.value = wrappedView
+        self.screenModelHolder.value = screenModel
+    }
 }
 
 // MARK: -

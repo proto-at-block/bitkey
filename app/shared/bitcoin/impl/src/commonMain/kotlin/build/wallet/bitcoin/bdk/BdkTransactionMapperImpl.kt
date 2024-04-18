@@ -15,9 +15,11 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
+import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
+import kotlinx.collections.immutable.toImmutableList
 
 class BdkTransactionMapperImpl(
   private val bdkAddressBuilder: BdkAddressBuilder,
@@ -91,7 +93,9 @@ class BdkTransactionMapperImpl(
       fee = fee,
       vsize = vsize,
       weight = transactionWeight,
-      incoming = incoming
+      incoming = incoming,
+      inputs = bdkTransaction.transaction?.input()?.toImmutableList() ?: emptyImmutableList(),
+      outputs = bdkTransaction.transaction?.output()?.toImmutableList() ?: emptyImmutableList()
     )
   }
 

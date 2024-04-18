@@ -120,7 +120,7 @@ sns = "environment"
 analytics_destination = "Segment"
 analytics_api_url = "https://api.segment.io"
 iterable = { mode = "environment", comms_verification_campaign_id = 9282843, recovery_pending_delay_period_lost_app_campaign_id = 9284325, recovery_pending_delay_period_lost_hw_campaign_id = 9284300, recovery_completed_delay_period_lost_app_campaign_id = 9284352, recovery_completed_delay_period_lost_hw_campaign_id = 9284334, recovery_canceled_delay_period_lost_app_campaign_id = 9284409, recovery_canceled_delay_period_lost_hw_campaign_id = 9284374, recovery_relationship_invitation_accepted_campaign_id = 9284438, recovery_relationship_deleted_campaign_id = 9284488, social_challenge_response_received_campaign_id = 9284476, marketing_channel_id = 87980, transactional_channel_id = 87981, account_security_message_type_id = 125506, money_movement_message_type_id = 125507, product_marketing_message_type_id = 125505 }
-twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c" }
+twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c", status_callback_override = "https://api.bitkey.world/api/twilio/status-callback" }
 zendesk = { mode = "environment" }
 screener = { mode = "s3" }
 allow_test_accounts_with_mainnet_keysets = true

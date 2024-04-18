@@ -16,7 +16,7 @@ import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.money.FiatMoney
 import build.wallet.money.exchange.CurrencyConverter
-import build.wallet.recovery.socrec.SocRecFullAccountActions
+import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.router.Route
 import build.wallet.router.Router
@@ -229,7 +229,7 @@ class HomeUiStateMachineImpl(
     props: HomeUiProps,
     state: HomeUiState,
     socRecRelationships: SocRecRelationships,
-    socRecActions: SocRecFullAccountActions,
+    socRecActions: SocRecProtectedCustomerActions,
     homeBottomSheetModel: SheetModel?,
     homeStatusBannerModel: StatusBannerModel?,
     onSettingsButtonClicked: () -> Unit,
@@ -278,9 +278,11 @@ class HomeUiStateMachineImpl(
     LaunchedEffect(account) {
       socRecRelationshipsRepository.syncLoop(scope = this, account)
     }
+
     return remember {
       socRecRelationshipsRepository
         .relationships
+        .filterNotNull()
     }.collectAsState(SocRecRelationships.EMPTY).value
   }
 
@@ -298,7 +300,7 @@ class HomeUiStateMachineImpl(
     homeStatusBannerModel: StatusBannerModel?,
     onBack: () -> Unit,
     socRecRelationships: SocRecRelationships,
-    socRecActions: SocRecFullAccountActions,
+    socRecActions: SocRecProtectedCustomerActions,
   ) = settingsHomeUiStateMachine.model(
     props =
       SettingsHomeUiProps(

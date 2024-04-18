@@ -2,11 +2,11 @@
     "module-identifier": "com.ionspin.kotlin:bignum-jvm",
     "components": [
         {
-            "version": "0.3.8",
+            "version": "0.3.9",
             "variants": [
                 {
                     "artifacts": {
-                        "bignum-jvm-0.3.8.jar": "c71f24ce8341a5106c3cf5db161476b6b8f80233de64ad93e6290ec493dda22c"
+                        "bignum-jvm-0.3.9.jar": "223b30470face36b8a224c861db23fa2b98c2a61bbf6d9f202db5bf7164b9dcf"
                     }
                 }
             ],

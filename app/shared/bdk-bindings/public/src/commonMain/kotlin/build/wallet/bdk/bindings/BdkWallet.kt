@@ -21,6 +21,8 @@ interface BdkWallet {
   fun getAddressBlocking(addressIndex: BdkAddressIndex): BdkResult<BdkAddressInfo>
 
   fun isMineBlocking(script: BdkScript): BdkResult<Boolean>
+
+  fun listUnspentBlocking(): BdkResult<List<BdkUtxo>>
 }
 
 suspend fun BdkWallet.sync(
@@ -61,5 +63,11 @@ suspend fun BdkWallet.getAddress(addressIndex: BdkAddressIndex): BdkResult<BdkAd
 suspend fun BdkWallet.isMine(script: BdkScript): BdkResult<Boolean> {
   return withContext(Dispatchers.BdkIO) {
     isMineBlocking(script)
+  }
+}
+
+suspend fun BdkWallet.listUnspent(): BdkResult<List<BdkUtxo>> {
+  return withContext(Dispatchers.BdkIO) {
+    listUnspentBlocking()
   }
 }

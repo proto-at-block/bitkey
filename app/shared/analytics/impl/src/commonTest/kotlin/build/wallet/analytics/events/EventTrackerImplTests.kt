@@ -13,11 +13,9 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
-import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.device.DevicePlatform.IOS
@@ -29,6 +27,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
+import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 
@@ -45,13 +44,8 @@ class EventTrackerImplTests : FunSpec({
   val deviceInfoProvider = DeviceInfoProviderMock()
   val accountRepository = AccountRepositoryFake()
   val eventStore = EventStoreMock()
-  val featureFlagDao = FeatureFlagDaoMock()
-  val analyticsTrackingEnabledFeatureFlag =
-    AnalyticsTrackingEnabledFeatureFlag(
-      appVariant = Customer,
-      featureFlagDao = featureFlagDao
-    )
   val templateFullAccountConfigDao = TemplateFullAccountConfigDaoFake()
+  val analyticsTrackingPreference = AnalyticsTrackingPreferenceFake()
 
   val appScope = TestScope()
 
@@ -68,16 +62,17 @@ class EventTrackerImplTests : FunSpec({
       appInstallationDao = appInstallationDao,
       hardwareInfoProvider = hardWareInfoProvider,
       platformInfoProvider = platformInfoProvider,
-      sessionIdProvider = SessionIdProviderMock(sessionId),
+      appSessionManager = AppSessionManagerFake(sessionId),
       eventStore = eventStore,
-      analyticsTrackingEnabledFeatureFlag = analyticsTrackingEnabledFeatureFlag,
       bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(),
       fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
-      localeCurrencyCodeProvider = LocaleCurrencyCodeProviderMock()
+      localeCurrencyCodeProvider = LocaleCurrencyCodeProviderMock(),
+      analyticsTrackingPreference = analyticsTrackingPreference
     )
 
   beforeTest {
     eventProcessor.processBatchReturnValues = listOf(Ok(Unit))
+    analyticsTrackingPreference.clear()
   }
 
   afterTest {
@@ -93,7 +88,7 @@ class EventTrackerImplTests : FunSpec({
         eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
         appScope.runCurrent()
         val persistedEvent =
-          (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+          eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
         persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
         persistedEvent.event.session_id.shouldBe(sessionId)
@@ -118,7 +113,7 @@ class EventTrackerImplTests : FunSpec({
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =
-        (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+        eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
       persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
       persistedEvent.event.session_id.shouldBe(sessionId)
@@ -139,7 +134,7 @@ class EventTrackerImplTests : FunSpec({
         eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
         appScope.runCurrent()
         val persistedEvent =
-          (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+          eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
         persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
         persistedEvent.event.session_id.shouldBe(sessionId)
@@ -169,7 +164,7 @@ class EventTrackerImplTests : FunSpec({
       eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
       appScope.runCurrent()
       val persistedEvent =
-        (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+        eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
       persistedEvent.event.action.shouldBe(ACTION_APP_ACCOUNT_CREATED)
       persistedEvent.event.session_id.shouldBe(sessionId)
@@ -195,7 +190,7 @@ class EventTrackerImplTests : FunSpec({
     appScope.runCurrent()
 
     val persistedEvent =
-      (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+      eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
 
     persistedEvent.event.action.shouldBe(ACTION_APP_SCREEN_IMPRESSION)
     persistedEvent.event.screen_id.shouldBe("HW_PAIR_INSTRUCTIONS_ACCOUNT_CREATION")
@@ -212,7 +207,7 @@ class EventTrackerImplTests : FunSpec({
     appScope.runCurrent()
 
     val persistedEvent =
-      (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+      eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
     persistedEvent.event.app_device_id.shouldBe(platformInfoProvider.getPlatformInfo().device_id)
   }
 
@@ -227,7 +222,14 @@ class EventTrackerImplTests : FunSpec({
     appScope.runCurrent()
 
     val persistedEvent =
-      (eventProcessor.processBatchCalls.awaitItem() as List<QueueAnalyticsEvent>).first()
+      eventProcessor.processBatchCalls.awaitItem().shouldBeInstanceOf<List<QueueAnalyticsEvent>>().first()
     persistedEvent.event.app_device_id.shouldBe(appDeviceIdDao.appDeviceId)
+  }
+
+  test("No events are processed when tracking is disabled") {
+    analyticsTrackingPreference.set(false)
+    eventTracker.track(ACTION_APP_ACCOUNT_CREATED)
+    appScope.runCurrent()
+    eventProcessor.processBatchCalls.expectNoEvents()
   }
 })

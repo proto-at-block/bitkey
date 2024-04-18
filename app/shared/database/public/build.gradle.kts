@@ -40,6 +40,7 @@ kotlin {
         api(projects.shared.sqldelightPublic)
         api(projects.shared.moneyPublic)
         api(projects.shared.onboardingPublic)
+        api(projects.shared.partnershipsPublic)
         api(projects.shared.phoneNumberPublic)
         api(projects.shared.fwupPublic)
         api(projects.shared.recoveryPublic)

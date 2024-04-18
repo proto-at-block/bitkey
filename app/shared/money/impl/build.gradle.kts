@@ -32,6 +32,7 @@ kotlin {
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.analyticsFake)
       }
     }
   }

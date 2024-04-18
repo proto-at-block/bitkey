@@ -81,8 +81,7 @@ class HasActiveFullAccountDataStateMachineImpl(
 
     var spendingWallet by remember { mutableStateOf<SpendingWallet?>(null) }
     LaunchedEffect(props.account.keybox.activeSpendingKeyset) {
-      spendingWallet =
-        appSpendingWalletProvider.getSpendingWallet(props.account.keybox.activeSpendingKeyset).get()
+      spendingWallet = appSpendingWalletProvider.getSpendingWallet(props.account).get()
     }
 
     // Using collectAsState stops and starts each recomposition because the returned flow can differ,
@@ -129,7 +128,6 @@ class HasActiveFullAccountDataStateMachineImpl(
               mobilePayDataStateMachine.model(
                 MobilePayProps(
                   account = props.account,
-                  spendingWallet = sw,
                   transactionsData = transactionsData,
                   fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference
                 )

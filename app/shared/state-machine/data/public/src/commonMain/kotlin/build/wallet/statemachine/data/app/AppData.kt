@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.app
 
-import build.wallet.account.analytics.AppInstallation
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.data.firmware.FirmwareData
@@ -20,8 +19,6 @@ sealed interface AppData {
   /**
    * App-scoped data is loaded.
    *
-   * @property appInstallation instance of the [AppInstallation], currently corresponding to unique
-   * app installation.
    * @property accountData keybox data (no keybox, has keybox, etc).
    * @property lightningNodeData data corresponding to the LDK node. Currently app-scoped, but in the future might need to be
    * scoped to keybox data.
@@ -29,7 +26,6 @@ sealed interface AppData {
    * @property firmwareData provides data for the firmware of the last used HW device, if any
    */
   data class AppLoadedData(
-    val appInstallation: AppInstallation,
     val accountData: AccountData,
     val lightningNodeData: LightningNodeData,
     val electrumServerData: ElectrumServerData,

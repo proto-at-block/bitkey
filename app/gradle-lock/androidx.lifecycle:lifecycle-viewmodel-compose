@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-compose",
+    "components": [
+        {
+            "version": "2.7.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-compose-2.7.0.aar": "76403bb1599f6e2adc9b80372efb2674b8cbede2b0f1e6e85c4a94e10c7b94b0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

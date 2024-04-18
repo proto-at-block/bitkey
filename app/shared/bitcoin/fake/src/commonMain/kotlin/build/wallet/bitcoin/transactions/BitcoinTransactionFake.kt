@@ -1,11 +1,15 @@
 package build.wallet.bitcoin.transactions
 
+import build.wallet.bdk.bindings.BdkTxIn
+import build.wallet.bdk.bindings.BdkTxOut
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.money.BitcoinMoney
 import build.wallet.time.someInstant
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.datetime.Instant
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -24,7 +28,9 @@ val BitcoinTransactionFake =
     fee = null,
     weight = defaultTransactionWeight,
     vsize = defaultTransactionWeight / 4UL,
-    incoming = true
+    incoming = true,
+    inputs = emptyImmutableList(),
+    outputs = emptyImmutableList()
   )
 
 fun BitcoinTransactionMock(
@@ -32,6 +38,8 @@ fun BitcoinTransactionMock(
   fee: BitcoinMoney? = null,
   incoming: Boolean = false,
   confirmationTime: Instant?,
+  inputs: ImmutableList<BdkTxIn> = emptyImmutableList(),
+  outputs: ImmutableList<BdkTxOut> = emptyImmutableList(),
 ): BitcoinTransaction =
   BitcoinTransaction(
     id = "some-id",
@@ -51,5 +59,7 @@ fun BitcoinTransactionMock(
     fee = fee,
     weight = defaultTransactionWeight,
     vsize = defaultTransactionWeight / 4UL,
-    incoming = incoming
+    incoming = incoming,
+    inputs = inputs,
+    outputs = outputs
   )

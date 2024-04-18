@@ -1,6 +1,6 @@
 package build.wallet.ui.app.recovery
 
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.compose.collections.immutableListOf
@@ -17,8 +17,8 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
       FormScreen(
         RecoveryChallengeContactListBodyModel(
           onExit = {},
-          trustedContacts = immutableListOf(
-            TrustedContact(
+          endorsedTrustedContacts = immutableListOf(
+            EndorsedTrustedContact(
               recoveryRelationshipId = "1",
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
               keyCertificate = TrustedContactKeyCertificateFake
@@ -38,8 +38,8 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
       FormScreen(
         RecoveryChallengeContactListBodyModel(
           onExit = {},
-          trustedContacts = immutableListOf(
-            TrustedContact(
+          endorsedTrustedContacts = immutableListOf(
+            EndorsedTrustedContact(
               recoveryRelationshipId = "1",
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
               keyCertificate = TrustedContactKeyCertificateFake
@@ -59,13 +59,13 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
       FormScreen(
         RecoveryChallengeContactListBodyModel(
           onExit = {},
-          trustedContacts = immutableListOf(
-            TrustedContact(
+          endorsedTrustedContacts = immutableListOf(
+            EndorsedTrustedContact(
               recoveryRelationshipId = "1",
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
               keyCertificate = TrustedContactKeyCertificateFake
             ),
-            TrustedContact(
+            EndorsedTrustedContact(
               recoveryRelationshipId = "2",
               trustedContactAlias = TrustedContactAlias(alias = "alias2"),
               keyCertificate = TrustedContactKeyCertificateFake

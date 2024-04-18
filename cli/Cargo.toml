@@ -2,7 +2,7 @@
 edition = "2021"
 name = "bk"
 publish = false
-version = "2024.51.0"
+version = "2024.55.0"
 
 default-run = "bk"
 
@@ -14,7 +14,7 @@ aws-sdk-cognitoidentityprovider = "0.34.0"
 aws-sdk-dynamodb = "0.33.0"
 aws-sdk-secretsmanager = "0.34.0"
 aws-types = "0.56.0"
-bdk = "0.28.0"
+bdk = { version = "0.29.0" }
 clap = { version = "4.5.0", features = ["derive"] }
 derive_builder = { version = "0.13.0" }
 hkdf = "0.12.3"

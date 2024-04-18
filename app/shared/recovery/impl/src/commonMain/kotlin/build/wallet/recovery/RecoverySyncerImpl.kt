@@ -1,5 +1,6 @@
 package build.wallet.recovery
 
+import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
@@ -16,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -24,6 +26,7 @@ import kotlin.time.Duration
 class RecoverySyncerImpl(
   val recoveryDao: RecoveryDao,
   val getRecoveryStatusService: GetDelayNotifyRecoveryStatusService,
+  val appSessionManager: AppSessionManager,
 ) : RecoverySyncer {
   /**
    * A mutex used to ensure only one call to sync is in flight at a time
@@ -39,11 +42,14 @@ class RecoverySyncerImpl(
   ) {
     log { "Starting recovery sync polling" }
     scope.launch {
-      while (true) {
-        performSync(
-          fullAccountId = fullAccountId,
-          f8eEnvironment = f8eEnvironment
-        )
+      while (isActive) {
+        if (appSessionManager.isAppForegrounded()) {
+          performSync(
+            fullAccountId = fullAccountId,
+            f8eEnvironment = f8eEnvironment
+          )
+        }
+
         delay(syncFrequency)
       }
     }

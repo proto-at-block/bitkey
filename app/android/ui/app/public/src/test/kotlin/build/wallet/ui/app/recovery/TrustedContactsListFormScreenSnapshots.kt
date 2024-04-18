@@ -2,11 +2,11 @@ package build.wallet.ui.app.recovery
 
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
@@ -30,7 +30,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
         TrustedContactsListBodyModel(
           contacts =
             listOf(
-              TrustedContact(
+              EndorsedTrustedContact(
                 "",
                 trustedContactAlias = TrustedContactAlias(alias = "Bob"),
                 keyCertificate = TrustedContactKeyCertificate(

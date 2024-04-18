@@ -8,8 +8,7 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINU
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.spending.SpendingKeysetMock
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.datadog.DatadogRumMonitorFake
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
@@ -52,8 +51,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
     val fees =
       estimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
-        keyset = SpendingKeysetMock,
-        fullAccountConfig = KeyboxMock.config,
+        account = FullAccountMock,
         recipientAddress = BitcoinAddress(address = ""),
         amount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
       ).unwrap()
@@ -74,8 +72,7 @@ class BitcoinTransactionFeeEstimatorImplTests : FunSpec({
     val result =
       estimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
-        keyset = SpendingKeysetMock,
-        fullAccountConfig = KeyboxMock.config,
+        account = FullAccountMock,
         recipientAddress = BitcoinAddress(address = ""),
         amount = BitcoinTransactionSendAmount.ExactAmount(BitcoinMoney.zero())
       )

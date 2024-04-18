@@ -9,7 +9,7 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.InternetUnreachable
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransactionFake
-import build.wallet.bitkey.socrec.TrustedContactFake1
+import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
@@ -334,7 +334,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
       updateProps(
         props.copy(
-          trustedContacts = listOf(TrustedContactFake1)
+          trustedContacts = listOf(EndorsedTrustedContactFake1)
         )
       )
 

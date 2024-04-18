@@ -350,7 +350,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
   private fun SigningIntoCloudModel(
     props: FullAccountCloudSignInAndBackupProps,
     onSignedIn: (CloudStoreAccount) -> Unit,
-    onSignInFailed: () -> Unit,
+    onSignInFailed: (ErrorData) -> Unit,
   ): BodyModel {
     return cloudSignInUiStateMachine.model(
       props =
@@ -358,7 +358,13 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           forceSignOut = !props.isSkipCloudBackupInstructions,
           onSignInFailure = {
             eventTracker.track(action = ACTION_APP_CLOUD_BACKUP_MISSING)
-            onSignInFailed()
+            onSignInFailed(
+              ErrorData(
+                segment = RecoverySegment.CloudBackup.FullAccount.SignIn,
+                cause = it,
+                actionDescription = "Signing into cloud account failed"
+              )
+            )
           },
           onSignedIn = { account ->
             eventTracker.track(action = ACTION_APP_CLOUD_BACKUP_INITIALIZE)
@@ -409,7 +415,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             .create(
               keybox = props.keybox,
               sealedCsek = sealedCsek,
-              trustedContacts = props.trustedContacts
+              endorsedTrustedContacts = props.endorsedTrustedContacts
             )
             .logFailure { "Error creating cloud backup" }
             .onFailure {

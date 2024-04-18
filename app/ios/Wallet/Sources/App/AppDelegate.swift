@@ -73,16 +73,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func applicationDidBecomeActive(_ application: UIApplication) {
-        // Notify the session provider that we are now in the foreground.
+        // Notify the session manager that we are now in the foreground.
         // This is to refresh the session ID if a certain amount of time has passed in the background.
-        appContext.appComponent.sessionIdProvider.applicationDidEnterForeground()
+        appContext.appComponent.appSessionManager.appDidEnterForeground()
 
         // Notify the notification manager that we are now in the foreground so it can perform relevant tasks.
         appContext.notificationManager.applicationDidEnterForeground(application)
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
-        appContext.appComponent.sessionIdProvider.applicationDidEnterBackground()
+        appContext.appComponent.appSessionManager.appDidEnterBackground()
     }
     
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {

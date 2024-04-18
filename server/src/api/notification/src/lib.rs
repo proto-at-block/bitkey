@@ -93,7 +93,9 @@ impl From<NotificationError> for ApiError {
     }
 }
 
-#[derive(Deserialize, StrumDisplay, EnumString, Serialize, Clone, Debug, PartialEq, Copy)]
+#[derive(
+    Deserialize, StrumDisplay, EnumString, Serialize, Clone, Debug, PartialEq, Eq, Hash, Copy,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum NotificationPayloadType {

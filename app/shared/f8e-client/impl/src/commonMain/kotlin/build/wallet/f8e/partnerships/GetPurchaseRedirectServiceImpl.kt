@@ -8,6 +8,7 @@ import build.wallet.f8e.partnerships.GetPurchaseRedirectService.Success
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.money.FiatMoney
+import build.wallet.partnerships.PartnershipTransactionId
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.post
@@ -26,6 +27,7 @@ class GetPurchaseRedirectServiceImpl(
     partner: String,
     paymentMethod: String,
     quoteId: String?,
+    partnerTransactionId: PartnershipTransactionId?,
   ): Result<Success, NetworkingError> {
     return f8eHttpClient
       .authenticated(
@@ -41,7 +43,8 @@ class GetPurchaseRedirectServiceImpl(
               fiatCurrency = fiatAmount.currency.textCode.code.uppercase(),
               partner = partner,
               paymentMethod = paymentMethod,
-              quoteId = quoteId
+              quoteId = quoteId,
+              partnerTransactionId = partnerTransactionId
             )
           )
         }
@@ -65,6 +68,8 @@ class GetPurchaseRedirectServiceImpl(
     val paymentMethod: String,
     @SerialName("quote_id")
     val quoteId: String?,
+    @SerialName("partner_transaction_id")
+    val partnerTransactionId: PartnershipTransactionId?,
   )
 
   @Serializable

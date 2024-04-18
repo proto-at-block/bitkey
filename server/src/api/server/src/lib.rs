@@ -10,6 +10,7 @@ use std::time::Duration;
 
 use axum::{middleware, Router};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
+use jwt_authorizer::IntoLayer;
 use metrics::middleware::HttpMetrics;
 use metrics::system::init_tokio_metrics;
 use notification::clients::iterable::IterableClient;
@@ -176,9 +177,10 @@ pub async fn create_bootstrap_with_overrides(
     let authorizer =
         AuthorizerConfig::from(config::extract::<userpool::userpool::Config>(profile)?)
             .into_authorizer()
-            .layer()
+            .build()
             .await
-            .map_err(BootstrapError::AuthorizerInit)?;
+            .map_err(BootstrapError::AuthorizerInit)?
+            .into_layer();
 
     let ddb = config::extract::<ddb::Config>(profile)?
         .to_connection()
@@ -275,7 +277,6 @@ pub async fn create_bootstrap_with_overrides(
         userpool_service.clone(),
         config::extract(profile)?,
         identifier_generator,
-        notification_service.clone(),
         account_service.clone(),
         wallet_recovery_service.clone(),
         wsm_service.client.clone(),

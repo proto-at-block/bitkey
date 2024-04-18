@@ -28,9 +28,8 @@ suspend fun AppTester.endorseAndVerifyTc(relationshipId: String) =
   withClue("endorse and verify TC") {
     val account = getActiveFullAccount()
     // PAKE confirmation and endorsement
-    val unendorsedTcs = app.socRecRelationshipsRepository.syncRelationshipsWithoutVerification(
-      account.accountId,
-      account.config.f8eEnvironment
+    val unendorsedTcs = app.socRecRelationshipsRepository.syncAndVerifyRelationships(
+      account
     ).getOrThrow()
       .unendorsedTrustedContacts
     unendorsedTcs.first { it.recoveryRelationshipId == relationshipId }
@@ -39,7 +38,7 @@ suspend fun AppTester.endorseAndVerifyTc(relationshipId: String) =
 
     // Verify endorsement
     app.socRecRelationshipsRepository.syncAndVerifyRelationships(account).getOrThrow()
-      .trustedContacts
+      .endorsedTrustedContacts
       .first { it.recoveryRelationshipId == relationshipId }
       .authenticationState
       .shouldBe(TrustedContactAuthenticationState.VERIFIED)

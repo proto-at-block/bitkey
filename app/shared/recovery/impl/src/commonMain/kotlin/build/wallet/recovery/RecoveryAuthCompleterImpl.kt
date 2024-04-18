@@ -1,6 +1,5 @@
 package build.wallet.recovery
 
-import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AccountCreationError
 import build.wallet.auth.AccountCreationError.AccountCreationAuthError
@@ -14,6 +13,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
+import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.CompleteDelayNotifyService
 import build.wallet.logging.log
@@ -22,10 +22,10 @@ import build.wallet.logging.logNetworkFailure
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.time.Delayer
 import build.wallet.time.withMinimumDelay
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.onSuccess
 import kotlin.time.Duration.Companion.seconds
 
 class RecoveryAuthCompleterImpl(
@@ -52,9 +52,8 @@ class RecoveryAuthCompleterImpl(
       // Hack for W-4377; this entire method needs to take at least 2 seconds, so the last step
       // is performed after this minimum delay because it triggers recompose via recovery change.
       delayer.withMinimumDelay(2.seconds) {
-        if (hardwareSignedChallenge.signingFactor != Hardware) {
-          Err(Error("Expected $hardwareSignedChallenge to be signed with Hardware factor."))
-            .bind<AccountAuthTokens>()
+        ensure(hardwareSignedChallenge.signingFactor == Hardware) {
+          Error("Expected $hardwareSignedChallenge to be signed with Hardware factor.")
         }
 
         recoverySyncer
@@ -102,15 +101,17 @@ class RecoveryAuthCompleterImpl(
               fullAccountId,
               f8eEnvironment
             )
-            .protectedCustomers
-            .onEach {
-              socRecRelationshipsRepository.removeRelationshipWithoutSyncing(
-                accountId = fullAccountId,
-                f8eEnvironment = f8eEnvironment,
-                hardwareProofOfPossession = null,
-                AuthTokenScope.Recovery,
-                it.recoveryRelationshipId
-              ).bind()
+            .logFailure { "Error fetching relationships for removal" }
+            .onSuccess { relationships ->
+              relationships.protectedCustomers.onEach {
+                socRecRelationshipsRepository.removeRelationshipWithoutSyncing(
+                  accountId = fullAccountId,
+                  f8eEnvironment = f8eEnvironment,
+                  hardwareProofOfPossession = null,
+                  AuthTokenScope.Recovery,
+                  it.recoveryRelationshipId
+                ).bind()
+              }
             }
         }
       }

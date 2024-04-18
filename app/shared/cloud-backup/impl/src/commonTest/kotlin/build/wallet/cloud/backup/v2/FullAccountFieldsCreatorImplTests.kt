@@ -6,7 +6,7 @@ import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.TrustedContactFake1
+import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
 import build.wallet.bitkey.socrec.TrustedContactFake2
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
@@ -34,7 +34,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
   val symmetricKeyEncryptor = SymmetricKeyEncryptorMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
   val csekDao = CsekDaoFake()
-  val trustedContacts = listOf(TrustedContactFake1, TrustedContactFake2)
+  val trustedContacts = listOf(EndorsedTrustedContactFake1, TrustedContactFake2)
 
   val socRecCrypto = SocRecCryptoFake(appPrivateKeyDao = appPrivateKeyDao)
   val fullAccountFieldsCreator =
@@ -69,7 +69,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
         sealedCsek = SealedCsekFake,
-        trustedContacts = trustedContacts
+        endorsedTrustedContacts = trustedContacts
       ).shouldBeOk()
 
     val backupWithoutSocRec =
@@ -104,7 +104,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
         sealedCsek = SealedCsekFake,
-        trustedContacts = trustedContacts
+        endorsedTrustedContacts = trustedContacts
       )
     createResult
       .shouldBeErrOfType<PkekRetrievalError>()
@@ -131,7 +131,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
         sealedCsek = SealedCsekFake,
-        trustedContacts = trustedContacts
+        endorsedTrustedContacts = trustedContacts
       )
     createResult
       .shouldBeErrOfType<PkekRetrievalError>().cause.shouldBeNull()
@@ -151,7 +151,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
         sealedCsek = SealedCsekFake,
-        trustedContacts = trustedContacts
+        endorsedTrustedContacts = trustedContacts
       )
     createResult
       .shouldBeErrOfType<AppSpendingPrivateKeyRetrievalError>()
@@ -167,7 +167,7 @@ class FullAccountFieldsCreatorImplTests : FunSpec({
       fullAccountFieldsCreator.create(
         keybox = KeyboxMock,
         sealedCsek = SealedCsekFake,
-        trustedContacts = trustedContacts
+        endorsedTrustedContacts = trustedContacts
       )
     createResult
       .shouldBeErrOfType<AppAuthPrivateKeyRetrievalError>()

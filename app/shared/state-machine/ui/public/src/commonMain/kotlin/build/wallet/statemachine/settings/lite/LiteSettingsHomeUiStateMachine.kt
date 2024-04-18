@@ -2,7 +2,7 @@ package build.wallet.statemachine.settings.lite
 
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.money.display.CurrencyPreferenceData
-import build.wallet.recovery.socrec.SocRecLiteAccountActions
+import build.wallet.recovery.socrec.SocRecTrustedContactActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.firmware.FirmwareData
@@ -22,5 +22,5 @@ data class LiteSettingsHomeUiProps(
   val firmwareData: FirmwareData,
   val protectedCustomers: ImmutableList<ProtectedCustomer>,
   val homeStatusBannerModel: StatusBannerModel?,
-  val socRecLiteAccountActions: SocRecLiteAccountActions,
+  val socRecTrustedContactActions: SocRecTrustedContactActions,
 )

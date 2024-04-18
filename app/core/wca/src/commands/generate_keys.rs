@@ -1,4 +1,4 @@
-use bitcoin::util::bip32::{ChildNumber, DerivationPath};
+use bitcoin::bip32::{ChildNumber, DerivationPath};
 use miniscript::DescriptorPublicKey;
 use next_gen::generator;
 
@@ -96,7 +96,7 @@ pub fn find_next_bip84_derivation(
 }
 
 fn bip84(dpub: &DescriptorPublicKey) -> Option<[ChildNumber; 3]> {
-    match dpub.full_derivation_path().into_iter().as_slice() {
+    match dpub.full_derivation_path()?.into_iter().as_slice() {
         [purpose @ ChildNumber::Hardened { index: 84 }, coin_type @ ChildNumber::Hardened { index: 0 | 1 }, account, ..] => {
             Some([*purpose, *coin_type, *account])
         }
@@ -111,8 +111,8 @@ mod tests {
     use std::str::FromStr;
 
     use bitcoin::{
+        bip32::ChildNumber,
         secp256k1::rand::{seq::SliceRandom, thread_rng},
-        util::bip32::ChildNumber,
     };
     use miniscript::DescriptorPublicKey;
 

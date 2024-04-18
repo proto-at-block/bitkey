@@ -47,6 +47,7 @@ mod tests {
     use axum::routing::get;
     use axum::{middleware, Router};
     use jsonwebtoken::{decode, DecodingKey};
+    use jwt_authorizer::IntoLayer;
     use tower::util::ServiceExt;
     use types::account::identifiers::AccountId;
     use types::authn_authz::AccessTokenClaims;
@@ -95,9 +96,10 @@ mod tests {
     async fn test_auth_middlewares() {
         let authorizer = AuthorizerConfig::Test
             .into_authorizer()
-            .layer()
+            .build()
             .await
-            .unwrap();
+            .unwrap()
+            .into_layer();
 
         let app = Router::new()
             .route("/no/account_id/in/path", get(|| async { StatusCode::OK }))

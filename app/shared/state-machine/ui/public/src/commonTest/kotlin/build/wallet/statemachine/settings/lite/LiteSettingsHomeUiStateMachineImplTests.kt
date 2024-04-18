@@ -60,7 +60,7 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
       firmwareData = FirmwareDataUpToDateMock,
       protectedCustomers = immutableListOf(),
       homeStatusBannerModel = null,
-      socRecLiteAccountActions = socrecRepositoryMock.toActions(LiteAccountMock),
+      socRecTrustedContactActions = socrecRepositoryMock.toActions(LiteAccountMock),
       onBack = { propsOnBackCalls.add(Unit) }
     )
 

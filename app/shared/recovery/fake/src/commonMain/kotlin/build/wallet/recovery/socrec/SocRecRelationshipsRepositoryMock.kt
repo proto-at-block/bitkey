@@ -1,7 +1,6 @@
 package build.wallet.recovery.socrec
 
 import app.cash.turbine.Turbine
-import app.cash.turbine.plusAssign
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
@@ -49,15 +48,6 @@ class SocRecRelationshipsRepositoryMock(
     return Ok(SocRecRelationshipsFake)
   }
 
-  override suspend fun syncRelationshipsWithoutVerification(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
-  ): Result<SocRecRelationships, Error> {
-    syncCalls += Unit
-
-    return Ok(SocRecRelationshipsFake)
-  }
-
   var relationshipsFlow =
     MutableStateFlow(
       SocRecRelationshipsFake
@@ -68,8 +58,8 @@ class SocRecRelationshipsRepositoryMock(
   override suspend fun getRelationshipsWithoutSyncing(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-  ): SocRecRelationships {
-    return relationshipsFlow.value
+  ): Result<SocRecRelationships, Error> {
+    return Ok(relationshipsFlow.value)
   }
 
   val removeRelationshipWithoutSyncingCalls = turbine("removeRelationshipWithoutSyncing calls")

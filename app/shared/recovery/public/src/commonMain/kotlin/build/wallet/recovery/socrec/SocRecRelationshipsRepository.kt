@@ -21,7 +21,7 @@ import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.f8e.socrec.SocRecRelationships
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Repository for managing protected customers and trusted contacts for Social Recovery.
@@ -39,18 +39,6 @@ interface SocRecRelationshipsRepository {
   )
 
   /**
-   * Immediately fetches latest relationships from f8e and stores them in db without performing any
-   * verification.
-   *
-   * This method is only useful in the context when there's no [FullAccount] available
-   * to perform verification of TCs.
-   */
-  suspend fun syncRelationshipsWithoutVerification(
-    accountId: AccountId,
-    f8eEnvironment: F8eEnvironment,
-  ): Result<SocRecRelationships, Error>
-
-  /**
    * Immediately fetches latest relationships from f8e, verifies TCs and stores them in db.
    */
   suspend fun syncAndVerifyRelationships(
@@ -61,19 +49,22 @@ interface SocRecRelationshipsRepository {
   ): Result<SocRecRelationships, Error>
 
   /**
-   * Emits latest [SocRecRelationships] stored in the database. Sync is performed by:
+   * Emits latest [SocRecRelationships] stored in the database. Sync with f8e is performed by:
    *   - [syncLoop] as long as the [syncLoop] is in scope.
-   *   - [syncAndVerifyRelationships] and [syncRelationshipsWithoutVerification] when called.
+   *   - when [syncAndVerifyRelationships] called.
    *
    * For [FullAccount], the relationships are always verified before being emitted.
+   *
+   * Emits `null` on initial loading.
+   * Emits [SocRecRelationships.EMPTY] if there was an error loading relationships from the database.
    */
-  val relationships: Flow<SocRecRelationships>
+  val relationships: StateFlow<SocRecRelationships?>
 
   /** Get [SocRecRelationships] but do not persist to the DB or emit to listeners. */
   suspend fun getRelationshipsWithoutSyncing(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
-  ): SocRecRelationships
+  ): Result<SocRecRelationships, Error>
 
   /**
    * Remove a recovery relationship that the caller ([account]) is part of.
@@ -144,14 +135,14 @@ interface SocRecRelationshipsRepository {
   suspend fun clear(): Result<Unit, Error>
 
   /**
-   * Create a [SocRecLiteAccountActions] by currying the Account into [SocRecRelationshipsRepository].
+   * Create a [SocRecTrustedContactActions] by currying the Account into [SocRecRelationshipsRepository].
    */
-  fun toActions(account: Account) = SocRecLiteAccountActions(this, account)
+  fun toActions(account: Account) = SocRecTrustedContactActions(this, account)
 
   /**
-   * Create a [SocRecFullAccountActions] by currying the Account into [SocRecRelationshipsRepository].
+   * Create a [SocRecProtectedCustomerActions] by currying the Account into [SocRecRelationshipsRepository].
    */
-  fun toActions(account: FullAccount) = SocRecFullAccountActions(this, account)
+  fun toActions(account: FullAccount) = SocRecProtectedCustomerActions(this, account)
 }
 
 suspend fun SocRecRelationshipsRepository.syncAndVerifyRelationships(
@@ -165,12 +156,20 @@ suspend fun SocRecRelationshipsRepository.syncAndVerifyRelationships(
   )
 
 sealed interface RetrieveInvitationCodeError {
-  data object InvalidInvitationCode : RetrieveInvitationCodeError
+  val cause: Error
 
-  data object InvitationCodeVersionMismatch : RetrieveInvitationCodeError
+  data class InvalidInvitationCode(
+    override val cause: Error,
+  ) : RetrieveInvitationCodeError
+
+  data class InvitationCodeVersionMismatch(
+    override val cause: Error,
+  ) : RetrieveInvitationCodeError
 
   data class F8ePropagatedError(val error: F8eError<RetrieveTrustedContactInvitationErrorCode>) :
-    RetrieveInvitationCodeError
+    RetrieveInvitationCodeError {
+    override val cause: Error = error.error
+  }
 }
 
 sealed interface AcceptInvitationCodeError {

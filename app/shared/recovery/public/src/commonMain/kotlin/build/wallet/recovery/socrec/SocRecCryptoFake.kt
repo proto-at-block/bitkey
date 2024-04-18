@@ -34,6 +34,7 @@ import build.wallet.encrypt.toSecp256k1PrivateKey
 import build.wallet.encrypt.toSecp256k1PublicKey
 import build.wallet.encrypt.toXSealedData
 import build.wallet.encrypt.verifyEcdsaResult
+import build.wallet.ensure
 import build.wallet.recovery.socrec.SocRecCryptoError.ErrorGettingPrivateKey
 import build.wallet.recovery.socrec.SocRecCryptoError.PublicKeyMissing
 import build.wallet.recovery.socrec.SocRecCryptoError.UnsupportedXCiphertextVersion
@@ -180,12 +181,10 @@ class SocRecCryptoFake(
     }
 
     return binding {
-      if (keyCertificate in invalidCertificates) {
-        Err(
-          SocRecCryptoError.KeyCertificateVerificationFailed(
-            IllegalArgumentException("Invalid key certificate")
-          )
-        ).bind<SocRecCryptoError>()
+      ensure(keyCertificate !in invalidCertificates) {
+        SocRecCryptoError.KeyCertificateVerificationFailed(
+          IllegalArgumentException("Invalid key certificate")
+        )
       }
 
       val hwEndorsementKey = keyCertificate.hwAuthPublicKey
@@ -196,17 +195,16 @@ class SocRecCryptoFake(
       val isAppKeyTrusted = appEndorsementKey == appGlobalAuthKey
 
       // Ensure at least one key matches a trusted key
-      if (!isHwKeyTrusted && !isAppKeyTrusted) {
-        Err(
-          SocRecCryptoError.KeyCertificateVerificationFailed(
-            IllegalArgumentException("None of the keys match the trusted keys provided")
-          )
-        ).bind<SocRecCryptoError>()
+      ensure(isHwKeyTrusted || isAppKeyTrusted) {
+        SocRecCryptoError.KeyCertificateVerificationFailed(
+          IllegalArgumentException("None of the keys match the trusted keys provided")
+        )
       }
 
       // Ensure at least one key matches a trusted key
-      if ((keyCertificate !in validCertificates) && (
-          !signatureVerifier!!.verifyEcdsaResult(
+      ensure(
+        keyCertificate in validCertificates || (
+          signatureVerifier!!.verifyEcdsaResult(
             signature = keyCertificate.appAuthGlobalKeyHwSignature.value,
             publicKey = hwEndorsementKey.pubKey,
             message = keyCertificate.appGlobalAuthPublicKey.value.encodeUtf8()
@@ -218,11 +216,9 @@ class SocRecCryptoFake(
             ).mapError { SocRecCryptoError.KeyCertificateVerificationFailed(it) }.bind()
         )
       ) {
-        Err(
-          SocRecCryptoError.KeyCertificateVerificationFailed(
-            IllegalArgumentException("Key certificate verification failed")
-          )
-        ).bind<SocRecCryptoError>()
+        SocRecCryptoError.KeyCertificateVerificationFailed(
+          IllegalArgumentException("Key certificate verification failed")
+        )
       }
 
       keyCertificate.delegatedDecryptionKey

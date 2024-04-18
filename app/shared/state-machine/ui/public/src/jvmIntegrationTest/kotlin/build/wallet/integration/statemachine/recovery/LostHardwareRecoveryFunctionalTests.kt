@@ -402,13 +402,13 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
   }
 
   test("recover lost hardware - sweep real funds") {
-    val keybox = appTester.getActiveFullAccount().keybox
+    val account = appTester.getActiveFullAccount()
     val wallet =
-      appSpendingWalletProvider.getSpendingWallet(keybox.activeSpendingKeyset)
+      appSpendingWalletProvider.getSpendingWallet(account)
         .getOrThrow()
     appTester.treasuryWallet.fund(wallet, BitcoinMoney.sats(10_000L))
 
-    val props = Props(keybox.config, keybox.localId)
+    val props = Props(account.config, account.keybox.localId)
     app.apply {
       recoveryStateMachine.test(
         props = props,
@@ -446,10 +446,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     }
 
     val activeAccount = appTester.getActiveFullAccount()
-    val activeWallet =
-      appSpendingWalletProvider.getSpendingWallet(
-        activeAccount.keybox.activeSpendingKeyset
-      ).getOrThrow()
+    val activeWallet = appSpendingWalletProvider.getSpendingWallet(activeAccount).getOrThrow()
     eventually(
       eventuallyConfig {
         duration = 60.seconds

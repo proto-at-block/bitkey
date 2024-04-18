@@ -4,11 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.account.analytics.AppInstallation
-import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_INITIALIZE
 import build.wallet.configuration.FiatMobilePayConfigurationRepository
@@ -40,11 +37,9 @@ import build.wallet.statemachine.data.money.currency.CurrencyPreferenceDataState
 import build.wallet.statemachine.data.sync.ElectrumServerData
 import build.wallet.statemachine.data.sync.ElectrumServerDataProps
 import build.wallet.statemachine.data.sync.ElectrumServerDataStateMachine
-import com.github.michaelbull.result.get
 
 class AppDataStateMachineImpl(
   private val eventTracker: EventTracker,
-  private val appInstallationDao: AppInstallationDao,
   private val featureFlagInitializer: FeatureFlagInitializer,
   private val featureFlagSyncer: FeatureFlagSyncer,
   private val accountDataStateMachine: AccountDataStateMachine,
@@ -118,28 +113,23 @@ class AppDataStateMachineImpl(
 
           val eakAssociation = emergencyAccessKitDataProvider.getAssociatedEakData()
 
-          when (val appInstallation = appInstallation()) {
-            null -> LoadingAppData
-            else ->
-              when (allBlockingEffectsAreComplete) {
-                true -> {
-                  // Wait until the local feature flags are initialized and an appInstallation has
-                  // been created before fetching remote feature flags.
-                  InitializeRemoteFeatureFlagsEffect()
+          when (allBlockingEffectsAreComplete) {
+            true -> {
+              // Wait until the local feature flags are initialized and an appInstallation has
+              // been created before fetching remote feature flags.
+              InitializeRemoteFeatureFlagsEffect()
 
-                  AppLoadedData(
-                    appInstallation,
-                    lightningNodeData,
-                    templateFullAccountConfigData,
-                    electrumServerData,
-                    firmwareData,
-                    fiatCurrencyPreferenceData,
-                    eakAssociation
-                  )
-                }
+              AppLoadedData(
+                lightningNodeData,
+                templateFullAccountConfigData,
+                electrumServerData,
+                firmwareData,
+                fiatCurrencyPreferenceData,
+                eakAssociation
+              )
+            }
 
-                false -> LoadingAppData
-              }
+            false -> LoadingAppData
           }
         }
       }
@@ -221,15 +211,7 @@ class AppDataStateMachineImpl(
   }
 
   @Composable
-  private fun appInstallation(): AppInstallation? {
-    return produceState<AppInstallation?>(initialValue = null) {
-      value = appInstallationDao.getOrCreateAppInstallation().get()
-    }.value
-  }
-
-  @Composable
   private fun AppLoadedData(
-    appInstallation: AppInstallation,
     lightningNodeData: LightningNodeData,
     templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     electrumServerData: ElectrumServerData,
@@ -242,7 +224,6 @@ class AppDataStateMachineImpl(
         props = AccountDataProps(templateFullAccountConfigData, currencyPreferenceData)
       )
     return AppData.AppLoadedData(
-      appInstallation = appInstallation,
       lightningNodeData = lightningNodeData,
       accountData = accountData,
       electrumServerData = electrumServerData,

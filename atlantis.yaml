@@ -459,6 +459,17 @@ projects:
         - '*.hcl'
         - '*.tf*'
         - ../../../terragrunt.hcl
+        - ../../../modules/models/ci-cache/*.tf*
+    dir: terraform/prod/shared/ci-cache
+    name: terraform_prod_shared_ci-cache
+    workflow: terragrunt
+    execution_order_group: 3
+  - autoplan:
+      enabled: true
+      when_modified:
+        - '*.hcl'
+        - '*.tf*'
+        - ../../../terragrunt.hcl
         - ../../../modules/models/cognito/*.tf*
         - ../../../modules/lookup/namespacer/*.tf*
         - ../../../modules/pieces/cognito-user-pool/*.tf*

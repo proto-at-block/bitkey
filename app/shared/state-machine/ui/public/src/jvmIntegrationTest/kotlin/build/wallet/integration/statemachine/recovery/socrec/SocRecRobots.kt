@@ -340,7 +340,10 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
   )
     .inputTextToMainContentTextInputItem(code)
   awaitUntilScreenWithBody<FormBodyModel>(
-    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION
+    SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION,
+    expectedBodyContentMatch = {
+      it.primaryButton?.isEnabled == true
+    }
   )
     .clickPrimaryButton()
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(

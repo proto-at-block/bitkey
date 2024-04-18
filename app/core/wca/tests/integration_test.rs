@@ -5,10 +5,10 @@ mod recordings {
 
     use bdk::{database::AnyDatabase, wallet::AddressIndex, Wallet};
     use bitcoin::{
+        bip32::ChildNumber,
         hashes::sha256,
         psbt::PartiallySignedTransaction,
         secp256k1::{Message, Secp256k1},
-        util::bip32::ChildNumber,
     };
     use miniscript::{descriptor::DescriptorXKey, Descriptor, DescriptorPublicKey};
     use wca::{fwpb::BtcNetwork::Signet, pcsc::Performer};
@@ -41,6 +41,7 @@ mod recordings {
     ) -> DescriptorPublicKey {
         match origin {
             DescriptorPublicKey::Single(_) => unimplemented!(),
+            DescriptorPublicKey::MultiXPub(_) => unimplemented!(),
             DescriptorPublicKey::XPub(xpub) => DescriptorPublicKey::XPub(DescriptorXKey {
                 derivation_path: xpub.derivation_path.extend(path),
                 origin: xpub.origin.clone(),

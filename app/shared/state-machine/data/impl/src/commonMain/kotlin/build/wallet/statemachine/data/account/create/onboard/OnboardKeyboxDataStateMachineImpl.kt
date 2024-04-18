@@ -69,22 +69,23 @@ class OnboardKeyboxDataStateMachineImpl(
       // Start off completing if the CloudBackup step is configured to be skipped
       mutableStateOf(props.onboardConfig.stepsToSkip.contains(CloudBackup))
     }
-    var stepDidFail by remember { mutableStateOf(false) }
+    var stepDidFail: Error? by remember { mutableStateOf(null) }
 
     return if (stepIsCompleting) {
       CompletingCloudBackupData {
         stepIsCompleting = false
       }
-    } else if (stepDidFail) {
+    } else if (stepDidFail != null) {
       FailedCloudBackupDataFull(
-        retry = { stepDidFail = false }
+        error = stepDidFail!!,
+        retry = { stepDidFail = null }
       )
     } else {
       val sealedCsek = sealedCsekResult.get()
       BackingUpKeyboxToCloudDataFull(
         keybox = props.keybox,
         sealedCsek = sealedCsek,
-        onBackupFailed = { stepDidFail = true },
+        onBackupFailed = { stepDidFail = Error(it) },
         onBackupSaved = { stepIsCompleting = true },
         onExistingAppDataFound = props.onExistingAppDataFound,
         isSkipCloudBackupInstructions = props.isSkipCloudBackupInstructions

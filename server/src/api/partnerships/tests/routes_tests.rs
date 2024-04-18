@@ -5,6 +5,7 @@ use axum::http::{Request, StatusCode};
 use axum::{http, Router};
 use external_identifier::ExternalIdentifier;
 use http_body_util::BodyExt;
+use jwt_authorizer::IntoLayer;
 use partnerships::routes::RouteState;
 use serde_json::{json, Value};
 use server::test_utils::AuthenticatedRequest;
@@ -33,9 +34,10 @@ async fn test_route_state() -> RouteState {
 async fn authed_router() -> Router {
     let authorizer = AuthorizerConfig::Test
         .into_authorizer()
-        .layer()
+        .build()
         .await
-        .unwrap();
+        .unwrap()
+        .into_layer();
 
     Router::from(test_route_state().await).layer(authorizer)
 }
@@ -330,4 +332,18 @@ async fn purchase_options_unauthorized_error() {
     .await;
 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn partner_transactions() {
+    let (status, _body) = call_api(
+        authed_router().await,
+        true,
+        http::Method::GET,
+        "/api/partnerships/partners/SignetFaucet/transactions/test-transaction-id",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
 }

@@ -117,7 +117,7 @@ enum class IconSize {
         Avatar -> 64
         Accessory -> 20
         Keypad -> 30
-        HeaderToolbar -> 28
+        HeaderToolbar -> 24
       }
 }
 

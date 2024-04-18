@@ -158,7 +158,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("invalid code") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.InvalidInvitationCode)
+      retrieveInvitationResult = Err(RetrieveInvitationCodeError.InvalidInvitationCode(Error()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
@@ -170,7 +170,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("version mismatch") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch)
+      retrieveInvitationResult = Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch(Error()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {

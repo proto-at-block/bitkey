@@ -18,6 +18,11 @@ object RecoverySegment : AppSegment {
      */
     object FullAccount : AppSegment by CloudBackup.childSegment("FullAccountBackup") {
       /**
+       * Sign in to a cloud provider
+       */
+      object SignIn : AppSegment by FullAccount.childSegment("SignIn")
+
+      /**
        * Creation of a full account cloud backup
        */
       object Creation : AppSegment by FullAccount.childSegment("Creation")
@@ -87,6 +92,13 @@ object RecoverySegment : AppSegment {
        */
       object Restoration : AppSegment by ProtectedCustomer.childSegment("Restoration")
     }
+
+    object TrustedContact : AppSegment by SocRec.childSegment("TrustedContact") {
+      /**
+       * Invitation creation and acceptance.
+       */
+      object Setup : AppSegment by TrustedContact.childSegment("Setup")
+    }
   }
 
   /**
@@ -108,6 +120,11 @@ object RecoverySegment : AppSegment {
       object Cancellation : AppSegment by LostHardware.childSegment("Cancellation")
 
       /**
+       * Sweep funds for existing DN recovery.
+       */
+      object Sweep : AppSegment by LostHardware.childSegment("Sweep")
+
+      /**
        * Completion of existing DN recovery.
        */
       object Completion : AppSegment by LostHardware.childSegment("Completion")
@@ -123,6 +140,11 @@ object RecoverySegment : AppSegment {
        * Cancellation of existing DN recovery.
        */
       object Cancellation : AppSegment by LostApp.childSegment("Cancellation")
+
+      /**
+       * Sweep funds for existing DN recovery.
+       */
+      object Sweep : AppSegment by LostApp.childSegment("Sweep")
 
       /**
        * Completion of existing DN recovery.

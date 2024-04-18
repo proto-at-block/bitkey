@@ -260,3 +260,8 @@ class MesonBuild:
         # Run code generators
         ipc_codegen.generate_to_dir(
             IPC_GENERATED_DIR, ignore_cache=self._ignore_codegen_cache)  # See lib/ipc/README.md for rationale on not doing purely this in Meson
+
+        if self._platform == "posix":
+            # patch nfc library for posix builds
+            with self._ctx.cd(ROOT_DIR):
+                self._ctx.run("fuzz/patch_scripts/patch_nfc.sh")

@@ -1,7 +1,7 @@
 package build.wallet.cloud.backup
 
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import com.github.michaelbull.result.Result
 
@@ -13,12 +13,12 @@ interface FullAccountCloudBackupCreator {
    * @param keybox to backup.
    * @param sealedCsek the sealed CSEK to use to encrypt the backup. Expected that at this point,
    * unsealed [Csek] is persisted in [CsekDao]. If not, returns [CsekMissing] error.
-   * @param trustedContacts: list of trusted contacts to backup.
+   * @param endorsedTrustedContacts: list of trusted contacts to backup.
    */
   suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
-    trustedContacts: List<TrustedContact>,
+    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<CloudBackup, FullAccountCloudBackupCreatorError>
 
   /**

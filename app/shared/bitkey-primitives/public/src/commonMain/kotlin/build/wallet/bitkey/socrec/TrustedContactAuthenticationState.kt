@@ -5,7 +5,7 @@ package build.wallet.bitkey.socrec
  */
 enum class TrustedContactAuthenticationState {
   /**
-   * The [TrustedContact] has not been verified by the Protected Customer.
+   * The [EndorsedTrustedContact] has not been verified by the Protected Customer.
    */
   AWAITING_VERIFY,
 
@@ -15,7 +15,7 @@ enum class TrustedContactAuthenticationState {
   UNAUTHENTICATED,
 
   /**
-   * The [TrustedContact] has been endorsed by the Protected Customer. There is a valid endorsement
+   * The [EndorsedTrustedContact] has been endorsed by the Protected Customer. There is a valid endorsement
    * key certificate on the server.
    */
   VERIFIED,
@@ -34,7 +34,7 @@ enum class TrustedContactAuthenticationState {
   FAILED,
 
   /**
-   * The [TrustedContact]'s endorsement key certificate or their delegate key has been tampered
+   * The [EndorsedTrustedContact]'s endorsement key certificate or their delegate key has been tampered
    * with and are invalid.
    */
   TAMPERED,

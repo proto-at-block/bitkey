@@ -35,6 +35,7 @@ kotlin {
         implementation(projects.shared.encryptionImpl)
         implementation(projects.shared.queueProcessorFake)
         implementation(projects.shared.encryptionFake)
+        implementation(projects.shared.analyticsFake)
       }
     }
 

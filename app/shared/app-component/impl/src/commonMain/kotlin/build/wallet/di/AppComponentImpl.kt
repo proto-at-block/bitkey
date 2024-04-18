@@ -3,15 +3,15 @@ package build.wallet.di
 import build.wallet.account.AccountDaoImpl
 import build.wallet.account.AccountRepositoryImpl
 import build.wallet.account.analytics.AppInstallationDaoImpl
-import build.wallet.analytics.events.AnalyticsTrackingEnabledFeatureFlag
+import build.wallet.analytics.events.AnalyticsTrackingPreferenceImpl
 import build.wallet.analytics.events.AppDeviceIdDaoImpl
+import build.wallet.analytics.events.AppSessionManagerImpl
 import build.wallet.analytics.events.EventQueueImpl
 import build.wallet.analytics.events.EventSenderImpl
 import build.wallet.analytics.events.EventStoreImpl
 import build.wallet.analytics.events.EventTrackerImpl
 import build.wallet.analytics.events.HardwareInfoProviderImpl
 import build.wallet.analytics.events.PlatformInfoProviderImpl
-import build.wallet.analytics.events.SessionIdProviderImpl
 import build.wallet.auth.AccountAuthenticatorImpl
 import build.wallet.auth.AppAuthKeyMessageSignerImpl
 import build.wallet.auth.AppAuthPublicKeyProviderImpl
@@ -41,15 +41,12 @@ import build.wallet.bitcoin.bdk.BdkWalletSyncerImpl
 import build.wallet.bitcoin.bdk.ElectrumReachabilityImpl
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderImpl
 import build.wallet.bitcoin.keys.ExtendedKeyGeneratorImpl
-import build.wallet.bitcoin.lightning.LightningIsAvailableFeatureFlag
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepositoryImpl
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderImpl
-import build.wallet.bitcoin.transactions.BitcoinTransactionAppSignerImpl
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDaoImpl
 import build.wallet.bitcoin.wallet.SpendingWalletProviderImpl
 import build.wallet.bitcoin.wallet.WatchingWalletProviderImpl
 import build.wallet.bugsnag.BugsnagContextImpl
-import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.coroutines.scopes.CoroutineScopes
 import build.wallet.crypto.WsmVerifier
 import build.wallet.database.BitkeyDatabaseProviderImpl
@@ -76,7 +73,6 @@ import build.wallet.feature.MobileTestFeatureFlag
 import build.wallet.firmware.FirmwareCoredumpQueueImpl
 import build.wallet.firmware.FirmwareCoredumpSenderImpl
 import build.wallet.firmware.FirmwareDeviceInfoDaoImpl
-import build.wallet.firmware.FirmwareDeviceNotFoundEnabledFeatureFlag
 import build.wallet.firmware.FirmwareMetadataDaoImpl
 import build.wallet.firmware.FirmwareTelemetryQueueImpl
 import build.wallet.firmware.FirmwareTelemetrySenderImpl
@@ -135,8 +131,6 @@ import build.wallet.queueprocessor.BatcherProcessorImpl
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderImpl
 import build.wallet.recovery.RecoveryDaoImpl
 import build.wallet.sqldelight.SqlDriverFactoryImpl
-import build.wallet.statemachine.settings.full.feedback.FeedbackFormAddAttachmentsFeatureFlag
-import build.wallet.statemachine.settings.full.feedback.FeedbackFormNewUiEnabledFeatureFlag
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
 import build.wallet.store.KeyValueStoreFactoryImpl
@@ -350,23 +344,9 @@ class AppComponentImpl(
     )
 
   private val featureFlagDao = FeatureFlagDaoImpl(bitkeyDatabaseProvider)
-  override val firmwareDeviceNotFoundEnabledFeatureFlag =
-    FirmwareDeviceNotFoundEnabledFeatureFlag(featureFlagDao)
-  override val lightningIsAvailableFeatureFlag =
-    LightningIsAvailableFeatureFlag(featureFlagDao)
   private val nfcHapticsOnConnectedIsEnabledFeatureFlag =
     NfcHapticsOnConnectedIsEnabledFeatureFlag(featureFlagDao)
-  private val analyticsTrackingEnabledFeatureFlag =
-    AnalyticsTrackingEnabledFeatureFlag(
-      appVariant = appVariant,
-      featureFlagDao = featureFlagDao
-    )
-  override val feedbackFormNewUiEnabledFeatureFlag =
-    FeedbackFormNewUiEnabledFeatureFlag(featureFlagDao)
-  override val feedbackFormAddAttachmentsFeatureFlag =
-    FeedbackFormAddAttachmentsFeatureFlag(featureFlagDao)
-  override val cloudBackupHealthFeatureFlag =
-    CloudBackupHealthFeatureFlag(featureFlagDao)
+
   override val feeBumpIsAvailableFeatureFlag = FeeBumpIsAvailableFeatureFlag(featureFlagDao)
 
   override val mobileTestFeatureFlag =
@@ -379,14 +359,8 @@ class AppComponentImpl(
 
   override val allFeatureFlags =
     setOf(
-      cloudBackupHealthFeatureFlag,
-      lightningIsAvailableFeatureFlag,
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
-      analyticsTrackingEnabledFeatureFlag,
-      feeBumpIsAvailableFeatureFlag,
-      feedbackFormNewUiEnabledFeatureFlag,
-      feedbackFormAddAttachmentsFeatureFlag,
-      firmwareDeviceNotFoundEnabledFeatureFlag
+      feeBumpIsAvailableFeatureFlag
     )
       .union(allRemoteFeatureFlags)
       .toList()
@@ -419,7 +393,7 @@ class AppComponentImpl(
       batchSize = 50
     )
 
-  override val sessionIdProvider = SessionIdProviderImpl(clock, uuidGenerator)
+  override val appSessionManager = AppSessionManagerImpl(clock, uuidGenerator)
   override val eventStore = EventStoreImpl()
   override val templateFullAccountConfigDao =
     TemplateFullAccountConfigDaoImpl(
@@ -432,6 +406,11 @@ class AppComponentImpl(
     templateFullAccountConfigDao = templateFullAccountConfigDao,
     getFeatureFlagsService = getFeatureFlagsService,
     booleanFlags = allRemoteFeatureFlags
+  )
+
+  override val analyticsTrackingPreference = AnalyticsTrackingPreferenceImpl(
+    appVariant = appVariant,
+    databaseProvider = bitkeyDatabaseProvider
   )
 
   override val eventTracker =
@@ -447,12 +426,12 @@ class AppComponentImpl(
       eventProcessor = periodicEventProcessor,
       appInstallationDao = appInstallationDao,
       platformInfoProvider = platformInfoProvider,
-      sessionIdProvider = sessionIdProvider,
+      appSessionManager = appSessionManager,
       eventStore = eventStore,
-      analyticsTrackingEnabledFeatureFlag = analyticsTrackingEnabledFeatureFlag,
       bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
       localeCurrencyCodeProvider = localeCurrencyCodeProvider,
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      analyticsTrackingPreference = analyticsTrackingPreference
     )
   override val memfaultService =
     MemfaultServiceImpl(
@@ -539,7 +518,8 @@ class AppComponentImpl(
       bdkPartiallySignedTransactionBuilder,
       bdkTxBuilderFactory,
       bdkAddressBuilder,
-      bdkBumpFeeTxBuilderFactory
+      bdkBumpFeeTxBuilderFactory,
+      appSessionManager
     )
   override val bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderImpl()
   override val appSpendingWalletProvider =
@@ -556,15 +536,14 @@ class AppComponentImpl(
       bdkPartiallySignedTransactionBuilder,
       bdkTxBuilderFactory,
       bdkAddressBuilder,
-      bdkBumpFeeTxBuilderFactory
+      bdkBumpFeeTxBuilderFactory,
+      appSessionManager
     )
   override val keysetWalletProvider =
     KeysetWalletProviderImpl(
       watchingWalletProvider = watchingWalletProvider,
       descriptorBuilder = bitcoinMultiSigDescriptorBuilder
     )
-  override val bitcoinTransactionAppSigner =
-    BitcoinTransactionAppSignerImpl(appSpendingWalletProvider)
   override val ldkNodeService =
     LdkNodeServiceMock()
   override val extendedKeyGenerator =

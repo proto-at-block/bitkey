@@ -42,6 +42,7 @@ kotlin {
         api(projects.shared.nfcImpl)
         api(projects.shared.notificationsImpl)
         api(projects.shared.onboardingImpl)
+        api(projects.shared.partnershipsImpl)
         api(projects.shared.phoneNumberImpl)
         api(projects.shared.platformImpl)
         api(projects.shared.queueProcessorImpl)

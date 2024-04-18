@@ -2,6 +2,7 @@ package build.wallet.f8e.partnerships
 
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
+import build.wallet.partnerships.PartnerInfo
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

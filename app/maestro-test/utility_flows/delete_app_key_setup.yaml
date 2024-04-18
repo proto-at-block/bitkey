@@ -15,7 +15,7 @@ tags:
 - tapOn: 
     id: "save-fingerprint"
 - waitForAnimationToEnd
-- tapOn: "Backup"
+- tapOn: "Back up"
 - runFlow:
     when:
         platform: android

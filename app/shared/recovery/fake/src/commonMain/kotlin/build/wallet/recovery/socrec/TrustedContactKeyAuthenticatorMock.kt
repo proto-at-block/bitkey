@@ -7,7 +7,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Ok
@@ -22,7 +22,7 @@ class TrustedContactKeyAuthenticatorMock(
   override suspend fun authenticateRegenerateAndEndorse(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
-    contacts: List<TrustedContact>,
+    contacts: List<EndorsedTrustedContact>,
     oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
     oldHwAuthKey: HwAuthPublicKey,
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,

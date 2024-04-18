@@ -1,0 +1,39 @@
+import build.wallet.money.currency.code.IsoCurrencyTextCode;
+import build.wallet.partnerships.PartnershipTransactionId;
+import build.wallet.partnerships.PartnershipTransactionStatus;
+import build.wallet.partnerships.PartnershipTransactionType;
+import kotlinx.datetime.Instant;
+
+-- Table for storing the status of the partnership transaction locally.
+-- This is used to keep track of incoming partnership transactions before
+-- they are available in the wallet transaction history.
+CREATE TABLE partnershipTransactionEntity (
+    transactionId TEXT AS PartnershipTransactionId NOT NULL PRIMARY KEY,
+    type TEXT AS PartnershipTransactionType NOT NULL,
+    status TEXT AS PartnershipTransactionStatus,
+    context TEXT,
+    partnerLogoUrl TEXT,
+    partnerName TEXT NOT NULL,
+    partnerId TEXT NOT NULL,
+    cryptoAmount REAL,
+    txid TEXT,
+    fiatAmount REAL,
+    fiatCurrency TEXT AS IsoCurrencyTextCode,
+    paymentMethod TEXT,
+    created INTEGER AS Instant NOT NULL,
+    updated INTEGER AS Instant NOT NULL
+);
+
+insertEntity:
+INSERT INTO partnershipTransactionEntity VALUES ?;
+
+getAll:
+SELECT * FROM partnershipTransactionEntity;
+
+delete:
+DELETE FROM partnershipTransactionEntity WHERE transactionId = ?;
+
+clear:
+DELETE FROM partnershipTransactionEntity;
+
+

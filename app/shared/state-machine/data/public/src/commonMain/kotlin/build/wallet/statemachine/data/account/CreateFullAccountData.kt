@@ -101,6 +101,7 @@ sealed interface CreateFullAccountData {
 
     /** Cloud backup failed and must be retried. */
     data class FailedCloudBackupDataFull(
+      val error: Error,
       val retry: () -> Unit,
     ) : OnboardKeyboxDataFull
 

@@ -4,7 +4,7 @@ services:
     healthcheck:
       # to avoid aws-cli dependency, just see if the endpoint returns an unauthenticated error to show it can process
       test: curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/ | grep -q '400'
-      interval: 1s
+      interval: 5s
       timeout: 5s
       retries: 10
     command: -jar DynamoDBLocal.jar -inMemory -sharedDb

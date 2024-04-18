@@ -1,4 +1,4 @@
-FROM rust:alpine@sha256:def35884ff7e1e4b0eae050cbb03ca0900d70d1acbcba1d0e428147ab6786de2 as build
+FROM rust:alpine@sha256:4a7925c3974fab3fb68b3f4d93d1a4a36cb201f9f87b01014def219b125f1960 as build
 RUN apk update && apk add --no-cache openssl-dev musl-dev make automake
 RUN rustup update
 WORKDIR /usr/src/lambdas

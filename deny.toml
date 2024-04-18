@@ -5,6 +5,10 @@ unmaintained = "deny"
 vulnerability = "warn"
 yanked = "deny"
 
+# [W-6647] config uses a version of yaml-rust that is now marked as unmaintained
+ignore = ["RUSTSEC-2024-0320"]
+
+
 # Partnerships can use openssl-sys because it's a dev-dependency
 [[bans.deny]]
 name = "openssl-sys"

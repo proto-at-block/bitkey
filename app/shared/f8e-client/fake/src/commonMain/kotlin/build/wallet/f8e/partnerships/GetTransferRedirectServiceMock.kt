@@ -7,6 +7,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.partnerships.GetTransferRedirectService.Success
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.partnerships.PartnershipTransactionId
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -25,6 +26,7 @@ class GetTransferRedirectServiceMock(
     address: BitcoinAddress,
     f8eEnvironment: F8eEnvironment,
     partner: String,
+    partnerTransactionId: PartnershipTransactionId?,
   ): Result<Success, NetworkingError> {
     getTransferPartnersRedirectCall.add(Unit)
     return transferRedirectResult

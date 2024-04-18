@@ -10,14 +10,18 @@ import build.wallet.bdk.bindings.BdkElectrumConfig
 import build.wallet.bdk.bindings.BdkKeychainKind
 import build.wallet.bdk.bindings.BdkMnemonicWordCount
 import build.wallet.bdk.bindings.BdkNetwork
+import build.wallet.bdk.bindings.BdkOutPoint
 import build.wallet.bdk.bindings.BdkProgress
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkTransactionDetails
 import build.wallet.bdk.bindings.BdkTxIn
 import build.wallet.bdk.bindings.BdkTxOut
+import build.wallet.bdk.bindings.BdkUtxo
 import kotlinx.datetime.Instant
 import org.bitcoindevkit.AddressIndex.LastUnused
 import org.bitcoindevkit.AddressIndex.New
+import org.bitcoindevkit.LocalUtxo
+import org.bitcoindevkit.OutPoint
 import org.bitcoindevkit.TxIn
 import org.bitcoindevkit.TxOut
 
@@ -178,7 +182,8 @@ internal val TxIn.bdkTxIn: BdkTxIn
   get() =
     BdkTxIn(
       sequence = sequence,
-      witness = witness
+      witness = witness,
+      outpoint = previousOutput.bdkOutPoint
     )
 
 /**
@@ -196,3 +201,22 @@ internal val TxOut.bdkTxOut: BdkTxOut
  */
 internal val BdkScript.ffiScript: FfiScript
   get() = FfiScript(rawOutputScript = rawOutputScript())
+
+/**
+ * Convert FFI [LocalUtxo] to KMP [BdkUtxo] type
+ */
+internal val LocalUtxo.bdkUtxo: BdkUtxo
+  get() = BdkUtxo(
+    outPoint = outpoint.bdkOutPoint,
+    txOut = txout.bdkTxOut,
+    isSpent = isSpent
+  )
+
+/**
+ * Convert FFI [OutPoint] to KMP [BdkOutPoint] type
+ */
+internal val OutPoint.bdkOutPoint: BdkOutPoint
+  get() = BdkOutPoint(
+    txid = txid,
+    vout = vout
+  )

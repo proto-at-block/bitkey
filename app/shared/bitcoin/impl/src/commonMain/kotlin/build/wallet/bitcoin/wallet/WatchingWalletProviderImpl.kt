@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.wallet
 
+import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
@@ -19,6 +20,7 @@ class WatchingWalletProviderImpl(
   private val bdkTxBuilderFactory: BdkTxBuilderFactory,
   private val bdkAddressBuilder: BdkAddressBuilder,
   private val bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
+  private val appSessionManager: AppSessionManager,
 ) : WatchingWalletProvider {
   override suspend fun getWallet(
     walletDescriptor: WatchingWalletDescriptor,
@@ -40,7 +42,8 @@ class WatchingWalletProviderImpl(
         bdkPsbtBuilder = bdkPsbtBuilder,
         bdkTxBuilderFactory = bdkTxBuilderFactory,
         bdkAddressBuilder = bdkAddressBuilder,
-        bdkBumpFeeTxBuilderFactory = bdkBumpFeeTxBuilderFactory
+        bdkBumpFeeTxBuilderFactory = bdkBumpFeeTxBuilderFactory,
+        appSessionManager = appSessionManager
       )
     }.logFailure { "Error creating spending wallet." }
 }

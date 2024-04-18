@@ -30,7 +30,6 @@ time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 ulid = { workspace = true }
-utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 wallet-telemetry = { workspace = true }
 wsm-rust-client = { workspace = true }
@@ -69,7 +68,7 @@ aws-sdk-sqs = { workspace = true }
 env_logger = "0.11.3"
 http-body-util = "0.1.0"
 httpmock = "0.7"
-launchdarkly-server-sdk = "2.0.2"
+launchdarkly-server-sdk = { workspace = true }
 mockall = "0.12.1"
 once_cell = { workspace = true }
 rstest = "0.18.1"

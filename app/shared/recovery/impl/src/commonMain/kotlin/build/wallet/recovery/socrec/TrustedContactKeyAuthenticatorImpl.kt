@@ -6,8 +6,8 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.RecoveryRelationshipId
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
@@ -24,6 +24,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -40,6 +41,7 @@ class TrustedContactKeyAuthenticatorImpl(
   ) {
     scope.launch {
       socRecRelationshipsRepository.relationships
+        .filterNotNull()
         .map { it.unendorsedTrustedContacts }
         .distinctUntilChanged()
         .collect { authenticateAndEndorse(it, account) }
@@ -49,7 +51,7 @@ class TrustedContactKeyAuthenticatorImpl(
   override suspend fun authenticateRegenerateAndEndorse(
     accountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
-    contacts: List<TrustedContact>,
+    contacts: List<EndorsedTrustedContact>,
     oldAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>?,
     oldHwAuthKey: HwAuthPublicKey,
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,

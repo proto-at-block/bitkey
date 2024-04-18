@@ -27,7 +27,7 @@ class RecoveryContactCardsUiStateMachineImplTests : FunSpec({
   val relationships = SocRecRelationships(
     invitations = listOf(),
     unendorsedTrustedContacts = emptyList(),
-    trustedContacts = emptyList(),
+    endorsedTrustedContacts = emptyList(),
     protectedCustomers = emptyImmutableList()
   )
   val recoveryContactCardsUiProps =

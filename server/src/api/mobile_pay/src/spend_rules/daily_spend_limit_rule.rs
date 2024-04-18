@@ -51,9 +51,13 @@ impl<'a> Rule for DailySpendingLimitRule<'a> {
             Ok(())
         } else {
             metrics::MOBILE_PAY_COSIGN_OVERFLOW.add(1, &[]);
-            Err(format!(
-                "Transaction spend total of {total_spend_for_unsigned_transaction_sats} with existing spend of {total_spent} for the day exceeds limit."
-            ))
+            let err_msg = format!(
+                "Transaction spend total of {} with existing spend of {} for the day exceeds limit of {}",
+                total_spend_for_unsigned_transaction_sats,
+                total_spent,
+                self.features.daily_limit_sats
+            );
+            Err(err_msg)
         }
     }
 }

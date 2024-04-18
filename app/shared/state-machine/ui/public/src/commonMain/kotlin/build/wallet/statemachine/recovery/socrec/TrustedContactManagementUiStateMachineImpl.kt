@@ -37,7 +37,7 @@ class TrustedContactManagementUiStateMachineImpl(
           ListingTrustedContactsUiProps(
             account = props.account,
             relationships = props.socRecRelationships,
-            socRecFullAccountActions = actions,
+            socRecProtectedCustomerActions = actions,
             onAddTCButtonPressed = {
               state = AddingTrustedContactState
             },

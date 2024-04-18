@@ -7,7 +7,7 @@ version = "0.1.0"
 [dependencies]
 async-trait = { workspace = true }
 aws-config = { workspace = true }
-aws-sdk-cognitoidentityprovider = { workspace = true }
+aws-sdk-cognitoidentityprovider = "1.18.0"
 aws-types = { workspace = true }
 dyn-clone = { workspace = true }
 hex = { workspace = true }

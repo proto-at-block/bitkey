@@ -4,10 +4,12 @@ import build.wallet.bdk.bindings.BdkAddressBuilderMock
 import build.wallet.bdk.bindings.BdkAddressMock
 import build.wallet.bdk.bindings.BdkBlockTime
 import build.wallet.bdk.bindings.BdkNetwork
+import build.wallet.bdk.bindings.BdkOutPoint
 import build.wallet.bdk.bindings.BdkScriptMock
 import build.wallet.bdk.bindings.BdkTransaction
 import build.wallet.bdk.bindings.BdkTransactionDetails
 import build.wallet.bdk.bindings.BdkTransactionMock
+import build.wallet.bdk.bindings.BdkTxIn
 import build.wallet.bdk.bindings.BdkTxOutMock
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.someBitcoinAddress
@@ -275,6 +277,27 @@ class BdkTransactionMapperImplTests : FunSpec({
     tx.incoming.shouldBeFalse()
     tx.total.shouldBe(BitcoinMoney.sats(amountToSend))
     tx.subtotal.shouldBe(BitcoinMoney.sats(amountToSend - fee))
+  }
+
+  test("Maps inputs and outputs correctly") {
+    val transactionDetails =
+      makeTransactionDetails(
+        received = 0,
+        sent = 100,
+        transaction = BdkTransactionMock(
+          input = listOf(
+            BdkTxIn(outpoint = BdkOutPoint("abc", 0u), sequence = 0u, witness = emptyList()),
+            BdkTxIn(outpoint = BdkOutPoint("def", 0u), sequence = 0u, witness = emptyList())
+          ),
+          output = listOf(BdkTxOutMock)
+        )
+      )
+
+    val tx = mapper.createTransaction(transactionDetails)
+    bdkWallet.isMineCalls.awaitItem()
+
+    tx.inputs.size.shouldBe(2)
+    tx.outputs.size.shouldBe(1)
   }
 })
 

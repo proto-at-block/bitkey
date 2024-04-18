@@ -14,8 +14,8 @@ use std::{
     str::FromStr,
 };
 
-use bitcoin::hashes::hex::ToHex;
 use errors::DecodeError;
+use hex::ToHex;
 use miniscript::DescriptorPublicKey;
 
 pub mod fwpb {
@@ -36,16 +36,14 @@ impl Display for fwpb::KeyDescriptor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.origin_fingerprint.is_empty() {
             f.write_char('[')?;
-            f.write_str(&self.origin_fingerprint.to_hex())?;
+            f.write_str(&self.origin_fingerprint.encode_hex::<String>())?;
             if let Some(ref path) = self.origin_path {
                 f.write_fmt(format_args!("/{path}"))?;
             }
             f.write_char(']')?;
         }
 
-        f.write_str(&bitcoin::util::base58::check_encode_slice(
-            &self.bare_bip32_key,
-        ))?;
+        f.write_str(&bitcoin::base58::encode_check(&self.bare_bip32_key))?;
 
         let derivation_path = self
             .xpub_path
@@ -95,8 +93,8 @@ impl std::fmt::Display for fwpb::DerivationPath {
     }
 }
 
-impl From<&[bitcoin::util::bip32::ChildNumber]> for fwpb::DerivationPath {
-    fn from(value: &[bitcoin::util::bip32::ChildNumber]) -> Self {
+impl From<&[bitcoin::bip32::ChildNumber]> for fwpb::DerivationPath {
+    fn from(value: &[bitcoin::bip32::ChildNumber]) -> Self {
         Self {
             child: value.iter().map(|cn| u32::from(*cn)).collect(),
             wildcard: false,
@@ -104,8 +102,8 @@ impl From<&[bitcoin::util::bip32::ChildNumber]> for fwpb::DerivationPath {
     }
 }
 
-impl From<&bitcoin::util::bip32::DerivationPath> for fwpb::DerivationPath {
-    fn from(value: &bitcoin::util::bip32::DerivationPath) -> Self {
+impl From<&bitcoin::bip32::DerivationPath> for fwpb::DerivationPath {
+    fn from(value: &bitcoin::bip32::DerivationPath) -> Self {
         Self {
             child: value.into_iter().map(|cn| u32::from(*cn)).collect(),
             wildcard: false,
@@ -120,6 +118,7 @@ impl From<bitcoin::network::constants::Network> for fwpb::BtcNetwork {
             bitcoin::network::constants::Network::Testnet => Self::Testnet,
             bitcoin::network::constants::Network::Regtest => Self::Regtest,
             bitcoin::network::constants::Network::Signet => Self::Signet,
+            _ => unimplemented!("Unsupported network"),
         }
     }
 }
@@ -162,7 +161,7 @@ pub struct SignatureContext {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::util::base58;
+    use bitcoin::base58;
 
     use super::{fwpb, BIP32_HARDENED_BIT};
 

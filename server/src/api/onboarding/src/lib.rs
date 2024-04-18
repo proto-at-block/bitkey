@@ -5,14 +5,9 @@ use notification::clients::iterable::{
     IterableClient, IterableUserId, ACCOUNT_ID_KEY, PLACEHOLDER_EMAIL_ADDRESS, TOUCHPOINT_ID_KEY,
     USER_SCOPE_KEY,
 };
-use notification::service::Service as NotificationService;
-use notification::service::{
-    FetchNotificationsPreferencesInput, UpdateNotificationsPreferencesInput,
-};
-use strum::IntoEnumIterator;
+use types::account::identifiers::AccountId;
 use types::account::identifiers::TouchpointId;
-use types::notification::{NotificationCategory, NotificationsPreferences};
-use types::{account::identifiers::AccountId, notification::NotificationChannel};
+use types::notification::NotificationCategory;
 
 pub mod account_validation;
 pub(crate) mod metrics;

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bdk::{
     bitcoin::{
+        bip32::{ChildNumber, DerivationPath, ExtendedPrivKey},
         hashes::sha256,
         psbt::PartiallySignedTransaction,
         secp256k1::{
@@ -9,11 +10,10 @@ use bdk::{
             rand::{thread_rng, Rng},
             All, Message, PublicKey, Secp256k1, SecretKey,
         },
-        util::bip32::{ChildNumber, DerivationPath, ExtendedPrivKey},
         Network,
     },
-    descriptor::{DescriptorXKey, Wildcard},
     keys::DescriptorSecretKey,
+    miniscript::descriptor::{DescriptorXKey, Wildcard},
     miniscript::DescriptorPublicKey,
     signer::{
         InputSigner, SignerCommon, SignerContext, SignerError, SignerId, SignerWrapper,
@@ -56,7 +56,7 @@ impl SeedSigner {
         // Normalize the network to bitcoin or testnet
         let network = match self.network {
             Network::Bitcoin => Network::Bitcoin,
-            Network::Testnet | Network::Signet | Network::Regtest => Network::Testnet,
+            _ => Network::Testnet,
         };
 
         ExtendedPrivKey::new_master(network, &self.seed).expect("could not create xprv from seed")
@@ -97,9 +97,7 @@ fn bip84(network: Network, account: ChildNumber) -> [ChildNumber; 3] {
         ChildNumber::Hardened { index: 84 },
         match network {
             Network::Bitcoin => ChildNumber::Hardened { index: 0 },
-            Network::Testnet | Network::Signet | Network::Regtest => {
-                ChildNumber::Hardened { index: 1 }
-            }
+            _ => ChildNumber::Hardened { index: 1 },
         },
         account,
     ]
@@ -171,10 +169,12 @@ impl SeedBDKSigner {
         let spending = match account_dsk.extend_derivation_path(&[ChildNumber::Normal { index: 0 }])
         {
             DescriptorSecretKey::Single(_) => unimplemented!(),
+            DescriptorSecretKey::MultiXPrv(_) => unimplemented!(),
             DescriptorSecretKey::XPrv(xprv) => xprv,
         };
         let change = match account_dsk.extend_derivation_path(&[ChildNumber::Normal { index: 1 }]) {
             DescriptorSecretKey::Single(_) => unimplemented!(),
+            DescriptorSecretKey::MultiXPrv(_) => unimplemented!(),
             DescriptorSecretKey::XPrv(xprv) => xprv,
         };
 

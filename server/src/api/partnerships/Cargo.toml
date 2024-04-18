@@ -9,7 +9,6 @@ axum = { workspace = true }
 axum-macros = { workspace = true }
 http_server = { workspace = true }
 serde = { workspace = true }
-tracing = { workspace = true }
 ulid = { workspace = true }
 utoipa = { workspace = true }
 
@@ -24,6 +23,7 @@ userpool = { workspace = true }
 
 [dev-dependencies]
 http-body-util = "0.1.0"
+jwt-authorizer = { workspace = true }
 mime = "0.3"
 serde_json = "1.0"
 server = { path = "../server" }

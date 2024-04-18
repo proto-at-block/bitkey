@@ -492,12 +492,10 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Getting trusted contacts
       awaitItem().let {
         it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
       }
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
       socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox
@@ -610,7 +608,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Getting trusted contacts
       awaitItem().let {
         it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
       }
 
       // Generating TC certs with new auth keys
@@ -726,7 +723,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Getting trusted contacts
       awaitItem().let {
         it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
       }
 
       // Generating TC certs with new auth keys
@@ -856,7 +852,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Getting trusted contacts
       awaitItem().let {
         it.shouldBeTypeOf<GettingTrustedContactsData>()
-        socRecRelationshipsRepository.syncCalls.awaitItem()
       }
 
       // Generating TC certs with new auth keys
@@ -959,11 +954,8 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         it.shouldBeTypeOf<GettingTrustedContactsData>()
       }
 
-      socRecRelationshipsRepository.syncCalls.awaitItem()
-
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-
       socRecRelationshipsRepository.syncCalls.awaitItem()
 
       // Backing up new keybox

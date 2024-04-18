@@ -18,7 +18,7 @@ import kotlin.time.Duration.Companion.seconds
 suspend fun AppTester.waitForFunds() {
   val activeAccount = getActiveFullAccount()
   val activeWallet = app.appComponent.appSpendingWalletProvider
-    .getSpendingWallet(activeAccount.keybox.activeSpendingKeyset)
+    .getSpendingWallet(activeAccount)
     .getOrThrow()
   eventually(
     eventuallyConfig {
@@ -38,10 +38,9 @@ suspend fun AppTester.waitForFunds() {
  * Returns the active
  */
 suspend fun AppTester.getActiveWallet(): SpendingWallet {
-  val keybox = getActiveFullAccount().keybox
-  return app.appComponent.appSpendingWalletProvider.getSpendingWallet(
-    keybox.activeSpendingKeyset
-  ).getOrThrow()
+  return app.appComponent.appSpendingWalletProvider
+    .getSpendingWallet(getActiveFullAccount())
+    .getOrThrow()
 }
 
 /**

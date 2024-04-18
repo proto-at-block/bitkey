@@ -2,11 +2,11 @@
     "module-identifier": "cafe.adriel.voyager:voyager-transitions-android-debug",
     "components": [
         {
-            "version": "1.0.0-rc05",
+            "version": "1.1.0-alpha03",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-transitions-debug.aar": "86b6986057c720a013ff81ba65f993f81574f425ce6e8150feca687276250608"
+                        "voyager-transitions-debug.aar": "1a635c959f5b138d271fffbd6f7acbb1ba0ced5fcdd55ad974bcd6d157b09f99"
                     }
                 }
             ],

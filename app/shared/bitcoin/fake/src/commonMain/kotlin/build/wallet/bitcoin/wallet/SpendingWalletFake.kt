@@ -3,6 +3,9 @@ package build.wallet.bitcoin.wallet
 import build.wallet.LoadableValue
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.LoadableValue.LoadedValue
+import build.wallet.bdk.bindings.BdkScript
+import build.wallet.bdk.bindings.BdkScriptMock
+import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.BlockTime
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
@@ -12,6 +15,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.C
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
+import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.negate
 import build.wallet.money.sumOf
@@ -98,6 +102,11 @@ class SpendingWalletFake(
    */
   private val confirmedTransactions = mutableListOf<BitcoinTransaction>()
 
+  /**
+   * Fake unspent transaction outputs associated with this wallet.
+   */
+  private val unspentOutputsState = MutableStateFlow<LoadableValue<List<BdkUtxo>>>(InitialLoading)
+
   override suspend fun initializeBalanceAndTransactions() {
     transactionHistoryState.value = LoadedValue(emptyList())
   }
@@ -155,8 +164,16 @@ class SpendingWalletFake(
     return Ok(addresses.map { it.address }.contains(address.address))
   }
 
+  override suspend fun isMine(scriptPubKey: BdkScript): Result<Boolean, Error> {
+    return Ok(scriptPubKey == BdkScriptMock().rawOutputScript())
+  }
+
   override fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>> {
     return transactionHistoryState
+  }
+
+  override fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>> {
+    return unspentOutputsState
   }
 
   /**
@@ -247,7 +264,9 @@ class SpendingWalletFake(
         vsize = null,
         subtotal = amount,
         total = amount,
-        incoming = true
+        incoming = true,
+        inputs = emptyImmutableList(),
+        outputs = emptyImmutableList()
       )
     )
   }
@@ -278,7 +297,9 @@ class SpendingWalletFake(
         vsize = null,
         subtotal = amount,
         total = amount + fee,
-        incoming = false
+        incoming = false,
+        inputs = emptyImmutableList(),
+        outputs = emptyImmutableList()
       )
     )
   }

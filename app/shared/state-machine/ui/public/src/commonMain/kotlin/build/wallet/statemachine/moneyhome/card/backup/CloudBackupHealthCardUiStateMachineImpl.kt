@@ -6,7 +6,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import build.wallet.LoadableValue
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
-import build.wallet.cloud.backup.CloudBackupHealthFeatureFlag
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
@@ -14,14 +13,10 @@ import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.statemachine.moneyhome.card.CardModel
 
 class CloudBackupHealthCardUiStateMachineImpl(
-  private val cloudBackupHealthFeatureFlag: CloudBackupHealthFeatureFlag,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
 ) : CloudBackupHealthCardUiStateMachine {
   @Composable
   override fun model(props: CloudBackupHealthCardUiProps): CardModel? {
-    // Do not show the card if the feature flag is off.
-    val flagValue = remember { cloudBackupHealthFeatureFlag.flagValue() }.collectAsState()
-    if (!flagValue.value.value) return null
     if (props.appFunctionalityStatus.featureStates.cloudBackupHealth == Unavailable) return null
 
     val mobileKeyBackupStatus by

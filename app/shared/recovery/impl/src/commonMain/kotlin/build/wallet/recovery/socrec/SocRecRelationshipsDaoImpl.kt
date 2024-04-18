@@ -2,9 +2,9 @@ package build.wallet.recovery.socrec
 
 import app.cash.sqldelight.coroutines.asFlow
 import build.wallet.bitkey.socrec.EncodedTrustedContactKeyCertificate
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.TrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.database.BitkeyDatabaseProvider
@@ -58,9 +58,9 @@ class SocRecRelationshipsDaoImpl(
               authenticationState = contact.authenticationState
             )
           }
-        val trustedContacts =
+        val endorsedTrustedContacts =
           trustedContactsQuery.executeAsList().map { trustedContact ->
-            TrustedContact(
+            EndorsedTrustedContact(
               recoveryRelationshipId = trustedContact.recoveryRelationshipId,
               trustedContactAlias = trustedContact.trustedContactAlias,
               authenticationState = trustedContact.authenticationState,
@@ -79,7 +79,7 @@ class SocRecRelationshipsDaoImpl(
 
         SocRecRelationships(
           invitations = invitations,
-          trustedContacts = trustedContacts,
+          endorsedTrustedContacts = endorsedTrustedContacts,
           protectedCustomers = protectedProtectedCustomers.toImmutableList(),
           unendorsedTrustedContacts = unendorsedTrustedContacts
         )
@@ -109,7 +109,7 @@ class SocRecRelationshipsDaoImpl(
             .associate { it.recoveryRelationshipId to it.authenticationState }
         // Reset trusted contacts.
         socRecRelationshipsQueries.clearSocRecTrustedContacts()
-        socRecRelationships.trustedContacts.forEach { tc ->
+        socRecRelationships.endorsedTrustedContacts.forEach { tc ->
           socRecRelationshipsQueries.insertSocRecTrustedContact(
             recoveryRelationshipId = tc.recoveryRelationshipId,
             trustedContactAlias = tc.trustedContactAlias,

@@ -114,7 +114,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
@@ -166,7 +168,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
@@ -215,7 +219,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
@@ -252,7 +258,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
           .clickPrimaryButton()
         awaitUntilScreenWithBody<CloudSignInModelFake>(CLOUD_SIGN_IN_LOADING)
           .signInSuccess(CloudStoreAccount1Fake)
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
         cancelAndIgnoreRemainingEvents()
@@ -266,7 +274,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
       ) {
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS) {
+        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
+          LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        ) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)
         }
         awaitUntilScreenWithBody<FormBodyModel>(LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE)
@@ -367,10 +377,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         }
       ) {
         val activeAccount = appTester.getActiveFullAccount()
-        val activeWallet =
-          appSpendingWalletProvider.getSpendingWallet(
-            activeAccount.keybox.activeSpendingKeyset
-          ).getOrThrow()
+        val activeWallet = appSpendingWalletProvider.getSpendingWallet(activeAccount).getOrThrow()
         activeWallet.sync().shouldBeOk()
         val balance = activeWallet.balance().first().shouldBeLoaded()
         balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))

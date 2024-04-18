@@ -34,9 +34,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
   test("wallet for active spending keyset") {
     val account = appTester.onboardFullAccountWithFakeHardware()
     val wallet =
-      appTester.app.appComponent.appSpendingWalletProvider.getSpendingWallet(
-        keyset = account.keybox.activeSpendingKeyset
-      ).getOrThrow()
+      appTester.app.appComponent.appSpendingWalletProvider.getSpendingWallet(account).getOrThrow()
 
     withClue("wallet and keybox keysets match") {
       wallet.identifier.shouldBe(account.keybox.activeSpendingKeyset.localId)

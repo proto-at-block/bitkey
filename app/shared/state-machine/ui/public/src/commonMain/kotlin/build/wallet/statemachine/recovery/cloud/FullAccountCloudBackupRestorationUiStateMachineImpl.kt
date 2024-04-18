@@ -18,7 +18,7 @@ import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
@@ -143,7 +143,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 state.f8eEnvironment,
                 state.isUsingSocRecFakes
               ),
-            trustedContacts = state.contacts,
+            endorsedTrustedContacts = state.contacts,
             relationshipIdToSocRecPkekMap =
               state.accountFeatures.socRecSealedDekMap
                 .mapValues { it.value },
@@ -441,8 +441,12 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
       // Attempt to sync social relationships before completing the recovery to ensure that
       // the background refresh doesn't delete existing TCs. But don't bind any failures.
-      // We do not verify because the keybox isn't active yet.
-      socialRelationshipsRepository.syncRelationshipsWithoutVerification(accountId, props.fullAccountConfig.f8eEnvironment)
+      socialRelationshipsRepository.syncAndVerifyRelationships(
+        accountId = accountId,
+        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+        appAuthKey = accountRestoration.activeAppKeyBundle.authKey,
+        hwAuthPublicKey = accountRestoration.activeHwKeyBundle.authKey
+      )
 
       // Attempt to sync the new wallet before completing the recovery and showing
       // Money Home (saving the keybox as active will complete and update UI), but
@@ -510,7 +514,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         tokenScope = AuthTokenScope.Recovery
       ).flatMap { authData ->
         socialRelationshipsRepository
-          .syncRelationshipsWithoutVerification(
+          .getRelationshipsWithoutSyncing(
             accountId = FullAccountId(authData.accountId),
             f8eEnvironment = state.f8eEnvironment
           )
@@ -522,7 +526,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           SocRecChallengeState(
             accountId = FullAccountId(authData.accountId),
             f8eEnvironment = state.f8eEnvironment,
-            contacts = relationships.trustedContacts.toImmutableList(),
+            contacts = relationships.endorsedTrustedContacts.toImmutableList(),
             isUsingSocRecFakes = state.backupFeatures.isUsingSocRecFakes,
             accountFeatures = state.accountFeatures,
             backupFeatures = state.backupFeatures
@@ -598,7 +602,7 @@ private sealed interface CloudBackupRestorationUiState {
   data class SocRecChallengeState(
     val accountId: FullAccountId,
     val f8eEnvironment: F8eEnvironment,
-    val contacts: ImmutableList<TrustedContact>,
+    val contacts: ImmutableList<EndorsedTrustedContact>,
     val isUsingSocRecFakes: Boolean,
     val accountFeatures: SocRecV1AccountFeatures,
     val backupFeatures: SocRecV1BackupFeatures,

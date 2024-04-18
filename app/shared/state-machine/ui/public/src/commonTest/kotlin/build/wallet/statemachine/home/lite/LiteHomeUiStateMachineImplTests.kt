@@ -106,7 +106,7 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
         onSettings()
       }
       awaitScreenWithBodyModelMock<LiteSettingsHomeUiProps> {
-        socRecLiteAccountActions.removeProtectedCustomer(ProtectedCustomerFake.copy(relationshipId))
+        socRecTrustedContactActions.removeProtectedCustomer(ProtectedCustomerFake.copy(relationshipId))
       }
       socRecRelationshipsRepository.removeRelationshipCalls.awaitItem()
         .shouldBe(relationshipId)

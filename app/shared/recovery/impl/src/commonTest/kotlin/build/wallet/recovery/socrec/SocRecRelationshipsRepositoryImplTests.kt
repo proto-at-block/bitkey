@@ -1,9 +1,10 @@
 package build.wallet.recovery.socrec
 
 import app.cash.turbine.test
+import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.socrec.TrustedContact
+import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.TAMPERED
@@ -18,12 +19,17 @@ import build.wallet.f8e.socrec.isEmpty
 import build.wallet.f8e.socrec.shouldBeEmpty
 import build.wallet.f8e.socrec.shouldOnlyHaveEndorsed
 import build.wallet.sqldelight.InMemorySqlDriverFactory
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runTest
 
 class SocRecRelationshipsRepositoryImplTests : FunSpec({
+
+  coroutineTestScope = true
 
   val databaseProvider = BitkeyDatabaseProviderImpl(
     InMemorySqlDriverFactory()
@@ -32,22 +38,24 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
   val appKeyDao = AppPrivateKeyDaoFake()
   val authDao = SocRecEnrollmentAuthenticationDaoImpl(appKeyDao, databaseProvider)
 
-  val socRecFake =
+  lateinit var socRecFake: SocialRecoveryServiceFake
+
+  fun TestScope.socRecFake() =
     SocialRecoveryServiceFake(
       uuidGenerator = { "fake-uuid" },
-      backgroundScope = TestScope()
+      backgroundScope = backgroundScope
     )
 
   val socRecCrypto = SocRecCryptoFake()
 
-  beforeTest {
+  afterTest {
     socRecFake.reset()
     appKeyDao.reset()
     dao.clear()
     socRecCrypto.reset()
   }
 
-  val tcAliceUnverified = TrustedContact(
+  val tcAliceUnverified = EndorsedTrustedContact(
     recoveryRelationshipId = "rel-123",
     trustedContactAlias = TrustedContactAlias("alice"),
     authenticationState = AWAITING_VERIFY,
@@ -56,7 +64,7 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
   val tcAliceVerified = tcAliceUnverified.copy(authenticationState = VERIFIED)
   val tcAliceTampered = tcAliceUnverified.copy(authenticationState = TAMPERED)
 
-  val tcBobUnverified = TrustedContact(
+  val tcBobUnverified = EndorsedTrustedContact(
     recoveryRelationshipId = "rel-456",
     trustedContactAlias = TrustedContactAlias("bob"),
     authenticationState = AWAITING_VERIFY,
@@ -64,14 +72,20 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
   )
   val tcBobVerified = tcBobUnverified.copy(authenticationState = VERIFIED)
 
-  fun socRecRelationshipsRepository() =
-    SocRecRelationshipsRepositoryImpl(
+  val appSessionManager = AppSessionManagerFake()
+
+  fun TestScope.socRecRelationshipsRepository(): SocRecRelationshipsRepositoryImpl {
+    socRecFake = socRecFake()
+    return SocRecRelationshipsRepositoryImpl(
+      appScope = backgroundScope,
       socialRecoveryServiceProvider = suspend { socRecFake },
       socRecRelationshipsDao = dao,
       socRecEnrollmentAuthenticationDao = authDao,
       socRecCrypto = socRecCrypto,
-      socialRecoveryCodeBuilder = SocialRecoveryCodeBuilderFake()
+      socialRecoveryCodeBuilder = SocialRecoveryCodeBuilderFake(),
+      appSessionManager = appSessionManager
     )
+  }
 
   // TODO(W-6203): this test is racy because syncLoop overwrites the dao with f8e data in the loop.
   xtest("sync relationships when db is changed") {
@@ -81,112 +95,114 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
      *
      * This should be fixed in 5.9.0
      */
-    runTest {
-      val repo = socRecRelationshipsRepository()
+    val repo = socRecRelationshipsRepository()
 
-      repo.syncLoop(backgroundScope, FullAccountMock)
+    repo.syncLoop(backgroundScope, FullAccountMock)
 
-      repo.relationships.first().shouldBeEmpty()
+    repo.relationships.filterNotNull().first().shouldBeEmpty()
 
-      socRecCrypto.validCertificates += tcAliceUnverified.keyCertificate
-      dao.setSocRecRelationships(
-        SocRecRelationships.EMPTY.copy(
-          trustedContacts = immutableListOf(tcAliceVerified)
-        )
+    socRecCrypto.validCertificates += tcAliceUnverified.keyCertificate
+    dao.setSocRecRelationships(
+      SocRecRelationships.EMPTY.copy(
+        endorsedTrustedContacts = immutableListOf(tcAliceVerified)
       )
+    )
 
-      repo.relationships
-        .first { !it.isEmpty() }
+    repo.relationships
+      .filterNotNull()
+      .first { !it.isEmpty() }
+      .shouldOnlyHaveEndorsed(tcAliceVerified)
+  }
+
+  test("on demand sync and verify relationships") {
+    val repo = socRecRelationshipsRepository()
+
+    repo.relationships.test {
+      awaitItem().shouldBeNull() // initial loading
+
+      // Mark tcAlice's cert as valid
+      socRecCrypto.validCertificates += tcAliceUnverified.keyCertificate
+      // Add tcAlice to f8e
+      socRecFake.endorsedTrustedContacts.add(tcAliceUnverified)
+
+      // Sync and verify
+      repo.syncAndVerifyRelationships(FullAccountMock)
+
+      awaitItem()
+        .shouldNotBeNull()
         .shouldOnlyHaveEndorsed(tcAliceVerified)
     }
   }
 
-  test("on demand sync and verify relationships") {
-    runTest {
-      val repo = socRecRelationshipsRepository()
-
-      repo.relationships.test {
-        // Not awaiting the first item because it will never emit
-
-        // Mark tcAlice's cert as valid
-        socRecCrypto.validCertificates += tcAliceUnverified.keyCertificate
-        // Add tcAlice to f8e
-        socRecFake.trustedContacts.add(tcAliceUnverified)
-
-        // Sync and verify
-        repo.syncAndVerifyRelationships(FullAccountMock)
-
-        awaitItem().shouldOnlyHaveEndorsed(tcAliceVerified)
-      }
-    }
-  }
-
   test("sync and verify relationships from service with prefetch") {
-    runTest {
-      val repo = socRecRelationshipsRepository()
+    val repo = socRecRelationshipsRepository()
 
-      repo.syncLoop(backgroundScope, FullAccountMock)
+    repo.syncLoop(backgroundScope, FullAccountMock)
 
-      repo.relationships.test {
-        awaitItem().shouldBeEmpty()
+    repo.relationships.test {
+      awaitItem().shouldBeNull() // initial loading
 
-        // Mark tcAlice's cert as valid
-        socRecCrypto.validCertificates += tcAliceUnverified.keyCertificate
-        // Add tcAlice to f8e
-        socRecFake.trustedContacts.add(tcAliceUnverified)
+      // Mark tcAlice's cert as valid
+      socRecCrypto.validCertificates += tcAliceUnverified.keyCertificate
+      // Add tcAlice to f8e
+      socRecFake.endorsedTrustedContacts.add(tcAliceUnverified)
 
-        // Sync and verify
-        repo.syncAndVerifyRelationships(FullAccountMock)
+      // Sync and verify
+      repo.syncAndVerifyRelationships(FullAccountMock)
 
-        awaitItem().shouldOnlyHaveEndorsed(tcAliceVerified)
-      }
-    }
-  }
-
-  test("sync relationship without verification") {
-    runTest {
-      val repo = socRecRelationshipsRepository()
-
-      repo.relationships.test {
-        // Add tcAlice to f8e
-        socRecFake.trustedContacts.add(tcAliceUnverified)
-
-        // Sync without verification
-        repo.syncRelationshipsWithoutVerification(
-          FullAccountMock.accountId,
-          FullAccountMock.config.f8eEnvironment
-        )
-
-        awaitItem().shouldOnlyHaveEndorsed(tcAliceUnverified)
-      }
+      awaitItem()
+        .shouldNotBeNull()
+        .shouldOnlyHaveEndorsed(tcAliceVerified)
     }
   }
 
   test("invalid trusted contacts are marked as tampered") {
-    runTest {
-      val repo = socRecRelationshipsRepository()
+    val repo = socRecRelationshipsRepository()
 
-      repo.syncLoop(backgroundScope, FullAccountMock)
+    repo.syncLoop(backgroundScope, FullAccountMock)
 
-      repo.relationships.test {
-        awaitItem().shouldBeEmpty()
+    repo.relationships.test {
+      awaitItem().shouldBeNull() // initial loading
 
-        // Mark tcAlice's cert as invalid
-        socRecCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
-        // Mark tcBob's cert as valid
-        socRecCrypto.validCertificates += tcBobUnverified.keyCertificate
+      // Mark tcAlice's cert as invalid
+      socRecCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
+      // Mark tcBob's cert as valid
+      socRecCrypto.validCertificates += tcBobUnverified.keyCertificate
 
-        // Add both to f8e
-        socRecFake.trustedContacts += tcAliceUnverified
-        socRecFake.trustedContacts += tcBobUnverified
+      // Add both to f8e
+      socRecFake.endorsedTrustedContacts += tcAliceUnverified
+      socRecFake.endorsedTrustedContacts += tcBobUnverified
 
-        repo.syncAndVerifyRelationships(FullAccountMock)
+      repo.syncAndVerifyRelationships(FullAccountMock)
 
-        awaitItem().shouldOnlyHaveEndorsed(
-          tcAliceTampered,
-          tcBobVerified
-        )
-      }
+      awaitItem()
+        .shouldNotBeNull()
+        .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
+    }
+  }
+
+  test("syncing does not occur while app is in the background") {
+    val repo = socRecRelationshipsRepository()
+
+    appSessionManager.appDidEnterBackground()
+    repo.syncLoop(backgroundScope, FullAccountMock)
+
+    repo.relationships.test {
+      awaitItem().shouldBeNull() // initial loading
+
+      // Mark tcAlice's cert as invalid
+      socRecCrypto.invalidCertificates += tcAliceUnverified.keyCertificate
+      // Mark tcBob's cert as valid
+      socRecCrypto.validCertificates += tcBobUnverified.keyCertificate
+
+      // Add both to f8e
+      socRecFake.endorsedTrustedContacts += tcAliceUnverified
+      socRecFake.endorsedTrustedContacts += tcBobUnverified
+
+      appSessionManager.appDidEnterForeground()
+      awaitItem()
+        .shouldNotBeNull()
+        .shouldOnlyHaveEndorsed(tcAliceTampered, tcBobVerified)
     }
   }
 })

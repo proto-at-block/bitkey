@@ -37,10 +37,15 @@ class FullAccountTransactionsDataStateMachineImpl : FullAccountTransactionsDataS
         props.wallet.transactions().map { value -> value.map { it.toImmutableList() } }
       }.collectAsState(InitialLoading).value
 
-    return if (balance is LoadedValue && transactions is LoadedValue) {
+    val unspentOutputs = remember(props.wallet) {
+      props.wallet.unspentOutputs().map { value -> value.map { it.toImmutableList() } }
+    }.collectAsState(InitialLoading).value
+
+    return if (balance is LoadedValue && transactions is LoadedValue && unspentOutputs is LoadedValue) {
       FullAccountTransactionsLoadedData(
         balance = balance.value,
         transactions = transactions.value,
+        unspentOutputs = unspentOutputs.value,
         syncTransactions = {
           // Add a slight delay when a manual sync in requested in order to ensure
           // that the requested sync will include any new values

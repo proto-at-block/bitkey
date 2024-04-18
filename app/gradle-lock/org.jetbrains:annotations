@@ -19,11 +19,11 @@
             ]
         },
         {
-            "version": "23.0.0",
+            "version": "24.1.0",
             "variants": [
                 {
                     "artifacts": {
-                        "annotations-23.0.0.jar": "7b0f19724082cbfcbc66e5abea2b9bc92cf08a1ea11e191933ed43801eb3cd05"
+                        "annotations-24.1.0.jar": "27a770dc7ce50500918bb8c3c0660c98290630ec796b5e3cf6b90f403b3033c6"
                     }
                 }
             ],

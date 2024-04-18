@@ -1,13 +1,13 @@
 pub(crate) mod derived;
 
+use bitcoin::sighash::{LegacySighash, SegwitV0Sighash};
 use bitcoin::{
-    blockdata::transaction::NonStandardSighashType,
+    bip32::{ChildNumber, DerivationPath, ExtendedPubKey},
+    ecdsa::Signature as EcdsaSig,
     psbt::{Input, PartiallySignedTransaction},
-    util::{
-        bip32::{ChildNumber, DerivationPath, ExtendedPubKey},
-        sighash::SighashCache,
-    },
-    EcdsaSig, Sighash, Transaction,
+    sighash::NonStandardSighashType,
+    sighash::SighashCache,
+    Transaction,
 };
 use miniscript::{
     descriptor::{DescriptorSecretKey, DescriptorXKey},
@@ -78,8 +78,15 @@ pub(crate) fn sighash(
 ) -> Result<Sighash, Error> {
     match psbt.sighash_msg(input_index, cache, None)? {
         PsbtSighashMsg::TapSighash(_) => Err(Error::TapRootUnsupported),
-        PsbtSighashMsg::EcdsaSighash(sighash) => Ok(sighash),
+        PsbtSighashMsg::LegacySighash(sighash) => Ok(Sighash::Legacy(sighash)),
+        PsbtSighashMsg::SegwitV0Sighash(sighash) => Ok(Sighash::SegwitV0(sighash)),
     }
+}
+
+#[derive(Clone, Copy)]
+pub enum Sighash {
+    Legacy(LegacySighash),
+    SegwitV0(SegwitV0Sighash),
 }
 
 pub trait ExtendDerivationPath {
@@ -90,6 +97,7 @@ impl ExtendDerivationPath for DescriptorPublicKey {
     fn extend_derivation_path(&self, path: &[ChildNumber]) -> Self {
         match self {
             DescriptorPublicKey::Single(_) => unimplemented!(),
+            DescriptorPublicKey::MultiXPub(_) => unimplemented!(),
             DescriptorPublicKey::XPub(xpub) => DescriptorPublicKey::XPub(DescriptorXKey {
                 derivation_path: xpub.derivation_path.extend(path),
                 origin: xpub.origin.clone(),
@@ -103,6 +111,7 @@ impl ExtendDerivationPath for DescriptorSecretKey {
     fn extend_derivation_path(&self, path: &[ChildNumber]) -> Self {
         match self {
             DescriptorSecretKey::Single(_) => unimplemented!(),
+            DescriptorSecretKey::MultiXPrv(_) => unimplemented!(),
             DescriptorSecretKey::XPrv(xprv) => DescriptorSecretKey::XPrv(DescriptorXKey {
                 derivation_path: xprv.derivation_path.extend(path),
                 origin: xprv.origin.clone(),

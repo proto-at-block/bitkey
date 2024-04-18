@@ -16,8 +16,6 @@ regex = { workspace = true }
 serde = { workspace = true }
 serde_dynamo = { workspace = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 
 # path dependencies
 errors = { workspace = true }
-http_server = { workspace = true }

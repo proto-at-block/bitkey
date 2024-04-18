@@ -9,7 +9,7 @@ import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_INITIALIZE
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_MISSING
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.socrec.TrustedContactFake1
+import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
 import build.wallet.bitkey.socrec.TrustedContactFake2
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
@@ -58,7 +58,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val trustedContacts =
     listOf(
-      TrustedContactFake1,
+      EndorsedTrustedContactFake1,
       TrustedContactFake2
     )
 
@@ -90,7 +90,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
     FullAccountCloudSignInAndBackupProps(
       sealedCsek = SealedCsekFake,
       keybox = KeyboxMock,
-      trustedContacts = trustedContacts,
+      endorsedTrustedContacts = trustedContacts,
       onBackupSaved = {
         onBackupSavedCalls += Unit
       },
