@@ -5,7 +5,6 @@ import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -31,9 +30,10 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
   val stateMachine =
     LiteHomeUiStateMachineImpl(
       homeStatusBannerUiStateMachine =
-        object : HomeStatusBannerUiStateMachine, StateMachineMock<HomeStatusBannerUiProps, StatusBannerModel?>(
-          initialModel = null
-        ) {},
+        object : HomeStatusBannerUiStateMachine,
+          StateMachineMock<HomeStatusBannerUiProps, StatusBannerModel?>(
+            initialModel = null
+          ) {},
       liteMoneyHomeUiStateMachine =
         object : LiteMoneyHomeUiStateMachine, ScreenStateMachineMock<LiteMoneyHomeUiProps>(
           "money-home"
@@ -43,9 +43,10 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
           "settings"
         ) {},
       liteTrustedContactManagementUiStateMachine =
-        object : LiteTrustedContactManagementUiStateMachine, ScreenStateMachineMock<LiteTrustedContactManagementProps>(
-          "lite-trusted-contact-management"
-        ) {},
+        object : LiteTrustedContactManagementUiStateMachine,
+          ScreenStateMachineMock<LiteTrustedContactManagementProps>(
+            "lite-trusted-contact-management"
+          ) {},
       socRecRelationshipsRepository = socRecRelationshipsRepository,
       eventTracker = EventTrackerMock(turbines::create)
     )
@@ -53,7 +54,6 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
   val props =
     LiteHomeUiProps(
       accountData = HasActiveLiteAccountDataFake,
-      currencyPreferenceData = CurrencyPreferenceDataMock,
       firmwareData = FirmwareDataUpToDateMock
     )
 

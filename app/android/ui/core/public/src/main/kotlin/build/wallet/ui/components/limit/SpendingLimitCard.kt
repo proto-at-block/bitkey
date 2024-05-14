@@ -38,6 +38,7 @@ fun SpendingLimitCard(
   modifier: Modifier = Modifier,
   titleText: String,
   resetText: String,
+  // TODO(W-8034): use Progress type.
   progress: Float,
   spentText: String,
   remainingText: String,

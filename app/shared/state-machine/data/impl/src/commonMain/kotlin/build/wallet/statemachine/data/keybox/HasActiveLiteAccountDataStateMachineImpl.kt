@@ -13,7 +13,6 @@ import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataState.UpgradingLiteAccount
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataState.UsingLiteAccount
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.map
 
@@ -68,7 +67,6 @@ class HasActiveLiteAccountDataStateMachineImpl(
                   templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
                   onboardConfig = props.accountUpgradeOnboardConfigData.config,
                   onboardingKeybox = onboardingKeybox,
-                  currencyPreferenceData = props.currencyPreferenceData,
                   context = CreateFullAccountContext.LiteToFullAccountUpgrade(props.account),
                   rollback = { state = UsingLiteAccount }
                 )
@@ -80,7 +78,7 @@ class HasActiveLiteAccountDataStateMachineImpl(
   @Composable
   private fun rememberOnboardingKeybox(): Keybox? {
     return remember {
-      keyboxDao.onboardingKeybox().unwrapLoadedValue().map {
+      keyboxDao.onboardingKeybox().map {
         // Treat DbError as null Keybox value
         it.get()
       }

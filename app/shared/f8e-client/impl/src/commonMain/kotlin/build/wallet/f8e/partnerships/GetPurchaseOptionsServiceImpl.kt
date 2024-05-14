@@ -3,9 +3,10 @@ package build.wallet.f8e.partnerships
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.Result
@@ -33,10 +34,10 @@ class GetPurchaseOptionsServiceImpl(
         get("/api/partnerships/purchases/options") {
           parameter("country", countryCodeGuesser.countryCode().uppercase())
           parameter("fiat_currency", currency.textCode.code.uppercase())
+          withDescription("Get partnerships purchase options")
         }
       }
       .map { it.purchaseOptions }
-      .logNetworkFailure { "Failed to get partnerships purchase options" }
   }
 }
 
@@ -44,4 +45,4 @@ class GetPurchaseOptionsServiceImpl(
 private data class PurchaseOptionsResponseBody(
   @SerialName("purchase_options")
   val purchaseOptions: PurchaseOptions,
-)
+) : RedactedResponseBody

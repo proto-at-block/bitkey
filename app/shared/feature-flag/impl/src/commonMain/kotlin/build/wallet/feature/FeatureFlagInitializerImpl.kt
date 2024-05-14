@@ -1,7 +1,7 @@
 package build.wallet.feature
 
-class FeatureFlagInitializerImpl<T : FeatureFlagValue>(
-  private val allFlags: List<FeatureFlag<T>>,
+class FeatureFlagInitializerImpl(
+  private val allFlags: List<FeatureFlag<*>>,
 ) : FeatureFlagInitializer {
   override suspend fun initializeAllFlags() {
     allFlags.forEach {

@@ -35,6 +35,7 @@ suspend fun AppTester.endorseAndVerifyTc(relationshipId: String) =
     unendorsedTcs.first { it.recoveryRelationshipId == relationshipId }
     app.trustedContactKeyAuthenticator
       .authenticateAndEndorse(unendorsedTcs, account)
+      .getOrThrow()
 
     // Verify endorsement
     app.socRecRelationshipsRepository.syncAndVerifyRelationships(account).getOrThrow()

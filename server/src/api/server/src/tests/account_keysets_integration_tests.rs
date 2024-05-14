@@ -14,35 +14,38 @@ use wsm_rust_client::{TEST_XPUB_SPEND, TEST_XPUB_SPEND_ORIGIN};
 use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::{
-    create_descriptor_keys, create_inactive_spending_keyset_for_account, get_static_test_authkeys,
+    create_descriptor_keys, create_inactive_spending_keyset_for_account, create_new_authkeys,
 };
 use crate::tests::requests::axum::TestClient;
 
 #[tokio::test]
 async fn test_account_keyset_lifecycle() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let service = bootstrap.services.account_service;
 
     let network = Network::BitcoinTest;
-    let (auth_app, auth_hw, auth_recovery) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let (_, active_spend_app) = create_descriptor_keys(network);
     let (_, active_spend_hw) = create_descriptor_keys(network);
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: auth_app,
-                hardware: auth_hw,
-                recovery: Some(auth_recovery),
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(keys.recovery.public_key),
+                },
+                spending: SpendingKeysetRequest {
+                    network: network.into(),
+                    app: active_spend_app.clone(),
+                    hardware: active_spend_hw.clone(),
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: network.into(),
-                app: active_spend_app.clone(),
-                hardware: active_spend_hw.clone(),
-            },
-            is_test_account: true,
-        })
+        )
         .await;
     assert_eq!(
         response.status_code,
@@ -52,6 +55,9 @@ async fn test_account_keyset_lifecycle() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
     let keyset = create_account_response
         .keyset
         .expect("Account should have keyset");
@@ -71,6 +77,7 @@ async fn test_account_keyset_lifecycle() {
                     hardware: spend_hw,
                 },
             },
+            &keys,
         )
         .await;
     assert_eq!(
@@ -103,9 +110,9 @@ async fn test_account_keyset_lifecycle() {
     assert_eq!(
         active_auth_key,
         FullAccountAuthKeys {
-            app_pubkey: auth_app,
-            hardware_pubkey: auth_hw,
-            recovery_pubkey: Some(auth_recovery),
+            app_pubkey: keys.app.public_key,
+            hardware_pubkey: keys.hw.public_key,
+            recovery_pubkey: Some(keys.recovery.public_key),
         }
     );
 
@@ -150,28 +157,31 @@ async fn test_account_keyset_lifecycle() {
 
 #[tokio::test]
 async fn test_account_keyset_switch_networks() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let mut network = Network::BitcoinTest;
-    let (auth_app, auth_hw, auth_recovery) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let (_, active_spend_app) = create_descriptor_keys(network);
     let (_, active_spend_hw) = create_descriptor_keys(network);
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: auth_app,
-                hardware: auth_hw,
-                recovery: Some(auth_recovery),
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(keys.recovery.public_key),
+                },
+                spending: SpendingKeysetRequest {
+                    network: network.into(),
+                    app: active_spend_app.clone(),
+                    hardware: active_spend_hw.clone(),
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: network.into(),
-                app: active_spend_app.clone(),
-                hardware: active_spend_hw.clone(),
-            },
-            is_test_account: true,
-        })
+        )
         .await;
     assert_eq!(
         response.status_code,
@@ -181,6 +191,9 @@ async fn test_account_keyset_switch_networks() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
 
     // Switching networks should fail
     network = Network::BitcoinMain;
@@ -197,6 +210,7 @@ async fn test_account_keyset_switch_networks() {
                     hardware: spend_hw,
                 },
             },
+            &keys,
         )
         .await;
     assert_eq!(
@@ -209,29 +223,32 @@ async fn test_account_keyset_switch_networks() {
 
 #[tokio::test]
 async fn test_account_duplicate_spending_keyset() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let service = bootstrap.services.account_service;
 
     let network = Network::BitcoinTest;
-    let (auth_app, auth_hw, auth_recovery) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let (_, spend_app) = create_descriptor_keys(network);
     let (_, spend_hw) = create_descriptor_keys(network);
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: auth_app,
-                hardware: auth_hw,
-                recovery: Some(auth_recovery),
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(keys.recovery.public_key),
+                },
+                spending: SpendingKeysetRequest {
+                    network: network.into(),
+                    app: spend_app.clone(),
+                    hardware: spend_hw.clone(),
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: network.into(),
-                app: spend_app.clone(),
-                hardware: spend_hw.clone(),
-            },
-            is_test_account: true,
-        })
+        )
         .await;
     assert_eq!(
         response.status_code,
@@ -241,6 +258,9 @@ async fn test_account_duplicate_spending_keyset() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
     let keyset = create_account_response
         .keyset
         .expect("Account should have a keyset");
@@ -257,6 +277,7 @@ async fn test_account_duplicate_spending_keyset() {
                     hardware: spend_hw,
                 },
             },
+            &keys,
         )
         .await;
     assert_eq!(
@@ -283,28 +304,31 @@ async fn test_account_duplicate_spending_keyset() {
 
 #[tokio::test]
 async fn test_inactive_keyset_id_exists_in_wsm() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let network = Network::BitcoinTest;
-    let (auth_app, auth_hw, auth_recovery) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let (_, active_spend_app) = create_descriptor_keys(network);
     let (_, active_spend_hw) = create_descriptor_keys(network);
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: auth_app,
-                hardware: auth_hw,
-                recovery: Some(auth_recovery),
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(keys.recovery.public_key),
+                },
+                spending: SpendingKeysetRequest {
+                    network: network.into(),
+                    app: active_spend_app.clone(),
+                    hardware: active_spend_hw.clone(),
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: network.into(),
-                app: active_spend_app.clone(),
-                hardware: active_spend_hw.clone(),
-            },
-            is_test_account: true,
-        })
+        )
         .await;
     assert_eq!(
         response.status_code,
@@ -314,6 +338,9 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
 
     let (_, spend_app) = create_descriptor_keys(network);
     let (_, spend_hw) = create_descriptor_keys(network);
@@ -328,6 +355,7 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
                     hardware: spend_hw,
                 },
             },
+            &keys,
         )
         .await;
     assert_eq!(
@@ -359,29 +387,31 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
 
 #[tokio::test]
 async fn test_fetch_account_keysets() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let network = Network::BitcoinTest;
-    let (auth_app, auth_hw, auth_recovery) = get_static_test_authkeys();
-    let (_active_config_hw, _, _) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let (_, active_spend_app) = create_descriptor_keys(network);
     let (_, active_spend_hw) = create_descriptor_keys(network);
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: auth_app,
-                hardware: auth_hw,
-                recovery: Some(auth_recovery),
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: keys.app.public_key,
+                    hardware: keys.hw.public_key,
+                    recovery: Some(keys.recovery.public_key),
+                },
+                spending: SpendingKeysetRequest {
+                    network: network.into(),
+                    app: active_spend_app.clone(),
+                    hardware: active_spend_hw.clone(),
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: network.into(),
-                app: active_spend_app.clone(),
-                hardware: active_spend_hw.clone(),
-            },
-            is_test_account: true,
-        })
+        )
         .await;
     assert_eq!(
         response.status_code,
@@ -391,6 +421,9 @@ async fn test_fetch_account_keysets() {
     );
     let create_account_response = response.body.unwrap();
     let account_id = create_account_response.account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
     let keyset = create_account_response
         .keyset
         .expect("Account should have a keyset");
@@ -410,6 +443,7 @@ async fn test_fetch_account_keysets() {
                     hardware: inactive_spend_hw.clone(),
                 },
             },
+            &keys,
         )
         .await;
     assert_eq!(
@@ -455,20 +489,20 @@ struct RotateSpendingKeysetTestVector {
 }
 
 async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let network = Network::BitcoinTest;
-    let (auth_app, auth_hw, auth_recover) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let (_, active_spend_app) = create_descriptor_keys(network);
     let (_, active_spend_hw) = create_descriptor_keys(network);
 
     // First, make an account
     let request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: auth_app,
-            hardware: auth_hw,
-            recovery: Some(auth_recover),
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.hw.public_key),
         },
         spending: SpendingKeysetRequest {
             network: network.into(),
@@ -478,7 +512,7 @@ async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
         is_test_account: true,
     };
 
-    let actual_response = client.create_account(&request).await;
+    let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
         actual_response.status_code,
         StatusCode::OK,
@@ -486,6 +520,9 @@ async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
         actual_response.body_string
     );
     let account_id = actual_response.body.unwrap().account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
     let account = bootstrap
         .services
         .account_service
@@ -497,12 +534,13 @@ async fn rotate_spending_keyset_test(vector: RotateSpendingKeysetTestVector) {
     let active_keyset_id = account.active_keyset_id;
 
     let keyset_id =
-        create_inactive_spending_keyset_for_account(&client, &account_id, network).await;
+        create_inactive_spending_keyset_for_account(&context, &client, &account_id, network).await;
     let response = client
         .rotate_to_spending_keyset(
             &account_id.to_string(),
             &vector.override_keyset_id.unwrap_or(keyset_id.to_string()),
             &RotateSpendingKeysetRequest {},
+            &keys,
         )
         .await;
     assert_eq!(

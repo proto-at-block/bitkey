@@ -1,6 +1,4 @@
-# syntax=docker/dockerfile:1.4
-ARG ATLANTIS_VERSION
-
+# syntax=docker/dockerfile:1.7
 FROM alpine:3 AS builder
 
 ARG TERRAGRUNT_VERSION
@@ -31,6 +29,7 @@ mv terragrunt-atlantis-config_${TERRAGRUNT_ATLANTIS_CONFIG_VERSION}_linux_amd64 
 chmod +x out/terragrunt-atlantis-config
 EOF
 
-FROM ghcr.io/runatlantis/atlantis:v${ATLANTIS_VERSION}
+# version: 0.27.3
+FROM ghcr.io/runatlantis/atlantis@sha256:5ad2e3fe752104a614374490d111ed1230f8ebf5409552d0ad3b716de356dc45
 COPY ./policies /policies
 COPY --from=builder /binaries/out/* /usr/local/bin

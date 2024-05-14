@@ -14,7 +14,9 @@ MEMFAULT_TRACE_REASON_DEFINE(charger_validate_err)
 
 // Biometrics
 MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_error)
+// Deprecated, don't use `bio_auth_failure`
 MEMFAULT_TRACE_REASON_DEFINE(bio_auth_failure)
+MEMFAULT_TRACE_REASON_DEFINE(bio_auth_error)
 
 // This is an abuse of trace reasons; should be a metric.
 MEMFAULT_TRACE_REASON_DEFINE(bio_enroll_sample_pass_count)

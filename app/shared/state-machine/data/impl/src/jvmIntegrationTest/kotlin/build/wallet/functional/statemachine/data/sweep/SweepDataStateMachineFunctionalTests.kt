@@ -29,7 +29,6 @@ import build.wallet.testing.ext.getHardwareFactorProofOfPossession
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.ext.setupMobilePay
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
@@ -144,7 +143,6 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
         ) {
           activeWallet.sync().shouldBeOk()
           activeWallet.balance().first()
-            .shouldBeLoaded()
             .total
             .shouldBe(BitcoinMoney.sats(10_000) - psbtsGeneratedData.totalFeeAmount)
         }

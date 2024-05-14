@@ -1,5 +1,6 @@
 package build.wallet.time
 
+import build.wallet.testing.shouldBeOk
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.floats.shouldBeZero
 import io.kotest.matchers.shouldBe
@@ -34,13 +35,16 @@ class DurationMathTests : FunSpec({
     }
   }
 
-  context("duration progress") {
+  context("duration progress - valid") {
     test("0% progress") {
       durationProgress(
         now = now,
         startTime = now,
         endTime = now + 100.seconds
-      ).shouldBeZero()
+      )
+        .shouldBeOk()
+        .value
+        .shouldBeZero()
     }
 
     test("42% progress") {
@@ -48,7 +52,10 @@ class DurationMathTests : FunSpec({
         now = now,
         startTime = now - 42.seconds,
         endTime = now + 58.seconds
-      ).shouldBe(0.42f)
+      )
+        .shouldBeOk()
+        .value
+        .shouldBe(0.42f)
     }
 
     test("50% progress") {
@@ -56,7 +63,10 @@ class DurationMathTests : FunSpec({
         now = now,
         startTime = now - 50.seconds,
         endTime = now + 50.seconds
-      ).shouldBe(0.50f)
+      )
+        .shouldBeOk()
+        .value
+        .shouldBe(0.50f)
     }
 
     test("99% progress") {
@@ -64,7 +74,10 @@ class DurationMathTests : FunSpec({
         now = now,
         startTime = now - 99.seconds,
         endTime = now + 1.seconds
-      ).shouldBe(0.99f)
+      )
+        .shouldBeOk()
+        .value
+        .shouldBe(0.99f)
     }
 
     test("100% progress") {
@@ -72,7 +85,10 @@ class DurationMathTests : FunSpec({
         now = now,
         startTime = now - 100.seconds,
         endTime = now
-      ).shouldBe(1f)
+      )
+        .shouldBeOk()
+        .value
+        .shouldBe(1f)
     }
 
     test("0% progress past time") {
@@ -80,7 +96,10 @@ class DurationMathTests : FunSpec({
         now = now,
         startTime = now + 5.seconds,
         endTime = now + 10.seconds
-      ).shouldBeZero()
+      )
+        .shouldBeOk()
+        .value
+        .shouldBeZero()
     }
 
     test("100% progress future time") {
@@ -88,7 +107,10 @@ class DurationMathTests : FunSpec({
         now = now,
         startTime = now - 100.seconds,
         endTime = now - 50.seconds
-      ).shouldBe(1f)
+      )
+        .shouldBeOk()
+        .value
+        .shouldBe(1f)
     }
   }
 })

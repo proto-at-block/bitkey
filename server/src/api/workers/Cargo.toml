@@ -12,6 +12,7 @@ ctrlc = { workspace = true }
 futures = { workspace = true }
 isocountry = { workspace = true }
 itertools = { workspace = true }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strum = { workspace = true }
@@ -28,7 +29,7 @@ chain_indexer = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 feature_flags = { workspace = true }
-metrics = { workspace = true }
+instrumentation ={ workspace = true }
 notification = { workspace = true }
 notification_validation = { workspace = true }
 queue = { workspace = true }

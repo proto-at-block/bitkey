@@ -135,8 +135,65 @@ struct MoneyHomeView_Preview: PreviewProvider {
                     addButton: .init(enabled: false, onClick: {})
                 ),
                 cardsModel: .init(cards: []),
-                transactionsModel: nil,
-                seeAllButtonModel: nil,
+                transactionsModel: ListModel(
+                    headerText: "Recent Activity",
+                    sections: [
+                        ListGroupModel(
+                            header: nil,
+                            items: [
+                                TransactionItemModelKt.TransactionItemModel(
+                                    truncatedRecipientAddress: "1AH7...CkGJ",
+                                    date: "Pending",
+                                    amount: "$23.50",
+                                    amountEquivalent: "45,075 sats",
+                                    incoming: true,
+                                    isPending: false,
+                                    onClick: {}
+                                ),
+                                TransactionItemModelKt.TransactionItemModel(
+                                    truncatedRecipientAddress: "1AH7...CkGJ",
+                                    date: "Pending",
+                                    amount: "$34.21",
+                                    amountEquivalent: "49,000 sats",
+                                    incoming: true,
+                                    isPending: false,
+                                    onClick: {}
+                                )
+                            ],
+                            style: .none,
+                            headerTreatment: .secondary,
+                            footerButton: nil
+                        ),
+                        ListGroupModel(
+                            header: nil,
+                            items: [
+                                TransactionItemModelKt.TransactionItemModel(
+                                    truncatedRecipientAddress: "2AH7...CkGJ",
+                                    date: "Apr 6 at 12:20 pm",
+                                    amount: "$90.50",
+                                    amountEquivalent: "121,075 sats",
+                                    incoming: false,
+                                    isPending: false,
+                                    onClick: {}
+                                )
+                            ],
+                            style: .none,
+                            headerTreatment: .secondary,
+                            footerButton: nil
+                        )
+                        
+                    ]
+                ),
+                seeAllButtonModel: ButtonModel(
+                    text: "See All",
+                    isEnabled: true,
+                    isLoading: false,
+                    leadingIcon: nil,
+                    treatment: .secondary,
+                    size: .footer,
+                    testTag: nil,
+                    onClick: StandardClick {}
+                ),
                 refresh: TestSuspendFunction(),
                 onRefresh: {},
                 isRefreshing: false

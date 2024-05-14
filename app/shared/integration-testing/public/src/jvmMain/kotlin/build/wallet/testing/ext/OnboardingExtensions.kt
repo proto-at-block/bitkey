@@ -123,13 +123,12 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     }
 
     if (cloudStoreAccountForBackup != null) {
-      val backup =
-        app.fullAccountCloudBackupCreator.create(
+      val backup = app.fullAccountCloudBackupCreator
+        .create(
           keybox = account.keybox,
-          sealedCsek = hwActivation.sealedCsek,
-          endorsedTrustedContacts = emptyList()
+          sealedCsek = hwActivation.sealedCsek
         )
-          .getOrThrow()
+        .getOrThrow()
       app.cloudBackupRepository.writeBackup(
         account.accountId,
         cloudStoreAccountForBackup,

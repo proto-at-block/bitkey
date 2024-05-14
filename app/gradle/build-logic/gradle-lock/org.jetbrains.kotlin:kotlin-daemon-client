@@ -2,16 +2,17 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-daemon-client",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-daemon-client-1.9.10.jar": "df8e3e90f30883c0498631f856fa203afe6442efaf60d1f4f293e3c03c4d9966"
+                        "kotlin-daemon-client-1.9.22.jar": "5d73e1815b1167e4afe208f00b2a75c080bc5a810786caadb8e14787593a93b9"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
             ]
         }
     ]

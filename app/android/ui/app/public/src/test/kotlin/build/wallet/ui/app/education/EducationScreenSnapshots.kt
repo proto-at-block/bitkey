@@ -5,11 +5,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.asProgress
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.education.EducationBodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
 import kotlinx.coroutines.delay
 
@@ -81,7 +83,7 @@ class EducationScreenSnapshots : FunSpec({
       EducationScreen(
         model =
           EducationBodyModel(
-            progressPercentage = (currentIndex + 1f) / 3f,
+            progressPercentage = ((currentIndex + 1f) / 3f).asProgress().getOrThrow(),
             title = items[currentIndex].title,
             subtitle = items[currentIndex].subtitle,
             primaryButton = items[currentIndex].primaryButton,

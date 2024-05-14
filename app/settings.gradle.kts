@@ -50,7 +50,7 @@ buildCache {
   }
   remote<com.github.burrunan.s3cache.AwsS3BuildCache> {
     region = "us-west-2"
-    bucket = "gha-build-cache"
+    bucket = "000000000000-bitkey-gha-build-cache"
     prefix = "gradle/"
 
     isEnabled = isCi
@@ -162,6 +162,9 @@ module(":shared:home:fake")
 module(":shared:home:impl")
 module(":shared:home:public")
 module(":shared:integration-testing:public")
+module(":shared:in-app-security:fake")
+module(":shared:in-app-security:impl")
+module(":shared:in-app-security:public")
 module(":shared:state-machine:data:fake")
 module(":shared:state-machine:data:impl")
 module(":shared:state-machine:data:public")
@@ -235,6 +238,13 @@ module(":shared:time:impl")
 module(":shared:time:public")
 module(":shared:testing:public")
 module(":shared:ui:core:public")
+module(":shared:worker:fake")
+module(":shared:worker:impl")
+module(":shared:worker:public")
 module(":shared:xc-framework")
 
 module(":core")
+
+// Sample app
+module(":sample:shared")
+module(":sample:android-app")

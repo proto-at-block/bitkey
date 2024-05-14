@@ -2,10 +2,10 @@
 
 This directory contains deployment scripts used by CodeDeploy to update WSM artifacts on the EC2
 machine running our nitro enclave. The code that sets up the infrastructure around it lives at
-`terraform/modules/apps/wsm` relative to the repo root.
+[bitkey-terraform](https://github.com/squareup/bitkey-terraform/tree/main/modules/apps/wsm) relative to the repo root.
 
 ## Runtime service infrastructure
-The Terraform stack in [terraform/modules/apps/wsm] creates:
+The Terraform stack in [bitkey-terraform](https://github.com/squareup/bitkey-terraform/tree/main/modules/apps/wsm) creates:
 - A VPC for WSM to run inside (this might end up being thrown out of we run the rest of the `server` infrasturcture and the WSM infrastructure in the same VPC) along with subnets and IGWs
 - The DDB tables for holding wrapped customer signing keys and wrapped data-encryptions keys (DEKs)
 - A KMS master key for wrapping the DEKs (**NOTE**: This will be migrated to its own account in the future)

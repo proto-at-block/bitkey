@@ -11,9 +11,10 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.RenderContext
+import build.wallet.statemachine.core.list.ListFormBodyModel
 import build.wallet.statemachine.money.currency.CurrencyPreferenceFormModel
 import build.wallet.statemachine.money.currency.FiatCurrencyListFormModel
-import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsFormBodyModel
+import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -21,6 +22,8 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.input.TextFieldModel
+import build.wallet.ui.model.list.ListGroupModel
+import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -205,21 +208,6 @@ internal fun SetCustomElectrumFormScreenPreview() {
 
 @Preview
 @Composable
-internal fun NotificationsSettingsPreview() {
-  FormScreen(
-    model =
-      NotificationsSettingsFormBodyModel(
-        smsText = "(555) 555-5555",
-        emailText = "test@mail.com",
-        onBack = {},
-        onSmsClick = {},
-        onEmailClick = {}
-      )
-  )
-}
-
-@Preview
-@Composable
 internal fun CurrencyListPreview() {
   FormScreen(
     model =
@@ -258,3 +246,68 @@ val CurrencyPreferenceListItemPickerMenu =
     onOptionSelected = {},
     onDismiss = {}
   )
+
+@Preview
+@Composable
+fun AllTransactionsPreview() {
+  FormScreen(
+    model =
+      ListFormBodyModel(
+        toolbarTitle = "Activity",
+        listGroups = immutableListOf(
+          ListGroupModel(
+            header = null,
+            style = ListGroupStyle.NONE,
+            items =
+              immutableListOf(
+                TransactionItemModel(
+                  truncatedRecipientAddress = "1AH7...CkGJ",
+                  date = "Apr 6 at 12:20 pm",
+                  amount = "+ $11.36",
+                  amountEquivalent = "0.000105 BTC",
+                  incoming = true,
+                  isPending = true,
+                  onClick = {}
+                ),
+                TransactionItemModel(
+                  truncatedRecipientAddress = "2AH7...CkGJ",
+                  date = "Apr 6 at 12:20 pm",
+                  amount = "$21.36",
+                  amountEquivalent = "0.000205 BTC",
+                  incoming = false,
+                  isPending = true,
+                  onClick = {}
+                )
+              )
+          ),
+          ListGroupModel(
+            header = null,
+            style = ListGroupStyle.NONE,
+            items =
+              immutableListOf(
+                TransactionItemModel(
+                  truncatedRecipientAddress = "3AH7...CkGJ",
+                  date = "Pending",
+                  amount = "+ $11.36",
+                  amountEquivalent = "0.000105 BTC",
+                  incoming = true,
+                  isPending = false,
+                  onClick = {}
+                ),
+                TransactionItemModel(
+                  truncatedRecipientAddress = "4AH7...CkGJ",
+                  date = "Pending",
+                  amount = "$21.36",
+                  amountEquivalent = "0.000205 BTC",
+                  incoming = false,
+                  isPending = false,
+                  onClick = {}
+                )
+              )
+          )
+        ),
+        onBack = {},
+        id = null
+      )
+  )
+}

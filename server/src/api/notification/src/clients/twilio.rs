@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::env;
 use std::sync::OnceLock;
 
-use ::metrics::KeyValue;
-use ::metrics::ResultCounter;
 use base64::{engine::general_purpose::STANDARD as b64, Engine as _};
 use bimap::BiMap;
 use hmac::{Hmac, Mac};
+use instrumentation::metrics::KeyValue;
+use instrumentation::metrics::ResultCounter;
 use isocountry::CountryCode;
 use itertools::Itertools;
 use reqwest::Client;

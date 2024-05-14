@@ -6,7 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.money.BitcoinMoney
+import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.dev.DebugMenuProps
+import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
 import build.wallet.statemachine.recovery.socrec.LiteTrustedContactManagementProps
@@ -17,15 +20,18 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.statemachine.settings.showDebugMenu
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 class LiteSettingsHomeUiStateMachineImpl(
+  private val appVariant: AppVariant,
   private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
   private val feedbackUiStateMachine: FeedbackUiStateMachine,
   private val helpCenterUiStateMachine: HelpCenterUiStateMachine,
   private val liteTrustedContactManagementUiStateMachine:
     LiteTrustedContactManagementUiStateMachine,
   private val settingsListUiStateMachine: SettingsListUiStateMachine,
+  private val debugMenuStateMachine: DebugMenuStateMachine,
 ) : LiteSettingsHomeUiStateMachine {
   @Composable
   override fun model(props: LiteSettingsHomeUiProps): ScreenModel {
@@ -44,7 +50,6 @@ class LiteSettingsHomeUiStateMachineImpl(
             CurrencyPreferenceProps(
               onBack = { uiState = State.ShowingAllSettingsList },
               btcDisplayAmount = BitcoinMoney.zero(),
-              currencyPreferenceData = props.currencyPreferenceData,
               onDone = null
             )
         )
@@ -77,6 +82,15 @@ class LiteSettingsHomeUiStateMachineImpl(
               onBack = { uiState = State.ShowingAllSettingsList }
             )
         )
+
+      is State.ShowingDebugMenu ->
+        debugMenuStateMachine.model(
+          props = DebugMenuProps(
+            accountData = props.accountData,
+            firmwareData = props.firmwareData,
+            onClose = { uiState = State.ShowingAllSettingsList }
+          )
+        )
     }
   }
 
@@ -85,7 +99,7 @@ class LiteSettingsHomeUiStateMachineImpl(
     props: LiteSettingsHomeUiProps,
     setState: (State) -> Unit,
   ): ScreenModel {
-    var alertModel: AlertModel? by remember { mutableStateOf(null) }
+    var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
 
     return ScreenModel(
       body =
@@ -94,21 +108,23 @@ class LiteSettingsHomeUiStateMachineImpl(
             SettingsListUiProps(
               onBack = props.onBack,
               f8eEnvironment = props.accountData.account.config.f8eEnvironment,
-              supportedRows =
-                setOf(
-                  SettingsListUiProps.SettingsListRow.CurrencyPreference {
-                    setState(State.ShowingCurrencyPreferenceSettings)
-                  },
-                  SettingsListUiProps.SettingsListRow.ContactUs {
-                    setState(State.ShowingContactUs)
-                  },
-                  SettingsListUiProps.SettingsListRow.HelpCenter {
-                    setState(State.ShowingHelpCenter)
-                  },
-                  SettingsListUiProps.SettingsListRow.TrustedContacts {
-                    setState(State.ShowingTrustedContactsManagement)
-                  }
-                ),
+              supportedRows = setOfNotNull(
+                SettingsListUiProps.SettingsListRow.CurrencyPreference {
+                  setState(State.ShowingCurrencyPreferenceSettings)
+                },
+                SettingsListUiProps.SettingsListRow.ContactUs {
+                  setState(State.ShowingContactUs)
+                },
+                SettingsListUiProps.SettingsListRow.HelpCenter {
+                  setState(State.ShowingHelpCenter)
+                },
+                SettingsListUiProps.SettingsListRow.TrustedContacts {
+                  setState(State.ShowingTrustedContactsManagement)
+                },
+                SettingsListUiProps.SettingsListRow.DebugMenu {
+                  setState(State.ShowingDebugMenu)
+                }.takeIf { appVariant.showDebugMenu }
+              ),
               onShowAlert = { alertModel = it },
               onDismissAlert = { alertModel = null }
             )
@@ -129,4 +145,6 @@ private sealed interface State {
   data object ShowingContactUs : State
 
   data object ShowingHelpCenter : State
+
+  data object ShowingDebugMenu : State
 }

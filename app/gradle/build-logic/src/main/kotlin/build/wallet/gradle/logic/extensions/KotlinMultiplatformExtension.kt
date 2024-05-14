@@ -6,6 +6,7 @@ package build.wallet.gradle.logic.extensions
 import build.wallet.gradle.logic.AndroidLibPlugin
 import build.wallet.gradle.logic.KotlinBasePlugin
 import build.wallet.gradle.logic.gradle.apply
+import build.wallet.gradle.logic.gradle.configureJvmTestLogging
 import build.wallet.gradle.logic.gradle.kotlin
 import build.wallet.gradle.logic.gradle.libs
 import build.wallet.gradle.logic.gradle.optimalTargetsForIOS
@@ -14,8 +15,6 @@ import build.wallet.gradle.logic.gradle.sourceSets
 import build.wallet.gradle.logic.structure.isFakeModule
 import build.wallet.gradle.logic.structure.isImplModule
 import build.wallet.gradle.logic.structure.isPublicModule
-import com.adarshr.gradle.testlogger.TestLoggerExtension
-import com.adarshr.gradle.testlogger.TestLoggerPlugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
@@ -33,6 +32,8 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.main
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.test
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeOutputKind
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.toJavaDuration
 
 fun KotlinMultiplatformExtension.allTargets() = targets(android = true, ios = true, jvm = true)
 
@@ -84,8 +85,6 @@ private fun KotlinMultiplatformExtension.configureJvmTarget() {
           implementation(kotlin("test-junit"))
         }
       }
-
-      project.generateJvmIntegrationTestRunConfiguration()
     }
 
     testRuns.create("integrationTest") {
@@ -93,6 +92,11 @@ private fun KotlinMultiplatformExtension.configureJvmTarget() {
       setExecutionSourceFrom(integrationTest)
 
       executionTask.configure {
+        // Set a tight timeout for running integration tests to hopefully catch any hanging tests.
+        // This timeout is applied per module only guards the test execution itself, not the compilation.
+        // The canceled task will show as canceled in the build scan.
+        timeout.set(10.minutes.toJavaDuration())
+
         // Here we give our custom `KotlinJvmTest` the name of its assigned compilation.
         // Note: It might seem like you can just do `setCompilationName(integrationTest.name)` and even IntelliJ will agree.
         //   But then the compilation fails that `setCompilationName` doesn't exist.
@@ -120,79 +124,20 @@ private fun KotlinMultiplatformExtension.configureJvmTarget() {
   }
 }
 
-/**
- * Generate runner configuration for JVM Integration tests manually, until Kotest plugin
- * supports running tests from custom test compilations: https://github.com/kotest/kotest-intellij-plugin/issues/266.
- */
-private fun Project.generateJvmIntegrationTestRunConfiguration() {
-  val runConfigurationsDir = rootDir.resolve(".idea/runConfigurations")
-  runConfigurationsDir.mkdirs()
-
-  val integrationTestDir = projectDir.resolve("src/jvmIntegrationTest/kotlin")
-
-  if (integrationTestDir.exists()) {
-    // Generate run configuration for each integration test file, if any:
-    val testFiles =
-      integrationTestDir.walk().filter {
-        it.isFile && (it.name.endsWith("Tests.kt") || it.name.endsWith("Test.kt"))
-      }
-    testFiles.forEach { file ->
-      val configName = file.nameWithoutExtension
-      val fullyQualifiedName =
-        file.toRelativeString(integrationTestDir).replace("/", ".").removeSuffix(".kt")
-
-      val runConfigurationXml =
-        """
-        <component name="ProjectRunConfigurationManager">
-          <configuration default="false" name="$configName" type="GradleRunConfiguration" factoryName="Gradle">
-            <ExternalSystemSettings>
-              <option name="executionName" />
-              <option name="externalProjectPath" value="${"$"}PROJECT_DIR$" />
-              <option name="externalSystemIdString" value="GRADLE" />
-              <option name="scriptParameters" value="" />
-              <option name="taskDescriptions">
-                <list />
-              </option>
-              <option name="taskNames">
-                <list>
-                  <option value="${project.path}:cleanJvmTest" />
-                  <option value="${project.path}:jvmIntegrationTest" />
-                  <option value="--tests" />
-                  <option value="&quot;$fullyQualifiedName&quot;" />
-                </list>
-              </option>
-              <option name="vmOptions" />
-            </ExternalSystemSettings>
-            <ExternalSystemDebugServerProcess>false</ExternalSystemDebugServerProcess>
-            <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
-            <DebugAllEnabled>false</DebugAllEnabled>
-            <ForceTestExec>true</ForceTestExec>
-            <method v="2" />
-          </configuration>
-        </component>
-        """.trimIndent()
-
-      val runConfigurationFile = runConfigurationsDir.resolve("$configName.xml")
-      runConfigurationFile.writeText(runConfigurationXml)
-    }
-  }
-}
-
 private fun Project.configureJUnit(sourceSet: KotlinSourceSet) {
-  project.pluginManager.apply<TestLoggerPlugin>()
-  extensions.configure(TestLoggerExtension::class) {
-    // Print test logging output only if the test fails
-    showStandardStreams = true
-    showPassedStandardStreams = false
-    showSkippedStandardStreams = false
-    showFailedStandardStreams = true
-    // Don't show names of passing tests, since we have hundreds
-    showPassed = false
-  }
-
   sourceSet.apply {
     tasks.withType<Test>().configureEach {
+      configureJvmTestLogging()
       useJUnitPlatform()
+      // Fail any test that takes longer than this timeout duration to run.
+      // This is to safeguard against very slow tests or tests that are hanging.
+      systemProperty(
+        "kotest.framework.timeout",
+        // TODO: ideally we would use different timeouts for different test types
+        //       but our current setup doesn't allow for such flexibility.
+        //       Kotest system property `kotest.framework.timeout` is global and applies to all tests.
+        5.minutes.inWholeMilliseconds
+      )
       propagateKotestSystemProperties()
     }
 

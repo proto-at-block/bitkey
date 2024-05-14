@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-test-common",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-test-common-1.9.22.jar": "004579091f9fba8e611e6f2898651e015d8b2b1519c064cf10d919f4796f6f32"
+                        "kotlin-test-common-1.9.23.jar": "f9b756f8e154ed185fd721d1828947f0273c3c5d5f0f729ba0e7570c53c58872"
                     }
                 }
             ],

@@ -120,11 +120,20 @@ struct DataRowView: View {
             }
             
             if let explainer = viewModel.explainer {
-                VStack {
-                    ModeledText(model: .standard(explainer.title, font: .body3Bold, textColor: .foreground))
-                        .padding(.bottom, 1)
+                HStack {
+                    VStack {
+                        ModeledText(model: .standard(explainer.title, font: .body3Bold, textColor: .foreground))
+                            .padding(.bottom, 1)
 
-                    ModeledText(model: .standard(explainer.subtitle, font: .body3Regular, textColor: .foreground60))
+                        ModeledText(model: .standard(explainer.subtitle, font: .body3Regular, textColor: .foreground60))
+                    }
+
+                    explainer.iconButton.map { iconButtonModel in
+                        VStack {
+                            IconButtonView(model: iconButtonModel)
+                            Spacer()
+                        }
+                    }
                 }
                 .padding(.top, 16)
                 .padding(.bottom, 16)
@@ -272,7 +281,26 @@ struct DataListView_Previews: PreviewProvider {
                             secondarySideText: "7m late",
                             secondarySideTextType: .bold,
                             secondarySideTextTreatment: .warning,
-                            explainer: FormMainContentModelDataList.DataExplainer(title: "Taking longer than usual", subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.")
+                            explainer: FormMainContentModelDataList.DataExplainer(
+                                title: "Taking longer than usual",
+                                subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                                iconButton: IconButtonModel(
+                                    iconModel: IconModel(
+                                        iconImage: .LocalImage(icon: .smalliconinformationfilled),
+                                        iconSize: .xsmall,
+                                        iconBackgroundType: IconBackgroundTypeCircle(
+                                            circleSize: .xsmall,
+                                            color: .translucentblack
+                                        ),
+                                        iconTint: nil,
+                                        iconOpacity: 0.20,
+                                        iconTopSpacing: nil,
+                                        text: nil
+                                    ),
+                                    onClick: StandardClick {},
+                                    enabled: true
+                                )
+                            )
                         )
                     ],
                     total: nil,

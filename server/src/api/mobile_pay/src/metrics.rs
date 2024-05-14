@@ -1,4 +1,6 @@
-use metrics::{factory::Counter, factory::Histogram, factory::MetricsFactory, Unit};
+use instrumentation::metrics::{
+    factory::Counter, factory::Histogram, factory::MetricsFactory, Unit,
+};
 use once_cell::sync::Lazy;
 pub(crate) const FACTORY_NAME: &str = "mobile_pay";
 pub(crate) const IS_MOBILE_PAY: &str = "is_mobile_pay";

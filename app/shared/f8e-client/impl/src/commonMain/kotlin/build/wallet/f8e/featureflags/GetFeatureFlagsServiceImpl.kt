@@ -9,7 +9,10 @@ import build.wallet.catching
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
@@ -19,8 +22,8 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
+import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -62,7 +65,7 @@ class GetFeatureFlagsServiceImpl(
 
     return httpClient.bodyResult<FeatureFlagsResponse> {
       post(url) {
-        setBody(
+        setRedactedBody(
           RequestBody(
             flagKeys = flagKeys,
             appInstallationId = appInstallation.localId,
@@ -83,7 +86,7 @@ class GetFeatureFlagsServiceImpl(
   @Serializable
   internal data class FeatureFlagsResponse(
     private var flags: List<JsonObject>,
-  ) {
+  ) : RedactedResponseBody {
     fun decodeValidFlags(): List<GetFeatureFlagsService.F8eFeatureFlag> {
       val json = Json {
         allowTrailingComma = true
@@ -108,11 +111,13 @@ class GetFeatureFlagsServiceImpl(
     private val hardwareSerialNumber: String?,
     @SerialName("platform_info")
     private val platformInfo: PlatformInfoBody,
+    @Unredacted
     @SerialName("device_region")
     private val deviceCountryCode: String,
+    @Unredacted
     @SerialName("device_language")
     private val deviceLanguageCode: String,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   private data class PlatformInfoBody(

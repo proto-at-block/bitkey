@@ -2,6 +2,7 @@ package build.wallet.statemachine.transactions
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,14 +28,21 @@ import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.SheetSize
+import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
+import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.data.money.convertedOrZero
 import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.send.SendUiProps
@@ -47,10 +55,16 @@ import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineIm
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
 import build.wallet.time.TimeZoneProvider
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableMap
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -69,6 +83,7 @@ class TransactionDetailsUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val bitcoinTransactionBumpabilityChecker: BitcoinTransactionBumpabilityChecker,
   private val feeBumpEnabled: FeatureFlag<FeatureFlagValue.BooleanFlag>,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -79,11 +94,13 @@ class TransactionDetailsUiStateMachineImpl(
         else -> props.transaction.total
       }
 
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
     val fiatAmount =
       convertedOrZero(
         converter = currencyConverter,
         fromAmount = totalAmount,
-        toCurrency = props.fiatCurrency,
+        toCurrency = fiatCurrency,
         atTime = props.transaction.broadcastTime ?: props.transaction.confirmationTime()
       )
     val fiatString = moneyDisplayFormatter.format(fiatAmount)
@@ -106,17 +123,12 @@ class TransactionDetailsUiStateMachineImpl(
             entryPoint =
               SendEntryPoint.SpeedUp(
                 speedUpTransactionDetails = state.speedUpTransactionDetails,
-                fiatMoney =
-                  FiatMoney(
-                    currency = props.fiatCurrency,
-                    value = fiatAmount.value
-                  ),
+                fiatMoney = FiatMoney(currency = fiatCurrency, value = fiatAmount.value),
                 spendingLimit = props.accountData.mobilePayData.spendingLimit,
                 newFeeRate = state.chosenFeeRate,
                 fees = state.fees
               ),
             accountData = props.accountData,
-            fiatCurrency = props.fiatCurrency,
             onExit = {
               uiState = ShowingTransactionDetailUiState()
             },
@@ -135,8 +147,15 @@ class TransactionDetailsUiStateMachineImpl(
           fiatString = fiatString,
           feeBumpEnabled = feeBumpEnabled,
           isLoadingRates = state.isLoadingRates,
+          isShowingEducationSheet = state.isShowingEducationSheet,
           onLoaded = { browserNavigator ->
             uiState = state.copy(browserNavigator = browserNavigator)
+          },
+          onViewSpeedUpEducation = {
+            uiState = state.copy(isShowingEducationSheet = true)
+          },
+          onCloseSpeedUpEducation = {
+            uiState = state.copy(isShowingEducationSheet = false)
           },
           onViewTransaction = {
             state.browserNavigator?.open(
@@ -213,7 +232,10 @@ class TransactionDetailsUiStateMachineImpl(
     fiatString: String,
     feeBumpEnabled: Boolean,
     isLoadingRates: Boolean,
+    isShowingEducationSheet: Boolean,
     onLoaded: (BrowserNavigator) -> Unit,
+    onViewSpeedUpEducation: () -> Unit,
+    onCloseSpeedUpEducation: () -> Unit,
     onViewTransaction: () -> Unit,
     onSpeedUpTransaction: () -> Unit,
     onFeesLoadFailure: (FeeLoadingError) -> Unit,
@@ -242,7 +264,7 @@ class TransactionDetailsUiStateMachineImpl(
       }
     }
 
-    return TransactionDetailModel(
+    val transactionDetailModel = TransactionDetailModel(
       feeBumpEnabled = feeBumpEnabled,
       txStatusModel = when (props.transaction.confirmationStatus) {
         is Pending -> TxStatusModel.Pending(
@@ -268,7 +290,7 @@ class TransactionDetailsUiStateMachineImpl(
         immutableListOf(
           DataList(
             items =
-              listOfNotNull(
+              immutableListOf(
                 when (val status = props.transaction.confirmationStatus) {
                   is Confirmed ->
                     Data(
@@ -282,9 +304,12 @@ class TransactionDetailsUiStateMachineImpl(
                         )
                     )
 
-                  is Pending -> pendingDataListItem(props.transaction.estimatedConfirmationTime)
+                  is Pending -> pendingDataListItem(
+                    estimatedConfirmationTime = props.transaction.estimatedConfirmationTime,
+                    onViewSpeedUpEducation = onViewSpeedUpEducation
+                  )
                 }
-              ).toImmutableList()
+              )
           ),
           DataList(
             items =
@@ -340,9 +365,65 @@ class TransactionDetailsUiStateMachineImpl(
           )
         )
     ).asModalScreen()
+
+    val transactionSpeedUpEducationModel = TransactionSpeedUpEducationModel(
+      onSpeedUpTransaction = onSpeedUpTransaction,
+      onClose = onCloseSpeedUpEducation
+    ).takeIf { isShowingEducationSheet }
+
+    return ScreenModel(
+      body = transactionDetailModel.body,
+      bottomSheetModel = transactionSpeedUpEducationModel
+    )
   }
 
-  private fun pendingDataListItem(estimatedConfirmationTime: Instant?): Data {
+  @Composable
+  private fun TransactionSpeedUpEducationModel(
+    onSpeedUpTransaction: () -> Unit,
+    onClose: () -> Unit,
+  ): SheetModel {
+    return SheetModel(
+      size = SheetSize.MIN40,
+      onClosed = onClose,
+      body = FormBodyModel(
+        id = null,
+        onBack = onClose,
+        toolbar = null,
+        header = FormHeaderModel(
+          headline = "Speed up transactions",
+          subline = """
+            If your Bitcoin transaction is taking longer than expected, you can try speeding it up.
+            
+            A common problem that can occur is when someone sends a payment with a fee that isn't high enough to get confirmed, causing it to get stuck in the mempool.
+            
+            We’ll take the guess work out by providing a fee that should get your transfer confirmed quickly.
+          """.trimIndent(),
+          iconModel = IconModel(
+            icon = Icon.SmallIconSpeed,
+            iconSize = IconSize.Small,
+            iconTint = IconTint.Primary,
+            iconBackgroundType = IconBackgroundType.Circle(
+              circleSize = IconSize.Large,
+              color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
+            )
+          ),
+          sublineTreatment = FormHeaderModel.SublineTreatment.REGULAR
+        ),
+        primaryButton = ButtonModel(
+          text = "Try speeding up",
+          treatment = ButtonModel.Treatment.Primary,
+          size = ButtonModel.Size.Footer,
+          onClick = StandardClick(onSpeedUpTransaction)
+        ),
+        renderContext = RenderContext.Sheet
+      )
+    )
+  }
+
+  private fun pendingDataListItem(
+    estimatedConfirmationTime: Instant?,
+    onViewSpeedUpEducation: () -> Unit,
+  ): Data {
     val fallbackData = Data(
       title = "Confirmed at",
       sideText = "Unconfirmed"
@@ -366,7 +447,19 @@ class TransactionDetailsUiStateMachineImpl(
             explainer =
               Data.Explainer(
                 title = "Taking longer than usual",
-                subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee."
+                subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                iconButton = IconButtonModel(
+                  iconModel = IconModel(
+                    icon = Icon.SmallIconInformationFilled,
+                    iconSize = IconSize.XSmall,
+                    iconBackgroundType = IconBackgroundType.Circle(
+                      circleSize = IconSize.XSmall
+                    ),
+                    iconTint = IconTint.Foreground,
+                    iconOpacity = 0.20f
+                  ),
+                  onClick = StandardClick(onViewSpeedUpEducation)
+                )
               )
           )
         } else {
@@ -391,6 +484,7 @@ class TransactionDetailsUiStateMachineImpl(
     data class ShowingTransactionDetailUiState(
       val browserNavigator: BrowserNavigator? = null,
       val isLoadingRates: Boolean = false,
+      val isShowingEducationSheet: Boolean = false,
     ) : UiState
 
     /**

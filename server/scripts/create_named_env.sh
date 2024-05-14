@@ -13,14 +13,28 @@ fi
 export AWS_ACCOUNT="${AWS_ACCOUNT:-000000000000}" # get whatever is in the env, or default to dev account
 export AWS_REGION="${AWS_REGION:-us-west-2}" # get what is in the env or default to us-west-2
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-$AWS_REGION}" # get what is in the env or default to us-west-2
+export AWS_PAGER=""
 export IMAGE_TAG=$(git rev-parse HEAD) # tag of the fromagerie image
 export IS_CI_RUN="${CI:-}" # whether the deployment is triggered locally or in the CI
 export BUILD_WSM="${BUILD_WSM:-}" # Set to use local wsm or download server artifacts
 
 echo "Creating a named stack. Name: $ENV_NAMESPACE"
-echo "CI: $IS_CI_RUN"
+
+pushd .. > /dev/null
+export REPO_ROOT=$(pwd)
+popd > /dev/null
+
+TERRAFORM_REPO_PATH="${TERRAFORM_REPO_PATH:-}"
+if [[ -n "$TERRAFORM_REPO_PATH" ]]; then
+  echo "🔧 Using provided terraform repo path: $TERRAFORM_REPO_PATH"
+else
+  echo "🔧 Cloning squareup/bitkey-terraform"
+  TERRAFORM_REPO_PATH=$(mktemp -d)/bitkey-terraform
+  git clone org-49461806@github.com:squareup/bitkey-terraform.git ${TERRAFORM_REPO_PATH}
+fi
+
 if [[ -z $IS_CI_RUN ]] ; then
-    export AWS_PROFILE="${AWS_PROFILE:-w1-development--admin}" # get what is in the env or default to dev profile
+    export AWS_PROFILE="${AWS_PROFILE:-bitkey-development--admin}" # get what is in the env or default to dev profile
     echo "🔐 logging into ECR..."
     aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com
 
@@ -29,14 +43,10 @@ if [[ -z $IS_CI_RUN ]] ; then
     echo "➡️ pushing container into ECR"
     docker push $AWS_ACCOUNT.dkr.ecr.$AWS_REGION.amazonaws.com/wallet-api:$(git rev-parse HEAD)
 
-    pushd ../terraform/dev/apps/auth
+    pushd $TERRAFORM_REPO_PATH/aws/bitkey/named-stacks/auth > /dev/null
     just download_artifacts
-    popd
+    popd > /dev/null
 fi
-
-pushd ..
-export REPO_ROOT=$(pwd)
-popd
 
 NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
 
@@ -60,13 +70,13 @@ else
   echo "Updated existing secret: $SDN_URI_KEY_NAME"
 fi
 
-pushd ../terraform/named-stacks/api
+pushd ${TERRAFORM_REPO_PATH}/aws/bitkey/named-stacks/api
 export NAMESPACE=$ENV_NAMESPACE
 echo "🚀 Deploying the named stack"
 terragrunt init -reconfigure
 terragrunt apply \
   -var fromagerie_image_tag=$IMAGE_TAG \
-  -var auth_lambdas_dir=$REPO_ROOT/terraform/dev/apps/auth/assets \
+  -var auth_lambdas_dir=${TERRAFORM_REPO_PATH}/aws/bitkey/named-stacks/auth/assets \
   --terragrunt-non-interactive \
   -auto-approve
 popd
@@ -75,7 +85,7 @@ popd
 # we do not accidentally deploy anything to the public internet that we do not intend to.
 echo "🚀 Copying sanctions list to named stack bucket"
 # Get dev bucket uri from secrets manager
-export AWS_PROFILE=w1-development--admin
+export AWS_PROFILE=bitkey-development--admin
 DEV_BUCKET_URI=$(aws secretsmanager get-secret-value --secret-id fromagerie/sq_sdn/s3_uri --query SecretString --output text)
 NAMED_STACK_S3_BUCKET_URI="s3://bitkey-${ENV_NAMESPACE}.fromagerie-sanctions-screener-development"
 echo "Copying from $DEV_BUCKET_URI to $NAMED_STACK_S3_BUCKET_URI"
@@ -115,5 +125,5 @@ if [[ -z "$IS_CI_RUN" ]] ; then
 fi
 
 echo "🎉 All Done!"
-echo "Fromagerie API: https://fromagerie-api.${ENV_NAMESPACE}.dev.wallet.build"
-echo "WSM:            https://wsm.${ENV_NAMESPACE}.dev.wallet.build"
+echo "Fromagerie API: https://fromagerie-api.${ENV_NAMESPACE}.dev.bitkeydevelopment.com"
+echo "WSM:            https://wsm.${ENV_NAMESPACE}.dev.bitkeydevelopment.com"

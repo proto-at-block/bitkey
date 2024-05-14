@@ -3,11 +3,11 @@ package build.wallet.f8e.recovery
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.mapError
@@ -25,14 +25,18 @@ class GetDelayNotifyRecoveryStatusServiceImpl(
     binding {
       val response =
         f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
-          .catching { get("/api/accounts/${fullAccountId.serverId}/recovery") }
+          .catching {
+            get("/api/accounts/${fullAccountId.serverId}/recovery") {
+              withDescription("Get delay & notify status")
+            }
+          }
           .bind()
 
       val body = response.bodyResult<GetDelayNotifyStatusResponse>().bind()
       body.pendingDelayNotify?.run {
         toServerRecovery(fullAccountId).mapError(::UnhandledException).bind()
       }
-    }.logNetworkFailure { "Failed to get delay & notify status." }
+    }
 
   @Serializable
   private data class GetDelayNotifyStatusResponse(

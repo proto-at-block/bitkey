@@ -18,6 +18,12 @@ messages:
       auth: after_onboarding
     - name: fwpb_get_enrolled_fingerprints_cmd
       auth: after_onboarding
+    - name: fwpb_get_unlock_method_cmd
+      auth: always
+    - name: fwpb_set_fingerprint_label_cmd
+      auth: after_onboarding
+    - name: fwpb_cancel_fingerprint_enrollment_cmd
+      auth: never
   structs:
     - name: auth_set_timestamp_t
       fields:

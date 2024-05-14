@@ -1,3 +1,5 @@
+@file:Suppress("ForbiddenImport")
+
 package build.wallet.ktor.result
 
 import build.wallet.catching
@@ -6,17 +8,71 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
+import dev.zacsweers.redacted.annotations.Redacted
 import io.ktor.client.HttpClient
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.errors.IOException
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
+
+/**
+ * The base type required by [setRedactedBody] to enforce class
+ * redaction which is required in place of [setBody], ensuring
+ * sensitive user data does not leak into logs.
+ *
+ * Use [dev.zacsweers.redacted.annotations.Unredacted] to allow
+ * specific properties to be logged.
+ */
+@Redacted
+interface RedactedRequestBody
+
+/**
+ * The base type required by [bodyResult] to enforce class redaction,
+ * ensuring sensitive user data does not leak into logs.
+ *
+ * Use [dev.zacsweers.redacted.annotations.Unredacted] to allow
+ * specific properties to be logged.
+ */
+@Redacted
+interface RedactedResponseBody
+
+/**
+ * An empty response body to be used instead of Unit or empty objects
+ * since `Redacted` must be applied to data classes.
+ */
+@Serializable
+data class EmptyRequestBody(
+  @Transient
+  val nothing: Int = 0,
+) : RedactedRequestBody
+
+/**
+ * An empty request body to be used instead of Unit or empty objects
+ * since `Redacted` must be applied to data classes.
+ */
+@Serializable
+data class EmptyResponseBody(
+  @Transient
+  val nothing: Int = 0,
+) : RedactedResponseBody
+
+inline fun <reified T : RedactedRequestBody> HttpRequestBuilder.setRedactedBody(body: T) {
+  setBody(body)
+}
+
+inline fun <reified T> HttpRequestBuilder.setUnredactedBody(body: T) {
+  setBody(body)
+}
 
 /**
  * Executes [requestBody] HTTP request and tried to receive body response as type [T].
  *
  * This is the recommended way to make HTTP calls and process responses.
  */
-suspend inline fun <reified T> HttpClient.bodyResult(
+suspend inline fun <reified T : RedactedResponseBody> HttpClient.bodyResult(
   noinline requestBody: suspend HttpClient.() -> HttpResponse,
 ): Result<T, NetworkingError> {
   return catching(requestBody)

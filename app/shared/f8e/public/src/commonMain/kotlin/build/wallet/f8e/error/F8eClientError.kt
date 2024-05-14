@@ -16,4 +16,6 @@ data class F8eClientError<T : F8eClientErrorCode>(
   val category: F8eClientErrorCategory,
   @SerialName("code")
   val code: T,
+  @SerialName("detail")
+  val detail: String? = null,
 )

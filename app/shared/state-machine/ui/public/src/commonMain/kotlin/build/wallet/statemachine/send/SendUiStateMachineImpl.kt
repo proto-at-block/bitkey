@@ -21,6 +21,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
 import build.wallet.money.currency.Currency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateSyncer
 import build.wallet.platform.permissions.Permission.Camera
@@ -58,6 +59,7 @@ class SendUiStateMachineImpl(
   private val exchangeRateSyncer: ExchangeRateSyncer,
   private val clock: Clock,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : SendUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -94,12 +96,14 @@ class SendUiStateMachineImpl(
       )
     }
 
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
     // On initiating the send flow, we grab and lock in the current exchange rates, so we use
     // the same rates over the duration of the flow. This is null when the exchange rates are not
     // available or are out of date due to the customer being offline or unable to communicate with f8e
     val exchangeRates: ImmutableList<ExchangeRate>? by remember {
       val rates = exchangeRateSyncer.exchangeRates.value.toImmutableList()
-      val instant = rates.timeRetrievedForCurrency(props.fiatCurrency)
+      val instant = rates.timeRetrievedForCurrency(fiatCurrency)
       mutableStateOf(
         when {
           // if rates are older than 5 minutes or we cant find any for our fiat currency, we don't
@@ -117,7 +121,7 @@ class SendUiStateMachineImpl(
         if (exchangeRates.isNullOrEmpty()) {
           BitcoinMoney.zero()
         } else {
-          FiatMoney.zero(props.fiatCurrency)
+          FiatMoney.zero(fiatCurrency)
         }
       )
     }
@@ -204,69 +208,61 @@ class SendUiStateMachineImpl(
 
       is EnteringAmountUiState ->
         transferAmountEntryUiStateMachine.model(
-          props =
-            TransferAmountEntryUiProps(
-              onBack = {
-                uiState = SelectingRecipientUiState(recipientAddress = state.recipientAddress)
-              },
-              accountData = props.accountData,
-              initialAmount = state.transferMoney,
-              fiatCurrency = props.fiatCurrency,
-              exchangeRates = exchangeRates,
-              f8eReachability = f8eReachabilityState
-            ) { continueParams ->
-              uiState =
-                SelectingTransactionPriorityUiState(
-                  recipientAddress = state.recipientAddress,
-                  sendAmount = continueParams.sendAmount,
-                  fiatMoney = continueParams.fiatMoney,
-                  requiredSigner = continueParams.requiredSigner,
-                  spendingLimit = continueParams.spendingLimit
-                )
-            }
+          props = TransferAmountEntryUiProps(
+            onBack = {
+              uiState = SelectingRecipientUiState(recipientAddress = state.recipientAddress)
+            },
+            accountData = props.accountData,
+            initialAmount = state.transferMoney,
+            exchangeRates = exchangeRates,
+            f8eReachability = f8eReachabilityState
+          ) { continueParams ->
+            uiState = SelectingTransactionPriorityUiState(
+              recipientAddress = state.recipientAddress,
+              sendAmount = continueParams.sendAmount,
+              fiatMoney = continueParams.fiatMoney,
+              requiredSigner = continueParams.requiredSigner,
+              spendingLimit = continueParams.spendingLimit
+            )
+          }
         )
 
       is ConfirmingTransferUiState ->
         transferConfirmationUiStateMachine.model(
-          props =
-            TransferConfirmationUiProps(
-              transferVariant = state.variant,
-              accountData = props.accountData,
-              recipientAddress = state.recipientAddress,
-              sendAmount = state.sendAmount,
-              onExit = props.onExit,
-              onBack = {
-                uiState =
-                  EnteringAmountUiState(
-                    recipientAddress = state.recipientAddress,
-                    transferMoney =
-                      when (val amount = state.sendAmount) {
-                        is ExactAmount -> amount.money
-                        is SendAll -> FiatMoney.zero(props.fiatCurrency)
-                      }
-                  )
-              },
-              requiredSigner =
-                when (f8eReachabilityState) {
-                  NetworkReachability.REACHABLE -> state.requiredSigner
-                  NetworkReachability.UNREACHABLE -> SigningFactor.Hardware
-                },
-              spendingLimit = state.spendingLimit,
-              fiatCurrency = props.fiatCurrency,
-              fees = state.fees,
-              onTransferFailed = props.onExit,
-              exchangeRates = exchangeRates,
-              onTransferInitiated = { psbt, priority ->
-                uiState =
-                  TransferInitiatedUiState(
-                    recipientAddress = state.recipientAddress,
-                    transferMoney = BitcoinMoney.sats(psbt.amountSats.toBigInteger()),
-                    feeBitcoinAmount = psbt.fee,
-                    estimatedTransactionPriority = priority,
-                    confirmationVariant = state.variant
-                  )
-              }
-            )
+          props = TransferConfirmationUiProps(
+            transferVariant = state.variant,
+            accountData = props.accountData,
+            recipientAddress = state.recipientAddress,
+            sendAmount = state.sendAmount,
+            onExit = props.onExit,
+            onBack = {
+              uiState = EnteringAmountUiState(
+                recipientAddress = state.recipientAddress,
+                transferMoney =
+                  when (val amount = state.sendAmount) {
+                    is ExactAmount -> amount.money
+                    is SendAll -> FiatMoney.zero(fiatCurrency)
+                  }
+              )
+            },
+            requiredSigner = when (f8eReachabilityState) {
+              NetworkReachability.REACHABLE -> state.requiredSigner
+              NetworkReachability.UNREACHABLE -> SigningFactor.Hardware
+            },
+            spendingLimit = state.spendingLimit,
+            fees = state.fees,
+            onTransferFailed = props.onExit,
+            exchangeRates = exchangeRates,
+            onTransferInitiated = { psbt, priority ->
+              uiState = TransferInitiatedUiState(
+                recipientAddress = state.recipientAddress,
+                transferMoney = BitcoinMoney.sats(psbt.amountSats.toBigInteger()),
+                feeBitcoinAmount = psbt.fee,
+                estimatedTransactionPriority = priority,
+                confirmationVariant = state.variant
+              )
+            }
+          )
         )
 
       is TransferInitiatedUiState ->
@@ -291,7 +287,6 @@ class SendUiStateMachineImpl(
                     )
                 },
               estimatedTransactionPriority = state.estimatedTransactionPriority,
-              fiatCurrency = props.fiatCurrency,
               exchangeRates = exchangeRates,
               onBack = {
                 props.onExit()
@@ -309,7 +304,6 @@ class SendUiStateMachineImpl(
               accountData = props.accountData,
               recipientAddress = state.recipientAddress,
               sendAmount = state.sendAmount,
-              fiatCurrency = props.fiatCurrency,
               exchangeRates = exchangeRates,
               onBack = {
                 uiState =
@@ -318,7 +312,7 @@ class SendUiStateMachineImpl(
                     transferMoney =
                       when (val amount = state.sendAmount) {
                         is ExactAmount -> amount.money
-                        is SendAll -> FiatMoney.zero(props.fiatCurrency)
+                        is SendAll -> FiatMoney.zero(fiatCurrency)
                       }
                   )
               },

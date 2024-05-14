@@ -17,7 +17,6 @@ import build.wallet.platform.config.AppVariant.Emergency
 import build.wallet.platform.config.AppVariant.Team
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransactionWithResult
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.flatMap
@@ -38,7 +37,6 @@ class TemplateFullAccountConfigDaoImpl(
   override fun config(): Flow<Result<FullAccountConfig, DbError>> {
     return database.templateFullAccountConfigQueries.config()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map { result ->
         result.flatMap { value ->
           when (value) {

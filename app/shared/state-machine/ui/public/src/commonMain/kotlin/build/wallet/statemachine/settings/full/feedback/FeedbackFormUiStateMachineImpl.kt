@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.compose.collections.buildPersistentList
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.email.Email
 import build.wallet.f8e.F8eEnvironment
@@ -173,30 +173,27 @@ class FeedbackFormUiStateMachineImpl(
               middleAccessory = ToolbarMiddleAccessoryModel(title = "Send feedback")
             ),
           header = null,
-          mainContentList =
-            buildPersistentList {
-              +EmailModel(formData.email, formData::email::set)
-              +structure.fields.mapNotNull { field ->
+          mainContentList = buildImmutableList {
+            add(EmailModel(formData.email, formData::email::set))
+            addAll(
+              structure.fields.mapNotNull { field ->
                 FieldModel(
                   field = field,
                   conditions = structure.conditions,
                   data = formData
                 )
               }
-              +AttachmentsModel(
+            )
+            add(
+              AttachmentsModel(
                 attachments = formData.attachments.toImmutableList(),
-                addAttachment = {
-                  isPickingMedia = true
-                },
-                removeAttachment = {
-                  formData.removeAttachment(it)
-                }
+                addAttachment = { isPickingMedia = true },
+                removeAttachment = { formData.removeAttachment(it) }
               )
-              +SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set)
-              +PrivacyPolicyDisclaimer(
-                onClick = onPrivacyPolicyClick
-              )
-            },
+            )
+            add(SendDebugDataModel(formData.sendDebugData, formData::sendDebugData::set))
+            add(PrivacyPolicyDisclaimer(onClick = onPrivacyPolicyClick))
+          },
           primaryButton =
             ButtonModel(
               text = "Submit",

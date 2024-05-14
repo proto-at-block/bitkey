@@ -22,9 +22,9 @@ import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POS
 import build.wallet.f8e.client.F8eHttpClientImpl.Companion.CONSTANT_PROOF_OF_POSSESSION_HW_HEADER
 import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryFake
 import build.wallet.keybox.KeyboxDaoMock
+import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.bodyResult
-import build.wallet.ktor.result.client.KtorLogLevelPolicyImpl
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.data.MimeType
@@ -106,8 +106,8 @@ class F8eHttpClientImplTests : FunSpec({
     F8eHttpClientProvider(
       appId = AppId("world.bitkey.test"),
       appVersion = "2008.10.31",
+      appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
-      ktorLogLevelPolicy = KtorLogLevelPolicyImpl(appVariant = Development),
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
       networkingDebugConfigRepository = NetworkingDebugConfigRepositoryFake()
     )
@@ -138,7 +138,7 @@ class F8eHttpClientImplTests : FunSpec({
         it.headers["b"] shouldBe "2"
 
         respond(
-          content = ByteReadChannel(""),
+          content = ByteReadChannel("{}"),
           status = HttpStatusCode.OK,
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
@@ -148,7 +148,7 @@ class F8eHttpClientImplTests : FunSpec({
       f8eEnvironment = F8eEnvironment.Development,
       engine = engine
     )
-      .bodyResult<String> {
+      .bodyResult<EmptyResponseBody> {
         get("/soda/can")
       }
 
@@ -175,7 +175,7 @@ class F8eHttpClientImplTests : FunSpec({
         it.headers["b"] shouldBe "2"
 
         respond(
-          content = ByteReadChannel(""),
+          content = ByteReadChannel("{}"),
           status = HttpStatusCode.OK,
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
@@ -185,7 +185,7 @@ class F8eHttpClientImplTests : FunSpec({
       f8eEnvironment = F8eEnvironment.Development,
       engine = engine,
       accountId = FullAccountId("1234")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       put("/1234/soda/can")
     }
 
@@ -220,7 +220,7 @@ class F8eHttpClientImplTests : FunSpec({
         it.headers[CONSTANT_PROOF_OF_POSSESSION_APP_HEADER] shouldBe null
 
         respond(
-          content = ByteReadChannel(""),
+          content = ByteReadChannel("{}"),
           status = HttpStatusCode.OK,
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
@@ -231,7 +231,7 @@ class F8eHttpClientImplTests : FunSpec({
       engine = engine,
       accountId = FullAccountId("1234"),
       hwFactorProofOfPossession = HwFactorProofOfPossession("hw-signed-token")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       put("/1234/soda/can")
     }
 
@@ -260,7 +260,7 @@ class F8eHttpClientImplTests : FunSpec({
         it.headers[CONSTANT_PROOF_OF_POSSESSION_HW_HEADER] shouldBe null
 
         respond(
-          content = ByteReadChannel(""),
+          content = ByteReadChannel("{}"),
           status = HttpStatusCode.OK,
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
@@ -270,7 +270,7 @@ class F8eHttpClientImplTests : FunSpec({
       f8eEnvironment = F8eEnvironment.Development,
       engine = mockEngine,
       accountId = FullAccountId("1234")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       put("/1234/soda/can")
     }
 
@@ -299,7 +299,7 @@ class F8eHttpClientImplTests : FunSpec({
         it.headers[CONSTANT_PROOF_OF_POSSESSION_APP_HEADER] shouldBe "signed-access-token"
 
         respond(
-          content = ByteReadChannel(""),
+          content = ByteReadChannel("{}"),
           status = HttpStatusCode.OK,
           headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
         )
@@ -310,7 +310,7 @@ class F8eHttpClientImplTests : FunSpec({
       engine = mockEngine,
       accountId = FullAccountId("1234"),
       hwFactorProofOfPossession = HwFactorProofOfPossession("hw-signed-token")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       put("/1234/soda/can")
     }
 
@@ -335,7 +335,7 @@ class F8eHttpClientImplTests : FunSpec({
       f8eEnvironment = F8eEnvironment.Development,
       engine = MockEngine { respondOk() },
       accountId = FullAccountId("1234")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       put("/1234/soda/can")
     }
 
@@ -352,7 +352,7 @@ class F8eHttpClientImplTests : FunSpec({
       f8eEnvironment = F8eEnvironment.Development,
       engine = MockEngine { respondError(HttpStatusCode.ServiceUnavailable) },
       accountId = FullAccountId("1234")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       put("/1234/soda/can")
     }
 
@@ -370,7 +370,7 @@ class F8eHttpClientImplTests : FunSpec({
     client.unauthenticated(
       f8eEnvironment = F8eEnvironment.ForceOffline,
       engine = engine
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       get("/soda/can")
     }.should {
       it.getErrorOr(null)
@@ -393,7 +393,7 @@ class F8eHttpClientImplTests : FunSpec({
       f8eEnvironment = F8eEnvironment.ForceOffline,
       engine = engine,
       accountId = FullAccountId("1234")
-    ).bodyResult<String> {
+    ).bodyResult<EmptyResponseBody> {
       get("/soda/can")
     }.should {
       it.getErrorOr(null)

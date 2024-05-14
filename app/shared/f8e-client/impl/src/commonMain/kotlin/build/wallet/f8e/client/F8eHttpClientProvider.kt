@@ -3,10 +3,10 @@ package build.wallet.f8e.client
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
-import build.wallet.ktor.result.client.KtorLogLevelPolicy
-import build.wallet.ktor.result.client.installLogging
+import build.wallet.f8e.logging.F8eServiceLogger
 import build.wallet.logging.log
 import build.wallet.platform.config.AppId
+import build.wallet.platform.config.AppVariant
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
@@ -28,8 +28,8 @@ import kotlin.time.Duration.Companion.seconds
 class F8eHttpClientProvider(
   private val appId: AppId,
   private val appVersion: String,
+  private val appVariant: AppVariant,
   private val platformInfoProvider: PlatformInfoProvider,
-  private val ktorLogLevelPolicy: KtorLogLevelPolicy,
   private val datadogTracerPluginProvider: DatadogTracerPluginProvider,
   private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
 ) {
@@ -67,10 +67,10 @@ class F8eHttpClientProvider(
     config: HttpClientConfig<*>,
     accountId: AccountId?,
   ) {
-    config.installLogging(
-      tag = "F8e",
-      logLevel = ktorLogLevelPolicy.level()
-    )
+    config.install(F8eServiceLogger) {
+      tag = "F8e"
+      debug = appVariant == AppVariant.Development
+    }
 
     config.install(ContentNegotiation) {
       json(

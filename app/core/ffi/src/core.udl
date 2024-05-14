@@ -7,7 +7,7 @@ interface Version {
 };
 
 interface StartFingerprintEnrollment {
-  constructor();
+  constructor(u32 index, string label);
   [Throws=CommandError]
   BooleanState next(sequence<u8> response);
 };
@@ -175,6 +175,30 @@ interface SignVerifyAttestationChallenge {
   BooleanState next(sequence<u8> response);
 };
 
+interface SetFingerprintLabel {
+  constructor(u32 index, string label);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetEnrolledFingerprints {
+  constructor();
+  [Throws=CommandError]
+  EnrolledFingerprintsState next(sequence<u8> response);
+};
+
+interface DeleteFingerprint {
+  constructor(u32 index);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetUnlockMethod {
+  constructor();
+  [Throws=CommandError]
+  UnlockInfoState next(sequence<u8> response);
+};
+
 [Enum]
 interface BooleanState {
   Data(sequence<u8> response);
@@ -283,6 +307,18 @@ interface CoredumpFragmentState {
   Result(CoredumpFragment value);
 };
 
+[Enum]
+interface EnrolledFingerprintsState {
+  Data(sequence<u8> response);
+  Result(EnrolledFingerprints value);
+};
+
+[Enum]
+interface UnlockInfoState {
+  Data(sequence<u8> response);
+  Result(UnlockInfo value);
+};
+
 enum FingerprintEnrollmentStatus {
   "StatusUnspecified",
   "Incomplete",
@@ -358,6 +394,7 @@ enum FirmwareFeatureFlag {
   "DeviceInfoFlag",
   "RateLimitTemplateUpdate",
   "Unlock",
+  "MultipleFingerprints",
 };
 
 enum SecureBootConfig {
@@ -535,6 +572,27 @@ dictionary PublicKeyHandle {
 dictionary SignatureContext {
   PublicKeyHandle? pubkey;
   sequence<u8> signature;
+};
+
+enum UnlockMethod {
+  "Unspecified",
+  "Biometrics",
+  "UnlockSecret",
+};
+
+dictionary UnlockInfo {
+  UnlockMethod method;
+  u32? fingerprint_index;
+};
+
+dictionary FingerprintHandle {
+  u32 index;
+  string label;
+};
+
+dictionary EnrolledFingerprints {
+  u32 max_count;
+  sequence<FingerprintHandle> fingerprints;
 };
 
 [Custom]

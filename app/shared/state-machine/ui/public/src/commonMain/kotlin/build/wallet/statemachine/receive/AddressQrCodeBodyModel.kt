@@ -25,6 +25,8 @@ data class AddressQrCodeBodyModel(
   // We don't want to track this for privacy reasons
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null,
 ) : BodyModel() {
+  lateinit var onCopyClick: () -> Unit
+
   sealed interface Content {
     data class QrCode(
       /** URL of the remote image to fetch for the QR code */
@@ -35,6 +37,7 @@ data class AddressQrCodeBodyModel(
       @Redacted val fallbackAddressQrCodeModel: QrCodeModel?,
       val copyButtonModel: ButtonModel,
       val shareButtonModel: ButtonModel,
+      val onCopyClick: () -> Unit,
     ) : Content {
       constructor(
         addressQrImageUrl: String?,
@@ -75,7 +78,8 @@ data class AddressQrCodeBodyModel(
             treatment = ButtonModel.Treatment.Secondary,
             size = ButtonModel.Size.Footer,
             onClick = StandardClick(onShareClick)
-          )
+          ),
+        onCopyClick = onCopyClick
       )
     }
 

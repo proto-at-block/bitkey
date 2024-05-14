@@ -24,13 +24,20 @@ import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.SideTextTreatment
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data.SideTextType
 import build.wallet.ui.components.icon.Icon
+import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.icon.iconStyle
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.compose.thenIf
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Small
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -129,19 +136,31 @@ internal fun DataRowRegular(
               verticalArrangement = Arrangement.Center,
               horizontalAlignment = Alignment.Start
             ) {
-              Label(
-                text = explainer.title,
-                type = LabelType.Body3Bold,
-                alignment = TextAlign.Start,
-                treatment = LabelTreatment.Primary
-              )
-              Spacer(Modifier.height(6.dp))
-              Label(
-                text = explainer.subtitle,
-                type = LabelType.Body3Regular,
-                alignment = TextAlign.Start,
-                treatment = LabelTreatment.Secondary
-              )
+              Row(verticalAlignment = Alignment.Top) {
+                Column(
+                  modifier = Modifier.weight(1f)
+                ) {
+                  Label(
+                    text = explainer.title,
+                    type = LabelType.Body3Bold,
+                    alignment = TextAlign.Start,
+                    treatment = LabelTreatment.Primary
+                  )
+                  Spacer(Modifier.height(6.dp))
+                  Label(
+                    text = explainer.subtitle,
+                    type = LabelType.Body3Regular,
+                    alignment = TextAlign.Start,
+                    treatment = LabelTreatment.Secondary
+                  )
+                }
+                explainer.iconButton?.let { iconButton ->
+                  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(model = iconButton)
+                    Spacer(Modifier.width(24.dp))
+                  }
+                }
+              }
             }
           }
         }
@@ -233,6 +252,37 @@ private fun DataRowWithSecondaryPreview() {
           secondarySideText = "bc1q...xyB1",
           sideTextTreatment = SideTextTreatment.PRIMARY
         )
+    )
+  }
+}
+
+@Preview
+@Composable
+private fun DataRowWithExplainerAndIconButtonPreview() {
+  PreviewWalletTheme {
+    DataRowRegular(
+      isFirst = false,
+      model = Data(
+        title = "Transaction Details",
+        sideText = "bc1q...xyB1",
+        explainer = Data.Explainer(
+          title = "Taking longer than usual",
+          subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+          iconButton = IconButtonModel(
+            iconModel = IconModel(
+              icon = build.wallet.statemachine.core.Icon.SmallIconInformationFilled,
+              iconSize = IconSize.XSmall,
+              iconBackgroundType = IconBackgroundType.Circle(
+                circleSize = IconSize.XSmall
+              ),
+              iconTint = IconTint.Foreground,
+              iconOpacity = 0.20f
+            ),
+            onClick = StandardClick { }
+          )
+        ),
+        sideTextTreatment = SideTextTreatment.PRIMARY
+      )
     )
   }
 }

@@ -1,106 +1,131 @@
 package build.wallet.money.display
 
-import build.wallet.coroutines.turbine.turbines
+import app.cash.turbine.test
+import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.money.currency.EUR
-import build.wallet.money.currency.FiatCurrencyDaoMock
+import build.wallet.money.currency.FiatCurrencyDao
+import build.wallet.money.currency.FiatCurrencyDaoImpl
 import build.wallet.money.currency.GBP
 import build.wallet.money.currency.USD
-import build.wallet.money.currency.code.IsoCurrencyTextCode
-import build.wallet.platform.settings.LocaleCurrencyCodeProviderMock
+import build.wallet.platform.settings.LocaleCurrencyCodeProviderFake
+import build.wallet.sqldelight.inMemorySqlDriver
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.core.test.TestScope
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 
 class FiatCurrencyPreferenceRepositoryImplTests : FunSpec({
 
-  val fiatCurrencyDao = FiatCurrencyDaoMock(turbines::create)
-  val fiatCurrencyPreferenceDao = FiatCurrencyPreferenceDaoMock(turbines::create)
-  val localeCurrencyCodeProvider = LocaleCurrencyCodeProviderMock()
+  coroutineTestScope = true
 
-  lateinit var repository: FiatCurrencyPreferenceRepository
+  val localeCurrencyCodeProvider = LocaleCurrencyCodeProviderFake()
+
+  lateinit var fiatCurrencyDao: FiatCurrencyDao
+  lateinit var fiatCurrencyPreferenceDao: FiatCurrencyPreferenceDao
+
+  fun TestScope.repository(): FiatCurrencyPreferenceRepository {
+    val sqlDriver = inMemorySqlDriver()
+    val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
+
+    fiatCurrencyDao = FiatCurrencyDaoImpl(databaseProvider)
+    fiatCurrencyPreferenceDao = FiatCurrencyPreferenceDaoImpl(databaseProvider)
+
+    return FiatCurrencyPreferenceRepositoryImpl(
+      appScope = backgroundScope,
+      fiatCurrencyPreferenceDao = fiatCurrencyPreferenceDao,
+      localeCurrencyCodeProvider = localeCurrencyCodeProvider,
+      fiatCurrencyDao = fiatCurrencyDao
+    )
+  }
 
   beforeTest {
-    fiatCurrencyDao.reset()
-    fiatCurrencyPreferenceDao.reset()
     localeCurrencyCodeProvider.reset()
-    repository =
-      FiatCurrencyPreferenceRepositoryImpl(
-        fiatCurrencyDao = fiatCurrencyDao,
-        fiatCurrencyPreferenceDao = fiatCurrencyPreferenceDao,
-        localeCurrencyCodeProvider = localeCurrencyCodeProvider
-      )
   }
 
-  test("defaultFiatCurrency flow defaults to USD and then locale") {
-    localeCurrencyCodeProvider.localeCurrencyCodeReturnValue = "EUR"
-    runTest {
-      repository.launchSync(backgroundScope)
-      runCurrent()
+  context("device locale is not available") {
+    test("fiatCurrencyPreference defaults to USD") {
+      localeCurrencyCodeProvider.localeCurrencyCodeReturnValue = null
+      val repository = repository()
 
-      repository.defaultFiatCurrency.value.shouldBe(USD)
-
-      // Looking up the locale currency
-      fiatCurrencyDao.fiatCurrencyForTextCodeCalls.awaitItem()
-        .shouldBeTypeOf<IsoCurrencyTextCode>().code.shouldBe("EUR")
-
-      fiatCurrencyDao.fiatCurrencyForTextCodeFlow.emit(EUR)
-      repository.defaultFiatCurrency.value.shouldBe(EUR)
+      repository.fiatCurrencyPreference.test {
+        awaitItem().shouldBe(USD) // initial default value.
+        expectNoEvents()
+      }
     }
   }
 
-  test("defaultFiatCurrency flow defaults to USD if locale is null") {
-    localeCurrencyCodeProvider.localeCurrencyCodeReturnValue = null
-    runTest {
-      repository.launchSync(backgroundScope)
-      runCurrent()
+  context("device locale is available") {
+    test("fiatCurrencyPreference defaults to currency based on the device locale") {
+      localeCurrencyCodeProvider.localeCurrencyCodeReturnValue = "GBP"
+      val repository = repository()
 
-      repository.defaultFiatCurrency.value.shouldBe(USD)
+      fiatCurrencyDao.storeFiatCurrencies(listOf(GBP))
 
-      fiatCurrencyDao.fiatCurrencyForTextCodeCalls.expectNoEvents()
+      repository.fiatCurrencyPreference.test {
+        awaitItem().shouldBe(USD) // initial default value.
+        awaitItem().shouldBe(GBP)
+      }
+    }
+
+    test("fiatCurrencyPreference defaults to USD when a currency for device locale is not available") {
+      localeCurrencyCodeProvider.localeCurrencyCodeReturnValue = "GBP"
+      val repository = repository()
+
+      fiatCurrencyDao.storeFiatCurrencies(listOf(EUR))
+
+      repository.fiatCurrencyPreference.test {
+        awaitItem().shouldBe(USD) // initial default value.
+        expectNoEvents()
+      }
     }
   }
 
-  test("defaultFiatCurrency flow defaults to USD if locale is unknown") {
-    localeCurrencyCodeProvider.localeCurrencyCodeReturnValue = "XXX"
-    runTest {
-      repository.launchSync(backgroundScope)
-      runCurrent()
+  test("new preference is emitted when dao values is changed") {
+    val repository = repository()
 
-      repository.defaultFiatCurrency.value.shouldBe(USD)
+    fiatCurrencyDao.storeFiatCurrencies(listOf(GBP))
+    fiatCurrencyPreferenceDao.setFiatCurrencyPreference(GBP)
 
-      // Looking up the locale currency
-      fiatCurrencyDao.fiatCurrencyForTextCodeCalls.awaitItem()
-        .shouldBeTypeOf<IsoCurrencyTextCode>().code.shouldBe("XXX")
+    repository.fiatCurrencyPreference.test {
+      awaitItem().shouldBe(USD) // initial default value.
+      awaitItem().shouldBe(GBP)
 
-      repository.defaultFiatCurrency.value.shouldBe(USD)
+      fiatCurrencyDao.storeFiatCurrencies(listOf(GBP, EUR))
+      fiatCurrencyPreferenceDao.setFiatCurrencyPreference(EUR)
+
+      awaitItem().shouldBe(EUR)
     }
   }
 
-  test("fiatCurrencyPreference flow defaults to null and returns dao value") {
-    runTest {
-      repository.launchSync(backgroundScope)
+  test("preference is reset to USD when dao value is cleared") {
+    val repository = repository()
 
-      runCurrent()
+    fiatCurrencyDao.storeFiatCurrencies(listOf(GBP))
+    fiatCurrencyPreferenceDao.setFiatCurrencyPreference(GBP)
 
-      repository.fiatCurrencyPreference.value.shouldBe(null)
-      fiatCurrencyDao.fiatCurrencyForTextCodeCalls.awaitItem()
+    repository.fiatCurrencyPreference.test {
+      awaitItem().shouldBe(USD) // initial default value.
+      awaitItem().shouldBe(GBP)
 
-      fiatCurrencyPreferenceDao.fiatCurrencyPreferenceFlow.emit(GBP)
+      fiatCurrencyPreferenceDao.clear()
 
-      repository.fiatCurrencyPreference.value.shouldBe(GBP)
+      awaitItem().shouldBe(USD)
     }
   }
 
-  test("set fiat currency preference calls dao") {
-    repository.setFiatCurrencyPreference(EUR)
-    fiatCurrencyPreferenceDao.setCurrencyPreferenceCalls.awaitItem()
-      .shouldBe(EUR)
-  }
+  test("clear removes preference from DAO") {
+    val repository = repository()
 
-  test("clear calls dao") {
-    repository.clear()
-    fiatCurrencyPreferenceDao.clearCalls.awaitItem()
+    fiatCurrencyDao.storeFiatCurrencies(listOf(GBP))
+    fiatCurrencyPreferenceDao.setFiatCurrencyPreference(GBP)
+
+    fiatCurrencyPreferenceDao.fiatCurrencyPreference().test {
+      awaitItem().shouldBe(GBP) // initial default value.
+
+      repository.clear()
+
+      awaitItem().shouldBeNull()
+    }
   }
 })

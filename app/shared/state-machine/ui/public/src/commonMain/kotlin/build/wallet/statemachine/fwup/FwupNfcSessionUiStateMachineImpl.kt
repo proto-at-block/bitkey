@@ -162,6 +162,7 @@ class FwupNfcSessionUiStateMachineImpl(
   private fun NfcTransactionEffect(
     props: FwupNfcSessionUiProps,
     state: InSessionUiState,
+    // TODO(W-8034): use Progress type.
     setProgress: (progress: Float) -> Unit,
     setState: (FwupNfcSessionUiState) -> Unit,
   ) {

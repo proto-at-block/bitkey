@@ -2,6 +2,7 @@ import build.wallet.gradle.logic.extensions.targets
 
 plugins {
   id("build.wallet.kmp")
+  id("build.wallet.redacted")
   alias(libs.plugins.kotlin.serialization)
 }
 
@@ -33,6 +34,7 @@ kotlin {
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.analyticsFake)
+        implementation(projects.shared.workerFake)
       }
     }
   }

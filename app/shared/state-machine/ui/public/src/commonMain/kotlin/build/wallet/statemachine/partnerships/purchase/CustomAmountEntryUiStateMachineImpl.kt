@@ -1,8 +1,11 @@
 package build.wallet.statemachine.partnerships.purchase
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
@@ -11,16 +14,19 @@ import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
 class CustomAmountEntryUiStateMachineImpl(
   private val moneyCalculatorUiStateMachine: MoneyCalculatorUiStateMachine,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : CustomAmountEntryUiStateMachine {
   @Composable
   override fun model(props: CustomAmountEntryUiProps): ScreenModel {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
     val calculatorModel =
       moneyCalculatorUiStateMachine.model(
         props =
           MoneyCalculatorUiProps(
-            inputAmountCurrency = props.fiatCurrency,
+            inputAmountCurrency = fiatCurrency,
             secondaryDisplayAmountCurrency = BTC,
-            initialAmountInInputCurrency = FiatMoney.zero(props.fiatCurrency),
+            initialAmountInInputCurrency = FiatMoney.zero(fiatCurrency),
             exchangeRates = null
           )
       )

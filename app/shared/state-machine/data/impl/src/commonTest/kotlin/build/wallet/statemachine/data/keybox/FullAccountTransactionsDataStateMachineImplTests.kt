@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.keybox
 
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinTransactionFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
@@ -38,7 +37,7 @@ class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
         transactions.shouldBeEmpty()
       }
 
-      wallet.transactionsFlow.value = LoadedValue(listOf(BitcoinTransactionFake))
+      wallet.transactionsFlow.value = listOf(BitcoinTransactionFake)
 
       with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
         balance.shouldBeZero()
@@ -46,7 +45,7 @@ class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
       }
 
       val newBalance = BitcoinBalanceFake
-      wallet.balanceFlow.value = LoadedValue(newBalance)
+      wallet.balanceFlow.value = newBalance
 
       with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
         balance.shouldBe(newBalance)

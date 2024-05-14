@@ -13,7 +13,7 @@ interface BdkBlockchain {
 
   fun getBlockHashBlocking(height: Long): BdkResult<String>
 
-  fun estimateFee(targetBlocks: ULong): BdkResult<Float>
+  fun estimateFeeBlocking(targetBlocks: ULong): BdkResult<Float>
 }
 
 suspend fun BdkBlockchain.broadcast(transaction: BdkTransaction): BdkResult<Unit> {
@@ -31,5 +31,11 @@ suspend fun BdkBlockchain.getHeight(): BdkResult<Long> {
 suspend fun BdkBlockchain.getBlockHash(height: Long): BdkResult<String> {
   return withContext(Dispatchers.BdkIO) {
     getBlockHashBlocking(height)
+  }
+}
+
+suspend fun BdkBlockchain.estimateFee(targetBlocks: ULong): BdkResult<Float> {
+  return withContext(Dispatchers.BdkIO) {
+    estimateFeeBlocking(targetBlocks)
   }
 }

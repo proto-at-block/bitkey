@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import build.wallet.LoadableValue
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
@@ -22,23 +21,18 @@ class CloudBackupHealthCardUiStateMachineImpl(
     val mobileKeyBackupStatus by
       remember { cloudBackupHealthRepository.mobileKeyBackupStatus() }.collectAsState()
 
-    return when (val statusValue = mobileKeyBackupStatus) {
-      is LoadableValue.LoadedValue -> {
-        when (val status = statusValue.value) {
-          is MobileKeyBackupStatus.ProblemWithBackup ->
-            CloudBackupHealthCardModel(
-              title = when (status) {
-                NoCloudAccess -> "Problem with ${cloudServiceProvider().name}\naccount access"
-                else -> "Mobile Key backup missing"
-              },
-              onActionClick = { props.onActionClick(status) }
-            )
-
-          else -> null
-        }
+    return mobileKeyBackupStatus?.let { status ->
+      when (status) {
+        is MobileKeyBackupStatus.ProblemWithBackup ->
+          CloudBackupHealthCardModel(
+            title = when (status) {
+              NoCloudAccess -> "Problem with ${cloudServiceProvider().name}\naccount access"
+              else -> "Mobile Key backup missing"
+            },
+            onActionClick = { props.onActionClick(status) }
+          )
+        else -> null
       }
-
-      else -> null
     }
   }
 }

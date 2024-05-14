@@ -63,7 +63,7 @@ class EducationUiStateMachineImplTests : FunSpec({
   test("education screen iterates through items appropriately") {
     stateMachine.test(props) {
       awaitScreenWithBody<EducationBodyModel> {
-        progressPercentage.shouldBe(1 / 3f)
+        progressPercentage.value.shouldBe(1 / 3f)
         title.shouldBe("title")
         subtitle.shouldBe("subtitle")
         primaryButton.shouldNotBeNull().text.shouldBe("primaryButton")
@@ -73,7 +73,7 @@ class EducationUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBody<EducationBodyModel> {
-        progressPercentage.shouldBe(2 / 3f)
+        progressPercentage.value.shouldBe(2 / 3f)
         title.shouldBe("title2")
         subtitle.shouldBeNull()
         primaryButton.shouldBeNull()
@@ -83,7 +83,7 @@ class EducationUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBody<EducationBodyModel> {
-        progressPercentage.shouldBe(1f)
+        progressPercentage.value.shouldBe(1f)
         title.shouldBe("title3")
         subtitle.shouldBe("subtitle3")
         primaryButton.shouldBeNull()

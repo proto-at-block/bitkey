@@ -3,12 +3,14 @@ package build.wallet.f8e.notifications
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.EmptyResponseBody
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -24,14 +26,14 @@ class RegisterWatchAddressServiceImpl(
       f8eEnvironment,
       fullAccountId
     )
-      .bodyResult<RegisterWatchAddressResponse> {
+      .bodyResult<EmptyResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/notifications/addresses") {
-          setBody(
+          withDescription("Registering watch addresses: $addressAndKeysetIds")
+          setRedactedBody(
             RegisterWatchAddressRequest(addressAndKeysetIds)
           )
         }
       }
-      .logNetworkFailure { "Error registering watch addresses: $addressAndKeysetIds with server" }
       .mapUnit()
   }
 }
@@ -41,7 +43,4 @@ private data class RegisterWatchAddressRequest(
   /** String representation of the addresses */
   @SerialName("addresses")
   val addresses: List<AddressAndKeysetId>,
-)
-
-@Serializable
-private class RegisterWatchAddressResponse
+) : RedactedRequestBody

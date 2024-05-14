@@ -2,6 +2,7 @@ package build.wallet.statemachine.settings.full.notifications
 
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationChannel
 import build.wallet.statemachine.core.Icon
@@ -19,7 +20,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Avatar
@@ -33,7 +34,6 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 fun RecoveryChannelsSettingsFormBodyModel(
   source: Source,
@@ -45,7 +45,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
   learnOnClick: (() -> Unit),
   continueOnClick: (() -> Unit)?,
   bottomSheetModel: SheetModel?,
-  alertModel: AlertModel? = null,
+  alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
   bottomSheetModel = bottomSheetModel,
   body =
@@ -69,7 +69,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
           }
         ),
       mainContentList =
-        listOfNotNull(
+        immutableListOfNotNull(
           ListGroup(
             listGroupModel = ListGroupModel(
               style = ListGroupStyle.CARD_GROUP,
@@ -91,7 +91,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
             listGroupModel =
               ListGroupModel(
                 items =
-                  listOfNotNull(
+                  immutableListOf(
                     createListItem(
                       itemModel = emailItem,
                       icon = SmallIconEmail,
@@ -118,7 +118,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
                         EnabledState.Disabled -> "Disabled"
                       }
                     )
-                  ).toImmutableList(),
+                  ),
                 style = ListGroupStyle.DIVIDER
               )
           ),
@@ -135,7 +135,7 @@ fun RecoveryChannelsSettingsFormBodyModel(
               )
             )
           )
-        ).toImmutableList(),
+        ),
       primaryButton = ButtonModel(
         text = "Continue",
         treatment = ButtonModel.Treatment.Primary,

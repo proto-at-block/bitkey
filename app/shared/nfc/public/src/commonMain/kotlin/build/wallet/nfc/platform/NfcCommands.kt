@@ -9,12 +9,15 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.firmware.CoredumpFragment
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
 import build.wallet.firmware.FingerprintEnrollmentStatus
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadata
+import build.wallet.firmware.UnlockInfo
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.nfc.NfcSession
@@ -99,6 +102,33 @@ interface NfcCommands {
   suspend fun getFingerprintEnrollmentStatus(session: NfcSession): FingerprintEnrollmentStatus
 
   /**
+   * Removes the fingerprint enrolled for the given [index]. Attempting to remove the
+   * last remaining fingerprint will fail.
+   */
+  suspend fun deleteFingerprint(
+    session: NfcSession,
+    index: Int,
+  ): Boolean
+
+  /**
+   * Returns the method that most recently unlocked the hardware device.
+   */
+  suspend fun getUnlockMethod(session: NfcSession): UnlockInfo
+
+  /**
+   * Get all enrolled fingerprints for the hardware device.
+   */
+  suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints
+
+  /**
+   * Sets the [FingerprintHandle.label] for an existing fingerprint.
+   */
+  suspend fun setFingerprintLabel(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ): Boolean
+
+  /**
    * Get metadata for the firmware on the hardware device.
    *
    * This command is larger and slower than [getDeviceInfo] and should only be used for debug
@@ -168,7 +198,19 @@ interface NfcCommands {
     spendingKeyset: SpendingKeyset,
   ): Psbt
 
-  suspend fun startFingerprintEnrollment(session: NfcSession): Boolean
+  /**
+   * Start fingerprint enrollment at the index specified by [fingerprintHandle].
+   *
+   * Defaults to the 0 index, with no label. Up to 3 fingerprints are supported.
+   *
+   * @param fingerprintHandle: The index and label associated with the fingerprint to enroll.
+   * Starting enrollment for an index that already contains an enrolled fingerprint will overwrite
+   * that fingerprint.
+   */
+  suspend fun startFingerprintEnrollment(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle = FingerprintHandle(0, ""),
+  ): Boolean
 
   /**
    * Unseal a previously sealed key obtained from the [sealKey] command.

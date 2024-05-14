@@ -12,7 +12,6 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitcoin.wallet.WatchingWallet
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThanOrEqualTo
-import build.wallet.testing.shouldBeLoaded
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.unwrap
 import io.kotest.assertions.fail
@@ -68,7 +67,7 @@ class TreasuryWallet(
         }
       ) {
         destinationWallet.sync()
-        awaitItem().shouldBeLoaded().total.shouldBeGreaterThanOrEqualTo(amount)
+        awaitItem().total.shouldBeGreaterThanOrEqualTo(amount)
       }
     }
 
@@ -88,7 +87,7 @@ class TreasuryWallet(
     }
 
     println("Sync time: $timeTaken ms")
-    val treasuryBalance = spendingWallet.balance().first().shouldBeLoaded()
+    val treasuryBalance = spendingWallet.balance().first()
     println("Treasury has Confirmed: ${treasuryBalance.confirmed} UntrustedPending: ${treasuryBalance.untrustedPending} TrustedPending: ${treasuryBalance.trustedPending} sats available")
     val treasuryAddress = spendingWallet.getLastUnusedAddress().getOrThrow()
 

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <path-to-bitkey-repository-directory> <path-to-build-directory>" >&2
+    exit 1
+fi
+
+if [ -e "$2" ]; then
+  echo "Provided build directory '$2' already exists. Please delete it before running the script again." >&2
+  exit 3
+fi
+
+

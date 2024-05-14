@@ -1,0 +1,53 @@
+#!/bin/bash
+
+source "$1/app/verifiable-build/ios/common/preconditions"
+source "$1/app/verifiable-build/ios/common/tart-commands"
+
+testTartExists
+testSshPassExists
+testSufficientDiskSpace
+
+BUILD_A_DIR="$(pwd)/verify-ipa/build-a"
+BUILD_B_DIR="$(pwd)/verify-ipa/build-b"
+mkdir -p $BUILD_A_DIR
+mkdir -p $BUILD_B_DIR
+
+
+# We push to the verifiable-build directory so we don't need to sync our whole project directory.
+# Cirrus then starts up two different VMs successively which would 
+# (1) Clone the published repo
+# (2) Check out app/2024.51.0 (TODO: Parameterize check by tag/commit)
+# (3) Generate an xcarchive
+# (4) Output the xcarchive as a build artifact in $BUILD_A_DIR and $BUILD_B_DIR
+pushd $1/app/verifiable-build/ios
+
+cirrus run --artifacts-dir $BUILD_A_DIR
+cirrus run --artifacts-dir $BUILD_B_DIR
+
+popd
+
+
+DIFF_DIR="$(pwd)/verify-ipa/diff"
+
+# Unzip files and move them to the diff directory
+unzip -o $BUILD_A_DIR/build_xcode_xcarchive/xcarchive/build/Bitkey.zip -d $DIFF_DIR
+mv $DIFF_DIR/Bitkey.xcarchive $DIFF_DIR/Bitkey1.xcarchive
+
+unzip -o $BUILD_B_DIR/build_xcode_xcarchive/xcarchive/build/Bitkey.zip -d $DIFF_DIR
+mv $DIFF_DIR/Bitkey.xcarchive $DIFF_DIR/Bitkey2.xcarchive
+
+
+# Diff our builds
+diffoscope \
+	--exclude-directory-metadata recursive \
+	--markdown xcarchive-diff.md \
+ 	$DIFF_DIR/Bitkey1.xcarchive/Products/Applications/Wallet.app \
+ 	$DIFF_DIR/Bitkey2.xcarchive/Products/Applications/Wallet.app
+
+# Check exist status
+status=$?
+if [ $status -eq 1 ]; then
+	echo "Builds do not match :("
+else
+	echo "Builds match!"
+fi

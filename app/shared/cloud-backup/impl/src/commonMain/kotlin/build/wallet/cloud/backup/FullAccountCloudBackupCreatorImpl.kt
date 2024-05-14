@@ -3,53 +3,66 @@ package build.wallet.cloud.backup
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.FullAccountFieldsCreationError
+import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.SocRecKeysRetrievalError
+import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.SocRecVerificationError
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator
 import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecKeysRepository
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
+import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.getOrElse
+import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.mapError
 
 class FullAccountCloudBackupCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val fullAccountFieldsCreator: FullAccountFieldsCreator,
   private val socRecKeysRepository: SocRecKeysRepository,
+  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
 ) : FullAccountCloudBackupCreator {
   override suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
-    endorsedTrustedContacts: List<EndorsedTrustedContact>,
-  ): Result<CloudBackup, FullAccountCloudBackupCreatorError> {
-    val fullAccountFields = fullAccountFieldsCreator
-      .create(
-        keybox = keybox,
-        sealedCsek = sealedCsek,
-        // Exclude trusted contacts that have not been verified.
-        endorsedTrustedContacts = endorsedTrustedContacts.filter { it.authenticationState == VERIFIED }
-      )
-      .logFailure { "Error creating full account backup" }
-      .getOrElse {
-        return Err(FullAccountFieldsCreationError(it))
-      }
+  ): Result<CloudBackup, FullAccountCloudBackupCreatorError> =
+    binding {
+      val endorsedTrustedContacts = socRecRelationshipsRepository
+        .syncAndVerifyRelationships(
+          accountId = keybox.fullAccountId,
+          f8eEnvironment = keybox.config.f8eEnvironment,
+          appAuthKey = keybox.activeAppKeyBundle.authKey,
+          hwAuthPublicKey = keybox.activeHwKeyBundle.authKey
+        )
+        .mapError(::SocRecVerificationError)
+        .bind()
+        .endorsedTrustedContacts
 
-    val delegatedDecryptionKey =
-      socRecKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
-        .logFailure { "Error getting delegated decryption key" }
-        .getOrElse { return Err(FullAccountCloudBackupCreatorError.SocRecKeysRetrievalError(it)) }
+      val fullAccountFields = fullAccountFieldsCreator
+        .create(
+          keybox = keybox,
+          sealedCsek = sealedCsek,
+          // Exclude trusted contacts that have not been verified.
+          endorsedTrustedContacts = endorsedTrustedContacts.filter { it.authenticationState == VERIFIED }
+        )
+        .logFailure { "Error creating full account backup" }
+        .mapError(::FullAccountFieldsCreationError)
+        .bind()
 
-    val appRecoveryAuthKeypair =
-      keybox.appRecoveryAuthKeypair(appPrivateKeyDao)
-        .logFailure { "Error getting app recovery auth keypair" }
-        .getOrElse { return Err(AppRecoveryAuthKeypairRetrievalError(it)) }
+      val delegatedDecryptionKey =
+        socRecKeysRepository.getKeyWithPrivateMaterialOrCreate<DelegatedDecryptionKey>()
+          .logFailure { "Error getting delegated decryption key" }
+          .mapError(::SocRecKeysRetrievalError)
+          .bind()
 
-    return Ok(
+      val appRecoveryAuthKeypair =
+        keybox.appRecoveryAuthKeypair(appPrivateKeyDao)
+          .logFailure { "Error getting app recovery auth keypair" }
+          .mapError(::AppRecoveryAuthKeypairRetrievalError)
+          .bind()
+
       CloudBackupV2(
         accountId = keybox.fullAccountId.serverId,
         f8eEnvironment = keybox.config.f8eEnvironment,
@@ -60,6 +73,5 @@ class FullAccountCloudBackupCreatorImpl(
         isUsingSocRecFakes = keybox.config.isUsingSocRecFakes,
         bitcoinNetworkType = keybox.config.bitcoinNetworkType
       )
-    )
-  }
+    }
 }

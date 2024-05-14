@@ -16,6 +16,11 @@ enum secure_boot_config {
   SECURE_BOOT_CONFIG_PROD = 2;
 }
 
+message fingerprint_handle {
+  uint32 index = 1;
+  string label = 2 [(nanopb).max_size = 33];
+}
+
 message se_info {
   uint32 version = 1;
   uint32 otp_version = 2;
@@ -107,7 +112,7 @@ message meta_rsp {
 
 // A command used by the mobile client to ask the hw device to start the fingerprint enrollment process.
 message start_fingerprint_enrollment_cmd {
-  uint32 index = 1;
+  fingerprint_handle handle = 1;
 }
 
 // The response for `start_fingerprint_enrollment_cmd `
@@ -161,8 +166,15 @@ message delete_fingerprint_rsp {
 message get_enrolled_fingerprints_cmd {}
 
 message get_enrolled_fingerprints_rsp {
-  uint32 count = 1;
-  uint32 max_count = 2;
+  uint32 max_count = 1;
+  repeated fingerprint_handle handles = 2 [(nanopb).max_count = 3];
+}
+
+message set_fingerprint_label_cmd {
+  fingerprint_handle handle = 1;
+}
+
+message set_fingerprint_label_rsp {
 }
 
 // A command used by the mobile client to ask the hw device the authentication status.
@@ -339,6 +351,7 @@ enum feature_flag {
                                      // because of `Enum variant names must not shadow type names:` when building core
   FEATURE_FLAG_RATE_LIMIT_TEMPLATE_UPDATE = 2;
   FEATURE_FLAG_UNLOCK = 3;
+  FEATURE_FLAG_MULTIPLE_FINGERPRINTS = 4;
   // Add new feature flags here; do not remove any!
 }
 
@@ -591,6 +604,23 @@ message configure_unlock_limit_response_cmd {
 message configure_unlock_limit_response_rsp {
 }
 
+message get_unlock_method_cmd {
+}
+
+message get_unlock_method_rsp {
+  // IMPORTANT: Must match the unlock_method_t in auth_task.c
+  enum unlock_method {
+    UNSPECIFIED = 0;
+    BIOMETRICS = 1;
+    UNLOCK_SECRET = 2;
+  }
+  unlock_method method = 1;
+  uint32 fingerprint_index = 2;  // Only valid if method is BIOMETRICS
+}
+
+message cancel_fingerprint_enrollment_cmd {}
+message cancel_fingerprint_enrollment_rsp {}
+
 enum status {
   UNSPECIFIED = 0;
   SUCCESS = 1;
@@ -663,6 +693,9 @@ message wallet_cmd {
     configure_unlock_limit_response_cmd configure_unlock_limit_response_cmd = 51;
     delete_fingerprint_cmd delete_fingerprint_cmd = 52;
     get_enrolled_fingerprints_cmd get_enrolled_fingerprints_cmd = 53;
+    get_unlock_method_cmd get_unlock_method_cmd = 54;
+    set_fingerprint_label_cmd set_fingerprint_label_cmd = 55;
+    cancel_fingerprint_enrollment_cmd cancel_fingerprint_enrollment_cmd = 56;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations
@@ -723,6 +756,9 @@ message wallet_rsp {
     configure_unlock_limit_response_rsp configure_unlock_limit_response_rsp = 51;
     delete_fingerprint_rsp delete_fingerprint_rsp = 52;
     get_enrolled_fingerprints_rsp get_enrolled_fingerprints_rsp = 53;
+    get_unlock_method_rsp get_unlock_method_rsp = 54;
+    set_fingerprint_label_rsp set_fingerprint_label_rsp = 55;
+    cancel_fingerprint_enrollment_rsp cancel_fingerprint_enrollment_rsp = 56;
   }
   reserved 2, 5, 14, 21, 22, 23, 24; // The deprecated old cryptography stack (key bundle, etc.)
   reserved 30, 31, 34;  // The never used create_root_key, list_recent_root_keys, and sign_hash operations

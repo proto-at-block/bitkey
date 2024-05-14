@@ -22,6 +22,7 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.USD
 import build.wallet.money.currency.code.IsoCurrencyTextCode
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateSyncerMock
 import build.wallet.statemachine.BodyStateMachineMock
@@ -50,20 +51,24 @@ class SendUiStateMachineImplTests : FunSpec({
   val clock = ClockFake()
   val rateSyncer = ExchangeRateSyncerMock(turbines::create)
   val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val stateMachine =
     SendUiStateMachineImpl(
       bitcoinAddressRecipientUiStateMachine =
-        object : BitcoinAddressRecipientUiStateMachine, BodyStateMachineMock<BitcoinAddressRecipientUiProps>(
-          "bitcoin-address-recipient"
-        ) {},
+        object : BitcoinAddressRecipientUiStateMachine,
+          BodyStateMachineMock<BitcoinAddressRecipientUiProps>(
+            "bitcoin-address-recipient"
+          ) {},
       transferAmountEntryUiStateMachine =
-        object : TransferAmountEntryUiStateMachine, ScreenStateMachineMock<TransferAmountEntryUiProps>(
-          "transfer-amount-entry"
-        ) {},
+        object : TransferAmountEntryUiStateMachine,
+          ScreenStateMachineMock<TransferAmountEntryUiProps>(
+            "transfer-amount-entry"
+          ) {},
       transferConfirmationUiStateMachine =
-        object : TransferConfirmationUiStateMachine, ScreenStateMachineMock<TransferConfirmationUiProps>(
-          "transfer-confirmation"
-        ) {},
+        object : TransferConfirmationUiStateMachine,
+          ScreenStateMachineMock<TransferConfirmationUiProps>(
+            "transfer-confirmation"
+          ) {},
       transferInitiatedUiStateMachine =
         object : TransferInitiatedUiStateMachine, BodyStateMachineMock<TransferInitiatedUiProps>(
           "transfer-initiated"
@@ -79,7 +84,8 @@ class SendUiStateMachineImplTests : FunSpec({
         ) {},
       exchangeRateSyncer = rateSyncer,
       clock = clock,
-      networkReachabilityProvider = networkReachabilityProvider
+      networkReachabilityProvider = networkReachabilityProvider,
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 
   fun ActiveKeyboxLoadedFake(balance: BitcoinBalance): ActiveFullAccountLoadedData {
@@ -95,7 +101,6 @@ class SendUiStateMachineImplTests : FunSpec({
         ActiveKeyboxLoadedFake(
           balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
         ),
-      fiatCurrency = USD,
       validInvoiceInClipboard = null,
       onExit = {},
       onDone = {}
@@ -103,6 +108,7 @@ class SendUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     permissionUiStateMachine.isImplemented = true
+    fiatCurrencyPreferenceRepository.reset()
     clock.reset()
   }
 
@@ -320,7 +326,7 @@ class SendUiStateMachineImplTests : FunSpec({
 
         // Step 5: User is taken back to transfer amount input screen, with zero amount.
         awaitScreenWithBodyModelMock<TransferAmountEntryUiProps> {
-          initialAmount.shouldBe(FiatMoney.zero(props.fiatCurrency))
+          initialAmount.shouldBe(FiatMoney.zero(USD))
           onBack()
         }
 
@@ -406,7 +412,6 @@ class SendUiStateMachineImplTests : FunSpec({
           ActiveKeyboxLoadedFake(
             balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
           ),
-        fiatCurrency = USD,
         validInvoiceInClipboard = null,
         onExit = {},
         onDone = {}

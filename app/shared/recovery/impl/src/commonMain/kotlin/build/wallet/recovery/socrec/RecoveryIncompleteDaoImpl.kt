@@ -4,7 +4,6 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -20,7 +19,6 @@ class RecoveryIncompleteDaoImpl(
       .recoveryIncompleteQueries
       .getRecoveryIncomplete()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map {
         it.component1()?.incomplete ?: false
       }

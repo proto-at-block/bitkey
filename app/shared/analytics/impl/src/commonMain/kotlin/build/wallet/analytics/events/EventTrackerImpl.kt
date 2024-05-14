@@ -148,9 +148,7 @@ class EventTrackerImpl(
           }.localId
 
       val bitcoinDisplayUnit = bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.value
-      val fiatCurrencyPreference =
-        fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
-          ?: fiatCurrencyPreferenceRepository.defaultFiatCurrency.value
+      val fiatCurrencyPreference = fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value
 
       val event =
         Event(

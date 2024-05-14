@@ -1,7 +1,6 @@
 package build.wallet.cloud.backup
 
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import com.github.michaelbull.result.Result
 
@@ -18,7 +17,6 @@ interface FullAccountCloudBackupCreator {
   suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
-    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<CloudBackup, FullAccountCloudBackupCreatorError>
 
   /**
@@ -44,6 +42,10 @@ interface FullAccountCloudBackupCreator {
      * SocRec keys could not be retrieved from encrypted storage.
      */
     data class SocRecKeysRetrievalError(
+      override val cause: Throwable,
+    ) : FullAccountCloudBackupCreatorError()
+
+    data class SocRecVerificationError(
       override val cause: Throwable,
     ) : FullAccountCloudBackupCreatorError()
 

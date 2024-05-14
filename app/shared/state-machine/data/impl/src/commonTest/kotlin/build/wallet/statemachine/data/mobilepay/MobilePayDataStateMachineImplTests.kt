@@ -12,7 +12,7 @@ import build.wallet.limit.MobilePayStatus
 import build.wallet.limit.MobilePayStatusProviderMock
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.transactions.KeyboxTransactionsDataMock
@@ -30,27 +30,30 @@ class MobilePayDataStateMachineImplTests : FunSpec({
   val mobilePayDisabler = MobilePayDisablerMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
   val currencyConverter = CurrencyConverterFake()
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
-  val stateMachine =
-    MobilePayDataStateMachineImpl(
-      mobilePayStatusProvider,
-      spendingLimitSetter,
-      mobilePayDisabler,
-      eventTracker,
-      currencyConverter
-    )
+  val stateMachine = MobilePayDataStateMachineImpl(
+    mobilePayStatusProvider,
+    spendingLimitSetter,
+    mobilePayDisabler,
+    eventTracker,
+    currencyConverter,
+    fiatCurrencyPreferenceRepository
+  )
 
   val account = FullAccountMock
   val limit1 = SpendingLimitMock(amount = FiatMoney.usd(100))
   val fiatLimit2 = FiatMoney.usd(200)
   val limit2 = SpendingLimitMock(amount = fiatLimit2)
 
-  val props =
-    MobilePayProps(
-      account = account,
-      transactionsData = KeyboxTransactionsDataMock,
-      fiatCurrency = USD
-    )
+  val props = MobilePayProps(
+    account = account,
+    transactionsData = KeyboxTransactionsDataMock
+  )
+
+  beforeTest {
+    fiatCurrencyPreferenceRepository.reset()
+  }
 
   test("loading mobile pay data") {
     stateMachine.test(props) {

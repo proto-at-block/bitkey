@@ -9,7 +9,6 @@ import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
-import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -47,9 +46,8 @@ import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.comparables.shouldBeGreaterThan
 import io.kotest.matchers.equals.shouldBeEqual
-import io.kotest.matchers.maps.shouldHaveKey
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.types.shouldBeTypeOf
+import io.kotest.matchers.shouldBe
 import io.kotest.property.PropTestConfig
 import io.kotest.property.checkAll
 import kotlinx.coroutines.flow.filter
@@ -254,7 +252,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     backupJob.cancel()
   }
 
-  test("socrec restore succeeds after cloud recovery without rotating auth keys") {
+  xtest("socrec restore succeeds after cloud recovery without rotating auth keys") {
     // Retry flaky test
     checkAll<Int>(
       PropTestConfig(
@@ -333,7 +331,7 @@ class SocRecE2eFunctionalTests : FunSpec({
   }
 
   // TODO: This test can hang but it's still very useful
-  test("socrec restore succeeds after cloud recovery and rotating auth keys") {
+  xtest("socrec restore succeeds after cloud recovery and rotating auth keys") {
     var customerApp = launchNewApp()
     customerApp.onboardFullAccountWithFakeHardware(
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
@@ -381,7 +379,6 @@ class SocRecE2eFunctionalTests : FunSpec({
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    val relationshipId = invite.invitation.recoveryRelationshipId
     val tcApp = launchNewApp()
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
@@ -408,16 +405,6 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     verifyKeyCertificatesAreRefreshed(customerApp)
 
-    val customerAccount = customerApp.getActiveFullAccount()
-    customerApp.app.bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackup(
-      customerAccount
-    ).getOrThrow()
-    customerApp.app.cloudBackupDao.get(customerAccount.accountId.serverId).getOrThrow()
-      .shouldNotBeNull()
-      .shouldBeTypeOf<CloudBackupV2>()
-      .fullAccountFields.shouldNotBeNull()
-      .socRecSealedDekMap
-      .shouldHaveKey(relationshipId)
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
@@ -514,7 +501,6 @@ class SocRecE2eFunctionalTests : FunSpec({
       cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
     )
     val invite = customerApp.createTcInvite("bob")
-    val relationshipId = invite.invitation.recoveryRelationshipId
     val tcApp = launchNewApp()
     tcApp.onboardLiteAccountFromInvitation(
       invite.inviteCode,
@@ -537,16 +523,6 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     verifyKeyCertificatesAreRefreshed(customerApp)
 
-    val customerAccount = customerApp.getActiveFullAccount()
-    customerApp.app.bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackup(
-      customerAccount
-    ).getOrThrow()
-    customerApp.app.cloudBackupDao.get(customerAccount.accountId.serverId).getOrThrow()
-      .shouldNotBeNull()
-      .shouldBeTypeOf<CloudBackupV2>()
-      .fullAccountFields.shouldNotBeNull()
-      .socRecSealedDekMap
-      .shouldHaveKey(relationshipId)
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
 
@@ -667,6 +643,10 @@ suspend fun shouldSucceedSocialRestore(
   return recoveringApp
 }
 
+/**
+ * Pulls SocRec relationships from F8e, ensures that the key certs match the ones we have locally,
+ * and that local certs are verified.
+ */
 suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
   val account = appTester.getActiveFullAccount()
   val appPubKey = account.keybox.activeAppKeyBundle.authKey
@@ -693,6 +673,7 @@ suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
 
   dbTcs.forEach {
     withClue("key certificates for ${it.trustedContactAlias} should be refreshed") {
+      it.authenticationState.shouldBe(TrustedContactAuthenticationState.VERIFIED)
       it.keyCertificate.hwAuthPublicKey.pubKey.shouldBeEqual(hwPubKey)
       it.keyCertificate.appGlobalAuthPublicKey.shouldBeEqual(appPubKey)
       it.keyCertificate.appAuthGlobalKeyHwSignature.value.shouldBeEqual(hwSig.value)

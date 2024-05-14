@@ -18,17 +18,19 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
-import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -47,7 +49,8 @@ class UpgradeAccountServiceImpl(
       )
       .bodyResult<ResponseBody> {
         post("/api/accounts/${liteAccount.accountId.serverId}/upgrade") {
-          setBody(
+          withDescription("Upgrade account on f8e")
+          setRedactedBody(
             RequestBody(
               appKeyBundle = keyCrossDraft.appKeyBundle,
               hardwareKeyBundle = keyCrossDraft.hardwareKeyBundle,
@@ -57,7 +60,6 @@ class UpgradeAccountServiceImpl(
         }
       }
       .mapError { it.toF8eError<CreateAccountClientErrorCode>() }
-      .logF8eFailure { "Failed to upgrade account on f8e" }
       .map { response ->
         val verified = runCatching {
           f8eHttpClient.wsmVerifier.verify(
@@ -101,7 +103,7 @@ class UpgradeAccountServiceImpl(
     val auth: AuthKeys,
     @SerialName("spending")
     val spending: SpendingKeys,
-  ) {
+  ) : RedactedRequestBody {
     constructor(
       appKeyBundle: AppKeyBundle,
       hardwareKeyBundle: HwKeyBundle,
@@ -170,5 +172,5 @@ class UpgradeAccountServiceImpl(
     val spending: String,
     @SerialName("spending_sig")
     val spendingSig: String,
-  )
+  ) : RedactedResponseBody
 }

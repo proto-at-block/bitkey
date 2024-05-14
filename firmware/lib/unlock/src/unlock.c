@@ -11,9 +11,9 @@
 #include "wallet.h"
 
 // This isn't clean from a code organization perspective, but it's best
-// to call set_authenticated() from here, rather than auth_task.c, because
+// to call set_authenticated_with_animation() from here, rather than auth_task.c, because
 // otherwise unlock_check_secret() could be glitched past completely.
-extern NO_OPTIMIZE void set_authenticated(secure_bool_t state);
+extern NO_OPTIMIZE void set_authenticated_with_animation(secure_bool_t state);
 
 unlock_ctx_t unlock_ctx = {
   .limit_response = RESPONSE_DELAY,
@@ -224,7 +224,7 @@ success:
   *remaining_delay_ms = 0;
   *retry_counter = 0;
 
-  set_authenticated(SECURE_TRUE);
+  set_authenticated_with_animation(SECURE_TRUE);
 
   return UNLOCK_OK;
 }

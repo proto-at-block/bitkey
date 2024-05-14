@@ -11,11 +11,13 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthenticationService.InitiateAuthenticationSuccess
 import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -41,7 +43,7 @@ class AuthenticationServiceImpl(
   ) = f8eHttpClient.unauthenticated(f8eEnvironment)
     .bodyResult<InitiateAuthenticationSuccess> {
       post("/api/authenticate") {
-        setBody(req)
+        setRedactedBody(req)
       }
     }
 
@@ -49,7 +51,7 @@ class AuthenticationServiceImpl(
   private data class AuthenticationRequest(
     @SerialName("auth_request_key")
     val authRequestKey: Map<String, String>,
-  ) {
+  ) : RedactedRequestBody {
     constructor(
       authPublicKey: HwAuthPublicKey,
     ) : this(mapOf("HwPubkey" to authPublicKey.pubKey.value))
@@ -75,7 +77,7 @@ class AuthenticationServiceImpl(
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<AuthTokensSuccess> {
         post("/api/authenticate/tokens") {
-          setBody(tokenRequest)
+          setRedactedBody(tokenRequest)
         }
       }.map { AccountAuthTokens(AccessToken(it.accessToken), RefreshToken(it.refreshToken)) }
   }
@@ -88,7 +90,7 @@ class AuthenticationServiceImpl(
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<AuthTokensSuccess> {
         post("/api/authenticate/tokens") {
-          setBody(tokenRequest)
+          setRedactedBody(tokenRequest)
         }
       }.map { AccountAuthTokens(AccessToken(it.accessToken), RefreshToken(it.refreshToken)) }
   }
@@ -107,7 +109,7 @@ class AuthenticationServiceImpl(
     val challenge: ChallengeResponseParameters? = null,
     @SerialName("refresh_token")
     val refreshToken: String? = null,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   private data class AuthTokensSuccess(
@@ -115,5 +117,5 @@ class AuthenticationServiceImpl(
     val accessToken: String,
     @SerialName("refresh_token")
     val refreshToken: String,
-  )
+  ) : RedactedResponseBody
 }

@@ -2,6 +2,7 @@ package build.wallet.statemachine.data.mobilepay
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
@@ -16,7 +17,7 @@ import build.wallet.limit.MobilePayStatus.MobilePayEnabled
 import build.wallet.limit.MobilePayStatusProvider
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
 import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayDisabledData
@@ -32,6 +33,7 @@ class MobilePayDataStateMachineImpl(
   private val mobilePayDisabler: MobilePayDisabler,
   private val eventTracker: EventTracker,
   private val currencyConverter: CurrencyConverter,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MobilePayDataStateMachine {
   @Composable
   override fun model(props: MobilePayProps): MobilePayData {
@@ -56,11 +58,7 @@ class MobilePayDataStateMachineImpl(
                 }
             }
           },
-          remainingFiatSpendingAmount =
-            getRemainingFiatSpendingAmount(
-              mobilePayStatus,
-              props.fiatCurrency
-            ),
+          remainingFiatSpendingAmount = getRemainingFiatSpendingAmount(mobilePayStatus),
           changeSpendingLimit = { newSpendingLimit, _, hwFactorProofOfPossession, onResult ->
             scope.launch {
               setSpendingLimit(props, newSpendingLimit, hwFactorProofOfPossession)
@@ -90,10 +88,9 @@ class MobilePayDataStateMachineImpl(
   }
 
   @Composable
-  private fun getRemainingFiatSpendingAmount(
-    state: MobilePayEnabled,
-    fiatCurrency: FiatCurrency,
-  ): FiatMoney? {
+  private fun getRemainingFiatSpendingAmount(state: MobilePayEnabled): FiatMoney? {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
     return state.balance?.let { balance ->
       convertedOrNull(currencyConverter, balance.spent, fiatCurrency)
         ?.let { spentMoneyInFiat ->

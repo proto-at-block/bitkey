@@ -6,7 +6,6 @@ import build.wallet.db.DbError
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.Flow
@@ -24,7 +23,6 @@ class NetworkingDebugConfigDaoImpl(
   override fun config(): Flow<Result<NetworkingDebugConfig, DbError>> {
     return database.networkingDebugConfigQueries.getConfig()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map { result ->
         result
           .logFailure { "Error loading networking debug config" }

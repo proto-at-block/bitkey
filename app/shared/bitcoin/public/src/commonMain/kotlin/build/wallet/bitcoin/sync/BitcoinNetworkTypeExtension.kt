@@ -20,19 +20,19 @@ fun BitcoinNetworkType.mempoolElectrumServerDetails(): ElectrumServerDetails {
     BITCOIN ->
       ElectrumServerDetails(
         protocol = "ssl",
-        host = "electrum.blockstream.info",
+        host = "bitkey.mempool.space",
         port = "50002"
       )
     SIGNET ->
       ElectrumServerDetails(
         protocol = "ssl",
-        host = "electrum.nodes.wallet.build",
-        port = "51002"
+        host = "bitkey.mempool.space",
+        port = "60602"
       )
     TESTNET ->
       ElectrumServerDetails(
         protocol = "ssl",
-        host = "electrum.blockstream.info",
+        host = "bitkey.mempool.space",
         port = "60002"
       )
     REGTEST ->
@@ -70,6 +70,7 @@ fun BitcoinNetworkType.blockstreamElectrumServerDetails(): ElectrumServerDetails
         host = "electrum.blockstream.info",
         port = "50002"
       )
+    // We use our own nodes here since Blockstream does not host a public Signet Electrum server.
     SIGNET ->
       ElectrumServerDetails(
         protocol = "ssl",

@@ -2,9 +2,9 @@ package build.wallet.statemachine.partnerships.transfer
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitkey.keybox.Keybox
+import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.partnerships.PartnerRedirectionMethod
 import com.github.michaelbull.result.Result
 
 interface PartnershipsTransferUiStateMachine : StateMachine<PartnershipsTransferUiProps, SheetModel>

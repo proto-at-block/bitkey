@@ -8,7 +8,7 @@ use super::requests::axum::TestClient;
 
 #[tokio::test]
 async fn event_tracking_request_succeeds_with_valid_request_empty_events() {
-    let bootstrap = gen_services().await;
+    let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let events = EventBundle { events: Vec::new() };
@@ -24,7 +24,7 @@ async fn event_tracking_request_succeeds_with_valid_request_empty_events() {
 
 #[tokio::test]
 async fn event_tracking_request_succeeds_with_valid_request_non_empty_events() {
-    let bootstrap = gen_services().await;
+    let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let events = EventBundle {

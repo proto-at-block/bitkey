@@ -192,12 +192,21 @@ struct StartSocialChallengeTestVector {
 }
 
 async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let customer_account = match vector.customer_account_type {
         AccountType::Full { .. } => {
-            let account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+            let account = create_account(
+                &mut context,
+                &bootstrap.services,
+                Network::BitcoinSignet,
+                None,
+            )
+            .await;
+            let keys = context
+                .get_authentication_keys_for_account_id(&account.id)
+                .expect("Invalid keys for account");
 
             let mobile_pay_resp = client
                 .put_mobile_pay(
@@ -212,6 +221,7 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
                             time_zone_offset: UtcOffset::UTC,
                         },
                     },
+                    &keys,
                 )
                 .await;
             assert!(mobile_pay_resp.status_code.is_success());
@@ -219,7 +229,7 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
             Account::Full(account)
         }
         AccountType::Lite => {
-            Account::Lite(create_lite_account(&bootstrap.services, None, true).await)
+            Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await)
         }
     };
 
@@ -246,7 +256,13 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
         )
         .await;
 
-        let other_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+        let other_account = create_account(
+            &mut context,
+            &bootstrap.services,
+            Network::BitcoinSignet,
+            None,
+        )
+        .await;
 
         // Non-customer cannot fetch the challege
         try_fetch_social_challenge(
@@ -263,7 +279,12 @@ async fn start_social_challenge_test(vector: StartSocialChallengeTestVector) {
         .await;
 
         // Mobile pay is disabled
-        let mobile_pay_resp = client.get_mobile_pay(customer_account.get_id()).await;
+        let keys = context
+            .get_authentication_keys_for_account_id(customer_account.get_id())
+            .expect("Invalid keys for account");
+        let mobile_pay_resp = client
+            .get_mobile_pay(customer_account.get_id(), &keys)
+            .await;
         assert!(mobile_pay_resp.status_code.is_success());
         let body = mobile_pay_resp.body.unwrap();
         assert!(!body.mobile_pay().unwrap().limit.active);
@@ -291,14 +312,21 @@ struct VerifySocialChallengeTestVector {
 }
 
 async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
-    let other_account = create_lite_account(&bootstrap.services, None, true).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let other_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_relationship_body = try_create_recovery_relationship(
+        &mut context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -313,6 +341,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     .unwrap();
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         if vector.is_trusted_contact {
@@ -330,6 +359,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
 
     if vector.is_trusted_contact_endorsed_by_customer {
         try_endorse_recovery_relationship(
+            &context,
             &client,
             &customer_account.id,
             &create_relationship_body.invitation.recovery_relationship_id,
@@ -431,14 +461,21 @@ struct RespondToSocialChallengeTestVector {
 }
 
 async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
-    let other_account = create_lite_account(&bootstrap.services, None, true).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let other_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_relationship_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -453,6 +490,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
     .unwrap();
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         if vector.is_trusted_contact {
@@ -470,6 +508,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
 
     if vector.is_customer_endorsed {
         try_endorse_recovery_relationship(
+            &context,
             &client,
             &customer_account.id,
             &create_relationship_body.invitation.recovery_relationship_id,

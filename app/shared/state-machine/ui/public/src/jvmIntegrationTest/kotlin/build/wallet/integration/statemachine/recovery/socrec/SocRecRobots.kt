@@ -490,11 +490,12 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughLostHardwareAndCloudRecove
     .find { it.title == "Bitkey Device" }
     .shouldNotBeNull()
     .onClick()
-  (
-    awaitUntilScreenWithBody<FormBodyModel>()
-      .mainContentList[1] as FormMainContentModel.Button
-  )
-    .item.onClick()
+  awaitUntilScreenWithBody<FormBodyModel> {
+    mainContentList
+      .filterIsInstance<FormMainContentModel.Button>()
+      .single { it.item.text == "Replace device" }
+      .item.onClick()
+  }
 
   awaitUntilScreenWithBody<FormBodyModel>(HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
     .clickPrimaryButton()

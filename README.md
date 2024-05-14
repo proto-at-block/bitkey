@@ -26,7 +26,7 @@ Each directory in our repository is a seperate project— each with its own buil
 Bitkey source is available here for auditing purposes, but we're not ready to support external parties in building all Bitkey components. See individual project README information for more detail.
 
 ## Contributing
-At this time, we are not accepting external contributions to Bitkey code. We're prioritizing building a smooth, safe self-custody experience through the Bitkey app and hardware through contirbutions from our internal team. For now, if you want to contribute to Bitkey, consider [joining our team](https://block.xyz/careers?search=bitkey).
+At this time, we are not accepting external contributions to Bitkey code. We're prioritizing building a smooth, safe self-custody experience through the Bitkey app and hardware through contributions from our internal team. For now, if you want to contribute to Bitkey, consider [joining our team](https://block.xyz/careers?search=bitkey).
 
 ## Security Reporting Program
 

@@ -27,9 +27,8 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.FailedToCreateSpendingKeysData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedGettingTrustedContactsData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedRegeneratingTcCertificatesData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
@@ -189,12 +188,10 @@ class CompletingRecoveryUiStateMachineImpl(
           eventTrackerShouldTrack = false
         ).asScreen(props.presentationStyle)
 
-      // While fetching trusted contacts from the db.
-      GettingTrustedContactsData, RegeneratingTcCertificatesData ->
-        LoadingBodyModel(id = null)
-          .asScreen(presentationStyle = props.presentationStyle)
+      RegeneratingTcCertificatesData ->
+        LoadingBodyModel(id = null).asScreen(presentationStyle = props.presentationStyle)
 
-      is FailedGettingTrustedContactsData ->
+      is FailedRegeneratingTcCertificatesData ->
         ErrorFormBodyModel(
           title = "We were unable to complete your recovery.",
           subline = "Make sure you are connected to the internet and try again.",
@@ -222,7 +219,6 @@ class CompletingRecoveryUiStateMachineImpl(
             keybox = props.completingRecoveryData.keybox,
             onBackupSaved = props.completingRecoveryData.onBackupFinished,
             onBackupFailed = props.completingRecoveryData.onBackupFailed,
-            endorsedTrustedContacts = props.completingRecoveryData.endorsedTrustedContacts,
             presentationStyle = props.presentationStyle,
             requireAuthRefreshForCloudBackup = false
           )
@@ -232,7 +228,6 @@ class CompletingRecoveryUiStateMachineImpl(
       is PerformingSweepData ->
         sweepUiStateMachine.model(
           SweepUiProps(
-            fiatCurrency = props.fiatCurrency,
             sweepData = props.completingRecoveryData.sweepData,
             presentationStyle = props.presentationStyle,
             onExit = props.completingRecoveryData.rollback

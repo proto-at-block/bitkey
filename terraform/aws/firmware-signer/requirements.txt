@@ -1,0 +1,3 @@
+awscli-local==0.22.0
+localstack-client==2.5
+terraform-local==0.17.1

@@ -17,10 +17,12 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import dev.zacsweers.redacted.annotations.Redacted
 
 data class TransferAmountBodyModel(
   override val onBack: () -> Unit,
-  val toolbar: ToolbarModel,
+  @Redacted
+  val toolbar: ToolbarModel, // Balance is exposed in this model so redacting it
   val amountModel: MoneyAmountEntryModel,
   val keypadModel: KeypadModel,
   val primaryButton: ButtonModel,

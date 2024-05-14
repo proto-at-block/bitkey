@@ -58,11 +58,13 @@ public extension UIImage {
   static let smallIconElectrum = UIImage(named: "SmallIconElectrum", in: .main, compatibleWith: nil)!
   static let smallIconEmail = UIImage(named: "SmallIconEmail", in: .main, compatibleWith: nil)!
   static let smallIconExternal = UIImage(named: "SmallIconExternal", in: .main, compatibleWith: nil)!
+  static let smallIconFingerprint = UIImage(named: "SmallIconFingerprint", in: .main, compatibleWith: nil)!
   static let smallIconInformation = UIImage(named: "SmallIconInformation", in: .main, compatibleWith: nil)!
   static let smallIconInformationFilled = UIImage(named: "SmallIconInformationFilled", in: .main, compatibleWith: nil)!
   static let smallIconKey = UIImage(named: "SmallIconKey", in: .main, compatibleWith: nil)!
   static let smallIconKeyboard = UIImage(named: "SmallIconKeyboard", in: .main, compatibleWith: nil)!
   static let smallIconLightning = UIImage(named: "SmallIconLightning", in: .main, compatibleWith: nil)!
+  static let smallIconLock = UIImage(named: "SmallIconLock", in: .main, compatibleWith: nil)!
   static let smallIconMessage = UIImage(named: "SmallIconMessage", in: .main, compatibleWith: nil)!
   static let smallIconMinus = UIImage(named: "SmallIconMinus", in: .main, compatibleWith: nil)!
   static let smallIconMinusFilled = UIImage(named: "SmallIconMinusFilled", in: .main, compatibleWith: nil)!
@@ -161,11 +163,13 @@ public extension Icon {
         case .smalliconelectrum: return .smallIconElectrum
         case .smalliconemail: return .smallIconEmail
         case .smalliconexternal: return .smallIconExternal
+        case .smalliconfingerprint: return .smallIconFingerprint
         case .smalliconinformation: return .smallIconInformation
         case .smalliconinformationfilled: return .smallIconInformationFilled
         case .smalliconkey: return .smallIconKey
         case .smalliconkeyboard: return .smallIconKeyboard
         case .smalliconlightning: return .smallIconLightning
+        case .smalliconlock: return .smallIconLock
         case .smalliconmessage: return .smallIconMessage
         case .smalliconminus: return .smallIconMinus
         case .smalliconminusfilled: return .smallIconMinusFilled

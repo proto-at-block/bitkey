@@ -2,16 +2,16 @@
     "module-identifier": "io.matthewnelson.encoding:base32-iosx64",
     "components": [
         {
-            "version": "2.1.0",
+            "version": "2.2.1",
             "variants": [
                 {
                     "artifacts": {
-                        "base32-iosx64-2.1.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "base32-iosx64-2.2.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "base32.klib": "fa47b0842a84eb901a03c4c5f6a98a96066ef75abb51dd6a6bd19feafbb59e31"
+                        "base32.klib": "8fe009ed41ab35aba5e091ccfc71774124159944db1c4121ed921e2d98a935d3"
                     }
                 }
             ],

@@ -2,6 +2,7 @@ package build.wallet.statemachine.limit
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -11,6 +12,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -37,6 +39,7 @@ class SetSpendingLimitUiStateMachineImpl(
   private val spendingLimitPickerUiStateMachine: SpendingLimitPickerUiStateMachine,
   private val timeZoneProvider: TimeZoneProvider,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : SetSpendingLimitUiStateMachine {
   @Composable
   override fun model(props: SpendingLimitProps): ScreenModel {
@@ -146,27 +149,27 @@ class SetSpendingLimitUiStateMachineImpl(
       SpendingLimit,
       HwFactorProofOfPossession,
     ) -> Unit,
-  ) = spendingLimitPickerUiStateMachine.model(
-    props =
-      SpendingLimitPickerUiProps(
+  ): ScreenModel {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+    return spendingLimitPickerUiStateMachine.model(
+      props = SpendingLimitPickerUiProps(
         accountData = props.accountData,
-        initialLimit = state.selectedFiatLimit ?: FiatMoney.zero(props.fiatCurrency),
-        retreat =
-          Retreat(
-            style = Close,
-            onRetreat = props.onClose
-          ),
+        initialLimit = state.selectedFiatLimit ?: FiatMoney.zero(fiatCurrency),
+        retreat = Retreat(
+          style = Close,
+          onRetreat = props.onClose
+        ),
         onSaveLimit = { fiatLimit, btcLimit, hwFactorProofOfPossession ->
-          val spendingLimit =
-            SpendingLimit(
-              active = true,
-              amount = fiatLimit,
-              timezone = timeZoneProvider.current()
-            )
+          val spendingLimit = SpendingLimit(
+            active = true,
+            amount = fiatLimit,
+            timezone = timeZoneProvider.current()
+          )
           onLimitPickedAndConfirmed(fiatLimit, btcLimit, spendingLimit, hwFactorProofOfPossession)
         }
       )
-  )
+    )
+  }
 
   @Composable
   private fun SpendingLimitIsSetScreenModel(

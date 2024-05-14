@@ -1,0 +1,15 @@
+import kotlin.Boolean;
+
+CREATE TABLE biometricPreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    enabled INTEGER AS Boolean NOT NULL
+);
+
+setBiometricPreference:
+INSERT OR REPLACE INTO biometricPreferenceEntity(rowId, enabled)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getBiometricPeference:
+SELECT * FROM biometricPreferenceEntity
+WHERE rowId = 0;

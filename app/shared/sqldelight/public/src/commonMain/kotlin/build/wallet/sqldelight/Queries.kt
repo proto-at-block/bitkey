@@ -2,7 +2,6 @@ package build.wallet.sqldelight
 
 import app.cash.sqldelight.Query
 import app.cash.sqldelight.coroutines.asFlow
-import build.wallet.LoadableValue
 import build.wallet.db.DbQueryError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * Any exceptions caught while executing the query are wrapped into [DbQueryError].
  */
-fun <T : Any> Query<T>.asFlowOfList(): Flow<Result<LoadableValue<List<T>>, DbQueryError>> =
+fun <T : Any> Query<T>.asFlowOfList(): Flow<Result<List<T>, DbQueryError>> =
   asFlow().mapToListResult()
 
 /**
@@ -20,7 +19,7 @@ fun <T : Any> Query<T>.asFlowOfList(): Flow<Result<LoadableValue<List<T>>, DbQue
  *
  * Any exceptions caught while executing the query are wrapped into [DbQueryError].
  */
-fun <T : Any> Query<T>.asFlowOfOneOrNull(): Flow<Result<LoadableValue<T?>, DbQueryError>> =
+fun <T : Any> Query<T>.asFlowOfOneOrNull(): Flow<Result<T?, DbQueryError>> =
   asFlow().mapToOneOrNullResult()
 
 /**
@@ -28,5 +27,4 @@ fun <T : Any> Query<T>.asFlowOfOneOrNull(): Flow<Result<LoadableValue<T?>, DbQue
  *
  * Any exceptions caught while executing the query are wrapped into [DbQueryError].
  */
-fun <T : Any> Query<T>.asFlowOfOne(): Flow<Result<LoadableValue<T>, DbQueryError>> =
-  asFlow().mapToOneResult()
+fun <T : Any> Query<T>.asFlowOfOne(): Flow<Result<T, DbQueryError>> = asFlow().mapToOneResult()

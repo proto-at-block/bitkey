@@ -1,6 +1,5 @@
 package build.wallet.auth
 
-import build.wallet.logging.HandledError
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.log
@@ -20,6 +19,6 @@ inline fun <V, E : AuthError> Result<V, E>.logAuthFailure(message: () -> String)
           is AuthProtocolError -> Warn
           else -> Error
         },
-      throwable = error.cause ?: HandledError(message())
+      throwable = error
     ) { "${message()}. $error" }
   }

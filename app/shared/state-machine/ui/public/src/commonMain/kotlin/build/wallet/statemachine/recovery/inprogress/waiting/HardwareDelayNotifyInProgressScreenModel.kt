@@ -1,5 +1,6 @@
 package build.wallet.statemachine.recovery.inprogress.waiting
 
+import build.wallet.Progress
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_PENDING
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
@@ -20,7 +21,7 @@ import kotlin.time.Duration
 fun HardwareDelayNotifyInProgressScreenModel(
   onCancelRecovery: () -> Unit,
   durationTitle: String,
-  progress: Float,
+  progress: Progress,
   remainingDelayPeriod: Duration,
   onExit: () -> Unit,
 ) = FormBodyModel(

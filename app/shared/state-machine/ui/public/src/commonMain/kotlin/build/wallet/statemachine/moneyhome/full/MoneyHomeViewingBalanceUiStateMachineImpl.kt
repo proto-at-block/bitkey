@@ -15,7 +15,12 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
+import build.wallet.money.FiatMoney
+import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.Failed
@@ -51,7 +56,6 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransact
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
-import build.wallet.statemachine.partnerships.PartnerRedirectionMethod
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
@@ -64,9 +68,11 @@ import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.statemachine.transactions.TransactionListUiProps
 import build.wallet.statemachine.transactions.TransactionListUiStateMachine
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.firstOrNull
 
 class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val addBitcoinUiStateMachine: AddBitcoinUiStateMachine,
@@ -79,6 +85,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val transactionListUiStateMachine: TransactionListUiStateMachine,
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
+  private val currencyConverter: CurrencyConverter,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -90,6 +98,8 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     }
     val numberOfVisibleTransactions = 5
 
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
     val appFunctionalityStatus =
       remember {
         appFunctionalityStatusProvider.appFunctionalityStatus(
@@ -97,7 +107,12 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         )
       }.collectAsState(AppFunctionalityStatus.FullFunctionality).value
 
-    var alertModel: AlertModel? by remember { mutableStateOf(null) }
+    var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
+    var fiatBalance: FiatMoney? by remember { mutableStateOf(null) }
+
+    SyncFiatBalanceEquivalentEffect(props, fiatCurrency) {
+      fiatBalance = it
+    }
 
     val viewingBalanceModel =
       ScreenModel(
@@ -106,11 +121,21 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           MoneyHomeBodyModel(
             onSettings = props.onSettings,
             balanceModel =
+              // if fiat balance is null because currency conversion hasn't happened yet, we will show
+              // the sats value as the primary until the fiat balance isn't null
               MoneyAmountModel(
-                primaryAmount = moneyDisplayFormatter.format(props.convertedFiatBalance),
-                secondaryAmount =
+                primaryAmount = when (val balance = fiatBalance) {
+                  null ->
+                    moneyDisplayFormatter
+                      .format(props.accountData.transactionsData.balance.total)
+                  else -> moneyDisplayFormatter.format(balance)
+                },
+                secondaryAmount = if (fiatBalance != null) {
                   moneyDisplayFormatter
                     .format(props.accountData.transactionsData.balance.total)
+                } else {
+                  ""
+                }
               ),
             cardsModel =
               MoneyHomeCardsModel(
@@ -126,7 +151,11 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                 onShowAlert = { alertModel = it },
                 onDismissAlert = { alertModel = null }
               ),
-            transactionsModel = MoneyHomeTransactionsModel(props, numberOfVisibleTransactions),
+            transactionsModel = MoneyHomeTransactionsModel(
+              props,
+              fiatCurrency,
+              numberOfVisibleTransactions
+            ),
             seeAllButtonModel =
               if (props.accountData.transactionsData.transactions.size <= numberOfVisibleTransactions) {
                 null
@@ -142,7 +171,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                 )
               },
             refresh = props.accountData.transactionsData.syncTransactions,
-            onRefresh = { props.setState(props.state.copy(isRefreshing = true)) },
+            onRefresh = {
+              props.setState(props.state.copy(isRefreshing = true))
+            },
             isRefreshing = props.state.isRefreshing
           ),
         bottomSheetModel =
@@ -187,10 +218,51 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   }
 
   @Composable
+  private fun SyncFiatBalanceEquivalentEffect(
+    props: MoneyHomeViewingBalanceUiProps,
+    fiatCurrency: FiatCurrency,
+    onFiatBalanceSynced: (FiatMoney) -> Unit,
+  ) {
+    // update the fiat balance if balance has changed or the selected fiat currency changes
+    LaunchedEffect(
+      "sync-fiat-equivalent-balance",
+      props.accountData.transactionsData.balance.total,
+      fiatCurrency
+    ) {
+      val convertedFiatBalance =
+        currencyConverter
+          .convert(
+            fromAmount = props.accountData.transactionsData.balance.total,
+            toCurrency = fiatCurrency,
+            atTime = null
+          ).filterNotNull().firstOrNull() as? FiatMoney
+          ?: FiatMoney.zero(fiatCurrency)
+
+      onFiatBalanceSynced(convertedFiatBalance)
+    }
+
+    // also manually update fiat balance when refreshing
+    LaunchedEffect("manually-sync-fiat-balance", props.state.isRefreshing) {
+      if (props.state.isRefreshing) {
+        val convertedFiatBalance =
+          currencyConverter
+            .convert(
+              fromAmount = props.accountData.transactionsData.balance.total,
+              toCurrency = fiatCurrency,
+              atTime = null
+            ).filterNotNull().firstOrNull() as? FiatMoney
+            ?: FiatMoney.zero(fiatCurrency)
+
+        onFiatBalanceSynced(convertedFiatBalance)
+      }
+    }
+  }
+
+  @Composable
   private fun MoneyHomeCardsModel(
     props: MoneyHomeViewingBalanceUiProps,
     appFunctionalityStatus: AppFunctionalityStatus,
-    onShowAlert: (AlertModel) -> Unit,
+    onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): MoneyHomeCardsModel {
     return moneyHomeCardsUiStateMachine.model(
@@ -262,7 +334,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private fun MoneyHomeButtonsModel(
     props: MoneyHomeViewingBalanceUiProps,
     appFunctionalityStatus: AppFunctionalityStatus,
-    onShowAlert: (AlertModel) -> Unit,
+    onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): MoneyHomeButtonsModel {
     fun showAlertForLimitedStatus() {
@@ -318,26 +390,25 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   @Composable
   private fun MoneyHomeTransactionsModel(
     props: MoneyHomeViewingBalanceUiProps,
+    fiatCurrency: FiatCurrency,
     numberOfVisibleTransactions: Int,
   ): ListModel? {
     return transactionListUiStateMachine.model(
-      props =
-        TransactionListUiProps(
-          transactionVisibility =
-            TransactionListUiProps.TransactionVisibility.Some(
-              numberOfVisibleTransactions
-            ),
-          transactions = props.accountData.transactionsData.transactions,
-          fiatCurrency = props.fiatCurrency,
-          onTransactionClicked = { transaction ->
-            props.setState(
-              ViewingTransactionUiState(
-                transaction = transaction,
-                entryPoint = BALANCE
-              )
+      props = TransactionListUiProps(
+        transactionVisibility = TransactionListUiProps.TransactionVisibility.Some(
+          numberOfVisibleTransactions
+        ),
+        transactions = props.accountData.transactionsData.transactions,
+        fiatCurrency = fiatCurrency,
+        onTransactionClicked = { transaction ->
+          props.setState(
+            ViewingTransactionUiState(
+              transaction = transaction,
+              entryPoint = BALANCE
             )
-          }
-        )
+          )
+        }
+      )
     )?.let { transactionGroups ->
       ListModel(
         headerText = "Recent activity",
@@ -349,7 +420,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   @Composable
   private fun MoneyHomeBottomSheetModel(
     props: MoneyHomeViewingBalanceUiProps,
-    onShowAlert: (AlertModel) -> Unit,
+    onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): SheetModel? {
     return when (val globalBottomSheet = props.homeBottomSheetModel) {
@@ -360,7 +431,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               props =
                 AddBitcoinUiProps(
                   keybox = props.accountData.account.keybox,
-                  fiatCurrency = props.fiatCurrency,
                   purchaseAmount = currentState.purchaseAmount,
                   generateAddress = props.accountData.addressData.generateAddress,
                   onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
@@ -437,7 +507,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private fun handlePartnerRedirected(
     method: PartnerRedirectionMethod,
     props: MoneyHomeViewingBalanceUiProps,
-    onShowAlert: (AlertModel) -> Unit,
+    onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ) {
     when (method) {
@@ -447,10 +517,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             url = method.urlString,
             appRestrictions = method.appRestrictions
           )
-        val alertModel: AlertModel? =
+        val alertModel: ButtonAlertModel? =
           when (result) {
             OpenDeeplinkResult.Failed ->
-              AlertModel(
+              ButtonAlertModel(
                 title = "Failed to open ${method.partnerName}.",
                 subline = null,
                 onDismiss = onDismissAlert,
@@ -461,7 +531,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             is OpenDeeplinkResult.Opened ->
               when (result.appRestrictionResult) {
                 is Failed ->
-                  AlertModel(
+                  ButtonAlertModel(
                     title = "The version of ${method.partnerName} may be out of date. Please update your app.",
                     subline = null,
                     onDismiss = onDismissAlert,

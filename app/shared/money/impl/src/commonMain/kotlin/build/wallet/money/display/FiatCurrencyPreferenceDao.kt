@@ -13,7 +13,7 @@ interface FiatCurrencyPreferenceDao {
    *
    * Errors are logged but not emitted.
    */
-  fun fiatCurrencyPreference(): Flow<FiatCurrency>
+  fun fiatCurrencyPreference(): Flow<FiatCurrency?>
 
   /**
    * Sets the given currency as the customer's preferred fiat currency.

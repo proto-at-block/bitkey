@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib-jdk8",
     "components": [
         {
-            "version": "1.6.20",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-1.6.20.jar": "fdab1bf120e2b5e7ab6d7888e9ebc024ec6b8ca729361296395dab634b213695"
+                        "kotlin-stdlib-jdk8-1.8.0.jar": "05b62804441b0c9a1920b6b7d5cf7329a4e24b6258478e32b1f046ca01900946"
                     }
                 }
             ],
@@ -28,11 +28,11 @@
             ]
         },
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-1.9.22.jar": "47046c3edc32fe0db1a36bfe3d3822958bb5be4411c5ba80f3ae895a3ec27291"
+                        "kotlin-stdlib-jdk8-1.9.23.jar": "d624c60cc1b472a1dcbee3ad1ec4ea95f2fba0032152ddb15905c6207f7718ec"
                     }
                 }
             ],

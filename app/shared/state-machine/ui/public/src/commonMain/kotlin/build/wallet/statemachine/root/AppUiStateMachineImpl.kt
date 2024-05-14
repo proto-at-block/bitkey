@@ -11,10 +11,8 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bitkey.account.LiteAccountConfig
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.log
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.account.ChooseAccountAccessUiProps
 import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachine
@@ -67,9 +65,11 @@ import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitR
 import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
+import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.time.Delayer
+import build.wallet.worker.AppWorkerExecutor
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -92,6 +92,7 @@ class AppUiStateMachineImpl(
     LiteAccountCloudBackupRestorationUiStateMachine,
   private val emergencyAccessKitRecoveryUiStateMachine: EmergencyAccessKitRecoveryUiStateMachine,
   private val authKeyRotationUiStateMachine: RotateAuthKeyUIStateMachine,
+  private val appWorkerExecutor: AppWorkerExecutor,
 ) : AppUiStateMachine {
   /**
    * The last screen model emitted, if any.
@@ -104,6 +105,10 @@ class AppUiStateMachineImpl(
 
   @Composable
   override fun model(props: Unit): ScreenModel {
+    LaunchedEffect("execute-app-workers") {
+      appWorkerExecutor.executeAll()
+    }
+
     val appData = appDataStateMachine.model(Unit)
 
     var screenModel =
@@ -152,13 +157,10 @@ class AppUiStateMachineImpl(
 
     previousScreenModel = screenModel
 
-    // Only add debug functionality in non-customer builds
-    return when (appVariant) {
-      AppVariant.Beta, AppVariant.Customer, AppVariant.Emergency ->
-        screenModel
-
-      AppVariant.Team, AppVariant.Development ->
+    return when {
+      appVariant.showDebugMenu ->
         screenModel.copy(onTwoFingerDoubleTap = { isShowingDebugMenu = true })
+      else -> screenModel
     }
   }
 
@@ -190,7 +192,6 @@ class AppUiStateMachineImpl(
         liteHomeUiStateMachine.model(
           props = LiteHomeUiProps(
             accountData = accountData,
-            currencyPreferenceData = appData.currencyPreferenceData,
             firmwareData = appData.firmwareData
           )
         )
@@ -224,17 +225,14 @@ class AppUiStateMachineImpl(
       is GettingStartedData ->
         ChooseAccountAccessScreenModel(
           chooseAccountAccessData = accountData,
-          firmwareData = appData.firmwareData,
-          eakAssociation = appData.eakAssociation
+          firmwareData = appData.firmwareData
         )
 
       is RecoveringAccountData ->
         lostAppRecoveryUiStateMachine.model(
           LostAppRecoveryUiProps(
             recoveryData = accountData.lostAppRecoveryData,
-            fullAccountConfig = accountData.templateFullAccountConfig,
-            fiatCurrency = appData.currencyPreferenceData.fiatCurrencyPreference,
-            eakAssociation = appData.eakAssociation
+            fullAccountConfig = accountData.templateFullAccountConfig
           )
         )
 
@@ -267,7 +265,6 @@ class AppUiStateMachineImpl(
         gettingStartedRoutingStateMachine.model(
           GettingStartedRoutingProps(
             startIntent = accountData.intent,
-            eakAssociation = appData.eakAssociation,
             onStartLiteAccountRecovery = accountData.onStartLiteAccountRecovery,
             onStartCloudRecovery = accountData.onStartCloudRecovery,
             onStartLostAppRecovery = accountData.onStartLostAppRecovery,
@@ -325,8 +322,7 @@ class AppUiStateMachineImpl(
           HomeScreenModel(
             accountData = accountData,
             electrumServerData = appData.electrumServerData,
-            firmwareData = appData.firmwareData,
-            currencyPreferenceData = appData.currencyPreferenceData
+            firmwareData = appData.firmwareData
           )
         }
 
@@ -379,13 +375,11 @@ class AppUiStateMachineImpl(
   private fun ChooseAccountAccessScreenModel(
     chooseAccountAccessData: GettingStartedData,
     firmwareData: FirmwareData,
-    eakAssociation: EmergencyAccessKitAssociation,
   ): ScreenModel =
     chooseAccountAccessUiStateMachine.model(
       props = ChooseAccountAccessUiProps(
         chooseAccountAccessData = chooseAccountAccessData,
-        firmwareData = firmwareData,
-        eakAssociation = eakAssociation
+        firmwareData = firmwareData
       )
     )
 
@@ -394,14 +388,12 @@ class AppUiStateMachineImpl(
     accountData: ActiveFullAccountLoadedData,
     electrumServerData: ElectrumServerData,
     firmwareData: FirmwareData,
-    currencyPreferenceData: CurrencyPreferenceData,
   ): ScreenModel =
     homeUiStateMachine.model(
       props = HomeUiProps(
         accountData = accountData,
         electrumServerData = electrumServerData,
-        firmwareData = firmwareData,
-        currencyPreferenceData = currencyPreferenceData
+        firmwareData = firmwareData
       )
     )
 

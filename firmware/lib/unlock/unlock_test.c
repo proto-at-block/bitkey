@@ -29,7 +29,7 @@ uint16_t crypto_rand_short(void) {
 uint32_t clock_get_freq(void) {
   return 1;
 }
-void set_authenticated(secure_bool_t auth) {
+void set_authenticated_with_animation(secure_bool_t auth) {
   authed = auth;
 }
 

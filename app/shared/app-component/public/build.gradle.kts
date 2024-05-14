@@ -32,6 +32,7 @@ kotlin {
         api(projects.shared.sqldelightPublic)
         api(projects.shared.timePublic)
         api(projects.shared.fwupPublic)
+        api(projects.shared.inAppSecurityPublic)
       }
     }
   }

@@ -5,7 +5,7 @@ import build.wallet.statemachine.cloud.RetryCloudSignInButton
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.button.ButtonModel.Treatment.SecondaryDestructive
@@ -48,12 +48,12 @@ internal fun FoundCloudBackupForDifferentAccountModel(
 internal fun OverwriteExistingBackupConfirmationAlert(
   onConfirm: () -> Unit,
   onCancel: () -> Unit,
-) = AlertModel(
+) = ButtonAlertModel(
   title = "Overwrite existing backup?",
   subline = "This will replace any backups that you might have on this cloud account",
   primaryButtonText = "Overwrite",
   onPrimaryButtonClick = onConfirm,
-  primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
+  primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
   secondaryButtonText = "Cancel",
   onSecondaryButtonClick = onCancel,
   onDismiss = onCancel

@@ -7,3 +7,9 @@ variable "name" {
   type        = string
   description = "The name of the ECS service"
 }
+
+variable "enable_deletion_protection" {
+  type        = bool
+  description = "Whether or not to enable deletion protection"
+  default     = true
+}

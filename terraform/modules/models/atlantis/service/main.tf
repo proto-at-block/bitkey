@@ -89,6 +89,10 @@ module "atlantis" {
     {
       name  = "ATLANTIS_QUIET_POLICY_CHECKS",
       value = "true"
+    },
+    {
+      name  = "ATLANTIS_DISABLE_AUTOPLAN_LABEL"
+      value = "no-autoplan"
     }
   ]
 

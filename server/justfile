@@ -38,6 +38,7 @@ wsm-enclave-eif:
 sidecars:
   docker compose -f docker-compose-sidecars.yml up --wait
   src/wsm/scripts/setup_wsm_local_ddb.sh
+  curl -X DELETE -s -o /dev/null http://localhost:8001/tables-purge
 
 # Stop sidecars
 stop-sidecars:
@@ -69,6 +70,9 @@ run: sidecars run-server
 # Run the server in debug mode
 run-server *args:
   ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server --features partnerships -- server {{args}}
+
+grind-signet-coins:
+  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- cron coin-grinder
 
 # Run the server in debug mode
 migrate-from-unified-keysets:
@@ -137,39 +141,54 @@ stack-up stack_name=env_var('USER'):
 stack-down stack_name=env_var('USER'):
   ./scripts/tear_down_named_env.sh {{ stack_name }}
 
-compose_backends := "docker compose -f docker-compose-integration.yml"
+compose_file := "docker-compose-integration.yml"
+compose_backends := "docker compose -f " + compose_file
 
 start-backend $TAG="latest" $PRINT_LOGS="0":
   #!/bin/bash
   set -e
   if [[ -z "$AWS_ACCESS_KEY_ID" ]]; then
-    AWS_PROFILE=w1-development--admin aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 000000000000.dkr.ecr.us-west-2.amazonaws.com
+    echo "🔒 Logging into ECR"
+    AWS_PROFILE=bitkey-development--admin aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 000000000000.dkr.ecr.us-west-2.amazonaws.com
   fi
   export WALLET_API_IMAGE_REPO="000000000000.dkr.ecr.us-west-2.amazonaws.com/wallet-api"
   export WSM_ENCLAVE_IMAGE_REPO="000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-enclave"
   export WSM_API_IMAGE_REPO="000000000000.dkr.ecr.us-west-2.amazonaws.com/wsm-api"
-  echo "TAG: $TAG"
+  echo "⬇️  Downloading images with tag \"$TAG\""
 
   if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
-    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
   fi
 
   {{ compose_backends }} pull fromagerie wsm-enclave wsm-api
   set +e
   {{ compose_backends }} up --wait
-  # If starting the containers failed, print logs and exit
-  if [[ $? -ne 0 ]]; then
-    {{ compose_backends }} logs
+  status=$?
+
+  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs
+
+  # If starting the containers failed, print debug instructions and exit
+  if [[ $status -ne 0 ]]; then
+    echo ""
+    echo "❌ Failed to start containers. View logs by running"
+    echo ""
+    echo "    docker-compose -f $PWD/{{ compose_file }} logs"
+    echo ""
+    echo "   View logs for a specific container by running"
+    echo ""
+    echo "    docker-compose -f $PWD/{{ compose_file }} logs <container-name>"
     exit 1
   fi
+
   set -e
 
-  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs || true
   just _setup-treasury
 
 start-backend-local-build $PRINT_LOGS="0":
   #!/bin/bash
   set -e
+  echo "⚙️ Building images. This will take a while (>10 minutes)"
+  echo ""
   docker buildx bake api wsm-api wsm-enclave
 
   export WALLET_API_IMAGE_REPO="api"
@@ -178,48 +197,67 @@ start-backend-local-build $PRINT_LOGS="0":
   export TAG="latest"
 
   if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
-    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
   fi
 
   set +e
   {{ compose_backends }} up --wait
-  # If starting the containers failed, print logs and exit
-  if [[ $? -ne 0 ]]; then
-    {{ compose_backends }} logs
+  status=$?
+
+  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs
+
+  # If starting the containers failed, print debug instructions and exit
+  if [[ $status -ne 0 ]]; then
+    echo ""
+    echo "❌ Failed to start containers. View logs by running"
+    echo ""
+    echo "       docker-compose -f $PWD/{{ compose_file }} logs"
+    echo ""
+    echo "   View logs for a specific container by running"
+    echo ""
+    echo "       docker-compose -f $PWD/{{ compose_file }} logs <container-name>"
     exit 1
   fi
-  set -e
 
-  [[ "$PRINT_LOGS" -eq 1 ]] && {{ compose_backends }} logs || true
+  set -e
   just _setup-treasury
 
 bitcoincli := "docker exec server-bitcoind-1 bitcoin-cli -regtest -rpcuser=test -rpcpassword=test"
 
 _setup-treasury:
   #!/bin/bash
-  set -x
-  {{ bitcoincli }} -named createwallet wallet_name=testwallet blank=true
-  {{ bitcoincli }} -rpcwallet=testwallet importdescriptors '[
-    {
-        "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/0/*)#hhlcx0nt",
-        "timestamp": "now",
-        "active": true,
-        "internal": false
-    },
-    {
-        "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/1/*)#xr6em6rn",
-        "timestamp": "now",
-        "active": true,
-        "internal": true
-    }
-  ]'
+  echo "🔧 Setting up the treasury"
+  logfile=$(mktemp)
+  {{ bitcoincli }} -named createwallet wallet_name=testwallet blank=true >> $logfile 2>&1
+  status=$?
+  if [[ $status -eq 4 ]]; then
+     echo "✅ Treasury wallet already exists, skipping descriptor import"
+  elif [[ $status -ne 0 ]]; then
+    echo "❌ Failed to create wallet"
+    cat $logfile
+    exit 1
+  else
+    {{ bitcoincli }} -rpcwallet=testwallet importdescriptors '[
+      {
+          "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/0/*)#hhlcx0nt",
+          "timestamp": "now",
+          "active": true,
+          "internal": false
+      },
+      {
+          "desc": "wpkh(tprv8h8PWPocKYoPkajXdGQhTwnqb9sSBiT6vGif5zJongZoAXKmWxkTcqZpRPNmtzzFojgN4k7DFdeMUY2cHFQCwEyQRyejXcs2RKjnbZTPMj3/84h/1h/0h/1/*)#xr6em6rn",
+          "timestamp": "now",
+          "active": true,
+          "internal": true
+      }
+    ]' >> $logfile
+    [[ $? -ne 0 ]] && echo "❌ Failed to import descriptors" && cat $logfile && exit 1 || true
+    echo "✅ Created treasury wallet"
+  fi
   addr=$({{ bitcoincli }} -rpcwallet=testwallet getnewaddress | xargs)
-  # Mine a single block to our treasury
-  {{ bitcoincli }} generatetoaddress 1 $addr
-  # Send the rest to a blackhole
-  # See https://github.com/bitcoindevkit/bdk/issues/1148.
-  # We can remove this (change above to 101 blocks) after we bump bdk to 0.29
-  {{ bitcoincli }} generatetoaddress 100 bcrt1qrt37mr0kf2th5dgsqq6k87tl8k220e7nj4ts5u
+  echo "⛏️  Mining 101 blocks to the treasury address \"$addr\""
+  {{ bitcoincli }} generatetoaddress 101 $addr >> $logfile
+  [[ $? -ne 0 ]] && echo "❌ Failed to mine a block" && cat $logfile && exit 1 || true
 
 stop-backend:
   {{ compose_backends }} down --volumes --timeout=1
@@ -242,7 +280,7 @@ _run-api $ROCKET_PORT="8080" $ROCKET_PROFILE="localprod":
   #!/bin/bash
   set -e
   if [[ -z "$LAUNCHDARKLY_SDK_KEY" ]]; then
-    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
+    export LAUNCHDARKLY_SDK_KEY=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 --secret-id fromagerie/launchdarkly/sdk_key | jq -r .SecretString)
   fi
   cd src/api && ../../target/debug/server server
 

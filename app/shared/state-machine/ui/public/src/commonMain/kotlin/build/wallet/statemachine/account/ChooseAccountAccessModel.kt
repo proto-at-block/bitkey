@@ -2,6 +2,7 @@ package build.wallet.statemachine.account
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -26,7 +27,7 @@ data class ChooseAccountAccessModel(
     title = "Own your bitcoin",
     subtitle = "Bitcoin ownership that's easy to use and hard to lose.",
     buttons =
-      buildList {
+      buildImmutableList {
         add(
           ButtonModel(
             text = "Set up a new wallet",

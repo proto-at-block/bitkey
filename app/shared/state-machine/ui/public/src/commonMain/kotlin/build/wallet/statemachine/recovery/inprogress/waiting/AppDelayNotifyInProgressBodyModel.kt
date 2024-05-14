@@ -1,5 +1,6 @@
 package build.wallet.statemachine.recovery.inprogress.waiting
 
+import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
@@ -33,7 +34,7 @@ data class AppDelayNotifyInProgressBodyModel(
   constructor(
     onStopRecovery: () -> Unit,
     durationTitle: String,
-    progress: Float,
+    progress: Progress,
     remainingDelayPeriod: Duration,
     onExit: (() -> Unit)?,
   ) : this(

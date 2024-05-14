@@ -1,6 +1,6 @@
 use account::entities::Factor;
 use bdk_utils::{generate_electrum_rpc_uris, metrics as bdk_utils_metrics};
-use metrics::{factory::Histogram, factory::ObservableCallbackRegistry, KeyValue};
+use instrumentation::metrics::{factory::Histogram, factory::ObservableCallbackRegistry, KeyValue};
 use notification::{
     metrics as notification_metrics, EMAIL_QUEUE_ENV_VAR, PUSH_QUEUE_ENV_VAR, SMS_QUEUE_ENV_VAR,
 };

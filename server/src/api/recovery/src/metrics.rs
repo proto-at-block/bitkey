@@ -1,4 +1,4 @@
-use metrics::{
+use instrumentation::metrics::{
     factory::Counter, factory::Histogram, factory::MetricsFactory, factory::ObservableGauge, Unit,
 };
 use once_cell::sync::Lazy;

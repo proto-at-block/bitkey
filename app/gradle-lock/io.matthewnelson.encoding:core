@@ -2,11 +2,11 @@
     "module-identifier": "io.matthewnelson.encoding:core",
     "components": [
         {
-            "version": "2.1.0",
+            "version": "2.2.1",
             "variants": [
                 {
                     "artifacts": {
-                        "core-metadata-2.1.0.jar": "6456444d9bae3dccb82ca9b2a73092caff59ebb90d76062b524c9e3c457c0ffe"
+                        "core-metadata-2.2.1.jar": "6d99b6169e3372259cac35d0bdac27965c4d6e790a6a661566d760b6e8054ca9"
                     }
                 }
             ],

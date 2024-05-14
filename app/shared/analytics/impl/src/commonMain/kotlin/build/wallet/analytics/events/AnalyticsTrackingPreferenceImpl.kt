@@ -6,7 +6,6 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -51,7 +50,6 @@ class AnalyticsTrackingPreferenceImpl(
         .analyticsTrackingDebugConfigQueries
         .getConfig()
         .asFlowOfOneOrNull()
-        .unwrapLoadedValue()
         .map { it.get()?.enabled ?: false }
     }
   }

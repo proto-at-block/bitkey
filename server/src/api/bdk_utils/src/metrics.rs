@@ -1,4 +1,4 @@
-use metrics::{factory::Histogram, factory::MetricsFactory, Unit};
+use instrumentation::metrics::{factory::Histogram, factory::MetricsFactory, Unit};
 use once_cell::sync::Lazy;
 
 pub(crate) const FACTORY_NAME: &str = "bdk_utils";

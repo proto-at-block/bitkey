@@ -2,6 +2,7 @@ package build.wallet.statemachine.core.input
 
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -21,7 +22,6 @@ import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 fun VerificationCodeInputBodyModel(
   title: String,
@@ -42,7 +42,7 @@ fun VerificationCodeInputBodyModel(
       toolbar = ToolbarModel(leadingAccessory = BackAccessory(onClick = onBack)),
       header = FormHeaderModel(headline = title, subline = subtitle),
       mainContentList =
-        buildList {
+        buildImmutableList {
           add(
             VerificationCodeInput(
               fieldModel =
@@ -71,7 +71,7 @@ fun VerificationCodeInputBodyModel(
               )
             )
           }
-        }.toImmutableList(),
+        },
       primaryButton = null
     ),
   presentationStyle = ScreenPresentationStyle.Modal,

@@ -5,13 +5,15 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListService.Success
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.money.FiatMoney
 import build.wallet.platform.settings.CountryCodeGuesser
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -32,7 +34,7 @@ class GetPurchaseQuoteListServiceImpl(
       )
       .bodyResult<ResponseBody> {
         post("/api/partnerships/purchases/quotes") {
-          setBody(
+          setRedactedBody(
             RequestBody(
               country = countryCodeGuesser.countryCode().uppercase(),
               fiatAmount = fiatAmount.value.doubleValue(exactRequired = false),
@@ -54,10 +56,10 @@ class GetPurchaseQuoteListServiceImpl(
     val fiatCurrency: String,
     @SerialName("payment_method")
     val paymentMethod: String,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   private data class ResponseBody(
     val quotes: List<Quote>,
-  )
+  ) : RedactedResponseBody
 }

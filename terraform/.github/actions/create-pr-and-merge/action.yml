@@ -1,0 +1,53 @@
+name: ECR Login
+description: Log in to our ECR accounts across environments
+
+inputs:
+  app-id:
+    description: "GitHub App ID"
+  private-key:
+    description: "GitHub App Private Key"
+  pr-title:
+    description: "PR title"
+  pr-body:
+    description: "PR body"
+  pr-branch:
+    description: "branch to push to for PR"
+outputs:
+  pull-request-number:
+    description: "PR number of the created Pull Request"
+    value: ${{ steps.create-pr.outputs.pull-request-number }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Get codestyle bot token
+      id: bot-token
+      uses: getsentry/action-github-app-token@97c9e23528286821f97fba885c1b1123284b29cc  # v2
+      with:
+        app_id: ${{ inputs.app-id }}
+        private_key: ${{ inputs.private-key }}
+    - name: Create PR
+      uses: peter-evans/create-pull-request@70a41aba780001da0a30141984ae2a0c95d8704e # v6.02
+      id: create-pr
+      with:
+        title: ${{ inputs.pr-title }}
+        body: ${{ inputs.pr-body }}
+        commit-message: |
+          ${{ inputs.pr-title }}
+          ${{ inputs.pr-body }}
+        base: main
+        branch: ${{ inputs.pr-branch }}
+        labels: automerge,no-autoplan
+    - uses: hmarr/auto-approve-action@a2e6f2a0ccf5c63ef8754de360464edbf47e66ee  # v3
+      if: ${{ steps.create-pr.outputs.pull-request-number }}
+      with:
+        github-token: ${{ steps.bot-token.outputs.token}}
+        pull-request-number: ${{ steps.create-pr.outputs.pull-request-number }}
+    - name: Merge PR
+      uses: "pascalgn/automerge-action@22948e0bc22f0aa673800da838595a3e7347e584"  # 0.15.6
+      if: ${{ steps.create-pr.outputs.pull-request-number }}
+      env:
+        GITHUB_TOKEN: ${{ steps.bot-token.outputs.token}}
+        MERGE_METHOD: rebase
+        MERGE_READY_STATE: clean,has_hooks,unknown,unstable,blocked
+        PULL_REQUEST: ${{ steps.create-pr.outputs.pull-request-number }}

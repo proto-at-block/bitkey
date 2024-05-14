@@ -2,7 +2,6 @@ package build.wallet.statemachine.recovery.lostapp
 
 import androidx.compose.runtime.Composable
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
@@ -22,7 +21,6 @@ interface LostAppRecoveryHaveNotStartedUiStateMachine : StateMachine<LostAppReco
 data class LostAppRecoveryHaveNotStartedUiProps(
   val notUndergoingRecoveryData: LostAppRecoveryData.LostAppRecoveryHaveNotStartedData,
   val fullAccountConfig: FullAccountConfig,
-  val eakAssociation: EmergencyAccessKitAssociation,
 )
 
 class LostAppRecoveryHaveNotStartedUiStateMachineImpl(

@@ -1,12 +1,13 @@
 package build.wallet.statemachine.recovery.hardware
 
+import build.wallet.Progress
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 
 fun HardwareRecoveryCardModel(
   title: String,
   subtitle: String? = null,
-  delayPeriodProgress: Float,
+  delayPeriodProgress: Progress,
   delayPeriodRemainingSeconds: Long,
   onClick: () -> Unit,
 ) = CardModel(

@@ -56,9 +56,11 @@ kotlin {
         api(projects.shared.firmwarePublic)
         api(projects.shared.emailPublic)
         api(projects.shared.coroutinesPublic)
+        api(projects.shared.workerPublic)
         implementation(projects.shared.supportPublic)
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.availabilityPublic)
+        implementation(projects.shared.inAppSecurityPublic)
       }
     }
 
@@ -110,6 +112,7 @@ kotlin {
         implementation(projects.shared.stateMachineFrameworkTesting)
         implementation(projects.shared.stateMachineUiTesting)
         implementation(projects.shared.testingPublic)
+        implementation(projects.shared.workerFake)
         implementation(libs.kmp.okio)
       }
     }

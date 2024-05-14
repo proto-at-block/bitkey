@@ -11,7 +11,7 @@ import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBottomSheetModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachineImpl.State.ViewingProtectedCustomer
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -19,7 +19,7 @@ class ViewingProtectedCustomerUiStateMachineImpl : ViewingProtectedCustomerUiSta
   @Composable
   override fun model(props: ViewingProtectedCustomerProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(ViewingProtectedCustomer()) }
-    var alertModel: AlertModel? by remember { mutableStateOf(null) }
+    var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
 
     val bottomSheetModel =
       when (val state = uiState) {

@@ -20,7 +20,7 @@ import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.device.DevicePlatform.IOS
 import build.wallet.platform.settings.LocaleCountryCodeProviderMock
-import build.wallet.platform.settings.LocaleCurrencyCodeProviderMock
+import build.wallet.platform.settings.LocaleCurrencyCodeProviderFake
 import build.wallet.queueprocessor.ProcessorMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
@@ -66,7 +66,7 @@ class EventTrackerImplTests : FunSpec({
       eventStore = eventStore,
       bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(),
       fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
-      localeCurrencyCodeProvider = LocaleCurrencyCodeProviderMock(),
+      localeCurrencyCodeProvider = LocaleCurrencyCodeProviderFake(),
       analyticsTrackingPreference = analyticsTrackingPreference
     )
 

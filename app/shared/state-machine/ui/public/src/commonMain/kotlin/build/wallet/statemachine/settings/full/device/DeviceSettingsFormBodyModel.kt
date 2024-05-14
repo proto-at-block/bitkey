@@ -2,12 +2,14 @@ package build.wallet.statemachine.settings.full.device
 
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.SmallIconSync
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Button
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.DataHero
+import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Spacer
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -20,6 +22,12 @@ import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryPrimaryNoUnder
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.XLarge
+import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.list.ListGroupModel
+import build.wallet.ui.model.list.ListGroupStyle
+import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.ListItemModel
+import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -54,6 +62,9 @@ fun DeviceSettingsFormBodyModel(
   onReplaceDevice: () -> Unit,
   onManageReplacement: (() -> Unit)?,
   onBack: () -> Unit,
+  multipleFingerprintsEnabled: Boolean,
+  resetDeviceEnabled: Boolean,
+  onManageFingerprints: () -> Unit,
 ) = FormBodyModel(
   id = trackerScreenId,
   onBack = onBack,
@@ -64,7 +75,7 @@ fun DeviceSettingsFormBodyModel(
     ),
   header = null,
   mainContentList =
-    immutableListOf(
+    immutableListOfNotNull(
       DataList(
         hero =
           DataHero(
@@ -165,6 +176,25 @@ fun DeviceSettingsFormBodyModel(
             )
           )
       ),
+      ListGroup(
+        listGroupModel = ListGroupModel(
+          items = immutableListOfNotNull(
+            ListItemModel(
+              title = "Fingerprints",
+              treatment = ListItemTreatment.SECONDARY,
+              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+              onClick = onManageFingerprints
+            ).takeIf { multipleFingerprintsEnabled },
+            ListItemModel(
+              title = "Reset device",
+              treatment = ListItemTreatment.SECONDARY,
+              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+              onClick = {}
+            ).takeIf { resetDeviceEnabled }
+          ),
+          style = ListGroupStyle.CARD_GROUP_DIVIDER
+        )
+      ).takeIf { multipleFingerprintsEnabled || resetDeviceEnabled },
       if (replacementPending == null) {
         Button(
           item =

@@ -2,16 +2,9 @@ package build.wallet
 
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.LoadableValue.LoadedValue
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.transformLatest
 import kotlin.contracts.contract
 
@@ -19,8 +12,7 @@ import kotlin.contracts.contract
  * Helpful in cases where consumer needs a [Flow] to differentiate between [InitialLoading] and
  * [LoadedValue].
  *
- * [Flow.asLoadableValue] is the preferred way to wrap result values in a [Flow] into [LoadableValue].
- * [Flow.unwrapLoadedValue] can be used to unwrap loaded values and ignore [InitialLoading].
+ * [Flow.asLoadableValue] is the preferred way to wrap values in a [Flow] into [LoadableValue].
  */
 sealed interface LoadableValue<out T> {
   /**
@@ -53,28 +45,18 @@ inline infix fun <T, R> LoadableValue<T>.map(transform: (T) -> R): LoadableValue
 }
 
 /**
- * Ignores [InitialLoading] and safely unwraps [LoadedValue.value] on success.
+ * Wraps values in this [Flow] into [LoadedValue] and emits [InitialLoading] on
+ * start.
+ *
+ * This is helpful in cases where consumer needs a [Flow] to use explicit type to differentiate
+ * between [InitialLoading] and [LoadedValue].
+ *
+ * This is the preferred way to convert [Flow] to emit [LoadableValue].
  */
-fun <T, E> Flow<Result<LoadableValue<T>, E>>.unwrapLoadedValue(): Flow<Result<T, E>> =
-  transform { result ->
-    result
-      .onSuccess {
-        when (it) {
-          InitialLoading -> Unit // Ignore initial loading
-          is LoadedValue -> emit(Ok(it.value))
-        }
-      }
-      .onFailure { error -> emit(Err(error)) }
-  }
-
-/**
- * Wraps successful result values in this [Flow] into [LoadedValue] and emits [InitialLoading] on
- * start. This is the preferred way to convert [Flow] to emit [LoadableValue].
- */
-fun <T, E> Flow<Result<T, E>>.asLoadableValue(): Flow<Result<LoadableValue<T>, E>> {
+fun <T> Flow<T>.asLoadableValue(): Flow<LoadableValue<T>> {
   @Suppress("USELESS_CAST") // Compiler seems to require casting here.
-  return map { result -> result.map { LoadedValue(it) as LoadableValue<T> } }
-    .onStart { emit(Ok<LoadableValue<T>>(InitialLoading)) }
+  return map { LoadedValue(it) as LoadableValue<T> }
+    .onStart { emit(InitialLoading) }
 }
 
 /**

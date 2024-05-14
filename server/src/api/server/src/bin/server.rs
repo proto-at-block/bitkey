@@ -25,6 +25,10 @@ pub(crate) enum Commands {
         command: WorkerCommands,
     },
     Migrate,
+    Cron {
+        #[clap(subcommand)]
+        command: CronCommands,
+    },
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -54,6 +58,13 @@ pub(crate) enum WorkerCommands {
         #[arg(long, default_value_t = 300, env = "SLEEP_DURATION_SECONDS")]
         sleep_duration_seconds: u64,
     },
+}
+
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Subcommand)]
+pub(crate) enum CronCommands {
+    /// Grinds signet coins for our mobile integration tests wallet (for testing purposes only)
+    CoinGrinder,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -155,6 +166,11 @@ async fn main() -> Result<(), Error> {
                 migration_runner.run_migrations().await?;
             }
         }
+        Commands::Cron { command } => match command {
+            CronCommands::CoinGrinder => {
+                workers::jobs::coin_grinder::handler().await?;
+            }
+        },
     }
 
     Ok(())

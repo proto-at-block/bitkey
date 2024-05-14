@@ -24,7 +24,7 @@ errors = { workspace = true }
 exchange_rate = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
-metrics = { workspace = true }
+instrumentation ={ workspace = true }
 migration = { workspace = true }
 screener = { workspace = true }
 types = { workspace = true, features = [

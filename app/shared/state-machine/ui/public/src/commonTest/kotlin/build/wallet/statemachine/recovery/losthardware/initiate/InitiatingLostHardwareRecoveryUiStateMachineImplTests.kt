@@ -34,6 +34,7 @@ import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerif
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
+import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldBeNull
@@ -286,7 +287,7 @@ class InitiatingLostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           .shouldBeEqual(
             HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
           )
-        alertModel.shouldNotBeNull()
+        alertModel.shouldBeTypeOf<ButtonAlertModel>()
           .onDismiss()
       }
 

@@ -6,17 +6,17 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
-import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.notifications.NotificationTouchpoint
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -36,10 +36,10 @@ class RecoveryNotificationVerificationServiceImpl(
     )
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/delay-notify/send-verification-code") {
-          setBody(SendVerificationCodeRequest(touchpoint.touchpointId))
+          withDescription("Send verification code during recovery")
+          setRedactedBody(SendVerificationCodeRequest(touchpoint.touchpointId))
         }
       }.map { Unit }
-      .logNetworkFailure { "Failed to send verification code during recovery" }
   }
 
   override suspend fun verifyCode(
@@ -55,23 +55,23 @@ class RecoveryNotificationVerificationServiceImpl(
     )
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/delay-notify/verify-code") {
-          setBody(VerifyTouchpointRequest(verificationCode))
+          withDescription("Verify notification touchpoint during recovery")
+          setRedactedBody(VerifyTouchpointRequest(verificationCode))
         }
       }
       .map { Unit }
       .mapError { it.toF8eError<VerifyTouchpointClientErrorCode>() }
-      .logF8eFailure { "Failed to verify notification touchpoint during recovery" }
   }
 
   @Serializable
   data class SendVerificationCodeRequest(
     @SerialName("touchpoint_id")
     val touchpointId: String,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   data class VerifyTouchpointRequest(
     @SerialName("verification_code")
     val verificationCode: String,
-  )
+  ) : RedactedRequestBody
 }

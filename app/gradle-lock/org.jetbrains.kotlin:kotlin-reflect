@@ -15,19 +15,6 @@
             ]
         },
         {
-            "version": "1.9.10",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-reflect-1.9.10.jar": "8a835f5176355083668aff0ed6eef5b3eb030e10e89679ed3eeb703fd2d5b900"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "1.9.21",
             "variants": [
                 {
@@ -46,6 +33,19 @@
                 {
                     "artifacts": {
                         "kotlin-reflect-1.9.22.jar": "77f311ca1384811d519fda389fcb1268bdaa058d605046e0ede76c03b0df3e97"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "1.9.23",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-reflect-1.9.23.jar": "747c2927a623b6ebb734b465d6a26862e920ddd1828ef43716887c0849a3131f"
                     }
                 }
             ],

@@ -1,13 +1,16 @@
 package build.wallet.gradle.logic
 
+import build.wallet.gradle.logic.extensions.systemProperty
 import build.wallet.gradle.logic.gradle.apply
 import build.wallet.gradle.logic.gradle.implementation
 import build.wallet.gradle.logic.gradle.kotlin
 import build.wallet.gradle.logic.gradle.libs
 import build.wallet.gradle.logic.gradle.sourceSets
 import dev.zacsweers.redacted.gradle.RedactedGradleSubplugin
+import dev.zacsweers.redacted.gradle.RedactedPluginExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.configure
 
 /**
  * Custom plugin to apply Redacted Gradle plugin.
@@ -19,6 +22,12 @@ internal class RedactedPlugin : Plugin<Project> {
   override fun apply(target: Project) =
     target.run {
       pluginManager.apply<RedactedGradleSubplugin>()
+      if (isIntelliJ()) {
+        // Disable redaction when run from Intellij
+        extensions.configure(RedactedPluginExtension::class) {
+          enabled.set(false)
+        }
+      }
       kotlin {
         sourceSets {
           commonMain {
@@ -29,4 +38,6 @@ internal class RedactedPlugin : Plugin<Project> {
         }
       }
     }
+
+  private fun Project.isIntelliJ(): Boolean = systemProperty("idea.active").isPresent
 }

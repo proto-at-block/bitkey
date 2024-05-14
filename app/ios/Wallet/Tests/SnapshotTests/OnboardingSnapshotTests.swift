@@ -66,7 +66,8 @@ final class OnboardingSnapshotTests: XCTestCase {
                 onErrorOverlayClosed: {},
                 eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery,
                 presentationStyle: .root, 
-                isNavigatingBack: false
+                isNavigatingBack: false,
+                headline: "Set up your fingerprint"
             ).body as! PairNewHardwareBodyModel
         )
 

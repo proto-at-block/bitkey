@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.statemachine.transactions.TransactionListUiProps.TransactionVisibility.All
 import build.wallet.statemachine.transactions.TransactionListUiProps.TransactionVisibility.Some
 import build.wallet.ui.model.list.ListGroupModel
@@ -24,7 +25,7 @@ class TransactionListUiStateMachineImpl(
       props.transactions.isEmpty() -> null
 
       else ->
-        buildList {
+        buildImmutableList {
           if (pendingTransactions.isNotEmpty() && confirmedTransactions.isNotEmpty()) {
             add(TransactionSectionModel(props, pendingTransactions))
             add(TransactionSectionModel(props, confirmedTransactions))
@@ -35,7 +36,7 @@ class TransactionListUiStateMachineImpl(
               add(TransactionSectionModel(props, confirmedTransactions))
             }
           }
-        }.toImmutableList()
+        }
     }
   }
 

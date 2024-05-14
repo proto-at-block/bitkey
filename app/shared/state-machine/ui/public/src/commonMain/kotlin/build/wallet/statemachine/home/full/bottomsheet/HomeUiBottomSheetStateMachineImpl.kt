@@ -11,6 +11,7 @@ import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId.CURR
 import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.home.HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY
 import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.SheetModel
@@ -22,6 +23,7 @@ import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledDa
 
 class HomeUiBottomSheetStateMachineImpl(
   private val homeUiBottomSheetDao: HomeUiBottomSheetDao,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : HomeUiBottomSheetStateMachine {
   @Composable
   override fun model(props: HomeUiBottomSheetProps): SheetModel? {
@@ -32,6 +34,8 @@ class HomeUiBottomSheetStateMachineImpl(
         .collectAsState(null)
         .value
 
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
     // Return the persisted model to a SheetModel
     return when (homeUiBottomSheetId) {
       null ->
@@ -39,7 +43,7 @@ class HomeUiBottomSheetStateMachineImpl(
 
       CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY ->
         CurrencyChangeMobilePayHomeUiBottomSheetModel(
-          fiatCurrency = props.fiatCurrency,
+          fiatCurrency = fiatCurrency,
           mobilePayData = props.mobilePayData,
           onClearSheet = {
             homeUiBottomSheetDao.clearHomeUiBottomSheet()
@@ -71,7 +75,9 @@ private fun CurrencyChangeMobilePayHomeUiBottomSheetModel(
   val mobilePayCurrency =
     when (mobilePayData) {
       is LoadingMobilePayData -> return null
-      is MobilePayDisabledData -> mobilePayData.mostRecentSpendingLimit?.amount?.currency ?: return null
+      is MobilePayDisabledData ->
+        mobilePayData.mostRecentSpendingLimit?.amount?.currency
+          ?: return null
       is MobilePayEnabledData -> mobilePayData.activeSpendingLimit.amount.currency
     }
 

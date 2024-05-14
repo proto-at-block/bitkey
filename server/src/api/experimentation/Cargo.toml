@@ -18,4 +18,5 @@ account = { workspace = true }
 analytics = { workspace = true }
 errors = { workspace = true }
 feature_flags = { workspace = true }
+instrumentation = { workspace = true }
 types = { workspace = true, features = ["account"] }

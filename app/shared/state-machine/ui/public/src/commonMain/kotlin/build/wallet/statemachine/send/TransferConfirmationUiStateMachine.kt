@@ -8,7 +8,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.limit.SpendingLimit
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -16,13 +15,13 @@ import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountDat
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableMap
 
-interface TransferConfirmationUiStateMachine : StateMachine<TransferConfirmationUiProps, ScreenModel>
+interface TransferConfirmationUiStateMachine :
+  StateMachine<TransferConfirmationUiProps, ScreenModel>
 
 /**
  * @property transferMoney the exact amount of money that the recipient will receive, does not
  * include mining fee.
  * @property requiredSigner factor that the transaction needs to be signed with.
- * @property fiatCurrency The fiat currency to convert BTC amounts to and from.
  * @property exchangeRates The exchange rates at the time the customer launches the send flow.
  * @property onBack callback when we want to go back to the last state of the send flow
  * @property onExit callback when we want to exit the send flow
@@ -34,7 +33,6 @@ data class TransferConfirmationUiProps(
   val sendAmount: BitcoinTransactionSendAmount,
   val requiredSigner: SigningFactor,
   val spendingLimit: SpendingLimit?,
-  val fiatCurrency: FiatCurrency,
   val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val onTransferInitiated: (psbt: Psbt, priority: EstimatedTransactionPriority) -> Unit,

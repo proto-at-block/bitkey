@@ -6,12 +6,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import build.wallet.LoadableValue.InitialLoading
 import build.wallet.LoadableValue.LoadedValue
-import build.wallet.map
+import build.wallet.asLoadableValue
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.LoadingFullAccountTransactionsData
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
 import kotlin.time.Duration.Companion.seconds
 
 class FullAccountTransactionsDataStateMachineImpl : FullAccountTransactionsDataStateMachine {
@@ -29,23 +28,23 @@ class FullAccountTransactionsDataStateMachineImpl : FullAccountTransactionsDataS
 
     val balance =
       remember(props.wallet) {
-        props.wallet.balance()
+        props.wallet.balance().asLoadableValue()
       }.collectAsState(InitialLoading).value
 
     val transactions =
       remember(props.wallet) {
-        props.wallet.transactions().map { value -> value.map { it.toImmutableList() } }
+        props.wallet.transactions().asLoadableValue()
       }.collectAsState(InitialLoading).value
 
     val unspentOutputs = remember(props.wallet) {
-      props.wallet.unspentOutputs().map { value -> value.map { it.toImmutableList() } }
+      props.wallet.unspentOutputs().asLoadableValue()
     }.collectAsState(InitialLoading).value
 
     return if (balance is LoadedValue && transactions is LoadedValue && unspentOutputs is LoadedValue) {
       FullAccountTransactionsLoadedData(
         balance = balance.value,
-        transactions = transactions.value,
-        unspentOutputs = unspentOutputs.value,
+        transactions = transactions.value.toImmutableList(),
+        unspentOutputs = unspentOutputs.value.toImmutableList(),
         syncTransactions = {
           // Add a slight delay when a manual sync in requested in order to ensure
           // that the requested sync will include any new values

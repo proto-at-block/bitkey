@@ -1,8 +1,7 @@
 locals {
   vpc_name         = "bitkey-main"
-  fromagerie_url   = "https://fromagerie.${var.namespace}.dev.wallet.build"
-  wsm_url          = "https://wsm.${var.namespace}.dev.wallet.build"
-  hosted_zone_name = "dev.wallet.build"
+  wsm_url          = "https://wsm.${var.namespace}.dev.bitkeydevelopment.com"
+  hosted_zone_name = "dev.bitkeydevelopment.com"
   environment      = "development"
 }
 
@@ -36,9 +35,9 @@ module "fromagerie" {
 
   enable_deletion_protection = false
 
-  cognito_user_pool_arn       = module.api_gateway.cognito_user_pool_arn
-  cognito_user_pool_client_id = module.api_gateway.cognito_user_pool_client_id
-  cognito_user_pool_id        = module.api_gateway.cognito_user_pool_id
+  cognito_user_pool_arn       = module.cognito.cognito_user_pool_arn
+  cognito_user_pool_client_id = module.cognito.cognito_user_pool_client_id
+  cognito_user_pool_id        = module.cognito.cognito_user_pool_id
   wait_for_steady_state       = false
 
   depends_on = [
@@ -46,18 +45,17 @@ module "fromagerie" {
   ]
 }
 
-module "api_gateway" {
-  source = "../../models/bitkey-api-gateway"
+module "cognito" {
+  source = "../../models/cognito"
 
   namespace = var.namespace
   name      = "api"
 
-  backend_url      = local.fromagerie_url
-  hosted_zone_name = local.hosted_zone_name
+  enable_deletion_protection = false
 
-  enable_cognito_deletion_protection = false
-
-  depends_on = [module.auth_lambdas]
+  depends_on = [
+    module.auth_lambdas
+  ]
 }
 
 module "auth_lambdas" {

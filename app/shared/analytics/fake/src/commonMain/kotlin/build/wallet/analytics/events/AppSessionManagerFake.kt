@@ -2,6 +2,7 @@ package build.wallet.analytics.events
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class AppSessionManagerFake(
   private val sessionId: String = "session-id",
@@ -9,7 +10,7 @@ class AppSessionManagerFake(
   private val flow = MutableStateFlow(AppSessionState.FOREGROUND)
 
   override val appSessionState: StateFlow<AppSessionState>
-    get() = flow
+    get() = flow.asStateFlow()
 
   override fun getSessionId(): String = sessionId
 

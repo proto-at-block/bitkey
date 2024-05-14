@@ -4,7 +4,6 @@ import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.AppDataDeleterMock
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.statemachine.StateMachineMock
@@ -42,13 +41,15 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
           )
       ) {}
   val onboardKeyboxDataStateMachine =
-    object : OnboardKeyboxDataStateMachine, StateMachineMock<OnboardKeyboxDataProps, OnboardKeyboxDataFull>(
-      initialModel = BackingUpKeyboxToCloudDataMock
-    ) {}
+    object : OnboardKeyboxDataStateMachine,
+      StateMachineMock<OnboardKeyboxDataProps, OnboardKeyboxDataFull>(
+        initialModel = BackingUpKeyboxToCloudDataMock
+      ) {}
   val activateKeyboxDataStateMachine =
-    object : ActivateFullAccountDataStateMachine, StateMachineMock<ActivateFullAccountDataProps, ActivateKeyboxDataFull>(
-      initialModel = ActivateKeyboxDataFull.ActivatingKeyboxDataFull
-    ) {}
+    object : ActivateFullAccountDataStateMachine,
+      StateMachineMock<ActivateFullAccountDataProps, ActivateKeyboxDataFull>(
+        initialModel = ActivateKeyboxDataFull.ActivatingKeyboxDataFull
+      ) {}
 
   val dataStateMachine =
     CreateFullAccountDataStateMachineImpl(
@@ -66,7 +67,6 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
       templateFullAccountConfig = FullAccountConfigMock,
       onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
       onboardingKeybox = null,
-      currencyPreferenceData = CurrencyPreferenceDataMock,
       rollback = { rollbackCalls.add(Unit) },
       context = CreateFullAccountContext.NewFullAccount
     )

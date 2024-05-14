@@ -9,7 +9,7 @@ import build.wallet.f8e.partnerships.GetPurchaseRedirectServiceMock
 import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
 import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.statemachine.core.SheetModel
@@ -38,6 +38,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls")
   )
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
   // state machines
   val stateMachine =
@@ -48,14 +49,14 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
           getTransferRedirectService = getTransferRedirectService,
           partnershipsRepository = partnershipRepositoryMock
         ),
-      partnershipsPurchaseUiStateMachine =
-        PartnershipsPurchaseUiStateMachineImpl(
-          moneyDisplayFormatter = MoneyDisplayFormatterFake,
-          getPurchaseOptionsService = getPurchaseAmountsServiceMock,
-          getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-          getPurchaseRedirectService = getPurchaseRedirectServiceMock,
-          partnershipsRepository = partnershipRepositoryMock
-        )
+      partnershipsPurchaseUiStateMachine = PartnershipsPurchaseUiStateMachineImpl(
+        moneyDisplayFormatter = MoneyDisplayFormatterFake,
+        getPurchaseOptionsService = getPurchaseAmountsServiceMock,
+        getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
+        getPurchaseRedirectService = getPurchaseRedirectServiceMock,
+        partnershipsRepository = partnershipRepositoryMock,
+        fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+      )
     )
 
   fun props(purchaseAmount: FiatMoney? = null): AddBitcoinUiProps =
@@ -66,7 +67,6 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
       onExit = {},
       keybox = KeyboxMock,
       generateAddress = KeyboxAddressDataMock.generateAddress,
-      fiatCurrency = USD,
       onSelectCustomAmount = { _, _ -> }
     )
 

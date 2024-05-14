@@ -6,7 +6,6 @@ import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.Flow
@@ -40,7 +39,6 @@ class FirmwareDeviceInfoDaoImpl(
   override fun deviceInfo(): Flow<Result<FirmwareDeviceInfo?, DbError>> {
     return database.firmwareDeviceInfoQueries.getDeviceInfo()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map { result ->
         result
           .map { deviceInfoEntity ->

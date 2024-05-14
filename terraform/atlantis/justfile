@@ -7,10 +7,9 @@ default:
 build:
   #!/usr/bin/env bash
   set -ex
-  ATLANTIS_VERSION=0.25.0
-  TERRAGRUNT_ATLANTIS_CONFIG_VERSION=1.16.0
   TERRAFORM_VERSION=$(hermit list --json | gojq -r 'map(select(.Reference.Name == "terraform")) | .[0].Reference.Version')
   TERRAGRUNT_VERSION=$(hermit list --json | gojq -r 'map(select(.Reference.Name == "terragrunt")) | .[0].Reference.Version')
+  TERRAGRUNT_ATLANTIS_CONFIG_VERSION=$(hermit list --json | gojq -r 'map(select(.Reference.Name == "terragrunt-atlantis-config")) | .[0].Reference.Version')
   docker buildx build --load --platform=linux/amd64 --progress=plain -t atlantis:latest \
     --build-arg=TERRAFORM_VERSION=${TERRAFORM_VERSION} \
     --build-arg=TERRAGRUNT_VERSION=${TERRAGRUNT_VERSION} \
@@ -38,9 +37,8 @@ update-tag tag="":
     version="$(git rev-parse HEAD)"
   fi
   cd ..
-  sed -i.bak -E "s/atlantis_tag[[:space:]]+=.*/atlantis_tag = \"${version}\"/" prod/shared/atlantis/service/terragrunt.hcl
-  rm prod/shared/atlantis/service/terragrunt.hcl.bak
-  just fmt
+  sed -i.bak -E "s/atlantis_tag[[:space:]]+=.*/atlantis_tag = \"${version}\"/" aws/bitkey/prod/shared/atlantis/service/terragrunt.hcl
+  rm aws/bitkey/prod/shared/atlantis/service/terragrunt.hcl.bak
 
 logs:
   aws logs tail --follow atlantis | grep -v -E 'scheduled|healthz' | cut -d ' ' -f 3-

@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/bitcoindevkit/bdk-swift",
       "state" : {
-        "revision" : "20ca547a69487a41665ad7d92b0f1aa46b84d9d0",
-        "version" : "0.31.0"
+        "revision" : "f2398109ebd8759322f601d9938779f3cdf99a12",
+        "version" : "0.31.1"
       }
     },
     {
@@ -23,8 +23,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/Datadog/dd-sdk-ios",
       "state" : {
-        "revision" : "6eab2d82441c4997ce05f9ecee7d64cc38517fc1",
-        "version" : "2.7.1"
+        "revision" : "c900a211fb9d98efad62c42969420f8b1e03c356",
+        "version" : "2.10.0"
       }
     },
     {

@@ -109,6 +109,50 @@ resource "aws_iam_policy" "ecr_pull_push" {
   policy      = data.aws_iam_policy_document.ecr_pull_push.json
 }
 
+module "github_oidc_pull_from_ecr" {
+  source = "git::github.com/philips-labs/terraform-aws-github-oidc//?ref=416064fc85811a081dde677002f16de57addc4fb" // Tag v0.7.0
+
+  count = var.enable_ecr_pull_role ? 1 : 0
+
+  repo             = var.repo
+  role_name        = "gha-pull-from-ecr"
+  role_path        = "/"
+  role_policy_arns = [aws_iam_policy.ecr_pull[0].id]
+
+  default_conditions = ["allow_all"]
+
+  openid_connect_provider_arn = local.oidc_provider
+}
+
+data "aws_iam_policy_document" "ecr_pull" {
+  count = var.enable_ecr_pull_role ? 1 : 0
+
+  statement {
+    actions = [
+      "ecr:GetDownloadUrlForLayer",
+      "ecr:BatchGetImage",
+    ]
+    resources = [
+      "arn:aws:ecr:us-west-2:${data.aws_caller_identity.current.account_id}:repository/*",
+    ]
+  }
+
+  statement {
+    actions = [
+      # For docker login
+      "ecr:GetAuthorizationToken"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "ecr_pull" {
+  count = var.enable_ecr_pull_role ? 1 : 0
+
+  name_prefix = "gha-ecr-pull"
+  policy      = data.aws_iam_policy_document.ecr_pull[0].json
+}
+
 module "github_oidc_deploy" {
   source = "git::github.com/philips-labs/terraform-aws-github-oidc//?ref=416064fc85811a081dde677002f16de57addc4fb" // Tag v0.7.0
 

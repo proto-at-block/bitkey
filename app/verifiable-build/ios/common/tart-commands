@@ -1,0 +1,33 @@
+#!/bin/bash
+
+setupTart() {
+	# Pulls down tart VM and runs it.
+	# Check if sonoma-xcode is installed
+	if tart list -q | grep -q "sonoma-xcode"
+	then
+	    echo "sonoma-xcode is already installed."
+	else
+	    echo "sonoma-xcode is not installed."
+	    echo "Cloning sonoma-xcode VM, this could take awhile..."
+	    # Install sonoma-xcode
+	    tart clone ghcr.io/cirruslabs/macos-sonoma-xcode:15.3 sonoma-xcode
+	fi
+
+	# Check if sonoma-xcode has 100GB of reserved disk space
+	DISK_SPACE=$(tart get sonoma-xcode | awk 'NR>1 {print $3}')
+
+	if [ "$DISK_SPACE" -eq  "100" ] # assuming DISK_SPACE is measured in GBs
+	then
+	    echo "sonoma-xcode has 100GB of reserved space."
+	else
+	    echo "sonoma-xcode does not have 100GB of reserved space."
+	    # Set the disk size to 100GB
+	    tart set sonoma-xcode --disk-size 100
+	    # Repair and make disk resizable
+	    yes | diskutil repairDisk disk0
+		diskutil apfs resizeContainer disk0s2 0
+	fi
+
+	# Run sonoma-xcode
+	tart run sonoma-xcode &
+}

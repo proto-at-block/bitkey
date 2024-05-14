@@ -9,12 +9,15 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.firmware.CoredumpFragment
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
 import build.wallet.firmware.FingerprintEnrollmentStatus
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadataMock
+import build.wallet.firmware.UnlockInfo
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.money.BitcoinMoney
@@ -66,6 +69,23 @@ class NfcCommandsMock(turbine: (String) -> Turbine<Any>) : NfcCommands {
   override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
     FingerprintEnrollmentStatus.COMPLETE
 
+  override suspend fun deleteFingerprint(
+    session: NfcSession,
+    index: Int,
+  ): Boolean = true
+
+  override suspend fun getEnrolledFingerprints(session: NfcSession) =
+    EnrolledFingerprints(3, emptyList())
+
+  override suspend fun setFingerprintLabel(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ): Boolean = true
+
+  override suspend fun getUnlockMethod(session: NfcSession): UnlockInfo {
+    TODO("Not yet implemented")
+  }
+
   override suspend fun getFirmwareMetadata(session: NfcSession) = FirmwareMetadataMock
 
   override suspend fun getInitialSpendingKey(
@@ -109,7 +129,10 @@ class NfcCommandsMock(turbine: (String) -> Turbine<Any>) : NfcCommands {
     amountSats = 10000UL
   ).also { signTransactionCalls.add(psbt) }
 
-  override suspend fun startFingerprintEnrollment(session: NfcSession) = true
+  override suspend fun startFingerprintEnrollment(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ) = true
 
   override suspend fun unsealKey(
     session: NfcSession,

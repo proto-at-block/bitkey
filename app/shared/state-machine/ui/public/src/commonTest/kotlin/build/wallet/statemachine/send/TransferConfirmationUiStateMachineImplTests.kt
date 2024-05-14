@@ -24,7 +24,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.Icon
@@ -109,13 +109,11 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
       requiredSigner = SigningFactor.Hardware,
       spendingLimit = null,
-      fiatCurrency = USD,
-      fees =
-        immutableMapOf(
-          FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
-        ),
+      fees = immutableMapOf(
+        FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
+        THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
+        SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+      ),
       exchangeRates = emptyImmutableList(),
       onTransferInitiated = { psbt, _ -> onTransferInitiatedCalls.add(psbt) },
       onTransferFailed = { onTransferFailedCalls.add(Unit) },
@@ -129,6 +127,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   val spendingWallet = SpendingWalletMock(turbines::create)
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
   val transactionRepository = OutgoingTransactionDetailRepositoryMock(turbines::create)
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val stateMachine =
     TransferConfirmationUiStateMachineImpl(
       mobilePaySigningService = serverSigner,
@@ -138,7 +137,8 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake(),
       appSpendingWalletProvider = appSpendingWalletProvider,
-      outgoingTransactionDetailRepository = transactionRepository
+      outgoingTransactionDetailRepository = transactionRepository,
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 
   beforeTest {
@@ -223,7 +223,11 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(IconImage.LocalImage(Icon.Bitcoin))
+        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
+          IconImage.LocalImage(
+            Icon.Bitcoin
+          )
+        )
         header.shouldNotBeNull().headline.shouldBe("Send your transfer")
 
         // Correct title
@@ -517,13 +521,11 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
         sendAmount = ExactAmount(BitcoinMoney.sats(123_456)),
         requiredSigner = SigningFactor.Hardware,
         spendingLimit = null,
-        fiatCurrency = USD,
-        fees =
-          persistentMapOf(
-            FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
-            THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
-            SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
-          ),
+        fees = persistentMapOf(
+          FASTEST to Fee(BitcoinMoney.btc(10.0), oneSatPerVbyteFeeRate),
+          THIRTY_MINUTES to Fee(BitcoinMoney.btc(2.0), oneSatPerVbyteFeeRate),
+          SIXTY_MINUTES to Fee(BitcoinMoney.btc(1.0), oneSatPerVbyteFeeRate)
+        ),
         exchangeRates = emptyImmutableList(),
         onTransferInitiated = { psbt, _ -> onTransferInitiatedCalls.add(psbt) },
         onTransferFailed = { onTransferFailedCalls.add(Unit) },
@@ -553,7 +555,11 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
 
       // ViewingTransferConfirmation
       awaitScreenWithBody<FormBodyModel> {
-        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(IconImage.LocalImage(Icon.LargeIconSpeedometer))
+        header.shouldNotBeNull().iconModel.shouldNotBeNull().iconImage.shouldBe(
+          IconImage.LocalImage(
+            Icon.LargeIconSpeedometer
+          )
+        )
         header.shouldNotBeNull().headline.shouldBe("Speed up your transfer to")
 
         // Correct title

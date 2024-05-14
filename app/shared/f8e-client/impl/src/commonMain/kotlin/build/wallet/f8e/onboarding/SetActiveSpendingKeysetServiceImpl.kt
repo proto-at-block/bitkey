@@ -6,13 +6,14 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 
 class SetActiveSpendingKeysetServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -33,10 +34,10 @@ class SetActiveSpendingKeysetServiceImpl(
       )
       .catching {
         put(urlString = "/api/accounts/${fullAccountId.serverId}/keysets/$keysetId") {
-          setBody("{}")
+          withDescription("Set active spending keyset")
+          setRedactedBody(EmptyRequestBody())
         }
       }
-      .logNetworkFailure { "Failed to set active spending keyset" }
       .mapUnit()
   }
 }

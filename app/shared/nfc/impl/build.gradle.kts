@@ -24,17 +24,14 @@ kotlin {
       dependencies {
         implementation(projects.shared.authPublic)
         implementation(projects.shared.nfcFake)
-        implementation(libs.kmp.secp256k1)
       }
     }
     val jvmMain by getting {
       dependencies {
-        implementation(libs.jvm.secp256k1)
       }
     }
     val androidMain by getting {
       dependencies {
-        implementation(libs.android.secp256k1)
         implementation(libs.android.datadog.logs)
         implementation(projects.core)
         implementation(projects.shared.memfaultPublic)

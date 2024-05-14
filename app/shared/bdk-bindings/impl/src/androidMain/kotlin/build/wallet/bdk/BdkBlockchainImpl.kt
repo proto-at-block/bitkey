@@ -21,6 +21,6 @@ internal data class BdkBlockchainImpl(
   override fun getBlockHashBlocking(height: Long): BdkResult<String> =
     runCatchingBdkError { ffiBlockchain.getBlockHash(height.toUInt()) }
 
-  override fun estimateFee(targetBlocks: ULong): BdkResult<Float> =
+  override fun estimateFeeBlocking(targetBlocks: ULong): BdkResult<Float> =
     runCatchingBdkError { ffiBlockchain.estimateFee(targetBlocks).asSatPerVb() }
 }

@@ -7,7 +7,6 @@ import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.flow.map
 
@@ -19,7 +18,6 @@ class FiatCurrencyDaoImpl(
   override fun allFiatCurrencies() =
     database.fiatCurrencyQueries.allFiatCurrencies()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .map { result ->
         result.logFailure { "Failed to read all FiatCurrency values from database" }
         result.get()?.map { it.toFiatCurrency() } ?: emptyList()
@@ -28,7 +26,6 @@ class FiatCurrencyDaoImpl(
   override fun fiatCurrency(textCode: IsoCurrencyTextCode) =
     database.fiatCurrencyQueries.getFiatCurrencyByTextCode(textCode)
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map { result ->
         result.logFailure { "Failed to read FiatCurrency from database for $textCode" }
         result.get()?.toFiatCurrency()

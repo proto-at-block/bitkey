@@ -10,9 +10,9 @@ use std::time::Duration;
 
 use axum::{middleware, Router};
 use axum_tracing_opentelemetry::middleware::{OtelAxumLayer, OtelInResponseLayer};
+use instrumentation::metrics::system::init_tokio_metrics;
+use instrumentation::middleware::{request_baggage, HttpMetrics};
 use jwt_authorizer::IntoLayer;
-use metrics::middleware::HttpMetrics;
-use metrics::system::init_tokio_metrics;
 use notification::clients::iterable::IterableClient;
 use queue::sqs::SqsQueue;
 use thiserror::Error;
@@ -112,7 +112,7 @@ pub enum BootstrapError {
     #[error(transparent)]
     Telemetry(#[from] wallet_telemetry::Error),
     #[error(transparent)]
-    Metrics(#[from] metrics::error::MetricsError),
+    Metrics(#[from] instrumentation::metrics::error::MetricsError),
 }
 
 #[derive(Default)]
@@ -351,7 +351,12 @@ pub async fn create_bootstrap_with_overrides(
 
     #[cfg(feature = "partnerships")]
     {
-        let route_state = partnerships::routes::RouteState::new(userpool_service.clone()).await;
+        let route_state = partnerships::routes::RouteState::new(
+            userpool_service.clone(),
+            feature_flags.clone(),
+            account_service.clone(),
+        )
+        .await;
         router = router.merge(Router::from(route_state));
     }
 
@@ -380,6 +385,7 @@ pub async fn create_bootstrap_with_overrides(
         ]))
         .layer(HttpMetrics::new())
         .layer(OtelInResponseLayer)
+        .layer(middleware::from_fn(request_baggage))
         .layer(OtelAxumLayer::default());
 
     Ok(Bootstrap {

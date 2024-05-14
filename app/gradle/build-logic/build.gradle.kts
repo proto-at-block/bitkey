@@ -83,7 +83,6 @@ dependencies {
   implementation(libs.pluginClasspath.bugsnag.android) {
     exclude("org.jetbrains.kotlin")
   }
-  implementation(libs.pluginClasspath.testLogger)
 
   implementation(":dependency-locking")
 

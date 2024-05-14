@@ -8,16 +8,19 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
-import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8eEmailTouchpoint
 import build.wallet.f8e.notifications.F8eNotificationTouchpoint.F8ePhoneNumberTouchpoint
+import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.catching
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
-import build.wallet.logging.logNetworkFailure
 import build.wallet.mapUnit
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationPreferences
@@ -31,7 +34,6 @@ import com.github.michaelbull.result.mapError
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -47,7 +49,8 @@ class NotificationTouchpointServiceImpl(
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .bodyResult<AddTouchpointResponse> {
         post("/api/accounts/${fullAccountId.serverId}/touchpoints") {
-          setBody(
+          withDescription("Add notification touchpoint")
+          setRedactedBody(
             when (touchpoint) {
               // TODO (W-2564): Convert from strong type to E.164 format
               is PhoneNumberTouchpoint ->
@@ -66,7 +69,6 @@ class NotificationTouchpointServiceImpl(
         }
       }
       .mapError { it.toF8eError<AddTouchpointClientErrorCode>() }
-      .logF8eFailure { "Failed to add notification touchpoint" }
       .map { response ->
         when (touchpoint) {
           is PhoneNumberTouchpoint ->
@@ -93,11 +95,11 @@ class NotificationTouchpointServiceImpl(
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/touchpoints/$touchpointId/verify") {
-          setBody(VerifyTouchpointRequest(verificationCode = verificationCode))
+          withDescription("Verify notification touchpoint")
+          setRedactedBody(VerifyTouchpointRequest(verificationCode = verificationCode))
         }
       }
       .mapError { it.toF8eError<VerifyTouchpointClientErrorCode>() }
-      .logF8eFailure { "Failed to verify notification touchpoint" }
       .mapUnit()
   }
 
@@ -114,11 +116,11 @@ class NotificationTouchpointServiceImpl(
     )
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/touchpoints/$touchpointId/activate") {
-          setBody(ActivateTouchpointRequest)
+          withDescription("Activate notification touchpoint")
+          setRedactedBody(EmptyRequestBody())
         }
       }
       .mapUnit()
-      .logNetworkFailure { "Failed to activate notification touchpoint" }
   }
 
   override suspend fun getTouchpoints(
@@ -127,7 +129,9 @@ class NotificationTouchpointServiceImpl(
   ): Result<List<NotificationTouchpoint>, NetworkingError> {
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .bodyResult<GetTouchpointsResponse> {
-        get("/api/accounts/${fullAccountId.serverId}/touchpoints")
+        get("/api/accounts/${fullAccountId.serverId}/touchpoints") {
+          withDescription("Get notification touchpoints")
+        }
       }
       .map { response ->
         response.touchpoints.mapNotNull { f8eTouchpoint ->
@@ -156,7 +160,6 @@ class NotificationTouchpointServiceImpl(
           }
         }
       }
-      .logNetworkFailure { "Failed to get notification touchpoints" }
   }
 
   override suspend fun getNotificationsPreferences(
@@ -165,7 +168,9 @@ class NotificationTouchpointServiceImpl(
   ): Result<NotificationPreferences, NetworkingError> {
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .bodyResult<NotificationsPreferencesRequest> {
-        get("/api/accounts/${fullAccountId.serverId}/notifications-preferences")
+        get("/api/accounts/${fullAccountId.serverId}/notifications-preferences") {
+          withDescription("Get notification preferences")
+        }
       }
       .map { response ->
         NotificationPreferences(
@@ -177,7 +182,6 @@ class NotificationTouchpointServiceImpl(
             .mapNotNull { NotificationChannel.valueOfOrNull(it) }.toSet()
         )
       }
-      .logNetworkFailure { "Failed to get notification preferences" }
   }
 
   override suspend fun updateNotificationsPreferences(
@@ -198,10 +202,10 @@ class NotificationTouchpointServiceImpl(
     )
       .catching {
         put("/api/accounts/${fullAccountId.serverId}/notifications-preferences") {
-          setBody(prefRequest)
+          withDescription("Set notification preferences")
+          setRedactedBody(prefRequest)
         }
       }
-      .logNetworkFailure { "Failed to set notification preferences" }
       .mapUnit()
   }
 }
@@ -213,22 +217,19 @@ private typealias AddEmailRequest = F8eEmailTouchpoint
 private data class AddTouchpointResponse(
   @SerialName("touchpoint_id")
   val touchpointId: String,
-)
+) : RedactedResponseBody
 
 @Serializable
 private data class VerifyTouchpointRequest(
   @SerialName("verification_code")
   val verificationCode: String,
-)
-
-@Serializable
-data object ActivateTouchpointRequest
+) : RedactedRequestBody
 
 @Serializable
 private data class GetTouchpointsResponse(
   @SerialName("touchpoints")
   val touchpoints: List<F8eNotificationTouchpoint>,
-)
+) : RedactedResponseBody
 
 @Serializable
 private data class NotificationsPreferencesRequest(
@@ -238,4 +239,4 @@ private data class NotificationsPreferencesRequest(
   val moneyMovement: List<String>,
   @SerialName("product_marketing")
   val productMarketing: List<String>,
-)
+) : RedactedRequestBody, RedactedResponseBody

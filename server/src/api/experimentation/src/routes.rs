@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use axum::extract::Path;
 use axum::routing::post;
 use axum::Router;
@@ -19,19 +17,9 @@ use feature_flags::{
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
 
+use crate::attributes::ToLaunchDarklyAttributes;
 use crate::error::ExperimentationError;
 
-const DEVICE_ID_ATTRIBUTE_NAME: &str = "device_id";
-const CLIENT_TYPE_ATTRIBUTE_NAME: &str = "client_type";
-const APPLICATION_VERSION_ATTRIBUTE_NAME: &str = "application_version";
-const OS_TYPE_ATTRIBUTE_NAME: &str = "os_type";
-const OS_VERSION_ATTRIBUTE_NAME: &str = "os_version";
-const DEVICE_MAKE_ATTRIBUTE_NAME: &str = "device_make";
-const DEVICE_MODEL_ATTRIBUTE_NAME: &str = "device_model";
-const APP_ID_ATTRIBUTE_NAME: &str = "app_id";
-const APP_INSTALLATION_ID_ATTRIBUTE_NAME: &str = "app_installation_id";
-const DEVICE_REGION_ATTRIBUTE_NAME: &str = "device_region";
-const DEVICE_LANGUAGE_ATTRIBUTE_NAME: &str = "device_language";
 const HARDWARE_ID_ATTRIBUTE_NAME: &str = "hardware_id";
 
 #[derive(Clone, Deserialize)]
@@ -90,48 +78,12 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
-trait ToLaunchDarklyAttributes {
-    fn to_attributes(&self) -> HashMap<&'static str, String>;
-}
-
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct CommonFeatureFlagsAttributes {
     pub app_installation_id: String,
     pub device_region: String,
     pub device_language: String,
     pub platform_info: PlatformInfo,
-}
-
-impl ToLaunchDarklyAttributes for PlatformInfo {
-    fn to_attributes(&self) -> HashMap<&'static str, String> {
-        let mut attributes = HashMap::new();
-        attributes.insert(DEVICE_ID_ATTRIBUTE_NAME, self.device_id.clone());
-        attributes.insert(CLIENT_TYPE_ATTRIBUTE_NAME, self.client_type.to_string());
-        attributes.insert(
-            APPLICATION_VERSION_ATTRIBUTE_NAME,
-            self.application_version.clone(),
-        );
-        attributes.insert(OS_TYPE_ATTRIBUTE_NAME, self.os_type.to_string());
-        attributes.insert(OS_VERSION_ATTRIBUTE_NAME, self.os_version.clone());
-        attributes.insert(DEVICE_MAKE_ATTRIBUTE_NAME, self.device_make.clone());
-        attributes.insert(DEVICE_MODEL_ATTRIBUTE_NAME, self.device_model.clone());
-        attributes.insert(APP_ID_ATTRIBUTE_NAME, self.app_id.clone());
-        attributes
-    }
-}
-
-impl ToLaunchDarklyAttributes for CommonFeatureFlagsAttributes {
-    fn to_attributes(&self) -> HashMap<&'static str, String> {
-        let mut attributes = HashMap::new();
-        attributes.insert(
-            APP_INSTALLATION_ID_ATTRIBUTE_NAME,
-            self.app_installation_id.clone(),
-        );
-        attributes.insert(DEVICE_REGION_ATTRIBUTE_NAME, self.device_region.clone());
-        attributes.insert(DEVICE_LANGUAGE_ATTRIBUTE_NAME, self.device_language.clone());
-        attributes.extend(self.platform_info.to_attributes());
-        attributes
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

@@ -1,10 +1,11 @@
 package build.wallet.f8e.onboarding.model
 
+import build.wallet.ktor.result.RedactedResponseBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed interface CreateAccountResponseBody {
+sealed interface CreateAccountResponseBody : RedactedResponseBody {
   @SerialName("account_id")
   val accountId: String
 }

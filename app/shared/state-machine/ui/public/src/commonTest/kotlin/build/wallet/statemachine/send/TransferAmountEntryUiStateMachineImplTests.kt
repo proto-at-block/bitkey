@@ -13,6 +13,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
@@ -58,18 +59,20 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       keypadModel = KeypadModel(showDecimal = true, onButtonPress = {})
     )
   val moneyCalculatorUiStateMachine =
-    object : MoneyCalculatorUiStateMachine, StateMachineMock<MoneyCalculatorUiProps, MoneyCalculatorModel>(
-      defaultMoneyCalculatorModel
-    ) {}
+    object : MoneyCalculatorUiStateMachine,
+      StateMachineMock<MoneyCalculatorUiProps, MoneyCalculatorModel>(
+        defaultMoneyCalculatorModel
+      ) {}
 
   val spendingPolicy = MobilePaySpendingPolicyMock(turbines::create)
-  val stateMachine =
-    TransferAmountEntryUiStateMachineImpl(
-      currencyConverter = CurrencyConverterFake(conversionRate = 3.3333),
-      moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
-      mobilePaySpendingPolicy = spendingPolicy,
-      moneyDisplayFormatter = MoneyDisplayFormatterFake
-    )
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val stateMachine = TransferAmountEntryUiStateMachineImpl(
+    currencyConverter = CurrencyConverterFake(conversionRate = 3.3333),
+    moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
+    mobilePaySpendingPolicy = spendingPolicy,
+    moneyDisplayFormatter = MoneyDisplayFormatterFake,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+  )
 
   fun ActiveKeyboxLoadedFake(balance: BitcoinBalance): ActiveFullAccountLoadedData {
     return ActiveKeyboxLoadedDataMock.copy(
@@ -87,7 +90,6 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           balance = BitcoinBalanceFake(confirmed = bitcoinBalance)
         ),
       initialAmount = FiatMoney.usd(1.0),
-      fiatCurrency = USD,
       onContinueClick = { onContinueClickCalls += it },
       exchangeRates = emptyImmutableList(),
       f8eReachability = NetworkReachability.REACHABLE
@@ -257,7 +259,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       )
 
       stateMachine.test(props) {
-        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(secondaryAmountBelowBalance)
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem()
+          .shouldBe(secondaryAmountBelowBalance)
         awaitScreenWithBody<TransferAmountBodyModel> {
           cardModel
             .shouldNotBeNull()
@@ -310,7 +313,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           )
         )
 
-        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(secondaryAmountBelowBalance)
+        spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem()
+          .shouldBe(secondaryAmountBelowBalance)
         // With input; we should show a disabled hero amount, enabled continue button, and no smart bar.
         awaitScreenWithBody<TransferAmountBodyModel> {
           amountDisabled.shouldBeFalse()

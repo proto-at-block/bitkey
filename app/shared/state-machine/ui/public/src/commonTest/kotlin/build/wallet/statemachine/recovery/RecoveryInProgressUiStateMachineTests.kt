@@ -4,7 +4,6 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.money.currency.USD
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -59,7 +58,6 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
           cause = Error()
         ),
       fullAccountConfig = FullAccountConfigMock,
-      fiatCurrency = USD,
       onExit = {}
     )
 
@@ -74,7 +72,6 @@ class RecoveryInProgressUiStateMachineTests : FunSpec({
           cause = Error()
         ),
       fullAccountConfig = FullAccountConfigMock,
-      fiatCurrency = USD,
       onExit = {}
     )
 

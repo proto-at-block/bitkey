@@ -6,7 +6,6 @@ import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
 import build.wallet.money.Money
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -27,9 +26,7 @@ data class ContinueTransferParams(
 
 /**
  * @property onBack - handler for exiting this state machine.
- * @property keybox - keybox to use for signing transfer transaction.
  * @property initialAmount - initial bitcoin transfer amount.
- * @property fiatCurrency - fiat currency to use for bitcoin amount conversion.
  * @property exchangeRates - exchange rates to use for currency conversion. We do this so we can use
  * a consistent set of exchange rates for the entire send flow.
  * @property onContinueClick - handler for proceeding with the transaction. Takes in a transfer
@@ -40,7 +37,6 @@ data class TransferAmountEntryUiProps(
   val onBack: () -> Unit,
   val accountData: ActiveFullAccountLoadedData,
   val initialAmount: Money,
-  val fiatCurrency: FiatCurrency,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val f8eReachability: NetworkReachability,
   val onContinueClick: (ContinueTransferParams) -> Unit,

@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.platform.config.AppVariant
 import build.wallet.ui.model.StandardClick
@@ -14,7 +15,6 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
-import kotlinx.collections.immutable.toImmutableList
 
 class OnboardingAppKeyDeletionUiStateMachineImpl(
   private val appVariant: AppVariant,
@@ -40,7 +40,7 @@ class OnboardingAppKeyDeletionUiStateMachineImpl(
     return ListGroupModel(
       style = ListGroupStyle.DIVIDER,
       items =
-        listOf(
+        immutableListOf(
           ListItemModel(
             title = "Delete Onboarding App Key",
             secondaryText = "Delete the persisted app key, so going through onboarding will generate a new one",
@@ -60,7 +60,7 @@ class OnboardingAppKeyDeletionUiStateMachineImpl(
                   )
               )
           )
-        ).toImmutableList()
+        )
     )
   }
 }

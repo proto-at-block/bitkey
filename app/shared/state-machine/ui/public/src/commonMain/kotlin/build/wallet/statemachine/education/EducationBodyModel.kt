@@ -1,5 +1,6 @@
 package build.wallet.statemachine.education
 
+import build.wallet.Progress
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.ui.model.button.ButtonModel
@@ -8,8 +9,7 @@ import build.wallet.ui.model.button.ButtonModel
  * A [BodyModel] that represents the Education screen. The screen operates like a carousel which
  * should show items in succession
  *
- * @property progressPercentage - the percentage of the carousel that has been completed, expressed
- * as a float with value [0, 1]
+ * @property progressPercentage - the percentage of the carousel that has been completed.
  * @property title - the title of the active education content
  * @property subtitle - the subtitle of the active education content
  * @property primaryButton - optional primary button to display, described via a [ButtonModel]
@@ -20,7 +20,7 @@ import build.wallet.ui.model.button.ButtonModel
  * @property onBack - the callback to invoke when the user clicks the back button
  */
 data class EducationBodyModel(
-  val progressPercentage: Float,
+  val progressPercentage: Progress,
   val title: String,
   val subtitle: String? = null,
   val primaryButton: ButtonModel? = null,
@@ -30,12 +30,6 @@ data class EducationBodyModel(
   override val onBack: () -> Unit,
 ) : BodyModel() {
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? = null
-
-  init {
-    require(progressPercentage in 0f..1f) {
-      "Progress percentage must be between 0 and 1"
-    }
-  }
 }
 
 data class EducationItem(

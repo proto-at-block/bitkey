@@ -74,7 +74,8 @@ kotlin {
       projects.shared.stateMachineUiPublic,
       projects.shared.timeImpl,
       projects.shared.timePublic,
-      projects.shared.uiCorePublic
+      projects.shared.uiCorePublic,
+      projects.shared.workerPublic
     )
 
   sourceSets {

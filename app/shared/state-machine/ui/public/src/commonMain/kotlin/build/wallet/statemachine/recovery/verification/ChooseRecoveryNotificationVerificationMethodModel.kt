@@ -2,6 +2,7 @@ package build.wallet.statemachine.recovery.verification
 
 import build.wallet.analytics.events.screen.id.ChooseRecoveryNotificationVerificationMethodScreenId.CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -16,7 +17,6 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 fun ChooseRecoveryNotificationVerificationMethodModel(
   onBack: () -> Unit,
@@ -46,7 +46,7 @@ fun ChooseRecoveryNotificationVerificationMethodModel(
           listGroupModel =
             ListGroupModel(
               items =
-                listOfNotNull(
+                immutableListOfNotNull(
                   onSmsClick?.let {
                     ListItemModel(
                       leadingAccessory =
@@ -77,7 +77,7 @@ fun ChooseRecoveryNotificationVerificationMethodModel(
                       onClick = it
                     )
                   }
-                ).toImmutableList(),
+                ),
               style = ListGroupStyle.CARD_GROUP_DIVIDER
             )
         )

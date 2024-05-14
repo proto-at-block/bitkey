@@ -1,6 +1,5 @@
 package build.wallet.statemachine.home.full
 
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.firmware.FirmwareData
@@ -16,5 +15,4 @@ data class HomeUiProps(
   val accountData: ActiveFullAccountLoadedData,
   val electrumServerData: ElectrumServerData,
   val firmwareData: FirmwareData,
-  val currencyPreferenceData: CurrencyPreferenceData,
 )

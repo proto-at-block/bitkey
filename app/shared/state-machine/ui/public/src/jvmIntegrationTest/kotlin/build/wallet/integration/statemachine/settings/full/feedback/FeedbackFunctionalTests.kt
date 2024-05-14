@@ -16,6 +16,7 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.support.SupportTicketField
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.picker.ItemPickerModel
 import io.kotest.assertions.forEachAsClue
@@ -29,6 +30,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldBeEmpty
 import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.collections.immutable.ImmutableList
 
 class FeedbackFunctionalTests : FunSpec({
@@ -108,7 +110,7 @@ class FeedbackFunctionalTests : FunSpec({
         awaitFeedbackFilling {
           val alert =
             withClue("alertModel") {
-              screen.alertModel.shouldNotBeNull()
+              screen.alertModel.shouldBeTypeOf<ButtonAlertModel>()
             }
           alert.title shouldBe "Are you sure you want to leave?"
 
@@ -134,7 +136,7 @@ class FeedbackFunctionalTests : FunSpec({
         awaitFeedbackFilling {
           val alert =
             withClue("alertModel") {
-              screen.alertModel.shouldNotBeNull()
+              screen.alertModel.shouldBeTypeOf<ButtonAlertModel>()
             }
           alert.title shouldBe "Are you sure you want to leave?"
           alert.primaryButtonText shouldBe "Leave"

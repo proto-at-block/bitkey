@@ -8,7 +8,19 @@
 #include <stdint.h>
 
 // Total number of supported templates
-#define TEMPLATE_MAX_COUNT (3)
+#define TEMPLATE_MAX_COUNT      (3)
+#define BIO_LABEL_MAX_LEN       (32)
+#define BIO_TEMPLATE_ID_INVALID (UINT16_MAX)
+
+typedef enum {
+  BIO_ERR_NONE = 0,
+  BIO_ERR_GENERIC = 1,
+  BIO_ERR_TEMPLATE_DOESNT_EXIST = 2,
+  BIO_ERR_TEMPLATE_INVALID = 3,
+  BIO_ERR_LABEL_DOESNT_EXIST = 4,
+} bio_err_t;
+
+typedef uint16_t bio_template_id_t;
 
 typedef struct {
   bool irq_test;
@@ -26,11 +38,9 @@ typedef struct {
 } bio_enroll_stats_t;
 
 typedef enum {
-  BIO_ERR_NONE = 0,
-  BIO_ERR_GENERIC = 1,
-  BIO_ERR_TEMPLATE_DOESNT_EXIST = 2,
-  BIO_ERR_TEMPLATE_INVALID = 3,
-} bio_err_t;
+  BIO_FINGER_DOWN = 0,
+  BIO_FINGER_UP = 1,
+} bio_gesture_t;
 
 typedef uint16_t bio_template_id_t;
 #define BIO_TEMPLATE_ID_INVALID (UINT16_MAX)
@@ -41,28 +51,32 @@ bool bio_lib_init(void);
 void bio_lib_reset(void);
 void bio_hal_init(void);
 
-void bio_selftest(bio_selftest_result_t* result);
-
-void bio_wait_for_finger_blocking(void);
+void bio_wait_for_finger_blocking(bio_gesture_t gesture);
 
 // Retrieve how many fingers have already been enrolled in `count`
 void bio_storage_get_template_count(uint32_t* count);
-bio_err_t bio_storage_delete_template(bio_template_id_t id);
 
 // Returns true if there is at least one enrolled fingerprint.
 bool bio_fingerprint_exists(void);
 
-// Fingerprint must be down BEFORE enroll or authenticate are called.
-// Use bio_wait_for_finger_blocking() to achieve this.
-bool bio_enroll_finger(bio_template_id_t id, bio_enroll_stats_t* stats);
+bool bio_fingerprint_index_exists(bio_template_id_t id);
+
+bio_err_t bio_storage_delete_template(bio_template_id_t id);
+
+bool bio_storage_label_save(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN]);
+bool bio_storage_label_retrieve(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN]);
+
+void bio_selftest(bio_selftest_result_t* result);
+
+bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
+                       bio_enroll_stats_t* stats);
 secure_bool_t bio_authenticate_finger(secure_bool_t* is_match, bio_template_id_t* match_template_id,
                                       uint32_t comms_timestamp);
+void bio_enroll_cancel(void);
 
 bool bio_provision_cryptographic_keys(bool dry_run, bool i_realize_this_is_irreversible);
 bool bio_security_test(fpc_bep_security_test_result_t* test_result);
-
 bool bio_storage_calibration_data_retrieve(uint8_t** calibration_data, uint16_t* size_out);
-
 bool bio_image_analysis_test(fpc_bep_capture_test_mode_t mode,
                              fpc_bep_analyze_result_t* test_result);
 bool bio_sensor_is_secured(bool* secured);

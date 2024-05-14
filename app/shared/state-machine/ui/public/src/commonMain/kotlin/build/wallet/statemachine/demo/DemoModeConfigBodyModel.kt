@@ -4,7 +4,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
 import build.wallet.ui.model.switch.SwitchModel
 
@@ -18,7 +18,7 @@ enum class DemoCodeTrackerScreenId : EventTrackerScreenId {
 data class DemoModeConfigBodyModel(
   override val onBack: () -> Unit,
   val switchCardModel: SwitchCardModel,
-  val disableAlertModel: AlertModel?,
+  val disableAlertModel: ButtonAlertModel?,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = DemoCodeTrackerScreenId.DEMO_CODE_CONFIG
@@ -28,7 +28,7 @@ data class DemoModeConfigBodyModel(
     onBack: () -> Unit,
     switchIsChecked: Boolean,
     onSwitchCheckedChange: (Boolean) -> Unit,
-    disableAlertModel: AlertModel?,
+    disableAlertModel: ButtonAlertModel?,
   ) : this(
     onBack = onBack,
     switchCardModel =

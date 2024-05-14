@@ -9,8 +9,6 @@ import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_INITIALIZE
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_BACKUP_MISSING
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
-import build.wallet.bitkey.socrec.TrustedContactFake2
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupError.UnrectifiableCloudBackupError
 import build.wallet.cloud.backup.CloudBackupRepositoryFake
@@ -56,50 +54,41 @@ class FullAccountCloudSignInAndBackupUiStateMachineImplTests : FunSpec({
   val cloudSignInStateMachine = CloudSignInUiStateMachineMock()
   val cloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
-  val trustedContacts =
-    listOf(
-      EndorsedTrustedContactFake1,
-      TrustedContactFake2
-    )
-
-  val stateMachine =
-    FullAccountCloudSignInAndBackupUiStateMachineImpl(
-      cloudBackupRepository = cloudBackupRepository,
-      cloudSignInUiStateMachine = cloudSignInStateMachine,
-      fullAccountCloudBackupCreator = cloudBackupCreator,
-      eventTracker = eventTracker,
-      rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
-      deviceInfoProvider = DeviceInfoProviderMock(),
-      csekGenerator = CsekGeneratorMock(),
-      nfcSessionUIStateMachine =
-        object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
-          "nfc-session-mock"
-        ) {},
-      csekDao = CsekDaoFake(),
-      inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
-      emergencyAccessKitPdfGenerator = EmergencyAccessKitPdfGeneratorFake(),
-      emergencyAccessKitRepository = EmergencyAccessKitRepositoryFake()
-    )
+  val stateMachine = FullAccountCloudSignInAndBackupUiStateMachineImpl(
+    cloudBackupRepository = cloudBackupRepository,
+    cloudSignInUiStateMachine = cloudSignInStateMachine,
+    fullAccountCloudBackupCreator = cloudBackupCreator,
+    eventTracker = eventTracker,
+    rectifiableErrorHandlingUiStateMachine = RectifiableErrorHandlingUiStateMachineMock(),
+    deviceInfoProvider = DeviceInfoProviderMock(),
+    csekGenerator = CsekGeneratorMock(),
+    nfcSessionUIStateMachine =
+      object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
+        "nfc-session-mock"
+      ) {},
+    csekDao = CsekDaoFake(),
+    inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
+    emergencyAccessKitPdfGenerator = EmergencyAccessKitPdfGeneratorFake(),
+    emergencyAccessKitRepository = EmergencyAccessKitRepositoryFake()
+  )
 
   val onBackupSavedCalls = turbines.create<Unit>("backup saved")
   val onBackupFailedCalls = turbines.create<Unit>("backup failed")
 
   val cloudAccount = CloudAccountMock(instanceId = "fake-account")
 
-  val props =
-    FullAccountCloudSignInAndBackupProps(
-      sealedCsek = SealedCsekFake,
-      keybox = KeyboxMock,
-      endorsedTrustedContacts = trustedContacts,
-      onBackupSaved = {
-        onBackupSavedCalls += Unit
-      },
-      onBackupFailed = {
-        onBackupFailedCalls += Unit
-      },
-      presentationStyle = ScreenPresentationStyle.Root,
-      requireAuthRefreshForCloudBackup = false
-    )
+  val props = FullAccountCloudSignInAndBackupProps(
+    sealedCsek = SealedCsekFake,
+    keybox = KeyboxMock,
+    onBackupSaved = {
+      onBackupSavedCalls += Unit
+    },
+    onBackupFailed = {
+      onBackupFailedCalls += Unit
+    },
+    presentationStyle = ScreenPresentationStyle.Root,
+    requireAuthRefreshForCloudBackup = false
+  )
 
   suspend fun awaitStartCloudBackupEvent() {
     eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_CLOUD_BACKUP_INITIALIZE))

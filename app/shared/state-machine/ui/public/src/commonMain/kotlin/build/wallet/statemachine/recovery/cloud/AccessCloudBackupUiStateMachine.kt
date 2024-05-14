@@ -2,7 +2,6 @@ package build.wallet.statemachine.recovery.cloud
 
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.store.CloudStoreAccount
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -25,7 +24,6 @@ interface AccessCloudBackupUiStateMachine : StateMachine<AccessCloudBackupUiProp
  * or to immediately invoke [onCannotAccessCloudBackup] instead.
  */
 data class AccessCloudBackupUiProps(
-  val eakAssociation: EmergencyAccessKitAssociation,
   val forceSignOutFromCloud: Boolean,
   val onExit: () -> Unit,
   val onBackupFound: (backup: CloudBackup) -> Unit,

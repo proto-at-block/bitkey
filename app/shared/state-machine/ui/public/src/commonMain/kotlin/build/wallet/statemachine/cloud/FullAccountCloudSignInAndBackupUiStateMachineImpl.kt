@@ -414,8 +414,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
           fullAccountCloudBackupCreator
             .create(
               keybox = props.keybox,
-              sealedCsek = sealedCsek,
-              endorsedTrustedContacts = props.endorsedTrustedContacts
+              sealedCsek = sealedCsek
             )
             .logFailure { "Error creating cloud backup" }
             .onFailure {

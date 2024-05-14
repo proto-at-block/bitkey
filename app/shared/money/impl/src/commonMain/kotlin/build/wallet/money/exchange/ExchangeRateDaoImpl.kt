@@ -8,7 +8,6 @@ import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
@@ -78,7 +77,6 @@ class ExchangeRateDaoImpl(
     databaseProvider.database().exchangeRateQueries
       .allExchangeRates()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .transformLatest { queryResult ->
         queryResult
           .onSuccess { entities ->

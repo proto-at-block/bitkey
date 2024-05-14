@@ -20,7 +20,6 @@ import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.USD
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -74,7 +73,6 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
         ),
       recipientAddress = bitcoinAddressP2WPKH,
       sendAmount = ExactAmount(BitcoinMoney.zero()),
-      fiatCurrency = USD,
       exchangeRates = immutableListOf(),
       onBack = { onBackCalls += Unit },
       onContinue = { priority, _ -> onContinueCalls += priority }

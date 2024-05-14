@@ -23,6 +23,9 @@ internal fun Test.propagateKotestSystemProperties() {
 }
 
 /**
+ * List of Kotest system properties that we set in the Gradle JVM and want to propagate to the JVM
+ * test executors running the Kotest tests.
+ *
  * All available Kotest system properties can be found here: https://kotest.io/docs/framework/framework-config-props.html#kotestenginepropertieskt.
  */
 private val kotestSystemProperties =

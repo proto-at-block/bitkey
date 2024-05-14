@@ -1,5 +1,6 @@
 package build.wallet.bitcoin.fees
 
+import build.wallet.bdk.bindings.estimateFee
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
@@ -8,6 +9,7 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINU
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
 import build.wallet.bitcoin.transactions.targetBlocks
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.Ok
@@ -15,6 +17,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
+import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.get
 import kotlinx.serialization.Serializable
 
@@ -92,10 +95,10 @@ class BitcoinFeeRateEstimatorImpl(
   /** Represents the response from mempool */
   @Serializable
   private data class Response(
-    val fastestFee: Float,
-    val halfHourFee: Float,
-    val hourFee: Float,
-    val economyFee: Float,
-    val minimumFee: Float,
-  )
+    @Unredacted val fastestFee: Float,
+    @Unredacted val halfHourFee: Float,
+    @Unredacted val hourFee: Float,
+    @Unredacted val economyFee: Float,
+    @Unredacted val minimumFee: Float,
+  ) : RedactedResponseBody
 }

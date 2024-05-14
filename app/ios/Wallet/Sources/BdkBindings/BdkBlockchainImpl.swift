@@ -29,7 +29,7 @@ class BdkBlockchainImpl : BdkBlockchain {
         }
     }
     
-    func estimateFee(targetBlocks: UInt64) -> BdkResult<KotlinFloat> {
+    func estimateFeeBlocking(targetBlocks: UInt64) -> BdkResult<KotlinFloat> {
         return BdkResult {
             KotlinFloat(value: try ffiBlockchain.estimateFee(target: targetBlocks).asSatPerVb())
         }

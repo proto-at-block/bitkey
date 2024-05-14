@@ -1,5 +1,6 @@
 package build.wallet.f8e.onboarding.model
 
+import build.wallet.ktor.result.RedactedRequestBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -16,7 +17,7 @@ sealed interface CreateAccountAuthKeys
  * Implemented by [FullCreateAccountRequestBody] and [LiteCreateAccountRequestBody]
  */
 @Serializable
-internal sealed interface CreateAccountRequestBody {
+internal sealed interface CreateAccountRequestBody : RedactedRequestBody {
   @SerialName("auth")
   val auth: CreateAccountAuthKeys
 

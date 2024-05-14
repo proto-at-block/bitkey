@@ -5,7 +5,6 @@ import build.wallet.f8e.mobilepay.MobilePayBalanceFailure
 import build.wallet.f8e.mobilepay.MobilePayBalanceService
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.HttpError
-import build.wallet.mapLoadedValue
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
@@ -46,7 +45,6 @@ class MobilePayStatusProviderImpl(
         spendingLimitDao.activeSpendingLimit(),
         // Second flow, emits when a sync event occurs and maps it to active spending limit.
         wallet.balance()
-          .mapLoadedValue()
           .map { spendingLimitDao.activeSpendingLimit().firstOrNull() },
         // Third flow, emits when users of `MobilePayStatusProvider` refresh on-demand
         onDemandRefreshStatusFlow

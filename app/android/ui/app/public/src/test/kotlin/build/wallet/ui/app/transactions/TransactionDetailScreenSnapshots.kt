@@ -2,11 +2,18 @@ package build.wallet.ui.app.transactions
 
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.transactions.TransactionDetailModel
 import build.wallet.statemachine.transactions.TxStatusModel
 import build.wallet.ui.app.core.form.FormScreen
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import io.kotest.core.spec.style.FunSpec
 
 class TransactionDetailScreenSnapshots : FunSpec({
@@ -97,7 +104,19 @@ class TransactionDetailScreenSnapshots : FunSpec({
                         explainer =
                           Data.Explainer(
                             title = "Taking longer than usual",
-                            subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee."
+                            subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                            iconButton = IconButtonModel(
+                              iconModel = IconModel(
+                                icon = Icon.SmallIconInformationFilled,
+                                iconSize = IconSize.XSmall,
+                                iconBackgroundType = IconBackgroundType.Circle(
+                                  circleSize = IconSize.XSmall
+                                ),
+                                iconTint = IconTint.Foreground,
+                                iconOpacity = 0.20f
+                              ),
+                              onClick = StandardClick { }
+                            )
                           )
                       )
                     )

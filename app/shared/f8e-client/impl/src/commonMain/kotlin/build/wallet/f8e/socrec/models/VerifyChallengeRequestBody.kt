@@ -1,5 +1,6 @@
 package build.wallet.f8e.socrec.models
 
+import build.wallet.ktor.result.RedactedRequestBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -9,4 +10,4 @@ internal data class VerifyChallengeRequestBody(
   val recoveryRelationshipId: String,
   @SerialName("counter")
   val code: Int,
-)
+) : RedactedRequestBody

@@ -1,7 +1,6 @@
 package build.wallet.statemachine.start
 
 import build.wallet.cloud.backup.CloudBackup
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.StartIntent
@@ -20,7 +19,6 @@ interface GettingStartedRoutingStateMachine : StateMachine<GettingStartedRouting
  */
 data class GettingStartedRoutingProps(
   val startIntent: StartIntent,
-  val eakAssociation: EmergencyAccessKitAssociation,
   val onStartLiteAccountCreation: () -> Unit,
   val onStartLiteAccountRecovery: (CloudBackup) -> Unit,
   val onStartCloudRecovery: (CloudBackup) -> Unit,

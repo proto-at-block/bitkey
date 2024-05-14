@@ -27,6 +27,8 @@ module "cognito" {
   namespace = var.namespace
   name      = var.name
 
+  enable_deletion_protection = var.enable_deletion_protection
+
   define_auth_challenge_lambda_arn = data.aws_lambda_function.define_auth_challenge.arn
   create_auth_challenge_lambda_arn = data.aws_lambda_function.create_auth_challenge.arn
   verify_auth_challenge_lambda_arn = data.aws_lambda_function.verify_auth_challenge.arn

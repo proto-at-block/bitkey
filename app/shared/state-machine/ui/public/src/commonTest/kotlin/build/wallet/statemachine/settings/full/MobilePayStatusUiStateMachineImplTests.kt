@@ -7,8 +7,7 @@ import build.wallet.limit.SpendingLimit
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.EUR
-import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -53,17 +52,16 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
       enableMobilePay = { _, _, _, _ -> }
     )
 
-  fun props(
-    mobilePayData: MobilePayData,
-    fiatCurrency: FiatCurrency = USD,
-  ) = MobilePayUiProps(
-    onBack = {},
-    accountData = ActiveKeyboxLoadedDataMock.copy(mobilePayData = mobilePayData),
-    fiatCurrency = fiatCurrency,
-    onSetLimitClick = { currentLimit ->
-      onSetLimitClickCalls += currentLimit
-    }
-  )
+  fun props(mobilePayData: MobilePayData) =
+    MobilePayUiProps(
+      onBack = {},
+      accountData = ActiveKeyboxLoadedDataMock.copy(mobilePayData = mobilePayData),
+      onSetLimitClick = { currentLimit ->
+        onSetLimitClickCalls += currentLimit
+      }
+    )
+
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
   val stateMachine =
     MobilePayStatusUiStateMachineImpl(
@@ -79,8 +77,13 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
                 remainingAmountText = "noluisse",
                 progressPercentage = 0.1f
               )
-          ) {}
+          ) {},
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
+
+  beforeTest {
+    fiatCurrencyPreferenceRepository.reset()
+  }
 
   test("load mobile pay data") {
     stateMachine.test(props(mobilePayData = LoadingMobilePayData)) {
@@ -228,10 +231,10 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("disabled -> enable mobile pay with different currency") {
+    fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
     stateMachine.test(
       props(
-        mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock),
-        fiatCurrency = EUR
+        mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
       )
     ) {
       // Showing limits - Disabled state

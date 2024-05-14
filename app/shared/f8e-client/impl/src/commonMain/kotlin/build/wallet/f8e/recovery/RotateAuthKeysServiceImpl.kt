@@ -9,14 +9,15 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.catching
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.logFailure
-import build.wallet.logging.logNetworkFailure
 import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import okio.ByteString.Companion.encodeUtf8
@@ -60,7 +61,8 @@ class RotateAuthKeysServiceImpl(
         )
         .catching {
           post("/api/accounts/${fullAccountId.serverId}/authentication-keys") {
-            setBody(
+            withDescription("Rotating auth keys")
+            setRedactedBody(
               RotateAuthKeysetResponse(
                 application = AuthenticationKey(
                   newAppAuthPublicKeys.appGlobalAuthPublicKey.value,
@@ -79,7 +81,6 @@ class RotateAuthKeysServiceImpl(
           }
         }
         .mapUnit()
-        .logNetworkFailure { "Error rotating auth keys" }
         .bind()
     }
 
@@ -99,5 +100,5 @@ class RotateAuthKeysServiceImpl(
     val hardware: AuthenticationKey,
     @SerialName("recovery")
     val recovery: AuthenticationKey,
-  )
+  ) : RedactedRequestBody
 }

@@ -9,8 +9,6 @@ import build.wallet.cloud.backup.CloudBackupRepositoryFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EakDataFake
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -46,7 +44,6 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
 
   val props =
     AccessCloudBackupUiProps(
-      eakAssociation = EakDataFake,
       forceSignOutFromCloud = false,
       onExit = {
         exitCalls += Unit
@@ -182,26 +179,6 @@ class AccessCloudBackupStateMachineImplTests : FunSpec({
       }
 
       cannotAccessCloudCalls.awaitItem().shouldBe(Unit)
-    }
-  }
-
-  test("cloud account sign in failed - emergency access row always available in EAK build") {
-    stateMachine.test(props.copy(eakAssociation = EmergencyAccessKitAssociation.EakBuild)) {
-      awaitScreenWithBodyModelMock<CloudSignInUiProps> {
-        onSignInFailure(Error())
-      }
-
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList
-          .first()
-          .shouldNotBeNull()
-          .shouldBeTypeOf<FormMainContentModel.ListGroup>()
-          .listGroupModel
-          .items[2]
-          .onClick.shouldNotBeNull().invoke()
-      }
-
-      importEmergencyAccessKitCalls.awaitItem().shouldBe(Unit)
     }
   }
 

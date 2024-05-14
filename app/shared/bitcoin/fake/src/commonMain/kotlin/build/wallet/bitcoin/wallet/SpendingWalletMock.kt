@@ -2,8 +2,6 @@ package build.wallet.bitcoin.wallet
 
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
-import build.wallet.LoadableValue
-import build.wallet.LoadableValue.InitialLoading
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.address.BitcoinAddress
@@ -21,6 +19,7 @@ import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlin.time.Duration
 
 class SpendingWalletMock(
@@ -31,9 +30,9 @@ class SpendingWalletMock(
 
   override suspend fun initializeBalanceAndTransactions() {
     initializeCalls.add(Unit)
-    balanceFlow.value = LoadableValue.LoadedValue(BitcoinBalance.ZeroBalance)
-    transactionsFlow.value = LoadableValue.LoadedValue(emptyList())
-    unspentOutputsFlow.value = LoadableValue.LoadedValue(emptyList())
+    balanceFlow.value = BitcoinBalance.ZeroBalance
+    transactionsFlow.value = emptyList()
+    unspentOutputsFlow.value = emptyList()
   }
 
   override suspend fun sync(): Result<Unit, Error> {
@@ -70,17 +69,17 @@ class SpendingWalletMock(
     return isMineResult
   }
 
-  var balanceFlow = MutableStateFlow<LoadableValue<BitcoinBalance>>(InitialLoading)
+  var balanceFlow = MutableStateFlow<BitcoinBalance?>(null)
 
-  override fun balance(): Flow<LoadableValue<BitcoinBalance>> = balanceFlow
+  override fun balance(): Flow<BitcoinBalance> = balanceFlow.filterNotNull()
 
-  var transactionsFlow = MutableStateFlow<LoadableValue<List<BitcoinTransaction>>>(InitialLoading)
+  var transactionsFlow = MutableStateFlow<List<BitcoinTransaction>?>(null)
 
-  override fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>> = transactionsFlow
+  override fun transactions(): Flow<List<BitcoinTransaction>> = transactionsFlow.filterNotNull()
 
-  var unspentOutputsFlow = MutableStateFlow<LoadableValue<List<BdkUtxo>>>(InitialLoading)
+  var unspentOutputsFlow = MutableStateFlow<List<BdkUtxo>?>(null)
 
-  override fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>> = unspentOutputsFlow
+  override fun unspentOutputs(): Flow<List<BdkUtxo>> = unspentOutputsFlow.filterNotNull()
 
   val signPsbtCalls = turbine("$identifier: sign psbt calls for wallet")
   var signPsbtResult: Result<Psbt, Throwable>? = null
@@ -93,9 +92,9 @@ class SpendingWalletMock(
 
   fun reset() {
     newAddressResult = Ok(someBitcoinAddress)
-    balanceFlow.value = InitialLoading
-    transactionsFlow.value = InitialLoading
-    unspentOutputsFlow.value = InitialLoading
+    balanceFlow.value = null
+    transactionsFlow.value = null
+    unspentOutputsFlow.value = null
     signPsbtResult = null
     createSignedPsbtResult = null
     createSignedPsbtResults.clear()

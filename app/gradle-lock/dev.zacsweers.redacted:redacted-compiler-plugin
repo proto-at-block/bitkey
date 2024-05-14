@@ -2,11 +2,11 @@
     "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-1.7.1.jar": "5d280590213648982dccff84950c592e281c651b52fea59c4c6fd63f7eb9a670"
+                        "redacted-compiler-plugin-1.8.0.jar": "b3655b520c200d270b0f90aba132b84219219c5f27cf055257c6da99757de98a"
                     }
                 }
             ],

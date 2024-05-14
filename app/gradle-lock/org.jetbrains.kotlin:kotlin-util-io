@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-util-io",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-io-1.9.22.jar": "f6d7a58491a378b083ad1bead488a485e11d160b31e76c18c1ad520f1d28f46b"
+                        "kotlin-util-io-1.9.23.jar": "7a6dce40e78acbe66fc7d678eb741c877845a3cfd1c76c4d2bbf8ec845d2d929"
                     }
                 }
             ],

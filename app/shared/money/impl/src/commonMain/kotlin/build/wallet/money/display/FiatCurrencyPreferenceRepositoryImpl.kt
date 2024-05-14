@@ -7,50 +7,56 @@ import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.platform.settings.LocaleCurrencyCodeProvider
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class FiatCurrencyPreferenceRepositoryImpl(
-  private val fiatCurrencyDao: FiatCurrencyDao,
+  appScope: CoroutineScope,
   private val fiatCurrencyPreferenceDao: FiatCurrencyPreferenceDao,
   private val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider,
+  private val fiatCurrencyDao: FiatCurrencyDao,
 ) : FiatCurrencyPreferenceRepository {
-  // We use the device's locale for the default currency if one is not yet set
-  // But if we can't map the locale from the device to a currency we know about / support,
-  // we fall back to USD.
-  private val defaultCurrency = USD
-  private val defaultCurrencyFlow = MutableStateFlow(defaultCurrency)
-  override val defaultFiatCurrency: StateFlow<FiatCurrency>
-    get() = defaultCurrencyFlow.asStateFlow()
-
-  private val fiatCurrencyPreferenceFlow = MutableStateFlow<FiatCurrency?>(null)
-  override val fiatCurrencyPreference: StateFlow<FiatCurrency?>
-    get() = fiatCurrencyPreferenceFlow.asStateFlow()
-
-  override fun launchSync(scope: CoroutineScope) {
-    scope.launch {
-      // Emit the locale from the device as the [defaultCurrency], if we are able to map
-      // the locale currency code to a currency we know about (have a definition stored
-      // in [fiatCurrencyDao] for).
-      localeCurrencyCodeProvider.localeCurrencyCode()?.let { code ->
-        fiatCurrencyDao.fiatCurrency(IsoCurrencyTextCode(code))
-          .filterNotNull()
-          .collect(defaultCurrencyFlow)
+  override val fiatCurrencyPreference: StateFlow<FiatCurrency> =
+    fiatCurrencyPreferenceDao
+      .fiatCurrencyPreference()
+      .onStart {
+        appScope.launch {
+          initializeDefaultCurrency()
+        }
       }
-    }
+      .map { it ?: USD }
+      .stateIn(appScope, started = SharingStarted.Lazily, initialValue = USD)
 
-    scope.launch {
-      // Emit the customer's explicitly set preference as the [fiatCurrencyPreference]
-      fiatCurrencyPreferenceDao.fiatCurrencyPreference()
-        .collect(fiatCurrencyPreferenceFlow)
+  /**
+   * A worker that initializes default currency preference based on the customer's locale,
+   * unless customer has already picked their preferred currency from the list of supported
+   * fiat currencies in Settings.
+   */
+  private suspend fun initializeDefaultCurrency() {
+    // Check if the customer does not have a fiat currency preference set.
+    val fiatCurrencyPreference = fiatCurrencyPreferenceDao.fiatCurrencyPreference().firstOrNull()
+    if (fiatCurrencyPreference == null) {
+      // If the customer does not have a fiat currency preference set,
+      // use device's locale to determine appropriate fiat currency to use as default.
+      val localeCurrencyCode = localeCurrencyCodeProvider.localeCurrencyCode()
+      if (localeCurrencyCode != null) {
+        val fiatCurrency =
+          fiatCurrencyDao.fiatCurrency(IsoCurrencyTextCode(localeCurrencyCode)).firstOrNull()
+        if (fiatCurrency != null) {
+          // Set the fiat currency preference to the fiat currency determined by the device's locale.
+          fiatCurrencyPreferenceDao.setFiatCurrencyPreference(fiatCurrency)
+        }
+      }
     }
   }
 
-  override suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency) {
-    fiatCurrencyPreferenceDao.setFiatCurrencyPreference(fiatCurrency)
+  override suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency): Result<Unit, Error> {
+    return fiatCurrencyPreferenceDao.setFiatCurrencyPreference(fiatCurrency)
   }
 
   override suspend fun clear(): Result<Unit, Error> {

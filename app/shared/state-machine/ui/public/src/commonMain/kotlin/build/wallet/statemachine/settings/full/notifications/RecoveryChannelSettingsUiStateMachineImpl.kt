@@ -56,7 +56,7 @@ import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSett
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.TogglingNotificationChannelUiState
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl.RecoveryState.VerifyingProofOfHwPossessionUiState
 import build.wallet.statemachine.settings.full.notifications.Source.Settings
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
@@ -453,7 +453,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                       updateState(
                         ShowingNotificationsSettingsUiState(
                           overlayState = AlertOverlayState(
-                            alertModel = AlertModel(
+                            alertModel = ButtonAlertModel(
                               title = "Are you sure you want to disable SMS recovery?",
                               subline = "The more recovery channels you have, the more secure your Bitkey is.",
                               onDismiss = {
@@ -467,7 +467,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                                   )
                                 )
                               },
-                              primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
+                              primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
                               secondaryButtonText = "Keep SMS recovery",
                               onSecondaryButtonClick = {
                                 updateState(ShowingNotificationsSettingsUiState())
@@ -567,7 +567,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               overlayState =
                 AlertOverlayState(
                   alertModel =
-                    AlertModel(
+                    ButtonAlertModel(
                       title = "Are you sure you want to disable recovery push notifications?",
                       subline = "The more recovery channels you have, the more secure your Bitkey is.",
                       onDismiss = {
@@ -582,7 +582,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                           )
                         )
                       },
-                      primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
+                      primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
                       secondaryButtonText = "Keep push notifications",
                       onSecondaryButtonClick = {
                         updateState(ShowingNotificationsSettingsUiState())
@@ -604,7 +604,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
               updateState(
                 ShowingNotificationsSettingsUiState(
                   overlayState = AlertOverlayState(
-                    alertModel = AlertModel(
+                    alertModel = ButtonAlertModel(
                       title = "Open Settings to enable push notifications",
                       subline = "",
                       primaryButtonText = "Settings",
@@ -673,13 +673,13 @@ class RecoveryChannelSettingsUiStateMachineImpl(
 
       data class BottomSheetOverlayState(val bottomSheetModel: SheetModel) : OverlayState
 
-      data class AlertOverlayState(val alertModel: AlertModel) : OverlayState
+      data class AlertOverlayState(val alertModel: ButtonAlertModel) : OverlayState
 
       /**
        * iOS seems unable to display an AlertModel while the bottom sheet closing animation
        * is still running. If there's a more formal way to handle this state, we can replace this.
        */
-      data class DelayedAlertOverlayState(val alertModel: AlertModel) : OverlayState
+      data class DelayedAlertOverlayState(val alertModel: ButtonAlertModel) : OverlayState
 
       data object RequestingPushPermissionsOverlayState : OverlayState
     }

@@ -30,7 +30,6 @@ class MobilePaySettingsUiStateMachineImpl(
                 MobilePayUiProps(
                   onBack = props.onBack,
                   accountData = props.accountData,
-                  fiatCurrency = props.fiatCurrency,
                   onSetLimitClick = { currentLimit: SpendingLimit? ->
                     state = SettingSpendingLimitUiState(defaultSpendingLimit = currentLimit)
                   }
@@ -41,16 +40,14 @@ class MobilePaySettingsUiStateMachineImpl(
 
       is SettingSpendingLimitUiState ->
         setSpendingLimitUiStateMachine.model(
-          props =
-            SpendingLimitProps(
-              currentSpendingLimit = currentState.defaultSpendingLimit?.amount,
-              onClose = { state = ShowingMobilePayStatusUiState },
-              accountData = props.accountData,
-              fiatCurrency = props.fiatCurrency,
-              onSetLimit = {
-                state = ShowingMobilePayStatusUiState
-              }
-            )
+          props = SpendingLimitProps(
+            currentSpendingLimit = currentState.defaultSpendingLimit?.amount,
+            onClose = { state = ShowingMobilePayStatusUiState },
+            accountData = props.accountData,
+            onSetLimit = {
+              state = ShowingMobilePayStatusUiState
+            }
+          )
         )
     }
   }

@@ -50,6 +50,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.FormMainContentModel.MoneyHomeHero
 import build.wallet.statemachine.core.form.FormMainContentModel.Picker
 import build.wallet.statemachine.core.form.FormMainContentModel.Spacer
+import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator
 import build.wallet.statemachine.core.form.FormMainContentModel.TextArea
 import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
 import build.wallet.statemachine.core.form.FormMainContentModel.Timer
@@ -71,6 +72,7 @@ import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.loading.FormLoader
+import build.wallet.ui.components.progress.StepperIndicator
 import build.wallet.ui.components.timer.Timer
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.components.webview.WebView
@@ -156,6 +158,7 @@ fun FormScreen(model: FormBodyModel) {
             is Loader -> FormLoader()
             is MoneyHomeHero -> MoneyHomeHero(model = mainContent)
             is Picker -> Picker(model = mainContent)
+            is StepperIndicator -> StepperIndicator(model = mainContent)
           }
           if (index < model.mainContentList.lastIndex) {
             Spacer(modifier = Modifier.height(16.dp))

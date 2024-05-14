@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib-jdk7",
     "components": [
         {
-            "version": "1.6.20",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk7-1.6.20.jar": "aa2fa2e81355c4d98dd97da2169bf401f842261378f5b1cbea1aa11855d67620"
+                        "kotlin-stdlib-jdk7-1.8.0.jar": "4c889d1d9803f5f2eb6c1592a6b7e62369ac7660c9eee15aba16fec059163666"
                     }
                 }
             ],
@@ -28,11 +28,11 @@
             ]
         },
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk7-1.9.22.jar": "f91f24cfad3a756688a35129e5f335480d0eb408f1568a17f707c289f8769bdd"
+                        "kotlin-stdlib-jdk7-1.9.23.jar": "34b1dff7ee4e42af452dca1e3c001e352bcd9e9ec27dfdd478bb7e76e7bfa3e1"
                     }
                 }
             ],

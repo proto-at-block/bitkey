@@ -1,6 +1,5 @@
 package build.wallet.cloud.backup
 
-import build.wallet.LoadableValue
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.health.CloudBackupStatus
 import build.wallet.cloud.backup.health.EakBackupStatus
@@ -12,12 +11,12 @@ interface CloudBackupHealthRepository {
   /**
    * Emits latest mobile key backup status.
    */
-  fun mobileKeyBackupStatus(): StateFlow<LoadableValue<MobileKeyBackupStatus>>
+  fun mobileKeyBackupStatus(): StateFlow<MobileKeyBackupStatus?>
 
   /**
    * Emits latest Emergency Access Kit (EAK) backup status.
    */
-  fun eakBackupStatus(): StateFlow<LoadableValue<EakBackupStatus>>
+  fun eakBackupStatus(): StateFlow<EakBackupStatus?>
 
   /**
    * Launches a non-blocking coroutine that periodically syncs [mobileKeyBackupStatus] and

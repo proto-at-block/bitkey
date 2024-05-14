@@ -12,7 +12,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.icon.IconButtonModel
@@ -101,7 +101,7 @@ fun NewDeviceReadyQuestionModel(
   presentationStyle = presentationStyle,
   alertModel =
     if (showingNoDeviceAlert) {
-      AlertModel(
+      ButtonAlertModel(
         onDismiss = onNoDeviceAlertDismiss,
         title = "A new Bitkey hardware device is required to replace one that is lost",
         subline = "Visit https://bitkey.world to purchase a new Bitkey hardware device.",

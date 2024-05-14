@@ -127,6 +127,10 @@ adpu_from_proto!(CertGetCmd);
 adpu_from_proto!(DerivePublicKeyCmd);
 adpu_from_proto!(DerivePublicKeyAndSignCmd);
 adpu_from_proto!(HardwareAttestationCmd);
+adpu_from_proto!(SetFingerprintLabelCmd);
+adpu_from_proto!(GetEnrolledFingerprintsCmd);
+adpu_from_proto!(DeleteFingerprintCmd);
+adpu_from_proto!(GetUnlockMethodCmd);
 
 impl TryFrom<crate::fwpb::CoredumpGetCmd> for apdu::Command {
     type Error = EncodeError;

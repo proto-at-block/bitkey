@@ -3,7 +3,6 @@ package build.wallet.statemachine.send
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
@@ -17,14 +16,12 @@ interface TransferInitiatedUiStateMachine : StateMachine<TransferInitiatedUiProp
 /**
  * @property onBack - handler for when the state machine exits.
  * @property onDone - handler for when the state machine is closed successfully.
- * @property fiatCurrency: The fiat currency to convert BTC amounts to and from.
  */
 data class TransferInitiatedUiProps(
   val onBack: () -> Unit,
   val recipientAddress: BitcoinAddress,
   val transferInitiatedVariant: Variant,
   val estimatedTransactionPriority: EstimatedTransactionPriority,
-  val fiatCurrency: FiatCurrency,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val onDone: () -> Unit,
 ) {

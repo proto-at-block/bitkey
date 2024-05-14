@@ -14,9 +14,8 @@ use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use onboarding::routes::CreateAccountRequest;
 
 use crate::tests;
-use crate::tests::gen_services;
-use crate::tests::lib::{create_keypair, create_pubkey};
 use crate::tests::requests::axum::TestClient;
+use crate::tests::{gen_services, lib::create_new_authkeys};
 
 struct AuthWithHwAuthKeyTestVector {
     spending_app_xpub: DescriptorPublicKey,
@@ -29,16 +28,16 @@ struct AuthWithHwAuthKeyTestVector {
 }
 
 async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (hardware_privkey, hardware_pubkey) = create_keypair();
+    let keys = create_new_authkeys(&mut context);
     // First, make an account
     let request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: hardware_pubkey,
-            recovery: None,
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: vector.network,
@@ -47,7 +46,7 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&request).await;
+    let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
         actual_response.status_code, vector.expected_create_status,
         "{}",
@@ -56,7 +55,7 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
 
     // now try to initiate auth with the hw key
     let request = AuthenticateWithHardwareRequest {
-        hw_auth_pubkey: hardware_pubkey,
+        hw_auth_pubkey: keys.hw.public_key,
     };
     let actual_response = client.authenticate_with_hardware(&request).await;
     assert_eq!(
@@ -76,7 +75,7 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
 
     // Now do the full authentication with the hw key
     let request = AuthenticationRequest {
-        auth_request_key: AuthRequestKey::HwPubkey(hardware_pubkey),
+        auth_request_key: AuthRequestKey::HwPubkey(keys.hw.public_key),
     };
     let actual_response = client.authenticate(&request).await;
     assert_eq!(
@@ -89,7 +88,7 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
         let challenge = auth_resp.challenge;
         let secp = Secp256k1::new();
         let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_ref());
-        let signature = secp.sign_ecdsa(&message, &hardware_privkey);
+        let signature = secp.sign_ecdsa(&message, &keys.hw.secret_key);
         let request = GetTokensRequest {
             challenge: Some(ChallengeResponseParameters {
                 username: auth_resp.username,
@@ -154,16 +153,17 @@ struct AuthWithRecoveryAuthKeyTestVector {
 }
 
 async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (recovery_privkey, recovery_pubkey) = create_keypair();
+    let keys = create_new_authkeys(&mut context);
+    let recovery_privkey = keys.recovery.secret_key;
     // First, make an account
     let request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: create_pubkey(),
-            recovery: Some(recovery_pubkey),
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: vector.network,
@@ -172,7 +172,7 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&request).await;
+    let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
         actual_response.status_code, vector.expected_create_status,
         "{}",
@@ -181,7 +181,7 @@ async fn auth_with_recovery_authkey_test(vector: AuthWithRecoveryAuthKeyTestVect
 
     // now try to initiate auth with the hw key
     let request = AuthenticationRequest {
-        auth_request_key: AuthRequestKey::RecoveryPubkey(recovery_pubkey),
+        auth_request_key: AuthRequestKey::RecoveryPubkey(keys.recovery.public_key),
     };
     let actual_response = client.authenticate(&request).await;
     assert_eq!(

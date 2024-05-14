@@ -1,12 +1,10 @@
 package build.wallet.statemachine.data.keybox
 
-import build.wallet.LoadableValue
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
@@ -40,7 +38,6 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
   val props =
     HasActiveLiteAccountDataProps(
       account = LiteAccountMock,
-      currencyPreferenceData = CurrencyPreferenceDataMock,
       accountUpgradeOnboardConfigData = LoadedOnboardConfigDataMock,
       accountUpgradeTemplateFullAccountConfigData =
         TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData(
@@ -54,14 +51,14 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
   }
 
   test("initial state - no onboarding keybox") {
-    keyboxDao.onboardingKeybox.value = Ok(LoadableValue.LoadedValue(null))
+    keyboxDao.onboardingKeybox.value = Ok(null)
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<AccountData.HasActiveLiteAccountData>()
     }
   }
 
   test("initial state - with onboarding keybox") {
-    keyboxDao.onboardingKeybox.value = Ok(LoadableValue.LoadedValue(KeyboxMock))
+    keyboxDao.onboardingKeybox.value = Ok(KeyboxMock)
     stateMachine.test(props) {
       // Before onboarding keybox is pulled from DB
       awaitItem().shouldBeTypeOf<AccountData.HasActiveLiteAccountData>()
@@ -70,7 +67,7 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
   }
 
   test("progress to upgrading account state") {
-    keyboxDao.onboardingKeybox.value = Ok(LoadableValue.LoadedValue(null))
+    keyboxDao.onboardingKeybox.value = Ok(null)
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<AccountData.HasActiveLiteAccountData>().let {
         it.onUpgradeAccount()

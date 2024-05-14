@@ -3,9 +3,10 @@ package build.wallet.f8e.mobilepay
 import build.wallet.configuration.FiatMobilePayConfiguration
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.FiatCurrencyDao
@@ -42,7 +43,9 @@ class FiatMobilePayConfigurationServiceImpl(
   ): Result<Map<FiatCurrency, FiatMobilePayConfiguration>, NetworkingError> {
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<FiatConfigurationsResponse> {
-        get("/api/mobile-pay/fiat-configurations")
+        get("/api/mobile-pay/fiat-configurations") {
+          withDescription("Get fiat currencies")
+        }
       }
       .map { body ->
         body.configurations
@@ -54,7 +57,6 @@ class FiatMobilePayConfigurationServiceImpl(
           .mapValues { entry -> entry.key?.let { entry.value.toFiatMobilePayConfiguration(it) } }
           .filterNotNull()
       }
-      .logNetworkFailure { "Failed to get fiat currencies" }
   }
 }
 
@@ -62,7 +64,7 @@ class FiatMobilePayConfigurationServiceImpl(
 private data class FiatConfigurationsResponse(
   // Maps a currency text code string to the configuration
   val configurations: Map<String, FiatMobilePayConfigurationDTO>,
-)
+) : RedactedResponseBody
 
 @Serializable
 private data class FiatMobilePayConfigurationDTO(

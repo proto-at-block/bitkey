@@ -37,6 +37,12 @@ class SocRecRelationshipsRepositoryMock(
     launchSyncCalls.add(Unit)
   }
 
+  private val defaultSyncAndVerifyRelationshipsResult: Result<SocRecRelationships, Error> = Ok(
+    SocRecRelationshipsFake
+  )
+  var syncAndVerifyRelationshipsResult: Result<SocRecRelationships, Error> =
+    defaultSyncAndVerifyRelationshipsResult
+
   override suspend fun syncAndVerifyRelationships(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
@@ -45,7 +51,7 @@ class SocRecRelationshipsRepositoryMock(
   ): Result<SocRecRelationships, Error> {
     syncCalls.add(Unit)
 
-    return Ok(SocRecRelationshipsFake)
+    return syncAndVerifyRelationshipsResult
   }
 
   var relationshipsFlow =
@@ -137,6 +143,7 @@ class SocRecRelationshipsRepositoryMock(
   override suspend fun clear(): Result<Unit, Error> {
     acceptInvitationResult = defaultAcceptInvitationResult
     retrieveInvitationResult = defaultRetrieveInvitationResult
+    syncAndVerifyRelationshipsResult = defaultSyncAndVerifyRelationshipsResult
     return Ok(Unit)
   }
 }

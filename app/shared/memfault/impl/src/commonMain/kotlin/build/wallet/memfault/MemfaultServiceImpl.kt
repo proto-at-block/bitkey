@@ -3,6 +3,7 @@ package build.wallet.memfault
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.catching
 import build.wallet.ktor.result.readByteString
+import build.wallet.ktor.result.setUnredactedBody
 import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
 import build.wallet.memfault.MemfaultProjectKey.Companion.MEMFAULT_PROJECT_KEY
@@ -20,7 +21,6 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -97,7 +97,7 @@ class MemfaultServiceImpl(
         post("https://chunks.memfault.com/api/v0/chunks/$deviceSerial") {
           header("Memfault-Project-Key", MEMFAULT_PROJECT_KEY)
           header(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-          setBody(chunk)
+          setUnredactedBody(chunk)
         }
       }.map {
         UploadTelemetryEventSuccess
@@ -120,7 +120,7 @@ class MemfaultServiceImpl(
           post("https://files.memfault.com/api/v0/upload") {
             header("Memfault-Project-Key", MEMFAULT_PROJECT_KEY)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(
+            setUnredactedBody(
               UploadCoredumpRequestBody(
                 kind = "COREDUMP",
                 device =
@@ -145,7 +145,7 @@ class MemfaultServiceImpl(
     client.catching {
       put(response.data.upload_url) {
         header(HttpHeaders.ContentType, ContentType.Application.OctetStream)
-        setBody(coredump.toByteArray())
+        setUnredactedBody(coredump.toByteArray())
       }
     }.map {
       log { "Coredump upload response: $it" }
@@ -160,7 +160,7 @@ class MemfaultServiceImpl(
         post("https://files.memfault.com/api/v0/upload/coredump") {
           header("Memfault-Project-Key", MEMFAULT_PROJECT_KEY)
           header(HttpHeaders.ContentType, ContentType.Application.Json)
-          setBody(
+          setUnredactedBody(
             CommitUploadRequestBody(
               file =
                 UploadFile(

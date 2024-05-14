@@ -2,11 +2,16 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-1.9.10.jar": "55e989c512b80907799f854309f3bc7782c5b3d13932442d0379d5c472711504"
+                        "kotlin-stdlib-1.9.22-all.jar": "cec38bc3302e72a8aaf9cde436b5a9071ee0331e2ad05e84d8bb897334d7e9d4"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "kotlin-stdlib-1.9.22.jar": "6abe146c27864138b874ccccfe5f534e3eb923c99a1b7b5d45494ee5694f3e0a"
                     }
                 }
             ],

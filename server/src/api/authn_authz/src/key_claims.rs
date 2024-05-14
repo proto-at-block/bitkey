@@ -136,7 +136,7 @@ mod tests {
 
     use crate::key_claims::{KeyClaims, APP_SIG_HEADER, HW_SIG_HEADER};
     use crate::test_utils::{
-        get_test_access_token, sign_with_app_key, sign_with_hw_key, TEST_USERNAME,
+        get_test_access_token, sign_with_test_app_key, sign_with_test_hw_key, TEST_USERNAME,
     };
 
     #[test]
@@ -155,7 +155,7 @@ mod tests {
     #[tokio::test]
     async fn test_app_signature_in_header() {
         let access_token = get_test_access_token();
-        let app_signature = sign_with_app_key(&access_token);
+        let app_signature = sign_with_test_app_key(&access_token);
 
         let request = Request::builder()
             .uri("http://example.com/")
@@ -185,7 +185,7 @@ mod tests {
     #[tokio::test]
     async fn test_hw_signature_in_header() {
         let access_token = get_test_access_token();
-        let hw_signature = sign_with_hw_key(&access_token);
+        let hw_signature = sign_with_test_hw_key(&access_token);
 
         let request = Request::builder()
             .uri("http://example.com/")
@@ -215,8 +215,8 @@ mod tests {
     #[tokio::test]
     async fn test_both_signatures_in_header() {
         let access_token = get_test_access_token();
-        let app_signature = sign_with_app_key(&access_token);
-        let hw_signature = sign_with_hw_key(&access_token);
+        let app_signature = sign_with_test_app_key(&access_token);
+        let hw_signature = sign_with_test_hw_key(&access_token);
 
         let request = Request::builder()
             .uri("http://example.com/")

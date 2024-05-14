@@ -8,7 +8,6 @@ import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.flow.map
@@ -22,7 +21,6 @@ class FiatMobilePayConfigurationDaoImpl(
     database.fiatCurrencyMobilePayConfigurationQueries
       .getAllFiatCurrencyMobilePayConfigurations()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .map { result ->
         result.logFailure { "Failed to read all FiatMobilePayConfiguration values from database" }
         result.get()?.associate {

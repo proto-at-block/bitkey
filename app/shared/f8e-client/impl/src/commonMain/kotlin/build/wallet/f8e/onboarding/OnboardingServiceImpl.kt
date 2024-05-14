@@ -3,13 +3,14 @@ package build.wallet.f8e.onboarding
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 
 class OnboardingServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -21,10 +22,10 @@ class OnboardingServiceImpl(
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .catching {
         post(urlString = "/api/accounts/${fullAccountId.serverId}/complete-onboarding") {
-          setBody("{}")
+          withDescription("Complete onboarding")
+          setRedactedBody(EmptyRequestBody())
         }
       }
-      .logNetworkFailure { "Failed to complete onboarding" }
       .mapUnit()
   }
 }

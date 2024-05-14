@@ -53,13 +53,13 @@ NO_OPTIMIZE static void fpc_cmd_handler(int argc, char** argv) {
     bio_selftest_result_t result;
     bio_selftest(&result);
   } else if (fpc_cmd_args.enroll->header.found) {
-    bio_wait_for_finger_blocking();
+    bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
     bio_enroll_stats_t stats;
-    bio_enroll_finger(fpc_cmd_args.enroll->value, &stats);
+    bio_enroll_finger(fpc_cmd_args.enroll->value, "test", &stats);
   } else if (fpc_cmd_args.match->header.found) {
     secure_bool_t match = SECURE_FALSE;
     bio_template_id_t id = 0;
-    bio_wait_for_finger_blocking();
+    bio_wait_for_finger_blocking(BIO_FINGER_DOWN);
     bio_authenticate_finger(&match, &id, 0);
     SECURE_IF_FAILOUT(match == SECURE_TRUE) { LOGI("Matched to template %d", id); }
     else {

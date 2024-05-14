@@ -10,7 +10,7 @@ semver==3.0.2
 pyserial==3.5
 build==1.1.1
 poetry==1.8.2
-nanopb==0.4.8
+nanopb==0.4.7
 poetry-dynamic-versioning==1.2.0
 plotly==5.19.0
 pandas==2.2.1

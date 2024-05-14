@@ -7,7 +7,6 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
@@ -19,14 +18,12 @@ interface SendUiStateMachine : StateMachine<SendUiProps, ScreenModel>
  * @property entryPoint - where the send flow is being launched from (pay or send button).
  * @property keybox - keybox to use for signing transfer transaction.
  * @property onExit - handler for exiting this state machine.
- * @property fiatCurrency: The fiat currency to convert BTC amounts to and from.
  * @property validInvoiceInClipboard payment information in clipboard (if any)
  * @property onDone handler for what the "Done" button does in the transfer confirmation screen.
  */
 data class SendUiProps(
   val entryPoint: SendEntryPoint,
   val accountData: ActiveFullAccountLoadedData,
-  val fiatCurrency: FiatCurrency,
   val validInvoiceInClipboard: ParsedPaymentData?,
   val onExit: () -> Unit,
   val onDone: () -> Unit,

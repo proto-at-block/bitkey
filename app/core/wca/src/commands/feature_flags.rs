@@ -19,6 +19,7 @@ pub enum FirmwareFeatureFlag {
     DeviceInfoFlag,
     RateLimitTemplateUpdate,
     Unlock,
+    MultipleFingerprints,
 }
 
 macro_rules! convert_enum {
@@ -47,7 +48,8 @@ convert_enum!(
     Telemetry,
     DeviceInfoFlag,
     RateLimitTemplateUpdate,
-    Unlock
+    Unlock,
+    MultipleFingerprints
 );
 
 impl FirmwareFeatureFlag {

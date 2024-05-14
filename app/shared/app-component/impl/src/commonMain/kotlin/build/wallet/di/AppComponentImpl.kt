@@ -1,6 +1,8 @@
 package build.wallet.di
 
+import build.wallet.account.AccountDao
 import build.wallet.account.AccountDaoImpl
+import build.wallet.account.AccountRepository
 import build.wallet.account.AccountRepositoryImpl
 import build.wallet.account.analytics.AppInstallationDaoImpl
 import build.wallet.analytics.events.AnalyticsTrackingPreferenceImpl
@@ -11,18 +13,29 @@ import build.wallet.analytics.events.EventSenderImpl
 import build.wallet.analytics.events.EventStoreImpl
 import build.wallet.analytics.events.EventTrackerImpl
 import build.wallet.analytics.events.HardwareInfoProviderImpl
+import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.analytics.events.PlatformInfoProviderImpl
+import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AccountAuthenticatorImpl
+import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AppAuthKeyMessageSignerImpl
+import build.wallet.auth.AppAuthPublicKeyProvider
 import build.wallet.auth.AppAuthPublicKeyProviderImpl
+import build.wallet.auth.AppAuthTokenRefresher
 import build.wallet.auth.AppAuthTokenRefresherImpl
+import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenDaoImpl
+import build.wallet.auth.AuthTokensRepository
 import build.wallet.auth.AuthTokensRepositoryImpl
 import build.wallet.availability.F8eAuthSignatureStatusProvider
 import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
+import build.wallet.availability.F8eNetworkReachabilityService
 import build.wallet.availability.F8eNetworkReachabilityServiceImpl
+import build.wallet.availability.InternetNetworkReachabilityService
 import build.wallet.availability.InternetNetworkReachabilityServiceImpl
+import build.wallet.availability.NetworkReachabilityEventDao
 import build.wallet.availability.NetworkReachabilityEventDaoImpl
+import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.availability.NetworkReachabilityProviderImpl
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkBlockchainFactory
@@ -32,6 +45,7 @@ import build.wallet.bdk.bindings.BdkMnemonicGenerator
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
 import build.wallet.bdk.bindings.BdkTxBuilderFactory
 import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.AppPrivateKeyDaoImpl
 import build.wallet.bitcoin.bdk.BdkBlockchainProviderImpl
 import build.wallet.bitcoin.bdk.BdkDatabaseConfigProviderImpl
@@ -49,6 +63,7 @@ import build.wallet.bitcoin.wallet.WatchingWalletProviderImpl
 import build.wallet.bugsnag.BugsnagContextImpl
 import build.wallet.coroutines.scopes.CoroutineScopes
 import build.wallet.crypto.WsmVerifier
+import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
@@ -56,20 +71,30 @@ import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.f8e.analytics.EventTrackerServiceImpl
+import build.wallet.f8e.auth.AuthenticationService
 import build.wallet.f8e.auth.AuthenticationServiceImpl
 import build.wallet.f8e.client.DatadogTracerPluginProvider
+import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.client.F8eHttpClientImpl
 import build.wallet.f8e.client.F8eHttpClientProvider
 import build.wallet.f8e.client.ProofOfPossessionPluginProvider
+import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
 import build.wallet.f8e.client.UnauthenticatedOnlyF8eHttpClientImpl
+import build.wallet.f8e.debug.NetworkingDebugConfigDao
 import build.wallet.f8e.debug.NetworkingDebugConfigDaoImpl
+import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryImpl
 import build.wallet.f8e.featureflags.GetFeatureFlagsServiceImpl
+import build.wallet.f8e.notifications.RegisterWatchAddressServiceImpl
 import build.wallet.f8e.onboarding.AddDeviceTokenServiceImpl
+import build.wallet.feature.DoubleMobileTestFeatureFlag
+import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagDaoImpl
 import build.wallet.feature.FeatureFlagInitializerImpl
 import build.wallet.feature.FeatureFlagSyncerImpl
+import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.MobileTestFeatureFlag
+import build.wallet.feature.StringFlagMobileTestFeatureFlag
 import build.wallet.firmware.FirmwareCoredumpQueueImpl
 import build.wallet.firmware.FirmwareCoredumpSenderImpl
 import build.wallet.firmware.FirmwareDeviceInfoDaoImpl
@@ -84,6 +109,8 @@ import build.wallet.fwup.FwupDataDaoImpl
 import build.wallet.fwup.FwupDataFetcherImpl
 import build.wallet.fwup.FwupManifestParserImpl
 import build.wallet.fwup.FwupProgressCalculatorImpl
+import build.wallet.inappsecurity.InAppSecurityFeatureFlag
+import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.KeyboxDaoImpl
 import build.wallet.keybox.config.TemplateFullAccountConfigDaoImpl
 import build.wallet.keybox.keys.AppAuthKeyGeneratorImpl
@@ -92,6 +119,7 @@ import build.wallet.keybox.keys.OnboardingAppKeyKeystoreImpl
 import build.wallet.keybox.keys.SpendingKeyGeneratorImpl
 import build.wallet.keybox.wallet.AppSpendingWalletProviderImpl
 import build.wallet.keybox.wallet.KeysetWalletProviderImpl
+import build.wallet.ktor.result.client.KtorLogLevelPolicy
 import build.wallet.ktor.result.client.KtorLogLevelPolicyImpl
 import build.wallet.ldk.LdkNodeServiceMock
 import build.wallet.logging.LogStoreWriterImpl
@@ -106,9 +134,13 @@ import build.wallet.money.display.BitcoinDisplayPreferenceDaoImpl
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryImpl
 import build.wallet.money.display.FiatCurrencyPreferenceDaoImpl
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryImpl
+import build.wallet.money.exchange.F8eExchangeRateService
+import build.wallet.money.exchange.F8eExchangeRateServiceImpl
 import build.wallet.nfc.haptics.NfcHapticsImpl
 import build.wallet.nfc.haptics.NfcHapticsOnConnectedIsEnabledFeatureFlag
 import build.wallet.notifications.DeviceTokenManagerImpl
+import build.wallet.notifications.RegisterWatchAddressQueueImpl
+import build.wallet.notifications.RegisterWatchAddressSenderImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -122,19 +154,30 @@ import build.wallet.platform.haptics.HapticsPolicyImpl
 import build.wallet.platform.hardware.SerialNumberParserImpl
 import build.wallet.platform.permissions.PermissionCheckerImpl
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProviderImpl
+import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.random.UuidGeneratorImpl
 import build.wallet.platform.settings.LocaleCountryCodeProviderImpl
 import build.wallet.platform.settings.LocaleCurrencyCodeProviderImpl
 import build.wallet.platform.settings.LocaleLanguageCodeProviderImpl
+import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.platform.versions.OsVersionInfoProviderImpl
 import build.wallet.queueprocessor.BatcherProcessorImpl
+import build.wallet.queueprocessor.ProcessorImpl
+import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderImpl
+import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.RecoveryDaoImpl
+import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.SqlDriverFactoryImpl
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
+import build.wallet.statemachine.settings.full.device.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
+import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
 import build.wallet.store.KeyValueStoreFactoryImpl
 import build.wallet.time.Delayer
+import build.wallet.worker.AppWorkerExecutorImpl
+import build.wallet.worker.AppWorkerProviderImpl
 import co.touchlab.kermit.LogWriter
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
@@ -171,20 +214,123 @@ class AppComponentImpl(
   override val recoverySyncFrequency: Duration = 1.minutes,
   override val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider =
     F8eAuthSignatureStatusProviderImpl(),
-) : AppComponent {
-  override val appCoroutineScope = CoroutineScopes.AppScope
-  override val clock = Clock.System
-  override val secureStoreFactory = EncryptedKeyValueStoreFactoryImpl(platformContext, fileManager)
-  override val uuidGenerator = UuidGeneratorImpl()
-  private val databaseDriverFactory =
+  override val secureStoreFactory: EncryptedKeyValueStoreFactory =
+    EncryptedKeyValueStoreFactoryImpl(platformContext, fileManager),
+  override val authTokenDao: AuthTokenDao =
+    AuthTokenDaoImpl(secureStoreFactory),
+  override val appPrivateKeyDao: AppPrivateKeyDao = AppPrivateKeyDaoImpl(secureStoreFactory),
+  override val appAuthKeyMessageSigner: AppAuthKeyMessageSigner =
+    AppAuthKeyMessageSignerImpl(
+      appPrivateKeyDao,
+      messageSigner
+    ),
+  override val osVersionInfoProvider: OsVersionInfoProvider = OsVersionInfoProviderImpl(),
+  override val platformInfoProvider: PlatformInfoProvider =
+    PlatformInfoProviderImpl(
+      platformContext,
+      appId,
+      appVersion,
+      osVersionInfoProvider
+    ),
+  override val ktorLogLevelPolicy: KtorLogLevelPolicy = KtorLogLevelPolicyImpl(appVariant),
+  override val uuidGenerator: UuidGenerator = UuidGeneratorImpl(),
+  private val databaseDriverFactory: SqlDriverFactory =
     SqlDriverFactoryImpl(
       platformContext,
       fileDirectoryProvider,
       secureStoreFactory,
       uuidGenerator,
       appVariant
-    )
-  override val bitkeyDatabaseProvider = BitkeyDatabaseProviderImpl(databaseDriverFactory)
+    ),
+  override val bitkeyDatabaseProvider: BitkeyDatabaseProvider =
+    BitkeyDatabaseProviderImpl(databaseDriverFactory),
+  private val networkingDebugConfigDao: NetworkingDebugConfigDao =
+    NetworkingDebugConfigDaoImpl(bitkeyDatabaseProvider),
+  override val networkingDebugConfigRepository: NetworkingDebugConfigRepository =
+    NetworkingDebugConfigRepositoryImpl(networkingDebugConfigDao),
+  private val f8eHttpClientProvider: F8eHttpClientProvider =
+    F8eHttpClientProvider(
+      appId = appId,
+      appVersion = appVersion,
+      appVariant = appVariant,
+      platformInfoProvider = platformInfoProvider,
+      datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer = datadogTracer),
+      networkingDebugConfigRepository = networkingDebugConfigRepository
+    ),
+  private val f8eNetworkReachabilityService: F8eNetworkReachabilityService =
+    F8eNetworkReachabilityServiceImpl(
+      unauthenticatedF8eHttpClient =
+        UnauthenticatedOnlyF8eHttpClientImpl(
+          f8eHttpClientProvider = f8eHttpClientProvider,
+          networkReachabilityProvider = null
+        )
+    ),
+  private val internetNetworkReachabilityService: InternetNetworkReachabilityService =
+    InternetNetworkReachabilityServiceImpl(),
+  override val clock: Clock = Clock.System,
+  override val networkReachabilityEventDao: NetworkReachabilityEventDao =
+    NetworkReachabilityEventDaoImpl(
+      clock = clock,
+      databaseProvider = bitkeyDatabaseProvider
+    ),
+  override val networkReachabilityProvider: NetworkReachabilityProvider =
+    NetworkReachabilityProviderImpl(
+      f8eNetworkReachabilityService = f8eNetworkReachabilityService,
+      internetNetworkReachabilityService = internetNetworkReachabilityService,
+      networkReachabilityEventDao = networkReachabilityEventDao
+    ),
+  private val unauthenticatedOnlyF8eHttpClient: UnauthenticatedF8eHttpClient =
+    UnauthenticatedOnlyF8eHttpClientImpl(
+      f8eHttpClientProvider = f8eHttpClientProvider,
+      networkReachabilityProvider = networkReachabilityProvider
+    ),
+  override val authenticationService: AuthenticationService =
+    AuthenticationServiceImpl(unauthenticatedOnlyF8eHttpClient),
+  override val accountAuthenticator: AccountAuthenticator =
+    AccountAuthenticatorImpl(
+      appAuthKeyMessageSigner = appAuthKeyMessageSigner,
+      authenticationService = authenticationService
+    ),
+  override val recoveryDao: RecoveryDao =
+    RecoveryDaoImpl(
+      databaseProvider = bitkeyDatabaseProvider
+    ),
+  private val recoveryAppAuthPublicKeyProvider: RecoveryAppAuthPublicKeyProvider =
+    RecoveryAppAuthPublicKeyProviderImpl(
+      recoveryDao = recoveryDao
+    ),
+  private val accountDao: AccountDao = AccountDaoImpl(bitkeyDatabaseProvider),
+  override val accountRepository: AccountRepository = AccountRepositoryImpl(accountDao),
+  private val appAuthPublicKeyProvider: AppAuthPublicKeyProvider =
+    AppAuthPublicKeyProviderImpl(
+      accountRepository = accountRepository,
+      recoveryAppAuthPublicKeyProvider = recoveryAppAuthPublicKeyProvider
+    ),
+  private val authTokenRefresher: AppAuthTokenRefresher = AppAuthTokenRefresherImpl(
+    authTokenDao,
+    accountAuthenticator,
+    authenticationService,
+    appAuthPublicKeyProvider,
+    f8eAuthSignatureStatusProvider
+  ),
+  override val authTokensRepository: AuthTokensRepository =
+    AuthTokensRepositoryImpl(authTokenDao, authTokenRefresher),
+  override val keyboxDao: KeyboxDao = KeyboxDaoImpl(bitkeyDatabaseProvider),
+  private val proofOfPossessionPluginProvider: ProofOfPossessionPluginProvider =
+    ProofOfPossessionPluginProvider(authTokensRepository, appAuthKeyMessageSigner, keyboxDao),
+  override val f8eHttpClient: F8eHttpClient =
+    F8eHttpClientImpl(
+      authTokensRepository = authTokensRepository,
+      proofOfPossessionPluginProvider = proofOfPossessionPluginProvider,
+      unauthenticatedF8eHttpClient = unauthenticatedOnlyF8eHttpClient,
+      f8eHttpClientProvider = f8eHttpClientProvider,
+      networkReachabilityProvider = networkReachabilityProvider,
+      wsmVerifier = wsmVerifier
+    ),
+  override val f8eExchangeRateService: F8eExchangeRateService =
+    F8eExchangeRateServiceImpl(f8eHttpClient = f8eHttpClient),
+) : AppComponent {
+  override val appCoroutineScope = CoroutineScopes.AppScope
   override val appInstallationDao =
     AppInstallationDaoImpl(bitkeyDatabaseProvider, uuidGenerator)
   override val bugsnagContext = BugsnagContextImpl(appCoroutineScope, appInstallationDao)
@@ -202,24 +348,12 @@ class AppComponentImpl(
     )
   }
 
-  override val keyboxDao = KeyboxDaoImpl(bitkeyDatabaseProvider)
-  private val accountDao = AccountDaoImpl(bitkeyDatabaseProvider)
-  override val accountRepository = AccountRepositoryImpl(accountDao)
   override val keyValueStoreFactory = KeyValueStoreFactoryImpl(platformContext, fileManager)
-  override val ktorLogLevelPolicy = KtorLogLevelPolicyImpl(appVariant)
-
-  override val osVersionInfoProvider = OsVersionInfoProviderImpl()
-  override val platformInfoProvider =
-    PlatformInfoProviderImpl(
-      platformContext,
-      appId,
-      appVersion,
-      osVersionInfoProvider
-    )
 
   private val bitcoinDisplayPreferenceDao = BitcoinDisplayPreferenceDaoImpl(bitkeyDatabaseProvider)
   override val bitcoinDisplayPreferenceRepository =
     BitcoinDisplayPreferenceRepositoryImpl(
+      appScope = appCoroutineScope,
       bitcoinDisplayPreferenceDao = bitcoinDisplayPreferenceDao
     )
 
@@ -231,108 +365,10 @@ class AppComponentImpl(
   override val localeCurrencyCodeProvider = LocaleCurrencyCodeProviderImpl(platformContext)
   override val fiatCurrencyPreferenceRepository =
     FiatCurrencyPreferenceRepositoryImpl(
-      fiatCurrencyDao = fiatCurrencyDao,
+      appScope = appCoroutineScope,
       fiatCurrencyPreferenceDao = fiatCurrencyPreferenceDao,
-      localeCurrencyCodeProvider = localeCurrencyCodeProvider
-    )
-
-  val networkingDebugConfigDao = NetworkingDebugConfigDaoImpl(bitkeyDatabaseProvider)
-  override val networkingDebugConfigRepository =
-    NetworkingDebugConfigRepositoryImpl(networkingDebugConfigDao)
-
-  val f8eHttpClientProvider =
-    F8eHttpClientProvider(
-      appId = appId,
-      appVersion = appVersion,
-      platformInfoProvider = platformInfoProvider,
-      ktorLogLevelPolicy = ktorLogLevelPolicy,
-      datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer = datadogTracer),
-      networkingDebugConfigRepository = networkingDebugConfigRepository
-    )
-
-  private val f8eNetworkReachabilityService =
-    F8eNetworkReachabilityServiceImpl(
-      unauthenticatedF8eHttpClient =
-        UnauthenticatedOnlyF8eHttpClientImpl(
-          f8eHttpClientProvider = f8eHttpClientProvider,
-          networkReachabilityProvider = null
-        )
-    )
-  private val internetNetworkReachabilityService = InternetNetworkReachabilityServiceImpl()
-
-  override val networkReachabilityEventDao =
-    NetworkReachabilityEventDaoImpl(
-      clock = clock,
-      databaseProvider = bitkeyDatabaseProvider
-    )
-
-  override val networkReachabilityProvider =
-    NetworkReachabilityProviderImpl(
-      f8eNetworkReachabilityService = f8eNetworkReachabilityService,
-      internetNetworkReachabilityService = internetNetworkReachabilityService,
-      networkReachabilityEventDao = networkReachabilityEventDao
-    )
-
-  val unauthenticatedOnlyF8eHttpClient =
-    UnauthenticatedOnlyF8eHttpClientImpl(
-      f8eHttpClientProvider = f8eHttpClientProvider,
-      networkReachabilityProvider = networkReachabilityProvider
-    )
-
-  override val authenticationService = AuthenticationServiceImpl(unauthenticatedOnlyF8eHttpClient)
-
-  override val authTokenDao = AuthTokenDaoImpl(secureStoreFactory)
-  override val appPrivateKeyDao = AppPrivateKeyDaoImpl(secureStoreFactory)
-  override val appAuthKeyMessageSigner =
-    AppAuthKeyMessageSignerImpl(
-      appPrivateKeyDao,
-      messageSigner
-    )
-
-  override val accountAuthenticator =
-    AccountAuthenticatorImpl(
-      appAuthKeyMessageSigner = appAuthKeyMessageSigner,
-      authenticationService = authenticationService
-    )
-
-  override val recoveryDao =
-    RecoveryDaoImpl(
-      databaseProvider = bitkeyDatabaseProvider
-    )
-
-  val recoveryAppAuthPublicKeyProvider =
-    RecoveryAppAuthPublicKeyProviderImpl(
-      recoveryDao = recoveryDao
-    )
-
-  val appAuthPublicKeyProvider =
-    AppAuthPublicKeyProviderImpl(
-      accountRepository = accountRepository,
-      recoveryAppAuthPublicKeyProvider = recoveryAppAuthPublicKeyProvider
-    )
-
-  val authTokenRefresher =
-    AppAuthTokenRefresherImpl(
-      authTokenDao,
-      accountAuthenticator,
-      authenticationService,
-      appAuthPublicKeyProvider,
-      f8eAuthSignatureStatusProvider
-    )
-
-  override val authTokensRepository = AuthTokensRepositoryImpl(authTokenDao, authTokenRefresher)
-
-  private val proofOfPossessionPluginProvider =
-    ProofOfPossessionPluginProvider(authTokensRepository, appAuthKeyMessageSigner, keyboxDao)
-
-  override val f8eHttpClient =
-    F8eHttpClientImpl(
-      authTokensRepository = authTokensRepository,
-      proofOfPossessionPluginProvider = proofOfPossessionPluginProvider,
-      unauthenticatedF8eHttpClient = unauthenticatedOnlyF8eHttpClient,
-      f8eHttpClientProvider = f8eHttpClientProvider,
-      networkReachabilityProvider = networkReachabilityProvider,
-      wsmVerifier = wsmVerifier
+      localeCurrencyCodeProvider = localeCurrencyCodeProvider,
+      fiatCurrencyDao = fiatCurrencyDao
     )
 
   private val deviceTokenService = AddDeviceTokenServiceImpl(f8eHttpClient)
@@ -349,15 +385,30 @@ class AppComponentImpl(
 
   override val feeBumpIsAvailableFeatureFlag = FeeBumpIsAvailableFeatureFlag(featureFlagDao)
 
+  override val multipleFingerprintsIsEnabledFeatureFlag =
+    MultipleFingerprintsIsEnabledFeatureFlag(featureFlagDao)
+
+  override val resetDeviceIsEnabledFeatureFlag =
+    ResetDeviceIsEnabledFeatureFlag(featureFlagDao)
+
+  override val inAppSecurityFeatureFlag = InAppSecurityFeatureFlag(
+    featureFlagDao = featureFlagDao
+  )
+
   override val mobileTestFeatureFlag =
     MobileTestFeatureFlag(featureFlagDao)
 
-  override val allRemoteFeatureFlags =
+  override val allRemoteFeatureFlags: List<FeatureFlag<out FeatureFlagValue>> =
     setOf(
-      mobileTestFeatureFlag
+      multipleFingerprintsIsEnabledFeatureFlag,
+      resetDeviceIsEnabledFeatureFlag,
+      inAppSecurityFeatureFlag,
+      mobileTestFeatureFlag,
+      DoubleMobileTestFeatureFlag(featureFlagDao),
+      StringFlagMobileTestFeatureFlag(featureFlagDao)
     ).toList()
 
-  override val allFeatureFlags =
+  override val allFeatureFlags: List<FeatureFlag<*>> =
     setOf(
       nfcHapticsOnConnectedIsEnabledFeatureFlag,
       feeBumpIsAvailableFeatureFlag
@@ -405,7 +456,9 @@ class AppComponentImpl(
     accountRepository = accountRepository,
     templateFullAccountConfigDao = templateFullAccountConfigDao,
     getFeatureFlagsService = getFeatureFlagsService,
-    booleanFlags = allRemoteFeatureFlags
+    clock = clock,
+    remoteFlags = allRemoteFeatureFlags,
+    appSessionManager = appSessionManager
   )
 
   override val analyticsTrackingPreference = AnalyticsTrackingPreferenceImpl(
@@ -479,7 +532,42 @@ class AppComponentImpl(
       firmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
       teltra = teltra
     )
-  override val outgoingTransactionDetailDao = OutgoingTransactionDetailDaoImpl(bitkeyDatabaseProvider)
+
+  private val registerWatchAddressQueue =
+    RegisterWatchAddressQueueImpl(
+      databaseProvider = bitkeyDatabaseProvider
+    )
+
+  private val registerWatchAddressService =
+    RegisterWatchAddressServiceImpl(
+      f8eHttpClient = f8eHttpClient
+    )
+
+  private val registerWatchAddressSender =
+    RegisterWatchAddressSenderImpl(registerWatchAddressService)
+
+  override val registerWatchAddressProcessor =
+    ProcessorImpl(
+      queue = registerWatchAddressQueue,
+      processor = registerWatchAddressSender,
+      retryFrequency = 1.minutes,
+      retryBatchSize = 1
+    )
+
+  private val appWorkerProvider = AppWorkerProviderImpl(
+    eventTracker = eventTracker,
+    networkingDebugConfigRepository = networkingDebugConfigRepository,
+    periodicEventProcessor = periodicEventProcessor,
+    periodicFirmwareCoredumpProcessor = periodicFirmwareCoredumpProcessor,
+    periodicFirmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
+    periodicRegisterWatchAddressProcessor = registerWatchAddressProcessor
+  )
+  override val appWorkerExecutor = AppWorkerExecutorImpl(
+    appScope = appCoroutineScope,
+    workerProvider = appWorkerProvider
+  )
+  override val outgoingTransactionDetailDao =
+    OutgoingTransactionDetailDaoImpl(bitkeyDatabaseProvider)
   private val bdkTransactionMapper =
     BdkTransactionMapperImpl(bdkAddressBuilder, outgoingTransactionDetailDao)
   private val bdkDatabaseConfigProvider = BdkDatabaseConfigProviderImpl(fileDirectoryProvider)

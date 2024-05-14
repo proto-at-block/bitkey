@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-daemon-embeddable",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-daemon-embeddable-1.9.22.jar": "92a57813171447d534461fa13fe37dc8cd3b7f86d83e9b1f7bb1b0be30541f8b"
+                        "kotlin-daemon-embeddable-1.9.23.jar": "6f3b661b98267ad24e2f8fb7ad5d06be7d2ed61a5d05c267f4e4caa78df783d9"
                     }
                 }
             ],

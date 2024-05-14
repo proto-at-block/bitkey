@@ -95,6 +95,9 @@ private struct AddressQrCodeContentView: View {
                 RoundedRectangle(cornerRadius: 24)
                     .stroke(Color.foreground10, lineWidth: 2)
             )
+            .onTapGesture {
+                viewModel.onCopyClick()
+            }
             ModeledText(
                 model: .standard("This address only accepts Bitcoin (BTC). Sending other assets will result in permanent loss of funds.", font: .body4Regular, textAlignment: .center, textColor: .foreground60))
 

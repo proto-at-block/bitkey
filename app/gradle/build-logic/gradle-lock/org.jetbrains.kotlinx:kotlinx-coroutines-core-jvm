@@ -11,7 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
             ]
         }
     ]

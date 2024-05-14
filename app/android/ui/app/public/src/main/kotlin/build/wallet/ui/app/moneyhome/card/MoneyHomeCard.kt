@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import build.wallet.Progress
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
@@ -228,7 +229,7 @@ internal fun PreviewMoneyHomeCardReplacementPending() {
       HardwareRecoveryCardModel(
         title = "Replacement pending...",
         subtitle = "2 days remaining",
-        delayPeriodProgress = 0.5f,
+        delayPeriodProgress = Progress.Half,
         delayPeriodRemainingSeconds = 0,
         onClick = {}
       )
@@ -242,7 +243,7 @@ internal fun PreviewMoneyHomeCardReplacementReady() {
     model =
       HardwareRecoveryCardModel(
         title = "Replacement Ready",
-        delayPeriodProgress = 1f,
+        delayPeriodProgress = Progress.Full,
         delayPeriodRemainingSeconds = 0,
         onClick = {}
       )

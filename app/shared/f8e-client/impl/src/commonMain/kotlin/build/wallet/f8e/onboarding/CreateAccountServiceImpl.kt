@@ -13,8 +13,8 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
-import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.onboarding.model.CreateAccountRequestBody
 import build.wallet.f8e.onboarding.model.CreateAccountResponseBody
 import build.wallet.f8e.onboarding.model.FullCreateAccountRequestBody
@@ -23,12 +23,12 @@ import build.wallet.f8e.onboarding.model.LiteCreateAccountRequestBody
 import build.wallet.f8e.onboarding.model.LiteCreateAccountResponseBody
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 
 class CreateAccountServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -104,10 +104,10 @@ class CreateAccountServiceImpl(
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<ResponseBody> {
         post("/api/accounts") {
-          setBody(requestBody)
+          withDescription("Create account on f8e")
+          setRedactedBody(requestBody)
         }
       }
       .mapError { it.toF8eError<CreateAccountClientErrorCode>() }
-      .logF8eFailure { "Failed to create account on f8e" }
   }
 }

@@ -6,7 +6,6 @@ import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusService
 import build.wallet.logging.log
-import build.wallet.logging.logNetworkFailure
 import build.wallet.recovery.RecoverySyncer.SyncError
 import build.wallet.recovery.RecoverySyncer.SyncError.CouldNotFetchServerRecovery
 import build.wallet.recovery.RecoverySyncer.SyncError.SyncDbError
@@ -64,7 +63,6 @@ class RecoverySyncerImpl(
         log { "Syncing recovery status" }
         val serverRecovery =
           getRecoveryStatusService.getStatus(f8eEnvironment, fullAccountId)
-            .logNetworkFailure { "Could not fetch server recovery when syncing" }
             .mapError { CouldNotFetchServerRecovery(it) }
             .bind()
 

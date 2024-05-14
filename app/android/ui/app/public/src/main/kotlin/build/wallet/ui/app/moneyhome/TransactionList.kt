@@ -41,7 +41,7 @@ internal fun TransactionListPreview() {
           sections =
             immutableListOf(
               ListGroupModel(
-                header = "Pending",
+                header = null,
                 immutableListOf(
                   TransactionItemModel(
                     truncatedRecipientAddress = "3AH7...CkGJ",
@@ -65,7 +65,7 @@ internal fun TransactionListPreview() {
                 style = ListGroupStyle.NONE
               ),
               ListGroupModel(
-                header = "Confirmed",
+                header = null,
                 immutableListOf(
                   TransactionItemModel(
                     truncatedRecipientAddress = "Ma3Y...D2pX",

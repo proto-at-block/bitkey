@@ -47,7 +47,7 @@ import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVer
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationProps.EntryPoint.Recovery
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -293,7 +293,7 @@ class NotificationPreferencesSetupUiStateMachineV2Impl(
     overlayState: OverlayState,
     setState: (RecoveryState) -> Unit,
     pushItemModel: RecoveryChannelsSetupFormItemModel,
-  ): AlertModel? =
+  ): ButtonAlertModel? =
     when (overlayState) {
       !is PushAlertState -> null
       else -> when (overlayState.pushActionState) {

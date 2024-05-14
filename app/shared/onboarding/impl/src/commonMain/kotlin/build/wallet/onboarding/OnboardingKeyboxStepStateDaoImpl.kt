@@ -6,7 +6,6 @@ import build.wallet.logging.logFailure
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -27,7 +26,6 @@ class OnboardingKeyboxStepStateDaoImpl(
     return databaseProvider.database().onboardingKeyboxStepStateQueries
       .getStateForStep(step)
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map { it.component1()?.state ?: Incomplete }
   }
 

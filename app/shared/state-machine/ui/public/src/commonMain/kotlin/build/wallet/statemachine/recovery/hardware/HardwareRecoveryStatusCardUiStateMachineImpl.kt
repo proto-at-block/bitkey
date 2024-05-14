@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.Progress
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
@@ -27,7 +28,7 @@ class HardwareRecoveryStatusCardUiStateMachineImpl(
           is ReadyToCompleteRecoveryData ->
             HardwareRecoveryCardModel(
               title = "Replacement Ready",
-              delayPeriodProgress = 1f, // Progress is 100%
+              delayPeriodProgress = Progress.Full,
               delayPeriodRemainingSeconds = 0,
               onClick = props.onClick
             )

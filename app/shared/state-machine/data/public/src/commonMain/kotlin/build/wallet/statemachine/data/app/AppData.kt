@@ -1,7 +1,5 @@
 package build.wallet.statemachine.data.app
 
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.lightning.LightningNodeData
@@ -30,7 +28,5 @@ sealed interface AppData {
     val lightningNodeData: LightningNodeData,
     val electrumServerData: ElectrumServerData,
     val firmwareData: FirmwareData,
-    val currencyPreferenceData: CurrencyPreferenceData,
-    val eakAssociation: EmergencyAccessKitAssociation,
   ) : AppData
 }

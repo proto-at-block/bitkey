@@ -2,16 +2,16 @@
     "module-identifier": "io.matthewnelson.encoding:core-iossimulatorarm64",
     "components": [
         {
-            "version": "2.1.0",
+            "version": "2.2.1",
             "variants": [
                 {
                     "artifacts": {
-                        "core-iossimulatorarm64-2.1.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "core-iossimulatorarm64-2.2.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "core.klib": "c791ccd7b856faef189fc2f595b796e8c95c0509119d7dc98df8b125d1641868"
+                        "core.klib": "facaec92b45310d8f45bea37fa94231a49e93477a37653011331ff4dcfd940ce"
                     }
                 }
             ],

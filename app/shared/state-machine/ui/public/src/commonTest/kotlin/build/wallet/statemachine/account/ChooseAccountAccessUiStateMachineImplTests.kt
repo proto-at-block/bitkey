@@ -2,8 +2,8 @@ package build.wallet.statemachine.account
 
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
+import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -29,6 +29,8 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
+  val emergencyAccessKitDataProvider = EmergencyAccessKitDataProviderFake()
+
   fun buildStateMachine(appVariant: AppVariant) =
     ChooseAccountAccessUiStateMachineImpl(
       appVariant = appVariant,
@@ -40,7 +42,8 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
         object : DemoModeConfigUiStateMachine, ScreenStateMachineMock<DemoModeConfigUiProps>(
           id = "demo-mode"
         ) {},
-      deviceInfoProvider = DeviceInfoProviderMock()
+      deviceInfoProvider = DeviceInfoProviderMock(),
+      emergencyAccessKitDataProvider = emergencyAccessKitDataProvider
     )
 
   val stateMachine =
@@ -67,9 +70,12 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
           startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
           isNavigatingBack = false
         ),
-      firmwareData = FirmwareDataUpToDateMock,
-      eakAssociation = EakDataFake
+      firmwareData = FirmwareDataUpToDateMock
     )
+
+  beforeTest {
+    emergencyAccessKitDataProvider.reset()
+  }
 
   test("initial state") {
     stateMachine.test(props) {
@@ -138,11 +144,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("emergency access recovery button shows in eak builds") {
-    stateMachine.test(
-      props.copy(
-        eakAssociation = EmergencyAccessKitAssociation.EakBuild
-      )
-    ) {
+    emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
+
+    stateMachine.test(props) {
       awaitScreenWithBody<ChooseAccountAccessModel> {
         buttons[1].shouldNotBeNull().onClick()
       }
@@ -188,11 +192,9 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   }
 
   test("EAK disabled paths") {
-    stateMachine.test(
-      props.copy(
-        eakAssociation = EmergencyAccessKitAssociation.EakBuild
-      )
-    ) {
+    emergencyAccessKitDataProvider.eakAssociation = EmergencyAccessKitAssociation.EakBuild
+
+    stateMachine.test(props) {
       awaitScreenWithBody<ChooseAccountAccessModel> {
         buttons[0].shouldNotBeNull().onClick()
       }

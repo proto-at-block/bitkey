@@ -21,7 +21,6 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getAll
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
@@ -95,29 +94,30 @@ class TrustedContactKeyAuthenticatorImpl(
   suspend fun authenticateAndEndorse(
     contacts: List<UnendorsedTrustedContact>,
     fullAccount: FullAccount,
-  ) {
-    val authenticated = contacts
-      // Only process contacts that haven't failed authentication
-      .filter { it.authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED }
-      .map {
-        authenticate(it)
-          .logFailure {
-            "Unexpected application error handling key confirmation for ${it.recoveryRelationshipId}. We did not get far enough to attempt PAKE authentication"
-          }
-      }
-      // Any successful, non-null results are successful authentications
-      .getAll()
-      .filterNotNull()
-    if (authenticated.any()) {
-      endorseAll(fullAccount, authenticated)
-        .logFailure { "Failed to endorse trusted contacts" }
-        .onSuccess {
-          // If any contacts were endorsed, sync relationships to update the endorsed contacts
-          // and trigger a cloud backup refresh.
-          socRecRelationshipsRepository.syncAndVerifyRelationships(fullAccount)
+  ): Result<Unit, Throwable> =
+    binding {
+      val authenticated = contacts
+        // Only process contacts that haven't failed authentication
+        .filter { it.authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED }
+        .map {
+          authenticate(it)
+            .logFailure {
+              "Unexpected application error handling key confirmation for ${it.recoveryRelationshipId}. We did not get far enough to attempt PAKE authentication"
+            }
         }
+        // Any successful, non-null results are successful authentications
+        .getAll()
+        .filterNotNull()
+      if (authenticated.any()) {
+        endorseAll(fullAccount, authenticated)
+          .logFailure { "Failed to endorse trusted contacts" }
+          .bind()
+
+        // If any contacts were endorsed, sync relationships to update the endorsed contacts
+        // and trigger a cloud backup refresh.
+        socRecRelationshipsRepository.syncAndVerifyRelationships(fullAccount).bind()
+      }
     }
-  }
 
   private suspend fun authenticate(
     contact: UnendorsedTrustedContact,
@@ -198,7 +198,11 @@ class TrustedContactKeyAuthenticatorImpl(
 
       // Upload the key certificates to f8e
       endorseTrustedContactsServiceProvider.get()
-        .endorseTrustedContacts(fullAccount.accountId, fullAccount.config.f8eEnvironment, endorsements)
+        .endorseTrustedContacts(
+          fullAccount.accountId,
+          fullAccount.config.f8eEnvironment,
+          endorsements
+        )
         .bind()
     }
 }

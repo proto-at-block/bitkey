@@ -45,6 +45,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
 import build.wallet.firmware.TeltraMock
 import build.wallet.logging.log
+import build.wallet.money.exchange.F8eExchangeRateServiceMock
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.FakeHardwareKeyStoreImpl
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
@@ -67,7 +68,7 @@ import build.wallet.statemachine.cloud.CloudSignInUiStateMachineFake
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
-import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
+import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.time.ControlledDelayer
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
@@ -263,6 +264,9 @@ private fun createAppComponent(
       DeviceTokenConfigProviderImpl(
         DeviceTokenConfig("fake-device-token", FcmTeam)
       ),
+    // we pass a mock exchange rate service to avoid calls to 3rd party exchange rate services
+    // during tests
+    f8eExchangeRateService = F8eExchangeRateServiceMock(),
     messageSigner = MessageSignerImpl(),
     signatureVerifier = SignatureVerifierImpl(),
     platformContext = platformContext,
@@ -336,7 +340,7 @@ private fun createBlockchainControl(networkType: BitcoinNetworkType): Blockchain
   }
 
 private fun createFakeHardwareKeyStore(
-  secureStoreFactory: EncryptedKeyValueStoreFactoryImpl,
+  secureStoreFactory: EncryptedKeyValueStoreFactory,
   hardwareSeed: FakeHardwareKeyStore.Seed?,
 ): FakeHardwareKeyStoreImpl {
   val bdkMnemonicGenerator = BdkMnemonicGeneratorImpl()

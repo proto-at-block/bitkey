@@ -80,6 +80,12 @@ bool exti_wait(const exti_config_t* config, const uint32_t timeout_ms, bool clea
   return rtos_event_group_wait_bits(&exti_events, exti_bits, clear, true, timeout_ms) == exti_bits;
 }
 
+void exti_signal(const exti_config_t* config) {
+  ASSERT(config != NULL);
+  const uint32_t exti_bits = (1 << gpio_to_exti(&config->gpio));
+  rtos_event_group_set_bits(&exti_events, exti_bits);
+}
+
 static uint32_t gpio_to_exti(const mcu_gpio_config_t* gpio) {
   for (uint32_t i = 0; i < MCU_GPIO_EXTI_MAX; i++) {
     if (exti_map[i] == gpio) {

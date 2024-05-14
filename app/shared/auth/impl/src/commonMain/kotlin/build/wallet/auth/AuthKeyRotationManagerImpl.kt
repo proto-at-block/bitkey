@@ -345,7 +345,7 @@ class AuthKeyRotationManagerImpl(
         newAppGlobalAuthKeyHwSignature = newAppKeys.requireAppGlobalAuthKeyHwSignature()
       ).bind()
 
-      socRecRelationshipsRepository.syncAndVerifyRelationships(newAccount)
+      socRecRelationshipsRepository.syncAndVerifyRelationships(newAccount).bind()
     }
 
   private suspend fun trySynchronizingCloudBackup(account: FullAccount): Result<Unit, Error> {

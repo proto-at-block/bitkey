@@ -3,10 +3,11 @@ package build.wallet.f8e.mobilepay
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.limit.MobilePayBalance
 import build.wallet.limit.SpendingLimit
-import build.wallet.logging.logNetworkFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrencyDao
@@ -32,9 +33,10 @@ class MobilePayBalanceServiceImpl(
   ): Result<MobilePayBalance, MobilePayBalanceFailure> {
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .bodyResult<MobilePayBalanceResponseDTO> {
-        get("/api/accounts/${fullAccountId.serverId}/mobile-pay")
+        get("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
+          withDescription("Get mobile pay balance")
+        }
       }
-      .logNetworkFailure { "Failed to get mobile pay balance" }
       .mapBoth(
         success = { body ->
           body.toMobilePayBalance()?.let { Ok(it) }
@@ -117,7 +119,7 @@ private data class MobilePayBalanceResponseDTO(
   val available: MoneyDTO?,
   val limit: SpendingLimitDTO?,
   val mobilePay: MobilePayBalanceDTO?,
-)
+) : RedactedResponseBody
 
 @Serializable
 private data class MobilePayBalanceDTO(

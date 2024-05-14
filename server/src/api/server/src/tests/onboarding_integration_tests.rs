@@ -38,11 +38,16 @@ use types::account::identifiers::TouchpointId;
 
 use crate::tests;
 use crate::tests::gen_services;
-use crate::tests::lib::{create_account, create_descriptor_keys, create_keypair, create_pubkey};
+use crate::tests::lib::{
+    create_account, create_descriptor_keys, create_new_authkeys, create_pubkey,
+};
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::{CognitoAuthentication, Response};
 
-use super::lib::{create_lite_account, create_spend_keyset, generate_delay_and_notify_recovery};
+use super::lib::{
+    create_keypair, create_lite_account, create_spend_keyset, generate_delay_and_notify_recovery,
+};
+use super::{TestAuthenticationKeys, TestKeypair};
 
 struct OnboardingTestVector {
     include_recovery_auth_pubkey: bool,
@@ -54,15 +59,16 @@ struct OnboardingTestVector {
 }
 
 async fn onboarding_test(vector: OnboardingTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
+    let keys = create_new_authkeys(&mut context);
     let request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: create_pubkey(),
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
             recovery: if vector.include_recovery_auth_pubkey {
-                Some(create_pubkey())
+                Some(keys.recovery.public_key)
             } else {
                 None
             },
@@ -74,7 +80,7 @@ async fn onboarding_test(vector: OnboardingTestVector) {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&request).await;
+    let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
         actual_response.status_code, vector.expected_status,
         "{}",
@@ -121,9 +127,10 @@ struct AddDeviceTokenTestVector {
 }
 
 async fn add_device_token_test(vector: AddDeviceTokenTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let account = create_account(
+        &mut context,
         &bootstrap.services,
         account::entities::Network::BitcoinSignet,
         None,
@@ -252,19 +259,23 @@ struct TouchpointLifecycleTestVector {
 }
 
 async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let account = create_account(
+        &mut context,
         &bootstrap.services,
         account::entities::Network::BitcoinSignet,
         None,
     )
     .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
 
     if vector.onboarding_complete {
         assert_eq!(
             client
-                .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {})
+                .complete_onboarding(&account.id.to_string(), &CompleteOnboardingRequest {},)
                 .await
                 .status_code,
             200,
@@ -436,6 +447,7 @@ async fn touchpoint_lifecycle_test(vector: TouchpointLifecycleTestVector) {
                         &req,
                         app_signed,
                         hw_signed,
+                        &keys,
                     )
                     .await;
 
@@ -688,16 +700,15 @@ tests! {
 #[tokio::test]
 async fn test_duplicate_hw_auth_key_fails_onboarding() {
     // If we try to create an account with the same hw auth key twice, that should fail.
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let hw_authkey = create_pubkey();
-
+    let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: hw_authkey,
-            recovery: Some(create_pubkey()),
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: Network::Testnet,
@@ -706,13 +717,13 @@ async fn test_duplicate_hw_auth_key_fails_onboarding() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&first_request).await;
+    let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK,);
 
     let second_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
             app: create_pubkey(),
-            hardware: hw_authkey,
+            hardware: keys.hw.public_key,
             recovery: Some(create_pubkey()),
         },
         spending: SpendingKeysetRequest {
@@ -722,23 +733,22 @@ async fn test_duplicate_hw_auth_key_fails_onboarding() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&second_request).await;
+    let actual_response = client.create_account(&mut context, &second_request).await;
     assert_eq!(actual_response.status_code, StatusCode::BAD_REQUEST,);
 }
 
 #[tokio::test]
 async fn test_duplicate_recovery_auth_key_fails_onboarding() {
     // If we try to create an account with the same hw auth key twice, that should fail.
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let recovery_authkey = create_pubkey();
-
+    let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: create_pubkey(),
-            recovery: Some(recovery_authkey),
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: Network::Testnet,
@@ -747,14 +757,15 @@ async fn test_duplicate_recovery_auth_key_fails_onboarding() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&first_request).await;
+    let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK,);
 
+    let new_keys = create_new_authkeys(&mut context);
     let second_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: create_pubkey(),
-            recovery: Some(recovery_authkey),
+            app: new_keys.app.public_key,
+            hardware: new_keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: Network::Testnet,
@@ -763,24 +774,22 @@ async fn test_duplicate_recovery_auth_key_fails_onboarding() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&second_request).await;
+    let actual_response = client.create_account(&mut context, &second_request).await;
     assert_eq!(actual_response.status_code, StatusCode::BAD_REQUEST,);
 }
 
 #[tokio::test]
 async fn test_idempotent_account_creation() {
     // If we try to create an account with the same hw auth key twice, that should fail.
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let hw_authkey = create_pubkey();
-    let app_authkey = create_pubkey();
-    let recovery_authkey = Some(create_pubkey());
+    let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: app_authkey,
-            hardware: hw_authkey,
-            recovery: recovery_authkey,
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: Network::Testnet,
@@ -789,14 +798,15 @@ async fn test_idempotent_account_creation() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&first_request).await;
+    let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK,);
 
+    let new_keys = create_new_authkeys(&mut context);
     let second_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: create_pubkey(),
-            hardware: hw_authkey,
-            recovery: recovery_authkey,
+            app: new_keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: Network::Testnet,
@@ -805,7 +815,7 @@ async fn test_idempotent_account_creation() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&second_request).await;
+    let actual_response = client.create_account(&mut context, &second_request).await;
     assert_eq!(actual_response.status_code, StatusCode::BAD_REQUEST,);
 }
 
@@ -818,17 +828,15 @@ struct IdempotentCreateAccountTestVector {
 }
 
 async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let hw_pubkey = create_pubkey();
-    let app_pubkey = create_pubkey();
-    let recovery_pubkey = Some(create_pubkey());
+    let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: app_pubkey,
-            hardware: hw_pubkey,
-            recovery: recovery_pubkey
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: Network::Testnet,
@@ -837,24 +845,25 @@ async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVecto
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&first_request).await;
+    let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     let first_create_response = actual_response.body.unwrap();
 
+    let new_keys = create_new_authkeys(&mut context);
     let hw_pubkey = if vector.same_hardware_pubkey {
-        hw_pubkey
+        keys.hw.public_key
     } else {
-        create_pubkey()
+        new_keys.hw.public_key
     };
     let app_pubkey = if vector.same_app_pubkey {
-        app_pubkey
+        keys.app.public_key
     } else {
-        create_pubkey()
+        new_keys.app.public_key
     };
     let recovery_pubkey = if vector.same_recovery_pubkey {
-        recovery_pubkey
+        Some(keys.recovery.public_key)
     } else {
-        Some(create_pubkey())
+        Some(new_keys.recovery.public_key)
     };
 
     let second_request = CreateAccountRequest::Full {
@@ -870,7 +879,7 @@ async fn idempotent_create_account_test(vector: IdempotentCreateAccountTestVecto
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&second_request).await;
+    let actual_response = client.create_account(&mut context, &second_request).await;
     assert_eq!(actual_response.status_code, vector.expected_create_status);
     if actual_response.status_code == StatusCode::OK {
         let second_create_response = actual_response.body.unwrap();
@@ -900,21 +909,18 @@ struct CreateTestAccountWithNetworkTestVector {
 }
 
 async fn create_test_account_with_network(vector: CreateTestAccountWithNetworkTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let hw_authkey = create_pubkey();
-    let app_authkey = create_pubkey();
-    let recovery_authkey = Some(create_pubkey());
-
+    let keys = create_new_authkeys(&mut context);
     let network = vector.network.into();
     let (_, app_dpub) = create_descriptor_keys(network);
     let (_, hardware_dpub) = create_descriptor_keys(network);
     let first_request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: app_authkey,
-            hardware: hw_authkey,
-            recovery: recovery_authkey,
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
+            recovery: Some(keys.recovery.public_key),
         },
         spending: SpendingKeysetRequest {
             network: vector.network,
@@ -923,7 +929,7 @@ async fn create_test_account_with_network(vector: CreateTestAccountWithNetworkTe
         },
         is_test_account: vector.test_account,
     };
-    let actual_response = client.create_account(&first_request).await;
+    let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, vector.expected_status);
 }
 
@@ -964,20 +970,26 @@ struct CreateAccountKeyValidationTestVector {
 }
 
 async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
-    let other_account =
-        &create_account(&bootstrap.services, AccountNetwork::BitcoinSignet, None).await;
+    let other_account = &create_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
 
+    let keys = create_new_authkeys(&mut context);
     let other_recovery = &generate_delay_and_notify_recovery(
         other_account.clone().id,
         RecoveryDestination {
             source_auth_keys_id: other_account.common_fields.active_auth_keys_id.clone(),
-            app_auth_pubkey: create_pubkey(),
-            hardware_auth_pubkey: create_pubkey(),
-            recovery_auth_pubkey: Some(create_pubkey()),
+            app_auth_pubkey: keys.app.public_key,
+            hardware_auth_pubkey: keys.hw.public_key,
+            recovery_auth_pubkey: Some(keys.recovery.public_key),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -990,6 +1002,7 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
         .await
         .unwrap();
 
+    let new_keys = create_new_authkeys(&mut context);
     let account_app_pubkey = if vector
         .key_reuses
         .contains(&CreateAccountKeyReuse::OtherAccountApp)
@@ -1001,7 +1014,7 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
     {
         other_recovery.destination_app_auth_pubkey.unwrap()
     } else {
-        create_pubkey()
+        new_keys.app.public_key
     };
 
     let account_hardware_pubkey = if vector
@@ -1015,7 +1028,7 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
     {
         other_recovery.destination_hardware_auth_pubkey.unwrap()
     } else {
-        create_pubkey()
+        new_keys.hw.public_key
     };
 
     let account_recovery_pubkey = if vector
@@ -1029,7 +1042,7 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
     {
         other_recovery.destination_recovery_auth_pubkey.unwrap()
     } else {
-        create_pubkey()
+        new_keys.recovery.public_key
     };
 
     let spending_keyset = if vector
@@ -1042,19 +1055,22 @@ async fn create_account_key_validation_test(vector: CreateAccountKeyValidationTe
     };
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: account_app_pubkey,
-                hardware: account_hardware_pubkey,
-                recovery: Some(account_recovery_pubkey),
+        .create_account(
+            &mut context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: account_app_pubkey,
+                    hardware: account_hardware_pubkey,
+                    recovery: Some(account_recovery_pubkey),
+                },
+                spending: SpendingKeysetRequest {
+                    network: Network::Signet,
+                    app: spending_keyset.app_dpub,
+                    hardware: spending_keyset.hardware_dpub,
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: Network::Signet,
-                app: spending_keyset.app_dpub,
-                hardware: spending_keyset.hardware_dpub,
-            },
-            is_test_account: true,
-        })
+        )
         .await;
 
     if let Some(expected_error) = vector.expected_error {
@@ -1117,30 +1133,30 @@ tests! {
 }
 
 struct IdempotentCreateLiteAccountTestVector {
-    initial_recovery_pubkey: PublicKey,
     override_recovery_pubkey: Option<PublicKey>,
     expected_create_status: StatusCode,
     expected_same_response: bool,
 }
 
 async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccountTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let mut recovery_pubkey = vector.initial_recovery_pubkey;
+    let keys = create_new_authkeys(&mut context);
     let first_request = CreateAccountRequest::Lite {
         auth: LiteAccountAuthKeysPayload {
-            recovery: recovery_pubkey,
+            recovery: keys.recovery.public_key,
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&first_request).await;
+    let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     let first_create_response = actual_response.body.unwrap();
-    recovery_pubkey = if let Some(pubkey) = vector.override_recovery_pubkey {
+    // If we ever override the recovery pubkey, we should rewrite this suite to create it and add it to the context
+    let recovery_pubkey = if let Some(pubkey) = vector.override_recovery_pubkey {
         pubkey
     } else {
-        recovery_pubkey
+        keys.recovery.public_key
     };
 
     let second_request = CreateAccountRequest::Lite {
@@ -1149,7 +1165,7 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&second_request).await;
+    let actual_response = client.create_account(&mut context, &second_request).await;
     assert_eq!(actual_response.status_code, vector.expected_create_status);
     if actual_response.status_code == StatusCode::OK {
         let second_create_response = actual_response.body.unwrap();
@@ -1164,7 +1180,6 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
 tests! {
     runner = idempotent_create_lite_account_test,
     test_idempotent_create_lite_account_with_same_recovery_pubkey: IdempotentCreateLiteAccountTestVector {
-        initial_recovery_pubkey: create_pubkey(),
         override_recovery_pubkey: None,
         expected_create_status: StatusCode::OK,
         expected_same_response: true,
@@ -1186,22 +1201,35 @@ struct UpgradeAccountTestVector {
 }
 
 async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = &create_lite_account(&bootstrap.services, None, true).await;
+    let account = &create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let lite_account_recovery_keypair = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .expect("Authentication keys present for Lite Account")
+        .recovery;
 
-    let other_account =
-        &create_account(&bootstrap.services, AccountNetwork::BitcoinSignet, None).await;
+    let other_account = &create_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+    let other_account_auth_keys = context
+        .get_authentication_keys_for_account_id(&other_account.id)
+        .expect("Authentication keys present for Other Account");
 
+    let other_recovery_auth_keys = create_new_authkeys(&mut context);
     let other_recovery = &generate_delay_and_notify_recovery(
         other_account.clone().id,
         RecoveryDestination {
             source_auth_keys_id: other_account.common_fields.active_auth_keys_id.clone(),
-            app_auth_pubkey: create_pubkey(),
-            hardware_auth_pubkey: create_pubkey(),
-            recovery_auth_pubkey: Some(create_pubkey()),
+            app_auth_pubkey: other_recovery_auth_keys.app.public_key,
+            hardware_auth_pubkey: other_recovery_auth_keys.hw.public_key,
+            recovery_auth_pubkey: Some(other_recovery_auth_keys.recovery.public_key),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -1214,43 +1242,57 @@ async fn upgrade_account_test(vector: UpgradeAccountTestVector) {
         .await
         .unwrap();
 
-    let account_app_pubkey = if vector
+    let account_app_keypair = if vector
         .key_reuses
         .contains(&UpgradeAccountKeyReuse::OtherAccountApp)
     {
-        other_account.application_auth_pubkey.unwrap()
+        other_account_auth_keys.app
     } else if vector
         .key_reuses
         .contains(&UpgradeAccountKeyReuse::OtherRecoveryApp)
     {
-        other_recovery.destination_app_auth_pubkey.unwrap()
+        other_recovery_auth_keys.app
     } else {
-        create_pubkey()
+        let (new_app_auth_seckey, new_app_auth_pubkey) = create_keypair();
+        TestKeypair {
+            secret_key: new_app_auth_seckey,
+            public_key: new_app_auth_pubkey,
+        }
     };
 
-    let account_hardware_pubkey = if vector
+    let account_hardware_keypair = if vector
         .key_reuses
         .contains(&UpgradeAccountKeyReuse::OtherAccountHw)
     {
-        other_account.hardware_auth_pubkey
+        other_account_auth_keys.hw
     } else if vector
         .key_reuses
         .contains(&UpgradeAccountKeyReuse::OtherRecoveryHw)
     {
-        other_recovery.destination_hardware_auth_pubkey.unwrap()
+        other_recovery_auth_keys.hw
     } else {
-        create_pubkey()
+        let (new_hw_auth_seckey, new_hw_auth_pubkey) = create_keypair();
+        TestKeypair {
+            secret_key: new_hw_auth_seckey,
+            public_key: new_hw_auth_pubkey,
+        }
     };
 
+    context.add_authentication_keys(TestAuthenticationKeys {
+        app: account_app_keypair.clone(),
+        hw: account_hardware_keypair.clone(),
+        recovery: lite_account_recovery_keypair,
+    });
     let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet).0;
 
     let response = client
         .upgrade_account(
+            &mut context,
             &account.id.to_string(),
             &UpgradeAccountRequest {
                 auth: UpgradeLiteAccountAuthKeysPayload {
-                    app: account_app_pubkey,
-                    hardware: account_hardware_pubkey,
+                    app: account_app_keypair.public_key,
+                    hardware: account_hardware_keypair.public_key,
                 },
                 spending: SpendingKeysetRequest {
                     network: Network::Signet,
@@ -1314,22 +1356,30 @@ tests! {
 
 #[tokio::test]
 async fn test_upgrade_account_idempotency() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = &create_lite_account(&bootstrap.services, None, true).await;
+    let account = &create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let lite_account_keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .expect("Lite account keys not found");
 
-    let account_app_pubkey = create_pubkey();
-    let account_hardware_pubkey = create_pubkey();
+    let new_keys = create_new_authkeys(&mut context);
+    context.add_authentication_keys(TestAuthenticationKeys {
+        app: new_keys.app.clone(),
+        hw: new_keys.hw.clone(),
+        recovery: lite_account_keys.recovery,
+    });
     let spending_keyset = create_spend_keyset(AccountNetwork::BitcoinSignet).0;
 
     let response = client
         .upgrade_account(
+            &mut context,
             &account.id.to_string(),
             &UpgradeAccountRequest {
                 auth: UpgradeLiteAccountAuthKeysPayload {
-                    app: account_app_pubkey,
-                    hardware: account_hardware_pubkey,
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
                 },
                 spending: SpendingKeysetRequest {
                     network: Network::Signet,
@@ -1346,11 +1396,12 @@ async fn test_upgrade_account_idempotency() {
 
     let response = client
         .upgrade_account(
+            &mut context,
             &account.id.to_string(),
             &UpgradeAccountRequest {
                 auth: UpgradeLiteAccountAuthKeysPayload {
-                    app: account_app_pubkey,
-                    hardware: account_hardware_pubkey,
+                    app: new_keys.app.public_key,
+                    hardware: new_keys.hw.public_key,
                 },
                 spending: SpendingKeysetRequest {
                     network: Network::Signet,
@@ -1367,14 +1418,33 @@ async fn test_upgrade_account_idempotency() {
 
 #[tokio::test]
 async fn test_delete_account() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let lite_account = &create_lite_account(&bootstrap.services, None, true).await;
-    let unonboarded_account =
-        &create_account(&bootstrap.services, AccountNetwork::BitcoinSignet, None).await;
-    let onboarded_account =
-        &create_account(&bootstrap.services, AccountNetwork::BitcoinSignet, None).await;
+    let lite_account = &create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let lite_account_keys = context
+        .get_authentication_keys_for_account_id(&lite_account.id)
+        .unwrap();
+    let unonboarded_account = &create_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+    let unonboarded_keys = context
+        .get_authentication_keys_for_account_id(&unonboarded_account.id)
+        .unwrap();
+    let onboarded_account = &create_account(
+        &mut context,
+        &bootstrap.services,
+        AccountNetwork::BitcoinSignet,
+        None,
+    )
+    .await;
+    let onboarded_keys = context
+        .get_authentication_keys_for_account_id(&onboarded_account.id)
+        .unwrap();
 
     client
         .complete_onboarding(
@@ -1388,6 +1458,7 @@ async fn test_delete_account() {
         .delete_account(
             &lite_account.id.to_string(),
             &CognitoAuthentication::Recovery,
+            &lite_account_keys,
         )
         .await;
     assert_eq!(StatusCode::UNAUTHORIZED, response.status_code);
@@ -1400,6 +1471,7 @@ async fn test_delete_account() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &onboarded_keys,
         )
         .await;
     assert_eq!(StatusCode::CONFLICT, response.status_code);
@@ -1412,6 +1484,7 @@ async fn test_delete_account() {
                 is_app_signed: true,
                 is_hardware_signed: false,
             },
+            &unonboarded_keys,
         )
         .await;
     assert_eq!(StatusCode::FORBIDDEN, response.status_code);
@@ -1424,6 +1497,7 @@ async fn test_delete_account() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &unonboarded_keys,
         )
         .await;
     assert_eq!(StatusCode::OK, response.status_code);
@@ -1436,6 +1510,7 @@ async fn test_delete_account() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &unonboarded_keys,
         )
         .await;
     assert_eq!(StatusCode::NOT_FOUND, response.status_code);
@@ -1443,10 +1518,10 @@ async fn test_delete_account() {
 
 #[tokio::test]
 async fn test_revoked_access_token_add_push_touchpoint() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let (app_privkey, app_pubkey) = create_keypair();
+    let keys = create_new_authkeys(&mut context);
     let ((_, app_xpub), (_, hw_xpub)) = (
         create_descriptor_keys(Network::Signet.into()),
         create_descriptor_keys(Network::Signet.into()),
@@ -1455,8 +1530,8 @@ async fn test_revoked_access_token_add_push_touchpoint() {
     // First, make an account
     let request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: app_pubkey,
-            hardware: create_pubkey(),
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
             recovery: None,
         },
         spending: SpendingKeysetRequest {
@@ -1466,7 +1541,7 @@ async fn test_revoked_access_token_add_push_touchpoint() {
         },
         is_test_account: true,
     };
-    let actual_response = client.create_account(&request).await;
+    let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
         actual_response.status_code,
         StatusCode::OK,
@@ -1476,7 +1551,7 @@ async fn test_revoked_access_token_add_push_touchpoint() {
 
     // Authenticate
     let request = AuthenticationRequest {
-        auth_request_key: AuthRequestKey::AppPubkey(app_pubkey),
+        auth_request_key: AuthRequestKey::AppPubkey(keys.app.public_key),
     };
     let actual_response = client.authenticate(&request).await;
     assert_eq!(
@@ -1489,7 +1564,7 @@ async fn test_revoked_access_token_add_push_touchpoint() {
     let challenge = auth_resp.challenge;
     let secp = Secp256k1::new();
     let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_ref());
-    let signature = secp.sign_ecdsa(&message, &app_privkey);
+    let signature = secp.sign_ecdsa(&message, &keys.app.secret_key);
     let request = GetTokensRequest {
         challenge: Some(ChallengeResponseParameters {
             username: auth_resp.username,

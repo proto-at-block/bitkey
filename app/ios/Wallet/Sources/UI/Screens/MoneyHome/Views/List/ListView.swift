@@ -9,7 +9,7 @@ public struct ListView: View {
     // MARK: - Private Types
 
     private enum Metrics {
-        static let interSectionSpacing = 8.f
+        static let interSectionSpacing = 0.f
     }
 
     // MARK: - Public Properties

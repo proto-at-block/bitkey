@@ -20,6 +20,7 @@ mod datadog;
 mod jaeger;
 mod json;
 
+pub const APP_INSTALLATION_ID_BAGGAGE_KEY: &str = "app_installation_id";
 pub const METRICS_REPORTING_PERIOD_SECS: u64 = 15;
 
 // TODO:[W-1236] Remove changes to Config and Mode (switch back to pub(crate))

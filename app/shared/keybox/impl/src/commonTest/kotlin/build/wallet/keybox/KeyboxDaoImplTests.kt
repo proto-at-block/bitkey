@@ -1,7 +1,6 @@
 package build.wallet.keybox
 
 import app.cash.turbine.test
-import build.wallet.LoadableValue
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
@@ -89,14 +88,13 @@ class KeyboxDaoImplTests : FunSpec({
 
   test("save and activate new keybox for onboarding, onboarding keybox") {
     dao.onboardingKeybox().test {
-      awaitItem().shouldBe(Ok(LoadableValue.InitialLoading))
-      awaitItem().shouldBe(Ok(LoadableValue.LoadedValue(null)))
+      awaitItem().shouldBe(Ok(null))
 
       dao.saveKeyboxAndBeginOnboarding(keybox1)
-      awaitItem().shouldBe(Ok(LoadableValue.LoadedValue(keybox1)))
+      awaitItem().shouldBe(Ok(keybox1))
 
       dao.activateNewKeyboxAndCompleteOnboarding(keybox1)
-      awaitItem().shouldBe(Ok(LoadableValue.LoadedValue(null)))
+      awaitItem().shouldBe(Ok(null))
     }
   }
 

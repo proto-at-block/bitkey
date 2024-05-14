@@ -55,7 +55,7 @@ import build.wallet.router.Router
 import build.wallet.statemachine.account.recovery.cloud.CloudSignInUiStateMachineImpl
 import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInStateMachineImpl
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachineImpl
-import build.wallet.ui.app.AnimatedApp
+import build.wallet.ui.app.App
 import build.wallet.ui.app.AppUiModelMap
 
 class MainActivity : ComponentActivity() {
@@ -78,9 +78,8 @@ class MainActivity : ComponentActivity() {
     Router.route = Route.fromUrl(intent.dataString)
 
     setContent {
-      AnimatedApp(
+      App(
         model = activityComponent.appUiStateMachine.model(Unit),
-        appVariant = appComponent.appVariant,
         uiModelMap = AppUiModelMap
       )
     }

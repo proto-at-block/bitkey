@@ -1,7 +1,9 @@
 use crate::GenServiceOverrides;
 use account::entities::Network::BitcoinSignet;
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
-use bdk_utils::bdk::bitcoin::Address;
+use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
+use bdk_utils::bdk::bitcoin::secp256k1::Secp256k1;
+use bdk_utils::bdk::bitcoin::{Address, Network, PublicKey};
 use database::ddb;
 use http::StatusCode;
 use http_server::config;
@@ -29,6 +31,7 @@ async fn ddb_repo() -> impl AddressWatchlistTrait + Clone {
 
 struct TestContext<A: AddressWatchlistTrait + Clone + 'static> {
     address_repo: A,
+    ctx: super::TestContext,
     known_account_id_1: AccountId,
     known_account_id_2: AccountId,
     client: TestClient,
@@ -37,13 +40,14 @@ struct TestContext<A: AddressWatchlistTrait + Clone + 'static> {
 impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
     async fn set_up(address_repo: A) -> Self {
         let overrides = GenServiceOverrides::new().address_repo(Box::new(address_repo.clone()));
-        let bootstrap = gen_services_with_overrides(overrides).await;
+        let (mut ctx, bootstrap) = gen_services_with_overrides(overrides).await;
         let client = TestClient::new(bootstrap.router).await;
-        let account_1 = create_account(&bootstrap.services, BitcoinSignet, None).await;
-        let account_2 = create_account(&bootstrap.services, BitcoinSignet, None).await;
+        let account_1 = create_account(&mut ctx, &bootstrap.services, BitcoinSignet, None).await;
+        let account_2 = create_account(&mut ctx, &bootstrap.services, BitcoinSignet, None).await;
 
         Self {
             address_repo,
+            ctx,
             client,
             known_account_id_1: account_1.id,
             known_account_id_2: account_2.id,
@@ -51,22 +55,26 @@ impl<A: AddressWatchlistTrait + Clone + 'static> TestContext<A> {
     }
 }
 
-#[fixture]
-fn addr1() -> AddressAndKeysetId {
-    AddressAndKeysetId::new(
-        "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs".parse().unwrap(),
-        KeysetId::gen().unwrap(),
-    )
+fn gen_random_address() -> AddressAndKeysetId {
+    let secp = Secp256k1::new();
+    let (_, pk) = secp.generate_keypair(&mut thread_rng());
+
+    // Force Address to be of type Address<NetworkUnchecked> for AddressAndKeysetId to be
+    // deserializable.
+    // [W-5648]: Use `as_unchecked` once it's available in BDK.
+    let addr_string = Address::p2pkh(&PublicKey::new(pk), Network::Bitcoin).to_string();
+    let unchecked_address: Address<NetworkUnchecked> = addr_string.parse().unwrap();
+    AddressAndKeysetId::new(unchecked_address, KeysetId::gen().unwrap())
 }
 
 #[fixture]
-fn addr2() -> AddressAndKeysetId {
-    AddressAndKeysetId::new(
-        "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc"
-            .parse()
-            .unwrap(),
-        KeysetId::gen().unwrap(),
-    )
+fn random_address() -> AddressAndKeysetId {
+    gen_random_address()
+}
+
+#[fixture]
+fn random_address2() -> AddressAndKeysetId {
+    gen_random_address()
 }
 
 async fn get_acct_for_addr(
@@ -84,7 +92,7 @@ async fn get_acct_for_addr(
 #[rstest]
 #[tokio::test]
 async fn test_register_watch_address_with_unknown_account_id_404(
-    addr1: AddressAndKeysetId,
+    random_address: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait + Clone + 'static,
 ) {
     let test_ctx = TestContext::set_up(repo).await;
@@ -92,7 +100,7 @@ async fn test_register_watch_address_with_unknown_account_id_404(
 
     let response = test_ctx
         .client
-        .register_watch_address(&acct_id, &vec![addr1.clone()].into())
+        .register_watch_address(&acct_id, &vec![random_address.clone()].into())
         .await;
 
     assert_eq!(StatusCode::NOT_FOUND, response.status_code);
@@ -101,29 +109,28 @@ async fn test_register_watch_address_with_unknown_account_id_404(
 #[rstest]
 #[tokio::test]
 async fn test_register_watch_address_with_known_account_id_first_insert_200(
-    addr1: AddressAndKeysetId,
+    random_address: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait + Clone + 'static,
 ) {
     let test_ctx = TestContext::set_up(repo).await;
     let acct_id = test_ctx.known_account_id_1;
-
     let response = test_ctx
         .client
-        .register_watch_address(&acct_id, &vec![addr1.clone()].into())
+        .register_watch_address(&acct_id, &vec![random_address.clone()].into())
         .await;
 
     assert_eq!(StatusCode::OK, response.status_code);
     assert_eq!(
         acct_id,
-        get_acct_for_addr(&test_ctx.address_repo, &addr1.address).await
+        get_acct_for_addr(&test_ctx.address_repo, &random_address.address).await
     );
 }
 
 #[rstest]
 #[tokio::test]
 async fn test_register_watch_address_with_known_account_id_multiple_insert_200(
-    addr1: AddressAndKeysetId,
-    addr2: AddressAndKeysetId,
+    random_address: AddressAndKeysetId,
+    random_address2: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait + Clone + 'static,
 ) {
     let test_ctx = TestContext::set_up(repo).await;
@@ -131,25 +138,31 @@ async fn test_register_watch_address_with_known_account_id_multiple_insert_200(
 
     let response = test_ctx
         .client
-        .register_watch_address(&acct_id, &vec![addr1.clone(), addr2.clone()].into())
+        .register_watch_address(
+            &acct_id,
+            &vec![random_address.clone(), random_address2.clone()].into(),
+        )
         .await;
 
     assert_eq!(StatusCode::OK, response.status_code);
 
     let known = test_ctx
         .address_repo
-        .get(&[addr1.address.clone(), addr2.address.clone()])
+        .get(&[
+            random_address.address.clone(),
+            random_address2.address.clone(),
+        ])
         .await
         .unwrap();
 
-    assert_eq!(&acct_id, known.get(&addr1.address).unwrap());
-    assert_eq!(&acct_id, known.get(&addr2.address).unwrap());
+    assert_eq!(&acct_id, known.get(&random_address.address).unwrap());
+    assert_eq!(&acct_id, known.get(&random_address2.address).unwrap());
 }
 
 #[rstest]
 #[tokio::test]
 async fn test_register_watch_address_with_known_account_id_second_insert_200(
-    addr1: AddressAndKeysetId,
+    random_address: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait + Clone + 'static,
 ) {
     let test_ctx = TestContext::set_up(repo).await;
@@ -157,25 +170,25 @@ async fn test_register_watch_address_with_known_account_id_second_insert_200(
 
     let _ = test_ctx
         .client
-        .register_watch_address(&acct_id, &vec![addr1.clone()].into())
+        .register_watch_address(&acct_id, &vec![random_address.clone()].into())
         .await;
 
     let response = test_ctx
         .client
-        .register_watch_address(&acct_id, &vec![addr1.clone()].into())
+        .register_watch_address(&acct_id, &vec![random_address.clone()].into())
         .await;
 
     assert_eq!(StatusCode::OK, response.status_code);
     assert_eq!(
         acct_id,
-        get_acct_for_addr(&test_ctx.address_repo, &addr1.address).await
+        get_acct_for_addr(&test_ctx.address_repo, &random_address.address).await
     );
 }
 
 #[rstest]
 #[tokio::test]
 async fn test_register_watch_address_with_different_account_id_second_insert_500(
-    addr1: AddressAndKeysetId,
+    random_address: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait + Clone + 'static,
 ) {
     let test_ctx = TestContext::set_up(repo).await;
@@ -184,12 +197,12 @@ async fn test_register_watch_address_with_different_account_id_second_insert_500
 
     let _ = test_ctx
         .client
-        .register_watch_address(&first_acct_id, &vec![addr1.clone()].into())
+        .register_watch_address(&first_acct_id, &vec![random_address.clone()].into())
         .await;
 
     let response = test_ctx
         .client
-        .register_watch_address(&second_acct_id, &vec![addr1.clone()].into())
+        .register_watch_address(&second_acct_id, &vec![random_address.clone()].into())
         .await;
 
     assert_eq!(StatusCode::INTERNAL_SERVER_ERROR, response.status_code);
@@ -198,7 +211,7 @@ async fn test_register_watch_address_with_different_account_id_second_insert_500
 #[rstest]
 #[tokio::test]
 async fn test_register_watch_address_unauth_401(
-    addr1: AddressAndKeysetId,
+    random_address: AddressAndKeysetId,
     #[values(memory_repo(), ddb_repo().await)] repo: impl AddressWatchlistTrait + Clone + 'static,
 ) {
     let test_ctx = TestContext::set_up(repo).await;
@@ -206,7 +219,7 @@ async fn test_register_watch_address_unauth_401(
 
     let response = test_ctx
         .client
-        .register_watch_address_unauth(&acct_id, &vec![addr1.clone()].into())
+        .register_watch_address_unauth(&acct_id, &vec![random_address.clone()].into())
         .await;
 
     assert_eq!(StatusCode::UNAUTHORIZED, response.status_code);

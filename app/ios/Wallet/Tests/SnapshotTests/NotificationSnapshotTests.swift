@@ -91,34 +91,6 @@ final class NotificationSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
-    func test_notification_settings_no_sms_email() {
-        let view = FormView(
-            viewModel: NotificationsSettingsFormBodyModelKt.NotificationsSettingsFormBodyModel(
-                smsText: nil,
-                emailText: nil,
-                onBack: {},
-                onSmsClick: {},
-                onEmailClick: {}
-            )
-        )
-
-        assertBitkeySnapshots(view: view)
-    }
-
-    func test_notification_settings_with_sms_email() {
-        let view = FormView(
-            viewModel: NotificationsSettingsFormBodyModelKt.NotificationsSettingsFormBodyModel(
-                smsText: "(271) 381-9138",
-                emailText: "hello@world.com",
-                onBack: {},
-                onSmsClick: {},
-                onEmailClick: {}
-            )
-        )
-
-        assertBitkeySnapshots(view: view)
-    }
-
     func test_phone_input_empty() {
         let view = FormView(
             viewModel: PhoneNumberInputScreenModelKt.PhoneNumberInputScreenModel(

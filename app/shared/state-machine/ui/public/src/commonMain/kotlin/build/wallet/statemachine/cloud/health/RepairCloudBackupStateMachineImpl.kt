@@ -38,7 +38,6 @@ import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.statemachine.cloud.CloudSignInFailedScreenModel
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CheckingLocalBackupState
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachineImpl.State.CheckingMobileKeyCloudBackupState
@@ -65,11 +64,9 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 
 // TODO(796): add integration tests
 class RepairCloudBackupStateMachineImpl(
@@ -82,7 +79,6 @@ class RepairCloudBackupStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val csekDao: CsekDao,
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val emergencyAccessKitPdfGenerator: EmergencyAccessKitPdfGenerator,
   private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
@@ -245,7 +241,7 @@ class RepairCloudBackupStateMachineImpl(
       }
 
       is FoundBackupForDifferentAccountState -> {
-        var alert by remember { mutableStateOf<AlertModel?>(null) }
+        var alert by remember { mutableStateOf<ButtonAlertModel?>(null) }
 
         FoundCloudBackupForDifferentAccountModel(
           onOverwriteExistingBackup = {
@@ -284,16 +280,10 @@ class RepairCloudBackupStateMachineImpl(
       is CreatingMobileKeyBackupState -> {
         LaunchedEffect("creating-mobile-key-backup") {
           log { "Creating mobile key backup" }
-          val trustedContacts = socRecRelationshipsRepository.relationships
-            .filterNotNull()
-            .first()
-            .endorsedTrustedContacts
-
           fullAccountCloudBackupCreator
             .create(
               keybox = props.account.keybox,
-              sealedCsek = currentState.sealedCsek,
-              endorsedTrustedContacts = trustedContacts
+              sealedCsek = currentState.sealedCsek
             )
             .onSuccess { mobileKeyBackup ->
               state = CreatingEakBackupState(

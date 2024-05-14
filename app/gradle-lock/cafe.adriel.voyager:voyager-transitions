@@ -2,11 +2,11 @@
     "module-identifier": "cafe.adriel.voyager:voyager-transitions",
     "components": [
         {
-            "version": "1.1.0-alpha03",
+            "version": "1.1.0-alpha04",
             "variants": [
                 {
                     "artifacts": {
-                        "voyager-transitions-metadata-1.1.0-alpha03.jar": "7c6b1310cfed2ca11131f23afcc18b4b601c6aa87477c5dc1f9c168c948b0940"
+                        "voyager-transitions-metadata-1.1.0-alpha04.jar": "3994499934539552083b62bd47d0ac30afaf6e1ee2d7cc8e3773fc3356833e38"
                     }
                 }
             ],

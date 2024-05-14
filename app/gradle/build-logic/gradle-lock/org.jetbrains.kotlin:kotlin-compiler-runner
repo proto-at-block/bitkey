@@ -2,16 +2,17 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-compiler-runner",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-compiler-runner-1.9.10.jar": "0ffe660b3c7151203b4eee6209f7b7857643bacc3740465a1f083f0e221851ee"
+                        "kotlin-compiler-runner-1.9.22.jar": "73ec75bb99ebffa8b24a24a3b853f3f66096bc46a9351af0dac93debb69c15eb"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[build-logic]"
+                "gradle-plugins[build-logic]",
+                "kotlin-compiler"
             ]
         }
     ]

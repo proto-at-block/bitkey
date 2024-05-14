@@ -4,14 +4,15 @@ import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.mapUnit
 import build.wallet.platform.config.TouchpointPlatform
 import com.github.michaelbull.result.Result
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -35,7 +36,8 @@ class AddDeviceTokenServiceImpl(
         post(
           urlString = "/api/accounts/${fullAccountId.serverId}/device-token"
         ) {
-          setBody(
+          withDescription("Add device token to server")
+          setRedactedBody(
             Request(
               deviceToken = token,
               platform = touchpointPlatform.platform
@@ -43,7 +45,6 @@ class AddDeviceTokenServiceImpl(
           )
         }
       }
-      .logNetworkFailure { "Failed to add device token to server" }
       .mapUnit()
   }
 
@@ -51,5 +52,5 @@ class AddDeviceTokenServiceImpl(
   data class Request(
     @SerialName("device_token") val deviceToken: String,
     @SerialName("platform") val platform: String,
-  )
+  ) : RedactedRequestBody
 }

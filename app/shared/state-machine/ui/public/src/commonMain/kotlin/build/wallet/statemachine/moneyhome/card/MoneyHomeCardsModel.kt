@@ -1,5 +1,6 @@
 package build.wallet.statemachine.moneyhome.card
 
+import build.wallet.Progress
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.Model
@@ -61,7 +62,7 @@ data class CardModel(
     /** A dynamic image that does change and is dynamically drawn */
     sealed interface DynamicImage : CardImage {
       data class HardwareReplacementStatusProgress(
-        val progress: Float,
+        val progress: Progress,
         val remainingSeconds: Long,
       ) : DynamicImage
     }

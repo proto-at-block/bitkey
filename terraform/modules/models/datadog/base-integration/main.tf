@@ -7,6 +7,9 @@ resource "datadog_integration_aws" "this" {
   account_id = data.aws_caller_identity.current.account_id
   role_name  = var.datadog_role_name
   host_tags  = ["env:${var.environment}"]
+
+  account_specific_namespace_rules = var.account_specific_namespace_rules
+  excluded_regions                 = var.excluded_regions
 }
 
 module "datadog_aws_integration_role" {

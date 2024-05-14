@@ -2,7 +2,7 @@ package build.wallet.smoke.bitcoin.account
 
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.fees.FeePolicy
-import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
+import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -15,6 +15,9 @@ import build.wallet.testing.tags.TestTag.ServerSmoke
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec
+
+const val ALLOWED_BDK_ERROR_ALREADY_IN_BLOCK_CHAIN = "Transaction already in block chain"
+const val ALLOWED_BDK_ERROR_INPUTS_MISSING_OR_SPENT = "bad-txns-inputs-missingorspent"
 
 class OnboardingAndMobilePaySmokeTests : FunSpec({
   tags(ServerSmoke)
@@ -51,26 +54,24 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
           .createSignedPsbt(
             SpendingWallet.PsbtConstructionMethod.Regular(
               recipientAddress = treasury.getReturnAddress(),
-              amount = ExactAmount(BitcoinMoney.sats(9_500)),
+              amount = SendAll,
               feePolicy = FeePolicy.MinRelayRate
             )
           ).getOrThrow()
 
-      val serverSigned =
-        mobilePaySigningService.signWithSpecificKeyset(
-          account.config.f8eEnvironment,
-          account.accountId,
-          account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
-          appSignedPsbt
-        ).getOrThrow()
+      val serverSignedPsbt = mobilePaySigningService.signWithSpecificKeyset(
+        account.config.f8eEnvironment,
+        account.accountId,
+        account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,
+        appSignedPsbt
+      ).getOrThrow()
 
-      bitcoinBlockchain.broadcast(serverSigned).fold(
+      bitcoinBlockchain.broadcast(serverSignedPsbt).fold(
         success = { /* broadcast succeeded */ },
         failure = { error ->
           if (error.isExpectedRaceError()) {
             println("F8e won publishing race, continue... Error: ${error.message}")
           } else {
-            println("Unexpected error rethrowing... Error: ${error.message}")
             throw error
           }
         }
@@ -90,8 +91,8 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
  */
 private fun BdkError.isExpectedRaceError(): Boolean {
   val whiteListedErrorCodes = listOf(
-    "Transaction already in block chain",
-    "bad-txns-inputs-missingorspent"
+    ALLOWED_BDK_ERROR_ALREADY_IN_BLOCK_CHAIN,
+    ALLOWED_BDK_ERROR_INPUTS_MISSING_OR_SPENT
   )
 
   return whiteListedErrorCodes.any { code ->

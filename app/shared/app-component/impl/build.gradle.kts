@@ -52,6 +52,8 @@ kotlin {
         api(projects.shared.stateMachineUiPublic)
         api(projects.shared.timeImpl)
         api(projects.shared.supportImpl)
+        api(projects.shared.workerImpl)
+        api(projects.shared.inAppSecurityImpl)
       }
     }
 

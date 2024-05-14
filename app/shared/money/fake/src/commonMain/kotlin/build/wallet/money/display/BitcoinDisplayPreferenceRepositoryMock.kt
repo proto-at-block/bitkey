@@ -3,7 +3,6 @@ package build.wallet.money.display
 import app.cash.turbine.Turbine
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -14,17 +13,14 @@ class BitcoinDisplayPreferenceRepositoryMock(
   override val bitcoinDisplayUnit: StateFlow<BitcoinDisplayUnit>
     get() = internalBitcoinDisplayUnit
 
-  val launchSyncCalls = turbine?.invoke("BitcoinDisplayPreferenceRepositoryMock launchSync calls")
-
-  override fun launchSync(scope: CoroutineScope) {
-    launchSyncCalls?.add(Unit)
-  }
-
   val setBitcoinDisplayUnitCalls = turbine?.invoke("setBitcoinDisplayUnit calls")
 
-  override suspend fun setBitcoinDisplayUnit(bitcoinDisplayUnit: BitcoinDisplayUnit) {
+  override suspend fun setBitcoinDisplayUnit(
+    bitcoinDisplayUnit: BitcoinDisplayUnit,
+  ): Result<Unit, Error> {
     setBitcoinDisplayUnitCalls?.add(bitcoinDisplayUnit)
     internalBitcoinDisplayUnit.value = bitcoinDisplayUnit
+    return Ok(Unit)
   }
 
   val clearCalls = turbine?.invoke("clear BitcoinDisplayPreferenceRepository calls")

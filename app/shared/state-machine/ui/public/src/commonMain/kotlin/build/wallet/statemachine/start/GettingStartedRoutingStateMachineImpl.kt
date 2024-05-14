@@ -38,7 +38,6 @@ class GettingStartedRoutingStateMachineImpl(
       is LoadingCloudBackup ->
         accessCloudBackupUiStateMachine.model(
           AccessCloudBackupUiProps(
-            eakAssociation = props.eakAssociation,
             forceSignOutFromCloud = true,
             showErrorOnBackupMissing = showErrorOnBackupMissing,
             onExit = props.onExit,

@@ -1,35 +1,60 @@
-use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
+use std::str::FromStr;
+
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
+use experimentation::claims::ExperimentationClaims;
+use jwt_authorizer::JwtClaims;
+use serde::{Deserialize, Serialize};
+use tracing::warn;
+use utoipa::{OpenApi, ToSchema};
+
+use account::service::{FetchAccountInput, Service as AccountService, Service};
+use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
+use feature_flags::service::Service as FeatureFlagsService;
+use http_server::swagger::{SwaggerEndpoint, Url};
+use partnerships_lib::models::{PartnerTransaction, PurchaseOptions};
 use partnerships_lib::{
     errors::ApiError,
     models::{partners::PartnerInfo, PaymentMethod, Quote, RedirectInfo},
     Partnerships,
 };
-use serde::{Deserialize, Serialize};
-use userpool::userpool::UserPoolService;
-use utoipa::{OpenApi, ToSchema};
-
-use http_server::swagger::{SwaggerEndpoint, Url};
-use partnerships_lib::models::{PartnerTransaction, PurchaseOptions};
+use types::account::identifiers::AccountId;
+use types::authn_authz::AccessTokenClaims;
 use types::currencies::CurrencyCode;
+use userpool::userpool::UserPoolService;
 
 #[derive(Clone, axum_macros::FromRef)]
-pub struct RouteState(pub Partnerships, pub UserPoolService);
+pub struct RouteState(pub Partnerships, pub UserPoolService, pub AccountService);
 
 impl RouteState {
-    pub async fn new(user_pool_service: UserPoolService) -> Self {
+    pub async fn new(
+        user_pool_service: UserPoolService,
+        feature_flag_service: FeatureFlagsService,
+        account_service: AccountService,
+    ) -> Self {
         let secrets_manager = SecretsManager::new().await;
-        Self::from_secrets_manager(secrets_manager, user_pool_service).await
+        Self::from_secrets_manager(
+            secrets_manager,
+            user_pool_service,
+            feature_flag_service,
+            account_service,
+        )
+        .await
     }
 
     pub async fn from_secrets_manager(
         secrets_manager: impl FetchSecret,
         user_pool_service: UserPoolService,
+        feature_flag_service: FeatureFlagsService,
+        account_service: AccountService,
     ) -> Self {
-        Self(Partnerships::new(secrets_manager).await, user_pool_service)
+        Self(
+            Partnerships::new(secrets_manager, feature_flag_service).await,
+            user_pool_service,
+            account_service,
+        )
     }
 }
 
@@ -194,7 +219,10 @@ pub struct ListPurchaseQuotesResponse {
     ),
 )]
 async fn list_purchase_quotes(
+    State(account_service): State<AccountService>,
+    JwtClaims(claims): JwtClaims<AccessTokenClaims>,
     State(partnerships): State<Partnerships>,
+    _: ExperimentationClaims,
     Json(request): Json<ListPurchaseQuotesRequest>,
 ) -> Result<Json<ListPurchaseQuotesResponse>, ApiError> {
     let quotes = partnerships
@@ -203,9 +231,35 @@ async fn list_purchase_quotes(
             request.fiat_amount,
             request.fiat_currency,
             request.payment_method,
+            is_test_account(account_service, &claims).await,
         )
         .await;
     Ok(Json(ListPurchaseQuotesResponse { quotes }))
+}
+
+// TODO: W-7997 remove when targetted feature flags are available
+async fn is_test_account(account_service: Service, claims: &AccessTokenClaims) -> bool {
+    let account_id = match AccountId::from_str(claims.username.as_ref()) {
+        Ok(account_id) => account_id,
+        Err(e) => {
+            warn!("Error parsing account_id: {:?}", e);
+            return false;
+        }
+    };
+    let account = match account_service
+        .fetch_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await
+    {
+        Ok(account) => account,
+        Err(e) => {
+            warn!("Error fetching account: {:?}", e);
+            return false;
+        }
+    };
+
+    account.get_common_fields().properties.is_test_account
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

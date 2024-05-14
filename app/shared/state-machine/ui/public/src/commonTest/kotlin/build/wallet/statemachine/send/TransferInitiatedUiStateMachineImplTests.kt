@@ -2,8 +2,9 @@ package build.wallet.statemachine.send
 
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -29,11 +30,12 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
               )
           )
       ) {}
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
-  val stateMachine =
-    TransferInitiatedUiStateMachineImpl(
-      transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine
-    )
+  val stateMachine = TransferInitiatedUiStateMachineImpl(
+    transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+  )
 
   val regularProps =
     TransferInitiatedUiProps(
@@ -46,7 +48,6 @@ class TransferInitiatedUiStateMachineImplTests : FunSpec({
           totalBitcoinAmount = BitcoinMoney.sats(4241)
         ),
       estimatedTransactionPriority = EstimatedTransactionPriority.FASTEST,
-      fiatCurrency = USD,
       exchangeRates = null,
       onDone = {}
     )

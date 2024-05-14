@@ -2,7 +2,6 @@ package build.wallet.memfault
 
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.logging.HandledError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -38,6 +37,6 @@ inline fun <V, E : NetworkingError> Result<V, E>.logMemfaultNetworkFailure(
 
     log(
       level = logLevel,
-      throwable = error.cause ?: HandledError(message())
+      throwable = error
     ) { "${message()}. $error" }
   }

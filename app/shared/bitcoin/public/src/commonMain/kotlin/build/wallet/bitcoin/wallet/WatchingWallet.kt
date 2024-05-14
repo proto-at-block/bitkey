@@ -74,7 +74,7 @@ interface WatchingWallet {
    * At first emits [LoadableValue.InitialLoading] and then [LoadableValue.LoadedValue] after
    * every successful [sync].
    */
-  fun balance(): Flow<LoadableValue<BitcoinBalance>>
+  fun balance(): Flow<BitcoinBalance>
 
   /**
    * Emits the current lost of transactions of the wallet. The balance is pulled after every sync.
@@ -82,7 +82,7 @@ interface WatchingWallet {
    * At first emits [LoadableValue.InitialLoading] and then [LoadableValue.LoadedValue] after
    * every successful [sync].
    */
-  fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>>
+  fun transactions(): Flow<List<BitcoinTransaction>>
 
   /**
    * Emits current list of unspent transaction outputs. It is pulled after every sync.
@@ -90,7 +90,7 @@ interface WatchingWallet {
    * At first emits [LoadableValue.InitialLoading] and then [LoadableValue.LoadedValue] after
    * every successful [sync].
    */
-  fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>>
+  fun unspentOutputs(): Flow<List<BdkUtxo>>
 
   /**
    * Creates a PSBT using utxos from this wallet.

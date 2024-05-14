@@ -131,21 +131,18 @@ class FeeSelectionUiStateMachineImpl(
     state: SelectingFeeUiState,
     onFeeSelected: (EstimatedTransactionPriority) -> Unit,
   ): BodyModel {
-    val options =
-      feeOptionListUiStateMachine.model(
-        props =
-          FeeOptionListProps(
-            accountData = props.accountData,
-            fiatCurrency = props.fiatCurrency,
-            transactionBaseAmount = state.transactionBaseAmount,
-            fees = state.fees,
-            defaultPriority = state.defaultPriority,
-            exchangeRates = props.exchangeRates,
-            onOptionSelected = {
-              onFeeSelected(it)
-            }
-          )
+    val options = feeOptionListUiStateMachine.model(
+      props = FeeOptionListProps(
+        accountData = props.accountData,
+        transactionBaseAmount = state.transactionBaseAmount,
+        fees = state.fees,
+        defaultPriority = state.defaultPriority,
+        exchangeRates = props.exchangeRates,
+        onOptionSelected = {
+          onFeeSelected(it)
+        }
       )
+    )
 
     return FeeOptionsScreenModel(
       title = "Select a transfer speed",

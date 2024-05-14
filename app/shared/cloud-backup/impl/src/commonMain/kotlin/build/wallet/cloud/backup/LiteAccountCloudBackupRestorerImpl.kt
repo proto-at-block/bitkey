@@ -47,7 +47,9 @@ class LiteAccountCloudBackupRestorerImpl(
             appAuthPublicKey = liteAccountCloudBackup.appRecoveryAuthKeypair.publicKey,
             authTokenScope = AuthTokenScope.Recovery
           )
-          .logAuthFailure { "Error authenticating with new app auth key after recovery completed." }
+          .logAuthFailure {
+            "Error authenticating with recovery auth key when recovering from Lite account cloud backup."
+          }
           .mapError(::AccountBackupRestorationError)
           .bind()
 

@@ -18,10 +18,6 @@ inline fun <V, E : Throwable> Result<V, E>.logFailure(
   onFailure { error ->
     log(
       level = logLevel,
-      throwable = error.cause ?: HandledError(message())
+      throwable = error
     ) { "${message()}. $error" }
   }
-
-class HandledError(
-  override val message: String,
-) : Throwable(message)

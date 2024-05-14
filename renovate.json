@@ -5,6 +5,50 @@
       "matchManagers": ["hermit"],
       "matchPackageNames": ["python3"],
       "allowedVersions": "<= 3.10"
+    },
+    {
+      "matchManagers": ["gradle"],
+      "matchPaths": ["app/"],
+      "matchPackageNames": ["com.android.tools.build:gradle"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["gradle"],
+      "matchPaths": ["app/"],
+      "enabled": true
+    },    
+    {
+      "matchManagers": ["swift"],
+      "matchPaths": ["app/ios"]
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPaths": ["app/core", "server", "server/auth/auth_lambda_handlers"],
+      "enabled": false,
+      "description": "[W-7885] Enable once Cargo & minimumReleaseAge is supported by Renovate"
+    },
+    {
+      "matchManagers": ["pip_requirements"],
+      "matchPaths": ["firmware"]
+    },
+    {
+      "matchManagers": ["docker"],
+      "matchPaths": ["server", "server/src/wsm/third-party"]
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPaths": ["server", "app/style"]
+    },
+    {
+      "matchManagers": ["git-submodules"],
+      "matchPaths": ["/"],
+      "matchPackageNames": ["firmware/third-party/FreeRTOS"],
+      "enabled": false
+    },
+    {
+      "matchManagers": ["git-submodules"],
+      "matchPaths": ["/"],
+      "enabled": true
     }
   ],
   "extends": [
@@ -14,12 +58,28 @@
     ":disableDependencyDashboard",
     "github>Turbo87/renovate-config//rust/updateToolchain"
   ],
+  "ignorePaths": [
+    "cli/**",
+    "docs/**",
+    "datadog/**",
+    "factory-test/**",
+    "fastlane/**",
+    "nodes/**",
+    "web/**"
+  ],  
+  "minimumReleaseAge": "120 days",
   "enabledManagers": [
     "cocoapods",
     "hermit",
     "regex",
-    "swift"
+    "swift",
+    "gradle",
+    "cargo",
+    "npm",
+    "dockerfile",
+    "pip_requirements",
+    "git-submodules"
   ],
-  "labels": ["dependencies"],
+  "labels": ["dependencies", "task-list-completed-disable"],
   "platformCommit": true
 }

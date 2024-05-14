@@ -23,6 +23,7 @@ locals {
     address_watchlist_table_name     = "${module.this.id_dot}.address_watchlist"
     notification_table_name          = "${module.this.id_dot}.notification"
     chain_indexer_table_name         = "${module.this.id_dot}.chain_indexer"
+    mempool_indexer_table_name       = "${module.this.id_dot}.mempool_indexer"
     daily_spending_record_table_name = "${module.this.id_dot}.daily_spending_record"
     signed_psbt_cache_table_name     = "${module.this.id_dot}.signed_psbt_cache"
     migration_record_table_name      = "${module.this.id_dot}.migration_records"
@@ -82,6 +83,7 @@ locals {
     ACCOUNT_TABLE               = local.tables.account_table_name
     ADDRESS_WATCHLIST_TABLE     = local.tables.address_watchlist_table_name
     CHAIN_INDEXER_TABLE         = local.tables.chain_indexer_table_name
+    MEMPOOL_INDEXER_TABLE       = local.tables.mempool_indexer_table_name
     DAILY_SPENDING_RECORD_TABLE = local.tables.daily_spending_record_table_name
     NOTIFICATION_TABLE          = local.tables.notification_table_name
     RECOVERY_TABLE              = local.tables.recovery_table_name
@@ -148,6 +150,7 @@ module "dynamodb_tables" {
   account_table_name               = local.tables.account_table_name
   address_watchlist_table_name     = local.tables.address_watchlist_table_name
   chain_indexer_table_name         = local.tables.chain_indexer_table_name
+  mempool_indexer_table_name       = local.tables.mempool_indexer_table_name
   daily_spending_record_table_name = local.tables.daily_spending_record_table_name
   notification_table_name          = local.tables.notification_table_name
   recovery_table_name              = local.tables.recovery_table_name
@@ -445,6 +448,36 @@ module "ecs_job_blockchain_polling_task_mainnet" {
   wait_for_steady_state = var.wait_for_steady_state
 }
 
+module "ecs_job_mempool_polling_task_signet" {
+  source = "../../../models/ecs-service"
+
+  namespace = var.namespace
+  name      = "${var.name}-job-mempool-polling-signet"
+
+  create_load_balancer = false
+  vpc_name             = var.vpc_name
+  cluster_arn          = var.cluster_arn
+
+  image_name  = var.image_name
+  image_tag   = var.image_tag
+  command     = ["worker", "mempool-polling"]
+  environment = var.environment
+  environment_variables = merge(local.common_env_vars, {
+    SERVER_WALLET_TELEMETRY  = "{service_name=${var.name}-job-mempool-polling,mode=datadog}"
+    SERVER_COGNITO           = "test"        //TODO: Pick apart bootstrap dependence on Cognito,
+    SERVER_TWILIO            = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
+    SERVER_ITERABLE          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
+    SERVER_ZENDESK           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    MEMPOOL_INDEXER_BASE_URL = "https://bitkey.mempool.space/signet/api"
+    MEMPOOL_INDEXER_NETWORK  = "signet"
+  })
+  secrets          = merge(local.common_secrets, {})
+  cpu_architecture = "ARM64"
+
+  desired_count         = var.job_mempool_desired_count
+  wait_for_steady_state = var.wait_for_steady_state
+}
+
 module "ecs_job_metrics" {
   source = "../../../models/ecs-service"
 
@@ -631,6 +664,11 @@ resource "aws_iam_role_policy" "job_blockchain_polling_mainnet" {
   policy = data.aws_iam_policy_document.api_iam_policy.json
 }
 
+resource "aws_iam_role_policy" "job_mempool_polling_signet" {
+  role   = module.ecs_job_mempool_polling_task_signet.task_role_name
+  policy = data.aws_iam_policy_document.api_iam_policy.json
+}
+
 resource "aws_iam_role_policy" "job_metrics" {
   role   = module.ecs_job_metrics.task_role_name
   policy = data.aws_iam_policy_document.api_iam_policy.json
@@ -685,6 +723,11 @@ resource "aws_iam_role_policy" "job_blockchain_mainnet_secrets_iam_policy" {
 
 resource "aws_iam_role_policy" "job_blockchain_signet_secrets_iam_policy" {
   role   = module.ecs_job_blockchain_polling_task_signet.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_iam_policy.json
+}
+
+resource "aws_iam_role_policy" "job_mempool_signet_secrets_iam_policy" {
+  role   = module.ecs_job_mempool_polling_task_signet.exec_role_name
   policy = data.aws_iam_policy_document.secrets_iam_policy.json
 }
 
@@ -744,6 +787,13 @@ module "job_blockchain_polling_mainnet" {
   source = "../../../pieces/dynamodb-iam-policy"
 
   role        = module.ecs_job_blockchain_polling_task_mainnet.task_role_name
+  table_names = local.table_name_list
+}
+
+module "job_mempool_polling_signet" {
+  source = "../../../pieces/dynamodb-iam-policy"
+
+  role        = module.ecs_job_mempool_polling_task_signet.task_role_name
   table_names = local.table_name_list
 }
 

@@ -1,9 +1,8 @@
 package build.wallet.compose.collections
 
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.PersistentList
-import kotlinx.collections.immutable.persistentListOf
-import kotlinx.collections.immutable.toPersistentList
+import kotlinx.collections.immutable.toImmutableList
+import kotlin.experimental.ExperimentalTypeInference
 
 /**
  * Creates [ImmutableList].
@@ -18,37 +17,28 @@ fun <E> immutableListOf(vararg elements: E): ImmutableList<E> =
   kotlinx.collections.immutable.immutableListOf(*elements)
 
 /**
+ * Like [listOfNotNull] but returns an [ImmutableList].
+ */
+inline fun <reified E> immutableListOfNotNull(vararg elements: E?): ImmutableList<E> =
+  buildImmutableList {
+    elements.forEach { element ->
+      element?.let(::add)
+    }
+  }
+
+/**
  * Returns an empty persistent list.
  */
 fun <E> emptyImmutableList(): ImmutableList<E> =
   @Suppress("DEPRECATION")
   kotlinx.collections.immutable.immutableListOf()
 
-fun <E : Any> persistentListOfNotNull(vararg elements: E?): PersistentList<E> =
-  persistentListOf<E>().addAll(elements.filterNotNull())
-
-inline fun <E> buildPersistentList(
-  builder: PersistentListBuilderScope<E>.() -> Unit,
-): PersistentList<E> {
-  return buildList {
-    val scope =
-      object : PersistentListBuilderScope<E> {
-        override fun E?.unaryPlus() {
-          if (this != null) {
-            add(this)
-          }
-        }
-
-        override fun List<E>.unaryPlus() {
-          addAll(this)
-        }
-      }
-    scope.builder()
-  }.toPersistentList()
-}
-
-interface PersistentListBuilderScope<E> {
-  operator fun E?.unaryPlus()
-
-  operator fun List<E>.unaryPlus()
+/**
+ * Like [buildList] but returns an [ImmutableList].
+ */
+@OptIn(ExperimentalTypeInference::class)
+inline fun <E> buildImmutableList(
+  @BuilderInference builderAction: MutableList<E>.() -> Unit,
+): ImmutableList<E> {
+  return buildList(builderAction).toImmutableList()
 }

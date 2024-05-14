@@ -1,6 +1,9 @@
 use miniscript::DescriptorPublicKey;
 
-use crate::{EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, SignatureContext};
+use crate::{
+    fwpb::get_unlock_method_rsp::UnlockMethod, EllipticCurve, KeyEncoding, PublicKeyHandle,
+    PublicKeyMetadata, SignatureContext,
+};
 use bitcoin::{
     bip32::ChildNumber,
     hashes::{sha256, Hash},
@@ -12,9 +15,14 @@ use crate::fwpb::{
     derive_and_sign_rsp::DeriveAndSignRspStatus, derive_rsp::DeriveRspStatus, wallet_rsp::Msg,
     Curve, DeriveAndSignRsp, DeriveKeyDescriptorAndSignCmd, DeriveKeyDescriptorCmd,
     DerivePublicKeyAndSignCmd, DerivePublicKeyAndSignRsp, DerivePublicKeyCmd, DerivePublicKeyRsp,
-    DeriveRsp, LockDeviceCmd, LockDeviceRsp,
+    DeriveRsp, GetUnlockMethodCmd, GetUnlockMethodRsp, LockDeviceCmd, LockDeviceRsp,
 };
 use crate::{command, errors::CommandError, wca};
+
+pub struct UnlockInfo {
+    pub method: UnlockMethod,
+    pub fingerprint_index: Option<u32>,
+}
 
 pub const AUTHENTICATION_DERIVATION_PATH: [ChildNumber; 2] = [
     // https://github.com/bitcoin/bips/blob/master/bip-0043.mediawiki
@@ -179,8 +187,34 @@ fn lock_device() -> Result<bool, CommandError> {
     }
 }
 
+#[generator(yield(Vec<u8>), resume(Vec<u8>))]
+fn get_unlock_method() -> Result<UnlockInfo, CommandError> {
+    let apdu: apdu::Command = GetUnlockMethodCmd {}.try_into()?;
+
+    let data = yield_!(apdu.into());
+    let response = apdu::Response::from(data);
+    let message = wca::decode_and_check(response)?
+        .msg
+        .ok_or(CommandError::MissingMessage)?;
+
+    match message {
+        Msg::GetUnlockMethodRsp(GetUnlockMethodRsp {
+            method,
+            fingerprint_index,
+        }) => Ok(UnlockInfo {
+            method: match UnlockMethod::from_i32(method) {
+                Some(m) => m,
+                None => return Err(CommandError::InvalidResponse),
+            },
+            fingerprint_index: Some(fingerprint_index),
+        }),
+        _ => Err(CommandError::MissingMessage),
+    }
+}
+
 command!(LockDevice = lock_device -> bool);
 command!(GetAuthenticationKey = get_authentication_key -> PublicKey);
 command!(GetAuthenticationKeyV2 = get_authentication_key_v2 -> PublicKeyHandle);
 command!(SignChallenge = sign_challenge -> Signature, challenge: Vec<u8>);
 command!(SignChallengeV2 = sign_challenge_v2 -> SignatureContext, challenge: Vec<u8>);
+command!(GetUnlockMethod = get_unlock_method -> UnlockInfo);

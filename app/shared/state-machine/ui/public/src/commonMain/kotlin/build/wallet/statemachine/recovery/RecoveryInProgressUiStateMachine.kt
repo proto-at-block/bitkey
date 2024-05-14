@@ -20,7 +20,6 @@ import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HAR
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
@@ -59,7 +58,6 @@ data class RecoveryInProgressUiProps(
   val presentationStyle: ScreenPresentationStyle,
   val recoveryInProgressData: RecoveryInProgressData,
   val fullAccountConfig: FullAccountConfig,
-  val fiatCurrency: FiatCurrency,
   val onExit: (() -> Unit)? = null,
 )
 
@@ -169,7 +167,6 @@ class RecoveryInProgressUiStateMachineImpl(
           CompletingRecoveryUiProps(
             presentationStyle = props.presentationStyle,
             completingRecoveryData = recoveryInProgressData,
-            fiatCurrency = props.fiatCurrency,
             onExit = props.onExit,
             isHardwareFake = props.fullAccountConfig.isHardwareFake
           )

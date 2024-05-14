@@ -2,11 +2,14 @@ package build.wallet.f8e.demo
 
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.UnauthenticatedF8eHttpClient
+import build.wallet.ktor.result.EmptyResponseBody
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
+import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -16,11 +19,11 @@ class DemoModeServiceImpl(
   override suspend fun initiateDemoMode(
     f8eEnvironment: F8eEnvironment,
     code: String,
-  ): Result<Unit, Error> {
+  ): Result<EmptyResponseBody, Error> {
     return f8eHttpClient.unauthenticated(f8eEnvironment)
-      .bodyResult<Unit> {
+      .bodyResult<EmptyResponseBody> {
         post("/api/demo/initiate") {
-          setBody(
+          setRedactedBody(
             InitiateDemoModeRequest(
               code = code
             )
@@ -32,6 +35,7 @@ class DemoModeServiceImpl(
 
 @Serializable
 private data class InitiateDemoModeRequest(
+  @Unredacted
   @SerialName("code")
   val code: String,
-)
+) : RedactedRequestBody

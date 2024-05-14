@@ -39,7 +39,6 @@ interface FakeHardwareKeyStore {
 
   suspend fun clear()
 
-  @Redacted
   data class FakeHwSpendingPrivateKey(
     override val key: ExtendedPrivateKey,
   ) : SpendingPrivateKey

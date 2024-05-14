@@ -6,6 +6,8 @@ use thiserror::Error;
 pub enum ExperimentationError {
     #[error(transparent)]
     FeatureFlagsError(#[from] feature_flags::Error),
+    #[error("Could not generate feature flag context")]
+    ContextGeneration,
 }
 
 impl From<ExperimentationError> for ApiError {
@@ -16,6 +18,7 @@ impl From<ExperimentationError> for ApiError {
                 FeatureFlagsError::NotFound(_) => ApiError::GenericNotFound(err_msg),
                 _ => ApiError::GenericInternalApplicationError(err_msg),
             },
+            ExperimentationError::ContextGeneration => ApiError::GenericBadRequest(err_msg),
         }
     }
 }

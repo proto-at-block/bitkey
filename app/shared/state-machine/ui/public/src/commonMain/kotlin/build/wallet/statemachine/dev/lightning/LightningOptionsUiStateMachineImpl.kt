@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.bitcoin.lightning.LightningPreference
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -14,7 +15,6 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
 
 class LightningOptionsUiStateMachineImpl(
@@ -33,7 +33,7 @@ class LightningOptionsUiStateMachineImpl(
     return ListGroupModel(
       style = ListGroupStyle.DIVIDER,
       items =
-        listOfNotNull(
+        immutableListOfNotNull(
           ListItemModel(
             title = "Run Lightning Node",
             trailingAccessory =
@@ -41,6 +41,7 @@ class LightningOptionsUiStateMachineImpl(
                 model =
                   SwitchModel(
                     checked = state.lightningEnabled,
+                    enabled = false,
                     onCheckedChange = { enabled ->
                       scope.launch {
                         lightningPreference.set(enabled)
@@ -60,7 +61,7 @@ class LightningOptionsUiStateMachineImpl(
 
             else -> null
           }
-        ).toImmutableList()
+        )
     )
   }
 

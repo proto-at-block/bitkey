@@ -24,6 +24,8 @@ import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnerRedirectionMethod.Deeplink
+import build.wallet.partnerships.PartnerRedirectionMethod.Web
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
@@ -39,8 +41,6 @@ import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
-import build.wallet.statemachine.partnerships.PartnerRedirectionMethod.Deeplink
-import build.wallet.statemachine.partnerships.PartnerRedirectionMethod.Web
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
 import build.wallet.ui.model.icon.IconModel

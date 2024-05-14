@@ -12,5 +12,5 @@ data class BdkBlockchainMock(
 
   override fun getBlockHashBlocking(height: Long): BdkResult<String> = blockHashResult
 
-  override fun estimateFee(targetBlocks: ULong): BdkResult<Float> = feeRateResult
+  override fun estimateFeeBlocking(targetBlocks: ULong): BdkResult<Float> = feeRateResult
 }

@@ -1,12 +1,10 @@
 package build.wallet.integration.statemachine.recovery
 
 import app.cash.turbine.test
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
-import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.coroutines.turbine.awaitUntil
@@ -29,7 +27,6 @@ import build.wallet.testing.ext.returnFundsToTreasury
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
@@ -71,12 +68,12 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
       val wallet = app.getActiveWallet()
       wallet.sync().unwrap()
       wallet.balance().test {
-        awaitUntil<LoadedValue<BitcoinBalance>>().value.shouldBe(ZeroBalance)
+        awaitUntil { it == ZeroBalance }
         cancelAndIgnoreRemainingEvents()
       }
 
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.secondaryAmount.shouldBe("0 sats")
+        .balanceModel.primaryAmount.shouldBe("0 sats")
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -115,14 +112,14 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
         clickPrimaryButton()
       }
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.secondaryAmount.shouldBe("10,000 sats")
+        .balanceModel.primaryAmount.shouldBe("10,000 sats")
 
       val wallet = app.getActiveWallet()
       wallet.sync().unwrap()
 
       wallet.balance().test {
-        awaitUntil<LoadedValue<BitcoinBalance>>().value.should {
-          it.total.shouldBe(BitcoinMoney.sats(10_000))
+        awaitUntil {
+          it.total == BitcoinMoney.sats(10_000)
         }
         cancelAndIgnoreRemainingEvents()
       }

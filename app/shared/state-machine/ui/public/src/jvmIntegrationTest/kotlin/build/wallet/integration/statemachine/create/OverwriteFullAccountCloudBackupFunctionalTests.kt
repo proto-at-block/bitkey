@@ -15,9 +15,10 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
 import kotlin.time.Duration.Companion.seconds
 
 class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
@@ -43,7 +44,7 @@ class OverwriteFullAccountCloudBackupFunctionalTests : FunSpec({
         clickPrimaryButton()
       }
 
-      awaitItem().alertModel.shouldNotBeNull().onPrimaryButtonClick()
+      awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
 
       // Uploading cloud backup
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING) {

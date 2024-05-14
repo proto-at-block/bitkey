@@ -8,6 +8,7 @@ import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -33,25 +34,26 @@ class SpendingLimitUiStateMachineImplTests : FunSpec({
   val onSetLimitCalls = turbines.create<SpendingLimit>("set limit calls")
 
   val timeZoneProvider = TimeZoneProviderMock()
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
   val stateMachine: SetSpendingLimitUiStateMachine =
     SetSpendingLimitUiStateMachineImpl(
       spendingLimitPickerUiStateMachine =
-        object : SpendingLimitPickerUiStateMachine, ScreenStateMachineMock<SpendingLimitPickerUiProps>(
-          id = "spending-limit-picker"
-        ) {},
+        object : SpendingLimitPickerUiStateMachine,
+          ScreenStateMachineMock<SpendingLimitPickerUiProps>(
+            id = "spending-limit-picker"
+          ) {},
       timeZoneProvider = timeZoneProvider,
-      moneyDisplayFormatter = MoneyDisplayFormatterFake
+      moneyDisplayFormatter = MoneyDisplayFormatterFake,
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 
-  val props =
-    SpendingLimitProps(
-      currentSpendingLimit = null,
-      onClose = { onCloseCalls += Unit },
-      onSetLimit = { onSetLimitCalls += it },
-      accountData = ActiveKeyboxLoadedDataMock,
-      fiatCurrency = USD
-    )
+  val props = SpendingLimitProps(
+    currentSpendingLimit = null,
+    onClose = { onCloseCalls += Unit },
+    onSetLimit = { onSetLimitCalls += it },
+    accountData = ActiveKeyboxLoadedDataMock
+  )
 
   val testSpendingLimit = FiatMoney.usd(100.0)
 

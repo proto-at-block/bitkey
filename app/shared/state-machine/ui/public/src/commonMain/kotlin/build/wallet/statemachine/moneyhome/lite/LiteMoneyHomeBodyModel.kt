@@ -3,6 +3,7 @@ package build.wallet.statemachine.moneyhome.lite
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.moneyhome.BaseMoneyHomeBodyModel
@@ -16,7 +17,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableList
 
 data class LiteMoneyHomeBodyModel(
   override val trailingToolbarAccessoryModel: ToolbarAccessoryModel,
@@ -36,7 +36,7 @@ data class LiteMoneyHomeBodyModel(
     onAcceptInviteClick: () -> Unit,
   ) : this(
     cardsModel = MoneyHomeCardsModel(
-      cards = listOf(
+      cards = immutableListOf(
         // Wallets you're Protecting card
         WalletsProtectingMoneyHomeCardModel(
           protectedCustomers = protectedCustomers,
@@ -46,7 +46,7 @@ data class LiteMoneyHomeBodyModel(
         ),
         // Buy your Own Bitkey card
         BuyOwnBitkeyMoneyHomeCardModel(onClick = onBuyOwnBitkeyClick)
-      ).toImmutableList()
+      )
     ),
     buttonsModel = buttonModel,
     trailingToolbarAccessoryModel =

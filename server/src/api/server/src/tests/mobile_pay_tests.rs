@@ -18,10 +18,14 @@ use super::requests::axum::TestClient;
 
 #[tokio::test]
 async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
     assert_eq!(account.spending_limit, None);
 
     let spend_limit = SpendingLimit {
@@ -33,7 +37,7 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
         ..Default::default()
     };
     let request = build_mobile_pay_request(spend_limit.clone());
-    let response = client.put_mobile_pay(&account.id, &request).await;
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
     assert_eq!(
         response.status_code,
         StatusCode::OK,
@@ -43,7 +47,7 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
     assert_eq!(response.body.unwrap(), MobilePaySetupResponse {});
 
     // Check if spending limit is persisted in Account
-    let response = client.get_mobile_pay(&account.id).await;
+    let response = client.get_mobile_pay(&account.id, &keys).await;
     assert_eq!(
         response.status_code,
         StatusCode::OK,
@@ -60,7 +64,7 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
     };
     // Deactivate Mobile Pay
     let request = build_mobile_pay_request(disable_spend_limit.clone());
-    let response = client.put_mobile_pay(&account.id, &request).await;
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
     assert_eq!(response.status_code, StatusCode::OK);
 
     // Check if Mobile Pay is turned off.
@@ -84,7 +88,7 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
         })
         .await
         .unwrap();
-    let get_response = client.get_mobile_pay(&account.id).await;
+    let get_response = client.get_mobile_pay(&account.id, &keys).await;
     assert_eq!(get_response.status_code, StatusCode::OK);
     let resp_body = get_response.body.unwrap();
     assert!(resp_body.mobile_pay().is_none());
@@ -96,10 +100,14 @@ struct SetupMobilePayWithTimezoneTestVector {
 }
 
 async fn setup_mobile_pay_with_timezone_test(vector: SetupMobilePayWithTimezoneTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, ..) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
 
     let request = build_mobile_pay_request(SpendingLimit {
         active: true,
@@ -110,7 +118,7 @@ async fn setup_mobile_pay_with_timezone_test(vector: SetupMobilePayWithTimezoneT
         time_zone_offset: vector.time_zone_offset,
         ..Default::default()
     });
-    let response = client.put_mobile_pay(&account.id, &request).await;
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
     assert_eq!(
         response.status_code, vector.expected_status_code,
         "{}",
@@ -136,10 +144,11 @@ tests! {
 
 #[tokio::test]
 async fn mobile_pay_setup_fails_without_jwt() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, ..) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
 
     let request = build_mobile_pay_request(SpendingLimit {
         active: true,
@@ -157,9 +166,14 @@ async fn mobile_pay_setup_fails_without_jwt() {
 
 #[tokio::test]
 async fn mobile_pay_setup_fails_with_non_existent_account() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
-    create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+    let (account, _) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
 
     let request = build_mobile_pay_request(SpendingLimit {
         active: true,
@@ -170,7 +184,7 @@ async fn mobile_pay_setup_fails_with_non_existent_account() {
         ..Default::default()
     });
     let response = client
-        .put_mobile_pay(&AccountId::new(Ulid::new()).unwrap(), &request)
+        .put_mobile_pay(&AccountId::new(Ulid::new()).unwrap(), &request, &keys)
         .await;
     assert_eq!(
         response.status_code,
@@ -182,10 +196,14 @@ async fn mobile_pay_setup_fails_with_non_existent_account() {
 
 #[tokio::test]
 async fn mobile_pay_disable() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
     assert_eq!(account.spending_limit, None);
 
     let spend_limit = SpendingLimit {
@@ -197,7 +215,7 @@ async fn mobile_pay_disable() {
         ..Default::default()
     };
     let request = build_mobile_pay_request(spend_limit.clone());
-    let response = client.put_mobile_pay(&account.id, &request).await;
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
     assert_eq!(
         response.status_code,
         StatusCode::OK,
@@ -207,7 +225,7 @@ async fn mobile_pay_disable() {
     assert_eq!(response.body.unwrap(), MobilePaySetupResponse {});
 
     // Test delete endpoint
-    let response = client.delete_mobile_pay(&account.id).await;
+    let response = client.delete_mobile_pay(&account.id, &keys).await;
     assert_eq!(response.status_code, StatusCode::OK);
 
     // Check if Mobile Pay is turned off.
@@ -331,15 +349,22 @@ mod get_mobile_pay_tests {
                 .assume_checked()
                 .script_pubkey();
 
-        let bootstrap = gen_services().await;
+        let (mut context, bootstrap) = gen_services().await;
         let client = TestClient::new(bootstrap.router).await;
-        let (account, _) =
-            create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        let (account, _) = create_default_account_with_predefined_wallet(
+            &mut context,
+            &client,
+            &bootstrap.services,
+        )
+        .await;
+        let keys = context
+            .get_authentication_keys_for_account_id(&account.id)
+            .unwrap();
 
         // Set up mobile pay.
         let setup_mobile_pay_request = build_mobile_pay_request(vector.spending_limit.clone());
         let mobile_pay_setup_response = client
-            .put_mobile_pay(&account.id, &setup_mobile_pay_request)
+            .put_mobile_pay(&account.id, &setup_mobile_pay_request, &keys)
             .await;
         assert_eq!(mobile_pay_setup_response.status_code, StatusCode::OK);
 
@@ -376,7 +401,7 @@ mod get_mobile_pay_tests {
             .save_daily_spending_record(spending_record)
             .await;
 
-        let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
+        let get_mobile_pay_response = client.get_mobile_pay(&account.id, &keys).await;
         let resp_body = get_mobile_pay_response.body.unwrap();
         let mobile_pay_config = resp_body.mobile_pay().unwrap();
         assert!(mobile_pay_config.limit.active);
@@ -400,10 +425,17 @@ mod get_mobile_pay_tests {
                 .assume_checked()
                 .script_pubkey();
 
-        let bootstrap = gen_services().await;
+        let (mut context, bootstrap) = gen_services().await;
         let client = TestClient::new(bootstrap.router).await;
-        let (account, _) =
-            create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        let (account, _) = create_default_account_with_predefined_wallet(
+            &mut context,
+            &client,
+            &bootstrap.services,
+        )
+        .await;
+        let keys = context
+            .get_authentication_keys_for_account_id(&account.id)
+            .unwrap();
 
         // Fake spending 1000 sats cosigned transaction
         let mut spending_record =
@@ -446,11 +478,11 @@ mod get_mobile_pay_tests {
         };
         let setup_mobile_pay_request = build_mobile_pay_request(limit.clone());
         let mobile_pay_setup_response = client
-            .put_mobile_pay(&account.id, &setup_mobile_pay_request)
+            .put_mobile_pay(&account.id, &setup_mobile_pay_request, &keys)
             .await;
         assert_eq!(mobile_pay_setup_response.status_code, StatusCode::OK);
 
-        let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
+        let get_mobile_pay_response = client.get_mobile_pay(&account.id, &keys).await;
         let resp_body = get_mobile_pay_response.body.unwrap();
         let mobile_pay_config = resp_body.mobile_pay().unwrap();
         assert!(mobile_pay_config.limit.active);
@@ -471,10 +503,17 @@ mod get_mobile_pay_tests {
                 .assume_checked()
                 .script_pubkey();
 
-        let bootstrap = gen_services().await;
+        let (mut context, bootstrap) = gen_services().await;
         let client = TestClient::new(bootstrap.router).await;
-        let (account, ..) =
-            create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        let (account, ..) = create_default_account_with_predefined_wallet(
+            &mut context,
+            &client,
+            &bootstrap.services,
+        )
+        .await;
+        let keys = context
+            .get_authentication_keys_for_account_id(&account.id)
+            .unwrap();
 
         // Fake spending 1000 sats cosigned transaction
         let mut spending_record =
@@ -515,7 +554,7 @@ mod get_mobile_pay_tests {
             },
             ..Default::default()
         });
-        let response = client.put_mobile_pay(&account.id, &request).await;
+        let response = client.put_mobile_pay(&account.id, &request, &keys).await;
         assert_eq!(
             response.status_code,
             StatusCode::OK,
@@ -524,13 +563,13 @@ mod get_mobile_pay_tests {
         );
         assert_eq!(response.body.unwrap(), MobilePaySetupResponse {});
 
-        let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
+        let get_mobile_pay_response = client.get_mobile_pay(&account.id, &keys).await;
         let resp_body = get_mobile_pay_response.body.unwrap();
         let mobile_pay_config = resp_body.mobile_pay().unwrap();
         let spent_amount_sats = mobile_pay_config.spent.amount;
 
         // Simulate mobile pay config deletion when changing currencies.
-        let response = client.delete_mobile_pay(&account.id).await;
+        let response = client.delete_mobile_pay(&account.id, &keys).await;
         assert_eq!(
             response.status_code,
             StatusCode::OK,
@@ -548,7 +587,7 @@ mod get_mobile_pay_tests {
             },
             ..Default::default()
         });
-        let response = client.put_mobile_pay(&account.id, &request).await;
+        let response = client.put_mobile_pay(&account.id, &request, &keys).await;
         assert_eq!(
             response.status_code,
             StatusCode::OK,
@@ -557,7 +596,7 @@ mod get_mobile_pay_tests {
         );
 
         // Check that we persist the spent amount in sats.
-        let get_mobile_pay_response = client.get_mobile_pay(&account.id).await;
+        let get_mobile_pay_response = client.get_mobile_pay(&account.id, &keys).await;
         let resp_body = get_mobile_pay_response.body.unwrap();
         let mobile_pay_config = resp_body.mobile_pay().unwrap();
         assert!(mobile_pay_config.limit.active);
@@ -570,12 +609,19 @@ mod get_mobile_pay_tests {
 
     #[tokio::test]
     async fn returns_200_with_none_if_customer_never_set_up_mobile_pay() {
-        let bootstrap = gen_services().await;
+        let (mut context, bootstrap) = gen_services().await;
         let client = TestClient::new(bootstrap.router).await;
-        let (account, ..) =
-            create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        let (account, ..) = create_default_account_with_predefined_wallet(
+            &mut context,
+            &client,
+            &bootstrap.services,
+        )
+        .await;
+        let keys = context
+            .get_authentication_keys_for_account_id(&account.id)
+            .unwrap();
 
-        let response = client.get_mobile_pay(&account.id).await;
+        let response = client.get_mobile_pay(&account.id, &keys).await;
         assert_eq!(response.status_code, StatusCode::OK);
         let resp_body = response.body.unwrap();
         assert!(resp_body.mobile_pay().is_none());

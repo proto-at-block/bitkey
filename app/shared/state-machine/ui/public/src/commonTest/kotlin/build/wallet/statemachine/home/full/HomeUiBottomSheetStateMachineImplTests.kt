@@ -4,7 +4,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.home.HomeUiBottomSheetId
 import build.wallet.money.currency.EUR
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -22,30 +22,29 @@ import kotlinx.coroutines.flow.flowOf
 class HomeUiBottomSheetStateMachineImplTests : FunSpec({
 
   val homeUiBottomSheetDao = HomeUiBottomSheetDaoMock(turbines::create)
-  val stateMachine =
-    HomeUiBottomSheetStateMachineImpl(
-      homeUiBottomSheetDao = homeUiBottomSheetDao
-    )
-
-  val limitCurrency = USD
-  val otherCurrency = EUR
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val stateMachine = HomeUiBottomSheetStateMachineImpl(
+    homeUiBottomSheetDao = homeUiBottomSheetDao,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+  )
 
   val disableMobilePayCalls = turbines.create<Unit>("disableMobilePay calls")
   val onShowSetSpendingLimitFlowCalls = turbines.create<Unit>("onShowSetSpendingLimitFlow calls")
-  val props =
-    HomeUiBottomSheetProps(
-      fiatCurrency = limitCurrency,
-      mobilePayData =
-        MobilePayEnabledDataMock.copy(
-          disableMobilePay = { disableMobilePayCalls.add(Unit) }
-        ),
-      onShowSetSpendingLimitFlow = { onShowSetSpendingLimitFlowCalls.add(Unit) }
-    )
+  val props = HomeUiBottomSheetProps(
+    mobilePayData = MobilePayEnabledDataMock.copy(
+      disableMobilePay = { disableMobilePayCalls.add(Unit) }
+    ),
+    onShowSetSpendingLimitFlow = { onShowSetSpendingLimitFlowCalls.add(Unit) }
+  )
+
+  beforeTest {
+    fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
+  }
 
   test("sheet model contents") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
-    stateMachine.test(props.copy(otherCurrency)) {
+    stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
       with(awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>()) {
@@ -61,7 +60,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   test("sheet model onLoaded disables mobile pay") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
-    stateMachine.test(props.copy(otherCurrency)) {
+    stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
       awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>().onLoaded(
@@ -74,7 +73,7 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
   test("primary button calls onShowSetSpendingLimitFlow") {
     homeUiBottomSheetDao.homeUiBottomSheetFlow =
       flowOf(HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY)
-    stateMachine.test(props.copy(otherCurrency)) {
+    stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
       val formModel = awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>()

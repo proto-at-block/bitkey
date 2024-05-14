@@ -1,8 +1,6 @@
 package build.wallet.sqldelight
 
 import app.cash.turbine.test
-import build.wallet.LoadableValue.InitialLoading
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.db.DbQueryError
 import build.wallet.sqldelight.ThrowingSqlDriver.QUERY_ERROR
 import build.wallet.sqldelight.dummy.DummyDataEntity
@@ -32,8 +30,7 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfList()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
-          awaitItem().shouldBeOk(LoadedValue(listOf(DummyDataEntity(id = 1, value = "chocolate"))))
+          awaitItem().shouldBeOk(listOf(DummyDataEntity(id = 1, value = "chocolate")))
         }
     }
 
@@ -44,13 +41,10 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfList()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeOk(
-            LoadedValue(
-              listOf(
-                DummyDataEntity(1, "chocolate"),
-                DummyDataEntity(2, "croissant")
-              )
+            listOf(
+              DummyDataEntity(1, "chocolate"),
+              DummyDataEntity(2, "croissant")
             )
           )
         }
@@ -60,8 +54,7 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfList()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
-          awaitItem().shouldBeOk(LoadedValue(emptyList()))
+          awaitItem().shouldBeOk(emptyList())
         }
     }
 
@@ -69,7 +62,6 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData(throwError = true)
         .asFlowOfList()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeErr(DbQueryError(QUERY_ERROR))
           awaitComplete() // Error is terminal
         }
@@ -83,8 +75,7 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfOneOrNull()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
-          awaitItem().shouldBeOk(LoadedValue(DummyDataEntity(id = 1, value = "chocolate")))
+          awaitItem().shouldBeOk(DummyDataEntity(id = 1, value = "chocolate"))
         }
     }
 
@@ -95,7 +86,6 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfOneOrNull()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeErr(
             DbQueryError(
               IllegalStateException("ResultSet returned more than 1 row for dummy:queryDummyData")
@@ -109,8 +99,7 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfOneOrNull()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
-          awaitItem().shouldBeOk(LoadedValue(null))
+          awaitItem().shouldBeOk(null)
         }
     }
 
@@ -118,7 +107,6 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData(throwError = true)
         .asFlowOfOneOrNull()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeErr(DbQueryError(QUERY_ERROR))
           awaitComplete() // Error is terminal
         }
@@ -132,8 +120,7 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfOne()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
-          awaitItem().shouldBeOk(LoadedValue(DummyDataEntity(id = 1, value = "chocolate")))
+          awaitItem().shouldBeOk(DummyDataEntity(id = 1, value = "chocolate"))
         }
     }
 
@@ -144,7 +131,6 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfOne()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeErr(
             DbQueryError(
               IllegalStateException("ResultSet returned more than 1 row for dummy:queryDummyData")
@@ -158,7 +144,6 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData()
         .asFlowOfOne()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeErr(
             DbQueryError(
               NullPointerException("ResultSet returned null for dummy:queryDummyData")
@@ -172,7 +157,6 @@ class FlowsTests : FunSpec({
       testDataQueries.getDummyData(throwError = true)
         .asFlowOfOne()
         .test {
-          awaitItem().shouldBeOk(InitialLoading)
           awaitItem().shouldBeErr(DbQueryError(QUERY_ERROR))
           awaitComplete() // Error is terminal
         }

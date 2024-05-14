@@ -1,9 +1,9 @@
 package build.wallet.statemachine.partnerships
 
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBody
@@ -36,25 +36,32 @@ class CustomAmountEntryUiStateMachineImplTests : FunSpec({
         ),
       keypadModel = KeypadModel(showDecimal = true, onButtonPress = {})
     )
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val moneyCalculatorUiStateMachine =
-    object : MoneyCalculatorUiStateMachine, StateMachineMock<MoneyCalculatorUiProps, MoneyCalculatorModel>(
-      defaultMoneyCalculatorModel
-    ) {}
+    object : MoneyCalculatorUiStateMachine,
+      StateMachineMock<MoneyCalculatorUiProps, MoneyCalculatorModel>(
+        defaultMoneyCalculatorModel
+      ) {}
 
-  val stateMachine =
-    CustomAmountEntryUiStateMachineImpl(moneyCalculatorUiStateMachine, moneyDisplayFormatter)
+  val stateMachine = CustomAmountEntryUiStateMachineImpl(
+    moneyCalculatorUiStateMachine,
+    moneyDisplayFormatter,
+    fiatCurrencyPreferenceRepository
+  )
 
   fun props(
     minimumAmount: FiatMoney = FiatMoney.usd(20.0),
     maximumAmount: FiatMoney = FiatMoney.usd(100.0),
-    fiatCurrency: FiatCurrency = USD,
   ) = CustomAmountEntryUiProps(
     minimumAmount = minimumAmount,
     maximumAmount = maximumAmount,
-    fiatCurrency = fiatCurrency,
     onNext = {},
     onBack = {}
   )
+
+  beforeTest {
+    fiatCurrencyPreferenceRepository.reset()
+  }
 
   test("custom amount entry not in range") {
     stateMachine.test(props()) {

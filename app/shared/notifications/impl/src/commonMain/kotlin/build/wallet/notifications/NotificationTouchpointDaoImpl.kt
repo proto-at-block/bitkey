@@ -10,7 +10,6 @@ import build.wallet.phonenumber.PhoneNumber
 import build.wallet.phonenumber.PhoneNumberValidator
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapOr
 import kotlinx.coroutines.flow.Flow
@@ -43,7 +42,6 @@ class NotificationTouchpointDaoImpl(
       .phoneNumberTouchpointQueries
       .getAllPhoneNumbers()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .map { result ->
         result
           .logFailure { "Failed to fetch stored phone number" }
@@ -62,7 +60,6 @@ class NotificationTouchpointDaoImpl(
     return database.emailTouchpointQueries
       .getAllEmails()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .map { result ->
         result
           .logFailure { "Failed to fetch stored email" }

@@ -1,11 +1,11 @@
 package build.wallet.statemachine.data.recovery.inprogress
 
+import build.wallet.Progress
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -15,6 +15,7 @@ import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
+import com.github.michaelbull.result.getOrElse
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
@@ -39,12 +40,12 @@ sealed interface RecoveryInProgressData {
     val retryCloudRecovery: (() -> Unit)?,
     val cancel: () -> Unit,
   ) : RecoveryInProgressData {
-    fun delayPeriodProgress(clock: Clock): Float =
+    fun delayPeriodProgress(clock: Clock): Progress =
       durationProgress(
         now = clock.now(),
         startTime = delayPeriodStartTime,
         endTime = delayPeriodEndTime
-      )
+      ).getOrElse { Progress.Zero }
 
     fun remainingDelayPeriod(clock: Clock): Duration =
       nonNegativeDurationBetween(
@@ -172,10 +173,7 @@ sealed interface RecoveryInProgressData {
       ) : CreatingSpendingKeysData
     }
 
-    /** Getting trusted contacts. */
-    data object GettingTrustedContactsData : CompletingRecoveryData
-
-    data class FailedGettingTrustedContactsData(
+    data class FailedRegeneratingTcCertificatesData(
       val physicalFactor: PhysicalFactor,
       val cause: Error,
       val retry: () -> Unit,
@@ -195,7 +193,6 @@ sealed interface RecoveryInProgressData {
     data class PerformingCloudBackupData(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
       val onBackupFinished: () -> Unit,
       val onBackupFailed: (Throwable?) -> Unit,
     ) : CompletingRecoveryData

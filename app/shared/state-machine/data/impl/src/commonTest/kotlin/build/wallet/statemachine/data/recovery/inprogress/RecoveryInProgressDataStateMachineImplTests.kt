@@ -43,7 +43,6 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
@@ -489,11 +488,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-      }
-
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       socRecRelationshipsRepository.syncCalls.awaitItem()
@@ -605,11 +599,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-      }
-
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       socRecRelationshipsRepository.syncCalls.awaitItem()
@@ -719,11 +708,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
           )
         )
       )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-      }
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
@@ -849,11 +833,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         )
       )
 
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-      }
-
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
       socRecRelationshipsRepository.syncCalls.awaitItem()
@@ -948,11 +927,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
           )
         )
       )
-
-      // Getting trusted contacts
-      awaitItem().let {
-        it.shouldBeTypeOf<GettingTrustedContactsData>()
-      }
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)

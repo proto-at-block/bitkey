@@ -12,7 +12,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToListKeysets
@@ -69,18 +69,21 @@ class SweepUiStateMachineImplTests : FunSpec({
           secondaryAmount = "$100.00"
         )
       ) {}
-  val sweepStateMachine =
-    SweepUiStateMachineImpl(
-      nfcSessionUIStateMachine,
-      moneyAmountUiStateMachine
-    )
-  val props =
-    SweepUiProps(
-      sweepData = GeneratingPsbtsData(App),
-      fiatCurrency = USD,
-      onExit = onExitCallback,
-      presentationStyle = Root
-    )
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val sweepStateMachine = SweepUiStateMachineImpl(
+    nfcSessionUIStateMachine,
+    moneyAmountUiStateMachine,
+    fiatCurrencyPreferenceRepository
+  )
+  val props = SweepUiProps(
+    sweepData = GeneratingPsbtsData(App),
+    onExit = onExitCallback,
+    presentationStyle = Root
+  )
+
+  beforeTest {
+    fiatCurrencyPreferenceRepository.reset()
+  }
 
   test("no funds found") {
     sweepStateMachine.test(props) {

@@ -1,6 +1,5 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
@@ -13,7 +12,6 @@ interface CompletingRecoveryUiStateMachine : StateMachine<CompletingRecoveryUiPr
 
 data class CompletingRecoveryUiProps(
   val presentationStyle: ScreenPresentationStyle,
-  val fiatCurrency: FiatCurrency,
   val completingRecoveryData: CompletingRecoveryData,
   val onExit: (() -> Unit)?,
   val isHardwareFake: Boolean,

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-compiler-embeddable",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-compiler-embeddable-1.9.10.jar": "b6d3965fdb3fc2a5f8d965681c215c37552b28ae5ad19fcadbc1568c9b65dab4"
+                        "kotlin-compiler-embeddable-1.9.22.jar": "2bfeadee59ab1988c336dbd6e65d991f766ae1dd8683f2a6ded5faa0279f0ca0"
                     }
                 }
             ],

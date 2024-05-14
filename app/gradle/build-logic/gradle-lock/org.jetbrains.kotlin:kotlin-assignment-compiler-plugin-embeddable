@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-assignment-compiler-plugin-embeddable",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-assignment-compiler-plugin-embeddable-1.9.10.jar": "a5a0a4d2d588de27de7e16956c14c9fce7eed381e990e06c7d9946b16993973e"
+                        "kotlin-assignment-compiler-plugin-embeddable-1.9.22.jar": "2a61dd219fedbe5318a3b1e23c0f739b45ed1b5b24b0b6737519b7845e8095f8"
                     }
                 }
             ],

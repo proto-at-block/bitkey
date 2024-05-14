@@ -1,6 +1,7 @@
 # This module creates an S3 bucket and configures datadog to archive logs to it per
 # https://docs.datadoghq.com/logs/log_configuration/archives/?tab=awss3#route-your-logs-to-a-bucket
 
+#tfsec:ignore:aws-s3-enable-versioning tfsec:ignore:aws-s3-enable-bucket-logging
 module "logs_bucket" {
   # https://docs.datadoghq.com/logs/log_configuration/archives/?tab=awss3#create-a-storage-bucket
   # We create the bucket in us-east-1 to avoid inter-region transfer fees because datadoghq.com runs

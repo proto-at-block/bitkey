@@ -1,7 +1,6 @@
 package build.wallet.bitcoin.wallet
 
 import app.cash.turbine.test
-import build.wallet.LoadableValue
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bdk.bindings.BdkAddressBuilderMock
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilderMock
@@ -14,25 +13,24 @@ import build.wallet.bitcoin.bdk.BdkTxBuilderFactoryMock
 import build.wallet.bitcoin.bdk.BdkTxBuilderMock
 import build.wallet.bitcoin.bdk.BdkWalletMock
 import build.wallet.bitcoin.bdk.BdkWalletSyncerMock
-import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.coroutines.turbine.turbines
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runTest
-import kotlin.coroutines.CoroutineContext
+import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.CoroutineScope
 import kotlin.time.Duration.Companion.seconds
 
 class SpendingWalletImplTests : FunSpec({
+
+  coroutineTestScope = true
 
   val bdkWallet = BdkWalletMock(turbines::create)
   val bdkWalletSyncer = BdkWalletSyncerMock(turbines::create)
   val bdkAddressBuilder = BdkAddressBuilderMock(turbines::create)
   val appSessionManager = AppSessionManagerFake()
 
-  fun buildWallet(syncDispatcher: CoroutineContext = Dispatchers.IO) =
+  fun buildWallet(syncScope: CoroutineScope) =
     SpendingWalletImpl(
       identifier = "wallet-identifier",
       bdkWallet = bdkWallet,
@@ -44,7 +42,7 @@ class SpendingWalletImplTests : FunSpec({
       bdkAddressBuilder = bdkAddressBuilder,
       bdkBumpFeeTxBuilderFactory = BdkBumpFeeTxBuilderFactoryMock(BdkBumpFeeTxBuilderMock()),
       appSessionManager = appSessionManager,
-      syncContext = syncDispatcher
+      syncContext = syncScope.coroutineContext
     )
 
   beforeEach {
@@ -52,35 +50,29 @@ class SpendingWalletImplTests : FunSpec({
   }
 
   test("Balance initialization") {
-    val wallet = buildWallet()
+    val wallet = buildWallet(backgroundScope)
     wallet.balance().test {
-      awaitItem().shouldBeTypeOf<LoadableValue.InitialLoading>()
       wallet.initializeBalanceAndTransactions()
-      awaitItem().shouldBeTypeOf<LoadableValue.LoadedValue<BitcoinBalance>>()
+      awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
     }
   }
 
   test("Transactions initialization") {
-    val wallet = buildWallet()
+    val wallet = buildWallet(backgroundScope)
     wallet.transactions().test {
-      awaitItem().shouldBeTypeOf<LoadableValue.InitialLoading>()
       wallet.initializeBalanceAndTransactions()
-      awaitItem().shouldBeTypeOf<LoadableValue.LoadedValue<List<BitcoinTransaction>>>()
+      awaitItem().shouldBeEmpty()
     }
   }
 
   test("syncs do not occur while app is backgrounded") {
-    runTest {
-      val wallet = buildWallet(syncDispatcher = testScheduler)
-      appSessionManager.appDidEnterBackground()
-      wallet.launchPeriodicSync(scope = backgroundScope, interval = 3.seconds)
-      advanceTimeBy(3.seconds)
-      bdkWalletSyncer.syncCalls.expectNoEvents()
+    val wallet = buildWallet(backgroundScope)
+    appSessionManager.appDidEnterBackground()
+    wallet.launchPeriodicSync(scope = backgroundScope, interval = 3.seconds)
+    bdkWalletSyncer.syncCalls.expectNoEvents()
 
-      appSessionManager.appDidEnterForeground()
-      advanceTimeBy(3.seconds)
+    appSessionManager.appDidEnterForeground()
 
-      bdkWalletSyncer.syncCalls.awaitItem()
-    }
+    bdkWalletSyncer.syncCalls.awaitItem()
   }
 })

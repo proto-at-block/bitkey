@@ -11,6 +11,8 @@ internal fun Test.configureJvmTestLogging() {
 
   val logEvents =
     mutableListOf(
+      TestLogEvent.STARTED,
+      TestLogEvent.PASSED,
       TestLogEvent.SKIPPED,
       TestLogEvent.FAILED
     )
@@ -22,6 +24,9 @@ internal fun Test.configureJvmTestLogging() {
   }
 
   testLogging {
+    info {
+      events.addAll(logEvents)
+    }
     events.addAll(logEvents)
     exceptionFormat = FULL
     showExceptions = true

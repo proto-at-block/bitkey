@@ -1,7 +1,6 @@
 package build.wallet.statemachine.data.account.create.onboard
 
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
@@ -36,7 +35,6 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
     OnboardKeyboxDataProps(
       keybox = KeyboxMock,
       onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
-      currencyPreferenceData = CurrencyPreferenceDataMock,
       onExistingAppDataFound = { _, proceed -> proceed() },
       isSkipCloudBackupInstructions = false
     )

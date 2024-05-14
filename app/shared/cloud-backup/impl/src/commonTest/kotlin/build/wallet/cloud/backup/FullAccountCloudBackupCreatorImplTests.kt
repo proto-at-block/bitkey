@@ -9,15 +9,19 @@ import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
 import build.wallet.bitkey.socrec.TrustedContactFake2
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.FullAccountFieldsCreationError
+import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.SocRecVerificationError
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreatorMock
 import build.wallet.cloud.backup.v2.FullAccountFieldsMock
+import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
+import build.wallet.f8e.socrec.SocRecRelationshipsFake
 import build.wallet.recovery.socrec.DelegatedDecryptionKeyFake
 import build.wallet.recovery.socrec.SocRecCryptoFake
 import build.wallet.recovery.socrec.SocRecKeysDaoFake
 import build.wallet.recovery.socrec.SocRecKeysRepository
+import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -37,29 +41,35 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
       EndorsedTrustedContactFake1,
       TrustedContactFake2
     )
+  val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
 
   val backupCreator =
     FullAccountCloudBackupCreatorImpl(
       appPrivateKeyDao = appPrivateKeyDao,
       fullAccountFieldsCreator = fullAccountFieldsCreator,
-      socRecKeysRepository = socRecKeysRepository
+      socRecKeysRepository = socRecKeysRepository,
+      socRecRelationshipsRepository = socRecRelationshipsRepository
     )
 
   beforeTest {
     appPrivateKeyDao.clear()
     fullAccountFieldsCreator.reset()
     socRecCrypto.reset()
+    socRecRelationshipsRepository.clear()
   }
 
   context("v2") {
     test("success") {
       val recoveryAuthKeypair = AppRecoveryAuthKeypairMock
-      appPrivateKeyDao.asymmetricKeys[recoveryAuthKeypair.publicKey] = recoveryAuthKeypair.privateKey
+      appPrivateKeyDao.asymmetricKeys[recoveryAuthKeypair.publicKey] =
+        recoveryAuthKeypair.privateKey
+      val relationships = SocRecRelationshipsFake.copy(endorsedTrustedContacts = trustedContacts)
+      socRecRelationshipsRepository.syncAndVerifyRelationshipsResult = Ok(relationships)
+
       backupCreator
         .create(
           keybox = keybox,
-          sealedCsek = SealedCsekFake,
-          endorsedTrustedContacts = trustedContacts
+          sealedCsek = SealedCsekFake
         )
         .shouldBeEqual(
           Ok(
@@ -75,29 +85,53 @@ class FullAccountCloudBackupCreatorImplTests : FunSpec({
             )
           )
         )
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
     }
 
     test("failure - could not create account info") {
-      fullAccountFieldsCreator.createResult = Err(FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError())
+      fullAccountFieldsCreator.createResult =
+        Err(FullAccountFieldsCreator.FullAccountFieldsCreationError.PkekRetrievalError())
+      val relationships = SocRecRelationshipsFake.copy(endorsedTrustedContacts = trustedContacts)
+      socRecRelationshipsRepository.syncAndVerifyRelationshipsResult = Ok(relationships)
+
       backupCreator
         .create(
           keybox = keybox,
-          sealedCsek = SealedCsekFake,
-          endorsedTrustedContacts = trustedContacts
+          sealedCsek = SealedCsekFake
         )
         .shouldBeErrOfType<FullAccountFieldsCreationError>()
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
     }
 
     test("failure - could not get private key") {
       val throwable = Throwable("foo")
+      val relationships = SocRecRelationshipsFake.copy(endorsedTrustedContacts = trustedContacts)
+      socRecRelationshipsRepository.syncAndVerifyRelationshipsResult = Ok(relationships)
+
       appPrivateKeyDao.getAppPrivateKeyErrResult = Err(throwable)
       backupCreator
         .create(
           keybox = keybox,
-          sealedCsek = SealedCsekFake,
-          endorsedTrustedContacts = trustedContacts
+          sealedCsek = SealedCsekFake
         )
         .shouldBeErrOfType<AppRecoveryAuthKeypairRetrievalError>()
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
+    }
+
+    test("failure - could not verify endorsed Trusted Contacts") {
+      socRecRelationshipsRepository.syncAndVerifyRelationshipsResult = Err(Error("oops"))
+
+      backupCreator
+        .create(
+          keybox = keybox,
+          sealedCsek = SealedCsekFake
+        )
+        .shouldBeErrOfType<SocRecVerificationError>()
+
+      socRecRelationshipsRepository.syncCalls.awaitItem()
     }
   }
 })

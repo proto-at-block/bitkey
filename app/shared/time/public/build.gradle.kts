@@ -12,7 +12,9 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.resultPublic)
+        api(projects.shared.stdlibPublic)
         api(libs.kmp.kotlin.datetime)
+        implementation(projects.shared.loggingPublic)
       }
     }
 

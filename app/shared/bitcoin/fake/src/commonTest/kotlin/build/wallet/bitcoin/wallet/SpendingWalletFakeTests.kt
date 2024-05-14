@@ -2,17 +2,15 @@ package build.wallet.bitcoin.wallet
 
 import app.cash.turbine.test
 import app.cash.turbine.turbineScope
-import build.wallet.LoadableValue.InitialLoading
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.negate
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -36,7 +34,7 @@ class SpendingWalletFakeTests : FunSpec({
     wallet.sync().shouldBeOk()
 
     wallet.transactions().test {
-      awaitItem().shouldBeLoaded()
+      awaitItem()
         .single()
         .should {
           it.recipientAddress.shouldBe(lastUnusedAddress)
@@ -61,15 +59,10 @@ class SpendingWalletFakeTests : FunSpec({
       val balance = wallet.balance().testIn(this)
       val transactions = wallet.transactions().testIn(this)
 
-      withClue("initial loading before sync") {
-        balance.awaitItem().shouldBe(InitialLoading)
-        transactions.awaitItem().shouldBe(InitialLoading)
-      }
-
       withClue("zero balance and empty transaction history after sync") {
         wallet.sync().shouldBeOk()
-        balance.awaitItem().shouldBe(LoadedValue(ZeroBalance))
-        transactions.awaitItem().shouldBe(LoadedValue(emptyList()))
+        balance.awaitItem().shouldBe(ZeroBalance)
+        transactions.awaitItem().shouldBeEmpty()
       }
 
       balance.expectNoEvents()
@@ -92,21 +85,20 @@ class SpendingWalletFakeTests : FunSpec({
       val transactions = wallet.transactions().testIn(this, 1.seconds)
 
       withClue("should have pending spendable balance") {
-        balance.awaitItem()
-          .shouldBeLoaded(
-            BitcoinBalance(
-              immature = BitcoinMoney.zero(),
-              trustedPending = receivedAmount,
-              untrustedPending = BitcoinMoney.zero(),
-              confirmed = BitcoinMoney.zero(),
-              spendable = receivedAmount,
-              total = receivedAmount
-            )
+        balance.awaitItem().shouldBe(
+          BitcoinBalance(
+            immature = BitcoinMoney.zero(),
+            trustedPending = receivedAmount,
+            untrustedPending = BitcoinMoney.zero(),
+            confirmed = BitcoinMoney.zero(),
+            spendable = receivedAmount,
+            total = receivedAmount
           )
+        )
       }
 
       withClue("should have pending incoming transaction") {
-        transactions.awaitItem().shouldBeLoaded()
+        transactions.awaitItem()
           .single()
           .should {
             it.subtotal.shouldBe(receivedAmount)
@@ -122,21 +114,20 @@ class SpendingWalletFakeTests : FunSpec({
       }
 
       withClue("should have confirmed spendable balance") {
-        balance.awaitItem()
-          .shouldBeLoaded(
-            BitcoinBalance(
-              immature = BitcoinMoney.zero(),
-              trustedPending = BitcoinMoney.zero(),
-              untrustedPending = BitcoinMoney.zero(),
-              confirmed = receivedAmount,
-              spendable = receivedAmount,
-              total = receivedAmount
-            )
+        balance.awaitItem().shouldBe(
+          BitcoinBalance(
+            immature = BitcoinMoney.zero(),
+            trustedPending = BitcoinMoney.zero(),
+            untrustedPending = BitcoinMoney.zero(),
+            confirmed = receivedAmount,
+            spendable = receivedAmount,
+            total = receivedAmount
           )
+        )
       }
 
       withClue("should have confirmed incoming transaction") {
-        transactions.awaitItem().shouldBeLoaded()
+        transactions.awaitItem()
           .single()
           .should {
             it.total.shouldBe(receivedAmount)
@@ -177,26 +168,21 @@ class SpendingWalletFakeTests : FunSpec({
       val transactions = wallet.transactions().testIn(this)
 
       withClue("should have balance with subtracted pending amount") {
-        balance.awaitItem()
-          .shouldBeLoaded(
-            BitcoinBalance(
-              immature = BitcoinMoney.zero(),
-              trustedPending = totalSentAmount.negate(),
-              untrustedPending = BitcoinMoney.zero(),
-              confirmed = initialBalance,
-              spendable = initialBalance - totalSentAmount,
-              total = initialBalance - totalSentAmount
-            )
+        balance.awaitItem().shouldBe(
+          BitcoinBalance(
+            immature = BitcoinMoney.zero(),
+            trustedPending = totalSentAmount.negate(),
+            untrustedPending = BitcoinMoney.zero(),
+            confirmed = initialBalance,
+            spendable = initialBalance - totalSentAmount,
+            total = initialBalance - totalSentAmount
           )
+        )
       }
 
       withClue("should have new pending outgoing transaction") {
-        val tnxs =
-          transactions.awaitItem()
-            .shouldBeLoaded()
-            .apply {
-              size.shouldBe(2)
-            }
+        val tnxs = transactions.awaitItem()
+          .apply { size.shouldBe(2) }
 
         // initial balance (confirmed)
         tnxs[0]
@@ -228,7 +214,6 @@ class SpendingWalletFakeTests : FunSpec({
 
       withClue("should have balance with subtracted confirmed amount") {
         balance.awaitItem()
-          .shouldBeLoaded()
           .shouldBe(
             BitcoinBalance(
               immature = BitcoinMoney.zero(),
@@ -244,7 +229,6 @@ class SpendingWalletFakeTests : FunSpec({
       withClue("should have two outgoing confirmed transactions") {
         val tnxs =
           transactions.awaitItem()
-            .shouldBeLoaded()
             .apply {
               size.shouldBe(2)
             }
@@ -308,7 +292,6 @@ class SpendingWalletFakeTests : FunSpec({
 
       withClue("should have balance with subtracted pending amount and added received amount") {
         balance.awaitItem()
-          .shouldBeLoaded()
           .shouldBe(
             BitcoinBalance(
               immature = BitcoinMoney.zero(),
@@ -324,7 +307,6 @@ class SpendingWalletFakeTests : FunSpec({
       withClue("should have two new pending transactions") {
         val tnxs =
           transactions.awaitItem()
-            .shouldBeLoaded()
             .apply {
               size.shouldBe(3)
             }
@@ -371,7 +353,6 @@ class SpendingWalletFakeTests : FunSpec({
         "should have balance with subtracted confirmed amount and added received confirmed amount"
       ) {
         balance.awaitItem()
-          .shouldBeLoaded()
           .shouldBe(
             BitcoinBalance(
               immature = BitcoinMoney.zero(),
@@ -387,7 +368,6 @@ class SpendingWalletFakeTests : FunSpec({
       withClue("should have all transactions confirmed") {
         val tnxs =
           transactions.awaitItem()
-            .shouldBeLoaded()
             .apply {
               size.shouldBe(3)
             }

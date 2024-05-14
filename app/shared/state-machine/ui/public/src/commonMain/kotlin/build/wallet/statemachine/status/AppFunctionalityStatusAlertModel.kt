@@ -5,12 +5,12 @@ import build.wallet.availability.EmergencyAccessMode
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InactiveApp
 import build.wallet.availability.InternetUnreachable
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 fun AppFunctionalityStatusAlertModel(
   status: AppFunctionalityStatus.LimitedFunctionality,
   onDismiss: () -> Unit,
-) = AlertModel(
+) = ButtonAlertModel(
   title =
     when (status.cause) {
       is F8eUnreachable -> "Unable to reach Bitkey services"

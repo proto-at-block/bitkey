@@ -5,17 +5,21 @@
             <w>bitkey</w>
             <w>dpub</w>
             <w>dpubs</w>
+            <w>electrum</w>
             <w>fwup</w>
             <w>keybox</w>
             <w>keyproof</w>
             <w>keyset</w>
             <w>keysets</w>
+            <w>kotest</w>
+            <w>oncall</w>
             <w>pake</w>
             <w>psbt</w>
             <w>psbts</w>
             <w>pubkey</w>
             <w>segwit</w>
             <w>socrec</w>
+            <w>subline</w>
             <w>touchpoint</w>
             <w>transacter</w>
             <w>transceive</w>

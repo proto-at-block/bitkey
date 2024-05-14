@@ -8,6 +8,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import com.github.michaelbull.result.Result
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -31,7 +32,7 @@ interface AuthenticationService {
     val accountId: String,
     val challenge: String,
     val session: String,
-  )
+  ) : RedactedResponseBody
 
   suspend fun completeAuthentication(
     f8eEnvironment: F8eEnvironment,

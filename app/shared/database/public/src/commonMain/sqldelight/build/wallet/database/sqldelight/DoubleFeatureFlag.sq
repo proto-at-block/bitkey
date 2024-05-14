@@ -1,0 +1,15 @@
+CREATE TABLE doubleFeatureFlagEntity(
+  featureFlagId   TEXT NOT NULL PRIMARY KEY,
+  value           REAL NOT NULL
+);
+
+setFlag:
+INSERT OR REPLACE INTO doubleFeatureFlagEntity(featureFlagId, value)
+VALUES(?, ?);
+
+getFlag:
+SELECT value FROM doubleFeatureFlagEntity
+WHERE featureFlagId = ?;
+
+clear:
+DELETE FROM doubleFeatureFlagEntity;

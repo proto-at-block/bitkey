@@ -12,6 +12,7 @@ use serde::Deserialize;
 use crate::{ses::SESMode, sns::SNSMode};
 
 pub mod blockchain_polling;
+pub mod coin_grinder;
 pub mod customer_notification;
 pub mod metrics;
 pub mod scheduled_notification;

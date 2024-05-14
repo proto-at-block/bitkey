@@ -5,6 +5,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
 import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
 import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.awaitSheetWithBody

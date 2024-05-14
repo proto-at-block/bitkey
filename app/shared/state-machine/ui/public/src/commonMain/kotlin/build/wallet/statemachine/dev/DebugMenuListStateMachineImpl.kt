@@ -10,6 +10,7 @@ import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdCon
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.keybox.AppDataDeleter
 import build.wallet.keybox.CloudBackupDeleter
 import build.wallet.logging.LogLevel
@@ -32,12 +33,11 @@ import build.wallet.statemachine.dev.lightning.LightningOptionsUiProps
 import build.wallet.statemachine.dev.lightning.LightningOptionsUiStateMachine
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
-import kotlinx.collections.immutable.toImmutableList
 
 class DebugMenuListStateMachineImpl(
   private val accountConfigUiStateMachine: AccountConfigUiStateMachine,
@@ -82,7 +82,7 @@ class DebugMenuListStateMachineImpl(
       title = "Debug Menu",
       onBack = props.onClose,
       groups =
-        listOfNotNull(
+        immutableListOfNotNull(
           AccountConfigListGroupModel(props, templateFullAccountConfigData),
           OnboardingConfigListGroupModel(props),
           BitcoinNetworkPickerListGroupModel(templateFullAccountConfigData),
@@ -115,7 +115,7 @@ class DebugMenuListStateMachineImpl(
               }
             )
           )
-        ).toImmutableList(),
+        ),
       alertModel =
         actionConfirmation?.let {
           ActionConfirmationAlert(
@@ -164,14 +164,14 @@ class DebugMenuListStateMachineImpl(
   private fun ActionConfirmationAlert(
     actionConfirmation: ActionConfirmationRequest,
     onDismiss: () -> Unit,
-  ): AlertModel {
-    return AlertModel(
+  ): ButtonAlertModel {
+    return ButtonAlertModel(
       title = actionConfirmation.gatedActionTitle,
       subline = "Are you sure?",
       onDismiss = onDismiss,
       primaryButtonText = "Yes",
       onPrimaryButtonClick = actionConfirmation.gatedAction,
-      primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
+      primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
       secondaryButtonText = "Cancel",
       onSecondaryButtonClick = onDismiss
     )

@@ -4,7 +4,6 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeGreaterThan
 import build.wallet.testing.AppTester
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
@@ -28,7 +27,7 @@ suspend fun AppTester.waitForFunds() {
     }
   ) {
     activeWallet.sync().shouldBeOk()
-    val balance = activeWallet.balance().first().shouldBeLoaded()
+    val balance = activeWallet.balance().first()
     balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
     // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
   }

@@ -1,6 +1,5 @@
 package build.wallet.statemachine.settings.full.device
 
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.firmware.FirmwareData
@@ -20,6 +19,5 @@ interface DeviceSettingsUiStateMachine : StateMachine<DeviceSettingsProps, Scree
 data class DeviceSettingsProps(
   val accountData: ActiveFullAccountLoadedData,
   val firmwareData: FirmwareData,
-  val fiatCurrency: FiatCurrency,
   val onBack: () -> Unit,
 )

@@ -1,4 +1,4 @@
-use metrics::factory::{Counter, MetricsFactory, ObservableGauge};
+use instrumentation::metrics::factory::{Counter, MetricsFactory, ObservableGauge};
 use once_cell::sync::Lazy;
 
 pub const FACTORY_NAME: &str = "notifications";

@@ -50,12 +50,10 @@ use wsm_common::{
 };
 
 use crate::aad::Aad;
-use crate::compat::{BitcoinDerivationPath, BitcoinNetwork, BitcoinV30ExtendedPubKey};
 use crate::kms_tool::{KmsTool, KmsToolError};
 use crate::settings::Settings;
 
 mod aad;
-mod compat;
 mod kms_tool;
 mod settings;
 
@@ -327,31 +325,20 @@ async fn sign_psbt(
 ) -> Result<Json<SignedPsbt>, WsmError> {
     let mut log_buffer = LogBuffer::new();
 
-    // Read request from WSM API and coerce to v30 Network.
-    let network = request
-        .network
-        .map(|n| BitcoinNetwork::from(n).as_v30_network());
-
     let xprv = decode_wrapped_xprv(
         keystore,
         &request.wrapped_xprv,
         &request.key_nonce,
         &request.dek_id,
         &request.root_key_id,
-        network,
+        request.network,
         &mut log_buffer,
     )
     .await?;
     let secp = Secp256k1::new();
 
-    let derivation_path = BitcoinDerivationPath::from(
-        // DerivationPath::from is only supported from wsm-common, which expects a 0.29
-        // DerivationPath, so we initialize one here.
-        wsm_common::bitcoin::bip32::DerivationPath::from(WSMSupportedDomain::Spend(
-            request.network.unwrap_or(Signet).into(),
-        )),
-    )
-    .as_v30_path();
+    let network = request.network.unwrap_or(Signet);
+    let derivation_path = DerivationPath::from(WSMSupportedDomain::Spend(network.into()));
 
     let derived_xprv = try_with_log_and_error!(
         log_buffer,
@@ -401,7 +388,7 @@ async fn sign_psbt(
         Wallet::new(
             request.descriptor.as_str(),
             Some(request.change_descriptor.as_str()),
-            network.unwrap_or(Network::Signet),
+            network,
             MemoryDatabase::default(),
         )
     )?;
@@ -460,17 +447,19 @@ async fn create_key(
 
     let secp = Secp256k1::new();
 
-    // Read request from WSM API and coerce to v30 Network.
-    let network = BitcoinNetwork::from(request.network).as_v30_network();
-
-    let (xprv, xpub) =
-        create_root_key_internal(&request.root_key_id, network, &secp, &mut log_buffer).await?;
+    let (xprv, xpub) = create_root_key_internal(
+        &request.root_key_id,
+        request.network,
+        &secp,
+        &mut log_buffer,
+    )
+    .await?;
     let datakey = get_dek(&request.dek_id, keystore, &mut log_buffer).await?;
     let (wrapped_xprv, wrapped_xprv_nonce) = encrypt_root_key(
         &request.root_key_id,
         &datakey,
         &xprv,
-        Some(network),
+        Some(request.network),
         &mut log_buffer,
     )?;
 
@@ -487,7 +476,7 @@ async fn create_key(
     };
 
     Ok(Json(CreateResponse::Single(CreatedKey {
-        xpub: BitcoinV30ExtendedPubKey(xpub).into(),
+        xpub,
         dpub,
         xpub_sig,
         wrapped_xprv,
@@ -505,10 +494,6 @@ async fn derive_key(
     let integrity_key = get_integrity_key(&keystore, &mut log_buffer).await;
 
     let secp = Secp256k1::new();
-    // Read request from WSM API and coerce to v30 Network.
-    let network = request
-        .network
-        .map(|n| BitcoinNetwork::from(n).as_v30_network());
 
     let xprv = decode_wrapped_xprv(
         keystore.clone(),
@@ -516,22 +501,20 @@ async fn derive_key(
         &request.key_nonce,
         &request.dek_id,
         &request.key_id,
-        network,
+        request.network,
         &mut log_buffer,
     )
     .await?;
     let root_xpub = ExtendedPubKey::from_priv(&secp, &xprv);
 
-    // Read request from WSM API and coerce to v30 DerivationPath.
-    let derivation_path = BitcoinDerivationPath::from(request.derivation_path).as_v30_path();
     let derived_xprv = try_with_log_and_error!(
         log_buffer,
         WsmError::ServerError,
-        xprv.derive_priv(&secp, &derivation_path)
+        xprv.derive_priv(&secp, &request.derivation_path)
     )?;
     let derived_xpub = ExtendedPubKey::from_priv(&secp, &derived_xprv);
 
-    let keysource = (root_xpub.fingerprint(), derivation_path.clone());
+    let keysource = (root_xpub.fingerprint(), request.derivation_path);
     let dpub = calculate_descriptor_pubkey(keysource, &derived_xpub, &mut log_buffer)?;
 
     let xpub_sig = if let Ok(key) = integrity_key {
@@ -550,7 +533,7 @@ async fn derive_key(
     };
 
     Ok(Json(DeriveResponse(DerivedKey {
-        xpub: BitcoinV30ExtendedPubKey(derived_xpub).into(),
+        xpub: derived_xpub,
         dpub,
         xpub_sig,
     })))
@@ -808,7 +791,7 @@ mod tests {
     use axum::{http, Router};
     use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 
-    use bdk::bitcoin::hashes::{sha256, Hash};
+    use bdk::bitcoin::hashes::sha256;
     use bdk::bitcoin::secp256k1::{Message, Secp256k1, SecretKey};
 
     use http_body_util::BodyExt;

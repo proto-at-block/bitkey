@@ -11,17 +11,19 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
-import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.recovery.InitiateAccountDelayNotifyService.SuccessfullyInitiated
 import build.wallet.ktor.result.HttpError.UnhandledException
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
@@ -47,7 +49,8 @@ class InitiateAccountDelayNotifyServiceImpl(
     )
       .bodyResult<ResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/delay-notify") {
-          setBody(
+          withDescription("Initiate D&N recovery.")
+          setRedactedBody(
             RequestBody(
               // TODO(W-3092): Remove delayPeriodNumSec
               delayPeriodNumSec = delayPeriod?.inWholeSeconds?.toInt() ?: 20,
@@ -73,7 +76,6 @@ class InitiateAccountDelayNotifyServiceImpl(
         }
       }
       .mapError { it.toF8eError<InitiateAccountDelayNotifyErrorCode>() }
-      .logF8eFailure { "Failed to initiate D&N recovery." }
   }
 
   @Serializable
@@ -84,11 +86,11 @@ class InitiateAccountDelayNotifyServiceImpl(
     private val auth: AuthKeypairBody,
     @SerialName("lost_factor")
     private val lostFactor: String,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   private data class ResponseBody(
     @SerialName("pending_delay_notify")
     val pendingDelayNotify: ServerResponseBody,
-  )
+  ) : RedactedResponseBody
 }

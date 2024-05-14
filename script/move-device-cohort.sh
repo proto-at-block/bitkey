@@ -51,7 +51,7 @@ if [ -z "${device_serial}" ] || [ -z "${cohort_name}" ]; then
 fi
 
 # Fetch and encode the auth token
-auth_token=$(AWS_PROFILE=w1-development--admin aws secretsmanager get-secret-value --region us-west-2 \
+auth_token=$(AWS_PROFILE=bitkey-development--admin aws secretsmanager get-secret-value --region us-west-2 \
   --secret-id memfault_dev_comms_token | jq -r '.SecretString | fromjson | .memfault_dev_comms_token')
 encoded_token=$(printf ":%s" "$auth_token" | base64)
 

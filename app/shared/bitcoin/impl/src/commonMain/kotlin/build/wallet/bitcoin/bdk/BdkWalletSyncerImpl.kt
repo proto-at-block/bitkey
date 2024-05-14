@@ -18,6 +18,7 @@ import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.ErrorSource.Network
 import build.wallet.datadog.ResourceType.Other
+import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -155,6 +156,7 @@ class BdkWalletSyncerImpl(
       }
       .logFailure(Warn) { "Error syncing BDK wallet" }
       .onSuccess {
+        log(Info) { "Wallet sync complete" }
         networkReachabilityProvider.updateNetworkReachabilityForConnection(
           connection = NetworkConnection.ElectrumSyncerNetworkConnection,
           reachability = NetworkReachability.REACHABLE

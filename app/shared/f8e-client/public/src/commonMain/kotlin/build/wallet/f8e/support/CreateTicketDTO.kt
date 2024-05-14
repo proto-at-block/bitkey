@@ -1,5 +1,6 @@
 package build.wallet.f8e.support
 
+import build.wallet.ktor.result.RedactedRequestBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -15,7 +16,7 @@ data class CreateTicketDTO(
   val attachments: List<AttachmentUploadResultDTO>,
   @SerialName("debug_data")
   val debugData: TicketDebugDataDTO?,
-) {
+) : RedactedRequestBody {
   @Serializable
   sealed interface AttachmentUploadResultDTO {
     @Serializable

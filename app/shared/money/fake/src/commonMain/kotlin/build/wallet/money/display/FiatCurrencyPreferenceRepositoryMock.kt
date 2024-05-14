@@ -5,31 +5,21 @@ import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.USD
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class FiatCurrencyPreferenceRepositoryMock(
   turbine: (String) -> Turbine<Any>,
 ) : FiatCurrencyPreferenceRepository {
-  var internalDefaultFiatCurrency = MutableStateFlow(USD)
-  override val defaultFiatCurrency: StateFlow<FiatCurrency>
-    get() = internalDefaultFiatCurrency
-
-  var internalFiatCurrencyPreference = MutableStateFlow<FiatCurrency?>(null)
-  override val fiatCurrencyPreference: StateFlow<FiatCurrency?>
+  var internalFiatCurrencyPreference = MutableStateFlow(USD)
+  override val fiatCurrencyPreference: StateFlow<FiatCurrency>
     get() = internalFiatCurrencyPreference
-
-  val launchSyncCalls = turbine("FiatCurrencyPreferenceRepositoryMock launchSync calls")
-
-  override fun launchSync(scope: CoroutineScope) {
-    launchSyncCalls.add(Unit)
-  }
 
   val setFiatCurrencyPreferenceCalls = turbine("setFiatCurrencyPreference calls")
 
-  override suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency) {
+  override suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency): Result<Unit, Error> {
     setFiatCurrencyPreferenceCalls.add(fiatCurrency)
+    return Ok(Unit)
   }
 
   val clearCalls = turbine("clear FiatCurrencyPreferenceRepository calls")
@@ -40,7 +30,6 @@ class FiatCurrencyPreferenceRepositoryMock(
   }
 
   fun reset() {
-    internalDefaultFiatCurrency.value = USD
-    internalFiatCurrencyPreference.value = null
+    internalFiatCurrencyPreference.value = USD
   }
 }

@@ -1,5 +1,11 @@
 package build.wallet.time
 
+import build.wallet.Progress
+import build.wallet.asProgress
+import build.wallet.logging.logFailure
+import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.runCatching
 import kotlinx.datetime.Instant
 import kotlin.time.Duration
 
@@ -24,13 +30,24 @@ fun durationProgress(
   now: Instant,
   startTime: Instant,
   endTime: Instant,
-): Float =
-  when {
-    now >= endTime -> 1f
-    now <= startTime -> 0f
-    else -> {
-      val startTimeNormalized = maxOf(now - startTime, Duration.ZERO)
-      val endTimeNormalized = endTime - startTime
-      startTimeNormalized.inWholeMilliseconds / endTimeNormalized.inWholeMilliseconds.toFloat()
+): Result<Progress, Throwable> =
+  binding {
+    val progressValue: Float = when {
+      now >= endTime -> 1.0f
+      now <= startTime -> 0.0f
+      else -> {
+        val startTimeNormalized = maxOf(now - startTime, Duration.ZERO)
+        val endTimeNormalized = endTime - startTime
+        Result
+          // run catching to handle division by zero
+          .runCatching {
+            startTimeNormalized.inWholeMilliseconds / endTimeNormalized.inWholeMilliseconds.toFloat()
+          }
+          .bind()
+      }
     }
+
+    progressValue.asProgress().bind()
+  }.logFailure {
+    "Error calculating duration progress: now==$now, startTime=$startTime, endTime=$endTime"
   }

@@ -1,6 +1,5 @@
 package build.wallet.cloud.backup.health
 
-import build.wallet.LoadableValue
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -35,17 +34,15 @@ class CloudBackupHealthRepositoryImpl(
   private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
   private val fullAccountCloudBackupRepairer: FullAccountCloudBackupRepairer,
 ) : CloudBackupHealthRepository {
-  private val mobileKeyBackupStatus =
-    MutableStateFlow<LoadableValue<MobileKeyBackupStatus>>(LoadableValue.InitialLoading)
+  private val mobileKeyBackupStatus = MutableStateFlow<MobileKeyBackupStatus?>(null)
 
-  override fun mobileKeyBackupStatus(): StateFlow<LoadableValue<MobileKeyBackupStatus>> {
+  override fun mobileKeyBackupStatus(): StateFlow<MobileKeyBackupStatus?> {
     return mobileKeyBackupStatus
   }
 
-  private val eakBackupStatus =
-    MutableStateFlow<LoadableValue<EakBackupStatus>>(LoadableValue.InitialLoading)
+  private val eakBackupStatus = MutableStateFlow<EakBackupStatus?>(null)
 
-  override fun eakBackupStatus(): StateFlow<LoadableValue<EakBackupStatus>> {
+  override fun eakBackupStatus(): StateFlow<EakBackupStatus?> {
     return eakBackupStatus
   }
 
@@ -114,8 +111,8 @@ class CloudBackupHealthRepositoryImpl(
           }
         )
         .also {
-          mobileKeyBackupStatus.value = LoadableValue.LoadedValue(it.mobileKeyBackupStatus)
-          eakBackupStatus.value = LoadableValue.LoadedValue(it.eakBackupStatus)
+          mobileKeyBackupStatus.value = it.mobileKeyBackupStatus
+          eakBackupStatus.value = it.eakBackupStatus
         }
     }
   }

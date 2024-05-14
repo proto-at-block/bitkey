@@ -22,10 +22,15 @@ struct SendTestNotificationTestVector {
 }
 
 async fn send_test_notification_test(vector: SendTestNotificationTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
     client
         .add_device_token(
             &account.id.to_string(),
@@ -45,6 +50,7 @@ async fn send_test_notification_test(vector: SendTestNotificationTestVector) {
             },
             false,
             false,
+            &keys,
         )
         .await;
 
@@ -91,7 +97,7 @@ struct TwilioStatusCallbackTestVector {
 }
 
 async fn twilio_status_callback_test(vector: TwilioStatusCallbackTestVector) {
-    let bootstrap = gen_services().await;
+    let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let response = client
         .twilio_status_callback(&vector.body, vector.signature)
@@ -125,13 +131,22 @@ tests! {
 
 #[tokio::test]
 async fn test_notifications_preferences() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let IterableClient::Test(store) = &bootstrap.services.iterable_client else {
         panic!("Expected Test IterableClient");
     };
 
-    let account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
 
     let get_response = client
         .get_notifications_preferences(&account.id.to_string())
@@ -168,6 +183,7 @@ async fn test_notifications_preferences() {
             },
             false,
             false,
+            &keys,
         )
         .await;
     assert_eq!(set_response.status_code, StatusCode::OK);
@@ -228,6 +244,7 @@ async fn test_notifications_preferences() {
             },
             false,
             false,
+            &keys,
         )
         .await;
     assert_eq!(set_response.status_code, StatusCode::OK);
@@ -278,6 +295,7 @@ async fn test_notifications_preferences() {
             },
             false,
             false,
+            &keys,
         )
         .await;
     assert_eq!(set_response.status_code, StatusCode::FORBIDDEN);

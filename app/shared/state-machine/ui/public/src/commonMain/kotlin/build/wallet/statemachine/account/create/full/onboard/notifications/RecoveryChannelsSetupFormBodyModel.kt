@@ -2,6 +2,7 @@ package build.wallet.statemachine.account.create.full.onboard.notifications
 
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.Completed
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.NotCompleted
 import build.wallet.statemachine.core.Icon
@@ -19,7 +20,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Regular
@@ -34,7 +35,6 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 fun RecoveryChannelsSetupFormBodyModel(
   pushItem: RecoveryChannelsSetupFormItemModel,
@@ -44,7 +44,7 @@ fun RecoveryChannelsSetupFormBodyModel(
   learnOnClick: (() -> Unit),
   continueOnClick: (() -> Unit),
   bottomSheetModel: SheetModel?,
-  alertModel: AlertModel? = null,
+  alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
   bottomSheetModel = bottomSheetModel,
   body =
@@ -64,29 +64,28 @@ fun RecoveryChannelsSetupFormBodyModel(
           ListGroup(
             listGroupModel =
               ListGroupModel(
-                items =
-                  listOfNotNull(
+                items = immutableListOfNotNull(
+                  createListItem(
+                    itemModel = emailItem,
+                    icon = SmallIconEmail,
+                    title = "Email",
+                    secondaryText = emailItem.displayValue ?: "Required"
+                  ),
+                  smsItem?.run {
                     createListItem(
-                      itemModel = emailItem,
-                      icon = SmallIconEmail,
-                      title = "Email",
-                      secondaryText = emailItem.displayValue ?: "Required"
-                    ),
-                    smsItem?.run {
-                      createListItem(
-                        itemModel = this,
-                        icon = SmallIconMessage,
-                        title = "SMS",
-                        secondaryText = smsDisplayString(this)
-                      )
-                    },
-                    createListItem(
-                      itemModel = pushItem,
-                      icon = SmallIconPushNotification,
-                      title = "Push notifications",
-                      secondaryText = "Recommended"
+                      itemModel = this,
+                      icon = SmallIconMessage,
+                      title = "SMS",
+                      secondaryText = smsDisplayString(this)
                     )
-                  ).toImmutableList(),
+                  },
+                  createListItem(
+                    itemModel = pushItem,
+                    icon = SmallIconPushNotification,
+                    title = "Push notifications",
+                    secondaryText = "Recommended"
+                  )
+                ),
                 style = ListGroupStyle.DIVIDER
               )
           ),
@@ -164,7 +163,7 @@ private fun RecoveryChannelsSetupFormItemModel.State.trailingAccessory(): ListIt
 fun RequestPushAlertModel(
   onAllow: () -> Unit,
   onDontAllow: () -> Unit,
-) = AlertModel(
+) = ButtonAlertModel(
   title = "Recovery notifications",
   subline = "Enabling push notifications for recovery verification is highly recommended and will help keep you, and your funds, safe in case you lose your Bitkey device.",
   onDismiss = onDontAllow,
@@ -172,7 +171,7 @@ fun RequestPushAlertModel(
   onPrimaryButtonClick = onAllow,
   secondaryButtonText = "Don't allow",
   onSecondaryButtonClick = onDontAllow,
-  secondaryButtonStyle = AlertModel.ButtonStyle.Destructive
+  secondaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive
 )
 
 /**
@@ -182,7 +181,7 @@ fun OpenSettingsForPushAlertModel(
   pushEnabled: Boolean,
   settingsOpenAction: () -> Unit,
   onClose: () -> Unit,
-) = AlertModel(
+) = ButtonAlertModel(
   title = "Open Settings to ${
     if (pushEnabled) {
       "configure"

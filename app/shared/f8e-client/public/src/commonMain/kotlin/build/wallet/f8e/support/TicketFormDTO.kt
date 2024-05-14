@@ -1,5 +1,6 @@
 package build.wallet.f8e.support
 
+import build.wallet.ktor.result.RedactedResponseBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -9,4 +10,4 @@ data class TicketFormDTO(
   @SerialName("ticket_fields")
   val fields: List<TicketFormFieldDTO>,
   val conditions: List<TicketFormConditionDTO>,
-)
+) : RedactedResponseBody

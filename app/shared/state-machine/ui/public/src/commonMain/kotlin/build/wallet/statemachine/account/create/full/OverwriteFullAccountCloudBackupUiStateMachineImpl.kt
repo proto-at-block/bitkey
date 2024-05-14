@@ -16,7 +16,7 @@ import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -30,7 +30,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImpl(
 
     return when (val state = uiState) {
       State.ShowingWarningScreen -> {
-        var alert by remember { mutableStateOf<AlertModel?>(null) }
+        var alert by remember { mutableStateOf<ButtonAlertModel?>(null) }
 
         OverwriteFullAccountCloudBackupWarningModel(
           onOverwriteExistingBackup = {

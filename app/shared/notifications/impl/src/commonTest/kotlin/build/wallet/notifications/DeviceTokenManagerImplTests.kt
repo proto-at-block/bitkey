@@ -1,6 +1,5 @@
 package build.wallet.notifications
 
-import build.wallet.LoadableValue
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
@@ -44,7 +43,7 @@ class DeviceTokenManagerImplTests : FunSpec({
     val token = "abcd"
     val touchpointPlatform = TouchpointPlatform.FcmTeam
     keyboxDao.activeKeybox.emit(Ok(activeKeybox))
-    keyboxDao.onboardingKeybox.emit(Ok(LoadableValue.LoadedValue(null)))
+    keyboxDao.onboardingKeybox.emit(Ok(null))
     val result =
       manager.addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken = token,
@@ -69,7 +68,7 @@ class DeviceTokenManagerImplTests : FunSpec({
     val token = "abcd"
     val touchpointPlatform = TouchpointPlatform.FcmTeam
     keyboxDao.activeKeybox.emit(Ok(null))
-    keyboxDao.onboardingKeybox.emit(Ok(LoadableValue.LoadedValue(onboardingKeybox)))
+    keyboxDao.onboardingKeybox.emit(Ok(onboardingKeybox))
     val result =
       manager.addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken = token,
@@ -95,7 +94,7 @@ class DeviceTokenManagerImplTests : FunSpec({
     val token = "abcd"
     val touchpointPlatform = TouchpointPlatform.FcmTeam
     keyboxDao.activeKeybox.emit(Ok(activeKeybox))
-    keyboxDao.onboardingKeybox.emit(Ok(LoadableValue.LoadedValue(onboardingKeybox)))
+    keyboxDao.onboardingKeybox.emit(Ok(onboardingKeybox))
     val result =
       manager.addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken = token,
@@ -117,7 +116,7 @@ class DeviceTokenManagerImplTests : FunSpec({
 
   test("addDeviceTokenIfActiveOrOnboardingAccount with no account") {
     keyboxDao.activeKeybox.emit(Ok(null))
-    keyboxDao.onboardingKeybox.emit(Ok(LoadableValue.LoadedValue(null)))
+    keyboxDao.onboardingKeybox.emit(Ok(null))
     val result =
       manager.addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken = "abcd",

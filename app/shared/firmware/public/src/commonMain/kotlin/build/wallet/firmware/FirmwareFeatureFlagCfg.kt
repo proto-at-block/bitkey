@@ -2,10 +2,11 @@ package build.wallet.firmware
 
 /** Maps to [FirmwareFeatureFlag] in core */
 enum class FirmwareFeatureFlag {
-  Telemetry,
-  DeviceInfoFlag,
-  RateLimitTemplateUpdate,
-  Unlock,
+  TELEMETRY,
+  DEVICE_INFO_FLAG,
+  RATE_LIMIT_TEMPLATE_UPDATE,
+  UNLOCK,
+  MULTIPLE_FINGERPRINTS,
 }
 
 /** Maps to [FirmwareFeatureFlagCfg] in core */

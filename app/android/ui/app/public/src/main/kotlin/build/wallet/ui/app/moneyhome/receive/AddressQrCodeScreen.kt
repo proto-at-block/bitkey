@@ -1,6 +1,8 @@
 package build.wallet.ui.app.moneyhome.receive
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -69,6 +72,7 @@ fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
             when (val content = model.content) {
               is QrCode -> {
                 QrCodeWithAddressCard(
+                  onCopyClick = content.onCopyClick,
                   addressDisplayString = content.addressDisplayString,
                   qrCodeUrl = content.addressQrImageUrl,
                   fallbackQrCodeModel = content.fallbackAddressQrCodeModel
@@ -130,12 +134,20 @@ fun AddressQrCodeScreen(model: AddressQrCodeBodyModel) {
 
 @Composable
 private fun QrCodeWithAddressCard(
+  onCopyClick: () -> Unit = {},
   addressDisplayString: LabelModel,
   qrCodeUrl: String?,
   fallbackQrCodeModel: QrCodeModel?,
 ) {
+  val interactionSource = remember { MutableInteractionSource() }
   Card(
-    modifier = Modifier.fillMaxWidth(),
+    modifier = Modifier
+      .fillMaxWidth()
+      .clickable(
+        interactionSource = interactionSource,
+        indication = null,
+        onClick = { onCopyClick() }
+      ),
     cornerRadius = 24.dp,
     borderWidth = 2.dp,
     paddingValues = PaddingValues(horizontal = 36.dp, vertical = 24.dp)

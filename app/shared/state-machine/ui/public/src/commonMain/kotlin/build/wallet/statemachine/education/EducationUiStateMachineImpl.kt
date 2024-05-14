@@ -6,7 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.Progress
+import build.wallet.asProgress
 import build.wallet.statemachine.core.ScreenModel
+import com.github.michaelbull.result.getOrElse
 
 class EducationUiStateMachineImpl : EducationUiStateMachine {
   @Composable
@@ -16,8 +19,12 @@ class EducationUiStateMachineImpl : EducationUiStateMachine {
       derivedStateOf { props.items[currentIndex] }
     }
 
+    val progress = ((currentIndex + 1) / props.items.size.toFloat())
+      .asProgress()
+      .getOrElse { Progress.Zero }
+
     return EducationBodyModel(
-      progressPercentage = (currentIndex + 1) / props.items.size.toFloat(),
+      progressPercentage = progress,
       onDismiss = props.onExit,
       title = currentEducationItem.title,
       subtitle = currentEducationItem.subtitle,

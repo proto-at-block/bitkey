@@ -12,16 +12,18 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.log
-import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -45,7 +47,8 @@ class CreateAccountKeysetServiceImpl(
     )
       .bodyResult<ResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/keysets") {
-          setBody(
+          withDescription("Create new spending keyset from f8e")
+          setRedactedBody(
             RequestBody(
               Spending(
                 appSpendingDpub = appSpendingKey.key.dpub,
@@ -83,7 +86,6 @@ class CreateAccountKeysetServiceImpl(
           spendingPublicKey = F8eSpendingPublicKey(dpub = response.spendingDpub)
         )
       }
-      .logNetworkFailure { "Failed to create new spending keyset from f8e" }
   }
 
   @Serializable
@@ -99,7 +101,7 @@ class CreateAccountKeysetServiceImpl(
   @Serializable
   private data class RequestBody(
     private val spending: Spending,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   private data class ResponseBody(
@@ -109,5 +111,5 @@ class CreateAccountKeysetServiceImpl(
     val spendingDpub: String,
     @SerialName("spending_sig")
     val spendingSig: String,
-  )
+  ) : RedactedResponseBody
 }

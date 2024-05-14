@@ -5,5 +5,6 @@ data class SpendingLimitCardModel(
   val dailyResetTimezoneText: String,
   val spentAmountText: String,
   val remainingAmountText: String,
+  // TODO(W-8034): use Progress type.
   val progressPercentage: Float,
 )

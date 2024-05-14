@@ -219,7 +219,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             let alertModel = model.alertModel {
             // We've got an alert model, so present it on the topmost view controller (including presented ones),
             // assuming that view controller is not an UIAlertController.
-            let alert = UIAlertController(model: .init(alertModel: alertModel))
+            let alert = UIAlertController(alertModel: alertModel)
             theTopmostViewController.present(alert, animated: true)
         }
 

@@ -1,7 +1,6 @@
 package build.wallet.keybox
 
 import app.cash.sqldelight.async.coroutines.awaitAsOne
-import build.wallet.LoadableValue
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
@@ -18,12 +17,10 @@ import build.wallet.database.sqldelight.SpendingKeysetEntity
 import build.wallet.db.DbError
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import build.wallet.map
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -41,18 +38,15 @@ class KeyboxDaoImpl(
     return database.fullAccountQueries
       .getActiveFullAccount()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .mapResult { it?.fullAccount()?.keybox }
       .distinctUntilChanged()
   }
 
-  override fun onboardingKeybox(): Flow<Result<LoadableValue<Keybox?>, DbError>> {
+  override fun onboardingKeybox(): Flow<Result<Keybox?, DbError>> {
     return database.fullAccountQueries
       .getOnboardingFullAccount()
       .asFlowOfOneOrNull()
-      .mapResult { loadableValue ->
-        loadableValue.map { it?.fullAccount()?.keybox }
-      }
+      .mapResult { it?.fullAccount()?.keybox }
       .distinctUntilChanged()
   }
 
@@ -61,7 +55,7 @@ class KeyboxDaoImpl(
       is Err -> activeKeyboxResult
       is Ok ->
         when (activeKeyboxResult.value) {
-          null -> onboardingKeybox().unwrapLoadedValue().first()
+          null -> onboardingKeybox().first()
           else -> activeKeyboxResult
         }
     }

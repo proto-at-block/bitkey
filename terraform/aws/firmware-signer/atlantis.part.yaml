@@ -1,0 +1,29 @@
+# This is a fragment of atlantis.yaml configuration. It is
+# merged into the repo-level atlantis.yaml when that file is
+# generated.
+ projects:
+   - name: firmware-signer-development
+     dir: aws/firmware-signer
+     workflow: firmware-signer-development
+     autoplan:
+       enabled: true
+       when_modified:
+         - '*.tf*'
+     execution_order_group: 1
+   - name: firmware-signer-staging
+     dir: aws/firmware-signer
+     workflow: firmware-signer-staging
+     autoplan:
+       enabled: true
+       when_modified:
+         - '*.tf*'
+     execution_order_group: 2
+   - name: firmware-signer-production
+     dir: aws/firmware-signer
+     workflow: firmware-signer-production
+     autoplan:
+       enabled: true
+       when_modified:
+         - '*.tf*'
+     execution_order_group: 3
+

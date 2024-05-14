@@ -376,16 +376,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         socRecStartedChallengeDao.clear()
 
         // Put us into a state where we can start the hardware recovery flow
-        handleCloudKeyRecovered(props, restoration)
-          .onSuccess { accountId ->
-            keyboxDao
-              .saveKeyboxAsActive(
-                restoration.asKeybox(
-                  keyboxId = uuidGenerator.random(),
-                  fullAccountId = accountId
-                )
-              )
-          }
+        val accountId = handleCloudKeyRecovered(props, restoration).bind()
+        keyboxDao
+          .saveKeyboxAsActive(
+            restoration.asKeybox(
+              keyboxId = uuidGenerator.random(),
+              fullAccountId = accountId
+            )
+          )
           .bind()
       }.onFailure {
         setState(

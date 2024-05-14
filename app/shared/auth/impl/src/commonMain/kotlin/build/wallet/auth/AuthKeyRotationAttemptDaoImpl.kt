@@ -9,7 +9,6 @@ import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -23,7 +22,6 @@ class AuthKeyRotationAttemptDaoImpl(
     return database.authKeyRotationAttemptQueries
       .getAuthKeyRotationAttempt()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .mapResult { attempt ->
         if (attempt != null) {
           val appGlobalAuthPublicKey = attempt.destinationAppGlobalAuthKey

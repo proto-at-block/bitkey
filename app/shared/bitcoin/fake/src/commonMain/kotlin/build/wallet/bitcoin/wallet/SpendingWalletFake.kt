@@ -1,8 +1,5 @@
 package build.wallet.bitcoin.wallet
 
-import build.wallet.LoadableValue
-import build.wallet.LoadableValue.InitialLoading
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.bdk.bindings.BdkScript
 import build.wallet.bdk.bindings.BdkScriptMock
 import build.wallet.bdk.bindings.BdkUtxo
@@ -29,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -88,7 +86,7 @@ class SpendingWalletFake(
    * Updated by [sync].
    */
   private val transactionHistoryState =
-    MutableStateFlow<LoadableValue<List<BitcoinTransaction>>>(InitialLoading)
+    MutableStateFlow<List<BitcoinTransaction>?>(null)
 
   /**
    * Fake pending transactions associated with this wallet.
@@ -105,10 +103,10 @@ class SpendingWalletFake(
   /**
    * Fake unspent transaction outputs associated with this wallet.
    */
-  private val unspentOutputsState = MutableStateFlow<LoadableValue<List<BdkUtxo>>>(InitialLoading)
+  private val unspentOutputsState = MutableStateFlow<List<BdkUtxo>?>(null)
 
   override suspend fun initializeBalanceAndTransactions() {
-    transactionHistoryState.value = LoadedValue(emptyList())
+    transactionHistoryState.value = emptyList()
   }
 
   /**
@@ -122,7 +120,7 @@ class SpendingWalletFake(
       val allTransactions =
         (confirmedTransactions + pendingTransactions)
           .sortedBy { it.id }
-      transactionHistoryState.value = LoadedValue(allTransactions)
+      transactionHistoryState.value = allTransactions
     }
     return Ok(Unit)
   }
@@ -168,12 +166,12 @@ class SpendingWalletFake(
     return Ok(scriptPubKey == BdkScriptMock().rawOutputScript())
   }
 
-  override fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>> {
-    return transactionHistoryState
+  override fun transactions(): Flow<List<BitcoinTransaction>> {
+    return transactionHistoryState.filterNotNull()
   }
 
-  override fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>> {
-    return unspentOutputsState
+  override fun unspentOutputs(): Flow<List<BdkUtxo>> {
+    return unspentOutputsState.filterNotNull()
   }
 
   /**
@@ -181,42 +179,35 @@ class SpendingWalletFake(
    *
    * Derived from [transactionHistoryState].
    */
-  override fun balance(): Flow<LoadableValue<BitcoinBalance>> =
+  override fun balance(): Flow<BitcoinBalance> =
     transactionHistoryState
       .map { state ->
-        when (state) {
-          is InitialLoading -> InitialLoading
-          is LoadedValue -> {
-            val confirmedBalance =
-              when (confirmedTransactions.isEmpty()) {
-                true -> BitcoinMoney.zero()
-                false ->
-                  confirmedTransactions.sumOf {
-                    if (it.incoming) it.total else it.total.negate()
-                  }
+        val confirmedBalance =
+          when (confirmedTransactions.isEmpty()) {
+            true -> BitcoinMoney.zero()
+            false ->
+              confirmedTransactions.sumOf {
+                if (it.incoming) it.total else it.total.negate()
               }
-
-            val pendingBalance =
-              when (pendingTransactions.isEmpty()) {
-                true -> BitcoinMoney.zero()
-                false ->
-                  pendingTransactions.sumOf {
-                    if (it.incoming) it.total else it.total.negate()
-                  }
-              }
-
-            LoadedValue(
-              BitcoinBalance(
-                immature = BitcoinMoney.zero(),
-                trustedPending = pendingBalance,
-                untrustedPending = BitcoinMoney.zero(),
-                confirmed = confirmedBalance,
-                spendable = pendingBalance + confirmedBalance,
-                total = pendingBalance + confirmedBalance
-              )
-            )
           }
-        }
+
+        val pendingBalance =
+          when (pendingTransactions.isEmpty()) {
+            true -> BitcoinMoney.zero()
+            false ->
+              pendingTransactions.sumOf {
+                if (it.incoming) it.total else it.total.negate()
+              }
+          }
+
+        BitcoinBalance(
+          immature = BitcoinMoney.zero(),
+          trustedPending = pendingBalance,
+          untrustedPending = BitcoinMoney.zero(),
+          confirmed = confirmedBalance,
+          spendable = pendingBalance + confirmedBalance,
+          total = pendingBalance + confirmedBalance
+        )
       }
       .distinctUntilChanged()
 
@@ -361,7 +352,7 @@ class SpendingWalletFake(
   suspend fun reset() {
     walletLock.withLock {
       // Reset balance and transaction history
-      transactionHistoryState.value = InitialLoading
+      transactionHistoryState.value = null
 
       pendingTransactions.clear()
       confirmedTransactions.clear()

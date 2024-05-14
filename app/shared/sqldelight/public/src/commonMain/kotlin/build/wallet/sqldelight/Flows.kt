@@ -4,8 +4,6 @@ import app.cash.sqldelight.Query
 import app.cash.sqldelight.coroutines.mapToList
 import app.cash.sqldelight.coroutines.mapToOne
 import app.cash.sqldelight.coroutines.mapToOneOrNull
-import build.wallet.LoadableValue
-import build.wallet.asLoadableValue
 import build.wallet.db.DbQueryError
 import build.wallet.sqldelight.coroutines.BitkeyDatabaseIO
 import com.github.michaelbull.result.Err
@@ -29,13 +27,12 @@ import kotlin.coroutines.CoroutineContext
  */
 internal fun <T : Any> Flow<Query<T>>.mapToListResult(
   context: CoroutineContext = Dispatchers.BitkeyDatabaseIO,
-): Flow<Result<LoadableValue<List<T>>, DbQueryError>> =
+): Flow<Result<List<T>, DbQueryError>> =
   mapToList(context)
     .map {
       @Suppress("USELESS_CAST")
       Ok(it) as Result<List<T>, DbQueryError>
     }
-    .asLoadableValue()
     .catch { emit(Err(DbQueryError(cause = it))) }
 
 /**
@@ -49,13 +46,12 @@ internal fun <T : Any> Flow<Query<T>>.mapToListResult(
  */
 internal fun <T : Any> Flow<Query<T>>.mapToOneResult(
   context: CoroutineContext = Dispatchers.BitkeyDatabaseIO,
-): Flow<Result<LoadableValue<T>, DbQueryError>> =
+): Flow<Result<T, DbQueryError>> =
   mapToOne(context)
     .map {
       @Suppress("USELESS_CAST")
       Ok(it) as Result<T, DbQueryError>
     }
-    .asLoadableValue()
     .catch { emit(Err(DbQueryError(cause = it))) }
 
 /**
@@ -69,11 +65,10 @@ internal fun <T : Any> Flow<Query<T>>.mapToOneResult(
  */
 internal fun <T : Any> Flow<Query<T>>.mapToOneOrNullResult(
   context: CoroutineContext = Dispatchers.BitkeyDatabaseIO,
-): Flow<Result<LoadableValue<T?>, DbQueryError>> =
+): Flow<Result<T?, DbQueryError>> =
   mapToOneOrNull(context)
     .map {
       @Suppress("USELESS_CAST")
       Ok(it) as Result<T?, DbQueryError>
     }
-    .asLoadableValue()
     .catch { emit(Err(DbQueryError(cause = it))) }

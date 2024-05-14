@@ -2,6 +2,28 @@
 default:
   just --list
 
+gen-config := "terragrunt-atlantis-config generate \
+    --workflow terragrunt \
+    --output atlantis.yaml.gen \
+    --create-project-name \
+    --autoplan \
+    --automerge \
+    --parallel=false \
+    --preserve-projects \
+    --filter"
+
+atlantis-yaml:
+  {{ gen-config }} aws/bitkey/dev
+  {{ gen-config }} aws/bitkey/stage
+  {{ gen-config }} aws/bitkey/prod
+  yq -i '(.projects[] | select(.name | test("^aws_bitkey_dev")) | .execution_order_group) = 1' atlantis.yaml.gen
+  yq -i '(.projects[] | select(.name | test("^aws_bitkey_stage")) | .execution_order_group) = 2' atlantis.yaml.gen
+  yq -i '(.projects[] | select(.name | test("^aws_bitkey_prod")) | .execution_order_group) = 3' atlantis.yaml.gen
+  yq eval -i '.projects += load("aws/firmware-signer/atlantis.part.yaml").projects' atlantis.yaml.gen
+  echo '# DO NOT EDIT: Generated with `just atlantis-yaml`' > atlantis.yaml
+  cat atlantis.yaml.gen >> atlantis.yaml
+  rm atlantis.yaml.gen
+
 ci: init-linter lint fmt-ci validate
 
 clean:
@@ -22,7 +44,7 @@ init-linter:
 # Need to pass in full path to the config file. --recursive seems to change the working directory and
 # fail to find the config file if a relative path is used.
 lint:
-  tflint -c $PWD/.tflint.hcl --recursive
+  cd modules && tflint -c $PWD/../.tflint.hcl --recursive
 
 validate:
   #!/bin/bash

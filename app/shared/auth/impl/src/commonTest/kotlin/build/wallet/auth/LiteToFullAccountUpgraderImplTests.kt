@@ -15,13 +15,11 @@ import build.wallet.notifications.DeviceTokenManagerMock
 import build.wallet.notifications.DeviceTokenManagerResult
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.testing.shouldBeErrOfType
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
@@ -51,7 +49,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
   }
 
   test("Happy path") {
-    keyboxDao.onboardingKeybox.value.unwrap().shouldNotBeNull().shouldBeLoaded(null)
+    keyboxDao.onboardingKeybox.value.shouldBeOk(null)
 
     val liteAccount = LiteAccountMock.copy(
       recoveryAuthKey = PublicKey("other-app-recovery-auth-dpub")
@@ -80,7 +78,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
       .tokens.shouldBe(tokens)
 
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
-    keyboxDao.onboardingKeybox.value.unwrap().shouldNotBeNull().shouldBeLoaded(fullAccount.keybox)
+    keyboxDao.onboardingKeybox.value.shouldBeOk(fullAccount.keybox)
   }
 
   test("UpgradeAccountService failure binds") {

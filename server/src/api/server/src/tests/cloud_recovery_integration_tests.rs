@@ -3,6 +3,7 @@ use std::str::FromStr;
 use http::StatusCode;
 use std::default::Default;
 use time::{Duration, OffsetDateTime};
+use types::account::identifiers::AccountId;
 
 use account::entities::{Factor, FullAccountAuthKeysPayload, Network, SpendingKeysetRequest};
 use account::service::FetchAccountInput;
@@ -12,64 +13,58 @@ use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use onboarding::routes::CreateAccountRequest;
 use recovery::entities::{RecoveryDestination, RecoveryStatus, RecoveryType};
 use recovery::routes::{AuthenticationKey, RotateAuthenticationKeysRequest};
-use types::account::identifiers::AccountId;
 use types::authn_authz::cognito::CognitoUser;
 
 use crate::tests;
 use crate::tests::lib::{
-    create_phone_touchpoint, create_pubkey, create_push_touchpoint,
-    generate_delay_and_notify_recovery, get_static_test_authkeys,
+    create_keypair, create_new_authkeys, create_phone_touchpoint, create_push_touchpoint,
+    generate_delay_and_notify_recovery,
 };
-use crate::tests::{gen_services, requests::axum::TestClient};
+use crate::tests::{gen_services, requests::axum::TestClient, TestAuthenticationKeys, TestKeypair};
 
 struct RotateAuthenticationKeysTestVector {
     include_initial_recovery_pubkey: bool,
-    new_auth_app_sk: SecretKey,
     override_auth_hardware_sk: Option<SecretKey>,
     override_app_signature: Option<String>,
     rotate_recovery_pubkey: bool,
     override_recovery_signature: Option<String>,
     expected_status: StatusCode,
     existing_delay_notify: bool,
-    override_keyproof_account_id: Option<AccountId>,
+    override_with_fake_keyproof_account_id: bool,
 }
 
 impl Default for RotateAuthenticationKeysTestVector {
     fn default() -> Self {
         Self {
             include_initial_recovery_pubkey: false,
-            new_auth_app_sk: SecretKey::from_str(
-                "09d04b6f58117ad43a04f671daf776ff00ca8c97807aea12d432eb500c0e2bde",
-            )
-            .unwrap(),
             override_auth_hardware_sk: None,
             override_app_signature: None,
             rotate_recovery_pubkey: true,
             override_recovery_signature: None,
             expected_status: StatusCode::OK,
             existing_delay_notify: false,
-            override_keyproof_account_id: None,
+            override_with_fake_keyproof_account_id: false,
         }
     }
 }
 
 async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
     let secp = Secp256k1::new();
 
     let network = Network::BitcoinSignet;
-    let (auth_app_pubkey, auth_hardware_pubkey, auth_recovery_pubkey) = get_static_test_authkeys();
+    let keys = create_new_authkeys(&mut context);
     let spending_app_dpub = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
     let spending_hardware_dpub = DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap();
 
     // First, make an account
     let request = CreateAccountRequest::Full {
         auth: FullAccountAuthKeysPayload {
-            app: auth_app_pubkey,
-            hardware: auth_hardware_pubkey,
+            app: keys.app.public_key,
+            hardware: keys.hw.public_key,
             recovery: if vector.include_initial_recovery_pubkey {
-                Some(auth_recovery_pubkey)
+                Some(keys.recovery.public_key)
             } else {
                 None
             },
@@ -82,7 +77,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         is_test_account: true,
     };
 
-    let actual_response = client.create_account(&request).await;
+    let actual_response = client.create_account(&mut context, &request).await;
     assert_eq!(
         actual_response.status_code,
         StatusCode::OK,
@@ -90,6 +85,9 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         actual_response.body_string
     );
     let account_id = actual_response.body.unwrap().account_id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Keys not found for account");
 
     // Create some touchpoints to ensure push get cleared if applicable
     create_push_touchpoint(&bootstrap.services, &account_id).await;
@@ -107,12 +105,13 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         .active_auth_keys_id;
 
     if vector.existing_delay_notify {
+        let dn_keys = create_new_authkeys(&mut context);
         let existing_delay_notify = generate_delay_and_notify_recovery(
             account_id.clone(),
             RecoveryDestination {
                 source_auth_keys_id: active_auth_key_id.clone(),
-                app_auth_pubkey: create_pubkey(),
-                hardware_auth_pubkey: create_pubkey(),
+                app_auth_pubkey: dn_keys.app.public_key,
+                hardware_auth_pubkey: dn_keys.hw.public_key,
                 recovery_auth_pubkey: None,
             },
             OffsetDateTime::now_utc() + Duration::days(1),
@@ -127,16 +126,15 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
             .unwrap();
     }
 
-    let new_auth_app_pubkey = vector.new_auth_app_sk.public_key(&secp);
+    let (new_auth_app_seckey, new_auth_app_pubkey) = create_keypair();
     let app_signature = vector.override_app_signature.unwrap_or_else(|| {
         let secp = Secp256k1::new();
         let message = Message::from_hashed_data::<sha256::Hash>(account_id.to_string().as_bytes());
-        secp.sign_ecdsa(&message, &vector.new_auth_app_sk)
-            .to_string()
+        secp.sign_ecdsa(&message, &new_auth_app_seckey).to_string()
     });
     let new_auth_hardware_seckey = vector
         .override_auth_hardware_sk
-        .unwrap_or(SecretKey::from_slice(&[0xab; 32]).unwrap());
+        .unwrap_or(keys.hw.secret_key);
     let new_auth_hardware_pubkey = new_auth_hardware_seckey.public_key(&secp);
     let hardware_signature = {
         let secp = Secp256k1::new();
@@ -145,8 +143,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
             .to_string()
     };
 
-    let new_auth_recovery_seckey = SecretKey::from_slice(&[0xcd; 32]).unwrap();
-    let new_auth_recovery_pubkey = new_auth_recovery_seckey.public_key(&secp);
+    let (new_auth_recovery_seckey, new_auth_recovery_pubkey) = create_keypair();
     let recovery_signature = vector.override_recovery_signature.unwrap_or_else(|| {
         let secp = Secp256k1::new();
         let message = Message::from_hashed_data::<sha256::Hash>(account_id.to_string().as_bytes());
@@ -154,14 +151,32 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
             .to_string()
     });
 
+    // Add it to the context as we're going to need to use it for the rotate call
+    context.add_authentication_keys(TestAuthenticationKeys {
+        app: TestKeypair {
+            public_key: new_auth_app_pubkey,
+            secret_key: new_auth_app_seckey,
+        },
+        hw: TestKeypair {
+            public_key: new_auth_hardware_pubkey,
+            secret_key: new_auth_hardware_seckey,
+        },
+        recovery: TestKeypair {
+            public_key: new_auth_recovery_pubkey,
+            secret_key: new_auth_recovery_seckey,
+        },
+    });
+
     // If we're testing with a different account, we need to use the keyproof account id
-    let keyproof_account_id = vector
-        .override_keyproof_account_id
-        .clone()
-        .unwrap_or(account_id.clone());
+    let keyproof_account_id = if vector.override_with_fake_keyproof_account_id {
+        AccountId::gen().expect("Invalid account id")
+    } else {
+        account_id.clone()
+    };
 
     let response = client
         .rotate_authentication_keys_with_keyproof_account_id(
+            &mut context,
             &keyproof_account_id,
             &account_id,
             &RotateAuthenticationKeysRequest {
@@ -182,6 +197,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
                     None
                 },
             },
+            &keys,
         )
         .await;
 
@@ -192,10 +208,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
     );
 
     // If keyproof account id is different from test account, we don't bother checking anything else.
-    if vector
-        .override_keyproof_account_id
-        .map_or(false, |override_id| override_id != account_id)
-    {
+    if keyproof_account_id != account_id {
         return;
     }
 
@@ -217,7 +230,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
             .active_auth_keys()
             .expect("Auth keys should be present");
         assert_eq!(auth.app_pubkey, new_auth_app_pubkey);
-        assert_eq!(auth.hardware_pubkey, auth_hardware_pubkey);
+        assert_eq!(auth.hardware_pubkey, keys.hw.public_key);
         let recovery_cognito_user_exists = bootstrap
             .services
             .userpool_service
@@ -255,8 +268,8 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         let auth = account
             .active_auth_keys()
             .expect("Auth keys should be present");
-        assert_eq!(auth.app_pubkey, auth_app_pubkey);
-        assert_eq!(auth.hardware_pubkey, auth_hardware_pubkey);
+        assert_eq!(auth.app_pubkey, keys.app.public_key);
+        assert_eq!(auth.hardware_pubkey, keys.hw.public_key);
         let recovery_cognito_user_exists = bootstrap
             .services
             .userpool_service
@@ -264,13 +277,13 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
             .await
             .unwrap();
         if vector.include_initial_recovery_pubkey {
-            assert_eq!(auth.recovery_pubkey, Some(auth_recovery_pubkey));
+            assert_eq!(auth.recovery_pubkey, Some(keys.recovery.public_key));
             assert!(recovery_cognito_user_exists);
         } else {
             assert_eq!(auth.recovery_pubkey, None);
             assert!(!recovery_cognito_user_exists);
         }
-        assert_eq!(auth.recovery_pubkey, Some(auth_recovery_pubkey));
+        assert_eq!(auth.recovery_pubkey, Some(keys.recovery.public_key));
         assert_eq!(account.common_fields.touchpoints.len(), 2);
     }
 }
@@ -320,7 +333,7 @@ tests! {
         ..Default::default()
     },
     test_rotate_keys_with_invalid_keyproof_account_id: RotateAuthenticationKeysTestVector {
-        override_keyproof_account_id: Some(AccountId::gen().unwrap()),
+        override_with_fake_keyproof_account_id: true,
         expected_status: StatusCode::UNAUTHORIZED,
         ..Default::default()
     },

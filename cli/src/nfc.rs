@@ -101,7 +101,7 @@ impl<T: Transactor + ?Sized> NFCTransactions for T {
     }
 
     fn enroll(&self) -> Result<bool, TransactorError> {
-        self.perform(StartFingerprintEnrollment::new())
+        self.perform(StartFingerprintEnrollment::new(0, "".to_string()))
     }
 
     fn sign_message(&self, message: &[u8]) -> Result<Signature, TransactorError> {

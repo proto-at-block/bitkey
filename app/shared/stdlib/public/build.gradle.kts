@@ -14,7 +14,15 @@ kotlin {
        * dependencies on other modules.
        */
       dependencies {
+        api(libs.kmp.kotlin.result)
         api(libs.kmp.okio)
+        implementation(libs.kmp.big.number)
+      }
+    }
+
+    commonTest {
+      dependencies {
+        implementation(projects.shared.testingPublic)
       }
     }
   }

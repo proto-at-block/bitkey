@@ -16,7 +16,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
@@ -34,7 +34,7 @@ fun NotificationPreferencesSetupFormBodyModel(
   pushItem: NotificationPreferencesSetupFormItemModel,
   smsItem: NotificationPreferencesSetupFormItemModel,
   emailItem: NotificationPreferencesSetupFormItemModel,
-  alertModel: AlertModel? = null,
+  alertModel: ButtonAlertModel? = null,
 ) = ScreenModel(
   body =
     FormBodyModel(

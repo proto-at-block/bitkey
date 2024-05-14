@@ -5,7 +5,7 @@ import build.wallet.bitkey.socrec.RecoveryContact
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.moneyhome.card.CardModel
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 /**
  * State machine which renders a [CardModel] represent "Getting Started" in [MoneyHomeStateMachine].
@@ -27,6 +27,6 @@ data class GettingStartedCardUiProps(
   val onAddBitcoin: () -> Unit,
   val onEnableSpendingLimit: () -> Unit,
   val onInviteTrustedContact: () -> Unit,
-  val onShowAlert: (AlertModel) -> Unit,
+  val onShowAlert: (ButtonAlertModel) -> Unit,
   val onDismissAlert: () -> Unit,
 )

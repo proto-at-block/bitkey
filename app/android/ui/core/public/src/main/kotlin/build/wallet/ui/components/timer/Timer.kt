@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import build.wallet.Progress
+import build.wallet.asProgress
 import build.wallet.statemachine.core.TimerDirection
 import build.wallet.statemachine.core.TimerDirection.CounterClockwise
 import build.wallet.statemachine.core.form.FormMainContentModel.Timer
@@ -19,6 +21,7 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.progress.CircularProgressIndicator
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
+import com.github.michaelbull.result.getOrThrow
 
 @Composable
 fun Timer(
@@ -41,7 +44,7 @@ fun Timer(
   modifier: Modifier = Modifier,
   title: String,
   subtitle: String,
-  progress: Float,
+  progress: Progress,
   direction: TimerDirection,
   remainingSeconds: Long,
   size: Dp,
@@ -71,7 +74,7 @@ fun Timer(
 @Composable
 internal fun Timer(
   modifier: Modifier = Modifier,
-  progress: Float,
+  progress: Progress,
   direction: TimerDirection,
   remainingSeconds: Long,
   size: Dp,
@@ -84,7 +87,7 @@ internal fun Timer(
     // Full background circle.
     CircularProgressIndicator(
       size = size,
-      progress = progress,
+      progress = progress.value,
       direction = direction,
       remainingSeconds = remainingSeconds
     )
@@ -100,7 +103,7 @@ internal fun TimerZeroProgressPreview() {
     Timer(
       title = "14 days",
       subtitle = "Remaining",
-      progress = 0F,
+      progress = Progress.Zero,
       direction = CounterClockwise,
       remainingSeconds = 10,
       size = 200.dp
@@ -117,7 +120,7 @@ internal fun TimerSomeProgressAnimatedPreview() {
     Timer(
       title = "8 days, 17 hours",
       subtitle = "Remaining",
-      progress = 0.78F,
+      progress = 0.78F.asProgress().getOrThrow(),
       direction = CounterClockwise,
       remainingSeconds = 10,
       size = 200.dp

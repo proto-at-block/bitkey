@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-common",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-scripting-common-1.9.10.jar": "27cf9a31b2124862fad478729e790e335072d0ab9e36cc21e386fbd5a942a7af"
+                        "kotlin-scripting-common-1.9.22.jar": "fa500cbf034943ef8126f3d3dc65af09ff99dfffe44c5099b4fc2ed5bf2f5dc7"
                     }
                 }
             ],

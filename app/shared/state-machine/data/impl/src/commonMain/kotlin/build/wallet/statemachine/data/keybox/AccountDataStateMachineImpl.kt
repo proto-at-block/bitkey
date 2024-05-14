@@ -22,7 +22,6 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.mapResult
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
@@ -85,7 +84,6 @@ class AccountDataStateMachineImpl(
               props =
                 HasActiveLiteAccountDataProps(
                   account = account,
-                  currencyPreferenceData = props.currencyPreferenceData,
                   accountUpgradeOnboardConfigData = onboardConfigData,
                   accountUpgradeTemplateFullAccountConfigData = props.templateFullAccountConfigData
                 )
@@ -120,7 +118,6 @@ class AccountDataStateMachineImpl(
                 NoActiveAccountData(
                   templateFullAccountConfigData = props.templateFullAccountConfigData,
                   activeRecovery = null,
-                  currencyPreferenceData = props.currencyPreferenceData,
                   onboardConfigData = onboardConfigData
                 )
               }
@@ -131,7 +128,6 @@ class AccountDataStateMachineImpl(
             NoActiveAccountData(
               templateFullAccountConfigData = props.templateFullAccountConfigData,
               activeRecovery = null,
-              currencyPreferenceData = props.currencyPreferenceData,
               onboardConfigData = onboardConfigData
             )
           }
@@ -142,7 +138,6 @@ class AccountDataStateMachineImpl(
         NoActiveAccountData(
           templateFullAccountConfigData = props.templateFullAccountConfigData,
           activeRecovery = null,
-          currencyPreferenceData = props.currencyPreferenceData,
           onboardConfigData = onboardConfigData
         )
     }
@@ -235,7 +230,6 @@ class AccountDataStateMachineImpl(
         NoActiveAccountData(
           templateFullAccountConfigData = props.templateFullAccountConfigData,
           activeRecovery = activeRecovery as? StillRecovering,
-          currencyPreferenceData = props.currencyPreferenceData,
           onboardConfigData = onboardConfigData
         )
       }
@@ -257,8 +251,7 @@ class AccountDataStateMachineImpl(
         hasActiveFullAccountDataStateMachine.model(
           HasActiveFullAccountDataProps(
             account = activeAccount,
-            hardwareRecovery = hardwareRecovery,
-            currencyPreferenceData = props.currencyPreferenceData
+            hardwareRecovery = hardwareRecovery
           )
         )
       }
@@ -284,7 +277,6 @@ class AccountDataStateMachineImpl(
   private fun NoActiveAccountData(
     templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     activeRecovery: StillRecovering?,
-    currencyPreferenceData: CurrencyPreferenceData,
     onboardConfigData: LoadedOnboardConfigData,
   ): AccountData {
     val scope = rememberStableCoroutineScope()
@@ -292,7 +284,6 @@ class AccountDataStateMachineImpl(
       NoActiveAccountDataProps(
         templateFullAccountConfigData = templateFullAccountConfigData,
         existingRecovery = activeRecovery,
-        currencyPreferenceData = currencyPreferenceData,
         newAccountOnboardConfigData = onboardConfigData,
         onAccountCreated = { account ->
           scope.launch {

@@ -32,7 +32,7 @@ download-artifacts run_id='':
   mv socat build/
 
 deploy-development:
-  AWS_PROFILE=w1-development--admin AWS_DEFAULT_REGION=us-west-2 ./deploy_from_gha.sh main
+  AWS_PROFILE=bitkey-development--admin AWS_DEFAULT_REGION=us-west-2 ./deploy_from_gha.sh main
 
 deploy-staging:
   AWS_PROFILE=bitkey-staging--admin AWS_DEFAULT_REGION=us-west-2 ./deploy_from_gha.sh default

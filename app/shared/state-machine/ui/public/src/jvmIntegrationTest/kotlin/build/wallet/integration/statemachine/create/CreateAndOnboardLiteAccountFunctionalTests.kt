@@ -12,6 +12,7 @@ import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -70,7 +71,7 @@ private suspend fun ReceiveTurbine<ScreenModel>.tapOnProtectedCustomerAndRemoveR
     .onClick()
 
   awaitItem()
-    .alertModel.shouldNotBeNull()
+    .alertModel.shouldBeTypeOf<ButtonAlertModel>()
     .let {
       it.title.shouldBe("Are you sure you want to remove yourself as a Trusted Contact?")
       it.subline.shouldBe(

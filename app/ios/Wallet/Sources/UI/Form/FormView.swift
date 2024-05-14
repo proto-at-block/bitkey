@@ -2,8 +2,6 @@ import Foundation
 import Shared
 import SwiftUI
 
-// MARK: -
-
 public struct FormView: View {
 
     // MARK: - Private Properties
@@ -74,6 +72,56 @@ public struct FormView: View {
                 NativeBrowserNavigator(openSafariView: { self.safariUrl = URL(string: $0) })
             )
         }
+    }
+
+}
+
+struct FormView_Previews: PreviewProvider {
+
+    static var previews: some View {
+        FormView(
+            viewModel: ListFormBodyModelKt.ListFormBodyModel(
+                onBack: {},
+                toolbarTitle: "Activity",
+                listGroups: [
+                    ListGroupModel(
+                        header: nil,
+                        items: [
+                            TransactionItemModelKt.TransactionItemModel(
+                                truncatedRecipientAddress: "2AH7...CkGJ",
+                                date: "Apr 6 at 12:20 pm",
+                                amount: "$90.50",
+                                amountEquivalent: "121,075 sats",
+                                incoming: false,
+                                isPending: false,
+                                onClick: {}
+                            )
+                        ],
+                        style: .none,
+                        headerTreatment: .secondary,
+                        footerButton: nil
+                    ),
+                    ListGroupModel(
+                        header: nil,
+                        items: [
+                            TransactionItemModelKt.TransactionItemModel(
+                                truncatedRecipientAddress: "2AH7...CkGJ",
+                                date: "Apr 6 at 12:20 pm",
+                                amount: "$90.50",
+                                amountEquivalent: "121,075 sats",
+                                incoming: false,
+                                isPending: false,
+                                onClick: {}
+                            )
+                        ],
+                        style: .none,
+                        headerTreatment: .secondary,
+                        footerButton: nil
+                    )
+                ],
+                id: nil
+            )
+        )
     }
 
 }

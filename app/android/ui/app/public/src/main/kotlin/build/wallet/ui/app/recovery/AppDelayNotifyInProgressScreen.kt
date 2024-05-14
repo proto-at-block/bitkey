@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import build.wallet.Progress
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
 import build.wallet.ui.app.core.form.FormScreen
 import build.wallet.ui.components.header.Header
@@ -49,7 +50,7 @@ fun AppDelayNotifyInProgressPreview() {
         AppDelayNotifyInProgressBodyModel(
           onStopRecovery = { },
           durationTitle = "18 hours",
-          progress = 0.5f,
+          progress = Progress.Half,
           remainingDelayPeriod = 120.seconds,
           onExit = null
         )

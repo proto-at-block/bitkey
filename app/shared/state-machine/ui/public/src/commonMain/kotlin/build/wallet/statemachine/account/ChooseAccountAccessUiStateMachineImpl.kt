@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
+import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenColorMode
@@ -16,30 +17,33 @@ import build.wallet.statemachine.demo.DemoModeConfigUiProps
 import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 class ChooseAccountAccessUiStateMachineImpl(
   private val appVariant: AppVariant,
   private val debugMenuStateMachine: DebugMenuStateMachine,
   private val demoModeConfigUiStateMachine: DemoModeConfigUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
+  private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(State.ShowingChooseAccountAccess) }
-    var alert by remember { mutableStateOf<AlertModel?>(null) }
+    var alert by remember { mutableStateOf<ButtonAlertModel?>(null) }
+
+    val eakAssociation = remember { emergencyAccessKitDataProvider.getAssociatedEakData() }
 
     val onBeTrustedContact: (() -> Unit)? =
-      remember(props.eakAssociation) {
-        when (props.eakAssociation) {
+      remember(eakAssociation) {
+        when (eakAssociation) {
           EmergencyAccessKitAssociation.EakBuild -> null
           else -> ({ uiState = State.ShowingBeTrustedContactIntroduction })
         }
       }
 
     val onRestoreEmergencyAccessKit: (() -> Unit)? =
-      remember(props.eakAssociation) {
-        when (props.eakAssociation) {
+      remember(eakAssociation) {
+        when (eakAssociation) {
           EmergencyAccessKitAssociation.EakBuild ->
             props.chooseAccountAccessData.startEmergencyAccessRecovery
           else -> null
@@ -47,8 +51,8 @@ class ChooseAccountAccessUiStateMachineImpl(
       }
 
     val onRestoreYourWallet: (() -> Unit)? =
-      remember(props.eakAssociation) {
-        when (props.eakAssociation) {
+      remember(eakAssociation) {
+        when (eakAssociation) {
           EmergencyAccessKitAssociation.EakBuild -> null
           else -> props.chooseAccountAccessData.startRecovery
         }
@@ -72,7 +76,7 @@ class ChooseAccountAccessUiStateMachineImpl(
           },
           onCreateWallet = props.chooseAccountAccessData.startFullAccountCreation,
           onMoreOptionsClick = { uiState = State.ShowingAccountAccessMoreOptions },
-          eakAssociation = props.eakAssociation
+          eakAssociation = eakAssociation
         )
 
       is State.ShowingAccountAccessMoreOptions ->
@@ -117,7 +121,7 @@ class ChooseAccountAccessUiStateMachineImpl(
     onMoreOptionsClick: () -> Unit,
     eakAssociation: EmergencyAccessKitAssociation,
   ): ScreenModel {
-    var alert by remember { mutableStateOf<AlertModel?>(null) }
+    var alert by remember { mutableStateOf<ButtonAlertModel?>(null) }
     val showDisabledAlert = {
       alert = DisabledForEakAlert(onDismiss = { alert = null })
     }
@@ -179,7 +183,7 @@ class ChooseAccountAccessUiStateMachineImpl(
    * Alert shown when an action taken is disabled due to the app being in Emergency Access Kit mode.
    */
   private fun DisabledForEakAlert(onDismiss: () -> Unit) =
-    AlertModel(
+    ButtonAlertModel(
       title = "Feature Unavailable",
       subline = "This feature is disabled in the Emergency Access Kit app.",
       primaryButtonText = "OK",

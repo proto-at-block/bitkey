@@ -2,6 +2,7 @@ package build.wallet.statemachine.send
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.Icon
@@ -79,6 +81,7 @@ class TransferConfirmationUiStateMachineImpl(
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -434,6 +437,7 @@ class TransferConfirmationUiStateMachineImpl(
     onCloseSheet: () -> Unit,
     onFeeOptionSelected: (EstimatedTransactionPriority) -> Unit,
   ): ScreenModel {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val transferBitcoinAmount = BitcoinMoney.sats(state.appSignedPsbt.amountSats.toBigInteger())
     val feeBitcoinAmount = state.appSignedPsbt.fee
     val transactionDetail =
@@ -452,15 +456,13 @@ class TransferConfirmationUiStateMachineImpl(
           )
       }
 
-    val transactionDetails =
-      transactionDetailsCardUiStateMachine.model(
-        props =
-          TransactionDetailsCardUiProps(
-            transactionDetail = transactionDetail,
-            fiatCurrency = props.fiatCurrency,
-            exchangeRates = props.exchangeRates
-          )
+    val transactionDetails = transactionDetailsCardUiStateMachine.model(
+      props = TransactionDetailsCardUiProps(
+        transactionDetail = transactionDetail,
+        fiatCurrency = fiatCurrency,
+        exchangeRates = props.exchangeRates
       )
+    )
 
     return TransferConfirmationScreenModel(
       onBack = props.onExit,
@@ -478,43 +480,38 @@ class TransferConfirmationUiStateMachineImpl(
           is Variant.Regular -> onArrivalTime
           else -> null
         },
-      errorOverlayModel =
-        when (state.sheetState) {
-          InfoSheet ->
-            SheetModel(
-              onClosed = onCloseSheet,
-              body =
-                NetworkFeesInfoSheetModel(
-                  onBack = onCloseSheet
+      errorOverlayModel = when (state.sheetState) {
+        InfoSheet ->
+          SheetModel(
+            onClosed = onCloseSheet,
+            body =
+              NetworkFeesInfoSheetModel(
+                onBack = onCloseSheet
+              )
+          )
+        FeeSelectionSheet ->
+          SheetModel(
+            onClosed = onCloseSheet,
+            body = FeeSelectionSheetModel(
+              onBack = onCloseSheet,
+              feeOptionList = feeOptionListUiStateMachine.model(
+                props = FeeOptionListProps(
+                  accountData = props.accountData,
+                  transactionBaseAmount =
+                    BitcoinMoney.sats(
+                      state.appSignedPsbt.amountSats.toBigInteger()
+                    ),
+                  exchangeRates = props.exchangeRates,
+                  fees = props.fees,
+                  defaultPriority = selectedPriority,
+                  onOptionSelected = onFeeOptionSelected
                 )
+              )
             )
-          FeeSelectionSheet ->
-            SheetModel(
-              onClosed = onCloseSheet,
-              body =
-                FeeSelectionSheetModel(
-                  onBack = onCloseSheet,
-                  feeOptionList =
-                    feeOptionListUiStateMachine.model(
-                      props =
-                        FeeOptionListProps(
-                          accountData = props.accountData,
-                          transactionBaseAmount =
-                            BitcoinMoney.sats(
-                              state.appSignedPsbt.amountSats.toBigInteger()
-                            ),
-                          fiatCurrency = props.fiatCurrency,
-                          exchangeRates = props.exchangeRates,
-                          fees = props.fees,
-                          defaultPriority = selectedPriority,
-                          onOptionSelected = onFeeOptionSelected
-                        )
-                    )
-                )
-            )
+          )
 
-          Hidden -> null
-        }
+        Hidden -> null
+      }
     )
   }
 

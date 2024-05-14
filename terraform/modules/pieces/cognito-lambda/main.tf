@@ -52,6 +52,7 @@ data "archive_file" "source" {
 
   type        = "zip"
   source_dir  = var.source_dir
+  excludes    = [".terragrunt-source-manifest"]
   output_path = "${path.module}/${random_id.rand.hex}.zip"
 }
 

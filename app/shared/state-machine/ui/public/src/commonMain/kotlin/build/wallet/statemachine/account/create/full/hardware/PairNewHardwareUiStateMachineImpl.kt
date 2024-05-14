@@ -145,7 +145,8 @@ class PairNewHardwareUiStateMachineImpl(
           },
           eventTrackerScreenIdContext = props.eventTrackerContext,
           isNavigatingBack = s.isNavigatingBack,
-          presentationStyle = pairNewHardwareBodyModelPresentationStyle
+          presentationStyle = pairNewHardwareBodyModelPresentationStyle,
+          headline = "Set up your fingerprint"
         )
 
       is CompleteFingerprintEnrollmentViaNfcUiState -> {

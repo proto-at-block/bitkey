@@ -2,13 +2,15 @@ package build.wallet.f8e.money
 
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
+import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.get
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -21,18 +23,20 @@ class FiatCurrencyDefinitionServiceImpl(
   ): Result<List<FiatCurrency>, NetworkingError> {
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<CurrenciesResponse> {
-        get("/api/exchange-rates/currencies")
+        get("/api/exchange-rates/currencies") {
+          withDescription("Get fiat currencies")
+        }
       }
       .map { body -> body.supportedCurrencies.map { it.toFiatCurrency() } }
-      .logNetworkFailure { "Failed to get fiat currencies" }
   }
 }
 
 @Serializable
 private data class CurrenciesResponse(
+  @Unredacted
   @SerialName("supported_currencies")
   val supportedCurrencies: List<SupportedFiatCurrencyDTO>,
-)
+) : RedactedResponseBody
 
 @Serializable
 private data class SupportedFiatCurrencyDTO(

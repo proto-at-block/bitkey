@@ -2,6 +2,7 @@ package build.wallet.statemachine.partnerships.purchase
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,8 +22,10 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
@@ -34,7 +37,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
-import build.wallet.statemachine.partnerships.PartnerRedirectionMethod
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.PurchaseAmountsState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.QuotesState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.RedirectState
@@ -57,6 +59,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val getPurchaseQuoteListService: GetPurchaseQuoteListService,
   private val getPurchaseRedirectService: GetPurchaseRedirectService,
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : PartnershipsPurchaseUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseUiProps): SheetModel {
@@ -64,6 +67,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
     var state: PartnershipsPurchaseState by remember {
       mutableStateOf(PurchaseAmountsState.Loading(preSelectedAmount = props.selectedAmount))
     }
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
     return when (val currentState = state) {
       is PurchaseAmountsState.Loaded -> {
@@ -112,13 +116,13 @@ class PartnershipsPurchaseUiStateMachineImpl(
         }
       is PurchaseAmountsState.Loading -> {
         LaunchedEffect("load-partnerships-purchase-amount") {
-          purchaseMethodAmounts(props)
+          purchaseMethodAmounts(props, fiatCurrency)
             .onFailure { error ->
               state = PurchaseAmountsState.LoadingFailure(error)
             }
             .onSuccess {
               state =
-                if (isValidPurchaseAmount(currentState.preSelectedAmount, props.fiatCurrency, it.min, it.max)) {
+                if (isValidPurchaseAmount(currentState.preSelectedAmount, fiatCurrency, it.min, it.max)) {
                   QuotesState.Loading(currentState.preSelectedAmount)
                 } else {
                   val displayOptions = it.displayOptions.take(MAX_DISPLAY_OPTIONS).toImmutableList()
@@ -290,14 +294,15 @@ class PartnershipsPurchaseUiStateMachineImpl(
 
   private suspend fun purchaseMethodAmounts(
     props: PartnershipsPurchaseUiProps,
+    fiatCurrency: FiatCurrency,
   ): Result<PurchaseMethodAmounts, Error> {
     return getPurchaseOptionsService
       .purchaseOptions(
         fullAccountId = props.keybox.fullAccountId,
         f8eEnvironment = props.keybox.config.f8eEnvironment,
-        currency = props.fiatCurrency
+        currency = fiatCurrency
       ).flatMap {
-        it.toPurchaseMethodAmounts(props.fiatCurrency, SUPPORTED_PAYMENT_METHOD)
+        it.toPurchaseMethodAmounts(fiatCurrency, SUPPORTED_PAYMENT_METHOD)
       }
   }
 }

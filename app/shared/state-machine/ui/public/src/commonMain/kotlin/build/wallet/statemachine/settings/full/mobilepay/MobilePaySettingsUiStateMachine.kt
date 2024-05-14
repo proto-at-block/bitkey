@@ -1,6 +1,5 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
@@ -16,5 +15,4 @@ interface MobilePaySettingsUiStateMachine : StateMachine<MobilePaySettingsUiProp
 data class MobilePaySettingsUiProps(
   val onBack: () -> Unit,
   val accountData: ActiveFullAccountLoadedData,
-  val fiatCurrency: FiatCurrency,
 )

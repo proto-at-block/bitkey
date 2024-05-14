@@ -29,13 +29,14 @@ fun HardwareFingerprintEnrollmentScreenModel(
   eventTrackerScreenIdContext: EventTrackerScreenIdContext,
   presentationStyle: ScreenPresentationStyle,
   isNavigatingBack: Boolean,
+  headline: String,
 ) = ScreenModel(
   body =
     PairNewHardwareBodyModel(
       onBack = onBack,
       header =
         FormHeaderModel(
-          headline = "Set up your fingerprint",
+          headline = headline,
           subline =
             "Place your finger on the sensor until you see a blue light." +
               " Repeat this until the device has a solid green light." +

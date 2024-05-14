@@ -16,7 +16,6 @@ bool bio_storage_calibration_data_save(uint8_t* calibration_data, uint32_t size)
 
 bool bio_storage_key_save(uint8_t* wrapped_key, uint32_t size);
 bool bio_storage_key_exists(void);
-// TODO Consider changing handling of key.
 bool bio_storage_key_retrieve_unwrapped(key_handle_t* raw_key_handle);
 
 bool bio_storage_key_plaintext_save(uint8_t* plaintext_key,
@@ -41,3 +40,5 @@ void fpc_biometrics_init(void);
 
 bool bio_update_template(bio_template_id_t id, fpc_bep_template_t* template,
                          uint32_t comms_timestamp);
+
+void fpc_sensor_wfi_cancel(void);

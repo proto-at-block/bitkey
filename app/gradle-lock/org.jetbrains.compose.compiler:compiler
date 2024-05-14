@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.compiler:compiler",
     "components": [
         {
-            "version": "1.5.8.1",
+            "version": "1.5.10.1",
             "variants": [
                 {
                     "artifacts": {
-                        "compiler-1.5.8.1.jar": "2ee12d17b67b03712dd581a36c5f1020e5fb9728bee1aa4152c4ef3f9b75a6d9"
+                        "compiler-1.5.10.1.jar": "d4bbbf3e5efbd008377fa6b81db6f69d37da26ba9bbf1fd9b1b368be27239b93"
                     }
                 }
             ],

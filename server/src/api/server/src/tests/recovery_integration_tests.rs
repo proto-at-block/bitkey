@@ -22,14 +22,16 @@ use recovery::routes::{
 use time::{Duration, OffsetDateTime};
 
 use crate::tests;
-use crate::tests::gen_services;
 use crate::tests::lib::{
     create_account, create_auth_keyset_model, create_default_account_with_predefined_wallet,
-    create_phone_touchpoint, create_plain_keys, create_pubkey, create_push_touchpoint,
-    gen_signature, generate_delay_and_notify_recovery,
+    create_keypair, create_phone_touchpoint, create_plain_keys, create_pubkey,
+    create_push_touchpoint, gen_signature, generate_delay_and_notify_recovery,
 };
 use crate::tests::requests::axum::TestClient;
 use crate::tests::requests::Response;
+use crate::tests::{gen_services, TestAuthenticationKeys, TestKeypair};
+
+use super::lib::create_new_authkeys;
 
 #[derive(Debug)]
 struct CreateDelayNotifyTestVector {
@@ -44,7 +46,7 @@ struct CreateDelayNotifyTestVector {
 }
 
 async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
@@ -55,12 +57,15 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
 
     let (account_has_recovery_key, recovery_has_recovery_key) = vector.include_recovery_auth_pubkey;
 
-    let mut keys = create_auth_keyset_model(network);
+    let mut keys = create_auth_keyset_model(&mut context);
     if !account_has_recovery_key {
         keys.recovery_pubkey = None;
     }
 
-    let account = create_account(&bootstrap.services, network, Some(keys)).await;
+    let account = create_account(&mut context, &bootstrap.services, network, Some(keys)).await;
+    let account_keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .expect("Invalid keys for account");
     let query_account_id = vector.override_account_id.unwrap_or(account.clone().id);
 
     let touchpoint_id =
@@ -114,6 +119,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
             &request,
             vector.app_signed,
             vector.hw_signed,
+            &account_keys,
         )
         .await;
 
@@ -135,6 +141,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
                 &SendAccountVerificationCodeRequest { touchpoint_id },
                 vector.app_signed,
                 vector.hw_signed,
+                &account_keys,
             )
             .await;
 
@@ -153,6 +160,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
                 },
                 vector.app_signed,
                 vector.hw_signed,
+                &account_keys,
             )
             .await;
 
@@ -168,6 +176,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
                 &request,
                 vector.app_signed,
                 vector.hw_signed,
+                &account_keys,
             )
             .await;
     }
@@ -191,6 +200,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
                 &request,
                 vector.app_signed,
                 vector.hw_signed,
+                &account_keys,
             )
             .await,
         "same keys should return same response, idempotency!"
@@ -225,6 +235,7 @@ async fn create_delay_notify_test(vector: CreateDelayNotifyTestVector) {
                 &request_with_different_keys,
                 vector.app_signed,
                 vector.hw_signed,
+                &account_keys,
             )
             .await,
         "idempotency error"
@@ -453,11 +464,15 @@ struct CancelDelayNotifyTestVector {
 }
 
 async fn cancel_delay_notify_test(vector: CancelDelayNotifyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .expect("Invalid keys for account");
     if vector.create_recovery {
         let request = CreateAccountDelayNotifyRequest {
             lost_factor: vector.lost_factor,
@@ -482,6 +497,7 @@ async fn cancel_delay_notify_test(vector: CancelDelayNotifyTestVector) {
                 &request,
                 app_signed_create,
                 hw_signed_create,
+                &keys,
             )
             .await;
         assert_eq!(
@@ -517,7 +533,12 @@ async fn cancel_delay_notify_test(vector: CancelDelayNotifyTestVector) {
     }
 
     let mut response = client
-        .cancel_delay_notify_recovery(&account.id.to_string(), vector.app_signed, vector.hw_signed)
+        .cancel_delay_notify_recovery(
+            &account.id.to_string(),
+            vector.app_signed,
+            vector.hw_signed,
+            &keys,
+        )
         .await;
 
     // We expect a verification code to be required if theres a prior contest and
@@ -542,6 +563,7 @@ async fn cancel_delay_notify_test(vector: CancelDelayNotifyTestVector) {
                 &SendAccountVerificationCodeRequest { touchpoint_id },
                 vector.app_signed,
                 vector.hw_signed,
+                &keys,
             )
             .await;
 
@@ -560,6 +582,7 @@ async fn cancel_delay_notify_test(vector: CancelDelayNotifyTestVector) {
                 },
                 vector.app_signed,
                 vector.hw_signed,
+                &keys,
             )
             .await;
 
@@ -574,6 +597,7 @@ async fn cancel_delay_notify_test(vector: CancelDelayNotifyTestVector) {
                 &account.id.to_string(),
                 vector.app_signed,
                 vector.hw_signed,
+                &keys,
             )
             .await;
     }
@@ -656,12 +680,13 @@ struct CompleteDelayNotifyTestVector {
 }
 
 async fn complete_delay_notify_test(vector: CompleteDelayNotifyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
 
     // Create some touchpoints to ensure push get cleared if applicable
     create_push_touchpoint(&bootstrap.services, &account.id).await;
@@ -831,7 +856,7 @@ tests! {
 
 #[tokio::test]
 async fn complete_delay_notify_invalid_account_id() {
-    let bootstrap = gen_services().await;
+    let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let (app_auth_seckey, app_auth_pubkey) = create_plain_keys();
@@ -871,12 +896,13 @@ struct CompleteDelayNotifyIdempotencyTestVector {
 }
 
 async fn complete_delay_notify_idempotency_test(vector: CompleteDelayNotifyIdempotencyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
     let account_id = account.id.clone();
 
     // Create a pending Recovery to complete
@@ -1031,10 +1057,16 @@ struct GetStatusWithDelayNotifyTestVector {
 }
 
 async fn get_status_with_delay_notify_test(vector: GetStatusWithDelayNotifyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
     let account_id = account.id;
     let query_account_id = vector
         .override_query_account_id
@@ -1142,10 +1174,19 @@ tests! {
 
 #[tokio::test]
 async fn test_create_lost_hw_delay_notify_with_existing_hardware_auth_key() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .expect("Invalid keys for account");
     let hw_authkey = account.active_auth_keys().unwrap().hardware_pubkey;
 
     let request_with_different_keys = CreateAccountDelayNotifyRequest {
@@ -1170,6 +1211,7 @@ async fn test_create_lost_hw_delay_notify_with_existing_hardware_auth_key() {
                 &request_with_different_keys,
                 true,
                 false,
+                &keys,
             )
             .await,
         "Shouldn't be able to create a DelayNotify when the hardware authentication keys match"
@@ -1184,7 +1226,7 @@ struct UpdateDelayForTestRecoveryTestVector {
 }
 
 async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let network = if vector.is_test_account {
@@ -1192,17 +1234,33 @@ async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryT
     } else {
         Network::BitcoinMain
     };
-    let account = create_account(&bootstrap.services, network, None).await;
+    let account = create_account(&mut context, &bootstrap.services, network, None).await;
     let account_id = account.id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Invalid keys for account");
 
     let offset_dt = OffsetDateTime::now_utc();
+    let (app_auth_seckey, app_auth_pubkey) = create_keypair();
+    let (recovery_auth_seckey, recovery_auth_pubkey) = create_keypair();
+    context.add_authentication_keys(TestAuthenticationKeys {
+        app: TestKeypair {
+            public_key: app_auth_pubkey,
+            secret_key: app_auth_seckey,
+        },
+        hw: keys.hw.clone(),
+        recovery: TestKeypair {
+            public_key: recovery_auth_pubkey,
+            secret_key: recovery_auth_seckey,
+        },
+    });
     let recovery = generate_delay_and_notify_recovery(
         account_id.clone(),
         RecoveryDestination {
             source_auth_keys_id: account.common_fields.active_auth_keys_id,
-            app_auth_pubkey: create_pubkey(),
+            app_auth_pubkey,
             hardware_auth_pubkey: account.hardware_auth_pubkey,
-            recovery_auth_pubkey: Some(create_pubkey()),
+            recovery_auth_pubkey: Some(recovery_auth_pubkey),
         },
         offset_dt,
         RecoveryStatus::Pending,
@@ -1223,6 +1281,7 @@ async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryT
             },
             true,
             false,
+            &keys,
         )
         .await;
     assert_eq!(
@@ -1245,8 +1304,11 @@ async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryT
     );
 
     // TODO: Remove these tests once we don't allow the changing of the delay period in CreateDelayNotify
-    let account = create_account(&bootstrap.services, network, None).await;
+    let account = create_account(&mut context, &bootstrap.services, network, None).await;
     let account_id = account.id;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_id)
+        .expect("Invalid keys for account");
     let response = client
         .create_delay_notify_recovery(
             &account_id.to_string(),
@@ -1261,6 +1323,7 @@ async fn update_delay_for_test_recovery_test(vector: UpdateDelayForTestRecoveryT
             },
             true,
             false,
+            &keys,
         )
         .await;
     assert_eq!(
@@ -1336,28 +1399,31 @@ struct ReuseAuthPubkeyTestVector {
 }
 
 async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let fixed_cur_time = bootstrap.services.recovery_service.cur_time();
     let client = TestClient::new(bootstrap.router).await;
 
+    let other_account_keys = create_new_authkeys(&mut context);
     let other_account = create_account(
+        &mut context,
         &bootstrap.services,
         Network::BitcoinSignet,
         Some(FullAccountAuthKeys {
-            app_pubkey: create_pubkey(),
-            hardware_pubkey: create_pubkey(),
-            recovery_pubkey: Some(create_pubkey()),
+            app_pubkey: other_account_keys.app.public_key,
+            hardware_pubkey: other_account_keys.hw.public_key,
+            recovery_pubkey: Some(other_account_keys.recovery.public_key),
         }),
     )
     .await;
 
+    let other_recovery_keys = create_new_authkeys(&mut context);
     let other_recovery = generate_delay_and_notify_recovery(
         other_account.clone().id,
         RecoveryDestination {
             source_auth_keys_id: other_account.common_fields.active_auth_keys_id,
-            app_auth_pubkey: create_pubkey(),
-            hardware_auth_pubkey: create_pubkey(),
-            recovery_auth_pubkey: Some(create_pubkey()),
+            app_auth_pubkey: other_recovery_keys.app.public_key,
+            hardware_auth_pubkey: other_recovery_keys.hw.public_key,
+            recovery_auth_pubkey: Some(other_recovery_keys.recovery.public_key),
         },
         fixed_cur_time + Duration::days(7),
         RecoveryStatus::Pending,
@@ -1370,7 +1436,16 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
         .await
         .unwrap();
 
-    let account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let account_keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .expect("Invalid keys for account");
 
     let (recovery_app_pubkey, recovery_hardware_pubkey, recovery_recover_pubkey) =
         match vector.auth_key_reuse {
@@ -1459,6 +1534,7 @@ async fn reuse_auth_pubkey_test(vector: ReuseAuthPubkeyTestVector) {
             },
             vector.lost_factor == Factor::Hw,
             vector.lost_factor == Factor::App,
+            &account_keys,
         )
         .await;
 

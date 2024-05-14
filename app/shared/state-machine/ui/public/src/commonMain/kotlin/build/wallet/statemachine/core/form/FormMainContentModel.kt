@@ -1,5 +1,6 @@
 package build.wallet.statemachine.core.form
 
+import build.wallet.Progress
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
@@ -8,6 +9,7 @@ import build.wallet.statemachine.core.TimerDirection
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.datetime.DatePickerModel
+import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.list.ListGroupModel
@@ -41,6 +43,7 @@ sealed interface FormMainContentModel {
         PRIMARY,
         WARNING,
       }
+
       constructor(
         leadingIcon: Icon? = null,
         title: String?,
@@ -99,7 +102,7 @@ sealed interface FormMainContentModel {
 
       enum class SideTextTreatment { PRIMARY, SECONDARY, WARNING, STRIKETHROUGH }
 
-      data class Explainer(val title: String, val subtitle: String)
+      data class Explainer(val title: String, val subtitle: String, val iconButton: IconButtonModel? = null)
     }
   }
 
@@ -246,7 +249,7 @@ sealed interface FormMainContentModel {
   data class Timer(
     val title: String,
     val subtitle: String,
-    val timerProgress: Float,
+    val timerProgress: Progress,
     val direction: TimerDirection,
     val timerRemainingSeconds: Long,
   ) : FormMainContentModel
@@ -271,6 +274,16 @@ sealed interface FormMainContentModel {
    */
   data class Button(
     val item: ButtonModel,
+  ) : FormMainContentModel
+
+  /**
+   * A linear progress indicator with multiple labels, evenly spaced along
+   * the bottom of the bar.
+   */
+  data class StepperIndicator(
+    // TODO(W-8034): use Progress type.
+    val progress: Float,
+    val labels: ImmutableList<String>,
   ) : FormMainContentModel
 
   data object Loader : FormMainContentModel

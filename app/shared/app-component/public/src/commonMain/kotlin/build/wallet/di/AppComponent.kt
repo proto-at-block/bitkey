@@ -41,7 +41,6 @@ import build.wallet.f8e.featureflags.GetFeatureFlagsService
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagInitializer
 import build.wallet.feature.FeatureFlagSyncer
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.feature.MobileTestFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
@@ -50,6 +49,7 @@ import build.wallet.firmware.HardwareAttestation
 import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
 import build.wallet.fwup.FwupProgressCalculator
+import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import build.wallet.keybox.keys.AppKeysGenerator
@@ -64,8 +64,10 @@ import build.wallet.memfault.MemfaultService
 import build.wallet.money.currency.FiatCurrencyDao
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.F8eExchangeRateService
 import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.notifications.DeviceTokenManager
+import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -81,11 +83,15 @@ import build.wallet.platform.settings.LocaleCurrencyCodeProvider
 import build.wallet.platform.settings.LocaleLanguageCodeProvider
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.queueprocessor.PeriodicProcessor
+import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
+import build.wallet.statemachine.settings.full.device.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.time.Delayer
+import build.wallet.worker.AppWorkerExecutor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.datetime.Clock
 import kotlin.time.Duration
@@ -93,9 +99,11 @@ import kotlin.time.Duration
 interface AppComponent {
   val accountAuthenticator: AccountAuthenticator
   val accountRepository: AccountRepository
-  val allFeatureFlags: List<FeatureFlag<BooleanFlag>>
-  val allRemoteFeatureFlags: List<FeatureFlag<BooleanFlag>>
+  val allFeatureFlags: List<FeatureFlag<*>>
+  val allRemoteFeatureFlags: List<FeatureFlag<*>>
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
+  val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>
+  val appWorkerExecutor: AppWorkerExecutor
   val authenticationService: AuthenticationService
   val authTokensRepository: AuthTokensRepository
   val appCoroutineScope: CoroutineScope
@@ -183,4 +191,8 @@ interface AppComponent {
   val hardwareAttestation: HardwareAttestation
   val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider
   val analyticsTrackingPreference: AnalyticsTrackingPreference
+  val f8eExchangeRateService: F8eExchangeRateService
+  val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag
+  val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag
+  val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag
 }

@@ -11,7 +11,6 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.money.exchange.ExchangeRateSyncerMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.recovery.socrec.TrustedContactKeyAuthenticatorMock
@@ -56,14 +55,16 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
   val accountAuthTokenDao = AuthTokenDaoMock(turbines::create)
 
   val keyboxAddressDataStateMachine =
-    object : FullAccountAddressDataStateMachine, StateMachineMock<FullAccountAddressDataProps, KeyboxAddressData>(
-      KeyboxAddressDataMock
-    ) {}
+    object : FullAccountAddressDataStateMachine,
+      StateMachineMock<FullAccountAddressDataProps, KeyboxAddressData>(
+        KeyboxAddressDataMock
+      ) {}
 
   val fullAccountTransactionsDataStateMachine =
-    object : FullAccountTransactionsDataStateMachine, StateMachineMock<FullAccountTransactionsDataProps, FullAccountTransactionsData>(
-      LoadingFullAccountTransactionsData
-    ) {}
+    object : FullAccountTransactionsDataStateMachine,
+      StateMachineMock<FullAccountTransactionsDataProps, FullAccountTransactionsData>(
+        LoadingFullAccountTransactionsData
+      ) {}
 
   val awaitingNewHardwareData =
     AwaitingNewHardwareData(
@@ -72,14 +73,16 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
     )
 
   val lostHardwareRecoveryDataStateMachine =
-    object : LostHardwareRecoveryDataStateMachine, StateMachineMock<LostHardwareRecoveryProps, LostHardwareRecoveryData>(
-      awaitingNewHardwareData
-    ) {}
+    object : LostHardwareRecoveryDataStateMachine,
+      StateMachineMock<LostHardwareRecoveryProps, LostHardwareRecoveryData>(
+        awaitingNewHardwareData
+      ) {}
 
   val notificationTouchpointDataStateMachine =
-    object : NotificationTouchpointDataStateMachine, StateMachineMock<NotificationTouchpointProps, NotificationTouchpointData>(
-      NotificationTouchpointDataMock
-    ) {}
+    object : NotificationTouchpointDataStateMachine,
+      StateMachineMock<NotificationTouchpointProps, NotificationTouchpointData>(
+        NotificationTouchpointDataMock
+      ) {}
 
   val spendingWallet = SpendingWalletMock(turbines::create, KeyboxMock.activeSpendingKeyset.localId)
 
@@ -117,8 +120,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
   fun props(account: FullAccount = FullAccountMock) =
     HasActiveFullAccountDataProps(
       account = account,
-      hardwareRecovery = null,
-      currencyPreferenceData = CurrencyPreferenceDataMock
+      hardwareRecovery = null
     )
 
   test("handle rotate keys") {

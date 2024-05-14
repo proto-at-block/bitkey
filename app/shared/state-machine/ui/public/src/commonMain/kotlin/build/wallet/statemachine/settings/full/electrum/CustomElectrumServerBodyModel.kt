@@ -2,18 +2,18 @@ package build.wallet.statemachine.settings.full.electrum
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
 import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
 import build.wallet.ui.model.switch.SwitchModel
-import kotlinx.collections.immutable.toImmutableList
 
 data class CustomElectrumServerBodyModel(
   override val onBack: () -> Unit,
   val switchCardModel: SwitchCardModel,
-  val disableAlertModel: AlertModel?,
+  val disableAlertModel: ButtonAlertModel?,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = SettingsEventTrackerScreenId.SETTINGS_CUSTOM_ELECTRUM_SERVER
@@ -24,7 +24,7 @@ data class CustomElectrumServerBodyModel(
     switchIsChecked: Boolean,
     electrumServerRow: ActionRow?,
     onSwitchCheckedChange: (Boolean) -> Unit,
-    disableAlertModel: AlertModel?,
+    disableAlertModel: ButtonAlertModel?,
   ) : this(
     onBack = onBack,
     switchCardModel =
@@ -36,7 +36,7 @@ data class CustomElectrumServerBodyModel(
             checked = switchIsChecked,
             onCheckedChange = onSwitchCheckedChange
           ),
-        actionRows = listOfNotNull(electrumServerRow).toImmutableList()
+        actionRows = immutableListOfNotNull(electrumServerRow)
       ),
     disableAlertModel = disableAlertModel
   )

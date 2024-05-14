@@ -1,5 +1,6 @@
 use std::io;
 
+use opentelemetry::baggage::BaggageExt;
 use opentelemetry::trace::{SpanId, TraceContextExt};
 use serde::ser::{SerializeMap, Serializer as _};
 use serde_json::{Map, Value};
@@ -12,6 +13,8 @@ use tracing_serde::AsSerde;
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::{LookupSpan, SpanRef};
+
+use crate::APP_INSTALLATION_ID_BAGGAGE_KEY;
 
 /// Custom Json formatter written based off of discussion in
 /// https://github.com/tokio-rs/tracing/issues/1531
@@ -89,6 +92,10 @@ where
                 if let Some(trace_info) = lookup_trace_info(span_ref) {
                     serializer.serialize_entry("span_id", &trace_info.span_id)?;
                     serializer.serialize_entry("trace_id", &trace_info.trace_id)?;
+                    if let Some(app_installation_id) = trace_info.app_installation_id {
+                        serializer
+                            .serialize_entry("usr.app_installation_id", &app_installation_id)?;
+                    }
                     // Duplicate trace_id to dd.trace_id as that is Datadog's canonical field name.
                     let mut map = Map::new();
                     map.insert(String::from("trace_id"), Value::String(trace_info.trace_id));
@@ -107,6 +114,7 @@ where
 struct TraceInfo {
     pub trace_id: String,
     pub span_id: String,
+    pub app_installation_id: Option<String>,
 }
 
 fn lookup_trace_info<S>(span_ref: &SpanRef<S>) -> Option<TraceInfo>
@@ -121,6 +129,11 @@ where
             .trace_id
             .unwrap_or_else(|| o.parent_cx.span().span_context().trace_id());
         let span_id = o.builder.span_id.unwrap_or(SpanId::INVALID);
+        let app_installation_id = o
+            .parent_cx
+            .baggage()
+            .get(APP_INSTALLATION_ID_BAGGAGE_KEY)
+            .map(|a| a.to_string());
 
         TraceInfo {
             // OpenTelemetry TraceId and SpanId properties differ from Datadog conventions.
@@ -132,6 +145,7 @@ where
             // https://github.com/open-telemetry/opentelemetry-rust/blob/main/opentelemetry-datadog/src/exporter/model/v05.rs#L169-L176
             trace_id: (u128::from_be_bytes(trace_id.to_bytes()) as u64).to_string(),
             span_id: u64::from_be_bytes(span_id.to_bytes()).to_string(),
+            app_installation_id,
         }
     })
 }

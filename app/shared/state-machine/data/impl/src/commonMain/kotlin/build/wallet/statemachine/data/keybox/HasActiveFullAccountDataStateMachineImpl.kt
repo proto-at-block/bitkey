@@ -128,8 +128,7 @@ class HasActiveFullAccountDataStateMachineImpl(
               mobilePayDataStateMachine.model(
                 MobilePayProps(
                   account = props.account,
-                  transactionsData = transactionsData,
-                  fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference
+                  transactionsData = transactionsData
                 )
               )
 

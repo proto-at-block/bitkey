@@ -22,7 +22,6 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
@@ -64,9 +63,8 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.FailedToCreateSpendingKeysData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedGettingTrustedContactsData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.GettingTrustedContactsData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedRegeneratingTcCertificatesData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
@@ -88,10 +86,10 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedToCancelRecoveryState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedToCreateSpendingKeysState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.FailedToRotateAuthState
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.GettingTrustedContactsState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.PerformingCloudBackupState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.PerformingSweepState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.ReadyToCompleteRecoveryState
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.RegeneratingTcCertificatesState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.RotatingAuthKeysWithF8eState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.VerifyingNotificationCommsForCancellationState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.WaitingForDelayPeriodState
@@ -412,34 +410,22 @@ class RecoveryInProgressDataStateMachineImpl(
           physicalFactor = props.recovery.factorToRecover,
           cause = dataState.cause,
           retry = {
-            state =
-              PerformingCloudBackupState(
-                sealedCsek = dataState.sealedCsek,
-                keybox = dataState.keybox,
-                endorsedTrustedContacts = dataState.endorsedTrustedContacts
-              )
+            state = PerformingCloudBackupState(
+              sealedCsek = dataState.sealedCsek,
+              keybox = dataState.keybox
+            )
           }
         )
 
-      is GettingTrustedContactsState -> {
-        GetTrustedContactsEffect(
-          props = props,
-          dataState = dataState,
-          assignState = { newState -> state = newState }
-        )
-        GettingTrustedContactsData
-      }
-
-      is State.FailedGettingTrustedContactsState -> {
-        FailedGettingTrustedContactsData(
+      is State.FailedRegeneratingTcCertificatesState -> {
+        FailedRegeneratingTcCertificatesData(
           physicalFactor = props.recovery.factorToRecover,
-          cause = dataState.error,
+          cause = dataState.cause,
           retry = {
-            state =
-              GettingTrustedContactsState(
-                sealedCsek = dataState.sealedCsek,
-                keybox = dataState.keybox
-              )
+            state = RegeneratingTcCertificatesState(
+              sealedCsek = dataState.sealedCsek,
+              keybox = dataState.keybox
+            )
           }
         )
       }
@@ -448,7 +434,6 @@ class RecoveryInProgressDataStateMachineImpl(
         PerformingCloudBackupData(
           sealedCsek = dataState.sealedCsek,
           keybox = dataState.keybox,
-          endorsedTrustedContacts = dataState.endorsedTrustedContacts,
           onBackupFinished = {
             scope.launch {
               recoverySyncer
@@ -460,8 +445,7 @@ class RecoveryInProgressDataStateMachineImpl(
               FailedPerformingCloudBackupState(
                 cause = error,
                 sealedCsek = dataState.sealedCsek,
-                keybox = dataState.keybox,
-                endorsedTrustedContacts = dataState.endorsedTrustedContacts
+                keybox = dataState.keybox
               )
           }
         )
@@ -516,7 +500,7 @@ class RecoveryInProgressDataStateMachineImpl(
             state = ReadyToCompleteRecoveryState
           }
         )
-      is State.RegeneratingTcCertificatesState -> {
+      is RegeneratingTcCertificatesState -> {
         RegenerateTcCertificatesEffect(
           props,
           dataState = dataState,
@@ -555,69 +539,62 @@ class RecoveryInProgressDataStateMachineImpl(
   @Composable
   private fun RegenerateTcCertificatesEffect(
     props: RecoveryInProgressProps,
-    dataState: State.RegeneratingTcCertificatesState,
+    dataState: RegeneratingTcCertificatesState,
     assignState: (State) -> Unit,
   ) {
     LaunchedEffect("regenerate-tc-certificates") {
-      binding {
-        trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
-          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-          accountId = props.recovery.fullAccountId,
-          contacts = dataState.endorsedTrustedContacts,
-          oldAppGlobalAuthKey = props.oldAppGlobalAuthKey,
-          oldHwAuthKey = props.recovery.hardwareAuthKey,
-          newAppGlobalAuthKey = props.recovery.appGlobalAuthKey,
-          newAppGlobalAuthKeyHwSignature = props.recovery.appGlobalAuthKeyHwSignature
-        ).bind()
+      regenerateTcCertificates(props)
+        .onSuccess {
+          assignState(
+            PerformingCloudBackupState(
+              dataState.sealedCsek,
+              dataState.keybox
+            )
+          )
+        }
+        .onFailure {
+          assignState(
+            State.FailedRegeneratingTcCertificatesState(
+              cause = it,
+              sealedCsek = dataState.sealedCsek,
+              keybox = dataState.keybox
+            )
+          )
+        }
+    }
+  }
 
-        socRecRelationshipsRepository.syncAndVerifyRelationships(
+  private suspend fun regenerateTcCertificates(props: RecoveryInProgressProps) =
+    binding {
+      // 1. Get latest trusted contacts from f8e
+      val trustedContacts = socRecRelationshipsRepository
+        .getRelationshipsWithoutSyncing(
+          accountId = props.recovery.fullAccountId,
+          f8eEnvironment = props.fullAccountConfig.f8eEnvironment
+        )
+        .bind()
+        .endorsedTrustedContacts
+      // 2. Verify all trusted contacts with new auth keys
+      trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+        accountId = props.recovery.fullAccountId,
+        contacts = trustedContacts,
+        oldAppGlobalAuthKey = props.oldAppGlobalAuthKey,
+        oldHwAuthKey = props.recovery.hardwareAuthKey,
+        newAppGlobalAuthKey = props.recovery.appGlobalAuthKey,
+        newAppGlobalAuthKeyHwSignature = props.recovery.appGlobalAuthKeyHwSignature
+      ).bind()
+
+      // 3. Re-sync relationships and store locally
+      socRecRelationshipsRepository
+        .syncAndVerifyRelationships(
           accountId = props.recovery.fullAccountId,
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
           appAuthKey = props.recovery.appGlobalAuthKey,
           hwAuthPublicKey = props.recovery.hardwareAuthKey
-        ).bind()
-
-        assignState(
-          PerformingCloudBackupState(
-            dataState.sealedCsek,
-            dataState.keybox,
-            dataState.endorsedTrustedContacts
-          )
         )
-      }
+        .bind()
     }
-  }
-
-  @Suppress("FunctionName")
-  @Composable
-  private fun GetTrustedContactsEffect(
-    props: RecoveryInProgressProps,
-    dataState: GettingTrustedContactsState,
-    assignState: (State) -> Unit,
-  ) {
-    LaunchedEffect("get-trusted-contacts") {
-      socRecRelationshipsRepository.getRelationshipsWithoutSyncing(
-        accountId = props.recovery.fullAccountId,
-        f8eEnvironment = props.fullAccountConfig.f8eEnvironment
-      ).onSuccess { relationships ->
-        assignState(
-          State.RegeneratingTcCertificatesState(
-            sealedCsek = dataState.sealedCsek,
-            keybox = dataState.keybox,
-            endorsedTrustedContacts = relationships.endorsedTrustedContacts
-          )
-        )
-      }.onFailure { error ->
-        assignState(
-          State.FailedGettingTrustedContactsState(
-            sealedCsek = dataState.sealedCsek,
-            keybox = dataState.keybox,
-            error = error
-          )
-        )
-      }
-    }
-  }
 
   private fun createNewKeybox(
     fullAccountConfig: FullAccountConfig,
@@ -690,7 +667,7 @@ class RecoveryInProgressDataStateMachineImpl(
         )
       }
       is CreatedSpendingKeys -> {
-        GettingTrustedContactsState(
+        RegeneratingTcCertificatesState(
           sealedCsek = recovery.sealedCsek,
           keybox = createNewKeybox(fullAccountConfig, recovery, recovery.f8eSpendingKeyset)
         )
@@ -886,26 +863,17 @@ class RecoveryInProgressDataStateMachineImpl(
     ) : State
 
     /**
-     * Getting [EndorsedTrustedContact]s.
-     */
-    data class GettingTrustedContactsState(
-      val sealedCsek: SealedCsek,
-      val keybox: Keybox,
-    ) : State
-
-    data class FailedGettingTrustedContactsState(
-      val sealedCsek: SealedCsek,
-      val keybox: Keybox,
-      val error: Error,
-    ) : State
-
-    /**
      * Generating new TC certificates using updated auth keys.
      */
     data class RegeneratingTcCertificatesState(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
+    ) : State
+
+    data class FailedRegeneratingTcCertificatesState(
+      val sealedCsek: SealedCsek,
+      val keybox: Keybox,
+      val cause: Error,
     ) : State
 
     /**
@@ -914,14 +882,12 @@ class RecoveryInProgressDataStateMachineImpl(
     data class PerformingCloudBackupState(
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
     ) : State
 
     data class FailedPerformingCloudBackupState(
       val cause: Throwable?,
       val sealedCsek: SealedCsek,
       val keybox: Keybox,
-      val endorsedTrustedContacts: List<EndorsedTrustedContact>,
     ) : State
 
     /**

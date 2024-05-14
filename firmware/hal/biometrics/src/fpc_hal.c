@@ -245,6 +245,10 @@ fpc_bep_result_t fpc_sensor_wfi(uint16_t timeout_ms, fpc_bep_wfi_check_t UNUSED(
   return FPC_BEP_RESULT_OK;
 }
 
+void fpc_sensor_wfi_cancel(void) {
+  exti_signal(&fpc_config.exti);
+}
+
 bool bio_security_test(fpc_bep_security_test_result_t* test_result) {
   bool locked;
   fpc_bep_result_t result = fpc_bep_sensor_security_get_otp_locked_status(&locked);

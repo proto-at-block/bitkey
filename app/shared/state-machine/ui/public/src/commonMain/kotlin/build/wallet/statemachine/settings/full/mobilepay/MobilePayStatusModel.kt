@@ -2,18 +2,18 @@ package build.wallet.statemachine.settings.full.mobilepay
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.BodyModel
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.alert.DisableAlertModel
 import build.wallet.ui.model.switch.SwitchCardModel
 import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
 import build.wallet.ui.model.switch.SwitchModel
-import kotlinx.collections.immutable.toImmutableList
 
 data class MobilePayStatusModel(
   override val onBack: () -> Unit,
   val switchCardModel: SwitchCardModel,
-  val disableAlertModel: AlertModel?,
+  val disableAlertModel: ButtonAlertModel?,
   val spendingLimitCardModel: SpendingLimitCardModel?,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
@@ -25,7 +25,7 @@ data class MobilePayStatusModel(
     switchIsChecked: Boolean,
     onSwitchCheckedChange: (Boolean) -> Unit,
     dailyLimitRow: ActionRow?,
-    disableAlertModel: AlertModel?,
+    disableAlertModel: ButtonAlertModel?,
     spendingLimitCardModel: SpendingLimitCardModel?,
   ) : this(
     onBack = onBack,
@@ -38,7 +38,7 @@ data class MobilePayStatusModel(
             checked = switchIsChecked,
             onCheckedChange = onSwitchCheckedChange
           ),
-        actionRows = listOfNotNull(dailyLimitRow).toImmutableList()
+        actionRows = immutableListOfNotNull(dailyLimitRow)
       ),
     disableAlertModel = disableAlertModel,
     spendingLimitCardModel = spendingLimitCardModel

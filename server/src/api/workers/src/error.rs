@@ -58,6 +58,8 @@ pub enum WorkerError {
     IncorrectTouchpointType,
     #[error("Electrum client error: {0}")]
     ElectrumClientError(#[from] bdk_utils::bdk::electrum_client::Error),
+    #[error("Failed to grind coins for Signet test wallet: {0}")]
+    CoinGrinderError(String),
 }
 
 impl From<WorkerError> for ApiError {
@@ -86,7 +88,8 @@ impl From<WorkerError> for ApiError {
             | WorkerError::NotificationClientsError(_)
             | WorkerError::MetricsRegisterCallback
             | WorkerError::ElectrumClientError(_)
-            | WorkerError::IncorrectTouchpointType => {
+            | WorkerError::IncorrectTouchpointType
+            | WorkerError::CoinGrinderError(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             WorkerError::AccountNotFound => ApiError::GenericNotFound(err_msg),

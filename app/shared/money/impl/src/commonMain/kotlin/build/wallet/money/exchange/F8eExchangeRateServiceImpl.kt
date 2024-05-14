@@ -4,14 +4,17 @@ import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.logNetworkFailure
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
+import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.get
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -42,7 +45,7 @@ class F8eExchangeRateServiceImpl(
     return f8eHttpClient.authenticated(f8eEnvironment, accountId)
       .bodyResult<ResponseBody> {
         post("/api/exchange-rates/historical") {
-          setBody(HistoricalRateRequest(currencyCode, timestamps.map { it.epochSeconds }))
+          setRedactedBody(HistoricalRateRequest(currencyCode, timestamps.map { it.epochSeconds }))
         }
       }
       .map { response ->
@@ -58,13 +61,14 @@ class F8eExchangeRateServiceImpl(
     @SerialName("currency_code")
     val currencyCode: String,
     val timestamps: List<Long>,
-  )
+  ) : RedactedRequestBody
 
   @Serializable
   private data class ResponseBody(
+    @Unredacted
     @SerialName("exchange_rates")
     val exchangeRates: List<ExchangeRateDTO>,
-  )
+  ) : RedactedResponseBody
 
   @Serializable
   private data class ExchangeRateDTO(

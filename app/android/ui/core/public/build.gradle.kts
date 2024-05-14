@@ -17,8 +17,6 @@ dependencies {
   api(projects.shared.amountPublic)
   api(projects.shared.uiCorePublic)
   api(libs.android.compose.ui.core)
-  api(libs.android.voyager.navigator)
-  api(libs.android.voyager.transitions)
 
   implementation(libs.android.accompanist.system.ui.controller)
   implementation(libs.android.compose.ui.material)
@@ -28,5 +26,7 @@ dependencies {
   implementation(libs.android.io.coil.compose)
   implementation(libs.android.io.coil.svg)
   implementation(libs.android.lottie.compose)
+  implementation(libs.android.voyager.navigator)
+  implementation(libs.android.voyager.transitions)
   implementation(projects.shared.stateMachineUiPublic)
 }

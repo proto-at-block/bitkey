@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{config::Mode, service::Service, Error};
 
-static LD_UNAUTHED_USER_KIND: &str = "app_installation";
-
 #[derive(Clone)]
 pub struct Flag<'a, T> {
     pub key: &'a str,
@@ -215,19 +213,15 @@ impl TryFrom<ContextKey> for Context {
     type Error = Error;
 
     fn try_from(key: ContextKey) -> Result<Self, Self::Error> {
-        let (mut builder, kind, attrs) = match key {
+        let (mut builder, anonymous, attrs) = match key {
             ContextKey::Account(account_id, attrs) => {
-                (ContextBuilder::new(account_id), None, attrs)
+                (ContextBuilder::new(account_id), false, attrs)
             }
-            ContextKey::AppInstallation(app_installation_id, attrs) => (
-                ContextBuilder::new(app_installation_id),
-                Some(LD_UNAUTHED_USER_KIND.to_owned()),
-                attrs,
-            ),
+            ContextKey::AppInstallation(app_installation_id, attrs) => {
+                (ContextBuilder::new(app_installation_id), true, attrs)
+            }
         };
-        if let Some(kind) = kind {
-            builder.set_value("kind", AttributeValue::String(kind));
-        };
+        builder.anonymous(anonymous);
         attrs
             .into_iter()
             .map(

@@ -3,6 +3,7 @@ package build.wallet.f8e.socrec.models
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.serialization.ByteStringAsHexSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -17,4 +18,4 @@ internal data class RespondToChallengeRequestBody(
   val recoveryPakeConfirmation: ByteString,
   @SerialName("resealed_dek")
   val resealedDek: XCiphertext,
-)
+) : RedactedRequestBody

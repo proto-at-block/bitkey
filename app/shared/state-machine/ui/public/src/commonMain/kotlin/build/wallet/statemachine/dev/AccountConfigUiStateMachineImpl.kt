@@ -3,6 +3,7 @@ package build.wallet.statemachine.dev
 import androidx.compose.runtime.Composable
 import build.wallet.bitkey.account.AccountConfig
 import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.name
 import build.wallet.f8e.url
@@ -48,7 +49,7 @@ class AccountConfigUiStateMachineImpl(
       header = "Keybox Configuration",
       style = ListGroupStyle.DIVIDER,
       items =
-        buildList {
+        buildImmutableList {
           addAll(AccountConfigItems(accountConfig))
           add(
             ListItemModel(
@@ -75,10 +76,10 @@ class AccountConfigUiStateMachineImpl(
       header = "Keybox Configuration",
       style = ListGroupStyle.DIVIDER,
       items =
-        buildList {
+        buildImmutableList {
           addAll(AccountConfigItems(accountConfig))
           add(MockBitkeyItem(templateFullAccountConfigData))
-        }.toImmutableList()
+        }
     )
   }
 

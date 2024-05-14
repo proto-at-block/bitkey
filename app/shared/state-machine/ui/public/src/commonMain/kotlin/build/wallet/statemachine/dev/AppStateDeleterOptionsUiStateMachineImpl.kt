@@ -1,6 +1,7 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.config.AppVariant.Team
@@ -12,7 +13,6 @@ import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
 import build.wallet.ui.model.list.ListItemModel
-import kotlinx.collections.immutable.toImmutableList
 
 class AppStateDeleterOptionsUiStateMachineImpl(
   private val appVariant: AppVariant,
@@ -23,7 +23,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
     return ListGroupModel(
       style = ListGroupStyle.DIVIDER,
       items =
-        buildList {
+        buildImmutableList {
           when (appVariant) {
             Development, Team -> {
               ListItemModel(
@@ -76,7 +76,7 @@ class AppStateDeleterOptionsUiStateMachineImpl(
                   )
               )
           ).run(::add)
-        }.toImmutableList()
+        }
     )
   }
 }

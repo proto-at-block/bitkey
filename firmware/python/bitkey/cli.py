@@ -44,9 +44,10 @@ def cli(ctx, debug, serial_port):
 
 @cli.command()
 @click.option('--index', type=click.INT, required=False)
+@click.option('--label', type=click.STRING, required=False)
 @click.pass_context
-def start_fingerprint_enrollment(ctx, index=0):
-    result = ctx.obj.start_fingerprint_enrollment(index)
+def start_fingerprint_enrollment(ctx, index=0, label=""):
+    result = ctx.obj.start_fingerprint_enrollment(index, label)
     if result.start_fingerprint_enrollment_rsp.rsp_status == result.start_fingerprint_enrollment_rsp.start_fingerprint_enrollment_rsp_status.SUCCESS:
         click.echo("Fingerprint enrollment started")
     else:
@@ -442,6 +443,27 @@ def get_enrolled_fingerprints(ctx):
     wallet = ctx.obj
     print_proto(wallet.get_enrolled_fingerprints())
 
+
+@cli.command()
+@click.pass_context
+def get_unlock_method(ctx):
+    wallet = ctx.obj
+    print_proto(wallet.get_unlock_method())
+
+
+@cli.command()
+@click.option('--index', type=click.INT, required=True)
+@click.option('--label', type=click.STRING, required=True)
+@click.pass_context
+def set_fingerprint_label(ctx, index, label):
+    wallet = ctx.obj
+    print_proto(wallet.set_fingerprint_label(index, label))
+
+@cli.command()
+@click.pass_context
+def cancel_fingerprint_enrollment(ctx):
+    wallet = ctx.obj
+    print_proto(wallet.cancel_fingerprint_enrollment())
 
 if __name__ == "__main__":
     cli()

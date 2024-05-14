@@ -2,11 +2,14 @@ package build.wallet.statemachine.settings.full.mobilepay
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
+import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
@@ -18,9 +21,11 @@ import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
 class MobilePayStatusUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val spendingLimitCardUiStateMachine: SpendingLimitCardUiStateMachine,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MobilePayStatusUiStateMachine {
   @Composable
   override fun model(props: MobilePayUiProps): BodyModel {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     return when (val mobilePayData = props.accountData.mobilePayData) {
       is LoadingMobilePayData -> LoadingMobilePayModel()
       is MobilePayEnabledData -> {
@@ -30,7 +35,7 @@ class MobilePayStatusUiStateMachineImpl(
 
         MobilePayEnabledModel(props, mobilePayData)
       }
-      is MobilePayDisabledData -> MobilePayDisabledModel(props, mobilePayData)
+      is MobilePayDisabledData -> MobilePayDisabledModel(props, fiatCurrency, mobilePayData)
     }
   }
 
@@ -102,6 +107,7 @@ class MobilePayStatusUiStateMachineImpl(
   @Composable
   private fun MobilePayDisabledModel(
     props: MobilePayUiProps,
+    fiatCurrency: FiatCurrency,
     mobilePayData: MobilePayDisabledData,
   ) = MobilePayStatusModel(
     onBack = props.onBack,
@@ -109,7 +115,7 @@ class MobilePayStatusUiStateMachineImpl(
     onSwitchCheckedChange = {
       props.onSetLimitClick(
         // Only pass the most recent limit if it matches the current currency
-        mobilePayData.mostRecentSpendingLimit?.takeIf { it.amount.currency == props.fiatCurrency }
+        mobilePayData.mostRecentSpendingLimit?.takeIf { it.amount.currency == fiatCurrency }
       )
     },
     dailyLimitRow = null,

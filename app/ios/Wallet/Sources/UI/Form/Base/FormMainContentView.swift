@@ -70,6 +70,9 @@ public struct FormMainContentView: View {
         case let mainContentModel as FormMainContentModelMoneyHomeHero:
             MoneyHomeHeroView(viewModel: mainContentModel)
 
+        case let mainContentModel as FormMainContentModelStepperIndicator:
+            StepperView(viewModel: mainContentModel)
+
         default:
             fatalError("Unexpected form main content model")
         }

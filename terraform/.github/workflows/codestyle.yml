@@ -1,0 +1,41 @@
+name: codestyle
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.hcl'
+      - '**.tf'
+
+env:
+  CARGO_TERM_COLOR: always
+
+concurrency: ${{ github.workflow }}
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  terraform-fmt:
+    name: Format Terraform
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    environment: bitkey-codestyle-bot
+
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
+      - run: just fmt
+      - uses: ./.github/actions/create-pr-and-merge
+        with:
+          app-id: ${{ secrets.CODESTYLE_APP_ID }}
+          private-key: ${{ secrets.CODESTYLE_APP_PRIVATE_KEY }}
+          pr-title: "[bot] terraform fmt"
+          pr-body: |
+            Automated PR to fix codestyle for ${{ github.sha }}
+          pr-branch: github-actions/terraform-fmt

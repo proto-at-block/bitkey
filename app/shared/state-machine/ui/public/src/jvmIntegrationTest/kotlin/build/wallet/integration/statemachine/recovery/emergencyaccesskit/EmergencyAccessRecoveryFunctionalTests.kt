@@ -135,7 +135,10 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
 
       // Validate that this is the same wallet as originally created.
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.secondaryAmount.shouldBe("0 sats")
+        .balanceModel.apply {
+          primaryAmount.shouldBe("0 sats")
+          secondaryAmount.shouldBe("")
+        }
 
       newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
         .shouldBeEqual(spendingKeys.appKey)

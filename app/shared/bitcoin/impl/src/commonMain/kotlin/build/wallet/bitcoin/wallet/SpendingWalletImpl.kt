@@ -1,8 +1,5 @@
 package build.wallet.bitcoin.wallet
 
-import build.wallet.LoadableValue
-import build.wallet.LoadableValue.InitialLoading
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkAddressIndex
@@ -55,6 +52,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -75,15 +73,15 @@ class SpendingWalletImpl(
   private val appSessionManager: AppSessionManager,
   private val syncContext: CoroutineContext = Dispatchers.IO,
 ) : SpendingWallet {
-  private val balanceState = MutableStateFlow<LoadableValue<BitcoinBalance>>(InitialLoading)
+  private val balanceState = MutableStateFlow<BitcoinBalance?>(null)
   private val transactionsState =
-    MutableStateFlow<LoadableValue<List<BitcoinTransaction>>>(InitialLoading)
-  private val unspentOutputsState = MutableStateFlow<LoadableValue<List<BdkUtxo>>>(InitialLoading)
+    MutableStateFlow<List<BitcoinTransaction>?>(null)
+  private val unspentOutputsState = MutableStateFlow<List<BdkUtxo>?>(null)
 
   override suspend fun initializeBalanceAndTransactions() {
-    getBalance().onSuccess { balanceState.value = LoadedValue(it) }
-    getTransactions().onSuccess { transactionsState.value = LoadedValue(it) }
-    getUnspentOutputs().onSuccess { unspentOutputsState.value = LoadedValue(it) }
+    getBalance().onSuccess { balanceState.value = it }
+    getTransactions().onSuccess { transactionsState.value = it }
+    getUnspentOutputs().onSuccess { unspentOutputsState.value = it }
   }
 
   override suspend fun sync(): Result<Unit, Error> =
@@ -95,17 +93,17 @@ class SpendingWalletImpl(
       getTransactions()
         .logFailure { "Error getting transactions" }
         .bind()
-        .also { transactionsState.value = LoadedValue(it) }
+        .also { transactionsState.value = it }
 
       getBalance()
         .logFailure { "Error getting balance" }
         .bind()
-        .also { balanceState.value = LoadedValue(it) }
+        .also { balanceState.value = it }
 
       getUnspentOutputs()
         .logFailure { "Error retrieving UTXOs" }
         .bind()
-        .also { unspentOutputsState.value = LoadedValue(it) }
+        .also { unspentOutputsState.value = it }
     }
 
   override fun launchPeriodicSync(
@@ -150,11 +148,11 @@ class SpendingWalletImpl(
     return bdkWallet.isMine(scriptPubKey).result
   }
 
-  override fun balance(): Flow<LoadableValue<BitcoinBalance>> = balanceState
+  override fun balance(): Flow<BitcoinBalance> = balanceState.filterNotNull()
 
-  override fun transactions(): Flow<LoadableValue<List<BitcoinTransaction>>> = transactionsState
+  override fun transactions(): Flow<List<BitcoinTransaction>> = transactionsState.filterNotNull()
 
-  override fun unspentOutputs(): Flow<LoadableValue<List<BdkUtxo>>> = unspentOutputsState
+  override fun unspentOutputs(): Flow<List<BdkUtxo>> = unspentOutputsState.filterNotNull()
 
   private suspend fun getBalance(): Result<BitcoinBalance, Error> {
     return bdkWallet

@@ -183,7 +183,26 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 secondarySideText: "7m late",
                                 secondarySideTextType: .bold,
                                 secondarySideTextTreatment: .warning,
-                                explainer: FormMainContentModelDataList.DataExplainer(title: "Taking longer than usual", subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.")
+                                explainer: FormMainContentModelDataList.DataExplainer(
+                                    title: "Taking longer than usual",
+                                    subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                                    iconButton: IconButtonModel(
+                                        iconModel: IconModel(
+                                            iconImage: .LocalImage(icon: .smalliconinformationfilled),
+                                            iconSize: .xsmall,
+                                            iconBackgroundType: IconBackgroundTypeCircle(
+                                                circleSize: .xsmall,
+                                                color: .translucentblack
+                                            ),
+                                            iconTint: nil,
+                                            iconOpacity: 0.20,
+                                            iconTopSpacing: nil,
+                                            text: nil
+                                        ),
+                                        onClick: StandardClick {},
+                                        enabled: true
+                                    )
+                                )
                             )
                         ],
                         total: nil,

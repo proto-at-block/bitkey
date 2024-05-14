@@ -61,6 +61,7 @@ public final class iCloudDriveFileStore {
                 }
             }
         } catch {
+            log(.error, error: error) { "iCloud Drive: failed to read file=\(fileName)" }
             return error.toCloudFileStoreResultErr()
         }
     }
@@ -75,7 +76,7 @@ public final class iCloudDriveFileStore {
             
             return CloudFileStoreResultOk(value: KotlinUnit())
         } catch {
-            log(.warn) { "iCloud Drive: failed to remove file=\(fileName)" }
+            log(.warn, error: error) { "iCloud Drive: failed to remove file=\(fileName)" }
             return error.toCloudFileStoreResultErr()
         }
     }
@@ -104,19 +105,19 @@ public final class iCloudDriveFileStore {
                         
                         continuation.resume(returning: CloudFileStoreResultOk(value: KotlinUnit()))
                     } catch {
-                        log(.error) { "iCloud Drive: failed to write file=\(fileName)" }
+                        log(.error, error: error) { "iCloud Drive: failed to write file=\(fileName)" }
                         continuation.resume(throwing: error)
                     }
                 }
                 
                 // This NSFileCoordinator API is strange in that some error paths do not call the completion handler above and may not populate the error; so we must check a separate 'sentinel value' here per the documentation (see <https://developer.apple.com/documentation/foundation/nsfilecoordinator/1407416-coordinate>).
                 if writingFailed {
-                    log(.error) { "iCloud Drive: failed to write file=\(fileName)" }
+                    log(.error, error: error) { "iCloud Drive: failed to write file=\(fileName)" }
                     continuation.resume(throwing: iCloudDriveFileStoreError.writeFailed)
                 }
             }
         } catch {
-            log(.error) { "iCloud Drive: failed to write file=\(fileName)" }
+            log(.error, error: error) { "iCloud Drive: failed to write file=\(fileName)" }
             return error.toCloudFileStoreResultErr()
         }
     }
@@ -125,7 +126,7 @@ public final class iCloudDriveFileStore {
     
     private func fileURLInDocumentsFolder(_ fileName: String) throws -> URL {
         guard let iCloudDriveFolder = fileManager.url(forUbiquityContainerIdentifier: nil) else {
-            log(.warn) { "iCloud Drive: ubiquity container unavailable" }
+            log(.error) { "iCloud Drive: ubiquity container unavailable" }
             throw iCloudDriveFileStoreError.ubiquityContainerUnavailable
         }
         

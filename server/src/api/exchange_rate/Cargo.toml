@@ -27,7 +27,7 @@ account = { workspace = true }
 errors = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
-metrics = { workspace = true }
+instrumentation ={ workspace = true }
 
 [dev-dependencies]
 http = "0.2.11"

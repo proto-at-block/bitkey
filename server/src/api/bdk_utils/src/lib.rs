@@ -20,15 +20,15 @@ use bdk::wallet::AddressIndex;
 use bdk::Error::Electrum;
 use bdk::SyncOptions;
 use bdk::{bitcoin::Network, database::MemoryDatabase, Wallet};
+use tracing::{event, instrument, Level};
+use url::Url;
+
+use error::BdkUtilError;
+use errors::ApiError;
 use feature_flags::service::Service as FeatureFlagsService;
 use flags::{
     FLAG_MAINNET_ELECTRUM_RPC_URI, FLAG_SIGNET_ELECTRUM_RPC_URI, FLAG_TESTNET_ELECTRUM_RPC_URI,
 };
-use tracing::{event, instrument, Level};
-
-use error::BdkUtilError;
-use errors::ApiError;
-use url::Url;
 
 pub mod constants;
 pub mod error;
@@ -77,6 +77,18 @@ impl TransactionBroadcasterTrait for TransactionBroadcaster {
 fn as_bdk_util_err(value: bdk::Error) -> BdkUtilError {
     match value {
         Electrum(ElectrumClientError::Protocol(ref json_value)) => {
+            let error_str = json_value.as_str().unwrap_or_default();
+            let parsed_json: Result<serde_json::Value, _> = serde_json::from_str(error_str);
+
+            let json_value = match parsed_json {
+                Ok(value) => value,
+                Err(_) => {
+                    // handle values like "sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"
+                    let json_start = error_str.find('{').unwrap_or_default();
+                    let json_str = &error_str[json_start..];
+                    serde_json::from_str(json_str).unwrap_or_else(|_| json_value.clone())
+                }
+            };
             if let Some(message) = json_value["message"].as_str() {
                 // We broadcast on both App and Server, so we could get this error when the
                 // App "wins" the race. Under those circumstances, we just return a 409 and
@@ -469,7 +481,6 @@ mod tests {
     use bdk::bitcoin::Network;
     use bdk::database::{AnyDatabase, BatchOperations, MemoryDatabase};
     use bdk::descriptor::IntoWalletDescriptor;
-
     use bdk::electrum_client::Error as ElectrumClientError;
     use bdk::keys::GeneratableKey;
     use bdk::template::{Bip84, DescriptorTemplate};
@@ -619,10 +630,9 @@ mod tests {
 
     #[test]
     fn test_convert_bdk_error_to_bdk_util_error() {
-        match as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json!({
-            "code": -25,
-            "message": "bad-txns-inputs-missingorspent"
-        })))) {
+        match as_bdk_util_err(Electrum(ElectrumClientError::Protocol(json!(
+            "sendrawtransaction RPC error: {\"code\":-25,\"message\":\"bad-txns-inputs-missingorspent\"}"
+        )))) {
             BdkUtilError::TransactionAlreadyInMempoolError => assert!(true),
             _ => assert!(false),
         }

@@ -2,6 +2,7 @@ package build.wallet.statemachine.account
 
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -15,7 +16,6 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 fun AccountAccessMoreOptionsFormBodyModel(
   onBack: () -> Unit,
@@ -37,7 +37,7 @@ fun AccountAccessMoreOptionsFormBodyModel(
         listGroupModel =
           ListGroupModel(
             items =
-              listOfNotNull(
+              immutableListOfNotNull(
                 onBeTrustedContactClick?.let {
                   ListItemModel(
                     leadingAccessory =
@@ -87,7 +87,7 @@ fun AccountAccessMoreOptionsFormBodyModel(
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                   )
                 }
-              ).toImmutableList(),
+              ),
             style = ListGroupStyle.CARD_ITEM
           )
       )

@@ -1,7 +1,6 @@
 package build.wallet.limit
 
 import app.cash.turbine.test
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.keybox.FullAccountMock
@@ -252,7 +251,7 @@ class MobilePayStatusProviderImplTests : FunSpec({
         )
       )
 
-      spendingWallet.balanceFlow.value = LoadedValue(BitcoinBalance.ZeroBalance)
+      spendingWallet.balanceFlow.value = BitcoinBalance.ZeroBalance
 
       mobilePayBalanceService.mobilePayBalanceCalls.awaitItem()
       awaitItem().shouldBe(

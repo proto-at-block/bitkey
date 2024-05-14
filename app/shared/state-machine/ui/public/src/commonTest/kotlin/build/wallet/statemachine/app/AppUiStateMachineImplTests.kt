@@ -10,8 +10,6 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EakDataFake
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -64,6 +62,7 @@ import build.wallet.statemachine.root.AppUiStateMachineImpl
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.time.Delayer
+import build.wallet.worker.AppWorkerExecutorMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
@@ -111,6 +110,8 @@ class AppUiStateMachineImplTests : FunSpec({
       ) {}
   lateinit var stateMachine: AppUiStateMachineImpl
 
+  val appWorkerExecutor = AppWorkerExecutorMock(turbines::create)
+
   // Fakes are stateful, need to reinitialize before each test to reset the state.
   beforeTest {
     appDataStateMachine.reset()
@@ -124,9 +125,12 @@ class AppUiStateMachineImplTests : FunSpec({
           ) {},
         eventTracker = eventTracker,
         lostAppRecoveryUiStateMachine = recoveringKeyboxUiStateMachine,
-        homeUiStateMachine = object : HomeUiStateMachine, ScreenStateMachineMock<HomeUiProps>(id = "home") {},
-        liteHomeUiStateMachine = object : LiteHomeUiStateMachine, ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
-        chooseAccountAccessUiStateMachine = object : ChooseAccountAccessUiStateMachine, ScreenStateMachineMock<ChooseAccountAccessUiProps>(id = "account-access") {},
+        homeUiStateMachine = object : HomeUiStateMachine,
+          ScreenStateMachineMock<HomeUiProps>(id = "home") {},
+        liteHomeUiStateMachine = object : LiteHomeUiStateMachine,
+          ScreenStateMachineMock<LiteHomeUiProps>(id = "lite-home") {},
+        chooseAccountAccessUiStateMachine = object : ChooseAccountAccessUiStateMachine,
+          ScreenStateMachineMock<ChooseAccountAccessUiProps>(id = "account-access") {},
         createAccountUiStateMachine = createAccountUiStateMachine,
         appDataStateMachine = appDataStateMachine,
         noLongerRecoveringUiStateMachine = noLongerRecoveringUiStateMachine,
@@ -136,8 +140,13 @@ class AppUiStateMachineImplTests : FunSpec({
         liteAccountCloudBackupRestorationUiStateMachine =
         liteAccountCloudBackupRestorationUiStateMachine,
         emergencyAccessKitRecoveryUiStateMachine = emergencyAccessKitRecoveryUiStateMachine,
-        authKeyRotationUiStateMachine = authKeyRotationUiStateMachine
+        authKeyRotationUiStateMachine = authKeyRotationUiStateMachine,
+        appWorkerExecutor = appWorkerExecutor
       )
+  }
+
+  afterTest {
+    appWorkerExecutor.executeAllCalls.awaitItem()
   }
 
   suspend fun EventTrackerMock.awaitSplashScreenEvent() {
@@ -161,9 +170,7 @@ class AppUiStateMachineImplTests : FunSpec({
         accountData = ActiveKeyboxLoadedDataMock,
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -184,9 +191,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -214,9 +219,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -245,9 +248,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -267,9 +268,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -288,9 +287,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -308,9 +305,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {
@@ -330,9 +325,7 @@ class AppUiStateMachineImplTests : FunSpec({
           ),
         lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock,
-        currencyPreferenceData = CurrencyPreferenceDataMock,
-        eakAssociation = EakDataFake
+        firmwareData = FirmwareDataUpToDateMock
       )
     )
     stateMachine.test(Unit) {

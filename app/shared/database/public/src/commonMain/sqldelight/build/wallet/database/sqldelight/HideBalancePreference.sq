@@ -1,0 +1,15 @@
+import kotlin.Boolean;
+
+CREATE TABLE hideBalancePreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    enabled INTEGER AS Boolean NOT NULL
+);
+
+setHideBalancePreference:
+INSERT OR REPLACE INTO hideBalancePreferenceEntity(rowId, enabled)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getHideBalancePeference:
+SELECT * FROM hideBalancePreferenceEntity
+WHERE rowId = 0;

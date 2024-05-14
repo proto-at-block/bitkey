@@ -9,10 +9,11 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.recovery.GetAccountStatusService.AccountStatus
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -32,7 +33,9 @@ class GetAccountStatusServiceImpl(
   ): Result<AccountStatus, NetworkingError> {
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .bodyResult<ResponseBody> {
-        get("/api/accounts/${fullAccountId.serverId}")
+        get("/api/accounts/${fullAccountId.serverId}") {
+          withDescription("Get account status from f8e")
+        }
       }
       .map { body ->
         val appBitcoinPublicKey = AppSpendingPublicKey(dpub = body.spending.appDpub)
@@ -56,7 +59,6 @@ class GetAccountStatusServiceImpl(
           )
         )
       }
-      .logNetworkFailure { "Failed to get account status from f8e" }
   }
 
   @Serializable
@@ -75,5 +77,5 @@ class GetAccountStatusServiceImpl(
     val sourceServerSpendingKeysetId: String,
     @SerialName("spending")
     val spending: Spending,
-  )
+  ) : RedactedResponseBody
 }

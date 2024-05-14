@@ -60,11 +60,13 @@ import build.wallet.statemachine.core.Icon.SmallIconDigitTwo
 import build.wallet.statemachine.core.Icon.SmallIconElectrum
 import build.wallet.statemachine.core.Icon.SmallIconEmail
 import build.wallet.statemachine.core.Icon.SmallIconExternal
+import build.wallet.statemachine.core.Icon.SmallIconFingerprint
 import build.wallet.statemachine.core.Icon.SmallIconInformation
 import build.wallet.statemachine.core.Icon.SmallIconInformationFilled
 import build.wallet.statemachine.core.Icon.SmallIconKey
 import build.wallet.statemachine.core.Icon.SmallIconKeyboard
 import build.wallet.statemachine.core.Icon.SmallIconLightning
+import build.wallet.statemachine.core.Icon.SmallIconLock
 import build.wallet.statemachine.core.Icon.SmallIconMessage
 import build.wallet.statemachine.core.Icon.SmallIconMinus
 import build.wallet.statemachine.core.Icon.SmallIconMinusFilled
@@ -163,11 +165,13 @@ private val Icon.drawableRes
       SmallIconElectrum -> R.drawable.small_icon_electrum
       SmallIconEmail -> R.drawable.small_icon_email
       SmallIconExternal -> R.drawable.small_icon_external
+      SmallIconFingerprint -> R.drawable.small_icon_fingerprint
       SmallIconInformation -> R.drawable.small_icon_information
       SmallIconInformationFilled -> R.drawable.small_icon_information_filled
       SmallIconKey -> R.drawable.small_icon_key
       SmallIconKeyboard -> R.drawable.small_icon_keyboard
       SmallIconLightning -> R.drawable.small_icon_lightning
+      SmallIconLock -> R.drawable.small_icon_lock
       SmallIconMessage -> R.drawable.small_icon_message
       SmallIconMinus -> R.drawable.small_icon_minus
       SmallIconMinusFilled -> R.drawable.small_icon_minus_filled

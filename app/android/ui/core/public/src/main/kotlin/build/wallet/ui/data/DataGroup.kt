@@ -16,10 +16,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.layout.Divider
+import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconBackgroundType
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.tooling.PreviewWalletTheme
 
 @Composable
@@ -162,7 +169,19 @@ fun DataGroupWithLateTransactionPreview() {
                 explainer =
                   Data.Explainer(
                     title = "Taking longer than usual",
-                    subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee."
+                    subtitle = "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
+                    iconButton = IconButtonModel(
+                      iconModel = IconModel(
+                        icon = Icon.SmallIconInformationFilled,
+                        iconSize = IconSize.XSmall,
+                        iconBackgroundType = IconBackgroundType.Circle(
+                          circleSize = IconSize.XSmall
+                        ),
+                        iconTint = IconTint.Foreground,
+                        iconOpacity = 0.20f
+                      ),
+                      onClick = StandardClick { }
+                    )
                   )
               )
             )

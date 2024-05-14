@@ -3,7 +3,7 @@
 ## Running WSM on your desktop for development/testing
 1. Use the aws CLI to create a local DDB table called `wsm_customer_keys` with a partition key called `root_key_id`.
 2. in one terminal window (or tmux frame or whatever floats your boat) do `ROCKET_PROFILE=test ROCKET_PORT=7446 cargo run --bin wsm-enclave`. The `test` profile uses a mocked KMS.
-3. in another terminal window (or screen frame or whatever floats your boat) do `ROCKET_PROFILE=test ROCKET_PORT=8446 AWS_PROFILE=w1-development--admin AWS_REGION=us-west-2 cargo run --bin wsm-api`
+3. in another terminal window (or screen frame or whatever floats your boat) do `ROCKET_PROFILE=test ROCKET_PORT=8446 AWS_PROFILE=bitkey-development--admin AWS_REGION=us-west-2 cargo run --bin wsm-api`
 4. in a third terminal window (or emacs `ansi-term` frame or whatever floats your boat) do `curl -H 'Content-Type: application/json' -d '{"root_key_id": "hello", "network": "signet"}' localhost:8446/create-key` and you will see that your fake wsm has created a key!
 
 ## Running WSM Tests

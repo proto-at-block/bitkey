@@ -12,6 +12,9 @@
 #define CALIBRATION_PATH    ("fpc-calibration.bin")
 #define AUTH_TIMESTAMP_PATH ("auth-timestamp.bin")
 
+#define BIO_LABELS_PATH_LEN    (sizeof("bio-label-.bin") + 2)
+#define BIO_LABELS_PATH_FORMAT ("bio-label-%02d.bin")
+
 // Biometrics anti-replay key (BARK)
 #define BARK_PATH           ("fpc-wrapped-bark.bin")
 #define BARK_PLAINTEXT_PATH ("fpc-plaintext-bark.bin")
@@ -58,6 +61,7 @@ out:
   return result;
 }
 
+// Writes data to a file, truncating the file if it already exists.
 static bool save_data(char* filename, uint8_t* data, uint32_t size) {
   ASSERT(data && size > 0);
   bool result = false;
@@ -67,6 +71,13 @@ static bool save_data(char* filename, uint8_t* data, uint32_t size) {
   if (ret != 0) {
     LOGE("Failed to open %s\n", filename);
     return false;
+  }
+
+  if (fs_file_exists(filename)) {
+    if (fs_file_truncate(file, 0) != 0) {
+      LOGE("Failed to truncate file");
+      goto out;
+    }
   }
 
   if (fs_file_write(file, data, size) != (int32_t)size) {
@@ -252,15 +263,18 @@ fail:
   return false;
 }
 
+static bool bio_template_file_exists(bio_template_id_t id) {
+  char filename[TEMPLATE_PATH_LEN] = {0};
+  snprintf(filename, sizeof(filename), TEMPLATE_PATH_FORMAT, id);
+  return fs_file_exists(filename);
+}
+
 void bio_storage_get_template_count(uint32_t* count) {
   ASSERT(count);
 
   *count = 0;
-
-  char filename[TEMPLATE_PATH_LEN] = {0};
   for (bio_template_id_t id = 0; id < TEMPLATE_MAX_COUNT; id++) {
-    snprintf(filename, sizeof(filename), TEMPLATE_PATH_FORMAT, id);
-    if (fs_file_exists(filename)) {
+    if (bio_template_file_exists(id)) {
       (*count)++;
     }
   }
@@ -270,6 +284,13 @@ bool bio_fingerprint_exists(void) {
   uint32_t count = 0;
   bio_storage_get_template_count(&count);
   return (count > 0);
+}
+
+bool bio_fingerprint_index_exists(bio_template_id_t id) {
+  if (!bio_storage_template_id_valid(id)) {
+    return false;
+  }
+  return bio_template_file_exists(id);
 }
 
 bool bio_storage_timestamp_retrieve(uint32_t* timestamp_out) {
@@ -316,6 +337,8 @@ bio_err_t bio_storage_delete_template(bio_template_id_t id) {
     return BIO_ERR_TEMPLATE_INVALID;
   }
 
+  // Delete template file
+
   char filename[TEMPLATE_PATH_LEN] = {0};
   snprintf(filename, sizeof(filename), TEMPLATE_PATH_FORMAT, id);
 
@@ -326,19 +349,84 @@ bio_err_t bio_storage_delete_template(bio_template_id_t id) {
 
   if (fs_remove(filename) >= 0) {
     LOGD("Deleted template %d", id);
-    return BIO_ERR_NONE;
   } else {
     LOGE("Failed to delete template %d", id);
     return BIO_ERR_GENERIC;
   }
+
+  // Delete label file
+
+  snprintf(filename, sizeof(filename), BIO_LABELS_PATH_FORMAT, id);
+
+  if (!fs_file_exists(filename)) {
+    LOGE("Label %d does not exist", id);
+    return BIO_ERR_LABEL_DOESNT_EXIST;
+  }
+
+  if (fs_remove(filename) >= 0) {
+    LOGD("Deleted label %d", id);
+  } else {
+    LOGE("Failed to delete label %d", id);
+    return BIO_ERR_GENERIC;
+  }
+
+  return BIO_ERR_NONE;
+}
+
+bool bio_storage_label_save(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN]) {
+  if (!bio_storage_template_id_valid(id) || label == NULL) {
+    return false;
+  }
+
+  char filename[BIO_LABELS_PATH_LEN] = {0};
+  snprintf(filename, sizeof(filename), BIO_LABELS_PATH_FORMAT, id);
+
+  return save_data(filename, (uint8_t*)label, strnlen(label, BIO_LABEL_MAX_LEN));
+}
+
+bool bio_storage_label_retrieve(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN]) {
+  if (!bio_storage_template_id_valid(id) || label == NULL) {
+    return false;
+  }
+
+  char filename[BIO_LABELS_PATH_LEN] = {0};
+  snprintf(filename, sizeof(filename), BIO_LABELS_PATH_FORMAT, id);
+
+  fs_file_t* file = NULL;
+  int ret = fs_open_global(&file, filename, FS_O_RDONLY);
+  if (ret != 0) {
+    LOGE("Failed to open file: %d", ret);
+    return false;
+  }
+
+  int32_t size = fs_file_size(file);
+  if (size <= 0 || size > BIO_LABEL_MAX_LEN) {
+    LOGE("Bad file size: %" PRId32, size);
+    (void)fs_close_global(file);
+    return false;
+  }
+
+  ret = (int)fs_file_read(file, (uint8_t*)label, size);
+  if (ret != size) {
+    LOGE("Partial read: %d", ret);
+    (void)fs_close_global(file);
+    return false;
+  }
+
+  label[size] = '\0';
+
+  (void)fs_close_global(file);
+  return true;
 }
 
 void bio_wipe_state(void) {
-  fs_remove("fpc-template-00.bin");
-  fs_remove("fpc-template-01.bin");
-  fs_remove("fpc-template-02.bin");
-  fs_remove("fpc-template-03.bin");
-  fs_remove("fpc-template-04.bin");
-  fs_remove("fpc-template-05.bin");
-  fs_remove("fpc-template-06.bin");
+  char filename[TEMPLATE_PATH_LEN];
+
+  for (int id = 0; id < (TEMPLATE_MAX_COUNT + 3); id++) {
+    snprintf(filename, sizeof(filename), TEMPLATE_PATH_FORMAT, id);
+    fs_remove(filename);
+
+    snprintf(filename, sizeof(filename), BIO_LABELS_PATH_FORMAT, id);
+    fs_remove(filename);
+  }
 }

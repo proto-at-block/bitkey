@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin-idea",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-idea-1.9.10.jar": "0bb26ccee372afb9b584f2857e87cc2f3f532b62a4f7fa457558f3afc3abe995"
+                        "kotlin-gradle-plugin-idea-1.9.22.jar": "8d1af87632d95148f122a9fa0ae2903c19ee6fab7d01e017f76e0d2c9a022c20"
                     }
                 }
             ],

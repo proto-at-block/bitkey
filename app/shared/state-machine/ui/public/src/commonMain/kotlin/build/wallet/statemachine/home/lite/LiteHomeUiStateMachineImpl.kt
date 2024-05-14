@@ -109,16 +109,14 @@ class LiteHomeUiStateMachineImpl(
 
           Settings ->
             liteSettingsHomeUiStateMachine.model(
-              props =
-                LiteSettingsHomeUiProps(
-                  accountData = props.accountData,
-                  currencyPreferenceData = props.currencyPreferenceData,
-                  firmwareData = props.firmwareData,
-                  protectedCustomers = socRecRelationships.protectedCustomers,
-                  homeStatusBannerModel = homeStatusBannerModel,
-                  socRecTrustedContactActions = socRecLiteAccountActions,
-                  onBack = { uiState = uiState.copy(rootScreen = MoneyHome) }
-                )
+              props = LiteSettingsHomeUiProps(
+                accountData = props.accountData,
+                firmwareData = props.firmwareData,
+                protectedCustomers = socRecRelationships.protectedCustomers,
+                homeStatusBannerModel = homeStatusBannerModel,
+                socRecTrustedContactActions = socRecLiteAccountActions,
+                onBack = { uiState = uiState.copy(rootScreen = MoneyHome) }
+              )
             )
         }
       }

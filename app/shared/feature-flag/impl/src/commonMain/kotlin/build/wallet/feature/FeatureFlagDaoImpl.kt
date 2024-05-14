@@ -31,7 +31,27 @@ class FeatureFlagDaoImpl(
               BooleanFlag(value = it) as T
             }
           }
-      else -> TODO("Not yet implemented")
+      FeatureFlagValue.DoubleFlag::class ->
+        database.doubleFeatureFlagQueries
+          .getFlag(featureFlagId)
+          .awaitAsOneOrNullResult()
+          .map {
+            it?.let {
+              @Suppress("UNCHECKED_CAST")
+              FeatureFlagValue.DoubleFlag(value = it) as T
+            }
+          }
+      FeatureFlagValue.StringFlag::class ->
+        database.stringFeatureFlagQueries
+          .getFlag(featureFlagId)
+          .awaitAsOneOrNullResult()
+          .map {
+            it?.let {
+              @Suppress("UNCHECKED_CAST")
+              FeatureFlagValue.StringFlag(value = it) as T
+            }
+          }
+      else -> error("Unsupported flag type: $kClass")
     }
   }
 
@@ -45,8 +65,17 @@ class FeatureFlagDaoImpl(
           .awaitTransaction {
             setFlag(featureFlagId, flagValue.value)
           }
-
-      else -> TODO("Not yet implemented")
+      is FeatureFlagValue.DoubleFlag ->
+        database.doubleFeatureFlagQueries
+          .awaitTransaction {
+            setFlag(featureFlagId, flagValue.value)
+          }
+      is FeatureFlagValue.StringFlag ->
+        database.stringFeatureFlagQueries
+          .awaitTransaction {
+            setFlag(featureFlagId, flagValue.value)
+          }
+      else -> error("Unsupported flag type: ${flagValue::class}")
     }
   }
 

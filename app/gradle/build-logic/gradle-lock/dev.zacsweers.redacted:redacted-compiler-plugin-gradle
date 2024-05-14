@@ -2,11 +2,11 @@
     "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-gradle",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-gradle-1.7.1.jar": "83bc815cef3edefc346ddef4a967664eb44d07654e9c5e56c4e94b8d4cbaef07"
+                        "redacted-compiler-plugin-gradle-1.8.0.jar": "07379906024d61a50c38055d0689ef8c4e2f26b79c54cc831b6fcb63826ec67a"
                     }
                 }
             ],

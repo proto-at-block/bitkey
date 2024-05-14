@@ -8,12 +8,8 @@ import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_NOT_STARTED
-import build.wallet.money.currency.USD
-import build.wallet.money.display.BitcoinDisplayUnit
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncer
@@ -71,8 +67,7 @@ class RecoveryTestingStateMachine(
     val data =
       dsm.model(
         AccountDataProps(
-          templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(fullAccountConfig) {},
-          currencyPreferenceData = CurrencyPreferenceData(BitcoinDisplayUnit.Satoshi, {}, USD) {}
+          templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(fullAccountConfig) {}
         )
       )
     return when (data) {
@@ -92,9 +87,7 @@ class RecoveryTestingStateMachine(
         usm.model(
           LostAppRecoveryUiProps(
             recoveryData = data.lostAppRecoveryData,
-            fullAccountConfig = data.templateFullAccountConfig,
-            fiatCurrency = USD,
-            eakAssociation = EakDataFake
+            fullAccountConfig = data.templateFullAccountConfig
           )
         )
 

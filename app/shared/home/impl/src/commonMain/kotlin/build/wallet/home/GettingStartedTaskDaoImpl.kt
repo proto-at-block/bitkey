@@ -7,7 +7,6 @@ import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitAsListResult
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.mapOr
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -21,7 +20,6 @@ class GettingStartedTaskDaoImpl(
     databaseProvider.database().gettingStartedTaskQueries
       .allGettingStartedTasks()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .transformLatest { queryResult ->
         queryResult
           .logFailure { "Failed to read onboarding task from database" }

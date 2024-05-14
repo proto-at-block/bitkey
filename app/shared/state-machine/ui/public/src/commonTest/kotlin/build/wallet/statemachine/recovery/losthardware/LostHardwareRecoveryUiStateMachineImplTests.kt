@@ -5,7 +5,6 @@ import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.money.currency.USD
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -55,7 +54,6 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
           addHardwareKeys = { _, _, _ -> }
         ),
       screenPresentationStyle = Modal,
-      fiatCurrency = USD,
       instructionsStyle = InstructionsStyle.Independent,
       onFoundHardware = {},
       onExit = {

@@ -1,7 +1,6 @@
 package build.wallet.statemachine.start
 
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.test
@@ -32,17 +31,15 @@ class GettingStartedRoutingStateMachineTests : FunSpec({
 
   test("Load backup") {
     stateMachine.test(
-      props =
-        GettingStartedRoutingProps(
-          startIntent = AccountData.StartIntent.RestoreBitkey,
-          eakAssociation = EakDataFake,
-          onStartLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
-          onStartLiteAccountRecovery = { startLiteAccountRecoveryCalls.add(Unit) },
-          onStartCloudRecovery = { startCloudRecoveryCalls.add(Unit) },
-          onStartLostAppRecovery = { startLostAppRecoveryCalls.add(Unit) },
-          onImportEmergencyAccessKit = { importEmergencyAccessKitCalls.add(Unit) },
-          onExit = { onExitCalls.add(Unit) }
-        )
+      props = GettingStartedRoutingProps(
+        startIntent = AccountData.StartIntent.RestoreBitkey,
+        onStartLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
+        onStartLiteAccountRecovery = { startLiteAccountRecoveryCalls.add(Unit) },
+        onStartCloudRecovery = { startCloudRecoveryCalls.add(Unit) },
+        onStartLostAppRecovery = { startLostAppRecoveryCalls.add(Unit) },
+        onImportEmergencyAccessKit = { importEmergencyAccessKitCalls.add(Unit) },
+        onExit = { onExitCalls.add(Unit) }
+      )
     ) {
       awaitItem().body
         .shouldBeInstanceOf<BodyModelMock<AccessCloudBackupUiProps>>()

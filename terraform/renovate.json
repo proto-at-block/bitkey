@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":preserveSemverRanges",
+    ":disableRateLimiting",
+    ":disableDependencyDashboard"
+  ],
+  "minimumReleaseAge": "120 days",
+  "enabledManagers": ["hermit", "dockerfile", "docker-compose", "tflint-plugin", "pip_requirements", "github-actions"],
+  "labels": ["dependencies", "task-list-completed-disable"],
+  "platformCommit": true
+}

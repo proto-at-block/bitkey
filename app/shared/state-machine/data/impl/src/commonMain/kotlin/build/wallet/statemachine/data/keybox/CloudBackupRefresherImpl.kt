@@ -78,8 +78,7 @@ class CloudBackupRefresherImpl(
             is NeedsUpdate -> {
               refreshCloudBackup(
                 fullAccount = fullAccount,
-                hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek,
-                endorsedTrustedContacts = trustedContacts
+                hwekEncryptedPkek = storedBackupState.hwekEncryptedPkek
               ).onSuccess {
                 log { "Refreshed cloud backup ${trustedContacts.size}" }
               }.bind()
@@ -152,7 +151,6 @@ class CloudBackupRefresherImpl(
   private suspend fun refreshCloudBackup(
     fullAccount: FullAccount,
     hwekEncryptedPkek: SealedCsek,
-    endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<Unit, Error> =
     binding {
       // Get the customer's cloud store account.
@@ -167,14 +165,9 @@ class CloudBackupRefresherImpl(
           .bind()
 
       // Create a new cloud backup.
-      val cloudBackup =
-        fullAccountCloudBackupCreator
-          .create(
-            keybox = fullAccount.keybox,
-            sealedCsek = hwekEncryptedPkek,
-            endorsedTrustedContacts = endorsedTrustedContacts
-          )
-          .bind()
+      val cloudBackup = fullAccountCloudBackupCreator
+        .create(keybox = fullAccount.keybox, sealedCsek = hwekEncryptedPkek)
+        .bind()
 
       // Upload new cloud backup to the cloud.
       cloudBackupRepository.writeBackup(

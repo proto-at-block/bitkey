@@ -1,0 +1,73 @@
+name: Build Atlantis
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/atlantis.yml'
+      - 'atlantis/**'
+      # Keep these Hermit filters specific as we want to minimize Atlantis disruptions
+      - 'bin/terragrunt'
+      - 'bin/terraform'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/atlantis.yml'
+      - 'atlantis/**'
+      # Keep these Hermit filters specific as we want to minimize Atlantis disruptions
+      - 'bin/terragrunt'
+      - 'bin/terraform'
+
+jobs:
+  build:
+    name: Build and Push Atlantis Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
+      - uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3
+        with:
+          install: true
+      - name: Build Image
+        run: just build
+        working-directory: atlantis
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4
+        with:
+          aws-region: us-west-2
+          role-to-assume: arn:aws:iam::000000000000:role/gha-atlantis-push-to-ecr
+        if: github.ref == 'refs/heads/main'
+      - name: Push Image
+        run: just push
+        working-directory: atlantis
+        if: github.ref == 'refs/heads/main'
+  update-deployed-image:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+    if: github.ref == 'refs/heads/main'
+    needs:
+      - build
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4
+      - uses: cashapp/activate-hermit@e49f5cb4dd64ff0b0b659d1d8df499595451155a  # v1
+      - name: Update Atlantis tag in code
+        run: just update-tag
+        working-directory: atlantis
+      - name: Make PR
+        uses: peter-evans/create-pull-request@8c75f4ab5fd3ac90814032241d54008c690ed855
+        with:
+          commit-message: Update Atlantis image
+          title: Update Atlantis image
+          body: |
+            Automated PR to update the Atlantis image pushed for ${{ github.sha }}
+
+            Make sure to comment `atlantis apply` to apply the change before merging!
+          add-paths: aws/bitkey/prod/shared/atlantis/service/terragrunt.hcl
+          base: main
+          branch: github-actions/update-atlantis-image

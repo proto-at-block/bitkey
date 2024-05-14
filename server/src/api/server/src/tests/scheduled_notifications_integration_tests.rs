@@ -14,7 +14,8 @@ use notification::{
         FetchForAccountInput, FetchScheduledForWindowInput, PersistScheduledNotificationsInput,
         ScheduleNotificationsInput,
     },
-    DeliveryStatus, NotificationPayload, NotificationPayloadBuilder, NotificationPayloadType,
+    DeliveryStatus, NotificationMessage, NotificationPayload, NotificationPayloadBuilder,
+    NotificationPayloadType,
 };
 use queue::sqs::SqsQueue;
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
@@ -23,11 +24,10 @@ use types::account::identifiers::AccountId;
 use crate::{
     create_bootstrap, tests,
     tests::{
-        gen_services, lib::create_default_account_with_predefined_wallet,
-        requests::axum::TestClient,
-    },
-    tests::{
+        gen_services,
+        lib::create_default_account_with_predefined_wallet,
         lib::{create_phone_touchpoint, create_push_touchpoint},
+        requests::axum::TestClient,
         requests::worker::TestWorker,
     },
 };
@@ -103,52 +103,52 @@ tests! {
         expected_num: 1,
     },
     test_multiple_notification_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-18:0", "01:00:00:000000", "2022-12-18T01:00:00.000000Z"), ("2022-12-18:0", "01:01:00:000000", "2022-12-18T01:01:00.000000Z")],
+        entries: vec![("2022-11-18:0", "01:00:00:000000", "2022-11-18T01:00:00.000000Z"), ("2022-11-18:0", "01:01:00:000000", "2022-11-18T01:01:00.000000Z")],
         account_id: AccountId::gen().unwrap(),
         status: DeliveryStatus::New,
-        cur_time: "2022-12-18T01:02:00.000000Z",
+        cur_time: "2022-11-18T01:02:00.000000Z",
         expected_num: 2,
     },
     test_multiple_notification_outside_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-18:0", "01:00:00:000000", "2022-12-18T01:00:00.000000Z"), ("2022-12-18:0", "01:01:00:000000", "2022-12-18T01:01:00.000000Z")],
+        entries: vec![("2022-10-18:0", "01:00:00:000000", "2022-10-18T01:00:00.000000Z"), ("2022-10-18:0", "01:01:00:000000", "2022-10-18T01:01:00.000000Z")],
         account_id: AccountId::gen().unwrap(),
         status: DeliveryStatus::New,
-        cur_time: "2022-12-18T02:00:00.000000Z",
+        cur_time: "2022-10-18T02:00:00.000000Z",
         expected_num: 0,
     },
     test_multiple_notification_one_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-18:0", "01:00:00:000000", "2022-12-18T01:00:00.000000Z"), ("2022-12-18:0", "01:06:00:000000", "2022-12-18T01:06:00.000000Z")],
+        entries: vec![("2022-09-18:0", "01:00:00:000000", "2022-09-18T01:00:00.000000Z"), ("2022-09-18:0", "01:06:00:000000", "2022-09-18T01:06:00.000000Z")],
         account_id: AccountId::gen().unwrap(),
         status: DeliveryStatus::New,
-        cur_time: "2022-12-18T01:11:00.000000Z",
+        cur_time: "2022-09-18T01:11:00.000000Z",
         expected_num: 1,
     },
     test_multiple_notification_midnight_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-17:0", "23:59:00:000000", "2022-12-17T23:59:00.000000Z"), ("2022-12-18:0", "00:01:00:000000", "2022-12-18T00:01:00.000000Z")],
+        entries: vec![("2022-08-17:0", "23:59:00:000000", "2022-08-17T23:59:00.000000Z"), ("2022-08-18:0", "00:01:00:000000", "2022-08-18T00:01:00.000000Z")],
         account_id: AccountId::gen().unwrap(),
         status: DeliveryStatus::New,
-        cur_time: "2022-12-18T00:02:00.000000Z",
+        cur_time: "2022-08-18T00:02:00.000000Z",
         expected_num: 2,
     },
     test_processing_notifications_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-17:0", "23:59:00:000000", "2022-12-17T23:59:00.000000Z"), ("2022-12-18:0", "00:01:00:000000", "2022-12-18T00:01:00.000000Z")],
+        entries: vec![("2022-07-17:0", "23:59:00:000000", "2022-07-17T23:59:00.000000Z"), ("2022-07-18:0", "00:01:00:000000", "2022-07-18T00:01:00.000000Z")],
         account_id: AccountId::gen().unwrap(),
         status: DeliveryStatus::Enqueued,
-        cur_time: "2022-12-18T00:02:00.000000Z",
+        cur_time: "2022-07-18T00:02:00.000000Z",
         expected_num: 0,
     },
     test_completed_notifications_within_window: FetchScheduledNotificationsTestVector {
-        entries: vec![("2022-12-17:0", "23:59:00:000000", "2022-12-17T23:59:00.000000Z"), ("2022-12-18:0", "00:01:00:000000", "2022-12-18T00:01:00.000000Z")],
+        entries: vec![("2022-06-17:0", "23:59:00:000000", "2022-06-17T23:59:00.000000Z"), ("2022-06-18:0", "00:01:00:000000", "2022-06-18T00:01:00.000000Z")],
         account_id: AccountId::gen().unwrap(),
         status: DeliveryStatus::Completed,
-        cur_time: "2022-12-18T00:02:00.000000Z",
+        cur_time: "2022-06-18T00:02:00.000000Z",
         expected_num: 0,
     },
 }
 
 #[tokio::test]
 async fn test_scheduled_handler() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
     let state = workers::jobs::WorkerState {
         config: http_server::config::extract(None).unwrap(),
@@ -163,7 +163,8 @@ async fn test_scheduled_handler() {
     let worker = TestWorker::new(state.clone()).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
     let account_id = account.id;
     // Create multiple touchpoints
     create_push_touchpoint(&bootstrap.services, &account_id).await;
@@ -242,7 +243,9 @@ async fn test_scheduled_handler() {
     let customer_notifications = bootstrap
         .services
         .notification_service
-        .fetch_customer_for_account(FetchForAccountInput { account_id })
+        .fetch_customer_for_account(FetchForAccountInput {
+            account_id: account_id.clone(),
+        })
         .await
         .unwrap();
     assert_eq!(customer_notifications.len(), 4);
@@ -254,7 +257,18 @@ async fn test_scheduled_handler() {
         .all(|n| matches!(n.touchpoint, NotificationTouchpoint::Push { .. })));
 
     if let SqsQueue::Test(messages) = bootstrap.services.sqs {
-        assert_eq!(messages.lock().unwrap().len(), 4);
+        let num_customer_messages = messages
+            .lock()
+            .unwrap()
+            .clone()
+            .iter()
+            .filter(|m| {
+                let message =
+                    serde_json::from_str::<NotificationMessage>(m.body.as_ref().unwrap()).unwrap();
+                message.account_id == account_id
+            })
+            .count();
+        assert_eq!(num_customer_messages, 4);
     } else {
         panic!("Expected sqs queue to be in test mode");
     }

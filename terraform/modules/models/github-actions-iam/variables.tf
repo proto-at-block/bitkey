@@ -27,6 +27,18 @@ variable "enable_push_role_for_pull_requests" {
   default     = false
 }
 
+variable "enable_ecr_pull_role" {
+  description = "Whether to enable to enable the gha-pull-from-ecr role for the account, assumable by all GitHub Actions in the repository"
+  type        = bool
+  default     = false
+}
+
+variable "enable_atlantis_ecr_push_role" {
+  description = "Whether to enable to enable the gha-atlantis-push-to-ecr role for the account, allowing the squareup/bitkey-terraform repo to push to the atlantis ECR repo"
+  type        = bool
+  default     = false
+}
+
 variable "state_bucket" {
   type        = string
   description = "Name of the bucket that terraform state is stored in"

@@ -48,4 +48,19 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerScreenIdContext {
 
   /** Debug menu NFC flows */
   DEBUG,
+
+  /** Retrieving enrolled fingerprints */
+  GET_ENROLLED_FINGERPRINTS,
+
+  /** Updating the fingerprint label for an existing fingerprint */
+  SAVE_FINGERPRINT_LABEL,
+
+  /** Deleting an enrolled fingerprint. */
+  DELETE_FINGERPRINT,
+
+  /** Enrolling an additional fingerprint */
+  ENROLLING_NEW_FINGERPRINT,
+
+  /** Checking the enrollment status of an additional fingerprint. */
+  CHECKING_FINGERPRINT_ENROLLMENT_STATUS,
 }

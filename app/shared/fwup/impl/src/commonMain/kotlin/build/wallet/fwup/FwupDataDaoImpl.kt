@@ -4,10 +4,8 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FwupDataEntity
 import build.wallet.db.DbError
 import build.wallet.logging.logFailure
-import build.wallet.map
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.Flow
@@ -27,10 +25,9 @@ class FwupDataDaoImpl(
       .asFlowOfOneOrNull()
       .map { result ->
         result
-          .map { value -> value.map { it?.toFwupData() } }
+          .map { it?.toFwupData() }
           .logFailure { "Failed to get fwup data" }
       }
-      .unwrapLoadedValue()
       .distinctUntilChanged()
   }
 

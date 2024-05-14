@@ -14,6 +14,7 @@ import androidx.compose.material.LinearProgressIndicator as MaterialLinearProgre
 @Composable
 fun LinearProgressIndicator(
   modifier: Modifier = Modifier,
+  // TODO(W-8034): use Progress type.
   progress: Float,
   indicatorColor: Color = WalletTheme.colors.primary,
   backgroundColor: Color = WalletTheme.colors.foreground10,

@@ -52,6 +52,6 @@ module "auto_confirm_user_lambda" {
   cognito_user_pool_arn = var.cognito_user_pool_arn
   source_dir            = "${path.module}/auto-confirm-user-lambda"
   handler               = "index.handler"
-  runtime               = "nodejs16.x"
+  runtime               = "nodejs20.x"
   architecture          = "arm64"
 }

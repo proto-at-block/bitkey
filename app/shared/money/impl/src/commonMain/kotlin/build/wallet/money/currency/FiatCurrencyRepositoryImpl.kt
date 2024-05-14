@@ -5,41 +5,36 @@ import build.wallet.f8e.money.FiatCurrencyDefinitionService
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted.Companion.Lazily
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterNot
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 
 class FiatCurrencyRepositoryImpl(
+  appScope: CoroutineScope,
   private val fiatCurrencyDao: FiatCurrencyDao,
   private val fiatCurrencyDefinitionService: FiatCurrencyDefinitionService,
 ) : FiatCurrencyRepository {
   private val defaultFiatCurrencyList = listOf(USD)
 
-  private val allFiatCurrenciesInternalFlow = MutableStateFlow(defaultFiatCurrencyList)
-  override val allFiatCurrencies = allFiatCurrenciesInternalFlow
+  override val allFiatCurrencies: StateFlow<List<FiatCurrency>> =
+    fiatCurrencyDao.allFiatCurrencies()
+      .filterNot { it.isEmpty() }
+      .stateIn(appScope, started = Lazily, initialValue = defaultFiatCurrencyList)
 
-  override fun launchSyncAndUpdateFromServer(
-    scope: CoroutineScope,
-    f8eEnvironment: F8eEnvironment,
-  ) {
-    scope.launch {
-      // Make a server call to update the database values
-      fiatCurrencyDefinitionService.getCurrencyDefinitions(f8eEnvironment)
-        .onSuccess { serverFiatCurrencies ->
-          fiatCurrencyDao.storeFiatCurrencies(serverFiatCurrencies)
-        }
-        .onFailure {
-          // TODO (W-5081): Try again if it fails due to network connection
-        }
-    }
+  override suspend fun updateFromServer(f8eEnvironment: F8eEnvironment) {
+    // Make a server call to update the database values
+    fiatCurrencyDefinitionService
+      .getCurrencyDefinitions(f8eEnvironment)
+      .onSuccess { serverFiatCurrencies ->
+        fiatCurrencyDao.storeFiatCurrencies(serverFiatCurrencies)
+      }
+      .onFailure {
+        // TODO (W-5081): Try again if it fails due to network connection
+      }
 
-    scope.launch {
-      // Set up the [allFiatCurrencies] flow to be collected from values in the database
-      fiatCurrencyDao.allFiatCurrencies()
-        .filterNot { it.isEmpty() }
-        .filterNotNull()
-        .collect(allFiatCurrenciesInternalFlow)
-    }
+    // Start observing the database for changes
+    allFiatCurrencies.first()
   }
 }

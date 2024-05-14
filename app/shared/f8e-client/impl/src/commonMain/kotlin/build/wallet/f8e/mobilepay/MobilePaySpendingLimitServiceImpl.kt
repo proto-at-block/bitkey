@@ -6,18 +6,21 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.MobilePayErrorCode
-import build.wallet.f8e.error.logF8eFailure
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.EmptyRequestBody
+import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedRequestBody
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.catching
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.limit.SpendingLimit
 import build.wallet.mapUnit
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.delete
 import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 import kotlinx.serialization.Serializable
 
 class MobilePaySpendingLimitServiceImpl(
@@ -35,9 +38,9 @@ class MobilePaySpendingLimitServiceImpl(
         accountId = fullAccountId,
         hwFactorProofOfPossession = hwFactorProofOfPossession
       )
-      .bodyResult<ResponseBody> {
+      .bodyResult<EmptyResponseBody> {
         put("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
-          setBody(
+          setRedactedBody(
             RequestBody(
               limit = limit.toServerSpendingLimit()
             )
@@ -54,20 +57,17 @@ class MobilePaySpendingLimitServiceImpl(
     return f8eHttpClient.authenticated(f8eEnvironment, fullAccountId)
       .catching {
         delete("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
-          setBody("{}")
+          withDescription("Disable Mobile Pay")
+          setRedactedBody(EmptyRequestBody())
         }
       }.mapUnit()
       .mapError { it.toF8eError<MobilePayErrorCode>() }
-      .logF8eFailure { "Failed to disable Mobile Pay" }
   }
 
   @Serializable
   private data class RequestBody(
     val limit: ServerSpendingLimitDTO?,
-  )
-
-  @Serializable
-  data object ResponseBody
+  ) : RedactedRequestBody
 
   @Serializable
   data object DisableMobilePayResponse

@@ -29,7 +29,7 @@ use exchange_rate::flags::FLAG_USE_CASH_EXCHANGE_RATE_PROVIDER;
 use exchange_rate::service::Service as ExchangeRateService;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
-use metrics::KeyValue;
+use instrumentation::metrics::KeyValue;
 use screener::service::Service as ScreenerService;
 use types::account::identifiers::{AccountId, KeysetId};
 use types::currencies::CurrencyCode;

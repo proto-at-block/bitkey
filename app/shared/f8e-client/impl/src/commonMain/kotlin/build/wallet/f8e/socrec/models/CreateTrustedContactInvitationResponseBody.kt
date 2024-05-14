@@ -1,6 +1,7 @@
 package build.wallet.f8e.socrec.models
 
 import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.ktor.result.RedactedResponseBody
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -8,7 +9,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal data class CreateTrustedContactInvitationResponseBody(
   val invitation: CreateTrustedContactInvitation,
-)
+) : RedactedResponseBody
 
 @Serializable
 internal data class CreateTrustedContactInvitation(

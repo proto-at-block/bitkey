@@ -2,16 +2,16 @@
     "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations-iosx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-annotations-iosx64-1.7.1-metadata.jar": "6cac20c763f305b8c2e33071de650e59af8be1e1f2b6c5092c1ee78c1b52cc23"
+                        "redacted-compiler-plugin-annotations-iosx64-1.8.0-metadata.jar": "bcad8cdc077dd28a63842809dd9ee722695897935a478fd28aca760fe2499606"
                     }
                 },
                 {
                     "artifacts": {
-                        "redacted-compiler-plugin-annotations.klib": "d4c3ecdb32665ac3ce3bc603347a2320952885f6d8f612b1c6eb714d43478083"
+                        "redacted-compiler-plugin-annotations.klib": "c157907c5e6babdcff588c77b0ea7baec5025a960dceb79c517a499db77d42bf"
                     }
                 }
             ],

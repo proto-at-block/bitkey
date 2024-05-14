@@ -56,17 +56,15 @@ class AddBitcoinUiStateMachineImpl(
 
       is PurchasingUiState ->
         partnershipsPurchaseUiStateMachine.model(
-          props =
-            PartnershipsPurchaseUiProps(
-              keybox = props.keybox,
-              generateAddress = props.generateAddress,
-              fiatCurrency = props.fiatCurrency,
-              selectedAmount = currentState.selectedAmount,
-              onPartnerRedirected = props.onPartnerRedirected,
-              onBack = showBuyOrTransferState,
-              onSelectCustomAmount = props.onSelectCustomAmount,
-              onExit = props.onExit
-            )
+          props = PartnershipsPurchaseUiProps(
+            keybox = props.keybox,
+            generateAddress = props.generateAddress,
+            selectedAmount = currentState.selectedAmount,
+            onPartnerRedirected = props.onPartnerRedirected,
+            onBack = showBuyOrTransferState,
+            onSelectCustomAmount = props.onSelectCustomAmount,
+            onExit = props.onExit
+          )
         )
     }
   }

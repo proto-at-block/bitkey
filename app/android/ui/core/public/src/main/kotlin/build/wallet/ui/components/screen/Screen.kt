@@ -35,6 +35,7 @@ import build.wallet.ui.compose.gestures.onTwoFingerTripleTap
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.UiModelContent
 import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -226,13 +227,13 @@ internal fun ScreenWithBodyAndAlertPreview() {
         BodyContentForPreview()
       },
       alertModel =
-        AlertModel(
+        ButtonAlertModel(
           title = "Alert Alert Alert",
           subline = "This is an alert.",
           onDismiss = {},
           primaryButtonText = "Primary",
           onPrimaryButtonClick = {},
-          primaryButtonStyle = AlertModel.ButtonStyle.Destructive,
+          primaryButtonStyle = ButtonAlertModel.ButtonStyle.Destructive,
           secondaryButtonText = "Secondary",
           onSecondaryButtonClick = {}
         )

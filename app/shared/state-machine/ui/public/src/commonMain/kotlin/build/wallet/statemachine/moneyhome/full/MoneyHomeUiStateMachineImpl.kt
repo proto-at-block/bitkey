@@ -1,6 +1,7 @@
 package build.wallet.statemachine.moneyhome.full
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,6 +15,8 @@ import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.money.FiatMoney
+import build.wallet.money.currency.FiatCurrency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
@@ -80,10 +83,14 @@ class MoneyHomeUiStateMachineImpl(
   private val moneyHomeViewingBalanceUiStateMachine: MoneyHomeViewingBalanceUiStateMachine,
   private val customAmountEntryUiStateMachine: CustomAmountEntryUiStateMachine,
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
-    var uiState: MoneyHomeUiState by remember(props.origin, props.accountData.isCompletingSocialRecovery) {
+    var uiState: MoneyHomeUiState by remember(
+      props.origin,
+      props.accountData.isCompletingSocialRecovery
+    ) {
       val initialState = if (props.origin == MoneyHomeUiProps.Origin.Launch) {
         // Navigate directly to hardware recovery when completing hardware recovery
         val lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData
@@ -108,6 +115,7 @@ class MoneyHomeUiStateMachineImpl(
       mutableStateOf(initialState)
     }
 
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val scope = rememberStableCoroutineScope()
 
     return when (val state = uiState) {
@@ -124,20 +132,17 @@ class MoneyHomeUiStateMachineImpl(
 
       is ViewingBalanceUiState ->
         moneyHomeViewingBalanceUiStateMachine.model(
-          props =
-            MoneyHomeViewingBalanceUiProps(
-              accountData = props.accountData,
-              convertedFiatBalance = props.convertedFiatBalance,
-              fiatCurrency = props.fiatCurrency,
-              firmwareData = props.firmwareData,
-              socRecRelationships = props.socRecRelationships,
-              socRecActions = props.socRecActions,
-              homeBottomSheetModel = props.homeBottomSheetModel,
-              homeStatusBannerModel = props.homeStatusBannerModel,
-              onSettings = props.onSettings,
-              state = state,
-              setState = { uiState = it }
-            )
+          props = MoneyHomeViewingBalanceUiProps(
+            accountData = props.accountData,
+            firmwareData = props.firmwareData,
+            socRecRelationships = props.socRecRelationships,
+            socRecActions = props.socRecActions,
+            homeBottomSheetModel = props.homeBottomSheetModel,
+            homeStatusBannerModel = props.homeStatusBannerModel,
+            onSettings = props.onSettings,
+            state = state,
+            setState = { uiState = it }
+          )
         )
 
       ReceiveFlowUiState ->
@@ -194,6 +199,7 @@ class MoneyHomeUiStateMachineImpl(
       ViewingAllTransactionActivityUiState ->
         AllTransactionsModel(
           props = props,
+          fiatCurrency = fiatCurrency,
           onTransactionSelected = { transaction ->
             uiState =
               ViewingTransactionUiState(
@@ -208,8 +214,8 @@ class MoneyHomeUiStateMachineImpl(
 
       is ViewingTransactionUiState ->
         TransactionDetailsModel(
-          props,
-          state,
+          props = props,
+          state = state,
           onClose = { entryPoint ->
             uiState =
               when (entryPoint) {
@@ -242,14 +248,13 @@ class MoneyHomeUiStateMachineImpl(
         customAmountEntryUiStateMachine.model(
           props =
             CustomAmountEntryUiProps(
-              fiatCurrency = props.fiatCurrency,
               minimumAmount = state.minimumAmount,
               maximumAmount = state.maximumAmount,
               onBack = {
                 uiState =
                   ViewingBalanceUiState(
                     bottomSheetDisplayState =
-                      Partners(purchaseAmount = FiatMoney.zero(props.fiatCurrency))
+                      Partners(purchaseAmount = FiatMoney.zero(fiatCurrency))
                   )
               },
               onNext = {
@@ -283,16 +288,14 @@ class MoneyHomeUiStateMachineImpl(
     validPaymentDataInClipboard: ParsedPaymentData?,
     onExit: () -> Unit,
   ) = sendUiStateMachine.model(
-    props =
-      SendUiProps(
-        entryPoint = state.entryPoint,
-        accountData = props.accountData,
-        fiatCurrency = props.fiatCurrency,
-        validInvoiceInClipboard = validPaymentDataInClipboard,
-        onExit = onExit,
-        // Since hitting "Done" is the same as exiting out of the send flow.
-        onDone = onExit
-      )
+    props = SendUiProps(
+      entryPoint = state.entryPoint,
+      accountData = props.accountData,
+      validInvoiceInClipboard = validPaymentDataInClipboard,
+      onExit = onExit,
+      // Since hitting "Done" is the same as exiting out of the send flow.
+      onDone = onExit
+    )
   )
 
   @Composable
@@ -300,14 +303,12 @@ class MoneyHomeUiStateMachineImpl(
     props: MoneyHomeUiProps,
     onExit: () -> Unit,
   ) = setSpendingLimitUiStateMachine.model(
-    props =
-      SpendingLimitProps(
-        currentSpendingLimit = null,
-        accountData = props.accountData,
-        fiatCurrency = props.fiatCurrency,
-        onClose = onExit,
-        onSetLimit = { onExit() }
-      )
+    props = SpendingLimitProps(
+      currentSpendingLimit = null,
+      accountData = props.accountData,
+      onClose = onExit,
+      onSetLimit = { onExit() }
+    )
   )
 
   @Composable
@@ -316,13 +317,11 @@ class MoneyHomeUiStateMachineImpl(
     state: ViewingTransactionUiState,
     onClose: (EntryPoint) -> Unit,
   ) = transactionDetailsUiStateMachine.model(
-    props =
-      TransactionDetailsUiProps(
-        accountData = props.accountData,
-        transaction = state.transaction,
-        fiatCurrency = props.fiatCurrency,
-        onClose = { onClose(state.entryPoint) }
-      )
+    props = TransactionDetailsUiProps(
+      accountData = props.accountData,
+      transaction = state.transaction,
+      onClose = { onClose(state.entryPoint) }
+    )
   )
 
   @Composable
@@ -336,7 +335,6 @@ class MoneyHomeUiStateMachineImpl(
       LostHardwareRecoveryProps(
         account = props.accountData.account,
         lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData,
-        fiatCurrency = props.fiatCurrency,
         onExit = onExit,
         onFoundHardware = {
           scope.launch {
@@ -369,19 +367,19 @@ class MoneyHomeUiStateMachineImpl(
   @Composable
   private fun AllTransactionsModel(
     props: MoneyHomeUiProps,
+    fiatCurrency: FiatCurrency,
     onTransactionSelected: (BitcoinTransaction) -> Unit,
     onExit: () -> Unit,
   ) = ListFormBodyModel(
     toolbarTitle = "Activity",
     listGroups =
       transactionListUiStateMachine.model(
-        props =
-          TransactionListUiProps(
-            transactionVisibility = All,
-            transactions = props.accountData.transactionsData.transactions,
-            fiatCurrency = props.fiatCurrency,
-            onTransactionClicked = onTransactionSelected
-          )
+        props = TransactionListUiProps(
+          transactionVisibility = All,
+          transactions = props.accountData.transactionsData.transactions,
+          fiatCurrency = fiatCurrency,
+          onTransactionClicked = onTransactionSelected
+        )
       ) ?: immutableListOf(),
     onBack = onExit,
     id = MONEY_HOME_ALL_TRANSACTIONS

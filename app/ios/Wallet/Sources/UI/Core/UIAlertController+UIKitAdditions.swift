@@ -5,7 +5,7 @@ import UIKit
 
 extension UIAlertController {
 
-    public struct Model {
+    public struct ButtonModel {
         public struct Action {
             let title: String
             let action: () -> Void
@@ -44,24 +44,24 @@ extension UIAlertController {
             self.actions = actions
         }
 
-        public init(alertModel: AlertModel) {
-            self.title = alertModel.title
-            self.message = alertModel.subline
+        public init(buttonAlertModel: ButtonAlertModel) {
+            self.title = buttonAlertModel.title
+            self.message = buttonAlertModel.subline
             var actions: [Action] = [
                 .init(
-                    title: alertModel.primaryButtonText,
-                    action: alertModel.onPrimaryButtonClick,
-                    style: alertModel.primaryButtonStyle.asUIAlertActionStyle
+                    title: buttonAlertModel.primaryButtonText,
+                    action: buttonAlertModel.onPrimaryButtonClick,
+                    style: buttonAlertModel.primaryButtonStyle.asUIAlertActionStyle
                 )
             ]
 
-            if let secondaryButtonText = alertModel.secondaryButtonText,
-               let onSecondaryButtonClick = alertModel.onSecondaryButtonClick {
+            if let secondaryButtonText = buttonAlertModel.secondaryButtonText,
+               let onSecondaryButtonClick = buttonAlertModel.onSecondaryButtonClick {
                 actions.append(
                     .init(
                         title: secondaryButtonText,
                         action: onSecondaryButtonClick,
-                        style: alertModel.secondaryButtonStyle.asUIAlertActionStyle
+                        style: buttonAlertModel.secondaryButtonStyle.asUIAlertActionStyle
                     )
                 )
             }
@@ -69,16 +69,67 @@ extension UIAlertController {
             self.actions = actions
         }
     }
+    
+    public struct InputModel {
+        let title: String
+        let message: String?
+        let text: String
+        let confirm: (String) -> Void
+        let cancel: () -> Void
+        
+        init(inputAlertModel: InputAlertModel) {
+            self.title = inputAlertModel.title
+            self.message = inputAlertModel.subline
+            self.confirm = inputAlertModel.onConfirm
+            self.text = inputAlertModel.value
+            self.cancel = inputAlertModel.onCancel
+        }
+        
+    }
 
-    public convenience init(model: Model) {
+    public convenience init(model: ButtonModel) {
         self.init(title: model.title, message: model.message, preferredStyle: .alert)
         for action in model.actions {
             addAction(UIAlertAction(title: action.title, style: action.style, handler: { _ in action.action() }))
         }
     }
+    
+    public convenience init(model: InputModel) {
+        self.init(title: model.title, message: model.message, preferredStyle: .alert)
+        addTextField { (textField) in
+            textField.text = model.text
+        }
+        addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .default,
+                handler: { _ in
+                    model.cancel()
+                }
+            )
+        )
+        addAction(
+            UIAlertAction(
+                title: "Confirm",
+                style: .default,
+                handler: { _ in
+                    if let textField = self.textFields?.first, let inputText = textField.text {
+                        model.confirm(inputText)
+                    }
+                }
+            )
+        )
+    }
 
     public convenience init(alertModel: AlertModel) {
-        self.init(model: .init(alertModel: alertModel))
+        switch alertModel {
+        case is ButtonAlertModel:
+            self.init(model: .init(buttonAlertModel: alertModel as! ButtonAlertModel))
+        case is InputAlertModel:
+            self.init(model: .init(inputAlertModel: alertModel as! InputAlertModel))
+        default:
+            fatalError("Unsupported alert model: \(alertModel)")
+        }
     }
 
 }
@@ -90,7 +141,7 @@ private enum Strings {
     static let ok = "OK".localized(comment: "Title of the button allowing a user to dismiss an alert.")
 }
 
-private extension AlertModel.ButtonStyle {
+private extension ButtonAlertModel.ButtonStyle {
     
     var asUIAlertActionStyle: UIAlertAction.Style {
         switch self {

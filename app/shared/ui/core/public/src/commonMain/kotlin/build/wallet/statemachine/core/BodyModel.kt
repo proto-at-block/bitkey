@@ -6,6 +6,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 abstract class BodyModel : Model() {
   /**
@@ -29,7 +30,7 @@ abstract class BodyModel : Model() {
   /**
    * Convenience method to wrap this body model into a Root screen model.
    */
-  fun asRootScreen(alertModel: AlertModel? = null) =
+  fun asRootScreen(alertModel: ButtonAlertModel? = null) =
     ScreenModel(
       body = this,
       presentationStyle = Root,
@@ -67,7 +68,7 @@ abstract class BodyModel : Model() {
 
   fun asScreen(
     presentationStyle: ScreenPresentationStyle,
-    alertModel: AlertModel? = null,
+    alertModel: ButtonAlertModel? = null,
   ) = ScreenModel(
     body = this,
     presentationStyle = presentationStyle,

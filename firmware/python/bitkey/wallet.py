@@ -28,10 +28,13 @@ class Wallet:
         cmd.timestamp = int(time.time())
         return cmd
 
-    def start_fingerprint_enrollment(self, index):
+    def start_fingerprint_enrollment(self, index=0, label=""):
         cmd = self._build_cmd()
         msg = wallet_pb.start_fingerprint_enrollment_cmd()
-        msg.index = index
+        handle = wallet_pb.fingerprint_handle()
+        handle.index = index
+        handle.label = label
+        msg.handle.CopyFrom(handle)
         cmd.start_fingerprint_enrollment_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 
@@ -412,4 +415,26 @@ class Wallet:
         cmd = self._build_cmd()
         msg = wallet_pb.get_enrolled_fingerprints_cmd()
         cmd.get_enrolled_fingerprints_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def get_unlock_method(self):
+        cmd = self._build_cmd()
+        msg = wallet_pb.get_unlock_method_cmd()
+        cmd.get_unlock_method_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def set_fingerprint_label(self, index, label):
+        cmd = self._build_cmd()
+        msg = wallet_pb.set_fingerprint_label_cmd()
+        handle = wallet_pb.fingerprint_handle()
+        handle.index = index
+        handle.label = label
+        msg.handle.CopyFrom(handle)
+        cmd.set_fingerprint_label_cmd.CopyFrom(msg)
+        return self.comms.transceive(cmd)
+
+    def cancel_fingerprint_enrollment(self):
+        cmd = self._build_cmd()
+        msg = wallet_pb.cancel_fingerprint_enrollment_cmd()
+        cmd.cancel_fingerprint_enrollment_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)

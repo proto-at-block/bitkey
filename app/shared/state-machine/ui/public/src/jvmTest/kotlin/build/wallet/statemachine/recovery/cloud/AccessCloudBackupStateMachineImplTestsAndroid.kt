@@ -7,7 +7,6 @@ import build.wallet.cloud.backup.CloudBackupRepositoryFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -41,23 +40,21 @@ class AccessCloudBackupStateMachineImplTestsAndroid : FunSpec({
   val cannotAccessCloudCalls = turbines.create<Unit>("cannot access cloud calls")
   val importEmergencyAccessKitCalls = turbines.create<Unit>("import emergency access kit calls")
 
-  val props =
-    AccessCloudBackupUiProps(
-      eakAssociation = EakDataFake,
-      forceSignOutFromCloud = false,
-      onExit = {
-        exitCalls += Unit
-      },
-      onBackupFound = { backup ->
-        backupFoundCalls += backup
-      },
-      onCannotAccessCloudBackup = {
-        cannotAccessCloudCalls += Unit
-      },
-      onImportEmergencyAccessKit = {
-        importEmergencyAccessKitCalls += Unit
-      }
-    )
+  val props = AccessCloudBackupUiProps(
+    forceSignOutFromCloud = false,
+    onExit = {
+      exitCalls += Unit
+    },
+    onBackupFound = { backup ->
+      backupFoundCalls += backup
+    },
+    onCannotAccessCloudBackup = {
+      cannotAccessCloudCalls += Unit
+    },
+    onImportEmergencyAccessKit = {
+      importEmergencyAccessKitCalls += Unit
+    }
+  )
 
   afterTest {
     cloudBackupRepository.reset()

@@ -8,7 +8,6 @@ import build.wallet.cloud.backup.CloudBackupRepositoryFake
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.emergencyaccesskit.EakDataFake
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -44,7 +43,6 @@ class AccessCloudBackupStateMachineImplTestsIOS : FunSpec({
 
   val props =
     AccessCloudBackupUiProps(
-      eakAssociation = EakDataFake,
       forceSignOutFromCloud = false,
       onExit = {
         exitCalls += Unit

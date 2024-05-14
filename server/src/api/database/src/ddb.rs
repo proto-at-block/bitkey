@@ -1,5 +1,4 @@
 use std::{
-    backtrace::Backtrace,
     env,
     fmt::{self, Debug, Formatter},
     time::Duration,
@@ -13,7 +12,6 @@ use aws_smithy_async::rt::sleep::default_async_sleep;
 use aws_types::region::Region;
 use errors::ApiError;
 use http::Uri;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_dynamo::{
     from_item, from_items, to_attribute_value, to_item, AttributeValue, Item, Items,
@@ -33,18 +31,10 @@ impl Config {
             DBMode::Endpoint(endpoint) => {
                 Connection::fake_from_endpoint(endpoint.parse::<Uri>().unwrap())
             }
-            DBMode::Test => {
-                let bt = Backtrace::force_capture().to_string();
-                let re = Regex::new(r"tests::(.*)::\{\{closure\}\}?").unwrap();
-                let test_run_id = re
-                    .captures_iter(&bt)
-                    .last()
-                    .and_then(|cap| cap.get(1).map(|t| t.as_str().replace("::", "-")));
-                Connection {
-                    test_run_id,
-                    ..Connection::fake_from_endpoint(Uri::from_static("http://localhost:8000"))
-                }
-            }
+            DBMode::Test => Connection {
+                test_run_id: None,
+                ..Connection::fake_from_endpoint(Uri::from_static("http://localhost:8000"))
+            },
             DBMode::Environment => Connection::from_sdk_config(
                 &aws_config::load_defaults(BehaviorVersion::latest()).await,
             ),
@@ -148,21 +138,9 @@ pub trait DDBService {
     // ⚠️ If there are more than that, then local DDB will throw errors during tests.
     async fn create_table(&self) -> Result<(), DatabaseError>;
     async fn purge_table_if_necessary(&self) -> Result<(), DatabaseError> {
-        let table_name = self.get_table_name().await?;
-        let connection = self.get_connection();
-        if connection.has_test_run_id() && self.table_exists().await? {
-            connection
-                .client
-                .delete_table()
-                .table_name(table_name)
-                .send()
-                .await
-                .map_err(|_| DatabaseError::DeleteTableError(self.get_database_object()))?;
-        }
         Ok(())
     }
     async fn create_table_if_necessary(&self) -> Result<(), DatabaseError> {
-        self.purge_table_if_necessary().await?;
         if !self.table_exists().await? {
             self.create_table().await?;
         }

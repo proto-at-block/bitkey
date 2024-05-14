@@ -39,7 +39,7 @@ pub struct SendCustomerNotificationsTestVector {
 }
 
 async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
     let state = workers::jobs::WorkerState {
@@ -55,7 +55,8 @@ async fn send_customer_notifications_test(input: SendCustomerNotificationsTestVe
     let worker = TestWorker::new(state.clone()).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
     let account_id = account.id;
 
     let push_touchpoint = &create_push_touchpoint(&bootstrap.services, &account_id)
@@ -157,11 +158,12 @@ tests! {
 
 #[tokio::test]
 async fn customer_notification_lifecycle_test() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
     let account_id = account.id;
 
     let entries: Vec<(&'static str, NotificationTouchpoint)> = vec![
@@ -266,11 +268,12 @@ async fn customer_notification_lifecycle_test() {
 
 #[tokio::test]
 async fn service_send_notifications_test() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
 
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
     let account_id = account.id;
 
     let active_phone_touchpoint_id =

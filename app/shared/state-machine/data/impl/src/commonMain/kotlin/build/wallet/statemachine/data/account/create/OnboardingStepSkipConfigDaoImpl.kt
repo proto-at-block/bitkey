@@ -4,7 +4,6 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.sqldelight.asFlowOfList
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.getOrElse
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapLatest
@@ -17,7 +16,6 @@ class OnboardingStepSkipConfigDaoImpl(
   override fun stepsToSkip(): Flow<Set<OnboardingKeyboxStep>> {
     return database.onboardingStepSkipConfigQueries.getSkippedSteps()
       .asFlowOfList()
-      .unwrapLoadedValue()
       .mapLatest { result ->
         result
           .getOrElse { emptyList() }

@@ -12,9 +12,11 @@ import build.wallet.core.BytesState
 import build.wallet.core.CertType
 import build.wallet.core.CommandException
 import build.wallet.core.CoredumpFragmentState
+import build.wallet.core.DeleteFingerprint
 import build.wallet.core.DescriptorPublicKeyState
 import build.wallet.core.DeviceInfo
 import build.wallet.core.DeviceInfoState
+import build.wallet.core.EnrolledFingerprintsState
 import build.wallet.core.EventFragmentState
 import build.wallet.core.FingerprintEnrollmentStatusState
 import build.wallet.core.FirmwareFeatureFlagsState
@@ -31,40 +33,48 @@ import build.wallet.core.GetCert
 import build.wallet.core.GetCoredumpCount
 import build.wallet.core.GetCoredumpFragment
 import build.wallet.core.GetDeviceInfo
+import build.wallet.core.GetEnrolledFingerprints
 import build.wallet.core.GetEvents
 import build.wallet.core.GetFingerprintEnrollmentStatus
 import build.wallet.core.GetFirmwareFeatureFlags
 import build.wallet.core.GetFirmwareMetadata
 import build.wallet.core.GetInitialSpendingKey
 import build.wallet.core.GetNextSpendingKey
+import build.wallet.core.GetUnlockMethod
 import build.wallet.core.LockDevice
 import build.wallet.core.PartiallySignedTransactionState
 import build.wallet.core.PublicKeyState
 import build.wallet.core.QueryAuthentication
 import build.wallet.core.SealKey
 import build.wallet.core.SecureBootConfig
+import build.wallet.core.SetFingerprintLabel
 import build.wallet.core.SignChallenge
 import build.wallet.core.SignTransaction
 import build.wallet.core.SignVerifyAttestationChallenge
 import build.wallet.core.SignatureState
 import build.wallet.core.StartFingerprintEnrollment
 import build.wallet.core.U16State
+import build.wallet.core.UnlockInfoState
 import build.wallet.core.UnsealKey
 import build.wallet.core.Version
 import build.wallet.core.WipeState
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.firmware.CoredumpFragment
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
 import build.wallet.firmware.FingerprintEnrollmentStatus.COMPLETE
 import build.wallet.firmware.FingerprintEnrollmentStatus.INCOMPLETE
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
 import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
+import build.wallet.firmware.UnlockInfo
+import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.logging.LogLevel.Warn
@@ -77,11 +87,15 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okio.ByteString
 import build.wallet.core.CoredumpFragment as CoreCoredumpFragment
+import build.wallet.core.EnrolledFingerprints as CoreEnrolledFingerprints
 import build.wallet.core.EventFragment as CoreEventFragment
 import build.wallet.core.FingerprintEnrollmentStatus as CoreFingerprintEnrollmentStatus
+import build.wallet.core.FingerprintHandle as CoreFingerprintHandle
 import build.wallet.core.FirmwareFeatureFlag as CoreFirmwareFeatureFlag
 import build.wallet.core.FirmwareFeatureFlagCfg as CoreFirmwareFeatureFlagCfg
 import build.wallet.core.FirmwareMetadata as CoreFirmwareMetadata
+import build.wallet.core.UnlockInfo as CoreUnlockInfo
+import build.wallet.core.UnlockMethod as CoreUnlockMethod
 
 class NfcCommandsImpl(
   private val clock: Clock = Clock.System,
@@ -208,6 +222,57 @@ class NfcCommandsImpl(
       }
     )
 
+  override suspend fun deleteFingerprint(
+    session: NfcSession,
+    index: Int,
+  ): Boolean =
+    executeCommand(
+      session = session,
+      generateCommand = { DeleteFingerprint(index.toUInt()) },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: BooleanState.Data -> state.response },
+      generateResult = { state: BooleanState.Result -> state.value }
+    )
+
+  override suspend fun getUnlockMethod(session: NfcSession) =
+    executeCommand(
+      session = session,
+      generateCommand = ::GetUnlockMethod,
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: UnlockInfoState.Data -> state.response },
+      generateResult = { state: UnlockInfoState.Result ->
+        state.value.toUnlockInfo()
+      }
+    )
+
+  override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
+    executeCommand(
+      session = session,
+      generateCommand = ::GetEnrolledFingerprints,
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: EnrolledFingerprintsState.Data -> state.response },
+      generateResult = { state: EnrolledFingerprintsState.Result ->
+        state.value.toEnrolledFingerprints()
+      }
+    )
+
+  override suspend fun setFingerprintLabel(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ): Boolean =
+    executeCommand(
+      session = session,
+      generateCommand = {
+        SetFingerprintLabel(
+          fingerprintHandle.index.toUInt(),
+          fingerprintHandle.label
+        )
+      },
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: BooleanState.Data -> state.response },
+      generateResult = { state: BooleanState.Result -> state.value }
+    )
+
   override suspend fun getFirmwareMetadata(session: NfcSession) =
     executeCommand(
       session = session,
@@ -305,14 +370,21 @@ class NfcCommandsImpl(
     }
   )
 
-  override suspend fun startFingerprintEnrollment(session: NfcSession) =
-    executeCommand(
-      session = session,
-      generateCommand = ::StartFingerprintEnrollment,
-      getNext = { command, data -> command.next(data) },
-      getResponse = { state: BooleanState.Data -> state.response },
-      generateResult = { state: BooleanState.Result -> state.value }
-    )
+  override suspend fun startFingerprintEnrollment(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ) = executeCommand(
+    session = session,
+    generateCommand = {
+      StartFingerprintEnrollment(
+        fingerprintHandle.index.toUInt(),
+        fingerprintHandle.label
+      )
+    },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: BooleanState.Data -> state.response },
+    generateResult = { state: BooleanState.Result -> state.value }
+  )
 
   override suspend fun unsealKey(
     session: NfcSession,
@@ -494,7 +566,14 @@ private fun FwupFinishRspStatus.toFwupFinishResponseStatus() =
     FwupFinishRspStatus.WILL_APPLY_PATCH -> FwupFinishResponseStatus.WillApplyPatch
   }
 
-private fun CoreFirmwareFeatureFlag.toFeatureFlag() = FirmwareFeatureFlag.valueOf(name)
+private fun CoreFirmwareFeatureFlag.toFeatureFlag() =
+  when (this) {
+    CoreFirmwareFeatureFlag.TELEMETRY -> FirmwareFeatureFlag.TELEMETRY
+    CoreFirmwareFeatureFlag.DEVICE_INFO_FLAG -> FirmwareFeatureFlag.DEVICE_INFO_FLAG
+    CoreFirmwareFeatureFlag.RATE_LIMIT_TEMPLATE_UPDATE -> FirmwareFeatureFlag.RATE_LIMIT_TEMPLATE_UPDATE
+    CoreFirmwareFeatureFlag.UNLOCK -> FirmwareFeatureFlag.UNLOCK
+    CoreFirmwareFeatureFlag.MULTIPLE_FINGERPRINTS -> FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS
+  }
 
 private fun convertFirmwareFeatureFlags(firmwareFeatureFlags: List<CoreFirmwareFeatureFlagCfg>) =
   firmwareFeatureFlags.map { FirmwareFeatureFlagCfg(it.flag.toFeatureFlag(), it.enabled) }
@@ -503,4 +582,29 @@ private fun FirmwareCertType.toCoreCertType() =
   when (this) {
     FirmwareCertType.BATCH -> CertType.BATCH_CERT
     FirmwareCertType.IDENTITY -> CertType.DEVICE_HOST_CERT
+  }
+
+private fun CoreEnrolledFingerprints.toEnrolledFingerprints() =
+  EnrolledFingerprints(
+    maxCount = maxCount.toInt(),
+    fingerprintHandles = fingerprints.map { it.toFingerprintHandle() }
+  )
+
+private fun CoreFingerprintHandle.toFingerprintHandle() =
+  FingerprintHandle(
+    index = index.toInt(),
+    label = label
+  )
+
+private fun CoreUnlockInfo.toUnlockInfo() =
+  UnlockInfo(
+    unlockMethod = method.toUnlockMethod(),
+    fingerprintIdx = fingerprintIndex?.toInt()
+  )
+
+private fun CoreUnlockMethod.toUnlockMethod() =
+  when (this) {
+    CoreUnlockMethod.UNSPECIFIED -> UnlockMethod.UNSPECIFIED
+    CoreUnlockMethod.BIOMETRICS -> UnlockMethod.BIOMETRICS
+    CoreUnlockMethod.UNLOCK_SECRET -> UnlockMethod.UNLOCK_SECRET
   }

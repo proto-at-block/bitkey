@@ -36,6 +36,7 @@ inline val Float.asDegreeAngle: Float get() = 360f / 1.0f * this
 @Composable
 fun CircularProgressIndicator(
   modifier: Modifier = Modifier,
+  // TODO(W-8034): use Progress type.
   progress: Float,
   direction: TimerDirection,
   remainingSeconds: Long,
@@ -77,6 +78,7 @@ fun CircularProgressIndicator(
 @Composable
 fun CircularProgressIndicator(
   modifier: Modifier = Modifier,
+  // TODO(W-8034): use Progress type.
   progress: Float,
   direction: TimerDirection,
   size: Dp,
@@ -105,6 +107,7 @@ fun CircularProgressIndicator(
 
 private fun DrawScope.drawCircularIndicator(
   startAngle: Float,
+  // TODO(W-8034): use Progress type.
   progress: Float,
   color: Color,
   stroke: Stroke,

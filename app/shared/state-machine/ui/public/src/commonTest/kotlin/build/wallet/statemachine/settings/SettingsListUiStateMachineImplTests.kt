@@ -1,7 +1,6 @@
 package build.wallet.statemachine.settings
 
 import app.cash.turbine.Turbine
-import build.wallet.LoadableValue
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
@@ -14,6 +13,7 @@ import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Biometric
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CloudBackupHealth
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.ContactUs
@@ -28,7 +28,6 @@ import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
@@ -59,7 +58,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       ContactUs::class to turbines.create("SendFeedback onClick calls"),
       TrustedContacts::class to turbines.create("TrustedContacts onClick calls"),
       CloudBackupHealth::class to turbines.create("CloudBackupHealth onClick calls"),
-      RotateAuthKey::class to turbines.create("RotateAuthKey onClick calls")
+      RotateAuthKey::class to turbines.create("RotateAuthKey onClick calls"),
+      Biometric::class to turbines.create("Biometric onClick calls")
     )
 
   val props =
@@ -77,7 +77,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           ContactUs { propsOnClickCalls[ContactUs::class]?.add(Unit) },
           TrustedContacts { propsOnClickCalls[TrustedContacts::class]?.add(Unit) },
           CloudBackupHealth { propsOnClickCalls[CloudBackupHealth::class]?.add(Unit) },
-          RotateAuthKey { propsOnClickCalls[RotateAuthKey::class]?.add(Unit) }
+          RotateAuthKey { propsOnClickCalls[RotateAuthKey::class]?.add(Unit) },
+          Biometric { propsOnClickCalls[Biometric::class]?.add(Unit) }
         ),
       onShowAlert = {},
       onDismissAlert = {}
@@ -104,7 +105,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           .shouldBe(
             listOf(
               "General" to listOf("Mobile Pay", "Bitkey Device", "Currency", "Notifications"),
-              "Security & Recovery" to listOf("Mobile Devices", "Cloud Backup", "Trusted Contacts"),
+              "Security & Recovery" to listOf("Face ID", "Mobile Devices", "Cloud Backup", "Trusted Contacts"),
               "Advanced" to listOf("Custom Electrum Server"),
               "Support" to listOf("Contact Us", "Help Center")
             )
@@ -115,7 +116,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("cloud backup health setting when mobile backup has problem") {
     cloudBackupHealthRepository.mobileKeyBackupStatus.value =
-      LoadableValue.LoadedValue(MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess)
+      MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
     stateMachine.test(props) {
       awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
         sectionModels
@@ -131,20 +132,6 @@ class SettingsListUiStateMachineImplTests : FunSpec({
                   iconTint = IconTint.Warning
                 )
               )
-          }
-      }
-    }
-  }
-
-  test("key rotation setting when feature flag is enabled") {
-    stateMachine.test(props) {
-      awaitItem().shouldBeTypeOf<SettingsBodyModel>().apply {
-        sectionModels
-          .first { it.sectionHeaderTitle == "Security & Recovery" }
-          .rowModels
-          .first { it.title == "Mobile Devices" }
-          .should {
-            it.isDisabled.shouldBeFalse()
           }
       }
     }
@@ -197,6 +184,11 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   test("Mobile Devices updates state") {
     stateMachine
       .testRowOnClickCallsProps<RotateAuthKey>("Mobile Devices", props, propsOnClickCalls)
+  }
+
+  test("Biometrics updates state") {
+    stateMachine
+      .testRowOnClickCallsProps<Biometric>("Face ID", props, propsOnClickCalls)
   }
 
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {

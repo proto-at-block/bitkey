@@ -24,5 +24,5 @@ integration:
 record-integration $UPDATE_EXPECT="1":
   {{cargo}} test --all-features --test integration_test
 
-end-to-end $AWS_PROFILE="w1-development--admin" $AWS_REGION="us-west-2":
+end-to-end $AWS_PROFILE="bitkey-development--admin" $AWS_REGION="us-west-2":
   {{cargo}} run --release -- end-to-end

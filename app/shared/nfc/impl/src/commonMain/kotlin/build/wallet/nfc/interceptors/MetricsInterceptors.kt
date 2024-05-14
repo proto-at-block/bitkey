@@ -10,8 +10,11 @@ import build.wallet.datadog.DatadogTracer
 import build.wallet.datadog.ErrorSource.Network
 import build.wallet.datadog.ResourceType.Other
 import build.wallet.datadog.span
+import build.wallet.firmware.EnrolledFingerprints
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
+import build.wallet.firmware.UnlockInfo
 import build.wallet.fwup.FwupMode
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
@@ -131,6 +134,22 @@ private class MetricsNfcCommandsImpl(
   override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
     measure("getFingerprintEnrollmentStatus") { commands.getFingerprintEnrollmentStatus(session) }
 
+  override suspend fun deleteFingerprint(
+    session: NfcSession,
+    index: Int,
+  ): Boolean = measure("deleteFingerprint") { commands.deleteFingerprint(session, index) }
+
+  override suspend fun getUnlockMethod(session: NfcSession): UnlockInfo =
+    measure("getUnlockMethod") { commands.getUnlockMethod(session) }
+
+  override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
+    measure("getEnrolledFingerprints") { commands.getEnrolledFingerprints(session) }
+
+  override suspend fun setFingerprintLabel(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ) = measure("setFingerprintLabel") { commands.setFingerprintLabel(session, fingerprintHandle) }
+
   override suspend fun getFirmwareMetadata(session: NfcSession) =
     measure("getFirmwareMetadata") { commands.getFirmwareMetadata(session) }
 
@@ -173,8 +192,12 @@ private class MetricsNfcCommandsImpl(
     spendingKeyset: SpendingKeyset,
   ) = measure("signTransaction") { commands.signTransaction(session, psbt, spendingKeyset) }
 
-  override suspend fun startFingerprintEnrollment(session: NfcSession) =
-    measure("startFingerprintEnrollment") { commands.startFingerprintEnrollment(session) }
+  override suspend fun startFingerprintEnrollment(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ) = measure("startFingerprintEnrollment") {
+    commands.startFingerprintEnrollment(session, fingerprintHandle)
+  }
 
   override suspend fun unsealKey(
     session: NfcSession,

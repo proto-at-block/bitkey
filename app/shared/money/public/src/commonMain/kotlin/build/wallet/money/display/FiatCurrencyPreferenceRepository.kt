@@ -2,41 +2,23 @@ package build.wallet.money.display
 
 import build.wallet.money.currency.FiatCurrency
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Manages caching the value from [FiatCurrencyPreferenceDao] in memory.
+ * Manages the customer's preferred fiat currency that they select through the app's settings.
  */
 interface FiatCurrencyPreferenceRepository {
   /**
-   * Emits latest default [FiatCurrency] value, updated by [launchSync].
-   *
-   * This should only be used as a fallback if there is not a currency explicitly set by
-   * the customer (i.e. if [fiatCurrencyPreference] returns null).
+   * Emits latest stored [FiatCurrency] preference value, always starting with USD as a default
+   * value while loading the preference from the database or initializing it for the first time
+   * based on the device's locale.
    */
-  val defaultFiatCurrency: StateFlow<FiatCurrency>
-
-  /**
-   * Emits latest stored [FiatCurrency] preference value, updated by [launchSync]
-   * or [setFiatCurrencyPreference].
-   *
-   * This takes priority over / overrides [defaultFiatCurrency].
-   */
-  val fiatCurrencyPreference: StateFlow<FiatCurrency?>
-
-  /**
-   * Launches a non-blocking coroutine to continuously sync latest local [FiatCurrency]
-   * values into [defaultFiatCurrency] and [fiatCurrencyPreference].
-   *
-   * This function should be called only once.
-   */
-  fun launchSync(scope: CoroutineScope)
+  val fiatCurrencyPreference: StateFlow<FiatCurrency>
 
   /**
    * Updates the persisted [FiatCurrency] preference.
    */
-  suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency)
+  suspend fun setFiatCurrencyPreference(fiatCurrency: FiatCurrency): Result<Unit, Error>
 
   /**
    * Clears the persisted [FiatCurrency] preference.

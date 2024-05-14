@@ -18,6 +18,8 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okio.Buffer
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
@@ -25,8 +27,19 @@ import okio.ByteString.Companion.encodeUtf8
 class GoogleDriveKeyValueStoreImpl(
   private val googleDriveService: GoogleDriveService,
 ) : GoogleDriveKeyValueStore {
-  private fun drive(androidAccount: Account) =
-    googleDriveService.drive(androidAccount, scopes = listOf(GoogleDriveScope.AppData))
+  /**
+   * Lock to ensure that ensure concurrent-safe access to the Google Drive API.
+   * Prevents race conditions when multiple coroutines try to read/write to Google Drive at the
+   * same time.
+   *
+   * Prevents race conditions issues like W-6528 where multiple folders were created in Google Drive
+   * for the same account.
+   */
+  private val driveClientLock = Mutex()
+
+  private suspend fun drive(androidAccount: Account): Result<Drive, GoogleDriveError> {
+    return googleDriveService.drive(androidAccount, scope = GoogleDriveScope.AppData)
+  }
 
   override suspend fun setString(
     account: GoogleAccount,
@@ -34,14 +47,16 @@ class GoogleDriveKeyValueStoreImpl(
     value: String,
   ): Result<Unit, GoogleDriveError> =
     binding {
-      val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = drive(androidAccount).bind()
+      driveClientLock.withLock {
+        val androidAccount = account.credentials.androidAccount().bind()
+        val driveService = drive(androidAccount).bind()
 
-      val entryFile = driveService.findEntryFile(key).bind()
-      if (entryFile == null) {
-        driveService.createNewEntryFile(key, value.encodeUtf8()).bind()
-      } else {
-        driveService.updateExistingEntryFile(entryFile.id, key, value.encodeUtf8()).bind()
+        val entryFile = driveService.findEntryFile(key).bind()
+        if (entryFile == null) {
+          driveService.createNewEntryFile(key, value.encodeUtf8()).bind()
+        } else {
+          driveService.updateExistingEntryFile(entryFile.id, key, value.encodeUtf8()).bind()
+        }
       }
     }.logFailure { "Error setting value for key=$key on Google Drive" }
 
@@ -50,24 +65,22 @@ class GoogleDriveKeyValueStoreImpl(
     key: String,
   ): Result<Unit, GoogleDriveError> =
     binding {
-      val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = drive(androidAccount).bind()
+      driveClientLock.withLock {
+        val androidAccount = account.credentials.androidAccount().bind()
+        val driveService = drive(androidAccount).bind()
 
-      val entryFile =
-        driveService.findEntryFile(key)
-          .flatMap { entryFile ->
-            when (entryFile) {
-              null ->
-                Err(
-                  GoogleDriveError(message = "Failed to delete key=$key; file does not exist")
-                )
-
-              else -> Ok(entryFile)
+        val entryFile =
+          driveService.findEntryFile(key)
+            .flatMap { entryFile ->
+              when (entryFile) {
+                null -> Err(GoogleDriveError(message = "Failed to delete key=$key; file does not exist"))
+                else -> Ok(entryFile)
+              }
             }
-          }
-          .bind()
+            .bind()
 
-      driveService.deleteExistingEntryFile(entryFile.id).bind()
+        driveService.deleteExistingEntryFile(entryFile.id).bind()
+      }
     }.logFailure(LogLevel.Warn) { "Error deleting value for key=$key from Google Drive" }
 
   override suspend fun getString(
@@ -75,14 +88,16 @@ class GoogleDriveKeyValueStoreImpl(
     key: String,
   ): Result<String?, GoogleDriveError> =
     binding {
-      val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = drive(androidAccount).bind()
+      driveClientLock.withLock {
+        val androidAccount = account.credentials.androidAccount().bind()
+        val driveService = drive(androidAccount).bind()
 
-      val file = driveService.findEntryFile(key).bind()
+        val file = driveService.findEntryFile(key).bind()
 
-      file?.let {
-        val fileData = driveService.downloadEntryFile(file).bind()
-        fileData.utf8()
+        file?.let {
+          val fileData = driveService.downloadEntryFile(file).bind()
+          fileData.utf8()
+        }
       }
     }.logFailure { "Error reading string value for key=$key from Google Drive cloud storage" }
 

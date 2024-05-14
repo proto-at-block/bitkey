@@ -5,6 +5,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_B
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SOCIAL_RECOVERY_EXPLANATION
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.platform.device.DevicePlatform.Android
 import build.wallet.platform.device.DevicePlatform.IOS
@@ -29,7 +30,6 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 expect fun CloudBackupNotFoundBodyModel(
   onBack: () -> Unit,
@@ -75,7 +75,7 @@ fun CloudWarningBodyModel(
         listGroupModel =
           ListGroupModel(
             items =
-              listOfNotNull(
+              immutableListOfNotNull(
                 ListItemModel(
                   leadingAccessory =
                     ListItemAccessory.IconAccessory(
@@ -129,7 +129,7 @@ fun CloudWarningBodyModel(
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30)
                   )
                 }
-              ).toImmutableList(),
+              ),
             style = ListGroupStyle.DIVIDER
           )
       )

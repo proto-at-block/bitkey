@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use ::metrics::KeyValue;
 use account::service::{FetchAccountInput, Service as AccountService};
 use authn_authz::key_claims::KeyClaims;
 use axum::{
@@ -13,6 +12,7 @@ use axum::{
 use axum_extra::TypedHeader;
 use errors::ApiError;
 use http_server::swagger::{SwaggerEndpoint, Url};
+use instrumentation::metrics::KeyValue;
 
 use serde::{Deserialize, Serialize};
 use tracing::{event, instrument, Level};

@@ -1,0 +1,13 @@
+import kotlin.Boolean;
+
+CREATE TABLE hideBalancePreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    enabled INTEGER AS Boolean NOT NULL
+);
+
+CREATE TABLE biometricPreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    enabled INTEGER AS Boolean NOT NULL
+);
+
+PRAGMA foreign_key_check;

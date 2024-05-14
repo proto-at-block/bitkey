@@ -35,7 +35,6 @@ import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.getActiveWallet
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
@@ -379,7 +378,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
         val activeAccount = appTester.getActiveFullAccount()
         val activeWallet = appSpendingWalletProvider.getSpendingWallet(activeAccount).getOrThrow()
         activeWallet.sync().shouldBeOk()
-        val balance = activeWallet.balance().first().shouldBeLoaded()
+        val balance = activeWallet.balance().first()
         balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
         // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
         appTester.returnFundsToTreasury(activeAccount)

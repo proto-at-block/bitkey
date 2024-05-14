@@ -77,7 +77,6 @@ import build.wallet.f8e.mobilepay.MobilePaySigningServiceImpl
 import build.wallet.f8e.mobilepay.MobilePaySpendingLimitServiceImpl
 import build.wallet.f8e.money.FiatCurrencyDefinitionServiceImpl
 import build.wallet.f8e.notifications.NotificationTouchpointServiceImpl
-import build.wallet.f8e.notifications.RegisterWatchAddressServiceImpl
 import build.wallet.f8e.onboarding.CompleteDelayNotifyServiceImpl
 import build.wallet.f8e.onboarding.CreateAccountKeysetServiceImpl
 import build.wallet.f8e.onboarding.CreateAccountServiceImpl
@@ -104,6 +103,7 @@ import build.wallet.f8e.socrec.SocialRecoveryServiceImpl
 import build.wallet.f8e.support.SupportTicketServiceImpl
 import build.wallet.home.GettingStartedTaskDaoImpl
 import build.wallet.home.HomeUiBottomSheetDaoImpl
+import build.wallet.inappsecurity.BiometricPreferenceImpl
 import build.wallet.keybox.AppDataDeleterImpl
 import build.wallet.keybox.CloudBackupDeleterImpl
 import build.wallet.limit.MobilePayDisablerImpl
@@ -116,7 +116,6 @@ import build.wallet.money.currency.FiatCurrencyRepositoryImpl
 import build.wallet.money.exchange.CurrencyConverterImpl
 import build.wallet.money.exchange.ExchangeRateDaoImpl
 import build.wallet.money.exchange.ExchangeRateSyncerImpl
-import build.wallet.money.exchange.F8eExchangeRateServiceImpl
 import build.wallet.money.formatter.internal.MoneyDisplayFormatterImpl
 import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
 import build.wallet.money.input.MoneyInputFormatterImpl
@@ -134,8 +133,6 @@ import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.nfc.platform.NfcSessionProvider
 import build.wallet.nfc.transaction.PairingTransactionProviderImpl
 import build.wallet.notifications.NotificationTouchpointDaoImpl
-import build.wallet.notifications.RegisterWatchAddressQueueImpl
-import build.wallet.notifications.RegisterWatchAddressSenderImpl
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgraderImpl
 import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDaoImpl
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoImpl
@@ -154,7 +151,6 @@ import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.platform.settings.TelephonyCountryCodeProviderImpl
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.queueprocessor.ProcessorImpl
 import build.wallet.recovery.LostAppRecoveryAuthenticatorImpl
 import build.wallet.recovery.LostAppRecoveryInitiatorImpl
 import build.wallet.recovery.LostHardwareRecoveryStarterImpl
@@ -193,6 +189,7 @@ import build.wallet.statemachine.account.create.full.onboard.notifications.UiErr
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachineImpl
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachineImpl
 import build.wallet.statemachine.auth.RefreshAuthTokensUiStateMachineImpl
+import build.wallet.statemachine.biometric.BiometricSettingUiStateMachineImpl
 import build.wallet.statemachine.cloud.CloudBackupRectificationNavigatorImpl
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachineImpl
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachineImpl
@@ -220,7 +217,6 @@ import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDat
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataStateMachineImpl
 import build.wallet.statemachine.data.lightning.LightningNodeDataStateMachineImpl
 import build.wallet.statemachine.data.mobilepay.MobilePayDataStateMachineImpl
-import build.wallet.statemachine.data.money.currency.CurrencyPreferenceDataStateMachineImpl
 import build.wallet.statemachine.data.notifications.NotificationTouchpointDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachineImpl
@@ -253,8 +249,10 @@ import build.wallet.statemachine.dev.analytics.AnalyticsUiStateMachineImpl
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
 import build.wallet.statemachine.dev.debug.NetworkingDebugConfigPickerUiStateMachineImpl
 import build.wallet.statemachine.dev.featureFlags.BooleanFlagItemUiStateMachineImpl
+import build.wallet.statemachine.dev.featureFlags.DoubleFlagItemUiStateMachineImpl
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiStateMachineImpl
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsStateMachineImpl
+import build.wallet.statemachine.dev.featureFlags.StringFlagItemUiStateMachineImpl
 import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelStateMachineImpl
 import build.wallet.statemachine.dev.lightning.LightningDebugMenuUiStateMachineImpl
 import build.wallet.statemachine.dev.lightning.LightningOptionsUiStateMachineImpl
@@ -285,6 +283,7 @@ import build.wallet.statemachine.notifications.NotificationPreferencesUiStateMac
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachineImpl
 import build.wallet.statemachine.notifications.NotificationsPreferencesCachedProviderImpl
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachineImpl
+import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeUiStateMachineImpl
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiStateMachineImpl
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
@@ -340,6 +339,9 @@ import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachineImpl
 import build.wallet.statemachine.settings.SettingsListUiStateMachineImpl
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiStateMachineImpl
+import build.wallet.statemachine.settings.full.device.fingerprints.EditingFingerprintUiStateMachineImpl
+import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiStateMachineImpl
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachineImpl
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSettingUiStateMachineImpl
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiStateMachineImpl
 import build.wallet.statemachine.settings.full.electrum.SetElectrumServerUiStateMachineImpl
@@ -348,7 +350,6 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachineIm
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachineImpl
 import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusUiStateMachineImpl
 import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiStateMachineImpl
-import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsUiStateMachineImpl
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachineImpl
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachineImpl
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiStateMachineImpl
@@ -364,7 +365,6 @@ import build.wallet.time.DateTimeFormatterImpl
 import build.wallet.time.DurationFormatterImpl
 import build.wallet.time.TimeZoneFormatterImpl
 import build.wallet.time.TimeZoneProviderImpl
-import kotlin.time.Duration.Companion.minutes
 
 /**
  * [ActivityComponent] that provides real implementations.
@@ -560,13 +560,6 @@ class ActivityComponentImpl(
       socRecCrypto = socRecCrypto
     )
 
-  val fullAccountCloudBackupCreator =
-    FullAccountCloudBackupCreatorImpl(
-      appPrivateKeyDao = appComponent.appPrivateKeyDao,
-      fullAccountFieldsCreator = fullAccountFieldsCreator,
-      socRecKeysRepository = socRecKeysRepository
-    )
-
   val exchangeRateDao =
     ExchangeRateDaoImpl(
       databaseProvider = appComponent.bitkeyDatabaseProvider
@@ -577,15 +570,10 @@ class ActivityComponentImpl(
       keyboxDao = appComponent.keyboxDao
     )
 
-  val f8eExchangeRateService =
-    F8eExchangeRateServiceImpl(
-      f8eHttpClient = appComponent.f8eHttpClient
-    )
-
   val exchangeRateSyncer =
     ExchangeRateSyncerImpl(
       exchangeRateDao = exchangeRateDao,
-      f8eExchangeRateService = f8eExchangeRateService,
+      f8eExchangeRateService = appComponent.f8eExchangeRateService,
       activeF8eEnvironmentRepository = activeF8eEnvironmentRepository,
       appSessionManager = appComponent.appSessionManager
     )
@@ -594,7 +582,7 @@ class ActivityComponentImpl(
     CurrencyConverterImpl(
       accountRepository = appComponent.accountRepository,
       exchangeRateDao = exchangeRateDao,
-      f8eExchangeRateService = f8eExchangeRateService
+      f8eExchangeRateService = appComponent.f8eExchangeRateService
     )
 
   val durationFormatter = DurationFormatterImpl()
@@ -752,22 +740,6 @@ class ActivityComponentImpl(
       cloudBackupDao = cloudBackupDao
     )
 
-  val fullAccountCloudSignInAndBackupUiStateMachine =
-    FullAccountCloudSignInAndBackupUiStateMachineImpl(
-      cloudBackupRepository = cloudBackupRepository,
-      cloudSignInUiStateMachine = cloudSignInUiStateMachine,
-      fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
-      eventTracker = appComponent.eventTracker,
-      rectifiableErrorHandlingUiStateMachine = rectifiableErrorHandlingUiStateMachine,
-      deviceInfoProvider = appComponent.deviceInfoProvider,
-      csekGenerator = csekGenerator,
-      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      csekDao = csekDao,
-      inAppBrowserNavigator = inAppBrowserNavigator,
-      emergencyAccessKitPdfGenerator = emergencyAccessKitPdfGenerator,
-      emergencyAccessKitRepository = emergencyAccessKitRepository
-    )
-
   val socRecRelationshipsDao = SocRecRelationshipsDaoImpl(appComponent.bitkeyDatabaseProvider)
 
   val socRecEnrollmentAuthenticationDao = SocRecEnrollmentAuthenticationDaoImpl(
@@ -815,10 +787,33 @@ class ActivityComponentImpl(
       appSessionManager = appComponent.appSessionManager
     )
 
+  val fullAccountCloudBackupCreator =
+    FullAccountCloudBackupCreatorImpl(
+      appPrivateKeyDao = appComponent.appPrivateKeyDao,
+      fullAccountFieldsCreator = fullAccountFieldsCreator,
+      socRecKeysRepository = socRecKeysRepository,
+      socRecRelationshipsRepository = socRecRelationshipsRepository
+    )
+
+  val fullAccountCloudSignInAndBackupUiStateMachine =
+    FullAccountCloudSignInAndBackupUiStateMachineImpl(
+      cloudBackupRepository = cloudBackupRepository,
+      cloudSignInUiStateMachine = cloudSignInUiStateMachine,
+      fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
+      eventTracker = appComponent.eventTracker,
+      rectifiableErrorHandlingUiStateMachine = rectifiableErrorHandlingUiStateMachine,
+      deviceInfoProvider = appComponent.deviceInfoProvider,
+      csekGenerator = csekGenerator,
+      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+      csekDao = csekDao,
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      emergencyAccessKitPdfGenerator = emergencyAccessKitPdfGenerator,
+      emergencyAccessKitRepository = emergencyAccessKitRepository
+    )
+
   val bestEffortFullAccountCloudBackupUploader =
     BestEffortFullAccountCloudBackupUploaderImpl(
       cloudBackupDao = cloudBackupDao,
-      socRecRelationshipsRepository = socRecRelationshipsRepository,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
       cloudBackupRepository = cloudBackupRepository
@@ -834,7 +829,6 @@ class ActivityComponentImpl(
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     csekDao = csekDao,
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
-    socRecRelationshipsRepository = socRecRelationshipsRepository,
     emergencyAccessKitPdfGenerator = emergencyAccessKitPdfGenerator,
     emergencyAccessKitRepository = emergencyAccessKitRepository,
     inAppBrowserNavigator = inAppBrowserNavigator
@@ -906,25 +900,24 @@ class ActivityComponentImpl(
       moneyDisplayFormatter = moneyDisplayFormatter
     )
 
-  val moneyCalculatorUiStateMachine =
-    MoneyCalculatorUiStateMachineImpl(
-      amountCalculator = amountCalculator,
-      bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
-      currencyConverter = currencyConverter,
-      moneyAmountEntryUiStateMachine = moneyAmountEntryUiStateMachine,
-      decimalNumberCreator = decimalNumberCreator,
-      doubleFormatter = doubleFormatter
-    )
+  val moneyCalculatorUiStateMachine = MoneyCalculatorUiStateMachineImpl(
+    amountCalculator = amountCalculator,
+    bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
+    currencyConverter = currencyConverter,
+    moneyAmountEntryUiStateMachine = moneyAmountEntryUiStateMachine,
+    decimalNumberCreator = decimalNumberCreator,
+    doubleFormatter = doubleFormatter
+  )
 
   val mobilePaySpendingPolicy = MobilePaySpendingPolicyImpl()
 
-  val transferAmountEntryUiStateMachine =
-    TransferAmountEntryUiStateMachineImpl(
-      currencyConverter = currencyConverter,
-      moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
-      mobilePaySpendingPolicy = mobilePaySpendingPolicy,
-      moneyDisplayFormatter = moneyDisplayFormatter
-    )
+  val transferAmountEntryUiStateMachine = TransferAmountEntryUiStateMachineImpl(
+    currencyConverter = currencyConverter,
+    moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
+    mobilePaySpendingPolicy = mobilePaySpendingPolicy,
+    moneyDisplayFormatter = moneyDisplayFormatter,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+  )
 
   val transactionDetailsCardUiStateMachine =
     TransactionDetailsCardUiStateMachineImpl(
@@ -932,10 +925,10 @@ class ActivityComponentImpl(
       moneyDisplayFormatter = moneyDisplayFormatter
     )
 
-  val transferInitiatedUiStateMachine =
-    TransferInitiatedUiStateMachineImpl(
-      transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine
-    )
+  val transferInitiatedUiStateMachine = TransferInitiatedUiStateMachineImpl(
+    transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+  )
 
   val refreshAuthTokensStateMachine =
     RefreshAuthTokensUiStateMachineImpl(
@@ -967,27 +960,6 @@ class ActivityComponentImpl(
       fiatMobilePayConfigurationRepository = fiatMobilePayConfigurationRepository,
       moneyDisplayFormatter = moneyDisplayFormatter,
       proofOfPossessionNfcStateMachine = proofOfPossessionNfcStateMachine
-    )
-
-  val registerWatchAddressQueue =
-    RegisterWatchAddressQueueImpl(
-      databaseProvider = appComponent.bitkeyDatabaseProvider
-    )
-
-  val registerWatchAddressService =
-    RegisterWatchAddressServiceImpl(
-      f8eHttpClient = appComponent.f8eHttpClient
-    )
-
-  val registerWatchAddressSender =
-    RegisterWatchAddressSenderImpl(registerWatchAddressService)
-
-  private val registerWatchAddressProcessor =
-    ProcessorImpl(
-      queue = registerWatchAddressQueue,
-      processor = registerWatchAddressSender,
-      retryFrequency = 1.minutes,
-      retryBatchSize = 1
     )
 
   val addressQrCodeUiStateMachine =
@@ -1075,11 +1047,11 @@ class ActivityComponentImpl(
       permissionChecker = appComponent.permissionChecker
     )
 
-  val sweepUiStateMachine =
-    SweepUiStateMachineImpl(
-      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      moneyAmountUiStateMachine = moneyAmountUiStateMachine
-    )
+  val sweepUiStateMachine = SweepUiStateMachineImpl(
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    moneyAmountUiStateMachine = moneyAmountUiStateMachine,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+  )
 
   val completingRecoveryUiStateMachine =
     CompletingRecoveryUiStateMachineImpl(
@@ -1304,11 +1276,6 @@ class ActivityComponentImpl(
       uiErrorHintsProvider = uiErrorHintProvider
     )
 
-  val notificationsSettingsStateMachine =
-    NotificationsSettingsUiStateMachineImpl(
-      notificationTouchpointInputAndVerificationUiStateMachine = notificationTouchpointInputAndVerificationUiStateMachine
-    )
-
   val onboardingKeyboxSealedCsekDao =
     OnboardingKeyboxSealedCsekDaoImpl(
       encryptedKeyValueStoreFactory = appComponent.secureStoreFactory
@@ -1360,12 +1327,16 @@ class ActivityComponentImpl(
   val fiatCurrencyDefinitionService = FiatCurrencyDefinitionServiceImpl(appComponent.f8eHttpClient)
   val fiatCurrencyRepository =
     FiatCurrencyRepositoryImpl(
+      appScope = appComponent.appCoroutineScope,
       fiatCurrencyDao = appComponent.fiatCurrencyDao,
       fiatCurrencyDefinitionService = fiatCurrencyDefinitionService
     )
 
   val currencyPreferenceUiStateMachine =
     CurrencyPreferenceUiStateMachineImpl(
+      bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
+      eventTracker = appComponent.eventTracker,
       currencyConverter = currencyConverter,
       fiatCurrencyRepository = fiatCurrencyRepository,
       moneyDisplayFormatter = moneyDisplayFormatter
@@ -1503,12 +1474,12 @@ class ActivityComponentImpl(
       mobilePaySpendingLimitService = spendingLimitService
     )
 
-  val setSpendingLimitUiStateMachine =
-    SetSpendingLimitUiStateMachineImpl(
-      spendingLimitPickerUiStateMachine = spendingLimitPickerUiStateMachine,
-      timeZoneProvider = timeZoneProvider,
-      moneyDisplayFormatter = moneyDisplayFormatter
-    )
+  val setSpendingLimitUiStateMachine = SetSpendingLimitUiStateMachineImpl(
+    spendingLimitPickerUiStateMachine = spendingLimitPickerUiStateMachine,
+    timeZoneProvider = timeZoneProvider,
+    moneyDisplayFormatter = moneyDisplayFormatter,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+  )
 
   val spendingLimitCardStateMachine =
     SpendingLimitCardUiStateMachineImpl(
@@ -1520,7 +1491,8 @@ class ActivityComponentImpl(
   val mobilePayStatusUiStateMachine =
     MobilePayStatusUiStateMachineImpl(
       moneyDisplayFormatter = moneyDisplayFormatter,
-      spendingLimitCardUiStateMachine = spendingLimitCardStateMachine
+      spendingLimitCardUiStateMachine = spendingLimitCardStateMachine,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val analyticOptionsUiStateMachine =
@@ -1585,10 +1557,10 @@ class ActivityComponentImpl(
       moneyDisplayFormatter = moneyDisplayFormatter
     )
 
-  val feeOptionListUiStateMachine =
-    FeeOptionListUiStateMachineImpl(
-      feeOptionUiStateMachine = feeOptionUiStateMachine
-    )
+  val feeOptionListUiStateMachine = FeeOptionListUiStateMachineImpl(
+    feeOptionUiStateMachine = feeOptionUiStateMachine,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+  )
 
   val outgoingTransactionDetailRepository =
     OutgoingTransactionDetailRepositoryImpl(
@@ -1604,7 +1576,8 @@ class ActivityComponentImpl(
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
       appSpendingWalletProvider = appComponent.appSpendingWalletProvider,
-      outgoingTransactionDetailRepository = outgoingTransactionDetailRepository
+      outgoingTransactionDetailRepository = outgoingTransactionDetailRepository,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val bitcoinTransactionFeeEstimator =
@@ -1633,7 +1606,8 @@ class ActivityComponentImpl(
       feeSelectionUiStateMachine = feeSelectionStateMachine,
       exchangeRateSyncer = exchangeRateSyncer,
       clock = appComponent.clock,
-      networkReachabilityProvider = appComponent.networkReachabilityProvider
+      networkReachabilityProvider = appComponent.networkReachabilityProvider,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val transactionDetailStateMachine =
@@ -1651,7 +1625,8 @@ class ActivityComponentImpl(
       feeBumpEnabled = appComponent.feeBumpIsAvailableFeatureFlag,
       moneyDisplayFormatter = moneyDisplayFormatter,
       sendUiStateMachine = sendStateMachine,
-      timeZoneProvider = timeZoneProvider
+      timeZoneProvider = timeZoneProvider,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val homeUiBottomSheetDao = HomeUiBottomSheetDaoImpl(appComponent.bitkeyDatabaseProvider)
@@ -1735,7 +1710,8 @@ class ActivityComponentImpl(
       platformContext = appComponent.platformContext
     )
 
-  val partnershipsTransactionsDao = PartnershipTransactionsDaoImpl(appComponent.bitkeyDatabaseProvider)
+  val partnershipsTransactionsDao =
+    PartnershipTransactionsDaoImpl(appComponent.bitkeyDatabaseProvider)
 
   val partnershipTransactionsStatusRepository = PartnershipTransactionsRepositoryImpl(
     dao = partnershipsTransactionsDao,
@@ -1743,13 +1719,14 @@ class ActivityComponentImpl(
     clock = appComponent.clock
   )
 
+  val getTransferPartnerListService = GetTransferPartnerListServiceImpl(
+    countryCodeGuesser,
+    appComponent.f8eHttpClient
+  )
+
   val partnershipsTransferUiStateMachine =
     PartnershipsTransferUiStateMachineImpl(
-      getTransferPartnerListService =
-        GetTransferPartnerListServiceImpl(
-          countryCodeGuesser,
-          appComponent.f8eHttpClient
-        ),
+      getTransferPartnerListService = getTransferPartnerListService,
       getTransferRedirectService = GetTransferRedirectServiceImpl(appComponent.f8eHttpClient),
       partnershipsRepository = partnershipTransactionsStatusRepository
     )
@@ -1768,7 +1745,8 @@ class ActivityComponentImpl(
           appComponent.f8eHttpClient
         ),
       getPurchaseRedirectService = GetPurchaseRedirectServiceImpl(appComponent.f8eHttpClient),
-      partnershipsRepository = partnershipTransactionsStatusRepository
+      partnershipsRepository = partnershipTransactionsStatusRepository,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val addBitcoinUiStateMachine =
@@ -1847,12 +1825,15 @@ class ActivityComponentImpl(
       transactionListUiStateMachine = transactionListStateMachine,
       viewingInvitationUiStateMachine = viewingInvitationUiStateMachine,
       viewingRecoveryContactUiStateMachine = viewingRecoveryContactUiStateMachine,
-      eventTracker = appComponent.eventTracker
+      eventTracker = appComponent.eventTracker,
+      currencyConverter = currencyConverter,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
   val customAmountEntryUiStateMachine =
     CustomAmountEntryUiStateMachineImpl(
       moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
-      moneyDisplayFormatter = moneyDisplayFormatter
+      moneyDisplayFormatter = moneyDisplayFormatter,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
   val moneyHomeStateMachine =
     MoneyHomeUiStateMachineImpl(
@@ -1870,7 +1851,8 @@ class ActivityComponentImpl(
       recoveryIncompleteRepository = postSocRecTaskRepository,
       moneyHomeViewingBalanceUiStateMachine = moneyHomeViewingBalanceUiStateMachine,
       customAmountEntryUiStateMachine = customAmountEntryUiStateMachine,
-      repairCloudBackupStateMachine = repairMobileKeyBackupUiStateMachine
+      repairCloudBackupStateMachine = repairMobileKeyBackupUiStateMachine,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val appStateDeleterOptionsUiStateMachine =
@@ -1880,9 +1862,11 @@ class ActivityComponentImpl(
 
   val featureFlagsStateMachine =
     FeatureFlagsStateMachineImpl(
-      allBooleanFeatureFlags = appComponent.allFeatureFlags,
+      featureFlags = appComponent.allFeatureFlags,
       booleanFlagItemUiStateMachine = booleanFlagItemStateMachine,
-      featureFlagSyncer = appComponent.featureFlagSyncer
+      featureFlagSyncer = appComponent.featureFlagSyncer,
+      doubleFlagItemUiStateMachine = DoubleFlagItemUiStateMachineImpl(),
+      stringFlagItemUiStateMachine = StringFlagItemUiStateMachineImpl()
     )
 
   val featureFlagsOptionsStateMachine =
@@ -1973,6 +1957,18 @@ class ActivityComponentImpl(
       setElectrumServerUiStateMachine = setElectrumServerUiStateMachine
     )
 
+  val editingFingerprintUiStateMachine = EditingFingerprintUiStateMachineImpl()
+
+  val enrollingFingerprintUiStateMachine = EnrollingFingerprintUiStateMachineImpl(
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine
+  )
+
+  val managingFingerprintsUiStateMachine = ManagingFingerprintsUiStateMachineImpl(
+    editingFingerprintUiStateMachine = editingFingerprintUiStateMachine,
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    enrollingFingerprintUiStateMachine = enrollingFingerprintUiStateMachine
+  )
+
   val deviceSettingsUiStateMachine =
     DeviceSettingsUiStateMachineImpl(
       lostHardwareRecoveryUiStateMachine = lostHardwareRecoveryUiStateMachine,
@@ -1982,7 +1978,10 @@ class ActivityComponentImpl(
       timeZoneProvider = timeZoneProvider,
       durationFormatter = durationFormatter,
       firmwareDeviceInfoDao = appComponent.firmwareDeviceInfoDao,
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider
+      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      multipleFingerprintsIsEnabledFeatureFlag = appComponent.multipleFingerprintsIsEnabledFeatureFlag,
+      resetDeviceIsEnabledFeatureFlag = appComponent.resetDeviceIsEnabledFeatureFlag,
+      managingFingerprintsUiStateMachine = managingFingerprintsUiStateMachine
     )
 
   val customerFeedbackService =
@@ -2036,11 +2035,19 @@ class ActivityComponentImpl(
     sharingManager = sharingManager
   )
 
+  val biometricPreference = BiometricPreferenceImpl(
+    appComponent.bitkeyDatabaseProvider
+  )
+
+  val biometricSettingUiStateMachine = BiometricSettingUiStateMachineImpl(
+    biometricPreference = biometricPreference
+  )
+
   val settingsStateMachine =
     SettingsHomeUiStateMachineImpl(
+      appVariant = appComponent.appVariant,
       mobilePaySettingsUiStateMachine = mobilePaySettingsUiStateMachine,
       notificationPreferencesUiStateMachine = notificationPreferencesUiStateMachine,
-      notificationsSettingsUiStateMachine = notificationsSettingsStateMachine,
       recoveryChannelSettingsUiStateMachine = recoveryChannelSettingsUiStateMachineImpl,
       currencyPreferenceUiStateMachine = currencyPreferenceUiStateMachine,
       customElectrumServerSettingUiStateMachine = customElectrumServerSettingUiStateMachine,
@@ -2050,12 +2057,16 @@ class ActivityComponentImpl(
       trustedContactManagementUiStateMachine = trustedContactManagementUiStateMachine,
       settingsListUiStateMachine = settingsListUiStateMachine,
       cloudBackupHealthDashboardUiStateMachine = cloudBackupHealthDashboardUiStateMachine,
-      rotateAuthKeyUIStateMachine = rotateAuthUIStateMachine
+      rotateAuthKeyUIStateMachine = rotateAuthUIStateMachine,
+      debugMenuStateMachine = debugMenuStateMachine,
+      biometricSettingUiStateMachine = biometricSettingUiStateMachine,
+      inAppSecurityFeatureFlag = appComponent.inAppSecurityFeatureFlag
     )
 
   val homeUiBottomSheetStateMachine =
     HomeUiBottomSheetStateMachineImpl(
-      homeUiBottomSheetDao = homeUiBottomSheetDao
+      homeUiBottomSheetDao = homeUiBottomSheetDao,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val currencyChangeMobilePayBottomSheetUpdater =
@@ -2079,10 +2090,14 @@ class ActivityComponentImpl(
       clock = appComponent.clock
     )
 
+  val expectedTransactionNoticeUiStateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
+    getTransferPartnerListService = getTransferPartnerListService,
+    dateTimeFormatter = dateTimeFormatter
+  )
+
   val homeUiStateMachine =
     HomeUiStateMachineImpl(
       appFunctionalityStatusUiStateMachine = appFunctionalityStatusUiStateMachine,
-      currencyConverter = currencyConverter,
       currencyChangeMobilePayBottomSheetUpdater = currencyChangeMobilePayBottomSheetUpdater,
       homeStatusBannerUiStateMachine = homeStatusBannerUiStateMachine,
       homeUiBottomSheetStateMachine = homeUiBottomSheetStateMachine,
@@ -2092,7 +2107,13 @@ class ActivityComponentImpl(
       trustedContactEnrollmentUiStateMachine = trustedContactEnrollmentUiStateMachine,
       socRecRelationshipsRepository = socRecRelationshipsRepository,
       cloudBackupHealthRepository = cloudBackupHealthRepository,
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider
+      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      expectedTransactionNoticeUiStateMachine = expectedTransactionNoticeUiStateMachine,
+      deepLinkHandler = deepLinkHandler,
+      inAppBrowserNavigator = inAppBrowserNavigator,
+      clock = appComponent.clock,
+      timeZoneProvider = timeZoneProvider,
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
     )
 
   val chooseAccountAccessUiStateMachine =
@@ -2100,21 +2121,22 @@ class ActivityComponentImpl(
       appVariant = appComponent.appVariant,
       demoModeConfigUiStateMachine = demoModeConfigUiStateMachine,
       debugMenuStateMachine = debugMenuStateMachine,
-      deviceInfoProvider = appComponent.deviceInfoProvider
+      deviceInfoProvider = appComponent.deviceInfoProvider,
+      emergencyAccessKitDataProvider = emergencyAccessKitDataProvider
     )
 
-  val mobilePayDataStateMachine =
-    MobilePayDataStateMachineImpl(
-      mobilePayStatusProvider = mobilePayStatusProvider,
-      mobilePayLimitSetter = mobilePayLimitSetter,
-      mobilePayDisabler = mobilePayDisabler,
-      eventTracker = appComponent.eventTracker,
-      currencyConverter = currencyConverter
-    )
+  val mobilePayDataStateMachine = MobilePayDataStateMachineImpl(
+    mobilePayStatusProvider = mobilePayStatusProvider,
+    mobilePayLimitSetter = mobilePayLimitSetter,
+    mobilePayDisabler = mobilePayDisabler,
+    eventTracker = appComponent.eventTracker,
+    currencyConverter = currencyConverter,
+    fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+  )
 
   val fullAccountAddressDataStateMachine =
     FullAccountAddressDataStateMachineImpl(
-      registerWatchAddressProcessor = registerWatchAddressProcessor,
+      registerWatchAddressProcessor = appComponent.registerWatchAddressProcessor,
       appSpendingWalletProvider = appComponent.appSpendingWalletProvider
     )
 
@@ -2195,7 +2217,7 @@ class ActivityComponentImpl(
       bitcoinFeeRateEstimator = bitcoinFeeRateEstimator,
       appPrivateKeyDao = appComponent.appPrivateKeyDao,
       keysetWalletProvider = appComponent.keysetWalletProvider,
-      registerWatchAddressProcessor = registerWatchAddressProcessor
+      registerWatchAddressProcessor = appComponent.registerWatchAddressProcessor
     )
 
   val sweepDataStateMachine =
@@ -2422,34 +2444,17 @@ class ActivityComponentImpl(
         )
     )
 
-  val currencyPreferenceDataStateMachine =
-    CurrencyPreferenceDataStateMachineImpl(
-      bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
-      eventTracker = appComponent.eventTracker,
-      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
-    )
-
   val appDataStateMachine =
     AppDataStateMachineImpl(
-      eventTracker = appComponent.eventTracker,
       featureFlagInitializer = appComponent.featureFlagInitializer,
       featureFlagSyncer = appComponent.featureFlagSyncer,
       accountDataStateMachine = accountDataStateMachine,
-      periodicEventProcessor = appComponent.periodicEventProcessor,
-      periodicFirmwareTelemetryProcessor = appComponent.periodicFirmwareTelemetryEventProcessor,
-      periodicFirmwareCoredumpProcessor = appComponent.periodicFirmwareCoredumpProcessor,
-      periodicRegisterWatchAddressProcessor = registerWatchAddressProcessor,
       lightningNodeDataStateMachine = lightningNodeDataStateMachine,
       templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
       electrumServerDataStateMachine = electrumServerDataStateMachine,
       firmwareDataStateMachine = firmwareDataStateMachine,
-      currencyPreferenceDataStateMachine = currencyPreferenceDataStateMachine,
-      networkingDebugConfigRepository = appComponent.networkingDebugConfigRepository,
-      bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
       fiatCurrencyRepository = fiatCurrencyRepository,
-      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
-      fiatMobilePayConfigurationRepository = fiatMobilePayConfigurationRepository,
-      emergencyAccessKitDataProvider = emergencyAccessKitDataProvider
+      fiatMobilePayConfigurationRepository = fiatMobilePayConfigurationRepository
     )
 
   val liteAccountCreator =
@@ -2506,11 +2511,13 @@ class ActivityComponentImpl(
     )
   val liteSettingsHomeUiStateMachine =
     LiteSettingsHomeUiStateMachineImpl(
+      appVariant = appComponent.appVariant,
       currencyPreferenceUiStateMachine = currencyPreferenceUiStateMachine,
       helpCenterUiStateMachine = helpCenterUiStateMachine,
       liteTrustedContactManagementUiStateMachine = liteTrustedContactManagementUiStateMachine,
       settingsListUiStateMachine = settingsListUiStateMachine,
-      feedbackUiStateMachine = feedbackUiStateMachine
+      feedbackUiStateMachine = feedbackUiStateMachine,
+      debugMenuStateMachine = debugMenuStateMachine
     )
   val liteHomeUiStateMachine =
     LiteHomeUiStateMachineImpl(
@@ -2566,6 +2573,7 @@ class ActivityComponentImpl(
       createLiteAccountUiStateMachine = createLiteAccountUiStateMachine,
       liteAccountCloudBackupRestorationUiStateMachine = liteAccountCloudBackupRestorationUiStateMachine,
       emergencyAccessKitRecoveryUiStateMachine = emergencyAccessKitRecoveryUiStateMachine,
-      authKeyRotationUiStateMachine = rotateAuthUIStateMachine
+      authKeyRotationUiStateMachine = rotateAuthUIStateMachine,
+      appWorkerExecutor = appComponent.appWorkerExecutor
     )
 }

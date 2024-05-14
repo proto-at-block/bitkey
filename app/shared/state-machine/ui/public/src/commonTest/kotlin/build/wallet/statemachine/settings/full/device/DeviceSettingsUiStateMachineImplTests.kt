@@ -6,9 +6,11 @@ import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
+import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.setFlagValue
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.fwup.FwupDataMock
-import build.wallet.money.currency.USD
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -18,6 +20,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Button
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
+import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.UpToDate
@@ -30,6 +33,8 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
@@ -50,12 +55,19 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
+  val multipleFingerprintsEnabledFeatureFlag = MultipleFingerprintsIsEnabledFeatureFlag(
+    featureFlagDao = FeatureFlagDaoMock()
+  )
+  val resetDeviceIsEnabledFeatureFlag = ResetDeviceIsEnabledFeatureFlag(
+    featureFlagDao = FeatureFlagDaoMock()
+  )
   val stateMachine =
     DeviceSettingsUiStateMachineImpl(
       lostHardwareRecoveryUiStateMachine =
-        object : LostHardwareRecoveryUiStateMachine, ScreenStateMachineMock<LostHardwareRecoveryProps>(
-          "initiate hw recovery"
-        ) {},
+        object : LostHardwareRecoveryUiStateMachine,
+          ScreenStateMachineMock<LostHardwareRecoveryProps>(
+            "initiate hw recovery"
+          ) {},
       nfcSessionUIStateMachine =
         object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
           "firmware metadata"
@@ -68,18 +80,24 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       timeZoneProvider = TimeZoneProviderMock(),
       durationFormatter = DurationFormatterFake(),
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider
+      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      multipleFingerprintsIsEnabledFeatureFlag = multipleFingerprintsEnabledFeatureFlag,
+      resetDeviceIsEnabledFeatureFlag = resetDeviceIsEnabledFeatureFlag,
+      managingFingerprintsUiStateMachine = object : ManagingFingerprintsUiStateMachine,
+        ScreenStateMachineMock<ManagingFingerprintsProps>(
+          id = "managing fingerprints"
+        ) {}
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
 
-  val props =
-    DeviceSettingsProps(
-      accountData = ActiveKeyboxLoadedDataMock,
-      firmwareData = FirmwareDataUpToDateMock.copy(firmwareUpdateState = UpToDate),
-      fiatCurrency = USD,
-      onBack = { onBackCalls += Unit }
-    )
+  val props = DeviceSettingsProps(
+    accountData = ActiveKeyboxLoadedDataMock,
+    firmwareData = FirmwareDataUpToDateMock.copy(firmwareUpdateState = UpToDate),
+    onBack = { onBackCalls += Unit }
+  )
+
+  val nfcCommandsMock = NfcCommandsMock(turbines::create)
 
   beforeTest {
     firmwareDeviceInfoDao.reset()
@@ -145,7 +163,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
       // Syncing info via NFC
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Result<Unit, DbError>>> {
-        session(NfcSessionFake(), NfcCommandsMock(turbines::create))
+        session(NfcSessionFake(), nfcCommandsMock)
         onSuccess(Ok(Unit))
         firmwareDeviceInfoDao.getDeviceInfo().get().shouldNotBeNull()
       }
@@ -244,6 +262,78 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("tap on manage fingerprints") {
+    multipleFingerprintsEnabledFeatureFlag.setFlagValue(true)
+
+    stateMachine.test(props) {
+      // Tap the Fingerprint button
+      awaitScreenWithBody<FormBodyModel> {
+        mainContentList[1].apply {
+          shouldBeInstanceOf<ListGroup>()
+          listGroupModel.items[0].onClick!!()
+        }
+      }
+
+      // Retrieving enrolled fingerprints
+      val fingerprints = EnrolledFingerprints(maxCount = 3, fingerprintHandles = listOf())
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
+        session(NfcSessionFake(), nfcCommandsMock)
+        onSuccess(EnrolledFingerprintResult.Success(fingerprints))
+      }
+
+      // Going to manage fingerprints
+      awaitScreenWithBodyModelMock<ManagingFingerprintsProps> {
+        enrolledFingerprints.shouldBe(fingerprints)
+        onBack()
+      }
+
+      // Back on the device settings screen
+      awaitScreenWithBody<FormBodyModel>()
+    }
+  }
+
+  test("tap on manage fingerprints but need fwup") {
+    multipleFingerprintsEnabledFeatureFlag.setFlagValue(true)
+    stateMachine.test(
+      props.copy(firmwareData = FirmwareDataPendingUpdateMock)
+    ) {
+      // Tap the Fingerprint button
+      awaitScreenWithBody<FormBodyModel> {
+        mainContentList[1].apply {
+          shouldBeInstanceOf<ListGroup>()
+          listGroupModel.items[0].onClick!!()
+        }
+      }
+
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
+        session(NfcSessionFake(), nfcCommandsMock)
+        onSuccess(EnrolledFingerprintResult.FwUpRequired)
+      }
+
+      // Device settings screen should be showing with a bottom sheet modal
+      with(awaitItem()) {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<FormBodyModel>().apply {
+            header.shouldNotBeNull()
+              .headline.shouldBe("Update your hardware device")
+
+            secondaryButton.shouldNotBeNull().apply {
+              text.shouldBe("Update hardware")
+              onClick.invoke()
+            }
+          }
+      }
+
+      // FWUP-ing
+      awaitScreenWithBodyModelMock<FwupNfcUiProps> {
+        onDone()
+      }
+
+      // Back to device settings
+      awaitScreenWithBody<FormBodyModel>()
+    }
+  }
 })
 
 private fun List<Data>.verifyMetadataDataList() {
@@ -253,7 +343,10 @@ private fun List<Data>.verifyMetadataDataList() {
       1 -> data.verifyMetadataData("Model number", "evtd")
       2 -> data.verifyMetadataData("Serial number", "serial")
       3 -> data.verifyMetadataData("Firmware version", "1.2.3")
-      4 -> data.verifyMetadataData("Last known charge", "100%") // Not 89% due to battery level masking
+      4 -> data.verifyMetadataData(
+        "Last known charge",
+        "100%"
+      ) // Not 89% due to battery level masking
       5 -> data.verifyMetadataData("Last sync", "date-time")
     }
   }

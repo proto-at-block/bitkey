@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-native-utils",
     "components": [
         {
-            "version": "1.9.10",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-native-utils-1.9.10.jar": "a5d817055b1a60852749d1485697cdb64fdd97bf8d1a48a55a9e5fcabf89ea49"
+                        "kotlin-native-utils-1.9.22.jar": "786c127dd5535db2c39ae597cd0b0cad9e914b83e236f1db0251235cc9c652ac"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-native-utils-1.9.22.jar": "786c127dd5535db2c39ae597cd0b0cad9e914b83e236f1db0251235cc9c652ac"
+                        "kotlin-native-utils-1.9.23.jar": "5fd01485bd73e617be556bff4992ff012aaeb9f0d9c0084f37cb5d88a3bcad84"
                     }
                 }
             ],

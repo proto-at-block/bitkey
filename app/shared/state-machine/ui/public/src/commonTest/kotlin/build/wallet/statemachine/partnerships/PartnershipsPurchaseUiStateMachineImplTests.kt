@@ -7,11 +7,11 @@ import build.wallet.f8e.partnerships.GetPurchaseOptionsServiceMock
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListServiceServiceMock
 import build.wallet.f8e.partnerships.GetPurchaseRedirectServiceMock
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.GBP
-import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.statemachine.core.SheetModel
@@ -48,32 +48,35 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls")
   )
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
-  val stateMachine =
-    PartnershipsPurchaseUiStateMachineImpl(
-      moneyDisplayFormatter = MoneyDisplayFormatterFake,
-      getPurchaseOptionsService = getPurchaseOptionsService,
-      getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-      getPurchaseRedirectService = getPurchaseRedirectServiceMock,
-      partnershipsRepository = partnershipRepositoryMock
-    )
-
-  fun props(
-    fiatCurrency: FiatCurrency = USD,
-    selectedAmount: FiatMoney? = null,
-  ) = PartnershipsPurchaseUiProps(
-    keybox = KeyboxMock,
-    generateAddress = KeyboxAddressDataMock.generateAddress,
-    fiatCurrency = selectedAmount?.currency ?: fiatCurrency,
-    selectedAmount = selectedAmount,
-    onPartnerRedirected = { onPartnerRedirectedCalls.add(it) },
-    onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },
-    onBack = {},
-    onExit = {}
+  val stateMachine = PartnershipsPurchaseUiStateMachineImpl(
+    moneyDisplayFormatter = MoneyDisplayFormatterFake,
+    getPurchaseOptionsService = getPurchaseOptionsService,
+    getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
+    getPurchaseRedirectService = getPurchaseRedirectServiceMock,
+    partnershipsRepository = partnershipRepositoryMock,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )
 
+  fun props(selectedAmount: FiatMoney? = null) =
+    PartnershipsPurchaseUiProps(
+      keybox = KeyboxMock,
+      generateAddress = KeyboxAddressDataMock.generateAddress,
+      selectedAmount = selectedAmount,
+      onPartnerRedirected = { onPartnerRedirectedCalls.add(it) },
+      onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },
+      onBack = {},
+      onExit = {}
+    )
+
+  beforeTest {
+    fiatCurrencyPreferenceRepository.reset()
+  }
+
   test("no partnerships purchase options") {
-    stateMachine.test(props(fiatCurrency = GBP)) {
+    fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = GBP
+    stateMachine.test(props()) {
       // load purchase amounts
       getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
       awaitLoader()

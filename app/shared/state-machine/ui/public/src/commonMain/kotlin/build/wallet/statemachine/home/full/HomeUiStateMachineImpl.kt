@@ -14,12 +14,18 @@ import build.wallet.availability.InactiveApp
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.money.FiatMoney
-import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.partnerships.PartnerId
+import build.wallet.partnerships.PartnerRedirectionMethod
+import build.wallet.partnerships.PartnershipEvent
+import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.platform.links.DeepLinkHandler
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.router.Route
 import build.wallet.router.Router
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
@@ -36,6 +42,8 @@ import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiStateMachine
+import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeProps
+import build.wallet.statemachine.partnerships.expected.ExpectedTransactionNoticeUiStateMachine
 import build.wallet.statemachine.settings.full.SettingsHomeUiProps
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachine
 import build.wallet.statemachine.status.AppFunctionalityStatusUiProps
@@ -44,32 +52,36 @@ import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
+import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.status.StatusBannerModel
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.datetime.Clock
+import kotlinx.datetime.toLocalDateTime
 
 class HomeUiStateMachineImpl(
   private val appFunctionalityStatusUiStateMachine: AppFunctionalityStatusUiStateMachine,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyChangeMobilePayBottomSheetUpdater: CurrencyChangeMobilePayBottomSheetUpdater,
-  private val currencyConverter: CurrencyConverter,
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
   private val homeUiBottomSheetStateMachine: HomeUiBottomSheetStateMachine,
   private val moneyHomeUiStateMachine: MoneyHomeUiStateMachine,
   private val settingsHomeUiStateMachine: SettingsHomeUiStateMachine,
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
+  private val expectedTransactionNoticeUiStateMachine: ExpectedTransactionNoticeUiStateMachine,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val deepLinkHandler: DeepLinkHandler,
+  private val clock: Clock,
+  private val timeZoneProvider: TimeZoneProvider,
 ) : HomeUiStateMachine {
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
-    val fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference
-
     var uiState by remember {
       mutableStateOf(
         HomeUiState(
-          convertedFiatBalance = FiatMoney.zero(fiatCurrency),
           rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Launch),
           presentedScreen = null
         )
@@ -94,6 +106,17 @@ class HomeUiStateMachineImpl(
               )
             return@onRouteChange true
           }
+          is Route.PartnerTransferDeeplink -> {
+            uiState =
+              uiState.copy(
+                presentedScreen = PresentedScreen.PartnerTransfer(
+                  partner = route.partner?.let(::PartnerId),
+                  event = route.event?.let(::PartnershipEvent),
+                  partnerTransactionId = route.partnerTransactionId?.let(::PartnershipTransactionId)
+                )
+              )
+            return@onRouteChange true
+          }
           else -> false
         }
       }
@@ -104,7 +127,6 @@ class HomeUiStateMachineImpl(
       homeUiBottomSheetStateMachine.model(
         props =
           HomeUiBottomSheetProps(
-            fiatCurrency = fiatCurrency,
             mobilePayData = props.accountData.mobilePayData,
             onShowSetSpendingLimitFlow = {
               uiState = uiState.copy(presentedScreen = SetSpendingLimit)
@@ -126,8 +148,10 @@ class HomeUiStateMachineImpl(
 
     // Update bottom sheet for currency changes which affect Mobile Pay
     // Set up an effect to set or clear the bottom sheet alert when Mobile Pay is enabled
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val mobilePayData = props.accountData.mobilePayData
     LaunchedEffect("set-or-clear-bottom-sheet", fiatCurrency) {
+      // TODO(W-8080): implement as a worker
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheet(
         fiatCurrency = fiatCurrency,
         mobilePayData = mobilePayData
@@ -136,12 +160,6 @@ class HomeUiStateMachineImpl(
 
     if (appFunctionalityStatus.featureStates.cloudBackupHealth == Available) {
       SyncCloudBackupHealthEffect(props)
-    }
-
-    SyncFiatBalanceEquivalentEffect(
-      props
-    ) { fiatBalance ->
-      uiState = uiState.copy(convertedFiatBalance = fiatBalance)
     }
 
     val socRecRelationships = SyncRelationshipsEffect(props.accountData.account)
@@ -153,7 +171,6 @@ class HomeUiStateMachineImpl(
           is MoneyHome ->
             MoneyHomeScreenModel(
               props = props,
-              state = uiState,
               socRecRelationships = socRecRelationships,
               socRecActions = socRecActions,
               homeBottomSheetModel = homeBottomSheetModel,
@@ -172,23 +189,22 @@ class HomeUiStateMachineImpl(
               homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
               onBack = {
-                uiState = uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Settings))
+                uiState =
+                  uiState.copy(rootScreen = MoneyHome(origin = MoneyHomeUiProps.Origin.Settings))
               }
             )
         }
 
       SetSpendingLimit ->
         setSpendingLimitUiStateMachine.model(
-          props =
-            SpendingLimitProps(
-              // This is always null here because we are setting a limit after a currency change
-              // (so the old limit is a different currency and cannot be used as a starting point).
-              currentSpendingLimit = null,
-              onClose = { uiState = uiState.copy(presentedScreen = null) },
-              onSetLimit = { uiState = uiState.copy(presentedScreen = null) },
-              fiatCurrency = fiatCurrency,
-              accountData = props.accountData
-            )
+          props = SpendingLimitProps(
+            // This is always null here because we are setting a limit after a currency change
+            // (so the old limit is a different currency and cannot be used as a starting point).
+            currentSpendingLimit = null,
+            onClose = { uiState = uiState.copy(presentedScreen = null) },
+            onSetLimit = { uiState = uiState.copy(presentedScreen = null) },
+            accountData = props.accountData
+          )
         )
 
       is PresentedScreen.AddTrustedContact ->
@@ -213,6 +229,41 @@ class HomeUiStateMachineImpl(
             )
         )
 
+      is PresentedScreen.PartnerTransfer -> expectedTransactionNoticeUiStateMachine.model(
+        props = ExpectedTransactionNoticeProps(
+          fullAccountId = props.accountData.account.accountId,
+          f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+          partner = presentedScreen.partner,
+          event = presentedScreen.event,
+          partnerTransactionId = presentedScreen.partnerTransactionId,
+          receiveTime = clock.now().toLocalDateTime(timeZoneProvider.current()),
+          onViewInPartnerApp = { method ->
+            when (method) {
+              is PartnerRedirectionMethod.Deeplink -> deepLinkHandler.openDeeplink(
+                url = method.urlString,
+                appRestrictions = null
+              )
+              is PartnerRedirectionMethod.Web -> {
+                uiState =
+                  uiState.copy(presentedScreen = PresentedScreen.InAppBrowser(url = method.urlString))
+              }
+            }
+          },
+          onBack = {
+            uiState = uiState.copy(presentedScreen = null)
+          }
+        )
+      )
+
+      is PresentedScreen.InAppBrowser -> InAppBrowserModel(
+        open = {
+          inAppBrowserNavigator.open(
+            url = presentedScreen.url,
+            onClose = { uiState = uiState.copy(presentedScreen = null) }
+          )
+        }
+      ).asModalScreen()
+
       is AppFunctionalityStatus ->
         appFunctionalityStatusUiStateMachine.model(
           props =
@@ -227,7 +278,6 @@ class HomeUiStateMachineImpl(
   @Composable
   private fun MoneyHomeScreenModel(
     props: HomeUiProps,
-    state: HomeUiState,
     socRecRelationships: SocRecRelationships,
     socRecActions: SocRecProtectedCustomerActions,
     homeBottomSheetModel: SheetModel?,
@@ -239,8 +289,6 @@ class HomeUiStateMachineImpl(
       MoneyHomeUiProps(
         accountData = props.accountData,
         firmwareData = props.firmwareData,
-        convertedFiatBalance = state.convertedFiatBalance,
-        fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference,
         socRecRelationships = socRecRelationships,
         socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,
@@ -249,29 +297,6 @@ class HomeUiStateMachineImpl(
         origin = origin
       )
   )
-
-  @Composable
-  private fun SyncFiatBalanceEquivalentEffect(
-    props: HomeUiProps,
-    onFiatBalanceSynced: (FiatMoney) -> Unit,
-  ) {
-    LaunchedEffect(
-      "sync-fiat-equivalent-balance",
-      props.accountData.transactionsData.balance.total,
-      props.currencyPreferenceData.fiatCurrencyPreference
-    ) {
-      val convertedFiatBalance =
-        currencyConverter
-          .convert(
-            fromAmount = props.accountData.transactionsData.balance.total,
-            toCurrency = props.currencyPreferenceData.fiatCurrencyPreference,
-            atTime = null
-          ).filterNotNull().firstOrNull() as? FiatMoney
-          ?: FiatMoney.zero(props.currencyPreferenceData.fiatCurrencyPreference)
-
-      onFiatBalanceSynced(convertedFiatBalance)
-    }
-  }
 
   @Composable
   private fun SyncRelationshipsEffect(account: FullAccount): SocRecRelationships {
@@ -308,7 +333,6 @@ class HomeUiStateMachineImpl(
         accountData = props.accountData,
         electrumServerData = props.electrumServerData,
         firmwareData = props.firmwareData,
-        currencyPreferenceData = props.currencyPreferenceData,
         socRecRelationships = socRecRelationships,
         socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,
@@ -318,7 +342,6 @@ class HomeUiStateMachineImpl(
 }
 
 private data class HomeUiState(
-  val convertedFiatBalance: FiatMoney,
   val rootScreen: HomeScreen,
   val presentedScreen: PresentedScreen?,
 )
@@ -351,4 +374,16 @@ private sealed interface PresentedScreen {
 
   /** Indicates that the add trusted contact flow is currently presented */
   data class AddTrustedContact(val inviteCode: String?) : PresentedScreen
+
+  /** Indicates that the partner transfer flow is currently presented */
+  data class PartnerTransfer(
+    val partner: PartnerId?,
+    val event: PartnershipEvent?,
+    val partnerTransactionId: PartnershipTransactionId?,
+  ) : PresentedScreen
+
+  /** Indicates that an in-app browser. */
+  data class InAppBrowser(
+    val url: String,
+  ) : PresentedScreen
 }

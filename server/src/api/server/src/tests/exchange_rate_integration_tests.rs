@@ -5,7 +5,7 @@ use types::currencies::Currency;
 
 #[tokio::test]
 async fn test_get_currency_definitions() {
-    let bootstrap = gen_services().await;
+    let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let response = client.get_supported_fiat_currencies().await;

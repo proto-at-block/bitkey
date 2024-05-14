@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-serialization",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-serialization-1.9.22-gradle82.jar": "01cae01043dd4f7b0b02db566d93c75688b096c340909f68d0e49572abc5e954"
+                        "kotlin-serialization-1.9.23-gradle82.jar": "1f4b35b25fd5a6fb17b7493996e173bb4f89dd9cc8f0d8e0849903cc1a01a204"
                     }
                 }
             ],

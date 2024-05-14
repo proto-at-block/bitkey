@@ -5,7 +5,6 @@ import build.wallet.db.DbError
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapOr
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +18,6 @@ class BitcoinDisplayPreferenceDaoImpl(
 
   override fun bitcoinDisplayPreference(): Flow<BitcoinDisplayUnit?> {
     return database.bitcoinDisplayPreferenceQueries.bitcoinDisplayPreference().asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .map { result ->
         result
           .logFailure { "Failed to read bitcoin display unit preference" }

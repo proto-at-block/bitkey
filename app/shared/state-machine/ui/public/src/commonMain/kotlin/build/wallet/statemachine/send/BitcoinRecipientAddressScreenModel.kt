@@ -2,6 +2,7 @@ package build.wallet.statemachine.send
 
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconScan
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -22,7 +23,6 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 /**
  * A function which creates the form screen model for the recipient screen
@@ -67,7 +67,7 @@ fun BitcoinRecipientAddressScreenModel(
     ),
   header = null,
   mainContentList =
-    listOfNotNull(
+    immutableListOfNotNull(
       AddressInput(
         fieldModel =
           TextFieldModel(
@@ -103,7 +103,7 @@ fun BitcoinRecipientAddressScreenModel(
             )
         )
       }
-    ).toImmutableList(),
+    ),
   primaryButton =
     ButtonModel(
       text = "Continue",

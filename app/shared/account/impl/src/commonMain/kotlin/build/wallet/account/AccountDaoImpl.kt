@@ -25,7 +25,6 @@ import build.wallet.logging.logFailure
 import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
 import kotlinx.collections.immutable.toImmutableList
@@ -101,7 +100,7 @@ class AccountDaoImpl(
   private fun activeLiteAccount(): Flow<Result<LiteAccount?, DbError>> {
     return database.liteAccountQueries
       .getActiveLiteAccount()
-      .asFlowOfOneOrNull().unwrapLoadedValue()
+      .asFlowOfOneOrNull()
       .mapResult { it?.toLiteAccount() }
   }
 
@@ -109,14 +108,13 @@ class AccountDaoImpl(
     return database.fullAccountQueries
       .getActiveFullAccount()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .mapResult { it?.toFullAccount(database) }
   }
 
   private fun onboardingLiteAccount(): Flow<Result<LiteAccount?, DbError>> {
     return database.liteAccountQueries
       .getOnboardingLiteAccount()
-      .asFlowOfOneOrNull().unwrapLoadedValue()
+      .asFlowOfOneOrNull()
       .mapResult { it?.toLiteAccount() }
   }
 
@@ -124,7 +122,6 @@ class AccountDaoImpl(
     return database.fullAccountQueries
       .getOnboardingFullAccount()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .mapResult { it?.toFullAccount(database) }
   }
 }

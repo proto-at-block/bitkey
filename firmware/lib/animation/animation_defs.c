@@ -95,6 +95,10 @@ static const animation_keyframe_t enrollment_complete[] = {
   KEYFRAME_SOLID(COLOUR_GREEN, DURATION_MAX),
 };
 
+static const animation_keyframe_t enrollment_failed[] = {
+  KEYFRAME_LERP(COLOUR_WHITE_DIM, COLOUR_NONE, DURATION_SEC(0.25)),
+};
+
 static const animation_keyframe_t fingerprint_good[] = {
   KEYFRAME_SOLID(COLOUR_GREEN, DURATION_HZ(1)),
 };
@@ -167,8 +171,16 @@ static const animation_keyframe_t charging_finished_persistent[] = {
   KEYFRAME_SOLID(COLOUR_GREEN_DIM, DURATION_MAX),
 };
 
-static const animation_keyframe_t finger_down[] = {
+// Played from LED off state. Fade into white to start.
+static const animation_keyframe_t finger_down_from_locked[] = {
   KEYFRAME_LERP(COLOUR_NONE, COLOUR_WHITE_DIM, DURATION_SEC(0.25)),
+  KEYFRAME_SOLID(COLOUR_WHITE_DIM, DURATION_SEC(0.5)),
+  KEYFRAME_LERP(COLOUR_WHITE_DIM, COLOUR_NONE, DURATION_SEC(0.25)),
+};
+
+// Played when LED is green. Fade from green to white to start.
+static const animation_keyframe_t finger_down_from_unlocked[] = {
+  KEYFRAME_LERP(COLOUR_GREEN, COLOUR_WHITE_DIM, DURATION_SEC(0.25)),
   KEYFRAME_SOLID(COLOUR_WHITE_DIM, DURATION_SEC(0.5)),
   KEYFRAME_LERP(COLOUR_WHITE_DIM, COLOUR_NONE, DURATION_SEC(0.25)),
 };
@@ -183,6 +195,7 @@ static const animation_t animations[] = {
 
   DEFINE_ANIMATION(ANI_ENROLLMENT, enrollment, false),
   DEFINE_ANIMATION(ANI_ENROLLMENT_COMPLETE, enrollment_complete, false),
+  DEFINE_ANIMATION(ANI_ENROLLMENT_FAILED, enrollment_failed, false),
   DEFINE_ANIMATION(ANI_FINGERPRINT_GOOD, fingerprint_good, false),
   DEFINE_ANIMATION(ANI_FINGERPRINT_BAD, fingerprint_bad, false),
   DEFINE_ANIMATION(ANI_FINGERPRINT_SAMPLE_GOOD, fingerprint_sample_good, false),
@@ -197,7 +210,8 @@ static const animation_t animations[] = {
   DEFINE_ANIMATION(ANI_CHARGING, charging, false),
   DEFINE_ANIMATION(ANI_CHARGING_FINISHED, charging_finished, false),
   DEFINE_ANIMATION(ANI_CHARGING_FINISHED_PERSISTENT, charging_finished_persistent, false),
-  DEFINE_ANIMATION(ANI_FINGER_DOWN, finger_down, false),
+  DEFINE_ANIMATION(ANI_FINGER_DOWN_FROM_LOCKED, finger_down_from_locked, false),
+  DEFINE_ANIMATION(ANI_FINGER_DOWN_FROM_UNLOCKED, finger_down_from_unlocked, false),
 };
 
 const animation_t* animation_get(const animation_name_t name) {

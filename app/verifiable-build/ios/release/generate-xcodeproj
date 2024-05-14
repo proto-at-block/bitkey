@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# We use this script to set up the Bitkey project on the guest VM.
+
+echo "Configuring DNS"
+networksetup -setdnsservers Ethernet 8.8.8.8 8.8.4.4
+
+echo "Installing Just"
+brew install just
+
+echo "Cloning proto-at-block/bitkey"
+git clone https://github.com/proto-at-block/bitkey
+
+echo "Initializing submodules..."
+cd bitkey
+git submodule update --init --recursive
+
+echo "Checking out version"
+git checkout app/2024.51.0
+source bin/activate-hermit
+
+echo "Generating Xcode project"
+just app/xcodegen

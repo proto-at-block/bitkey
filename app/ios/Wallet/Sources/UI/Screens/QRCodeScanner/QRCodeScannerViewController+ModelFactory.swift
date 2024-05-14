@@ -8,7 +8,7 @@ public enum QRCodeScannerModelFactory {
 
     static func makeCameraDeniedAlert(
         actionHandler: @escaping (QRCodeScannerPresenterImpl.InternalAction) -> Void
-    ) -> UIAlertController.Model {
+    ) -> UIAlertController.ButtonModel {
         return .init(
             title: Strings.CameraDeniedAlert.title,
             message: Strings.CameraDeniedAlert.message,
@@ -25,7 +25,7 @@ public enum QRCodeScannerModelFactory {
 
     static func makeCameraUnavailableAlert(
         actionHandler: @escaping (QRCodeScannerPresenterImpl.InternalAction) -> Void
-    ) -> UIAlertController.Model {
+    ) -> UIAlertController.ButtonModel {
         return .init(
             title: Strings.CameraUnavailableAlert.title,
             message: Strings.CameraUnavailableAlert.message,

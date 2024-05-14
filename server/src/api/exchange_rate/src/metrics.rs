@@ -1,4 +1,4 @@
-use metrics::{
+use instrumentation::metrics::{
     factory::{Counter, Histogram, MetricsFactory, ObservableGauge},
     Unit,
 };

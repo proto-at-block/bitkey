@@ -186,6 +186,35 @@ module "chain_indexer_table" {
   deletion_protection_enabled = var.enable_deletion_protection
 }
 
+module "mempool_indexer_table" {
+  source = "git::https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table//?ref=9b66b76b2d178ca42425378deac9d9ebf95bf14e" // Tag v3.2.0
+
+  create_table = var.create_dynamodb_tables
+
+  name     = var.mempool_indexer_table_name
+  hash_key = "tx_id"
+
+  attributes = [
+    { name = "tx_id", type = "S" },
+    { name = "network", type = "S" },
+  ]
+
+  global_secondary_indexes = [
+    {
+      name            = "network_tx_ids_index"
+      hash_key        = "network"
+      range_key       = "tx_id"
+      projection_type = "KEYS_ONLY"
+    }
+  ]
+
+  server_side_encryption_enabled = true
+
+  ttl_enabled        = true
+  ttl_attribute_name = "expiring_at"
+
+  deletion_protection_enabled = var.enable_deletion_protection
+}
 
 module "daily_spending_record_table" {
   source = "git::https://github.com/terraform-aws-modules/terraform-aws-dynamodb-table//?ref=9b66b76b2d178ca42425378deac9d9ebf95bf14e" // Tag v3.2.0

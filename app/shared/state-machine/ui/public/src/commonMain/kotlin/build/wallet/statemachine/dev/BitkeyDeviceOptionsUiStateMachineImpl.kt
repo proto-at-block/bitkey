@@ -1,6 +1,7 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
@@ -10,7 +11,6 @@ import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
 import build.wallet.ui.model.list.ListItemModel
-import kotlinx.collections.immutable.toImmutableList
 
 class BitkeyDeviceOptionsUiStateMachineImpl(
   private val appVariant: AppVariant,
@@ -49,7 +49,7 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
     return ListGroupModel(
       style = ListGroupStyle.DIVIDER,
       items =
-        listOfNotNull(
+        immutableListOfNotNull(
           ListItemModel(
             title = "Firmware Metadata",
             trailingAccessory = ListItemAccessory.drillIcon(),
@@ -69,7 +69,7 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
                   )
               )
           )
-        ).toImmutableList()
+        )
     )
   }
 }

@@ -59,6 +59,27 @@ object Router {
  * This is a sealed class that represents the deep link routes that the router can handle.
  */
 sealed class Route {
+  object SupportedPaths {
+    const val TRUSTED_CONTACT = "/links/downloads/trusted-contact"
+    const val APP_DEEPLINK = "/links/app"
+  }
+
+  object SupportedHosts {
+    const val PROD = "bitkey.world"
+    const val STAGING = "web-site.bitkeystaging.com"
+  }
+
+  object QueryParamKeys {
+    const val CONTEXT = "context"
+    const val EVENT = "event"
+    const val EVENT_ID = "event_id"
+    const val SOURCE = "source"
+  }
+
+  object Context {
+    const val PARTNER_TRANSFER_REDIRECT = "partner_transfer"
+  }
+
   companion object {
     /**
      * This function takes a URL in string form and returns a Route object if the URL is valid and matches a known route.
@@ -71,14 +92,25 @@ sealed class Route {
       // validate https
       if (parsedUrl.protocol.name != "https") return null
       // validate expected host
-      if (!(parsedUrl.host == "web-site.bitkeystaging.com" || parsedUrl.host == "bitkey.world")) return null
+      if (!(parsedUrl.host == SupportedHosts.STAGING || parsedUrl.host == SupportedHosts.PROD)) return null
       // return a valid route or null
-      return when {
-        parsedUrl.encodedPath == "/links/downloads/trusted-contact" -> {
+      return when (parsedUrl.encodedPath) {
+        SupportedPaths.TRUSTED_CONTACT -> {
           if (parsedUrl.fragment.isEmpty()) {
             null
           } else {
             TrustedContactInvite(parsedUrl.fragment)
+          }
+        }
+        SupportedPaths.APP_DEEPLINK -> {
+          when (parsedUrl.parameters[QueryParamKeys.CONTEXT]) {
+            Context.PARTNER_TRANSFER_REDIRECT ->
+              PartnerTransferDeeplink(
+                partner = parsedUrl.parameters[QueryParamKeys.SOURCE],
+                event = parsedUrl.parameters[QueryParamKeys.EVENT],
+                partnerTransactionId = parsedUrl.parameters[QueryParamKeys.EVENT_ID]
+              )
+            else -> null
           }
         }
         else -> null
@@ -91,4 +123,6 @@ sealed class Route {
    * @param inviteCode The invite code for the trusted contact
    */
   data class TrustedContactInvite(val inviteCode: String) : Route()
+
+  data class PartnerTransferDeeplink(val partner: String?, val event: String?, val partnerTransactionId: String?) : Route()
 }

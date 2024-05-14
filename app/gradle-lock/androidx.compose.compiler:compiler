@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.compiler:compiler",
     "components": [
         {
-            "version": "1.5.10",
+            "version": "1.5.11",
             "variants": [
                 {
                     "artifacts": {
-                        "compiler-1.5.10.jar": "bbdf5ecd679065e109f94f56d3598861f058d608815ac44352fdd43a30e5cdb1"
+                        "compiler-1.5.11.jar": "52c7fb6ac83a733b98d415bbf1f8813d98da4d554287b8bf2b7c946a7484436a"
                     }
                 }
             ],

@@ -136,6 +136,12 @@ variable "job_blockchain_desired_count" {
   default     = 1
 }
 
+variable "job_mempool_desired_count" {
+  type        = number
+  description = "The number of instances of the task definition to place and keep running"
+  default     = 1
+}
+
 variable "job_metrics_desired_count" {
   type        = number
   description = "The number of instances of the task definition to place and keep running"

@@ -2,12 +2,12 @@ package build.wallet.statemachine.dev.analytics
 
 import build.wallet.analytics.v1.Event
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 /**
  * Model for showing screen with singular event info.
@@ -24,10 +24,10 @@ fun EventBodyModel(
     ),
   header = null,
   mainContentList =
-    listOfNotNull(
+    immutableListOfNotNull(
       FormMainContentModel.DataList(
         items =
-          listOfNotNull(
+          immutableListOfNotNull(
             FormMainContentModel.DataList.Data(
               title = "Event Time",
               sideText = event.event_time,
@@ -46,7 +46,7 @@ fun EventBodyModel(
             } else {
               null
             }
-          ).toImmutableList()
+          )
       ),
       FormMainContentModel.DataList(
         items =
@@ -178,7 +178,7 @@ fun EventBodyModel(
             )
         )
       }
-    ).toImmutableList(),
+    ),
   primaryButton = null,
   // This is only used by the debug menu, it doesn't need a screen ID
   id = null

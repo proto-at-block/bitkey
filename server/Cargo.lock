@@ -1293,7 +1293,7 @@ dependencies = [
  "errors",
  "feature_flags",
  "hex",
- "metrics",
+ "instrumentation",
  "once_cell",
  "serde",
  "serde_json",
@@ -2381,7 +2381,7 @@ dependencies = [
  "futures",
  "http 0.2.11",
  "http_server",
- "metrics",
+ "instrumentation",
  "moka",
  "once_cell",
  "reqwest",
@@ -2407,6 +2407,7 @@ dependencies = [
  "errors",
  "feature_flags",
  "http_server",
+ "instrumentation",
  "serde",
  "thiserror",
  "tracing",
@@ -3209,6 +3210,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "instrumentation"
+version = "0.1.0"
+dependencies = [
+ "axum 0.7.4",
+ "futures-util",
+ "once_cell",
+ "opentelemetry",
+ "thiserror",
+ "tokio",
+ "tokio-metrics",
+ "tower",
+ "tracing",
+ "wallet-telemetry",
+]
+
+[[package]]
 name = "integer-encoding"
 version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3663,20 +3680,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "metrics"
-version = "0.1.0"
-dependencies = [
- "axum 0.7.4",
- "futures-util",
- "once_cell",
- "opentelemetry",
- "thiserror",
- "tokio",
- "tokio-metrics",
- "tower",
-]
-
-[[package]]
 name = "migration"
 version = "0.1.0"
 dependencies = [
@@ -3755,7 +3758,7 @@ dependencies = [
  "exchange_rate",
  "feature_flags",
  "http_server",
- "metrics",
+ "instrumentation",
  "migration",
  "once_cell",
  "screener",
@@ -3876,9 +3879,9 @@ dependencies = [
  "hmac",
  "http 1.0.0",
  "http_server",
+ "instrumentation",
  "isocountry",
  "itertools 0.12.1",
- "metrics",
  "migration",
  "once_cell",
  "queue",
@@ -3999,8 +4002,8 @@ dependencies = [
  "external_identifier",
  "feature_flags",
  "http_server",
+ "instrumentation",
  "isocountry",
- "metrics",
  "notification",
  "once_cell",
  "recovery",
@@ -4271,17 +4274,23 @@ dependencies = [
  "aws-utils",
  "axum 0.7.4",
  "axum-macros",
+ "bdk_utils",
+ "database",
+ "experimentation",
  "external_identifier",
+ "feature_flags",
  "http-body-util",
  "http_server",
  "jwt-authorizer",
  "mime",
  "partnerships-lib",
+ "repository",
  "serde",
  "serde_json",
  "server",
  "tokio",
  "tower",
+ "tracing",
  "types",
  "ulid",
  "userpool",
@@ -4300,9 +4309,11 @@ dependencies = [
  "axum 0.7.4",
  "bdk",
  "chrono",
+ "feature_flags",
  "futures",
  "hmac",
  "http 0.2.11",
+ "isocountry",
  "opentelemetry",
  "reqwest",
  "rstest",
@@ -4879,7 +4890,7 @@ dependencies = [
  "futures",
  "hex",
  "http_server",
- "metrics",
+ "instrumentation",
  "notification",
  "once_cell",
  "rand 0.8.5",
@@ -5595,10 +5606,10 @@ dependencies = [
  "http-body-util",
  "http_server",
  "httpmock",
+ "instrumentation",
  "isocountry",
  "jwt-authorizer",
  "launchdarkly-server-sdk",
- "metrics",
  "migration",
  "mobile_pay",
  "mockall",
@@ -7156,13 +7167,14 @@ dependencies = [
  "errors",
  "feature_flags",
  "futures",
+ "instrumentation",
  "isocountry",
  "itertools 0.12.1",
- "metrics",
  "notification",
  "notification_validation",
  "queue",
  "recovery",
+ "reqwest",
  "serde",
  "serde_json",
  "strum",

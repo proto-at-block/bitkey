@@ -27,6 +27,7 @@ import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AcceptTrustedContactInvitationErrorCode
 import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.socrec.models.AcceptTrustedContactInvitationRequestBody
 import build.wallet.f8e.socrec.models.AcceptTrustedContactInvitationResponseBody
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
@@ -46,10 +47,12 @@ import build.wallet.f8e.socrec.models.SocialChallengeResponseBody
 import build.wallet.f8e.socrec.models.StartSocialChallengeRequestBody
 import build.wallet.f8e.socrec.models.VerifyChallengeRequestBody
 import build.wallet.f8e.socrec.models.VerifyChallengeResponseBody
+import build.wallet.ktor.result.EmptyRequestBody
+import build.wallet.ktor.result.EmptyResponseBody
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import build.wallet.mapUnit
 import build.wallet.serialization.json.JsonEncodingError
 import com.github.michaelbull.result.Result
@@ -61,7 +64,6 @@ import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.put
-import io.ktor.client.request.setBody
 import kotlinx.collections.immutable.toImmutableList
 import okio.ByteString
 
@@ -79,7 +81,9 @@ class SocialRecoveryServiceImpl(
         authTokenScope = AuthTokenScope.Recovery
       )
       .bodyResult<GetRecoveryRelationshipsResponseBody> {
-        get("/api/accounts/${accountId.serverId}/recovery/relationships")
+        get("/api/accounts/${accountId.serverId}/recovery/relationships") {
+          withDescription("Fetch recovery relationships")
+        }
       }
       .map {
         SocRecRelationships(
@@ -91,7 +95,6 @@ class SocialRecoveryServiceImpl(
           protectedCustomers = it.customers.toImmutableList()
         )
       }
-      .logNetworkFailure { "Failed to fetch relationships" }
   }
 
   override suspend fun createInvitation(
@@ -107,7 +110,8 @@ class SocialRecoveryServiceImpl(
     )
       .bodyResult<CreateTrustedContactInvitationResponseBody> {
         post("/api/accounts/${account.accountId.serverId}/recovery/relationships") {
-          setBody(
+          withDescription("Create relationship invitation")
+          setRedactedBody(
             CreateTrustedContactInvitationRequestBody(
               trustedContactAlias = trustedContactAlias,
               protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey
@@ -116,7 +120,7 @@ class SocialRecoveryServiceImpl(
         }
       }.map {
         it.invitation.toInvitation()
-      }.logNetworkFailure { "Failed to create invitation" }
+      }
   }
 
   override suspend fun refreshInvitation(
@@ -133,12 +137,11 @@ class SocialRecoveryServiceImpl(
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
-          setBody(RefreshTrustedContactRequestBody())
+          withDescription("Refresh Recovery Invitation")
+          setRedactedBody(RefreshTrustedContactRequestBody())
         }
       }.map {
         it.invitation.toInvitation()
-      }.logNetworkFailure {
-        "Failed to refresh Invitation"
       }
   }
 
@@ -160,11 +163,11 @@ class SocialRecoveryServiceImpl(
         delete(
           "/api/accounts/${accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
-          setBody("{}")
+          withDescription("Delete recovery relationship")
+          setRedactedBody(EmptyRequestBody())
         }
       }
       .map { Unit }
-      .logNetworkFailure { "Failed to delete relationship" }
   }
 
   override suspend fun startChallenge(
@@ -180,14 +183,14 @@ class SocialRecoveryServiceImpl(
       )
       .bodyResult<SocialChallengeResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/recovery/social-challenges") {
-          setBody(
+          withDescription("Start Social Recovery Challenge")
+          setRedactedBody(
             StartSocialChallengeRequestBody(
               trustedContacts = trustedContacts
             )
           )
         }
       }
-      .logNetworkFailure { "Failed to start Social Recovery Challenge" }
       .map { it.challenge }
   }
 
@@ -203,9 +206,10 @@ class SocialRecoveryServiceImpl(
         authTokenScope = AuthTokenScope.Recovery
       )
       .bodyResult<SocialChallengeResponseBody> {
-        get("/api/accounts/${fullAccountId.serverId}/recovery/social-challenges/$challengeId")
+        get("/api/accounts/${fullAccountId.serverId}/recovery/social-challenges/$challengeId") {
+          withDescription("Fetch Social Recovery Challenge")
+        }
       }
-      .logNetworkFailure { "Failed to fetch Social Recovery Challenge" }
       .map { it.challenge }
   }
 
@@ -223,15 +227,14 @@ class SocialRecoveryServiceImpl(
         post(
           "/api/accounts/${account.accountId.serverId}/recovery/verify-social-challenge"
         ) {
-          setBody(
+          withDescription("Verify challenge code")
+          setRedactedBody(
             VerifyChallengeRequestBody(
               recoveryRelationshipId = recoveryRelationshipId,
               code = counter
             )
           )
         }
-      }.logNetworkFailure {
-        "Failed to verify challenge code"
       }
       .map { it.challenge }
   }
@@ -248,11 +251,12 @@ class SocialRecoveryServiceImpl(
         f8eEnvironment = account.config.f8eEnvironment,
         accountId = account.accountId,
         authTokenScope = AuthTokenScope.Recovery
-      ).bodyResult<Unit> {
+      ).bodyResult<EmptyResponseBody> {
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/social-challenges/$socialChallengeId"
         ) {
-          setBody(
+          withDescription("Verify challenge code")
+          setRedactedBody(
             RespondToChallengeRequestBody(
               trustedContactRecoveryPakePubkey = trustedContactRecoveryPakePubkey,
               recoveryPakeConfirmation = recoveryPakeConfirmation,
@@ -260,9 +264,7 @@ class SocialRecoveryServiceImpl(
             )
           )
         }
-      }.logNetworkFailure {
-        "Failed to verify challenge code"
-      }
+      }.map { Unit }
   }
 
   override suspend fun endorseTrustedContacts(
@@ -281,10 +283,10 @@ class SocialRecoveryServiceImpl(
         )
         .bodyResult<EndorseTrustedContactsResponseBody> {
           put("/api/accounts/${accountId.serverId}/recovery/relationships") {
-            setBody(EndorseTrustedContactsRequestBody(f8eEndorsements))
+            withDescription("Endorse trusted contacts")
+            setRedactedBody(EndorseTrustedContactsRequestBody(f8eEndorsements))
           }
         }
-        .logNetworkFailure { "Failed to endorse trusted contacts" }
         .mapUnit()
         .bind()
     }
@@ -310,9 +312,10 @@ class SocialRecoveryServiceImpl(
       .bodyResult<RetrieveTrustedContactInvitationResponseBody> {
         get(
           "/api/accounts/${account.accountId.serverId}/recovery/relationship-invitations/$invitationCode"
-        )
+        ) {
+          withDescription("Retrieve Trusted Contact invitation")
+        }
       }
-      .logNetworkFailure { "Failed to retrieve Trusted Contact invitation" }
       .map { it.invitation.toIncomingInvitation(invitationCode) }
       .mapError { it.toF8eError<RetrieveTrustedContactInvitationErrorCode>() }
   }
@@ -335,7 +338,8 @@ class SocialRecoveryServiceImpl(
         put(
           "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.recoveryRelationshipId}"
         ) {
-          setBody(
+          withDescription("Accept Trusted Contact invitation")
+          setRedactedBody(
             AcceptTrustedContactInvitationRequestBody(
               code = invitation.code,
               customerAlias = protectedCustomerAlias.alias,
@@ -346,7 +350,6 @@ class SocialRecoveryServiceImpl(
           )
         }
       }
-      .logNetworkFailure { "Failed to accept Trusted Contact invitation" }
       .map { it.customer }
       .mapError { it.toF8eError<AcceptTrustedContactInvitationErrorCode>() }
   }

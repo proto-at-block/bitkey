@@ -580,7 +580,9 @@ style:
 #        value: 'TODO:'
     allowedPatterns: ''
   ForbiddenImport:
-    active: false
+    active: true
+    imports:
+      - "io.ktor.client.request.setBody"
   ForbiddenMethodCall:
     active: true
     methods:

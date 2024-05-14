@@ -5,6 +5,8 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
+import build.wallet.firmware.EnrolledFingerprints
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.fwup.FwupMode
@@ -84,6 +86,22 @@ private class RetryingNfcCommandsImpl(
   override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
     retry { commands.getFingerprintEnrollmentStatus(session) }
 
+  override suspend fun deleteFingerprint(
+    session: NfcSession,
+    index: Int,
+  ) = retry { commands.deleteFingerprint(session, index) }
+
+  override suspend fun getUnlockMethod(session: NfcSession) =
+    retry { commands.getUnlockMethod(session) }
+
+  override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
+    retry { commands.getEnrolledFingerprints(session) }
+
+  override suspend fun setFingerprintLabel(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ) = retry { commands.setFingerprintLabel(session, fingerprintHandle) }
+
   override suspend fun getInitialSpendingKey(
     session: NfcSession,
     network: BitcoinNetworkType,
@@ -116,8 +134,10 @@ private class RetryingNfcCommandsImpl(
     spendingKeyset: SpendingKeyset,
   ) = retry { commands.signTransaction(session, psbt, spendingKeyset) }
 
-  override suspend fun startFingerprintEnrollment(session: NfcSession) =
-    retry { commands.startFingerprintEnrollment(session) }
+  override suspend fun startFingerprintEnrollment(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ) = retry { commands.startFingerprintEnrollment(session, fingerprintHandle) }
 
   override suspend fun unsealKey(
     session: NfcSession,

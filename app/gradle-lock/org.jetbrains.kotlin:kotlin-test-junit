@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-test-junit",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-test-junit-1.9.22.jar": "b1cd5e4b0193e0ddd86fdd7f8028d0930d3c6ca5d642b3f5fe0546a91c18bf65"
+                        "kotlin-test-junit-1.9.23.jar": "595aa5f45b1253d822c6acb5de212a1b04855801ae1f807ef911874bb23b82ee"
                     }
                 }
             ],

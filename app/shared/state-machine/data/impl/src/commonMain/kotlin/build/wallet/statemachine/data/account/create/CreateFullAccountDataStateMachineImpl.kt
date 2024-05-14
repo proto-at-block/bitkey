@@ -96,7 +96,6 @@ class CreateFullAccountDataStateMachineImpl(
             OnboardKeyboxDataProps(
               keybox = state.keybox,
               onboardConfig = props.onboardConfig,
-              currencyPreferenceData = props.currencyPreferenceData,
               isSkipCloudBackupInstructions = state.isSkipCloudBackupInstructions,
               onExistingAppDataFound = { cloudBackup, proceed ->
                 if (cloudBackup?.accountId == state.keybox.fullAccountId.serverId) {

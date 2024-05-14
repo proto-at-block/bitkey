@@ -18,22 +18,36 @@ pub fn get_test_access_token() -> String {
 }
 
 /// Sign a message with the app key
-pub fn sign_with_app_key(message: &str) -> String {
+pub fn sign_with_app_key(message: &str, secret_key: secp256k1::SecretKey) -> String {
     let secp = Secp256k1::new();
     let message = secp256k1::Message::from_slice(&Sha256::digest(message.as_bytes())).unwrap();
-    let secret_key = secp256k1::SecretKey::from_slice(TEST_APP_AUTH_KEY).unwrap();
     let sig = secp.sign_ecdsa(&message, &secret_key);
     sig.to_string()
 }
 
+// Sign a message with the test app key
+pub fn sign_with_test_app_key(message: &str) -> String {
+    sign_with_app_key(
+        message,
+        secp256k1::SecretKey::from_slice(TEST_APP_AUTH_KEY).unwrap(),
+    )
+}
+
 /// Sign a message with the hardware key
 /// The real hardware outputs compact signatures, making this different from the sign_with_app_key function
-pub fn sign_with_hw_key(message: &str) -> String {
+pub fn sign_with_hw_key(message: &str, secret_key: secp256k1::SecretKey) -> String {
     let secp = Secp256k1::new();
     let message = secp256k1::Message::from_slice(&Sha256::digest(message.as_bytes())).unwrap();
-    let secret_key = secp256k1::SecretKey::from_slice(TEST_HW_AUTH_KEY).unwrap();
     let sig = secp.sign_ecdsa(&message, &secret_key);
     sig.to_string()
+}
+
+// Sign a message with the test hardware key
+pub fn sign_with_test_hw_key(message: &str) -> String {
+    sign_with_hw_key(
+        message,
+        secp256k1::SecretKey::from_slice(TEST_HW_AUTH_KEY).unwrap(),
+    )
 }
 
 // tests
@@ -73,7 +87,7 @@ mod tests {
     #[test]
     fn test_sign_with_app_key() {
         let message = get_test_access_token();
-        let sig = super::sign_with_app_key(&message);
+        let sig = super::sign_with_test_app_key(&message);
         assert!(verify_signature(
             &sig,
             message,
@@ -84,7 +98,7 @@ mod tests {
     #[test]
     fn test_sign_with_hw_key() {
         let message = get_test_access_token();
-        let sig = super::sign_with_hw_key(&message);
+        let sig = super::sign_with_test_hw_key(&message);
         assert!(verify_signature(
             &sig,
             message,

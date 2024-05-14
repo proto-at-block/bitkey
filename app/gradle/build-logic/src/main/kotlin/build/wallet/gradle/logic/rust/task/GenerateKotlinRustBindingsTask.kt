@@ -8,13 +8,18 @@ import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.provider.Property
 import org.gradle.api.services.ServiceReference
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
+@CacheableTask
 internal abstract class GenerateKotlinRustBindingsTask : DefaultTask() {
   @get:InputFile
+  @get:PathSensitive(PathSensitivity.RELATIVE)
   abstract val rustLibraryWithDebugSymbols: RegularFileProperty
 
   @get:OutputDirectory

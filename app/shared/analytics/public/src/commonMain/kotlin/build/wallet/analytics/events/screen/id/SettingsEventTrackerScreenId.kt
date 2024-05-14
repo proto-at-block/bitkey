@@ -24,4 +24,7 @@ enum class SettingsEventTrackerScreenId : EventTrackerScreenId {
 
   /** The send feedback screen from Settings is showing */
   SETTINGS_SEND_FEEDBACK,
+
+  /** The settings screen for enabling biometrics is showing */
+  SETTING_BIOMETRICS,
 }

@@ -1,7 +1,6 @@
 package build.wallet.f8e.debug
 
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
 interface NetworkingDebugConfigRepository {
@@ -16,8 +15,8 @@ interface NetworkingDebugConfigRepository {
   suspend fun setFailF8eRequests(value: Boolean): Result<Unit, Error>
 
   /**
-   * Launches a non-blocking coroutine to continuously sync latest local [NetworkingDebugConfig] value
+   * Launches a blocking coroutine to continuously sync latest local [NetworkingDebugConfig] value
    * into [config]. This function should be called only once.
    */
-  fun launchSync(scope: CoroutineScope)
+  suspend fun launchSync()
 }

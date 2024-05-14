@@ -11,6 +11,7 @@ import build.wallet.LoadableValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
+import build.wallet.asLoadableValue
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.keybox.KeyboxDao
@@ -157,7 +158,6 @@ class NoActiveAccountDataStateMachineImpl(
                   onboardConfig = props.newAccountOnboardConfigData.config,
                   templateFullAccountConfig = props.templateFullAccountConfigData.config,
                   onboardingKeybox = onboardingKeybox,
-                  currencyPreferenceData = props.currencyPreferenceData,
                   context = CreateFullAccountContext.NewFullAccount,
                   rollback = { state = GettingStartedState(isNavigatingBack = true) }
                 )
@@ -249,10 +249,12 @@ class NoActiveAccountDataStateMachineImpl(
   @Composable
   private fun rememberOnboardingKeybox(): LoadableValue<Keybox?> {
     return remember {
-      keyboxDao.onboardingKeybox().map {
-        // Treat DbError as null Keybox value
-        it.getOr(LoadableValue.LoadedValue(null))
-      }
+      keyboxDao.onboardingKeybox()
+        .map {
+          // Treat DbError as null Keybox value
+          it.getOr(null)
+        }
+        .asLoadableValue()
     }.collectAsState(LoadableValue.InitialLoading).value
   }
 }

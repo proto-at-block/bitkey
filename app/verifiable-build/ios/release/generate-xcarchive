@@ -1,0 +1,8 @@
+#!/bin/bash
+
+xcodebuild \
+	-project bitkey/app/ios/Wallet.xcodeproj \
+	-scheme Wallet \
+	-archivePath 'Bitkey.xcarchive' \
+	-destination 'generic/platform=iOS' \
+	archive 

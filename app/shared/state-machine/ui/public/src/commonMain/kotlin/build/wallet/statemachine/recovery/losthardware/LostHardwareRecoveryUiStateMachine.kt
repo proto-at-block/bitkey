@@ -1,7 +1,6 @@
 package build.wallet.statemachine.recovery.losthardware
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
@@ -14,7 +13,6 @@ interface LostHardwareRecoveryUiStateMachine : StateMachine<LostHardwareRecovery
 data class LostHardwareRecoveryProps(
   val account: FullAccount,
   val lostHardwareRecoveryData: LostHardwareRecoveryData,
-  val fiatCurrency: FiatCurrency,
   val screenPresentationStyle: ScreenPresentationStyle,
   val instructionsStyle: InstructionsStyle,
   val onFoundHardware: () -> Unit,

@@ -4,7 +4,6 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
@@ -21,7 +20,6 @@ data class FeeSelectionUiProps(
   val accountData: ActiveFullAccountLoadedData,
   val recipientAddress: BitcoinAddress,
   val sendAmount: BitcoinTransactionSendAmount,
-  val fiatCurrency: FiatCurrency,
   val exchangeRates: ImmutableList<ExchangeRate>?,
   val onBack: () -> Unit,
   val onContinue: (

@@ -3,7 +3,6 @@ package build.wallet.statemachine.data.account.create
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.OnboardConfig
@@ -11,7 +10,8 @@ import build.wallet.statemachine.data.account.OnboardConfig
 /**
  * Data state machine for managing creation AND activation of a Full Account
  */
-interface CreateFullAccountDataStateMachine : StateMachine<CreateFullAccountDataProps, CreateFullAccountData>
+interface CreateFullAccountDataStateMachine :
+  StateMachine<CreateFullAccountDataProps, CreateFullAccountData>
 
 /**
  * @property templateFullAccountConfig [FullAccountConfig] to be used for creating account, unless provided by
@@ -27,7 +27,6 @@ data class CreateFullAccountDataProps(
   val templateFullAccountConfig: FullAccountConfig,
   val onboardConfig: OnboardConfig,
   val onboardingKeybox: Keybox?,
-  val currencyPreferenceData: CurrencyPreferenceData,
   val context: CreateFullAccountContext,
   val rollback: () -> Unit,
 )

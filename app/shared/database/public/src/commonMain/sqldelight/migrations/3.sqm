@@ -1,0 +1,11 @@
+CREATE TABLE doubleFeatureFlagEntity(
+  featureFlagId   TEXT NOT NULL PRIMARY KEY,
+  value           REAL NOT NULL
+);
+
+CREATE TABLE stringFeatureFlagEntity (
+    featureFlagId   TEXT NOT NULL PRIMARY KEY,
+    value           TEXT NOT NULL
+);
+
+PRAGMA foreign_key_check;

@@ -1,6 +1,7 @@
 package build.wallet.statemachine.moneyhome.card
 
 import androidx.compose.runtime.Composable
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
@@ -21,7 +22,7 @@ class MoneyHomeCardsUiStateMachineImpl(
   @Composable
   override fun model(props: MoneyHomeCardsProps): MoneyHomeCardsModel =
     MoneyHomeCardsModel(
-      cards = buildList {
+      cards = buildImmutableList {
         // Cloud Backup Health warning card if there's an issue with backup
         add(cloudBackupHealthCardUiStateMachine.model(props.cloudBackupHealthCardUiProps))
 

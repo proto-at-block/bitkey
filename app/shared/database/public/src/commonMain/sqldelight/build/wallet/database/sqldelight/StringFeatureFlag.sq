@@ -1,0 +1,16 @@
+CREATE TABLE stringFeatureFlagEntity (
+    featureFlagId   TEXT NOT NULL PRIMARY KEY,
+    value           TEXT NOT NULL
+);
+
+
+setFlag:
+INSERT OR REPLACE INTO stringFeatureFlagEntity(featureFlagId, value)
+VALUES(?, ?);
+
+getFlag:
+SELECT value FROM stringFeatureFlagEntity
+WHERE featureFlagId = ?;
+
+clear:
+DELETE FROM stringFeatureFlagEntity;

@@ -33,9 +33,6 @@ import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShould
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.currency.USD
-import build.wallet.money.display.BitcoinDisplayUnit
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.money.matchers.shouldBeGreaterThan
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
@@ -71,7 +68,6 @@ import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.ext.waitForFunds
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
@@ -111,8 +107,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       val accountData =
         dsm.model(
           AccountDataProps(
-            templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(props.fullAccountConfig) {},
-            currencyPreferenceData = CurrencyPreferenceData(BitcoinDisplayUnit.Satoshi, {}, USD) {}
+            templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(props.fullAccountConfig) {}
           )
         )
       return when (accountData) {
@@ -124,7 +119,6 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
             LostHardwareRecoveryProps(
               account = accountData.account,
               lostHardwareRecoveryData = accountData.lostHardwareRecoveryData,
-              fiatCurrency = USD,
               screenPresentationStyle = Root,
               onFoundHardware = {},
               instructionsStyle = InstructionsStyle.Independent
@@ -455,7 +449,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       }
     ) {
       activeWallet.sync().shouldBeOk()
-      val balance = activeWallet.balance().first().shouldBeLoaded()
+      val balance = activeWallet.balance().first()
       balance.total.shouldBeGreaterThan(BitcoinMoney.sats(0))
       // Eventually could iterate to calculate and subtract psbtsGeneratedData.totalFeeAmount)
     }

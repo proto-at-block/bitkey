@@ -4,16 +4,18 @@ import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
+import build.wallet.ktor.result.setUnredactedBody
 import build.wallet.mapUnit
 import build.wallet.platform.data.MimeType
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import io.ktor.client.request.get
 import io.ktor.client.request.post
-import io.ktor.client.request.setBody
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.encodeURLQueryComponent
 import io.ktor.utils.io.ByteWriteChannel
@@ -40,12 +42,10 @@ class SupportTicketServiceImpl(
       )
       .bodyResult<CreateTicketResponse> {
         post("/api/customer_feedback") {
-          setBody(
-            ticket
-          )
+          withDescription("Create support ticket.")
+          setRedactedBody(ticket)
         }
       }
-      .logNetworkFailure { "Couldn't create support ticket." }
       .mapUnit()
   }
 
@@ -60,9 +60,10 @@ class SupportTicketServiceImpl(
         authTokenScope = AuthTokenScope.Recovery
       )
       .bodyResult<TicketFormDTO> {
-        get("/api/support/ticket-form")
+        get("/api/support/ticket-form") {
+          withDescription("Fetch support ticket form.")
+        }
       }
-      .logNetworkFailure { "Couldn't fetch support ticket form." }
   }
 
   override suspend fun uploadAttachment(
@@ -79,11 +80,11 @@ class SupportTicketServiceImpl(
       )
       .bodyResult<AttachmentUploadResponse> {
         post("/api/support/attachments?filename=${filename.encodeURLQueryComponent()}") {
+          withDescription("Upload attachment")
           headers["Content-Type"] = mimeType.name
-          setBody(StreamAssetContent(source))
+          setUnredactedBody(StreamAssetContent(source))
         }
       }
-      .logNetworkFailure { "Couldn't upload attachment." }
       .map { it.token }
   }
 
@@ -91,12 +92,12 @@ class SupportTicketServiceImpl(
   private data class CreateTicketResponse(
     @SerialName("request_id")
     val requestId: Long,
-  )
+  ) : RedactedResponseBody
 
   @Serializable
   private data class AttachmentUploadResponse(
     val token: String,
-  )
+  ) : RedactedResponseBody
 }
 
 // / Used to upload from an Okio `Source`

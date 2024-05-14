@@ -7,7 +7,6 @@ import build.wallet.db.DbError
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
-import build.wallet.unwrapLoadedValue
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onSuccess
 import io.ktor.http.Url
@@ -125,7 +124,6 @@ class ElectrumServerConfigRepositoryImpl(
     databaseProvider.database().electrumConfigQueries
       .loadElectrumConfig()
       .asFlowOfOneOrNull()
-      .unwrapLoadedValue()
       .transformLatest { queryResult ->
         queryResult
           .onSuccess { entity ->

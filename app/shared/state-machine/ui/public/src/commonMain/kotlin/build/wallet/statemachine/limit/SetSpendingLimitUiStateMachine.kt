@@ -3,7 +3,6 @@ package build.wallet.statemachine.limit
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
@@ -25,7 +24,6 @@ data class SpendingLimitProps(
   val currentSpendingLimit: FiatMoney?,
   val onClose: () -> Unit,
   val onSetLimit: (SpendingLimit) -> Unit,
-  val fiatCurrency: FiatCurrency,
   val accountData: ActiveFullAccountLoadedData,
 )
 

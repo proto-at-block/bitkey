@@ -60,7 +60,6 @@ class OnboardKeyboxUiStateMachineImpl(
         FullAccountCloudSignInAndBackupProps(
           sealedCsek = data.sealedCsek,
           keybox = data.keybox,
-          endorsedTrustedContacts = emptyList(),
           onBackupFailed = data.onBackupFailed,
           onBackupSaved = data.onBackupSaved,
           onExistingAppDataFound = data.onExistingAppDataFound,

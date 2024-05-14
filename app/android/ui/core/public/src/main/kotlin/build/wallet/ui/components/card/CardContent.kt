@@ -120,7 +120,7 @@ private fun CardImage(model: CardModel.CardImage) {
       ) {
         CircularProgressIndicator(
           size = 40.dp,
-          progress = model.progress,
+          progress = model.progress.value,
           direction = CounterClockwise,
           remainingSeconds = model.remainingSeconds,
           indicatorColor = WalletTheme.colors.containerHighlightForeground,

@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.keybox
 
-import build.wallet.LoadableValue
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
@@ -10,7 +9,6 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.KeyboxDaoMock
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.StateMachineMock
@@ -79,7 +77,6 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
         updateConfig = {}
       ),
       existingRecovery = existingRecovery,
-      currencyPreferenceData = CurrencyPreferenceDataMock,
       onAccountCreated = accountCreatedCalls::add,
       newAccountOnboardConfigData = LoadedOnboardConfigDataMock
     )
@@ -103,7 +100,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
   }
 
   test("no recovery in progress, onboarding in progress") {
-    keyboxDao.onboardingKeybox.emit(Ok(LoadableValue.LoadedValue(KeyboxMock)))
+    keyboxDao.onboardingKeybox.emit(Ok(KeyboxMock))
     stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<CheckingRecoveryOrOnboarding>()
 

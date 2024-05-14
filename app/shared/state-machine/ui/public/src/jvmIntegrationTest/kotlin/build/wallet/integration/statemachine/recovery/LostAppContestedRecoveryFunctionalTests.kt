@@ -42,6 +42,7 @@ import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -131,7 +132,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
           cancelOtherRecovery = false
         )
           .clickTrailingAccessoryButton()
-        lostAppAppTester.awaitItem().alertModel.shouldNotBeNull().onPrimaryButtonClick()
+        lostAppAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
         lostAppAppTester.awaitUntilScreenWithBody<ChooseAccountAccessModel>()
       }
     }
@@ -142,7 +143,7 @@ class LostAppContestedRecoveryFunctionalTests : FunSpec({
         lostHwAppTester.initiateLostHardwareRecovery(
           isContested = isContested
         ).clickTrailingAccessoryButton()
-        lostHwAppTester.awaitItem().alertModel.shouldNotBeNull().onPrimaryButtonClick()
+        lostHwAppTester.awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
         lostHwAppTester.awaitUntilScreenWithBody<FormBodyModel>(SETTINGS_DEVICE_INFO)
       }
     }
@@ -165,7 +166,9 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
     .onClick()
   (
     awaitUntilScreenWithBody<FormBodyModel>()
-      .mainContentList[1] as Button
+      .mainContentList.find {
+        it is Button && it.item.text == "Replace device"
+      } as Button
   )
     .item.onClick()
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)

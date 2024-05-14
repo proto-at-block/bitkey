@@ -31,7 +31,6 @@ internal class GradleBuildScansPlugin : Plugin<Project> {
       buildScan = gradleEnterprise.buildScan
 
       buildScan.run {
-        server = "https://gradle-enterprise.aws.squarecloudservices.com"
         isUploadInBackground = !isCi()
 
         termsOfServiceUrl = "https://gradle.com/terms-of-service"
@@ -62,13 +61,7 @@ internal class GradleBuildScansPlugin : Plugin<Project> {
     }
 
     if (isCi()) {
-      // TODO(W-4576): enable build scans for CI
-      return false
-      // val gitBranch = gitBranch() ?: return false
-      // // Create build scans for main, release/*, and team-release/* branches.
-      // return gitBranch == "main" ||
-      //   gitBranch.startsWith("release/") ||
-      //   gitBranch.startsWith("team-release")
+      return true
     }
 
     return shouldCreateBuildScansForLocalBuild()

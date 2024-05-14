@@ -1,0 +1,3 @@
+exclude:
+  # ECR is encrypted by default with the AWS managed key, modifying key requires destroying and re-creating the ECR
+  - aws-ecr-repository-customer-key

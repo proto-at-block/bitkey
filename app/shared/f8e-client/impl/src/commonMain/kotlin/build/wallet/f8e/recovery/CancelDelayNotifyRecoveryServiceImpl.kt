@@ -7,14 +7,14 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.toF8eError
+import build.wallet.f8e.logging.withDescription
+import build.wallet.ktor.result.EmptyRequestBody
 import build.wallet.ktor.result.catching
-import build.wallet.logging.logNetworkFailure
+import build.wallet.ktor.result.setRedactedBody
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.delete
-import io.ktor.client.request.setBody
-import kotlinx.serialization.Serializable
 
 class CancelDelayNotifyRecoveryServiceImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -31,15 +31,10 @@ class CancelDelayNotifyRecoveryServiceImpl(
     )
       .catching {
         delete("/api/accounts/${fullAccountId.serverId}/delay-notify") {
-          setBody(
-            CancelDelayNotifyRequest
-          )
+          withDescription("Cancel recovery")
+          setRedactedBody(EmptyRequestBody())
         }
       }.map { Unit }
-      .logNetworkFailure { "Failed to cancel recovery" }
       .mapError { it.toF8eError<CancelDelayNotifyRecoveryErrorCode>() }
   }
-
-  @Serializable
-  data object CancelDelayNotifyRequest
 }

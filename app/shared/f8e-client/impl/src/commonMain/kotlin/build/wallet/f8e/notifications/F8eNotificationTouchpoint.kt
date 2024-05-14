@@ -1,10 +1,11 @@
 package build.wallet.f8e.notifications
 
+import build.wallet.ktor.result.RedactedRequestBody
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-sealed interface F8eNotificationTouchpoint {
+sealed interface F8eNotificationTouchpoint : RedactedRequestBody {
   @Serializable
   @SerialName("Phone")
   data class F8ePhoneNumberTouchpoint(

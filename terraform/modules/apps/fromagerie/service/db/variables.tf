@@ -37,6 +37,11 @@ variable "chain_indexer_table_name" {
   description = "The name of the chain indexer table"
 }
 
+variable "mempool_indexer_table_name" {
+  type        = string
+  description = "The name of the mempool indexer table"
+}
+
 variable "daily_spending_record_table_name" {
   type        = string
   description = "Override the name of the daily spend record table"

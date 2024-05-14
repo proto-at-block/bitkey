@@ -1,11 +1,14 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.ensure
 import build.wallet.serialization.Base32Encoding
 import build.wallet.serialization.checksum.CRC6
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.mapError
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign
 import com.ionspin.kotlin.bignum.integer.toBigInteger
@@ -20,52 +23,57 @@ class SocialRecoveryCodeBuilderImpl(
     serverPart: String,
     serverBits: Int,
     pakePart: PakeCode,
-  ): Result<String, SocialRecoveryCodeBuilderError> {
-    if (pakePart.bytes.toByteArray().size < InviteSchema.pakeByteArraySize()) {
-      return Err(SocialRecoveryCodeEncodingError("Pake data is too small."))
-    }
-    if (serverPart.length < serverBits / 4) {
-      return Err(SocialRecoveryCodeEncodingError("Server data is too small."))
-    }
-
-    val version = InviteSchema.VERSION
-    val dataLength = InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + serverBits
-    val totalLength = dataLength + InviteSchema.CRC_BITS
-    val padding = paddingForByteAlignment(totalLength)
-    val insignificantPakeBits = paddingForByteAlignment(InviteSchema.PAKE_BITS)
-    val insignificantServerBits = paddingForByteAlignment(serverBits)
-
-    val password = BigInteger.fromByteArray(pakePart.bytes.toByteArray(), Sign.POSITIVE)
-      .shr(insignificantPakeBits)
-
-    val serverCode = serverPart.toBigInteger(16)
-      .shr(insignificantServerBits)
-
-    val crc = calculateCrc(
-      version = version,
-      pakeData = password,
-      pakeLength = InviteSchema.PAKE_BITS,
-      serverData = serverCode,
-      serverLength = serverBits
-    )
-
-    return version.toBigInteger()
-      .shl(InviteSchema.PAKE_BITS)
-      .unsignedOr(password)
-      .shl(serverBits)
-      .unsignedOr(serverCode)
-      .shl(InviteSchema.CRC_BITS)
-      .unsignedOr(crc.toBigInteger())
-      .shl(padding)
-      .let {
-        val bufSize = (totalLength + padding).bitLengthToByteArraySize()
-        base32Encoding.encode(it.toFixedSizeByteArray(bufSize).toByteString())
-          .take(totalLength / Base32Encoding.BITS_PER_CHAR)
+  ): Result<String, SocialRecoveryCodeBuilderError> =
+    binding {
+      ensure(pakePart.bytes.toByteArray().size >= InviteSchema.pakeByteArraySize()) {
+        SocialRecoveryCodeEncodingError("Pake data is too small.")
       }
-      .chunked(4)
-      .joinToString("-")
-      .let(::Ok)
-  }
+      ensure(serverPart.length >= serverBits / 4) {
+        SocialRecoveryCodeEncodingError("Server data is too small.")
+      }
+
+      val version = InviteSchema.VERSION
+      val dataLength = InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + serverBits
+      val totalLength = dataLength + InviteSchema.CRC_BITS
+      val padding = paddingForByteAlignment(totalLength)
+      val insignificantPakeBits = paddingForByteAlignment(InviteSchema.PAKE_BITS)
+      val insignificantServerBits = paddingForByteAlignment(serverBits)
+
+      val password = BigInteger.fromByteArray(pakePart.bytes.toByteArray(), Sign.POSITIVE)
+        .shr(insignificantPakeBits)
+
+      val serverCode = serverPart.toBigInteger(16)
+        .shr(insignificantServerBits)
+
+      val crc = calculateCrc(
+        version = version,
+        pakeData = password,
+        pakeLength = InviteSchema.PAKE_BITS,
+        serverData = serverCode,
+        serverLength = serverBits
+      )
+
+      version.toBigInteger()
+        .shl(InviteSchema.PAKE_BITS)
+        .unsignedOr(password)
+        .shl(serverBits)
+        .unsignedOr(serverCode)
+        .shl(InviteSchema.CRC_BITS)
+        .unsignedOr(crc.toBigInteger())
+        .shl(padding)
+        .let {
+          val bufSize = (totalLength + padding).bitLengthToByteArraySize()
+          base32Encoding
+            .encode(it.toFixedSizeByteArray(bufSize).toByteString())
+            .mapError { error ->
+              SocialRecoveryCodeEncodingError(message = "Error encoding invite code.", cause = error)
+            }
+            .bind()
+            .take(totalLength / Base32Encoding.BITS_PER_CHAR)
+        }
+        .chunked(4)
+        .joinToString("-")
+    }
 
   private fun Int.bitLengthToByteArraySize(): Int {
     return (this + (Byte.SIZE_BITS - 1)) / Byte.SIZE_BITS
@@ -119,51 +127,62 @@ class SocialRecoveryCodeBuilderImpl(
 
   override fun parseInviteCode(
     inviteCode: String,
-  ): Result<InviteCodeParts, SocialRecoveryCodeBuilderError> {
-    val inviteCode = inviteCode.toSanitizedCode()
-    val expectedMinBitLength = (InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + InviteSchema.MIN_SERVER_BITS + InviteSchema.CRC_BITS)
-    val expectedMinCharacters = expectedMinBitLength / Base32Encoding.BITS_PER_CHAR
+  ): Result<InviteCodeParts, SocialRecoveryCodeBuilderError> =
+    binding {
+      val inviteCode = inviteCode.toSanitizedCode()
+      val expectedMinBitLength = (InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + InviteSchema.MIN_SERVER_BITS + InviteSchema.CRC_BITS)
+      val expectedMinCharacters = expectedMinBitLength / Base32Encoding.BITS_PER_CHAR
 
-    if (inviteCode.length < expectedMinCharacters) {
-      return Err(
+      ensure(inviteCode.length >= expectedMinCharacters) {
         SocialRecoveryCodeEncodingError(
           "Invalid code length. Got ${inviteCode.length}, but expected at least $expectedMinCharacters."
         )
+      }
+      val serverBits = inviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
+
+      val data = base32Encoding
+        .decode(inviteCode.alignBase32Code())
+        .mapError { error ->
+          SocialRecoveryCodeEncodingError(message = "Error decoding invite code.", cause = error)
+        }
+        .bind()
+        .toByteArray()
+        .let { BigInteger.fromByteArray(it, Sign.POSITIVE) }
+      val significantBits = inviteCode.length * Base32Encoding.BITS_PER_CHAR
+      val padding = paddingForByteAlignment(significantBits)
+      val insignificantPakeBits = paddingForByteAlignment(InviteSchema.PAKE_BITS)
+      val insignificantServerBits = paddingForByteAlignment(serverBits)
+      val totalLength = significantBits + padding
+      val version = data.shr(totalLength - InviteSchema.VERSION_BITS).intValue()
+      ensure(version == InviteSchema.VERSION) {
+        SocialRecoveryCodeVersionError("Invalid version")
+      }
+
+      val crc = data.shr(padding).and(createMask(InviteSchema.CRC_BITS)).byteValue()
+      val serverPart = data.shr(padding + InviteSchema.CRC_BITS).and(createMask(serverBits))
+      val pakePart = data.shr(padding + InviteSchema.CRC_BITS + serverBits).and(createMask(InviteSchema.PAKE_BITS))
+      val calculatedCrc = calculateCrc(
+        version = version,
+        pakeData = pakePart,
+        pakeLength = InviteSchema.PAKE_BITS,
+        serverData = serverPart,
+        serverLength = serverBits
+      )
+
+      // Verify that the CRC in the code matched the decoded data's CRC.
+      ensure(crc == calculatedCrc) {
+        SocialRecoveryCodeEncodingError("Invalid code. Checksum did not match.")
+      }
+
+      InviteCodeParts(
+        serverPart = serverPart.shl(insignificantServerBits)
+          .toFixedSizeByteArray(serverBits.bitLengthToByteArraySize()).toByteString().hex(),
+        pakePart = PakeCode(
+          pakePart.shl(insignificantPakeBits)
+            .toFixedSizeByteArray(InviteSchema.PAKE_BITS.bitLengthToByteArraySize()).toByteString()
+        )
       )
     }
-    val serverBits = inviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
-
-    val data = base32Encoding.decode(inviteCode.alignBase32Code()).toByteArray()
-      .let { BigInteger.fromByteArray(it, Sign.POSITIVE) }
-    val significantBits = inviteCode.length * Base32Encoding.BITS_PER_CHAR
-    val padding = paddingForByteAlignment(significantBits)
-    val insignificantPakeBits = paddingForByteAlignment(InviteSchema.PAKE_BITS)
-    val insignificantServerBits = paddingForByteAlignment(serverBits)
-    val totalLength = significantBits + padding
-    val version = data.shr(totalLength - InviteSchema.VERSION_BITS).intValue()
-    if (version != InviteSchema.VERSION) return Err(SocialRecoveryCodeVersionError("Invalid version"))
-
-    val crc = data.shr(padding).and(createMask(InviteSchema.CRC_BITS)).byteValue()
-    val serverPart = data.shr(padding + InviteSchema.CRC_BITS).and(createMask(serverBits))
-    val pakePart = data.shr(padding + InviteSchema.CRC_BITS + serverBits).and(createMask(InviteSchema.PAKE_BITS))
-    val calculatedCrc = calculateCrc(
-      version = version,
-      pakeData = pakePart,
-      pakeLength = InviteSchema.PAKE_BITS,
-      serverData = serverPart,
-      serverLength = serverBits
-    )
-
-    // Verify that the CRC in the code matched the decoded data's CRC.
-    if (crc != calculatedCrc) {
-      return Err(SocialRecoveryCodeEncodingError("Invalid code. Checksum did not match."))
-    }
-
-    return InviteCodeParts(
-      serverPart = serverPart.shl(insignificantServerBits).toFixedSizeByteArray(serverBits.bitLengthToByteArraySize()).toByteString().hex(),
-      pakePart = PakeCode(pakePart.shl(insignificantPakeBits).toFixedSizeByteArray(InviteSchema.PAKE_BITS.bitLengthToByteArraySize()).toByteString())
-    ).let(::Ok)
-  }
 
   /**
    * Add padding to the end of a base32 string to ensure that the data is byte-aligned.

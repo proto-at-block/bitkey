@@ -29,6 +29,7 @@ static struct {
   uint32_t image_capture_tries;
   uint32_t enroll_tries;
   fpc_bep_template_t* template;
+  bool cancel_triggered;
   bio_template_id_t template_id;
 } bio_priv = {
   .sensor_hw_detect_poll_period_ms = 4,  // Was 20, not sure if this helps.
@@ -37,6 +38,7 @@ static struct {
   .enroll_tries = 4,
   .template = NULL,
   .template_id = TEMPLATE_MAX_COUNT + 1,  // Only valid if template != NULL
+  .cancel_triggered = false,
 };
 
 static struct {
@@ -64,6 +66,10 @@ static fpc_bep_result_t wait_for_finger_status(fpc_bep_finger_status_t status,
 
     fpc_sensor_wfi(timeout_ms, fpc_sensor_spi_check_irq, use_exti);
 
+    if (bio_priv.cancel_triggered) {
+      goto cancel;
+    }
+
     fpc_bep_finger_status_t finger_present;
     result = fpc_bep_check_finger_present(&finger_present);
     if (finger_present == status) {
@@ -77,6 +83,13 @@ static fpc_bep_result_t wait_for_finger_status(fpc_bep_finger_status_t status,
 
   perf_end(perf.capture);
   return FPC_BEP_RESULT_OK;
+
+cancel:
+  perf_cancel(perf.capture);
+  perf_count(perf.errors);
+  LOGD("Wait for finger status cancelled");
+  fpc_bep_sensor_deep_sleep();
+  return FPC_BEP_RESULT_CANCELLED;
 
 fail:
   perf_cancel(perf.capture);
@@ -111,13 +124,11 @@ static bool capture_image_and_extract_template(fpc_bep_image_t* image) {
   return true;
 }
 
-NO_OPTIMIZE static secure_bool_t match_image(fpc_bep_identify_result_t* identify_result,
-                                             bool* update_template) {
+NO_OPTIMIZE static secure_bool_t match_image(fpc_bep_identify_result_t* identify_result) {
   volatile fpc_bep_result_t result =
     fpc_bep_identify((const fpc_bep_template_t**)&bio_priv.template, 1, identify_result);
-  fpc_bep_result_t release_result = fpc_bep_identify_release(update_template);
 
-  // Play animation as fast as possible, i.e. don't rely on SECURE_ macros to provide the
+  // Play animation as fast as possible, i.e. don't use SECURE_ macros to provide the
   // user feedback.
   // Showing the unlocked LED isn't security-sensitive, but the checks below are.
   if (result == FPC_BEP_RESULT_OK && identify_result->match) {
@@ -125,10 +136,12 @@ NO_OPTIMIZE static secure_bool_t match_image(fpc_bep_identify_result_t* identify
     ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
   }
 
-  SECURE_IF_FAILIN(result != FPC_BEP_RESULT_OK) { return SECURE_FALSE; }
+  SECURE_IF_FAILIN(result != FPC_BEP_RESULT_OK) {
+    BITLOG_EVENT(bio_auth_error, result);
+    return SECURE_FALSE;
+  }
 
   SECURE_DO({ ASSERT_LOG(result == FPC_BEP_RESULT_OK, "%d", result); });
-  SECURE_DO({ ASSERT_LOG(release_result == FPC_BEP_RESULT_OK, "%d", result); });
 
   SECURE_DO_FAILIN(identify_result->match != true, {
     // Free resources for template which didn't match.
@@ -145,20 +158,27 @@ NO_OPTIMIZE static secure_bool_t match_image(fpc_bep_identify_result_t* identify
 // Match the currently image (held by FPC-BEP library) against all templates
 static secure_bool_t match_against_all_templates(fpc_bep_identify_result_t* identify_result,
                                                  bool* update_template) {
-  for (bio_template_id_t id = 0; id <= TEMPLATE_MAX_COUNT; id++) {
+  *update_template = false;
+  secure_bool_t match_found = SECURE_FALSE;
+
+  for (bio_template_id_t id = 0; id < TEMPLATE_MAX_COUNT; id++) {
     LOGD("Trying to match template %d...", id);
+
     if (!bio_storage_template_retrieve(id, &bio_priv.template)) {
-      return SECURE_FALSE;
+      continue;
     }
 
-    if (match_image(identify_result, update_template) == SECURE_TRUE) {
+    if (match_image(identify_result) == SECURE_TRUE) {
       identify_result->index = id;
       bio_priv.template_id = id;
-      return SECURE_TRUE;
+      match_found = SECURE_TRUE;
+      goto out;
     }
   }
 
-  return SECURE_FALSE;
+out:
+  fpc_bep_identify_release(update_template);
+  return match_found;
 }
 
 void bio_perf_init(void) {
@@ -205,17 +225,29 @@ fail:
   return false;
 }
 
-void bio_wait_for_finger_blocking(void) {
+void bio_wait_for_finger_blocking(bio_gesture_t gesture) {
 #if BIO_DEV_MODE
   // This function is called from auth_task, and interferes with other FPC
   // sensor API calls.
   while (true) rtos_thread_sleep(5000);
 #endif
-  fpc_bep_result_t result = wait_for_finger_down(BLOCKING_WAIT);
+  fpc_bep_result_t result = FPC_BEP_RESULT_GENERAL_ERROR;
+  switch (gesture) {
+    case BIO_FINGER_DOWN:
+      result = wait_for_finger_down(BLOCKING_WAIT);
+      break;
+    case BIO_FINGER_UP:
+      result = wait_for_finger_up(BLOCKING_WAIT);
+      break;
+    default:
+      LOGE("Invalid gesture: %d", gesture);
+      break;
+  }
   ASSERT_LOG(result == FPC_BEP_RESULT_OK, "%d", result);
 }
 
-bool bio_enroll_finger(bio_template_id_t id, bio_enroll_stats_t* stats) {
+bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
+                       bio_enroll_stats_t* stats) {
   LOGD("Enroll begin");
   perf_count(perf.enroll);
   perf_reset(perf.enroll_pass);
@@ -229,7 +261,7 @@ bool bio_enroll_finger(bio_template_id_t id, bio_enroll_stats_t* stats) {
   fpc_biometrics_init();
 
   fpc_bep_image_t* image = fpc_bep_image_new();
-  fpc_bep_template_t* template = NULL;
+  fpc_bep_template_t* enroll_template = NULL;
 
   if (id > TEMPLATE_MAX_COUNT) {
     LOGE("Invalid template id: %d", id);
@@ -246,6 +278,12 @@ bool bio_enroll_finger(bio_template_id_t id, bio_enroll_stats_t* stats) {
   uint32_t tries = 0;
   uint32_t previous_samples_remaining = ENROLL_REQUIRED_SAMPLES - 4;
   while (tries < bio_priv.enroll_tries) {
+    if (bio_priv.cancel_triggered) {
+      LOGD("Enrollment cancelled");
+      bio_priv.cancel_triggered = false;
+      goto fail;
+    }
+
     if (image == NULL) {
       LOGE("Null image pointer");
       goto fail;
@@ -300,19 +338,25 @@ bool bio_enroll_finger(bio_template_id_t id, bio_enroll_stats_t* stats) {
                                       .immediate = true};
   ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
 
-  result = fpc_bep_enroll_finish(&template);  // May be null
+  result = fpc_bep_enroll_finish(&enroll_template);  // May be null
   if (result != FPC_BEP_RESULT_OK) {
     BITLOG_EVENT(bio_enroll_error, result);
     goto hard_fail;
   }
 
-  result = bio_storage_template_save(id, template);
+  result = bio_storage_template_save(id, enroll_template);
   if (!result) {
+    LOGE("Failed to save template");
     goto fail;
   }
 
   fpc_bep_image_delete(&image);  // Noop if image is null
-  fpc_bep_template_delete(&template);
+  fpc_bep_template_delete(&enroll_template);
+
+  if (!bio_storage_label_save(id, label)) {
+    LOGE("Failed to save label");
+    goto fail;
+  }
 
   const uint32_t pass = (uint32_t)perf_get_count(perf.enroll_pass);
   const uint32_t fail = (uint32_t)perf_get_count(perf.enroll_fail);
@@ -324,20 +368,21 @@ bool bio_enroll_finger(bio_template_id_t id, bio_enroll_stats_t* stats) {
   return true;
 
 hard_fail:
-
   perf_count(perf.errors);
 fail:
   if (image != NULL) {
     fpc_bep_image_delete(&image);
   }
-  if (template != NULL) {
-    (void)fpc_bep_enroll_finish(&template);
-    fpc_bep_template_delete(&template);
-  }
-  static led_set_rest_animation_t end_fail_msg = {.animation = (uint32_t)ANI_REST};
-  ipc_send(led_port, &end_fail_msg, sizeof(end_fail_msg), IPC_LED_SET_REST_ANIMATION);
-  ipc_send_empty(led_port, IPC_LED_STOP_ANIMATION);
+  fpc_bep_result_t finish_result = fpc_bep_enroll_finish(&enroll_template);
+  LOGD("Enroll finish result: %d", finish_result);
+  fpc_bep_template_delete(&enroll_template);
+  // NOTE: Caller must play an animation here.
   return false;
+}
+
+void bio_enroll_cancel(void) {
+  bio_priv.cancel_triggered = true;
+  fpc_sensor_wfi_cancel();
 }
 
 NO_OPTIMIZE secure_bool_t bio_authenticate_finger(secure_bool_t* is_match,

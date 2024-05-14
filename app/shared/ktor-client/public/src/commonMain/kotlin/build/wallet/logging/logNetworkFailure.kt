@@ -28,6 +28,6 @@ inline fun <V, E : NetworkingError> Result<V, E>.logNetworkFailure(
 
     log(
       level = logLevel,
-      throwable = error.cause ?: HandledError(message())
+      throwable = error
     ) { "${message()}. $error" }
   }

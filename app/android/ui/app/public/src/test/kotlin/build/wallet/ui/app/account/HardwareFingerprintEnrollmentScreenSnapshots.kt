@@ -22,7 +22,8 @@ class HardwareFingerprintEnrollmentScreenSnapshots : FunSpec({
           onErrorOverlayClosed = {},
           isNavigatingBack = false,
           eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
-          presentationStyle = ScreenPresentationStyle.Root
+          presentationStyle = ScreenPresentationStyle.Root,
+          headline = "Set up your fingerprint"
         )
       PairNewHardwareScreen(
         model =

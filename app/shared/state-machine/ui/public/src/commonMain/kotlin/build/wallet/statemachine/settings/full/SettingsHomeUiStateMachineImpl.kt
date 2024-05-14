@@ -6,9 +6,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.feature.isEnabled
+import build.wallet.inappsecurity.InAppSecurityFeatureFlag
+import build.wallet.platform.config.AppVariant
+import build.wallet.statemachine.biometric.BiometricSettingUiProps
+import build.wallet.statemachine.biometric.BiometricSettingUiStateMachine
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardProps
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateMachine
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.dev.DebugMenuProps
+import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiStateMachine
 import build.wallet.statemachine.notifications.NotificationPreferencesProps
@@ -26,10 +33,10 @@ import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.St
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCloudBackupHealthUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCurrencyPreferenceUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCustomElectrumServerSettingsUiState
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingDebugMenuUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingHelpCenterUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingMobilePaySettingsUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingNotificationPreferencesUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingNotificationsSettingsUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingRecoveryChannelsUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingRotateAuthKeyUiState
 import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingSendFeedbackUiState
@@ -42,17 +49,16 @@ import build.wallet.statemachine.settings.full.feedback.FeedbackUiProps
 import build.wallet.statemachine.settings.full.feedback.FeedbackUiStateMachine
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiProps
 import build.wallet.statemachine.settings.full.mobilepay.MobilePaySettingsUiStateMachine
-import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsProps
-import build.wallet.statemachine.settings.full.notifications.NotificationsSettingsUiStateMachine
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsProps
 import build.wallet.statemachine.settings.full.notifications.RecoveryChannelSettingsUiStateMachine
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiProps
 import build.wallet.statemachine.settings.helpcenter.HelpCenterUiStateMachine
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.statemachine.settings.showDebugMenu
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 class SettingsHomeUiStateMachineImpl(
+  private val appVariant: AppVariant,
   private val mobilePaySettingsUiStateMachine: MobilePaySettingsUiStateMachine,
-  private val notificationsSettingsUiStateMachine: NotificationsSettingsUiStateMachine,
   private val notificationPreferencesUiStateMachine: NotificationPreferencesUiStateMachine,
   private val recoveryChannelSettingsUiStateMachine: RecoveryChannelSettingsUiStateMachine,
   private val currencyPreferenceUiStateMachine: CurrencyPreferenceUiStateMachine,
@@ -64,6 +70,9 @@ class SettingsHomeUiStateMachineImpl(
   private val settingsListUiStateMachine: SettingsListUiStateMachine,
   private val cloudBackupHealthDashboardUiStateMachine: CloudBackupHealthDashboardUiStateMachine,
   private val rotateAuthKeyUIStateMachine: RotateAuthKeyUIStateMachine,
+  private val debugMenuStateMachine: DebugMenuStateMachine,
+  private val biometricSettingUiStateMachine: BiometricSettingUiStateMachine,
+  private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -76,7 +85,7 @@ class SettingsHomeUiStateMachineImpl(
           props.firmwareData.checkForNewFirmware()
         }
 
-        var alertModel: AlertModel? by remember { mutableStateOf(null) }
+        var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
 
         ScreenModel(
           body =
@@ -86,7 +95,7 @@ class SettingsHomeUiStateMachineImpl(
                   onBack = props.onBack,
                   f8eEnvironment = props.accountData.account.config.f8eEnvironment,
                   supportedRows =
-                    setOf(
+                    setOfNotNull(
                       SettingsListUiProps.SettingsListRow.BitkeyDevice {
                         state = ShowingBitkeyDeviceSettingsUiState
                       },
@@ -119,7 +128,13 @@ class SettingsHomeUiStateMachineImpl(
                       },
                       SettingsListUiProps.SettingsListRow.RotateAuthKey {
                         state = ShowingRotateAuthKeyUiState
-                      }
+                      },
+                      SettingsListUiProps.SettingsListRow.DebugMenu {
+                        state = ShowingDebugMenuUiState
+                      }.takeIf { appVariant.showDebugMenu },
+                      SettingsListUiProps.SettingsListRow.Biometric {
+                        state = State.ShowingBiometricSettingUiState
+                      }.takeIf { inAppSecurityFeatureFlag.isEnabled() }
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null }
@@ -133,21 +148,10 @@ class SettingsHomeUiStateMachineImpl(
 
       is ShowingMobilePaySettingsUiState ->
         mobilePaySettingsUiStateMachine.model(
-          props =
-            MobilePaySettingsUiProps(
-              onBack = { state = ShowingAllSettingsUiState },
-              accountData = props.accountData,
-              fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference
-            )
-        )
-
-      is ShowingNotificationsSettingsUiState ->
-        notificationsSettingsUiStateMachine.model(
-          props =
-            NotificationsSettingsProps(
-              accountData = props.accountData,
-              onBack = { state = ShowingAllSettingsUiState }
-            )
+          props = MobilePaySettingsUiProps(
+            onBack = { state = ShowingAllSettingsUiState },
+            accountData = props.accountData
+          )
         )
 
       is ShowingNotificationPreferencesUiState ->
@@ -187,24 +191,20 @@ class SettingsHomeUiStateMachineImpl(
 
       is ShowingCurrencyPreferenceUiState ->
         currencyPreferenceUiStateMachine.model(
-          props =
-            CurrencyPreferenceProps(
-              onBack = { state = ShowingAllSettingsUiState },
-              btcDisplayAmount = props.accountData.transactionsData.balance.total,
-              currencyPreferenceData = props.currencyPreferenceData,
-              onDone = null
-            )
+          props = CurrencyPreferenceProps(
+            onBack = { state = ShowingAllSettingsUiState },
+            btcDisplayAmount = props.accountData.transactionsData.balance.total,
+            onDone = null
+          )
         )
 
       is ShowingBitkeyDeviceSettingsUiState ->
         deviceSettingsUiStateMachine.model(
-          props =
-            DeviceSettingsProps(
-              accountData = props.accountData,
-              firmwareData = props.firmwareData,
-              fiatCurrency = props.currencyPreferenceData.fiatCurrencyPreference,
-              onBack = { state = ShowingAllSettingsUiState }
-            )
+          props = DeviceSettingsProps(
+            accountData = props.accountData,
+            firmwareData = props.firmwareData,
+            onBack = { state = ShowingAllSettingsUiState }
+          )
         )
 
       is ShowingSendFeedbackUiState ->
@@ -254,6 +254,19 @@ class SettingsHomeUiStateMachineImpl(
             )
           )
         )
+
+      is ShowingDebugMenuUiState -> debugMenuStateMachine.model(
+        DebugMenuProps(
+          accountData = props.accountData,
+          firmwareData = props.firmwareData,
+          onClose = { state = ShowingAllSettingsUiState }
+        )
+      )
+      State.ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
+        BiometricSettingUiProps(
+          onBack = { state = ShowingAllSettingsUiState }
+        )
+      )
     }
   }
 
@@ -267,11 +280,6 @@ class SettingsHomeUiStateMachineImpl(
      * Showing settings for Mobile Pay.
      */
     data object ShowingMobilePaySettingsUiState : State()
-
-    /**
-     * Showing settings for notification touchpoints (sms and email).
-     */
-    data object ShowingNotificationsSettingsUiState : State()
 
     /**
      * Showing notification preferences for transactions and marketing
@@ -305,5 +313,9 @@ class SettingsHomeUiStateMachineImpl(
      * removing access from other mobile devices.
      */
     data object ShowingRotateAuthKeyUiState : State()
+
+    data object ShowingDebugMenuUiState : State()
+
+    data object ShowingBiometricSettingUiState : State()
   }
 }

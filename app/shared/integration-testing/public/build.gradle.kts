@@ -21,6 +21,13 @@ kotlin {
         implementation(projects.shared.moneyTesting)
         implementation(projects.shared.resultPublic)
         implementation(projects.shared.stdlibPublic)
+        implementation(projects.shared.moneyFake)
+      }
+    }
+
+    jvmMain {
+      dependencies {
+        implementation(projects.shared.moneyFake)
       }
     }
   }

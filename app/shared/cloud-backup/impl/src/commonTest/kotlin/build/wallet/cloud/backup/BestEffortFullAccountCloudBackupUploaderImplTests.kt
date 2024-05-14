@@ -9,7 +9,6 @@ import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.cloud.store.CloudAccountMock
 import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.testing.shouldBeErrOfType
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Err
@@ -19,7 +18,6 @@ import io.kotest.core.spec.style.FunSpec
 class BestEffortFullAccountCloudBackupUploaderImplTests : FunSpec({
 
   val cloudBackupDao = CloudBackupDaoFake()
-  val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
   val fullAccountCloudBackupCreator = FullAccountCloudBackupCreatorMock(turbines::create)
   val cloudBackupRepository = CloudBackupRepositoryFake()
@@ -27,7 +25,6 @@ class BestEffortFullAccountCloudBackupUploaderImplTests : FunSpec({
 
   val uploader = BestEffortFullAccountCloudBackupUploaderImpl(
     cloudBackupDao = cloudBackupDao,
-    socRecRelationshipsRepository = socRecRelationshipsRepository,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
     fullAccountCloudBackupCreator = fullAccountCloudBackupCreator,
     cloudBackupRepository = cloudBackupRepository

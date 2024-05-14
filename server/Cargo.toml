@@ -1,11 +1,5 @@
-[profile.dev]
-incremental = true
-opt-level = 0
-
-[profile.test]
-incremental = false
-
 [profile.release]
+# See profile defaults https://doc.rust-lang.org/cargo/reference/profiles.html#release
 overflow-checks = true
 
 [workspace]
@@ -23,7 +17,7 @@ members = [
   "src/api/exchange_rate",
   "src/api/external_identifier",
   "src/api/http_server",
-  "src/api/metrics",
+  "src/api/instrumentation",
   "src/api/migration",
   "src/api/mobile_pay",
   "src/api/notification",
@@ -137,7 +131,7 @@ experimentation = { path = "src/api/experimentation" }
 external_identifier = { path = "src/api/external_identifier" }
 feature_flags = { path = "src/feature_flags" }
 http_server = { path = "src/api/http_server" }
-metrics = { path = "src/api/metrics" }
+instrumentation ={ path = "src/api/instrumentation" }
 migration = { path = "src/api/migration" }
 mobile_pay = { path = "src/api/mobile_pay" }
 notification = { path = "src/api/notification" }

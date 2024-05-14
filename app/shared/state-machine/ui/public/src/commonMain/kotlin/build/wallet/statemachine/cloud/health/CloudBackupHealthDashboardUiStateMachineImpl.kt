@@ -14,7 +14,6 @@ import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPdfGenerator
-import build.wallet.isLoaded
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -339,8 +338,8 @@ class CloudBackupHealthDashboardUiStateMachineImpl(
     val mobileKeyBackupStatus = cloudBackupHealthRepository.mobileKeyBackupStatus().value
     val eakBackupStatus = cloudBackupHealthRepository.eakBackupStatus().value
 
-    return if (mobileKeyBackupStatus.isLoaded() && eakBackupStatus.isLoaded()) {
-      ViewingDashboardState(mobileKeyBackupStatus.value, eakBackupStatus.value)
+    return if (mobileKeyBackupStatus != null && eakBackupStatus != null) {
+      ViewingDashboardState(mobileKeyBackupStatus, eakBackupStatus)
     } else {
       LoadingState
     }

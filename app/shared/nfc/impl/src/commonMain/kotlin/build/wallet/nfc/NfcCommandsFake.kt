@@ -10,9 +10,11 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.signResult
 import build.wallet.firmware.CoredumpFragment
+import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
+import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareFeatureFlag
@@ -20,6 +22,8 @@ import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot.A
 import build.wallet.firmware.SecureBootConfig
+import build.wallet.firmware.UnlockInfo
+import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.nfc.platform.NfcCommands
@@ -38,6 +42,8 @@ class NfcCommandsFake(
   private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
 ) : NfcCommands {
   private var fingerprintEnrollmentStatus: FingerprintEnrollmentStatus = NOT_IN_PROGRESS
+  private var enrolledFingerprints =
+    EnrolledFingerprints(3, listOf(FingerprintHandle(index = 0, label = "")))
 
   suspend fun clearHardwareKeysAndFingerprintEnrollment() {
     fakeHardwareKeyStore.clear()
@@ -95,15 +101,19 @@ class NfcCommandsFake(
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> {
     return listOf(
       FirmwareFeatureFlagCfg(
-        flag = FirmwareFeatureFlag.Telemetry,
+        flag = FirmwareFeatureFlag.TELEMETRY,
         enabled = true
       ),
       FirmwareFeatureFlagCfg(
-        flag = FirmwareFeatureFlag.DeviceInfoFlag,
+        flag = FirmwareFeatureFlag.DEVICE_INFO_FLAG,
         enabled = true
       ),
       FirmwareFeatureFlagCfg(
-        flag = FirmwareFeatureFlag.RateLimitTemplateUpdate,
+        flag = FirmwareFeatureFlag.RATE_LIMIT_TEMPLATE_UPDATE,
+        enabled = true
+      ),
+      FirmwareFeatureFlagCfg(
+        flag = FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS,
         enabled = true
       )
     )
@@ -111,6 +121,30 @@ class NfcCommandsFake(
 
   override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
     fingerprintEnrollmentStatus
+
+  override suspend fun deleteFingerprint(
+    session: NfcSession,
+    index: Int,
+  ): Boolean {
+    enrolledFingerprints = enrolledFingerprints.copy(
+      maxCount = 3,
+      fingerprintHandles = enrolledFingerprints.fingerprintHandles.filterNot { it.index == index }
+    )
+    return true
+  }
+
+  override suspend fun getUnlockMethod(session: NfcSession) = UnlockInfo(UnlockMethod.BIOMETRICS, 0)
+
+  override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
+    enrolledFingerprints
+
+  override suspend fun setFingerprintLabel(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ): Boolean {
+    enrolledFingerprints = enrolledFingerprints.insertOrUpdateFingerprintHandle(fingerprintHandle)
+    return true
+  }
 
   override suspend fun getFirmwareMetadata(session: NfcSession) =
     FirmwareMetadata(
@@ -205,7 +239,11 @@ class NfcCommandsFake(
       .getOrThrow()
   }
 
-  override suspend fun startFingerprintEnrollment(session: NfcSession): Boolean {
+  override suspend fun startFingerprintEnrollment(
+    session: NfcSession,
+    fingerprintHandle: FingerprintHandle,
+  ): Boolean {
+    enrolledFingerprints = enrolledFingerprints.insertOrUpdateFingerprintHandle(fingerprintHandle)
     // Skip straight to complete state.
     fingerprintEnrollmentStatus = FingerprintEnrollmentStatus.COMPLETE
     return true
@@ -228,4 +266,12 @@ class NfcCommandsFake(
     deviceIdentityDer: List<UByte>,
     challenge: List<UByte>,
   ): Boolean = true
+
+  private fun EnrolledFingerprints.insertOrUpdateFingerprintHandle(
+    fingerprintHandle: FingerprintHandle,
+  ): EnrolledFingerprints {
+    val fingerprints =
+      fingerprintHandles.filterNot { it.index == fingerprintHandle.index } + fingerprintHandle
+    return EnrolledFingerprints(3, fingerprints)
+  }
 }

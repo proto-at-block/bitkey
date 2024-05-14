@@ -2,6 +2,7 @@ package build.wallet.statemachine.notifications
 
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconEmail
@@ -19,7 +20,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.notifications.NotificationPreferencesFormEditingState.Editing
 import build.wallet.statemachine.notifications.NotificationPreferencesFormEditingState.Loading
 import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -36,7 +37,6 @@ import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
-import kotlinx.collections.immutable.toImmutableList
 
 data class TosInfo(
   val termsAgree: Boolean,
@@ -54,7 +54,7 @@ fun NotificationPreferencesFormBodyModel(
   onUpdatesPushToggle: (Boolean) -> Unit,
   onUpdatesEmailToggle: (Boolean) -> Unit,
   formEditingState: NotificationPreferencesFormEditingState,
-  alertModel: AlertModel?,
+  alertModel: ButtonAlertModel?,
   networkingErrorState: NetworkingErrorState?,
   ctaModel: CallToActionModel?,
   onBack: () -> Unit,
@@ -78,7 +78,7 @@ fun NotificationPreferencesFormBodyModel(
           subline = "Customize the notifications you receive for transactions and product updates."
         ),
       mainContentList =
-        listOfNotNull(
+        immutableListOfNotNull(
           Explainer(
             immutableListOf(
               Statement(
@@ -187,7 +187,7 @@ fun NotificationPreferencesFormBodyModel(
                 )
             )
           }
-        ).toImmutableList(),
+        ),
       ctaWarning = ctaModel,
       primaryButton = ButtonModel(
         text = "Continue",

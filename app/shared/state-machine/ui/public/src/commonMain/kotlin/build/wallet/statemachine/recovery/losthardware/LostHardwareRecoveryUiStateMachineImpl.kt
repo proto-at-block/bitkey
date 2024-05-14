@@ -72,8 +72,7 @@ class LostHardwareRecoveryUiStateMachineImpl(
             presentationStyle = Modal,
             recoveryInProgressData = lostHardwareRecoveryData.recoveryInProgressData,
             fullAccountConfig = props.account.keybox.config,
-            onExit = props.onExit,
-            fiatCurrency = props.fiatCurrency
+            onExit = props.onExit
           )
         )
       }

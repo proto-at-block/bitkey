@@ -19,6 +19,7 @@ import build.wallet.feature.setFlagValue
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.USD
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.platform.BrowserNavigatorMock
@@ -110,7 +111,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
                       fees = persistentMapOf()
                     ),
                   accountData = ActiveKeyboxLoadedDataMock,
-                  fiatCurrency = USD,
                   validInvoiceInClipboard = null,
                   onExit = {},
                   onDone = {}
@@ -123,7 +123,9 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     FeeBumpIsAvailableFeatureFlag(
       featureFlagDao = FeatureFlagDaoMock()
     )
-  val bitcoinTransactionBumpabilityChecker = BitcoinTransactionBumpabilityCheckerFake(isBumpable = false)
+  val bitcoinTransactionBumpabilityChecker =
+    BitcoinTransactionBumpabilityCheckerFake(isBumpable = false)
+  val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
   val stateMachine =
     TransactionDetailsUiStateMachineImpl(
@@ -142,7 +144,8 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
       durationFormatter = durationFormatter,
       eventTracker = eventTracker,
       feeBumpEnabled = feeBumpEnabledFeatureFlag,
-      bitcoinTransactionBumpabilityChecker = bitcoinTransactionBumpabilityChecker
+      bitcoinTransactionBumpabilityChecker = bitcoinTransactionBumpabilityChecker,
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 
   val onCloseCalls = turbines.create<Unit>("close-calls")
@@ -153,7 +156,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     TransactionDetailsUiProps(
       accountData = ActiveKeyboxLoadedDataMock,
       transaction = TEST_RECEIVE_TXN,
-      fiatCurrency = USD,
       onClose = { onCloseCalls.add(Unit) }
     )
 
@@ -161,7 +163,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     TransactionDetailsUiProps(
       accountData = ActiveKeyboxLoadedDataMock,
       transaction = TEST_SEND_TXN,
-      fiatCurrency = USD,
       onClose = { onCloseCalls.add(Unit) }
     )
 
@@ -169,7 +170,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     TransactionDetailsUiProps(
       accountData = ActiveKeyboxLoadedDataMock,
       transaction = TEST_RECEIVE_TXN.copy(confirmationStatus = Pending),
-      fiatCurrency = USD,
       onClose = { onCloseCalls.add(Unit) }
     )
 
@@ -177,7 +177,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
     TransactionDetailsUiProps(
       accountData = ActiveKeyboxLoadedDataMock,
       transaction = TEST_SEND_TXN.copy(confirmationStatus = Pending),
-      fiatCurrency = USD,
       onClose = { onCloseCalls.add(Unit) }
     )
 
@@ -189,7 +188,6 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
           confirmationStatus = Pending,
           estimatedConfirmationTime = null
         ),
-      fiatCurrency = USD,
       onClose = { onCloseCalls.add(Unit) }
     )
 
@@ -447,10 +445,47 @@ class TransactionDetailsUiStateMachineImplTests : FunSpec({
             items[0].secondarySideTextType.shouldBe(DataList.Data.SideTextType.BOLD)
             items[0].secondarySideTextTreatment.shouldBe(DataList.Data.SideTextTreatment.WARNING)
             items[0].explainer.shouldNotBeNull()
+            items[0].explainer?.iconButton.shouldNotBeNull()
+            items[0].explainer?.iconButton?.iconModel?.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon == Icon.SmallIconInformationFilled
           }
         }
 
         // after currency conversion
+        awaitScreenWithBody<FormBodyModel>()
+      }
+    }
+
+    test("tapping explainer info icon should open education sheet") {
+      // Set clock to return some time that is after transaction estimated confirmation time.
+      clock.now = pendingSentProps.transaction.estimatedConfirmationTime!!.plus(10.minutes)
+
+      stateMachine.test(pendingSentProps) {
+        awaitScreenWithBody<FormBodyModel> {
+          testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+
+          with(mainContentList[0].shouldBeInstanceOf<DataList>()) {
+            items[0].explainer?.iconButton?.iconModel?.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon == Icon.SmallIconInformationFilled
+            items[0].explainer?.iconButton?.onClick?.invoke()
+          }
+        }
+
+        // after currency conversion
+        awaitScreenWithBody<FormBodyModel>()
+
+        // after clicking explainer icon button
+        val screenModel = awaitItem()
+        val bottomSheet = screenModel.bottomSheetModel.shouldNotBeNull()
+        with(bottomSheet.body.shouldBeInstanceOf<FormBodyModel>()) {
+          with(header.shouldNotBeNull()) {
+            headline.shouldBe("Speed up transactions")
+          }
+          primaryButton.shouldNotBeNull()
+            .text.shouldBe("Try speeding up")
+
+          this.onBack?.invoke()
+        }
+
+        // after closing education sheet
         awaitScreenWithBody<FormBodyModel>()
       }
     }

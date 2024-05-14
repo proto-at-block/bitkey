@@ -45,10 +45,11 @@ async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
         .into_iter()
         .collect::<HashMap<String, String>>();
     let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
-    let bootstrap = gen_services_with_overrides(overrides).await;
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
     let (account, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
     let response = client
         .get_account_feature_flags(
             &account.id.to_string(),
@@ -106,7 +107,7 @@ async fn get_app_installation_feature_flags(vector: GetFeatureFlagsTestVector) {
         .into_iter()
         .collect::<HashMap<String, String>>();
     let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
-    let bootstrap = gen_services_with_overrides(overrides).await;
+    let (_, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
     let response = client
         .get_app_installation_feature_flags(&GetAppInstallationFeatureFlagsRequest {

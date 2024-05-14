@@ -109,16 +109,24 @@ async fn setup_full_accounts_and_server() -> (
     ChainMockData,
 ) {
     let mock_server = MockServer::start();
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
     let (account_with_payment, _) =
-        create_default_account_with_predefined_wallet(&client, &bootstrap.services).await;
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let account_with_payment_keys = context
+        .get_authentication_keys_for_account_id(&account_with_payment.id)
+        .expect("Keys for account with payment not found");
     let account_without_payment = create_account(
+        &mut context,
         &bootstrap.services,
         account::entities::Network::BitcoinSignet,
         None,
     )
     .await;
+    let account_without_payment_keys = context
+        .get_authentication_keys_for_account_id(&account_without_payment.id)
+        .expect("Keys for account without payment not found");
     let state = workers::jobs::WorkerState {
         config: http_server::config::extract(None).unwrap(),
         notification_service: bootstrap.services.notification_service.clone(),
@@ -144,6 +152,7 @@ async fn setup_full_accounts_and_server() -> (
         })
         .await
         .unwrap();
+
     client
         .set_notifications_preferences(
             &account_with_payment.id.to_string(),
@@ -154,6 +163,7 @@ async fn setup_full_accounts_and_server() -> (
             },
             false,
             false,
+            &account_with_payment_keys,
         )
         .await;
     state
@@ -177,6 +187,7 @@ async fn setup_full_accounts_and_server() -> (
             },
             false,
             false,
+            &account_without_payment_keys,
         )
         .await;
 

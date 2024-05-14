@@ -4,7 +4,7 @@ use account::{
 };
 use async_trait::async_trait;
 
-use ::metrics::KeyValue;
+use instrumentation::metrics::KeyValue;
 
 use account::spend_limit::SpendingLimit;
 use comms_verification::ConsumeVerificationForScopeInput;

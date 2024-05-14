@@ -10,7 +10,7 @@ struct TestContext {
 
 #[fixture]
 async fn test_context() -> TestContext {
-    let bootstrap = gen_services().await;
+    let (_, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     TestContext { client }

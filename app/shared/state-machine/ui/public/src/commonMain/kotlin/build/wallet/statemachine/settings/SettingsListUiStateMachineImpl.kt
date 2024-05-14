@@ -4,18 +4,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import build.wallet.LoadableValue
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconAnnouncement
 import build.wallet.statemachine.core.Icon.SmallIconBitkey
 import build.wallet.statemachine.core.Icon.SmallIconCloud
 import build.wallet.statemachine.core.Icon.SmallIconCurrency
 import build.wallet.statemachine.core.Icon.SmallIconElectrum
+import build.wallet.statemachine.core.Icon.SmallIconInformation
+import build.wallet.statemachine.core.Icon.SmallIconLock
 import build.wallet.statemachine.core.Icon.SmallIconMobileLimit
 import build.wallet.statemachine.core.Icon.SmallIconNotification
 import build.wallet.statemachine.core.Icon.SmallIconPhone
@@ -24,11 +27,13 @@ import build.wallet.statemachine.core.Icon.SmallIconRecovery
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Biometric
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CloudBackupHealth
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.ContactUs
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CurrencyPreference
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CustomElectrumServer
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.DebugMenu
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.NotificationPreferences
@@ -56,13 +61,13 @@ class SettingsListUiStateMachineImpl(
     return SettingsBodyModel(
       onBack = props.onBack,
       sectionModels =
-        listOfNotNull(
+        immutableListOfNotNull(
           SettingsSection(
             props = props,
             appFunctionalityStatus = appFunctionalityStatus,
             title = "General",
             rowTypes =
-              listOfNotNull(
+              immutableListOf(
                 MobilePay::class,
                 BitkeyDevice::class,
                 CurrencyPreference::class,
@@ -74,7 +79,8 @@ class SettingsListUiStateMachineImpl(
             appFunctionalityStatus = appFunctionalityStatus,
             title = "Security & Recovery",
             rowTypes =
-              listOfNotNull(
+              immutableListOf(
+                Biometric::class,
                 RotateAuthKey::class,
                 CloudBackupHealth::class,
                 TrustedContacts::class,
@@ -86,8 +92,9 @@ class SettingsListUiStateMachineImpl(
             appFunctionalityStatus = appFunctionalityStatus,
             title = "Advanced",
             rowTypes =
-              listOfNotNull(
-                CustomElectrumServer::class
+              immutableListOf(
+                CustomElectrumServer::class,
+                DebugMenu::class
               )
           ),
           SettingsSection(
@@ -95,12 +102,12 @@ class SettingsListUiStateMachineImpl(
             appFunctionalityStatus = appFunctionalityStatus,
             title = "Support",
             rowTypes =
-              listOfNotNull(
+              immutableListOf(
                 ContactUs::class,
                 HelpCenter::class
               )
           )
-        ).toImmutableList()
+        )
     )
   }
 
@@ -136,7 +143,7 @@ class SettingsListUiStateMachineImpl(
   private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
     props: SettingsListUiProps,
-    mobileKeyBackupStatus: LoadableValue<MobileKeyBackupStatus>,
+    mobileKeyBackupStatus: MobileKeyBackupStatus?,
   ): RowModel {
     val (icon: Icon, title: String) =
       when (this) {
@@ -151,6 +158,8 @@ class SettingsListUiStateMachineImpl(
         is TrustedContacts -> Pair(SmallIconShieldPerson, "Trusted Contacts")
         is CloudBackupHealth -> Pair(SmallIconCloud, "Cloud Backup")
         is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
+        is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")
+        is Biometric -> Pair(SmallIconLock, "Face ID") // TODO W-7960 Use appropriate string for setting row
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
     return RowModel(
@@ -178,7 +187,7 @@ class SettingsListUiStateMachineImpl(
   }
 
   private fun SettingsListRow.getSpecialTrailingIconModel(
-    mobileKeyBackupStatus: LoadableValue<MobileKeyBackupStatus>,
+    mobileKeyBackupStatus: MobileKeyBackupStatus?,
   ): IconModel? {
     return when (this) {
       is CloudBackupHealth -> {
@@ -187,8 +196,8 @@ class SettingsListUiStateMachineImpl(
           iconSize = IconSize.Small,
           iconTint = IconTint.Warning
         ).takeIf {
-          mobileKeyBackupStatus is LoadableValue.LoadedValue &&
-            mobileKeyBackupStatus.value is MobileKeyBackupStatus.ProblemWithBackup
+          mobileKeyBackupStatus != null &&
+            mobileKeyBackupStatus is MobileKeyBackupStatus.ProblemWithBackup
         }
       }
       else -> null
@@ -221,6 +230,8 @@ class SettingsListUiStateMachineImpl(
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
       is ContactUs ->
         appFunctionalityStatus.featureStates.helpCenter == Available
+      is DebugMenu -> true
+      is Biometric -> true
     }
   }
 }

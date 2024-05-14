@@ -1,6 +1,7 @@
 package build.wallet.statemachine.send
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,6 +18,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
 import build.wallet.money.currency.Currency
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.ButtonDataModel
@@ -43,17 +45,19 @@ class TransferAmountEntryUiStateMachineImpl(
   private val moneyCalculatorUiStateMachine: MoneyCalculatorUiStateMachine,
   private val mobilePaySpendingPolicy: MobilePaySpendingPolicy,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : TransferAmountEntryUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
   override fun model(props: TransferAmountEntryUiProps): ScreenModel {
+    val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     // Always start with the currency of the given amount as the primary currency
     // and the given fiat or BTC as secondary, whichever the amount isn't
     var currencyState by remember {
       mutableStateOf(
         CurrencyState(
           primaryCurrency = props.initialAmount.currency,
-          secondaryCurrency = if (props.initialAmount is BitcoinMoney) props.fiatCurrency else BTC
+          secondaryCurrency = if (props.initialAmount is BitcoinMoney) fiatCurrency else BTC
         )
       )
     }
@@ -104,7 +108,7 @@ class TransferAmountEntryUiStateMachineImpl(
           convertedOrZeroWithRates(
             currencyConverter,
             calculatorModel.primaryAmount,
-            props.fiatCurrency,
+            fiatCurrency,
             props.exchangeRates
           ) as FiatMoney
         }
@@ -118,7 +122,7 @@ class TransferAmountEntryUiStateMachineImpl(
           convertedOrZeroWithRates(
             currencyConverter,
             bitcoinBalance.total,
-            props.fiatCurrency,
+            fiatCurrency,
             props.exchangeRates
           ).rounded() as? FiatMoney
       }
@@ -155,7 +159,8 @@ class TransferAmountEntryUiStateMachineImpl(
               else ->
                 enteredFiatMoney?.let {
                   enteredFiatMoney >= fiatBalance
-                } ?: error("Entered fiat money is null so it should not be primary currency. This should never happen.")
+                }
+                  ?: error("Entered fiat money is null so it should not be primary currency. This should never happen.")
             }
         }
       }

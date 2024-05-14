@@ -1,0 +1,16 @@
+task:
+  name: build_xcode_xcarchive
+  macos_instance:
+    image: sonoma-xcode
+  build_script:
+    - echo $(pwd)""
+    - chmod +x ./release/generate-xcodeproj
+    - chmod +x ./release/generate-xcarchive
+    - echo "Generating xcodeproj..."
+    - ./release/generate-xcodeproj
+    - echo "Generating xcarchive..."
+    - ./release/generate-xcarchive
+    - mkdir -p build
+    - ditto -c -k --sequesterRsrc --keepParent Bitkey.xcarchive build/Bitkey.zip
+  xcarchive_artifacts:
+    path: build/Bitkey.zip

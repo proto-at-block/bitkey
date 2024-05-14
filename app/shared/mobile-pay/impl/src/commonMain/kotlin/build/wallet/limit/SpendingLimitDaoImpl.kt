@@ -1,8 +1,6 @@
 package build.wallet.limit
 
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
-import build.wallet.LoadableValue.InitialLoading
-import build.wallet.LoadableValue.LoadedValue
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FiatCurrencyEntity
 import build.wallet.database.sqldelight.SpendingLimitEntity
@@ -36,10 +34,7 @@ class SpendingLimitDaoImpl(
         result
           .logFailure { "Failed to read active spending limit from database" }
           .onSuccess { activeLimit ->
-            when (activeLimit) {
-              InitialLoading -> Unit
-              is LoadedValue -> emit(activeLimit.value?.toSpendingLimit())
-            }
+            emit(activeLimit?.toSpendingLimit())
           }
           .onFailure {
             emit(null)

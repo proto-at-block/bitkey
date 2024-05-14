@@ -5,13 +5,15 @@ import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
 import build.wallet.bitcoin.sync.ElectrumServerDetails
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
+import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
-import build.wallet.logging.logNetworkFailure
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.platform.device.DevicePlatform.Android
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
+import dev.zacsweers.redacted.annotations.Unredacted
 import io.ktor.client.request.get
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -25,7 +27,9 @@ class GetBdkConfigurationServiceImpl(
   ): Result<ElectrumServers, NetworkingError> {
     return f8eHttpClient.unauthenticated(f8eEnvironment)
       .bodyResult<ResponseBody> {
-        get("/api/bdk-configuration")
+        get("/api/bdk-configuration") {
+          withDescription("Get BDK configuration")
+        }
       }
       .map { response ->
         ElectrumServers(
@@ -38,14 +42,14 @@ class GetBdkConfigurationServiceImpl(
             )?.toElectrumServer()
         )
       }
-      .logNetworkFailure { "Failed to get BDK configuration" }
   }
 
   @Serializable
   private data class ResponseBody(
+    @Unredacted
     @SerialName("electrum_servers")
     val electrumServers: F8eElectrumServers,
-  )
+  ) : RedactedResponseBody
 
   @Serializable
   private data class F8eElectrumServers(

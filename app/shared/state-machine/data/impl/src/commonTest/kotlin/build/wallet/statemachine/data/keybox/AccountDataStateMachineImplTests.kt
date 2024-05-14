@@ -7,7 +7,6 @@ import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.money.display.CurrencyPreferenceDataMock
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
@@ -44,17 +43,20 @@ class AccountDataStateMachineImplTests : FunSpec({
     )
 
   val hasActiveFullAccountDataStateMachine =
-    object : HasActiveFullAccountDataStateMachine, StateMachineMock<HasActiveFullAccountDataProps, HasActiveFullAccountData>(
-      LoadingActiveFullAccountData(FullAccountMock)
-    ) {}
+    object : HasActiveFullAccountDataStateMachine,
+      StateMachineMock<HasActiveFullAccountDataProps, HasActiveFullAccountData>(
+        LoadingActiveFullAccountData(FullAccountMock)
+      ) {}
   val hasActiveLiteAccountDataStateMachine =
-    object : HasActiveLiteAccountDataStateMachine, StateMachineMock<HasActiveLiteAccountDataProps, AccountData>(
-      HasActiveLiteAccountDataFake
-    ) {}
+    object : HasActiveLiteAccountDataStateMachine,
+      StateMachineMock<HasActiveLiteAccountDataProps, AccountData>(
+        HasActiveLiteAccountDataFake
+      ) {}
   val noActiveKeyboxDataStateMachine =
-    object : NoActiveAccountDataStateMachine, StateMachineMock<NoActiveAccountDataProps, NoActiveAccountData>(
-      NoActiveAccountData.CheckingRecoveryOrOnboarding
-    ) {}
+    object : NoActiveAccountDataStateMachine,
+      StateMachineMock<NoActiveAccountDataProps, NoActiveAccountData>(
+        NoActiveAccountData.CheckingRecoveryOrOnboarding
+      ) {}
 
   val noLongerRecoveringDataStateMachine =
     object : NoLongerRecoveringDataStateMachine,
@@ -91,8 +93,7 @@ class AccountDataStateMachineImplTests : FunSpec({
         LoadedTemplateFullAccountConfigData(
           config = FullAccountConfigMock,
           updateConfig = {}
-        ),
-      currencyPreferenceData = CurrencyPreferenceDataMock
+        )
     )
 
   beforeTest {

@@ -20,6 +20,7 @@ use types::recovery::social::relationship::{
 };
 
 use super::requests::CognitoAuthentication;
+use super::TestContext;
 
 const TRUSTED_CONTACT_ALIAS: &str = "Trusty";
 const CUSTOMER_ALIAS: &str = "Custy";
@@ -84,6 +85,7 @@ async fn assert_relationship_counts(
 }
 
 pub(super) async fn try_create_recovery_relationship(
+    context: &TestContext,
     client: &TestClient,
     customer_account_id: &AccountId,
     auth: &CognitoAuthentication,
@@ -91,6 +93,9 @@ pub(super) async fn try_create_recovery_relationship(
     expected_num_invitations: usize,
     expected_num_trusted_contacts: usize,
 ) -> Option<CreateRecoveryRelationshipResponse> {
+    let keys = context
+        .get_authentication_keys_for_account_id(customer_account_id)
+        .expect("Invalid keys for account");
     let create_response = client
         .create_recovery_relationship(
             &customer_account_id.to_string(),
@@ -100,6 +105,7 @@ pub(super) async fn try_create_recovery_relationship(
                     PROTECTED_CUSTOMER_ENROLLMENT_PAKE_PUBKEY.to_string(),
             },
             auth,
+            &keys,
         )
         .await;
 
@@ -133,6 +139,7 @@ pub(super) async fn try_create_recovery_relationship(
 }
 
 pub(super) async fn try_accept_recovery_relationship_invitation(
+    context: &TestContext,
     client: &TestClient,
     customer_account_id: &AccountId,
     trusted_contact_account_id: &AccountId,
@@ -142,6 +149,9 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
     expected_status_code: StatusCode,
     tc_expected_num_customers: usize,
 ) -> Option<UpdateRecoveryRelationshipResponse> {
+    let keys = context
+        .get_authentication_keys_for_account_id(trusted_contact_account_id)
+        .expect("Invalid keys for account");
     let accept_response = client
         .update_recovery_relationship(
             &trusted_contact_account_id.to_string(),
@@ -155,6 +165,7 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
                 sealed_delegated_decryption_pubkey: "SEALED_PUBKEY".to_string(),
             },
             auth,
+            &keys,
         )
         .await;
 
@@ -191,12 +202,16 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
 }
 
 pub(super) async fn try_endorse_recovery_relationship(
+    context: &TestContext,
     client: &TestClient,
     customer_account_id: &AccountId,
     recovery_relationship_id: &RecoveryRelationshipId,
     endorsement_key_certificate: &str,
     expected_status_code: StatusCode,
 ) -> Option<EndorseRecoveryRelationshipsResponse> {
+    let keys = context
+        .get_authentication_keys_for_account_id(customer_account_id)
+        .expect("Invalid keys for account");
     let endorse_response = client
         .endorse_recovery_relationship(
             &customer_account_id.to_string(),
@@ -207,6 +222,7 @@ pub(super) async fn try_endorse_recovery_relationship(
                         .to_string(),
                 }],
             },
+            &keys,
         )
         .await;
 
@@ -238,19 +254,26 @@ struct CreateRecoveryRelationshipTestVector {
 }
 
 async fn create_recovery_relationship_test(vector: CreateRecoveryRelationshipTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
     let customer_account = match vector.customer_account_type {
-        AccountType::Full { .. } => {
-            Account::Full(create_account(&bootstrap.services, Network::BitcoinSignet, None).await)
-        }
+        AccountType::Full { .. } => Account::Full(
+            create_account(
+                &mut context,
+                &bootstrap.services,
+                Network::BitcoinSignet,
+                None,
+            )
+            .await,
+        ),
         AccountType::Lite => {
-            Account::Lite(create_lite_account(&bootstrap.services, None, true).await)
+            Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await)
         }
     };
 
     try_create_recovery_relationship(
+        &context,
         &client,
         customer_account.get_id(),
         &vector.auth,
@@ -287,11 +310,21 @@ tests! {
 
 #[tokio::test]
 async fn test_reissue_recovery_relationship_invitation() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let customer_account_keys = context
+        .get_authentication_keys_for_account_id(&customer_account.id)
+        .expect("Invalid keys for account");
     let create_response = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -305,8 +338,20 @@ async fn test_reissue_recovery_relationship_invitation() {
     .await
     .unwrap();
 
-    let other_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
+    let other_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let other_account_keys = context
+        .get_authentication_keys_for_account_id(&other_account.id)
+        .expect("Invalid keys for other account");
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let tc_account_keys = context
+        .get_authentication_keys_for_account_id(&tc_account.id)
+        .expect("Invalid keys for tc account");
 
     // Another account can't reissue
     let reissue_response = client
@@ -321,6 +366,7 @@ async fn test_reissue_recovery_relationship_invitation() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &other_account_keys,
         )
         .await;
     assert_eq!(
@@ -340,6 +386,7 @@ async fn test_reissue_recovery_relationship_invitation() {
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
             &CognitoAuthentication::Recovery,
+            &tc_account_keys,
         )
         .await;
     assert_eq!(
@@ -362,6 +409,7 @@ async fn test_reissue_recovery_relationship_invitation() {
                 is_app_signed: true,
                 is_hardware_signed: false,
             },
+            &customer_account_keys,
         )
         .await;
     assert_eq!(
@@ -384,6 +432,7 @@ async fn test_reissue_recovery_relationship_invitation() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &customer_account_keys,
         )
         .await;
     assert_eq!(
@@ -399,6 +448,7 @@ async fn test_reissue_recovery_relationship_invitation() {
     };
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -423,6 +473,7 @@ async fn test_reissue_recovery_relationship_invitation() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &customer_account_keys,
         )
         .await;
     assert_eq!(
@@ -433,6 +484,7 @@ async fn test_reissue_recovery_relationship_invitation() {
     );
 
     try_endorse_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &create_response.invitation.recovery_relationship_id,
@@ -454,6 +506,7 @@ async fn test_reissue_recovery_relationship_invitation() {
                 is_app_signed: true,
                 is_hardware_signed: true,
             },
+            &customer_account_keys,
         )
         .await;
     assert_eq!(
@@ -477,25 +530,38 @@ struct AcceptRecoveryRelationshipInvitationTestVector {
 async fn accept_recovery_relationship_invitation_test(
     vector: AcceptRecoveryRelationshipInvitationTestVector,
 ) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
 
     let tc_account = if !vector.customer_is_tc {
         match vector.tc_account_type {
             AccountType::Full => Account::Full(
-                create_account(&bootstrap.services, Network::BitcoinSignet, None).await,
+                create_account(
+                    &mut context,
+                    &bootstrap.services,
+                    Network::BitcoinSignet,
+                    None,
+                )
+                .await,
             ),
-            AccountType::Lite => {
-                Account::Lite(create_lite_account(&bootstrap.services, None, true).await)
-            }
+            AccountType::Lite => Account::Lite(
+                create_lite_account(&mut context, &bootstrap.services, None, true).await,
+            ),
         }
     } else {
         Account::Full(customer_account.clone())
     };
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -519,6 +585,7 @@ async fn accept_recovery_relationship_invitation_test(
     }
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         tc_account.get_id(),
@@ -583,13 +650,21 @@ struct EndorseRecoveryRelationshipTestVector {
 }
 
 async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = Account::Lite(create_lite_account(&bootstrap.services, None, true).await);
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account =
+        Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await);
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -605,6 +680,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
 
     if vector.accept_recovery_relationship {
         try_accept_recovery_relationship_invitation(
+            &context,
             &client,
             &customer_account.id,
             tc_account.get_id(),
@@ -618,6 +694,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
     }
 
     try_endorse_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &create_body.invitation.recovery_relationship_id,
@@ -642,6 +719,7 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
 
     if vector.redo_endorsed_relationship {
         try_endorse_recovery_relationship(
+            &context,
             &client,
             &customer_account.id,
             &create_body.invitation.recovery_relationship_id,
@@ -704,21 +782,49 @@ struct DeleteRecoveryRelationshipTestVector {
 }
 
 async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTestVector) {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let customer_keys = context
+        .get_authentication_keys_for_account_id(&customer_account.id)
+        .expect("Invalid keys for account");
     let tc_account = match vector.tc_account_type {
-        AccountType::Full { .. } => {
-            Account::Full(create_account(&bootstrap.services, Network::BitcoinSignet, None).await)
-        }
+        AccountType::Full { .. } => Account::Full(
+            create_account(
+                &mut context,
+                &bootstrap.services,
+                Network::BitcoinSignet,
+                None,
+            )
+            .await,
+        ),
         AccountType::Lite => {
-            Account::Lite(create_lite_account(&bootstrap.services, None, true).await)
+            Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await)
         }
     };
-    let unrelated_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let tc_account_keys = context
+        .get_authentication_keys_for_account_id(tc_account.get_id())
+        .expect("Invalid keys for account");
+    let unrelated_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let unrelated_account_keys = context
+        .get_authentication_keys_for_account_id(&unrelated_account.id)
+        .expect("Invalid keys for account");
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -734,6 +840,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
 
     if vector.accepted {
         try_accept_recovery_relationship_invitation(
+            &context,
             &client,
             &customer_account.id,
             tc_account.get_id(),
@@ -748,6 +855,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
 
     if vector.endorsed {
         try_endorse_recovery_relationship(
+            &context,
             &client,
             &customer_account.id,
             &create_body.invitation.recovery_relationship_id,
@@ -757,10 +865,10 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
         .await;
     }
 
-    let deleter_account_id = match vector.deleter {
-        RelationshipRole::Customer => &customer_account.id,
-        RelationshipRole::TrustedContact => tc_account.get_id(),
-        RelationshipRole::Unrelated => &unrelated_account.id,
+    let (deleter_account_id, keys) = match vector.deleter {
+        RelationshipRole::Customer => (&customer_account.id, &customer_keys),
+        RelationshipRole::TrustedContact => (tc_account.get_id(), &tc_account_keys),
+        RelationshipRole::Unrelated => (&unrelated_account.id, &unrelated_account_keys),
     };
 
     let delete_response = client
@@ -768,6 +876,7 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             &deleter_account_id.to_string(),
             &create_body.invitation.recovery_relationship_id.to_string(),
             &vector.deleter_auth,
+            keys,
         )
         .await;
 
@@ -877,12 +986,22 @@ tests! {
 
 #[tokio::test]
 async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let customer_keys = context
+        .get_authentication_keys_for_account_id(&customer_account.id)
+        .expect("Invalid keys for account");
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -901,6 +1020,7 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
             &customer_account.id.to_string(),
             &create_body.invitation.recovery_relationship_id.to_string(),
             &CognitoAuthentication::Recovery,
+            &customer_keys,
         )
         .await;
 
@@ -926,6 +1046,7 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
                 is_app_signed: false,
                 is_hardware_signed: false,
             },
+            &customer_keys,
         )
         .await;
 
@@ -939,14 +1060,21 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
 
 #[tokio::test]
 async fn test_accept_already_accepted_recovery_relationship() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
-    let other_account = create_lite_account(&bootstrap.services, None, true).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let other_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -961,6 +1089,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
     .unwrap();
 
     let initial_response = try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -973,6 +1102,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
     .await
     .unwrap();
     let repeat_response = try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -989,6 +1119,7 @@ async fn test_accept_already_accepted_recovery_relationship() {
     assert_eq!(initial_response, repeat_response);
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &other_account.id,
@@ -1003,14 +1134,21 @@ async fn test_accept_already_accepted_recovery_relationship() {
 
 #[tokio::test]
 async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
-    let other_account = create_lite_account(&bootstrap.services, None, true).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let other_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -1025,6 +1163,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
     .unwrap();
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -1038,6 +1177,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
     .unwrap();
 
     let initial_response = try_endorse_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &create_body.invitation.recovery_relationship_id,
@@ -1047,6 +1187,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
     .await
     .unwrap();
     let repeat_response = try_endorse_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &create_body.invitation.recovery_relationship_id,
@@ -1060,6 +1201,7 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
     assert_eq!(initial_response, repeat_response);
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &other_account.id,
@@ -1074,13 +1216,20 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
 
 #[tokio::test]
 async fn test_accept_recovery_relationship_for_existing_customer() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -1095,6 +1244,7 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
     .unwrap();
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -1107,6 +1257,7 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
     .await;
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -1121,6 +1272,7 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
     .unwrap();
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -1135,13 +1287,20 @@ async fn test_accept_recovery_relationship_for_existing_customer() {
 
 #[tokio::test]
 async fn test_get_recovery_relationship_invitation_for_code() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
 
     let create_body = try_create_recovery_relationship(
+        &context,
         &client,
         &customer_account.id,
         &CognitoAuthentication::Wallet {
@@ -1170,6 +1329,7 @@ async fn test_get_recovery_relationship_invitation_for_code() {
     );
 
     try_accept_recovery_relationship_invitation(
+        &context,
         &client,
         &customer_account.id,
         &tc_account.id,
@@ -1198,12 +1358,19 @@ async fn test_get_recovery_relationship_invitation_for_code() {
 
 #[tokio::test]
 async fn test_relationships_count_caps() {
-    let bootstrap = gen_services().await;
+    let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router).await;
 
-    let customer_account = create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+    let customer_account = create_account(
+        &mut context,
+        &bootstrap.services,
+        Network::BitcoinSignet,
+        None,
+    )
+    .await;
     for i in 0..=3 {
         try_create_recovery_relationship(
+            &context,
             &client,
             &customer_account.id,
             &CognitoAuthentication::Wallet {
@@ -1221,11 +1388,17 @@ async fn test_relationships_count_caps() {
         .await;
     }
 
-    let tc_account = create_lite_account(&bootstrap.services, None, true).await;
+    let tc_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
     for i in 0..=10 {
-        let customer_account =
-            create_account(&bootstrap.services, Network::BitcoinSignet, None).await;
+        let customer_account = create_account(
+            &mut context,
+            &bootstrap.services,
+            Network::BitcoinSignet,
+            None,
+        )
+        .await;
         let create_body = try_create_recovery_relationship(
+            &context,
             &client,
             &customer_account.id,
             &CognitoAuthentication::Wallet {
@@ -1240,6 +1413,7 @@ async fn test_relationships_count_caps() {
         .unwrap();
 
         try_accept_recovery_relationship_invitation(
+            &context,
             &client,
             &customer_account.id,
             &tc_account.id,

@@ -25,7 +25,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onSyncDeviceInfo: {},
                 onReplaceDevice: {},
                 onManageReplacement: {},
-                onBack: {}
+                onBack: {},
+                multipleFingerprintsEnabled: false,
+                resetDeviceEnabled: false,
+                onManageFingerprints: {}
             )
         )
         
@@ -50,7 +53,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onSyncDeviceInfo: {},
                 onReplaceDevice: {},
                 onManageReplacement: {},
-                onBack: {}
+                onBack: {},
+                multipleFingerprintsEnabled: false,
+                resetDeviceEnabled: false,
+                onManageFingerprints: {}
             )
         )
         
@@ -75,7 +81,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onSyncDeviceInfo: {},
                 onReplaceDevice: {},
                 onManageReplacement: {},
-                onBack: {}
+                onBack: {},
+                multipleFingerprintsEnabled: false,
+                resetDeviceEnabled: false,
+                onManageFingerprints: {}
             )
         )
         
@@ -100,7 +109,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onSyncDeviceInfo: {},
                 onReplaceDevice: {},
                 onManageReplacement: {},
-                onBack: {}
+                onBack: {},
+                multipleFingerprintsEnabled: false,
+                resetDeviceEnabled: false,
+                onManageFingerprints: {}
             )
         )
         
@@ -125,7 +137,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onSyncDeviceInfo: {},
                 onReplaceDevice: {},
                 onManageReplacement: {},
-                onBack: {}
+                onBack: {},
+                multipleFingerprintsEnabled: false,
+                resetDeviceEnabled: false,
+                onManageFingerprints: {}
             )
         )
         

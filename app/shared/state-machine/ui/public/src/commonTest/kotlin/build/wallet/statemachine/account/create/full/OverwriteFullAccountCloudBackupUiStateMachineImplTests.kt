@@ -19,6 +19,7 @@ import build.wallet.statemachine.data.account.CreateFullAccountData.OverwriteFul
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.robots.awaitLoadingScreen
+import build.wallet.ui.model.alert.ButtonAlertModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -121,7 +122,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
         clickPrimaryButton()
       }
-      awaitItem().alertModel.shouldNotBeNull().onPrimaryButtonClick()
+      awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onPrimaryButtonClick()
       onOverwriteCalls.awaitItem()
     }
   }
@@ -131,7 +132,7 @@ class OverwriteFullAccountCloudBackupUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<FormBodyModel>(OVERWRITE_FULL_ACCOUNT_CLOUD_BACKUP_WARNING_DURING_ONBOARDING) {
         clickPrimaryButton()
       }
-      awaitItem().alertModel.shouldNotBeNull().onSecondaryButtonClick?.invoke()
+      awaitItem().alertModel.shouldBeTypeOf<ButtonAlertModel>().onSecondaryButtonClick?.invoke()
       awaitItem().alertModel.shouldBeNull()
       onOverwriteCalls.expectNoEvents()
     }

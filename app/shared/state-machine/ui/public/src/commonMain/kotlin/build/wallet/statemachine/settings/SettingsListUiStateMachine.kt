@@ -3,7 +3,7 @@ package build.wallet.statemachine.settings
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.ui.model.alert.AlertModel
+import build.wallet.ui.model.alert.ButtonAlertModel
 
 /**
  * State machine for the List body model to be used in [SettingsHomeUiStateMachine] and
@@ -21,7 +21,7 @@ data class SettingsListUiProps(
   val onBack: () -> Unit,
   val f8eEnvironment: F8eEnvironment,
   val supportedRows: Set<SettingsListRow>,
-  val onShowAlert: (AlertModel) -> Unit,
+  val onShowAlert: (ButtonAlertModel) -> Unit,
   val onDismissAlert: () -> Unit,
 ) {
   /**
@@ -51,5 +51,9 @@ data class SettingsListUiProps(
     data class CloudBackupHealth(override val onClick: () -> Unit) : SettingsListRow
 
     data class RotateAuthKey(override val onClick: () -> Unit) : SettingsListRow
+
+    data class DebugMenu(override val onClick: () -> Unit) : SettingsListRow
+
+    data class Biometric(override val onClick: () -> Unit) : SettingsListRow
   }
 }

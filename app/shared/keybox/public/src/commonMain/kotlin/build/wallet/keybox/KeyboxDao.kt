@@ -1,6 +1,5 @@
 package build.wallet.keybox
 
-import build.wallet.LoadableValue
 import build.wallet.bitkey.app.AppAuthPublicKeys
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.db.DbError
@@ -20,7 +19,7 @@ interface KeyboxDao {
   /**
    * Flow that emits [Keybox] currently being onboarded, if any.
    */
-  fun onboardingKeybox(): Flow<Result<LoadableValue<Keybox?>, DbError>>
+  fun onboardingKeybox(): Flow<Result<Keybox?, DbError>>
 
   /**
    * Returns the currently active [Keybox] or the [Keybox] currently being onboarded, if

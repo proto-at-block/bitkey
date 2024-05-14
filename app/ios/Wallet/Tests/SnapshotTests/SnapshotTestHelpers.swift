@@ -20,7 +20,7 @@ extension XCTestCase {
         screenModel: ScreenModel? = nil,
         usesVisualEffect: Bool = false,
         fileName: String = #function,
-        precision: Float = 0.995
+        precision: Float = 0.9992
     ) {
         let viewController: UIViewController
         if let screenModel = screenModel {
@@ -168,15 +168,15 @@ extension ListModel {
         headerText: "Recent activity",
         sections: [
             ListGroupModel(
-                header: "Pending",
+                header: nil,
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
                 style: .none, 
                 headerTreatment: .secondary,
                 footerButton: nil
             ),
             ListGroupModel(
-                header: "Confirmed",
-                items: [.snapshotTestOutgoing, .snapshotTestIncoming], 
+                header: nil,
+                items: [.snapshotTestOutgoing, .snapshotTestIncoming],
                 style: .none, 
                 headerTreatment: .secondary,
                 footerButton: nil

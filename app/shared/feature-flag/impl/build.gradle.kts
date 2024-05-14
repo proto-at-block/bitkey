@@ -19,10 +19,12 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.accountFake)
+        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.analyticsFake)
       }
     }
   }

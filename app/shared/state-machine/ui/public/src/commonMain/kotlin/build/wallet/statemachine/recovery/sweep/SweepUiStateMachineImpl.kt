@@ -1,11 +1,14 @@
 package build.wallet.statemachine.recovery.sweep
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.recovery.getEventId
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
@@ -27,6 +30,7 @@ import kotlinx.collections.immutable.toImmutableList
 class SweepUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val moneyAmountUiStateMachine: MoneyAmountUiStateMachine,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
@@ -70,20 +74,19 @@ class SweepUiStateMachineImpl(
 
       /** PSBTs have been generated. Prompt to continue to sign + broadcast. */
       is PsbtsGeneratedData -> {
+        val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
         sweepFundsPrompt(
-          id =
-            sweepData.recoveredFactor.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-            ),
+          id = sweepData.recoveredFactor.getEventId(
+            DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT,
+            HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+          ),
           recoveredFactor = sweepData.recoveredFactor,
-          fee =
-            moneyAmountUiStateMachine.model(
-              MoneyAmountUiProps(
-                primaryMoney = sweepData.totalFeeAmount,
-                secondaryAmountCurrency = props.fiatCurrency
-              )
-            ),
+          fee = moneyAmountUiStateMachine.model(
+            MoneyAmountUiProps(
+              primaryMoney = sweepData.totalFeeAmount,
+              secondaryAmountCurrency = fiatCurrency
+            )
+          ),
           onSubmit = sweepData.startSweep,
           presentationStyle = props.presentationStyle
         )

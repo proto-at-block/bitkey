@@ -1,8 +1,6 @@
 package build.wallet.statemachine.moneyhome.full
 
 import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
@@ -19,7 +17,6 @@ import build.wallet.ui.model.status.StatusBannerModel
 interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
 
 /**
- * @property convertedFiatBalance the balance in fiat to display (updated by parent state machine)
  * @property homeBottomSheetModel bottom sheet to show on root Money Home screen
  * @property homeStatusBannerModel status banner to show on root Money Home screen
  * @property onSettings Settings tab item clicked
@@ -28,8 +25,6 @@ interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
 data class MoneyHomeUiProps(
   val accountData: ActiveFullAccountLoadedData,
   val firmwareData: FirmwareData,
-  val convertedFiatBalance: FiatMoney,
-  val fiatCurrency: FiatCurrency,
   val socRecRelationships: SocRecRelationships,
   val socRecActions: SocRecProtectedCustomerActions,
   val homeBottomSheetModel: SheetModel?,

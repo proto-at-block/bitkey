@@ -1,4 +1,9 @@
 # syntax=docker/dockerfile:1.4
+ARG ENABLE_SCCACHE=0
+ARG SCCACHE_BUCKET
+ARG SCCACHE_REGION
+ARG SCCACHE_S3_KEY_PREFIX
+
 FROM scratch as source
 COPY --link Cargo.lock .
 COPY --link Cargo.toml .
@@ -7,6 +12,7 @@ COPY --link vendor vendor
 COPY --link .cargo .cargo
 
 FROM rust:alpine@sha256:4a7925c3974fab3fb68b3f4d93d1a4a36cb201f9f87b01014def219b125f1960 as toolchain
+ARG ENABLE_SCCACHE
 COPY --link rust-toolchain.toml .
 RUN cargo version
 RUN apk add --no-cache \
@@ -15,6 +21,7 @@ RUN apk add --no-cache \
   openssl-dev  \
   pkgconfig \
   protobuf
+RUN [ "$ENABLE_SCCACHE" == "1" ] && apk add --no-cache sccache || true
 RUN cargo install cargo-chef
 ENV PROTOC=/usr/bin/protoc
 
@@ -24,11 +31,37 @@ COPY --from=source . .
 RUN cargo chef prepare --bin server --recipe-path recipe.json
 
 FROM toolchain as builder
+ARG ENABLE_SCCACHE
+ARG SCCACHE_BUCKET
+ARG SCCACHE_REGION
+ARG SCCACHE_S3_KEY_PREFIX
 WORKDIR /usr/src
 COPY --from=planner /usr/src/recipe.json recipe.json
-RUN cargo chef cook --release --bin server --recipe-path recipe.json
+RUN --mount=type=secret,id=AWS_ACCESS_KEY_ID --mount=type=secret,id=AWS_SECRET_ACCESS_KEY --mount=type=secret,id=AWS_SESSION_TOKEN <<EOF
+if [ "$ENABLE_SCCACHE" == "1" ]; then
+  export RUSTC_WRAPPER=sccache
+  export AWS_ACCESS_KEY_ID=$(cat /run/secrets/AWS_ACCESS_KEY_ID)
+  export AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/AWS_SECRET_ACCESS_KEY)
+  export AWS_SESSION_TOKEN=$(cat /run/secrets/AWS_SESSION_TOKEN)
+fi
+cargo chef cook --release --bin server --recipe-path recipe.json
+if [ "$ENABLE_SCCACHE" == "1" ]; then
+  sccache --show-stats
+fi
+EOF
 COPY --from=source . .
-RUN cargo --locked install --bin server --features partnerships --path src/api/server
+RUN --mount=type=secret,id=AWS_ACCESS_KEY_ID --mount=type=secret,id=AWS_SECRET_ACCESS_KEY --mount=type=secret,id=AWS_SESSION_TOKEN <<EOF
+if [ "$ENABLE_SCCACHE" == "1" ]; then
+  export RUSTC_WRAPPER=sccache
+  export AWS_ACCESS_KEY_ID=$(cat /run/secrets/AWS_ACCESS_KEY_ID)
+  export AWS_SECRET_ACCESS_KEY=$(cat /run/secrets/AWS_SECRET_ACCESS_KEY)
+  export AWS_SESSION_TOKEN=$(cat /run/secrets/AWS_SESSION_TOKEN)
+fi
+cargo --locked install --bin server --features partnerships --path src/api/server
+if [ "$ENABLE_SCCACHE" == "1" ]; then
+  sccache --show-stats
+fi
+EOF
 
 FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as deployable
 COPY --from=builder /usr/local/cargo/bin/server /server

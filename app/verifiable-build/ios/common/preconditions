@@ -1,0 +1,40 @@
+#!/bin/bash
+
+testCommandExists() {
+  local command="$1"
+
+  if ! which "$command" > /dev/null 2>&1; then
+      echo "Cannot find '$command'. Please install it first and then rerun this command." >&2
+      exit 100
+  fi
+}
+
+testTartExists() {
+  testCommandExists tart
+}
+
+testDiffoscopeExists() {
+  testCommandExists diffoscope
+}
+
+testlibusbmuxdExists() {
+  testCommandExists libusbmuxd
+}
+
+testSshPassExists() {
+  testCommandExists sshpass
+}
+
+testSufficientDiskSpace() {
+  AVAILABLE_SPACE=`df / | tail -1 | awk '{print $4}'`
+  # Convert available disk space to GB
+  AVAILABLE_SPACE_GB=$(($AVAILABLE_SPACE / 1024 / 1024))
+
+  # Compare the space
+  if [ $AVAILABLE_SPACE_GB -gt 100 ]
+  then
+    echo "Your system has at least 100GB of disk space available."
+  else
+    echo "Your system does not have 100GB of disk space available."
+  fi
+}

@@ -2,31 +2,27 @@ package build.wallet.money.display
 
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.stateIn
 
 class BitcoinDisplayPreferenceRepositoryImpl(
+  appScope: CoroutineScope,
   private val bitcoinDisplayPreferenceDao: BitcoinDisplayPreferenceDao,
 ) : BitcoinDisplayPreferenceRepository {
   private val defaultUnit = BitcoinDisplayUnit.Satoshi
-  private val internalFlow = MutableStateFlow(defaultUnit)
 
-  override val bitcoinDisplayUnit: StateFlow<BitcoinDisplayUnit>
-    get() = internalFlow.asStateFlow()
+  override val bitcoinDisplayUnit: StateFlow<BitcoinDisplayUnit> =
+    bitcoinDisplayPreferenceDao
+      .bitcoinDisplayPreference()
+      .filterNotNull()
+      .stateIn(appScope, started = SharingStarted.Lazily, initialValue = defaultUnit)
 
-  override fun launchSync(scope: CoroutineScope) {
-    scope.launch {
-      bitcoinDisplayPreferenceDao.bitcoinDisplayPreference()
-        .filterNotNull()
-        .collect(internalFlow)
-    }
-  }
-
-  override suspend fun setBitcoinDisplayUnit(bitcoinDisplayUnit: BitcoinDisplayUnit) {
-    bitcoinDisplayPreferenceDao.setBitcoinDisplayPreference(bitcoinDisplayUnit)
+  override suspend fun setBitcoinDisplayUnit(
+    bitcoinDisplayUnit: BitcoinDisplayUnit,
+  ): Result<Unit, Error> {
+    return bitcoinDisplayPreferenceDao.setBitcoinDisplayPreference(bitcoinDisplayUnit)
   }
 
   override suspend fun clear(): Result<Unit, Error> {

@@ -32,6 +32,26 @@ extension GetFingerprintEnrollmentStatus: IOCommand {
     typealias ResultType = core.FingerprintEnrollmentStatus
 }
 
+extension DeleteFingerprint: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
+extension GetUnlockMethod: IOCommand {
+    typealias FFIStateType = core.UnlockInfoState
+    typealias ResultType = core.UnlockInfo
+}
+
+extension GetEnrolledFingerprints: IOCommand {
+    typealias FFIStateType = core.EnrolledFingerprintsState
+    typealias ResultType = core.EnrolledFingerprints
+}
+
+extension SetFingerprintLabel: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
 extension SignTransaction: IOCommand {
     typealias FFIStateType = PartiallySignedTransactionState
     typealias ResultType = String
@@ -175,6 +195,20 @@ extension IOCommand {
     }
 
     func next(_ response: [UInt8]) throws -> IOResult<core.FingerprintEnrollmentStatus> where FFIStateType == core.FingerprintEnrollmentStatusState {
+        switch try self.next(response: response) {
+        case .data(response: let response): return .data(response: response)
+        case .result(value: let value): return .result(value: value)
+        }
+    }
+    
+    func next(_ response: [UInt8]) throws -> IOResult<core.UnlockInfo> where FFIStateType == UnlockInfoState {
+        switch try self.next(response: response) {
+        case .data(response: let response): return .data(response: response)
+        case .result(value: let value): return .result(value: value)
+        }
+    }
+    
+    func next(_ response: [UInt8]) throws -> IOResult<core.EnrolledFingerprints> where FFIStateType == EnrolledFingerprintsState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)

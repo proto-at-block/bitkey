@@ -1,7 +1,6 @@
 package build.wallet.statemachine.data.keybox
 
 import build.wallet.bitkey.account.Account
-import build.wallet.money.display.CurrencyPreferenceData
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.OnboardConfigData.LoadedOnboardConfigData
@@ -13,7 +12,8 @@ import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDat
  * - there is an ongoing "Lost App" recovery
  * - onboarding of a new keybox is in progress
  */
-interface NoActiveAccountDataStateMachine : StateMachine<NoActiveAccountDataProps, NoActiveAccountData>
+interface NoActiveAccountDataStateMachine :
+  StateMachine<NoActiveAccountDataProps, NoActiveAccountData>
 
 /**
  * @property [templateFullAccountConfig] template [FullAccountConfig] to be used for creating or recovering a
@@ -22,7 +22,6 @@ interface NoActiveAccountDataStateMachine : StateMachine<NoActiveAccountDataProp
 data class NoActiveAccountDataProps(
   val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
   val existingRecovery: StillRecovering?,
-  val currencyPreferenceData: CurrencyPreferenceData,
   val newAccountOnboardConfigData: LoadedOnboardConfigData,
   val onAccountCreated: (Account) -> Unit,
 )

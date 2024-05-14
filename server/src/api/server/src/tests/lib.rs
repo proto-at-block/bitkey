@@ -31,7 +31,7 @@ use bdk_utils::bdk::bitcoin::bip32::{
 };
 use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
-use bdk_utils::bdk::bitcoin::Network as BitcoinNetwork;
+use bdk_utils::bdk::bitcoin::{Network as BitcoinNetwork, OutPoint};
 use bdk_utils::bdk::keys::{DescriptorSecretKey, KeyMap};
 use bdk_utils::bdk::miniscript::descriptor::{DescriptorXKey, Wildcard};
 use bdk_utils::bdk::wallet::{get_funded_wallet, AddressIndex, AddressInfo};
@@ -55,13 +55,10 @@ use userpool::userpool::{CreateRecoveryUserInput, CreateWalletUserInput};
 use crate::Services;
 
 use super::requests::axum::TestClient;
+use super::{TestAuthenticationKeys, TestContext, TestKeypair};
 
 const RECEIVE_DERIVATION_PATH: &str = "m/0";
 const CHANGE_DERIVATION_PATH: &str = "m/1";
-
-const TEST_APP_AUTH_KEY: &[u8] = &[0xcd; 32];
-const TEST_HW_AUTH_KEY: &[u8] = &[0xab; 32];
-const TEST_RECOVERY_AUTH_KEY: &[u8] = &[0xef; 32];
 
 pub(crate) fn gen_external_wallet_address() -> AddressInfo {
     let external_wallet = get_funded_wallet("wpkh([c258d2e4/84h/1h/0h]tpubDDYkZojQFQjht8Tm4jsS3iuEmKjTiEGjG6KnuFNKKJb5A6ZUCUZKdvLdSDWofKi4ToRCwb9poe1XdqfUnP4jaJjCB2Zwv11ZLgSbnZSNecE/1/*)").0;
@@ -129,30 +126,36 @@ pub(crate) fn create_plain_keys() -> (SecretKey, PublicKey) {
     secp.generate_keypair(&mut thread_rng())
 }
 
-/// Get static public keys for app auth and hw auth. The private keys that coorespond to these are used to sign
-/// proofs-of-possession in the request builder's `.authenticated` method. Use these keys when you need to auto-generate
-/// proof-of-possession in your requests
-pub(crate) fn get_static_test_authkeys() -> (PublicKey, PublicKey, PublicKey) {
+/// Return randomly generated pubkeys, one for app, one for hw and one for recovery
+///
+/// Use this when you want to sign auth challenges or do proof-of-possession
+pub(crate) fn create_new_authkeys(context: &mut TestContext) -> TestAuthenticationKeys {
     let secp = Secp256k1::new();
-    let app = SecretKey::from_slice(TEST_APP_AUTH_KEY)
-        .expect("parsing byte buffer as secret key should always work")
-        .public_key(&secp);
-    let hw = SecretKey::from_slice(TEST_HW_AUTH_KEY)
-        .expect("parsing byte buffer as secret key should always work")
-        .public_key(&secp);
-    let recovery = SecretKey::from_slice(TEST_RECOVERY_AUTH_KEY)
-        .expect("parsing byte buffer as secret key should always work")
-        .public_key(&secp);
-    (app, hw, recovery)
-}
+    let app_sk = SecretKey::new(&mut thread_rng());
+    let app_pk = app_sk.public_key(&secp);
 
-/// Return randomly generated pubkeys, one for app and one for hw
-/// Use this when you do not need to sign auth challenges or do proof-of-possession
-/// but just need pubkeys for a test
-pub(crate) fn get_random_auth_pubkeys() -> (PublicKey, PublicKey) {
-    let app = create_pubkey();
-    let hw = create_pubkey();
-    (app, hw)
+    let hw_sk = SecretKey::new(&mut thread_rng());
+    let hw_pk = hw_sk.public_key(&secp);
+
+    let recovery_sk = SecretKey::new(&mut thread_rng());
+    let recovery_pk = recovery_sk.public_key(&secp);
+
+    let auth_keys = TestAuthenticationKeys {
+        app: TestKeypair {
+            public_key: app_pk,
+            secret_key: app_sk,
+        },
+        hw: TestKeypair {
+            public_key: hw_pk,
+            secret_key: hw_sk,
+        },
+        recovery: TestKeypair {
+            public_key: recovery_pk,
+            secret_key: recovery_sk,
+        },
+    };
+    context.add_authentication_keys(auth_keys.clone());
+    auth_keys
 }
 
 pub(crate) fn create_spend_keyset(network: Network) -> (SpendingKeyset, BdkWallet<AnyDatabase>) {
@@ -176,15 +179,17 @@ pub(crate) fn create_spend_keyset(network: Network) -> (SpendingKeyset, BdkWalle
 }
 
 pub(crate) async fn create_default_account_with_predefined_wallet(
+    context: &mut TestContext,
     client: &TestClient,
     services: &Services,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
     let (account, wallet) =
-        create_default_account_with_predefined_wallet_internal(client, services).await;
+        create_default_account_with_predefined_wallet_internal(context, client, services).await;
     (account, wallet)
 }
 
 async fn create_default_account_with_predefined_wallet_internal(
+    context: &mut TestContext,
     client: &TestClient,
     services: &Services,
 ) -> (FullAccount, BdkWallet<AnyDatabase>) {
@@ -192,22 +197,25 @@ async fn create_default_account_with_predefined_wallet_internal(
     let app_dprv = DescriptorSecretKey::from_str("[7699ff15/84'/1'/0']tprv8iy8auG1S2uBHrd5SWEW3gQELVDMoqur43KKPkbVGDXGTmwLZ4P2Lq7iXA6SzWEh5qB7AG26ENcYqLeDVCgRaJDMXJBdn8A8T5VnZJ6A6C9/*").unwrap();
     let app_dpub = DescriptorPublicKey::from_str("[7699ff15/84'/1'/0']tpubDFfAjKJFaQarBKesL9u6T64LuWjHyB6kdLv6gGdngVKfJGC7BTCcXKjahFxgMfPSgCPyoVFmK4ALuq4L3pk7p2i2FEgBJdGVmbpxty9MQzw/*").unwrap();
     let hardware_dpub = DescriptorPublicKey::from_str("[08254319/84'/1'/0']tpubDEitjEyJG3W5vcinDWPD1sYtY4EmePDrPXCSs15Q7TkR78Fuyi21X1UpEpYXdoWc9sUJbsWpkd77VN8ZiJMHcnHvUhmsRqapsUdU7Mzrncf/*").unwrap();
-    let auth = create_auth_keyset_model(network);
+    let auth = create_auth_keyset_model(context);
 
     let response = client
-        .create_account(&CreateAccountRequest::Full {
-            auth: FullAccountAuthKeysPayload {
-                app: auth.app_pubkey,
-                hardware: auth.hardware_pubkey,
-                recovery: auth.recovery_pubkey,
+        .create_account(
+            context,
+            &CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: auth.app_pubkey,
+                    hardware: auth.hardware_pubkey,
+                    recovery: auth.recovery_pubkey,
+                },
+                spending: SpendingKeysetRequest {
+                    network: Network::BitcoinSignet.into(),
+                    app: app_dpub.clone(),
+                    hardware: hardware_dpub.clone(),
+                },
+                is_test_account: true,
             },
-            spending: SpendingKeysetRequest {
-                network: Network::BitcoinSignet.into(),
-                app: app_dpub.clone(),
-                hardware: hardware_dpub.clone(),
-            },
-            is_test_account: true,
-        })
+        )
         .await;
     assert_eq!(
         response.status_code,
@@ -237,21 +245,29 @@ async fn create_default_account_with_predefined_wallet_internal(
     (account, wallet)
 }
 
-pub(crate) fn create_auth_keyset_model(_network: Network) -> FullAccountAuthKeys {
-    let (app, hw, recovery) = get_static_test_authkeys();
-    FullAccountAuthKeys::new(app, hw, Some(recovery))
+pub(crate) fn create_auth_keyset_model(context: &mut TestContext) -> FullAccountAuthKeys {
+    let keys = create_new_authkeys(context);
+    FullAccountAuthKeys::new(
+        keys.app.public_key,
+        keys.hw.public_key,
+        Some(keys.recovery.public_key),
+    )
 }
 
-pub(crate) fn create_lite_auth_keyset_model() -> LiteAccountAuthKeys {
-    let (_, _, recovery) = get_static_test_authkeys();
-    LiteAccountAuthKeys::new(recovery)
+pub(crate) fn create_lite_auth_keyset_model(context: &mut TestContext) -> LiteAccountAuthKeys {
+    let keys = create_new_authkeys(context);
+    LiteAccountAuthKeys::new(keys.recovery.public_key)
 }
 
 pub(crate) async fn create_inactive_spending_keyset_for_account(
+    context: &TestContext,
     client: &TestClient,
     account_id: &AccountId,
     network: Network,
 ) -> KeysetId {
+    let keys = context
+        .get_authentication_keys_for_account_id(account_id)
+        .expect("Invalid keys for account");
     let (_, spend_app) = create_descriptor_keys(network);
     let (_, spend_hw) = create_descriptor_keys(network);
 
@@ -265,6 +281,7 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
                     hardware: spend_hw,
                 },
             },
+            &keys,
         )
         .await;
     assert_eq!(
@@ -278,6 +295,7 @@ pub(crate) async fn create_inactive_spending_keyset_for_account(
 }
 
 pub(crate) async fn create_account(
+    context: &mut TestContext,
     services: &Services,
     network: Network,
     override_auth_keys: Option<FullAccountAuthKeys>,
@@ -285,7 +303,7 @@ pub(crate) async fn create_account(
     let auth = if let Some(auth) = override_auth_keys {
         auth
     } else {
-        create_auth_keyset_model(network)
+        create_auth_keyset_model(context)
     };
 
     let (spend, _) = create_spend_keyset(network);
@@ -325,10 +343,17 @@ pub(crate) async fn create_account(
         )
         .await
         .unwrap();
+    context.associate_with_account(
+        &account.id,
+        account
+            .application_auth_pubkey
+            .expect("App pubkey not present"),
+    );
     account
 }
 
 pub(crate) async fn create_lite_account(
+    context: &mut TestContext,
     services: &Services,
     override_auth_keys: Option<LiteAccountAuthKeys>,
     is_test_account: bool,
@@ -336,7 +361,7 @@ pub(crate) async fn create_lite_account(
     let auth = if let Some(auth) = override_auth_keys {
         auth
     } else {
-        create_lite_auth_keyset_model()
+        create_lite_auth_keyset_model(context)
     };
 
     let account = services
@@ -355,6 +380,7 @@ pub(crate) async fn create_lite_account(
         .create_users(&account.id, None, recovery_key)
         .await
         .unwrap();
+    context.associate_with_account(&account.id, auth.recovery_pubkey);
     account
 }
 
@@ -539,11 +565,15 @@ pub(crate) fn build_transaction_with_amount(
     wallet: &BdkWallet<AnyDatabase>,
     recipient: AddressInfo,
     amt: u64,
+    uxtos: &[OutPoint],
 ) -> PartiallySignedTransaction {
     let mut builder = wallet.build_tx();
     builder
         .add_recipient(recipient.script_pubkey(), amt)
         .fee_rate(FeeRate::from_sat_per_vb(5.0));
+    if !uxtos.is_empty() {
+        builder.manually_selected_only().add_utxos(uxtos).unwrap();
+    }
     let (mut tx, _) = builder.finish().unwrap();
     let _ = wallet.sign(
         &mut tx,

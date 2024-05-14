@@ -1,22 +1,30 @@
-use authn_authz::authorizer::AuthorizerConfig;
-use aws_utils::secrets_manager::test::TestSecretsManager;
+use std::collections::HashMap;
+
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::{http, Router};
-use external_identifier::ExternalIdentifier;
 use http_body_util::BodyExt;
 use jwt_authorizer::IntoLayer;
-use partnerships::routes::RouteState;
 use serde_json::{json, Value};
-use server::test_utils::AuthenticatedRequest;
-use std::collections::HashMap;
-use userpool::userpool::{FakeCognitoConnection, UserPoolService};
-
 use tower::ServiceExt;
-use types::account::identifiers::AccountId;
 use ulid::Ulid;
 
-async fn test_route_state() -> RouteState {
+use account::{repository::Repository as AccountRepository, service::Service as AccountService};
+use authn_authz::authorizer::AuthorizerConfig;
+use aws_utils::secrets_manager::test::TestSecretsManager;
+use bdk_utils::bdk::bitcoin::secp256k1;
+use database::ddb;
+use database::ddb::DDBService;
+use external_identifier::ExternalIdentifier;
+use feature_flags::config::Config;
+use http_server::config;
+use partnerships::routes::RouteState;
+use repository::consent::Repository as ConsentRepository;
+use server::test_utils::AuthenticatedRequest;
+use types::account::identifiers::AccountId;
+use userpool::userpool::{FakeCognitoConnection, UserPoolService};
+
+async fn test_route_state(overrides: HashMap<String, String>) -> RouteState {
     let secrets = HashMap::from([
         (
             "fromagerie-api/partnerships/signet_faucet/config".to_owned(),
@@ -28,10 +36,29 @@ async fn test_route_state() -> RouteState {
         ),
     ]);
     let user_pool_service = UserPoolService::new(Box::new(FakeCognitoConnection::new()));
-    RouteState::from_secrets_manager(TestSecretsManager::new(secrets), user_pool_service).await
+    let feature_flags_service = Config::new_with_overrides(overrides)
+        .to_service()
+        .await
+        .expect("Error initializing feature flags service");
+    let conn = config::extract::<ddb::Config>(Some("test"))
+        .unwrap()
+        .to_connection()
+        .await;
+    let account_service = AccountService::new(
+        AccountRepository::new(conn.clone()),
+        ConsentRepository::new(conn),
+        user_pool_service.clone(),
+    );
+    RouteState::from_secrets_manager(
+        TestSecretsManager::new(secrets),
+        user_pool_service,
+        feature_flags_service,
+        account_service,
+    )
+    .await
 }
 
-async fn authed_router() -> Router {
+async fn authed_router(overrides: HashMap<String, String>) -> Router {
     let authorizer = AuthorizerConfig::Test
         .into_authorizer()
         .build()
@@ -39,7 +66,7 @@ async fn authed_router() -> Router {
         .unwrap()
         .into_layer();
 
-    Router::from(test_route_state().await).layer(authorizer)
+    Router::from(test_route_state(overrides).await).layer(authorizer)
 }
 
 async fn call_api(
@@ -59,8 +86,11 @@ async fn call_api(
         .uri(path)
         .header(http::header::CONTENT_TYPE, mime::APPLICATION_JSON.as_ref());
     if authenticated {
-        request_builder =
-            request_builder.authenticated(&AccountId::new(Ulid::new()).unwrap(), false, false);
+        request_builder = request_builder.authenticated(
+            &AccountId::new(Ulid::new()).unwrap(),
+            Some(secp256k1::SecretKey::from_slice(&[0xcd; 32]).unwrap()),
+            Some(secp256k1::SecretKey::from_slice(&[0xab; 32]).unwrap()),
+        );
     }
     let request = request_builder.body(body).unwrap();
 
@@ -76,9 +106,16 @@ async fn call_api(
     }
 }
 
+fn purchase_partner_blocklist_overrides(blocklist_csv: &str) -> HashMap<String, String> {
+    HashMap::from([(
+        "f8e-purchase-partner-blocklist".to_string(),
+        blocklist_csv.to_string(),
+    )])
+}
+
 #[tokio::test]
 async fn transfers() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
 
     let request_body = json!({
         "country": "US",
@@ -108,7 +145,7 @@ async fn transfers() {
 
 #[tokio::test]
 async fn transfers_unauthorized_error() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
 
     let request_body = json!({
         "country": "US",
@@ -128,7 +165,7 @@ async fn transfers_unauthorized_error() {
 
 #[tokio::test]
 async fn transfers_redirect_transfer_not_supported() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -156,7 +193,7 @@ async fn transfers_redirect_transfer_not_supported() {
 
 #[tokio::test]
 async fn transfers_redirect_unauthorized_error() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -179,7 +216,7 @@ async fn transfers_redirect_unauthorized_error() {
 
 #[tokio::test]
 async fn quotes() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -210,19 +247,6 @@ async fn quotes() {
                     "partner": "SignetFaucet"
                 },
                 "user_fee_fiat": 0.0
-            },
-            {
-                "crypto_amount": 0.0,
-                "crypto_price": 0.0,
-                "fiat_currency": "USD",
-                "network_fee_crypto": 0.0,
-                "network_fee_fiat": 0.0,
-                "partner_info": {
-                    "logo_url": null,
-                    "name": "Testnet Faucet",
-                    "partner": "TestnetFaucet"
-                },
-                "user_fee_fiat": 0.0
             }
         ]
     });
@@ -231,8 +255,34 @@ async fn quotes() {
 }
 
 #[tokio::test]
+async fn quotes_with_blocklist() {
+    let app = authed_router(purchase_partner_blocklist_overrides("SignetFaucet")).await;
+    let request_body = json!({
+        "fiat_amount": 100,
+        "fiat_currency": "USD",
+        "payment_method": "CARD",
+        "country": "US"
+    });
+
+    let (status, body) = call_api(
+        app,
+        true,
+        http::Method::POST,
+        "/api/partnerships/purchases/quotes",
+        Some(&request_body.to_string()),
+    )
+    .await;
+
+    let expected_body = json!({
+        "quotes": []
+    });
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, expected_body);
+}
+
+#[tokio::test]
 async fn quotes_unauthorized_error() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -254,7 +304,7 @@ async fn quotes_unauthorized_error() {
 
 #[tokio::test]
 async fn purchases_redirect() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -285,7 +335,7 @@ async fn purchases_redirect() {
 
 #[tokio::test]
 async fn purchases_redirect_unauthorized_error() {
-    let app = authed_router().await;
+    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -309,7 +359,7 @@ async fn purchases_redirect_unauthorized_error() {
 #[tokio::test]
 async fn purchase_options() {
     let (status, _body) = call_api(
-        authed_router().await,
+        authed_router(purchase_partner_blocklist_overrides("")).await,
         true,
         http::Method::GET,
         "/api/partnerships/purchases/options?country=US&fiat_currency=USD",
@@ -323,7 +373,7 @@ async fn purchase_options() {
 #[tokio::test]
 async fn purchase_options_unauthorized_error() {
     let (status, _) = call_api(
-        authed_router().await,
+        authed_router(HashMap::new()).await,
         false,
         http::Method::GET,
         "/api/partnerships/purchases/options?country=US&fiat_currency=USD",
@@ -337,7 +387,7 @@ async fn purchase_options_unauthorized_error() {
 #[tokio::test]
 async fn partner_transactions() {
     let (status, _body) = call_api(
-        authed_router().await,
+        authed_router(HashMap::new()).await,
         true,
         http::Method::GET,
         "/api/partnerships/partners/SignetFaucet/transactions/test-transaction-id",

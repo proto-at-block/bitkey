@@ -1,7 +1,6 @@
 package build.wallet.component.keybox.wallet
 
 import app.cash.turbine.turbineScope
-import build.wallet.LoadableValue.InitialLoading
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
@@ -13,7 +12,6 @@ import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.returnFundsToTreasury
 import build.wallet.testing.fakeTransact
-import build.wallet.testing.shouldBeLoaded
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import com.ionspin.kotlin.bignum.integer.BigInteger
@@ -44,14 +42,11 @@ class AppSpendingWalletFunctionalTests : FunSpec({
       val balance = wallet.balance().testIn(this)
       val transactions = wallet.transactions().testIn(this)
 
-      balance.awaitItem().shouldBe(InitialLoading)
-      transactions.awaitItem().shouldBe(InitialLoading)
-
       withClue("sync initial balance and transaction history") {
         wallet.sync().shouldBeOk()
 
-        balance.awaitItem().shouldBeLoaded(BitcoinBalance.ZeroBalance)
-        transactions.awaitItem().shouldBeLoaded(emptyList())
+        balance.awaitItem().shouldBe(BitcoinBalance.ZeroBalance)
+        transactions.awaitItem().shouldBe(emptyList())
       }
 
       withClue("new address is generated") {
@@ -70,12 +65,10 @@ class AppSpendingWalletFunctionalTests : FunSpec({
 
         wallet.sync().shouldBeOk()
         balance.awaitItem()
-          .shouldBeLoaded()
           .total
           .shouldBe(BitcoinMoney.sats(10_000))
 
         transactions.awaitItem()
-          .shouldBeLoaded()
           .shouldBeSingleton { tx ->
             tx.id.shouldBe(fundingResult.tx.id)
             tx.recipientAddress
@@ -125,7 +118,7 @@ class AppSpendingWalletFunctionalTests : FunSpec({
 
         wallet.sync().shouldBeOk()
 
-        balance.awaitItem().shouldBeLoaded().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
+        balance.awaitItem().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
         treasury.spendingWallet.sync().shouldBeOk()
       }
 
