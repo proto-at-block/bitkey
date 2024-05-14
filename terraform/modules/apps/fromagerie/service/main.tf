@@ -478,6 +478,37 @@ module "ecs_job_mempool_polling_task_signet" {
   wait_for_steady_state = var.wait_for_steady_state
 }
 
+module "ecs_job_mempool_polling_task_mainnet" {
+  source = "../../../models/ecs-service"
+
+  namespace = var.namespace
+  name      = "${var.name}-job-mempool-polling-mainnet"
+
+  create_load_balancer = false
+  vpc_name             = var.vpc_name
+  cluster_arn          = var.cluster_arn
+
+  image_name  = var.image_name
+  image_tag   = var.image_tag
+  command     = ["worker", "mempool-polling"]
+  environment = var.environment
+  environment_variables = merge(local.common_env_vars, {
+    SERVER_WALLET_TELEMETRY  = "{service_name=${var.name}-job-mempool-polling,mode=datadog}"
+    SERVER_COGNITO           = "test"        //TODO: Pick apart bootstrap dependence on Cognito,
+    SERVER_TWILIO            = "{mode=test}" //TODO: Pick apart bootstrap dependence on Twilio,
+    SERVER_ITERABLE          = "{mode=test}" //TODO: Pick apart bootstrap dependence on Iterable,
+    SERVER_ZENDESK           = "{mode=test}" //TODO: Pick apart bootstrap dependence on Zendesk,
+    MEMPOOL_INDEXER_BASE_URL = "https://bitkey.mempool.space/api"
+    MEMPOOL_INDEXER_NETWORK  = "bitcoin"
+  })
+  secrets          = merge(local.common_secrets, {})
+  cpu_architecture = "ARM64"
+
+  desired_count         = var.job_mempool_desired_count
+  wait_for_steady_state = var.wait_for_steady_state
+}
+
+
 module "ecs_job_metrics" {
   source = "../../../models/ecs-service"
 
@@ -669,6 +700,11 @@ resource "aws_iam_role_policy" "job_mempool_polling_signet" {
   policy = data.aws_iam_policy_document.api_iam_policy.json
 }
 
+resource "aws_iam_role_policy" "job_mempool_polling_mainnet" {
+  role   = module.ecs_job_mempool_polling_task_mainnet.task_role_name
+  policy = data.aws_iam_policy_document.api_iam_policy.json
+}
+
 resource "aws_iam_role_policy" "job_metrics" {
   role   = module.ecs_job_metrics.task_role_name
   policy = data.aws_iam_policy_document.api_iam_policy.json
@@ -728,6 +764,11 @@ resource "aws_iam_role_policy" "job_blockchain_signet_secrets_iam_policy" {
 
 resource "aws_iam_role_policy" "job_mempool_signet_secrets_iam_policy" {
   role   = module.ecs_job_mempool_polling_task_signet.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_iam_policy.json
+}
+
+resource "aws_iam_role_policy" "job_mempool_mainnet_secrets_iam_policy" {
+  role   = module.ecs_job_mempool_polling_task_mainnet.exec_role_name
   policy = data.aws_iam_policy_document.secrets_iam_policy.json
 }
 
@@ -794,6 +835,13 @@ module "job_mempool_polling_signet" {
   source = "../../../pieces/dynamodb-iam-policy"
 
   role        = module.ecs_job_mempool_polling_task_signet.task_role_name
+  table_names = local.table_name_list
+}
+
+module "job_mempool_polling_mainnet" {
+  source = "../../../pieces/dynamodb-iam-policy"
+
+  role        = module.ecs_job_mempool_polling_task_mainnet.task_role_name
   table_names = local.table_name_list
 }
 
