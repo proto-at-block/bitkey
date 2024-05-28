@@ -10,7 +10,6 @@ import javax.inject.Inject
 
 internal abstract class RustToolchainProvider : BuildService<RustToolchainProvider.Parameters> {
   interface Parameters : BuildServiceParameters {
-    val rustupPath: RegularFileProperty
     val cargoPath: RegularFileProperty
   }
 
@@ -29,7 +28,6 @@ internal abstract class RustToolchainProvider : BuildService<RustToolchainProvid
     return toolchains.getOrPut(workdirFile) {
       RustToolchain(
         rootProjectExecOperations = execOperations,
-        rustupPath = parameters.rustupPath.get().asFile,
         cargoPath = parameters.cargoPath.get().asFile,
         workdir = workdirFile
       )

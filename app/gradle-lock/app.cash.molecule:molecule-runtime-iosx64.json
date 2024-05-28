@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.molecule:molecule-runtime-iosx64",
+    "components": [
+        {
+            "version": "1.4.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "molecule-runtime-iosx64-1.4.2-metadata.jar": "6e6d7da3ef10f7209699d7f0843708b731a5b9a72c3207909d4ac6511a440bfe"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "molecule-runtime.klib": "3c4504a7562b4569c5312863d978bb696f00326b77edff42c88fa847e3341b21"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

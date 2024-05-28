@@ -3,7 +3,7 @@ package build.wallet.encrypt
 import build.wallet.encrypt.SignatureVerifier.VerifyEcdsaResult
 import okio.ByteString
 import okio.ByteString.Companion.decodeHex
-import build.wallet.core.SignatureVerifier as CoreSignatureVerifier
+import build.wallet.rust.core.SignatureVerifier as CoreSignatureVerifier
 
 class SignatureVerifierImpl : SignatureVerifier {
   override fun verifyEcdsa(

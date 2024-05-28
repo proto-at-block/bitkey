@@ -17,7 +17,7 @@ public class BdkMnemonicGeneratorImpl : BdkMnemonicGenerator {
         return BdkMnemonicImpl(ffiMnemonic: Mnemonic(wordCount: ffiWordCount))
     }
     
-    public func fromString(mnemonic: String) -> BdkMnemonic {
+    public func fromStringBlocking(mnemonic: String) -> BdkMnemonic {
         return BdkMnemonicImpl(ffiMnemonic: try! Mnemonic.fromString(mnemonic: mnemonic))
     }
 }

@@ -30,6 +30,18 @@ where
             .expect("context should always be valid")
     }
 
+    pub fn resolver_with_context_key(
+        &self,
+        service: &Service,
+        context_key: ContextKey,
+    ) -> Result<Resolver<T>, Error> {
+        Ok(Resolver {
+            flag: self.clone(),
+            service: service.clone(),
+            context: Context::try_from(context_key)?,
+        })
+    }
+
     fn with_context(&self, service: &Service, context: &str) -> Result<Resolver<T>, Error> {
         let context = ContextBuilder::new(context)
             .build()

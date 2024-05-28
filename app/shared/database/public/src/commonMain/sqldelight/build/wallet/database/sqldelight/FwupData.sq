@@ -8,18 +8,27 @@ CREATE TABLE fwupDataEntity(
   appPropertiesOffset  INTEGER NOT NULL,
   firmware             BLOB NOT NULL,
   signature            BLOB NOT NULL,
-  fwupMode             TEXT AS FwupMode NOT NULL
+  fwupMode             TEXT AS FwupMode NOT NULL,
+  currentSequenceId    INTEGER NOT NULL
 );
 
 setFwupData:
 INSERT OR REPLACE INTO fwupDataEntity(rowId, version, chunkSize, signatureOffset,
-appPropertiesOffset, firmware, signature, fwupMode)
+appPropertiesOffset, firmware, signature, fwupMode, currentSequenceId)
 -- Use stable row ID to ensure we only ever have a single [FwupData] stored.
-VALUES(0, ?, ?, ?, ?, ?, ?, ?);
+VALUES(0, ?, ?, ?, ?, ?, ?, ?, COALESCE((SELECT currentSequenceId FROM fwupDataEntity WHERE rowId = 0), 0));
 
 getFwupData:
 SELECT * FROM fwupDataEntity
 WHERE rowid = 0;
+
+setSequenceId:
+UPDATE fwupDataEntity SET currentSequenceId = ?
+WHERE rowId = 0;
+
+getSequenceId:
+SELECT currentSequenceId FROM fwupDataEntity
+WHERE rowId = 0;
 
 clear:
 DELETE FROM fwupDataEntity;

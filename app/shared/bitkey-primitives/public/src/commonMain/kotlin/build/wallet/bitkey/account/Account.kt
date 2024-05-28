@@ -16,8 +16,8 @@ sealed interface Account {
   val config: AccountConfig
 }
 
-fun Account.requireAppRecoveryAuthKey(): PublicKey<AppRecoveryAuthKey> =
-  when (this) {
+val Account.appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>
+  get() = when (this) {
     is FullAccount -> keybox.activeAppKeyBundle.recoveryAuthKey
     is LiteAccount -> recoveryAuthKey
   }

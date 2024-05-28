@@ -86,6 +86,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
           onAddBitcoin = {},
           onEnableSpendingLimit = {},
           onInviteTrustedContact = {},
+          onAddAdditionalFingerprint = {},
           onShowAlert = {},
           onDismissAlert = {}
         ),

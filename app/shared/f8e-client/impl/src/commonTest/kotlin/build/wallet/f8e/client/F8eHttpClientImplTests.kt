@@ -1,5 +1,6 @@
 package build.wallet.f8e.client
 
+import build.wallet.account.analytics.AppInstallationDaoMock
 import build.wallet.analytics.events.PlatformInfoProviderMock
 import build.wallet.auth.AccessToken
 import build.wallet.auth.AccountAuthTokens
@@ -28,6 +29,7 @@ import build.wallet.ktor.result.bodyResult
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant.Development
 import build.wallet.platform.data.MimeType
+import build.wallet.platform.settings.CountryCodeGuesserMock
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getErrorOr
 import io.kotest.core.spec.style.FunSpec
@@ -109,7 +111,9 @@ class F8eHttpClientImplTests : FunSpec({
       appVariant = Development,
       platformInfoProvider = PlatformInfoProviderMock(),
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer),
-      networkingDebugConfigRepository = NetworkingDebugConfigRepositoryFake()
+      networkingDebugConfigRepository = NetworkingDebugConfigRepositoryFake(),
+      appInstallationDao = AppInstallationDaoMock(),
+      countryCodeGuesser = CountryCodeGuesserMock()
     )
 
   val client =
@@ -407,5 +411,33 @@ class F8eHttpClientImplTests : FunSpec({
         connection.shouldBeTypeOf<NetworkConnection.HttpClientNetworkConnection.F8e>()
         reachability.shouldBe(NetworkReachability.UNREACHABLE)
       }
+  }
+
+  test("targeting plugin is installed and headers are sent") {
+    val engine = MockEngine { request ->
+      request.headers["Bitkey-App-Installation-ID"].shouldBe("local-id")
+      request.headers["Bitkey-App-Version"].shouldBe("2023.1.3")
+      request.headers["Bitkey-Device-Region"].shouldBe("US")
+      request.headers["Bitkey-OS-Type"].shouldBe("OS_TYPE_ANDROID")
+      request.headers["Bitkey-OS-Version"].shouldBe("version_num_1")
+
+      respond(
+        content = ByteReadChannel("{}"),
+        status = HttpStatusCode.OK,
+        headers = headersOf(HttpHeaders.ContentType, MimeType.JSON.name)
+      )
+    }
+
+    val response = client.unauthenticated(
+      f8eEnvironment = F8eEnvironment.Development,
+      engine = engine
+    )
+      .bodyResult<EmptyResponseBody> {
+        get("/soda/can")
+      }
+
+    networkReachabilityProvider.updateNetworkReachabilityForConnectionCalls.awaitItem()
+
+    response.shouldBe(Ok(EmptyResponseBody))
   }
 })

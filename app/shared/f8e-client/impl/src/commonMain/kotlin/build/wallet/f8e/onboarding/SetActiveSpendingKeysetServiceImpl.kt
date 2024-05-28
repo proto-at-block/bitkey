@@ -35,7 +35,7 @@ class SetActiveSpendingKeysetServiceImpl(
       .catching {
         put(urlString = "/api/accounts/${fullAccountId.serverId}/keysets/$keysetId") {
           withDescription("Set active spending keyset")
-          setRedactedBody(EmptyRequestBody())
+          setRedactedBody(EmptyRequestBody)
         }
       }
       .mapUnit()

@@ -34,15 +34,10 @@ where
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let user_pool = UserPoolService::from_ref(state);
-        let auth_header = parts.headers.get(header::AUTHORIZATION).cloned();
         let app_sig_header = parts.headers.get(APP_SIG_HEADER).cloned();
         let hw_sig_header = parts.headers.get(HW_SIG_HEADER).cloned();
 
-        let jwt = auth_header
-            .and_then(|value| value.to_str().ok().map(String::from))
-            // The contents of the `Authorization` header should be "Bearer [JWT token]" so strip out out the "Bearer " prefix
-            .and_then(|value| value.strip_prefix("Bearer ").map(String::from))
-            .ok_or(StatusCode::UNAUTHORIZED)?;
+        let jwt = get_jwt_from_request_parts(parts).ok_or(StatusCode::UNAUTHORIZED)?;
 
         let username = get_user_name_from_jwt(&jwt).ok_or(StatusCode::UNAUTHORIZED)?;
         let cognito_user =
@@ -94,7 +89,17 @@ pub fn verify_signature(signature: &str, message: String, pubkey: String) -> boo
     secp.verify_ecdsa(&message, &signature, &pubkey).is_ok()
 }
 
-fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
+pub fn get_jwt_from_request_parts(parts: &mut Parts) -> Option<String> {
+    parts
+        .headers
+        .get(header::AUTHORIZATION)
+        .cloned()
+        .and_then(|value| value.to_str().ok().map(String::from))
+        // The contents of the `Authorization` header should be "Bearer [JWT token]" so strip out out the "Bearer " prefix
+        .and_then(|value| value.strip_prefix("Bearer ").map(String::from))
+}
+
+pub fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
     let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
     // We already validate the signature on the token in [authorizer.rs:23].
     // By the time we get to here, a 401 has already been returned if the signature is invalid.

@@ -1,5 +1,6 @@
 package build.wallet.statemachine.biometric
 
+import build.wallet.bitkey.keybox.Keybox
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -14,5 +15,6 @@ interface BiometricSettingUiStateMachine : StateMachine<BiometricSettingUiProps,
  * @property onBack - Invoked on back of the UI
  */
 data class BiometricSettingUiProps(
+  val keybox: Keybox,
   val onBack: () -> Unit,
 )

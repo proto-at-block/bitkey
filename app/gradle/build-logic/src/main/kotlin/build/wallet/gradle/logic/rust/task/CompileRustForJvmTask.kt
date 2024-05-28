@@ -8,7 +8,7 @@ internal abstract class CompileRustForJvmTask : BaseCompileRustTask() {
   protected abstract val fileSystemOperations: FileSystemOperations
 
   override fun compile() {
-    rust.get().getToolchain(workdir).cargo {
+    rust.get().getToolchain(workdir.get()).cargo {
       commonBuildArgs()
 
       if (!target.get().isHost) {

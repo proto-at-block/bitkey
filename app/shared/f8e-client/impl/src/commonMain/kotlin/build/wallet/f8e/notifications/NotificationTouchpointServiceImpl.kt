@@ -117,7 +117,7 @@ class NotificationTouchpointServiceImpl(
       .catching {
         post("/api/accounts/${fullAccountId.serverId}/touchpoints/$touchpointId/activate") {
           withDescription("Activate notification touchpoint")
-          setRedactedBody(EmptyRequestBody())
+          setRedactedBody(EmptyRequestBody)
         }
       }
       .mapUnit()

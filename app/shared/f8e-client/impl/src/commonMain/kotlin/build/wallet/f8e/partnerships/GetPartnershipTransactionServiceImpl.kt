@@ -7,6 +7,7 @@ import build.wallet.f8e.logging.withDescription
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.ktor.result.RedactedResponseBody
 import build.wallet.ktor.result.bodyResult
+import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransactionId
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -19,7 +20,7 @@ class GetPartnershipTransactionServiceImpl(
   override suspend fun getPartnershipTransaction(
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
-    partner: String,
+    partner: PartnerId,
     partnershipTransactionId: PartnershipTransactionId,
   ): Result<F8ePartnershipTransaction, NetworkingError> {
     return client
@@ -28,7 +29,7 @@ class GetPartnershipTransactionServiceImpl(
         f8eEnvironment = f8eEnvironment
       )
       .bodyResult<PartnershipTransactionResponse> {
-        get("/api/partnerships/partners/$partner/transactions/${partnershipTransactionId.value}") {
+        get("/api/partnerships/partners/${partner.value}/transactions/${partnershipTransactionId.value}") {
           withDescription("Get partnership transaction")
         }
       }

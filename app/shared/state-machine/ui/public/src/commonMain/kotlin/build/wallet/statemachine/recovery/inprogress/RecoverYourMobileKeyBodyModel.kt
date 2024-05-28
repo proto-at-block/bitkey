@@ -62,7 +62,7 @@ fun RecoverYourMobileKeyBodyModel(
   primaryButton =
     BitkeyInteractionButtonModel(
       text = "Start recovery",
-      onClick = onStartRecovery,
+      onClick = StandardClick(onStartRecovery),
       size = Footer
     )
 )
@@ -131,7 +131,7 @@ fun DelayAndNotifyNewKeyReady(
   primaryButton =
     BitkeyInteractionButtonModel(
       text = "Confirm replacement",
-      onClick = onCompleteRecovery,
+      onClick = StandardClick(onCompleteRecovery),
       size = Footer
     ),
   eventTrackerShouldTrack = false

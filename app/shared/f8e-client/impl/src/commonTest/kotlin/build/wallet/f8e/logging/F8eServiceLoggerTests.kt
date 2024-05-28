@@ -104,7 +104,7 @@ class F8eServiceLoggerTests : FunSpec({
     requestTag.shouldBeEqual("debug-tests-f8e-log")
     requestMessage.shouldBeEqual(
       """|REQUEST: http://localhost
-         |METHOD: HttpMethod(value=POST)
+         |METHOD: POST
          |HEADERS
          |-> Accept: application/json
          |-> Accept-Charset: UTF-8
@@ -120,7 +120,7 @@ class F8eServiceLoggerTests : FunSpec({
     responseTag.shouldBeEqual("debug-tests-f8e-log")
     responseMessage.shouldBeEqual(
       """|RESPONSE: 200 OK
-         |METHOD: HttpMethod(value=POST)
+         |METHOD: POST
          |FROM: http://localhost
          |HEADERS
          |-> Content-Type: application/json
@@ -159,7 +159,7 @@ class F8eServiceLoggerTests : FunSpec({
     requestTag.shouldBeEqual("prod-tests-f8e-log")
     requestMessage.shouldBeEqual(
       """|REQUEST: http://localhost
-         |METHOD: HttpMethod(value=POST)
+         |METHOD: POST
          |HEADERS
          |-> X-Test: ***t
          |EXTRAS
@@ -173,7 +173,7 @@ class F8eServiceLoggerTests : FunSpec({
     responseTag.shouldBeEqual("prod-tests-f8e-log")
     responseMessage.shouldBeEqual(
       """|RESPONSE: 200 OK
-         |METHOD: HttpMethod(value=POST)
+         |METHOD: POST
          |FROM: http://localhost
          |HEADERS
          |-> X-Test: ***e

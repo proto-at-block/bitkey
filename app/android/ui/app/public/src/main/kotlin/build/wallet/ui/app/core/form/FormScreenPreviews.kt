@@ -17,6 +17,7 @@ import build.wallet.statemachine.money.currency.FiatCurrencyListFormModel
 import build.wallet.statemachine.transactions.TransactionItemModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -226,14 +227,14 @@ fun CurrencyPreferencePreview() {
   FormScreen(
     model =
       CurrencyPreferenceFormModel(
-        onBack = null,
+        onBack = {},
         moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
         fiatCurrencyPreferenceString = "USD",
         onFiatCurrencyPreferenceClick = {},
         bitcoinDisplayPreferenceString = "Sats",
         bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
         onBitcoinDisplayPreferenceClick = {},
-        onDone = {}
+        onEnableHideBalanceChanged = {}
       )
   )
 }
@@ -309,5 +310,30 @@ fun AllTransactionsPreview() {
         onBack = {},
         id = null
       )
+  )
+}
+
+@Preview
+@Composable
+fun CalloutPreview() {
+  FormScreen(
+    model = FormBodyModel(
+      id = null,
+      onBack = {},
+      toolbar = null,
+      header = null,
+      mainContentList =
+        immutableListOf(
+          FormMainContentModel.Callout(
+            item = CalloutModel(
+              title = "At least one fingerprint is required",
+              subtitle = "Add another fingerprint to delete",
+              leadingIcon = Icon.SmallIconInformationFilled,
+              treatment = CalloutModel.Treatment.Information
+            )
+          )
+        ),
+      primaryButton = null
+    )
   )
 }

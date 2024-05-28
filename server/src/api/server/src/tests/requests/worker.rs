@@ -27,4 +27,10 @@ impl TestWorker {
             .await
             .unwrap();
     }
+
+    pub(crate) async fn mempool_polling(&self) {
+        workers::jobs::mempool_polling::run_once(&self.state.clone())
+            .await
+            .unwrap();
+    }
 }

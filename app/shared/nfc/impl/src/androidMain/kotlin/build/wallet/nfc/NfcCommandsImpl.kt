@@ -6,58 +6,6 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
-import build.wallet.core.BooleanState
-import build.wallet.core.BtcNetwork
-import build.wallet.core.BytesState
-import build.wallet.core.CertType
-import build.wallet.core.CommandException
-import build.wallet.core.CoredumpFragmentState
-import build.wallet.core.DeleteFingerprint
-import build.wallet.core.DescriptorPublicKeyState
-import build.wallet.core.DeviceInfo
-import build.wallet.core.DeviceInfoState
-import build.wallet.core.EnrolledFingerprintsState
-import build.wallet.core.EventFragmentState
-import build.wallet.core.FingerprintEnrollmentStatusState
-import build.wallet.core.FirmwareFeatureFlagsState
-import build.wallet.core.FirmwareMetadataState
-import build.wallet.core.FirmwareSlot.A
-import build.wallet.core.FirmwareSlot.B
-import build.wallet.core.FwupFinish
-import build.wallet.core.FwupFinishRspStatus
-import build.wallet.core.FwupFinishRspStatusState
-import build.wallet.core.FwupStart
-import build.wallet.core.FwupTransfer
-import build.wallet.core.GetAuthenticationKey
-import build.wallet.core.GetCert
-import build.wallet.core.GetCoredumpCount
-import build.wallet.core.GetCoredumpFragment
-import build.wallet.core.GetDeviceInfo
-import build.wallet.core.GetEnrolledFingerprints
-import build.wallet.core.GetEvents
-import build.wallet.core.GetFingerprintEnrollmentStatus
-import build.wallet.core.GetFirmwareFeatureFlags
-import build.wallet.core.GetFirmwareMetadata
-import build.wallet.core.GetInitialSpendingKey
-import build.wallet.core.GetNextSpendingKey
-import build.wallet.core.GetUnlockMethod
-import build.wallet.core.LockDevice
-import build.wallet.core.PartiallySignedTransactionState
-import build.wallet.core.PublicKeyState
-import build.wallet.core.QueryAuthentication
-import build.wallet.core.SealKey
-import build.wallet.core.SecureBootConfig
-import build.wallet.core.SetFingerprintLabel
-import build.wallet.core.SignChallenge
-import build.wallet.core.SignTransaction
-import build.wallet.core.SignVerifyAttestationChallenge
-import build.wallet.core.SignatureState
-import build.wallet.core.StartFingerprintEnrollment
-import build.wallet.core.U16State
-import build.wallet.core.UnlockInfoState
-import build.wallet.core.UnsealKey
-import build.wallet.core.Version
-import build.wallet.core.WipeState
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
@@ -81,21 +29,74 @@ import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.log
 import build.wallet.nfc.platform.NfcCommands
+import build.wallet.rust.firmware.BooleanState
+import build.wallet.rust.firmware.BtcNetwork
+import build.wallet.rust.firmware.BytesState
+import build.wallet.rust.firmware.CancelFingerprintEnrollment
+import build.wallet.rust.firmware.CertType
+import build.wallet.rust.firmware.CommandException
+import build.wallet.rust.firmware.CoredumpFragmentState
+import build.wallet.rust.firmware.DeleteFingerprint
+import build.wallet.rust.firmware.DescriptorPublicKeyState
+import build.wallet.rust.firmware.DeviceInfo
+import build.wallet.rust.firmware.DeviceInfoState
+import build.wallet.rust.firmware.EnrolledFingerprintsState
+import build.wallet.rust.firmware.EventFragmentState
+import build.wallet.rust.firmware.FingerprintEnrollmentStatusState
+import build.wallet.rust.firmware.FirmwareFeatureFlagsState
+import build.wallet.rust.firmware.FirmwareMetadataState
+import build.wallet.rust.firmware.FirmwareSlot.A
+import build.wallet.rust.firmware.FirmwareSlot.B
+import build.wallet.rust.firmware.FwupFinish
+import build.wallet.rust.firmware.FwupFinishRspStatus
+import build.wallet.rust.firmware.FwupFinishRspStatusState
+import build.wallet.rust.firmware.FwupStart
+import build.wallet.rust.firmware.FwupTransfer
+import build.wallet.rust.firmware.GetAuthenticationKey
+import build.wallet.rust.firmware.GetCert
+import build.wallet.rust.firmware.GetCoredumpCount
+import build.wallet.rust.firmware.GetCoredumpFragment
+import build.wallet.rust.firmware.GetDeviceInfo
+import build.wallet.rust.firmware.GetEnrolledFingerprints
+import build.wallet.rust.firmware.GetEvents
+import build.wallet.rust.firmware.GetFingerprintEnrollmentStatus
+import build.wallet.rust.firmware.GetFirmwareFeatureFlags
+import build.wallet.rust.firmware.GetFirmwareMetadata
+import build.wallet.rust.firmware.GetInitialSpendingKey
+import build.wallet.rust.firmware.GetNextSpendingKey
+import build.wallet.rust.firmware.GetUnlockMethod
+import build.wallet.rust.firmware.LockDevice
+import build.wallet.rust.firmware.PartiallySignedTransactionState
+import build.wallet.rust.firmware.PublicKeyState
+import build.wallet.rust.firmware.QueryAuthentication
+import build.wallet.rust.firmware.SealKey
+import build.wallet.rust.firmware.SecureBootConfig
+import build.wallet.rust.firmware.SetFingerprintLabel
+import build.wallet.rust.firmware.SignChallenge
+import build.wallet.rust.firmware.SignTransaction
+import build.wallet.rust.firmware.SignVerifyAttestationChallenge
+import build.wallet.rust.firmware.SignatureState
+import build.wallet.rust.firmware.StartFingerprintEnrollment
+import build.wallet.rust.firmware.U16State
+import build.wallet.rust.firmware.UnlockInfoState
+import build.wallet.rust.firmware.UnsealKey
+import build.wallet.rust.firmware.Version
+import build.wallet.rust.firmware.WipeState
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import okio.ByteString
-import build.wallet.core.CoredumpFragment as CoreCoredumpFragment
-import build.wallet.core.EnrolledFingerprints as CoreEnrolledFingerprints
-import build.wallet.core.EventFragment as CoreEventFragment
-import build.wallet.core.FingerprintEnrollmentStatus as CoreFingerprintEnrollmentStatus
-import build.wallet.core.FingerprintHandle as CoreFingerprintHandle
-import build.wallet.core.FirmwareFeatureFlag as CoreFirmwareFeatureFlag
-import build.wallet.core.FirmwareFeatureFlagCfg as CoreFirmwareFeatureFlagCfg
-import build.wallet.core.FirmwareMetadata as CoreFirmwareMetadata
-import build.wallet.core.UnlockInfo as CoreUnlockInfo
-import build.wallet.core.UnlockMethod as CoreUnlockMethod
+import build.wallet.rust.firmware.CoredumpFragment as CoreCoredumpFragment
+import build.wallet.rust.firmware.EnrolledFingerprints as CoreEnrolledFingerprints
+import build.wallet.rust.firmware.EventFragment as CoreEventFragment
+import build.wallet.rust.firmware.FingerprintEnrollmentStatus as CoreFingerprintEnrollmentStatus
+import build.wallet.rust.firmware.FingerprintHandle as CoreFingerprintHandle
+import build.wallet.rust.firmware.FirmwareFeatureFlag as CoreFirmwareFeatureFlag
+import build.wallet.rust.firmware.FirmwareFeatureFlagCfg as CoreFirmwareFeatureFlagCfg
+import build.wallet.rust.firmware.FirmwareMetadata as CoreFirmwareMetadata
+import build.wallet.rust.firmware.UnlockInfo as CoreUnlockInfo
+import build.wallet.rust.firmware.UnlockMethod as CoreUnlockMethod
 
 class NfcCommandsImpl(
   private val clock: Clock = Clock.System,
@@ -211,16 +212,20 @@ class NfcCommandsImpl(
       }
     )
 
-  override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
-    executeCommand(
-      session = session,
-      generateCommand = ::GetFingerprintEnrollmentStatus,
-      getNext = { command, data -> command.next(data) },
-      getResponse = { state: FingerprintEnrollmentStatusState.Data -> state.response },
-      generateResult = { state: FingerprintEnrollmentStatusState.Result ->
-        state.value.toFingerprintEnrollmentStatus()
-      }
-    )
+  override suspend fun getFingerprintEnrollmentStatus(
+    session: NfcSession,
+    isEnrollmentContextAware: Boolean,
+  ) = executeCommand(
+    session = session,
+    generateCommand = {
+      GetFingerprintEnrollmentStatus(isEnrollmentContextAware = isEnrollmentContextAware)
+    },
+    getNext = { command, data -> command.next(data) },
+    getResponse = { state: FingerprintEnrollmentStatusState.Data -> state.response },
+    generateResult = { state: FingerprintEnrollmentStatusState.Result ->
+      state.value.toFingerprintEnrollmentStatus()
+    }
+  )
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
@@ -243,6 +248,15 @@ class NfcCommandsImpl(
       generateResult = { state: UnlockInfoState.Result ->
         state.value.toUnlockInfo()
       }
+    )
+
+  override suspend fun cancelFingerprintEnrollment(session: NfcSession): Boolean =
+    executeCommand(
+      session = session,
+      generateCommand = ::CancelFingerprintEnrollment,
+      getNext = { command, data -> command.next(data) },
+      getResponse = { state: BooleanState.Data -> state.response },
+      generateResult = { state: BooleanState.Result -> state.value }
     )
 
   override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
@@ -551,8 +565,8 @@ private fun CoreCoredumpFragment.toCoredumpFragment() =
 
 private fun FwupMode.toCoreFwupMode() =
   when (this) {
-    FwupMode.Normal -> build.wallet.core.FwupMode.NORMAL
-    FwupMode.Delta -> build.wallet.core.FwupMode.DELTA
+    FwupMode.Normal -> build.wallet.rust.firmware.FwupMode.NORMAL
+    FwupMode.Delta -> build.wallet.rust.firmware.FwupMode.DELTA
   }
 
 private fun FwupFinishRspStatus.toFwupFinishResponseStatus() =

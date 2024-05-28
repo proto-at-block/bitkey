@@ -5,6 +5,7 @@ import build.wallet.bdk.bindings.BdkDescriptorSecretKey
 import build.wallet.bdk.bindings.BdkDescriptorSecretKeyGenerator
 import build.wallet.bdk.bindings.BdkMnemonicGenerator
 import build.wallet.bdk.bindings.BdkMnemonicWordCount.WORDS_24
+import build.wallet.bdk.bindings.fromString
 import build.wallet.bdk.bindings.generateMnemonic
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN

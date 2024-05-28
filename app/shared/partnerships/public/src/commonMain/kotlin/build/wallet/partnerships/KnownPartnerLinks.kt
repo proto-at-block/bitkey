@@ -22,7 +22,12 @@ enum class KnownPartnerLinks(
   Coinbase(
     id = PartnerId("Coinbase"),
     transactionRedirectLink = PartnerRedirectionMethod.Web(
-      urlString = "https://coinbase.com"
+      urlString = "https://coinbase.com",
+      partnerInfo = PartnerInfo(
+        partnerId = PartnerId("Coinbase"),
+        logoUrl = null,
+        name = "Coinbase"
+      )
     )
   ),
 }
@@ -31,5 +36,5 @@ enum class KnownPartnerLinks(
  * Get a deep link for a partner info object, if known.
  */
 val PartnerInfo.transactionDeepLink get() = KnownPartnerLinks.entries.find {
-  it.id.value == partner
+  it.id == partnerId
 }?.transactionRedirectLink

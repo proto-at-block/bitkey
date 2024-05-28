@@ -60,7 +60,7 @@ fun ExpectedTransactionNoticeModel(
       onClick = StandardClick { onViewInPartnerApp(link) },
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer,
-      leadingIcon = Icon.SmallIconExternal
+      leadingIcon = Icon.SmallIconArrowUpRight
     )
   },
   primaryButton = ButtonModel(

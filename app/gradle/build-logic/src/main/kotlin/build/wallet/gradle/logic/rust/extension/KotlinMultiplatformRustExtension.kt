@@ -2,6 +2,7 @@ package build.wallet.gradle.logic.rust.extension
 
 import org.gradle.api.Action
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
@@ -13,6 +14,8 @@ open class KotlinMultiplatformRustExtension
     val packageName: Property<String> = objects.property(String::class.java)
 
     val cargoPath: RegularFileProperty = objects.fileProperty()
+
+    val cargoWorkspace: DirectoryProperty = objects.directoryProperty()
 
     val rustupPath: RegularFileProperty = objects.fileProperty()
 

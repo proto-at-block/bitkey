@@ -1,17 +1,24 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
+import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
+import build.wallet.home.GettingStartedTask
+import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
+import build.wallet.home.GettingStartedTask.TaskState.Complete
+import build.wallet.home.GettingStartedTask.TaskState.Incomplete
+import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.statemachine.BodyModelMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.SheetStateMachineMock
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -19,6 +26,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -29,11 +37,14 @@ import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
+  val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
+
   val stateMachine = ManagingFingerprintsUiStateMachineImpl(
     editingFingerprintUiStateMachine =
       object : EditingFingerprintUiStateMachine, SheetStateMachineMock<EditingFingerprintProps>(
@@ -46,26 +57,75 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
     enrollingFingerprintUiStateMachine =
       object : EnrollingFingerprintUiStateMachine, ScreenStateMachineMock<EnrollingFingerprintProps>(
         "enrolling fingerprints"
-      ) {}
+      ) {},
+    gettingStartedTaskDao = gettingStartedTaskDao
   )
   val onBackCalls = turbines.create<Unit>("on back calls")
+  val onFwUpRequiredCalls = turbines.create<Unit>("onFwUpRequired calls")
+
+  val enrolledFingerprints = EnrolledFingerprints(
+    maxCount = 3,
+    fingerprintHandles = immutableListOf(
+      FingerprintHandle(index = 0, label = "Left Thumb"),
+      FingerprintHandle(index = 2, label = "Right Thumb")
+    )
+  )
 
   val props = ManagingFingerprintsProps(
     account = FullAccountMock,
     onBack = { onBackCalls += Unit },
-    enrolledFingerprints = EnrolledFingerprints(
-      maxCount = 3,
-      fingerprintHandles = immutableListOf(
-        FingerprintHandle(index = 0, label = "Left Thumb"),
-        FingerprintHandle(index = 2, label = "Right Thumb")
-      )
-    )
+    onFwUpRequired = { onFwUpRequiredCalls += Unit },
+    entryPoint = EntryPoint.DEVICE_SETTINGS
   )
 
   val nfcCommandsMock = NfcCommandsMock(turbines::create)
 
-  test("fingerprints are appropriately listed") {
+  beforeTest {
+    nfcCommandsMock.reset()
+  }
+
+  test("MONEY_HOME entry point opens enrollment modal after retrieving fingerprints") {
+    stateMachine.test(props.copy(entryPoint = EntryPoint.MONEY_HOME)) {
+      // Retrieving enrolled fingerprints
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
+      // Bottom modal is showing
+      with(awaitItem()) {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<BodyModelMock<EditingFingerprintProps>>()
+          .latestProps.apply {
+            isExistingFingerprint.shouldBeFalse()
+          }
+      }
+    }
+  }
+
+  test("fwup required") {
+    // Disable fw feature flags
+    nfcCommandsMock.setFirmwareFeatureFlags(emptyList())
+
     stateMachine.test(props) {
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
+        session(NfcSessionFake(), nfcCommandsMock)
+        onSuccess(EnrolledFingerprintResult.FwUpRequired)
+      }
+
+      onFwUpRequiredCalls.awaitItem()
+
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>>()
+    }
+  }
+
+  test("fingerprints are retrieved and listed") {
+    stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<ListGroup>()
@@ -79,6 +139,11 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
   test("onBack calls") {
     stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       awaitScreenWithBody<FormBodyModel> {
         val icon = toolbar.shouldNotBeNull()
           .leadingAccessory
@@ -94,6 +159,11 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
   test("tap on add fingerprint and cancel") {
     stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       // Tap on the Add button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -116,6 +186,11 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
   test("going back from enrollment takes you to fingerprint editing") {
     stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       // Tap on the Add button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -145,6 +220,15 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
   test("tap on add fingerprint and save") {
     stateMachine.test(props) {
+      gettingStartedTaskDao.addTasks(
+        listOf(GettingStartedTask(id = AddAdditionalFingerprint, state = Incomplete))
+      )
+
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       // Tap on the Add button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -187,11 +271,22 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
             items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
           }
       }
+
+      gettingStartedTaskDao.getTasks().shouldContainExactly(
+        GettingStartedTask(
+          id = AddAdditionalFingerprint, state = Complete
+        )
+      )
     }
   }
 
   test("tap on existing fingerprint and go back") {
     stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       // Tap on the edit button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -211,6 +306,11 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
   test("tap on existing fingerprint and edit label") {
     stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       // Tap on the edit button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -238,6 +338,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         onSuccess(fingerprints)
       }
 
+      // Confirm that any in-progress enrollment is canceled when saving a new label
+      nfcCommandsMock.cancelFingerprintEnrollmentCalls.awaitItem().shouldBe(Unit)
+      // Save the label
+      nfcCommandsMock.setFingerprintLabelCalls.awaitItem()
+      // Retrieve the most recent fingerprints
+      nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
+
       // See the updated label in the list
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -253,6 +360,11 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
 
   test("tap on existing fingerprint and delete it") {
     stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
       // Tap on the edit button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -279,6 +391,13 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         onSuccess(fingerprints)
       }
 
+      // Confirm that any in-progress enrollment is canceled when deleting a fingerprint
+      nfcCommandsMock.cancelFingerprintEnrollmentCalls.awaitItem().shouldBe(Unit)
+      // Delete the fingerprint
+      nfcCommandsMock.deleteFingerprintCalls.awaitItem()
+      // Retrieve the most recent fingerprints
+      nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
+
       // See that the index is now a placeholder in the list
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0]
@@ -292,6 +411,20 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
     }
   }
 })
+
+private suspend fun ReceiveTurbine<ScreenModel>.awaitRetrievingFingerprints(
+  nfcCommandsMock: NfcCommandsMock,
+  fingerprints: EnrolledFingerprints,
+) = apply {
+  awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
+    session(NfcSessionFake(), nfcCommandsMock)
+    onSuccess(EnrolledFingerprintResult.Success(fingerprints))
+  }
+
+  // Check that any existing enrollment is canceled.
+  nfcCommandsMock.cancelFingerprintEnrollmentCalls.awaitItem().shouldBe(Unit)
+  nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
+}
 
 private fun ListGroup.clickEditFingerprint(index: Int) =
   apply {

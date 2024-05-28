@@ -13,4 +13,5 @@ public extension UIImage {
     static let cosmos = UIImage(named: "Cosmos", in: .main, compatibleWith: nil)!
     static let grid = UIImage(named: "Grid", in: .main, compatibleWith: nil)!
     static let nfcTapIOS = UIImage(named: "NfcTapIOS", in: .main, compatibleWith: nil)!
+    static let hideMoneyAsterisk = UIImage(named: "HideMoneyAsterisk", in: .main, compatibleWith: nil)!
 }

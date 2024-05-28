@@ -33,6 +33,7 @@ import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.AddAdditionalFingerprintUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ReceiveFlowUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SendFlowUiState
@@ -42,6 +43,7 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewHardwareRec
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingAllTransactionActivityUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
@@ -58,6 +60,8 @@ import build.wallet.statemachine.recovery.socrec.inviteflow.InviteTrustedContact
 import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
+import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
 import build.wallet.statemachine.transactions.TransactionDetailsUiProps
 import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachine
 import build.wallet.statemachine.transactions.TransactionListUiProps
@@ -66,6 +70,7 @@ import build.wallet.statemachine.transactions.TransactionListUiStateMachine
 import com.github.michaelbull.result.get
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
 
 class MoneyHomeUiStateMachineImpl(
   private val addressQrCodeUiStateMachine: AddressQrCodeUiStateMachine,
@@ -84,6 +89,7 @@ class MoneyHomeUiStateMachineImpl(
   private val customAmountEntryUiStateMachine: CustomAmountEntryUiStateMachine,
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -141,7 +147,8 @@ class MoneyHomeUiStateMachineImpl(
             homeStatusBannerModel = props.homeStatusBannerModel,
             onSettings = props.onSettings,
             state = state,
-            setState = { uiState = it }
+            setState = { uiState = it },
+            onPartnershipsWebFlowCompleted = props.onPartnershipsWebFlowCompleted
           )
         )
 
@@ -266,6 +273,16 @@ class MoneyHomeUiStateMachineImpl(
               }
             )
         )
+      AddAdditionalFingerprintUiState -> managingFingerprintsUiStateMachine.model(
+        ManagingFingerprintsProps(
+          account = props.accountData.account,
+          onBack = { uiState = ViewingBalanceUiState() },
+          onFwUpRequired = {
+            uiState = ViewingBalanceUiState(bottomSheetDisplayState = PromptingForFwUpUiState)
+          },
+          entryPoint = FingerprintManagementEntryPoint.MONEY_HOME
+        )
+      )
     }
   }
 
@@ -414,6 +431,18 @@ sealed interface MoneyHomeUiState {
        * @property skipped - when true, the db operation to mark the getting started task is executed
        */
       data class MobilePay(val skipped: Boolean) : BottomSheetDisplayState
+
+      /**
+       * Adding a second fingerprint that can be used for unlocking the hardware, shown
+       * from getting started.
+       */
+      data class AddingAdditionalFingerprint(val skipped: Boolean) : BottomSheetDisplayState
+
+      /**
+       * Showing a bottom modal for the user to complete a fwup to access the feature
+       * to add an additional fingerprint.
+       */
+      data object PromptingForFwUpUiState : BottomSheetDisplayState
     }
   }
 
@@ -475,6 +504,11 @@ sealed interface MoneyHomeUiState {
    * Indicates that we are in the set spending limit flow.
    */
   data object SetSpendingLimitFlowUiState : MoneyHomeUiState
+
+  /**
+   * Indicates that we are in the enrolling additional fingerprint flow
+   */
+  data object AddAdditionalFingerprintUiState : MoneyHomeUiState
 
   /**
    * Indicates that we are displaying an in-app browser on top of Money Home

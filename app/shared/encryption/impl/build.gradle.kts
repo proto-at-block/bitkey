@@ -17,7 +17,7 @@ kotlin {
     }
     val commonJvmMain by getting {
       dependencies {
-        implementation(projects.core)
+        implementation(projects.rust.coreFfi)
       }
     }
     commonTest {

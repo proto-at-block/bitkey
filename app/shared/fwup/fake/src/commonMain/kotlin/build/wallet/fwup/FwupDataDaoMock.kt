@@ -27,6 +27,14 @@ class FwupDataDaoMock(
     return Ok(Unit)
   }
 
+  override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, DbError> {
+    return Ok(Unit)
+  }
+
+  override suspend fun getSequenceId(): Result<UInt, DbError> {
+    return Ok(0u)
+  }
+
   fun reset(testName: String) {
     fwupDataFlow.value = Ok(null)
     clearCalls = turbine("clear fwup data dao calls for $testName")

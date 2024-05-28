@@ -15,8 +15,6 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
-import build.wallet.cloud.backup.SocRecV1BackupFeatures
-import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.integration.statemachine.create.beTrustedContactButton
@@ -49,18 +47,12 @@ import build.wallet.statemachine.ui.robots.selectProtectedCustomer
 import build.wallet.testing.AppTester
 import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import com.github.michaelbull.result.getOrThrow
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.withTimeout
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Advances through Trusted Contact invite screens starting at the Trusted Contact Management screen.
@@ -413,27 +405,6 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
   awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CODE_VERIFICATION_SUCCESS
   )
-}
-
-/**
- * Waits for a Full Account cloud backup to contain the given relationship ID. Must be called
- * while an app is running.
- */
-suspend fun AppTester.awaitCloudBackupRefreshed(relationshipId: String) {
-  withTimeout(2.seconds) {
-    var backupUpdated = false
-    while (isActive && !backupUpdated) {
-      val backup =
-        app.cloudBackupRepository.readBackup(CloudStoreAccountFake.ProtectedCustomerFake)
-          .getOrThrow()
-          .shouldNotBeNull()
-      backupUpdated = backup.socRecDataAvailable &&
-        (backup as SocRecV1BackupFeatures)
-          .fullAccountFields.shouldNotBeNull()
-          .socRecSealedDekMap.containsKey(relationshipId)
-      delay(100.milliseconds)
-    }
-  }
 }
 
 /**

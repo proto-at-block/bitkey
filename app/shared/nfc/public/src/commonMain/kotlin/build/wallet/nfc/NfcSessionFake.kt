@@ -21,6 +21,7 @@ class NfcSessionFake(
         isHardwareFake = true,
         needsAuthentication = true,
         shouldLock = true,
+        skipFirmwareTelemetry = false,
         onTagConnected = {},
         onTagDisconnected = {}
       )

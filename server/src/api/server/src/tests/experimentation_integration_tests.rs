@@ -10,7 +10,7 @@ use feature_flags::flag::FeatureFlagValue;
 use http::StatusCode;
 
 use crate::tests::gen_services_with_overrides;
-use crate::tests::lib::create_default_account_with_predefined_wallet;
+use crate::tests::lib::{create_default_account_with_predefined_wallet, create_lite_account};
 use crate::tests::requests::axum::TestClient;
 use crate::{tests, GenServiceOverrides};
 
@@ -47,28 +47,41 @@ async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
     let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
     let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
-    let (account, _) =
+    let (full_account, _) =
         create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
             .await;
-    let response = client
-        .get_account_feature_flags(
-            &account.id.to_string(),
+    let lite_account = create_lite_account(&mut context, &bootstrap.services, None, true).await;
+    let full_account_response = client
+        .get_full_account_feature_flags(
+            &full_account.id.to_string(),
             &GetAccountFeatureFlagsRequest {
-                flag_keys: vector.flag_keys,
+                flag_keys: vector.flag_keys.clone(),
                 hardware_id: Some("test-hardware-id".to_string()),
                 common: DEFAULT_COMMON_FEATURE_FLAGS_ATTRIBUTES.clone(),
             },
         )
         .await;
+    let lite_account_response = client
+        .get_lite_account_feature_flags(
+            &lite_account.id.to_string(),
+            &GetAccountFeatureFlagsRequest {
+                flag_keys: vector.flag_keys,
+                hardware_id: None,
+                common: DEFAULT_COMMON_FEATURE_FLAGS_ATTRIBUTES.clone(),
+            },
+        )
+        .await;
 
-    assert_eq!(response.status_code, vector.expected_status);
-    if let Some(body) = response.body {
-        let expected_flags = vector
-            .expected_feature_flags
-            .into_iter()
-            .collect::<HashMap<String, FeatureFlagValue>>();
-        for flag in body.flags {
-            assert_eq!(flag.value, *expected_flags.get(&flag.key).unwrap());
+    let expected_flags = vector
+        .expected_feature_flags
+        .into_iter()
+        .collect::<HashMap<String, FeatureFlagValue>>();
+    for response in [full_account_response, lite_account_response] {
+        assert_eq!(response.status_code, vector.expected_status);
+        if let Some(body) = response.body {
+            for flag in body.flags {
+                assert_eq!(flag.value, *expected_flags.get(&flag.key).unwrap());
+            }
         }
     }
 }

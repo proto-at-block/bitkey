@@ -217,7 +217,7 @@ class TransferConfirmationUiStateMachineImpl(
             BitkeyInteractionButtonModel(
               text = "Continue",
               size = ButtonModel.Size.Footer,
-              onClick =
+              onClick = StandardClick
                 {
                   uiState =
                     SigningWithHardwareUiState(

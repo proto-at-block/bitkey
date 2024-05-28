@@ -63,7 +63,6 @@ out:
 
 // Writes data to a file, truncating the file if it already exists.
 static bool save_data(char* filename, uint8_t* data, uint32_t size) {
-  ASSERT(data && size > 0);
   bool result = false;
 
   fs_file_t* file = NULL;

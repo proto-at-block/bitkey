@@ -1,6 +1,6 @@
 package build.wallet.firmware
 
-import build.wallet.core.Attestation as AttestationCore
+import build.wallet.rust.firmware.Attestation as AttestationCore
 
 class HardwareAttestationImpl : HardwareAttestation {
   override fun verifyCertChain(

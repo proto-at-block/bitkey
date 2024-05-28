@@ -32,6 +32,7 @@ import dev.zacsweers.redacted.annotations.Redacted
  */
 data class MoneyHomeBodyModel(
   override val trailingToolbarAccessoryModel: ToolbarAccessoryModel,
+  val hideBalance: Boolean,
   @Redacted
   val balanceModel: MoneyAmountModel,
   override val buttonsModel: MoneyHomeButtonsModel,
@@ -41,6 +42,7 @@ data class MoneyHomeBodyModel(
   val seeAllButtonModel: ButtonModel?,
   val refresh: suspend () -> Unit,
   val onRefresh: () -> Unit,
+  val onHideBalance: () -> Unit,
   val isRefreshing: Boolean,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
@@ -48,6 +50,7 @@ data class MoneyHomeBodyModel(
     ),
 ) : BodyModel(), BaseMoneyHomeBodyModel {
   constructor(
+    hideBalance: Boolean,
     onSettings: () -> Unit,
     balanceModel: MoneyAmountModel,
     buttonsModel: MoneyHomeButtonsModel,
@@ -56,8 +59,11 @@ data class MoneyHomeBodyModel(
     seeAllButtonModel: ButtonModel?,
     refresh: suspend () -> Unit,
     onRefresh: () -> Unit,
+    onHideBalance: () -> Unit,
     isRefreshing: Boolean,
   ) : this(
+    hideBalance = hideBalance,
+    onHideBalance = onHideBalance,
     trailingToolbarAccessoryModel =
       ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(

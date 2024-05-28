@@ -20,6 +20,7 @@ kotlin {
         api(projects.shared.databasePublic)
         api(projects.shared.datadogPublic)
         api(projects.shared.f8eClientPublic)
+        api(projects.shared.fingerprintsPublic)
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.loggingPublic)
         api(projects.shared.memfaultPublic)

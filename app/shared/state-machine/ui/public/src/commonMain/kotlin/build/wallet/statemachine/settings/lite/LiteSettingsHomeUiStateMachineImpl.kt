@@ -49,8 +49,7 @@ class LiteSettingsHomeUiStateMachineImpl(
           props =
             CurrencyPreferenceProps(
               onBack = { uiState = State.ShowingAllSettingsList },
-              btcDisplayAmount = BitcoinMoney.zero(),
-              onDone = null
+              btcDisplayAmount = BitcoinMoney.zero()
             )
         )
 

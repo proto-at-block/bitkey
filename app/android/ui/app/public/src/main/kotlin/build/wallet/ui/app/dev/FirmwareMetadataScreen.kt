@@ -18,6 +18,7 @@ import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.layout.Divider
 import build.wallet.ui.components.list.ListItem
 import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
@@ -50,7 +51,7 @@ fun FirmwareMetadataScreen(model: FirmwareMetadataBodyModel) {
       model = BitkeyInteractionButtonModel(
         text = "Refresh Metadata",
         size = Footer,
-        onClick = model.onFirmwareMetadataRefreshClick
+        onClick = StandardClick(model.onFirmwareMetadataRefreshClick)
       )
     )
 

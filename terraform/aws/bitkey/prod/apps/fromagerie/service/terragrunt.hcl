@@ -23,8 +23,6 @@ inputs = {
   load_balancer_allow_cloudflare_ips = true
 
   image_name = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/wallet-api"
-  // TODO: Remove after initial deploy
-  image_tag = "d21d0a2416623811c88f690d9240157ce9e55791"
 
   api_desired_count       = 2
   job_email_desired_count = 1

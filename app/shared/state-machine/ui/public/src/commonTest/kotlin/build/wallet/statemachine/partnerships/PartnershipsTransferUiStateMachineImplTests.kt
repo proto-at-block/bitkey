@@ -4,6 +4,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
 import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
+import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
@@ -36,7 +37,8 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
-    createCalls = turbines.create("create calls")
+    createCalls = turbines.create("create calls"),
+    fetchMostRecentCalls = turbines.create("fetch most recent calls")
   )
 
   // state machine
@@ -57,8 +59,8 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
       onAnotherWalletOrExchange = {
         onAnotherWalletOrExchange.add(Unit)
       },
-      onPartnerRedirected = {
-        onPartnerRedirectedCalls.add(it)
+      onPartnerRedirected = { method, _ ->
+        onPartnerRedirectedCalls.add(method)
       },
       onExit = {
         onExitCalls.add(Unit)
@@ -97,13 +99,18 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
                 PartnerInfo(
                   logoUrl = null,
                   name = "Partner 2",
-                  partner = "Partner2"
+                  partnerId = PartnerId("Partner2")
                 )
               )
             }
             onPartnerRedirectedCalls.awaitItem().shouldBe(
               PartnerRedirectionMethod.Web(
-                "http://example.com/redirect_url"
+                "http://example.com/redirect_url",
+                partnerInfo = PartnerInfo(
+                  logoUrl = null,
+                  name = "Partner 2",
+                  partnerId = PartnerId("Partner2")
+                )
               )
             )
           }

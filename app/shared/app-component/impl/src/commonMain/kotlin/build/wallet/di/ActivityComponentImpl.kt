@@ -27,7 +27,6 @@ import build.wallet.bitcoin.fees.MempoolHttpClientImpl
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoderImpl
 import build.wallet.bitcoin.invoice.PaymentDataParserImpl
 import build.wallet.bitcoin.lightning.LightningInvoiceParser
-import build.wallet.bitcoin.lightning.LightningPreferenceImpl
 import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityCheckerImpl
 import build.wallet.bitcoin.transactions.BitcoinTransactionSweepCheckerImpl
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepositoryImpl
@@ -84,6 +83,7 @@ import build.wallet.f8e.onboarding.DeleteOnboardingFullAccountServiceImpl
 import build.wallet.f8e.onboarding.OnboardingServiceImpl
 import build.wallet.f8e.onboarding.SetActiveSpendingKeysetServiceImpl
 import build.wallet.f8e.onboarding.UpgradeAccountServiceImpl
+import build.wallet.f8e.partnerships.GetPartnershipTransactionServiceImpl
 import build.wallet.f8e.partnerships.GetPurchaseOptionsServiceImpl
 import build.wallet.f8e.partnerships.GetPurchaseQuoteListServiceImpl
 import build.wallet.f8e.partnerships.GetPurchaseRedirectServiceImpl
@@ -103,7 +103,7 @@ import build.wallet.f8e.socrec.SocialRecoveryServiceImpl
 import build.wallet.f8e.support.SupportTicketServiceImpl
 import build.wallet.home.GettingStartedTaskDaoImpl
 import build.wallet.home.HomeUiBottomSheetDaoImpl
-import build.wallet.inappsecurity.BiometricPreferenceImpl
+import build.wallet.inappsecurity.HideBalancePreferenceImpl
 import build.wallet.keybox.AppDataDeleterImpl
 import build.wallet.keybox.CloudBackupDeleterImpl
 import build.wallet.limit.MobilePayDisablerImpl
@@ -142,6 +142,7 @@ import build.wallet.partnerships.PartnershipTransactionsRepositoryImpl
 import build.wallet.phonenumber.PhoneNumberFormatterImpl
 import build.wallet.phonenumber.PhoneNumberValidatorImpl
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
+import build.wallet.platform.biometrics.BiometricTextProviderImpl
 import build.wallet.platform.clipboard.ClipboardImpl
 import build.wallet.platform.links.DeepLinkHandlerImpl
 import build.wallet.platform.pdf.PdfAnnotatorFactory
@@ -215,7 +216,6 @@ import build.wallet.statemachine.data.keybox.NoActiveAccountDataStateMachineImpl
 import build.wallet.statemachine.data.keybox.address.FullAccountAddressDataStateMachineImpl
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDataStateMachineImpl
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataStateMachineImpl
-import build.wallet.statemachine.data.lightning.LightningNodeDataStateMachineImpl
 import build.wallet.statemachine.data.mobilepay.MobilePayDataStateMachineImpl
 import build.wallet.statemachine.data.notifications.NotificationTouchpointDataStateMachineImpl
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineImpl
@@ -253,10 +253,6 @@ import build.wallet.statemachine.dev.featureFlags.DoubleFlagItemUiStateMachineIm
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiStateMachineImpl
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsStateMachineImpl
 import build.wallet.statemachine.dev.featureFlags.StringFlagItemUiStateMachineImpl
-import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelStateMachineImpl
-import build.wallet.statemachine.dev.lightning.LightningDebugMenuUiStateMachineImpl
-import build.wallet.statemachine.dev.lightning.LightningOptionsUiStateMachineImpl
-import build.wallet.statemachine.dev.lightning.LightningSendReceiveUiStateMachineImpl
 import build.wallet.statemachine.dev.logs.LogsUiStateMachineImpl
 import build.wallet.statemachine.fwup.FwupNfcSessionUiStateMachineImpl
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachineImpl
@@ -341,6 +337,7 @@ import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiStateMachineImpl
 import build.wallet.statemachine.settings.full.device.fingerprints.EditingFingerprintUiStateMachineImpl
 import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFingerprintUiStateMachineImpl
+import build.wallet.statemachine.settings.full.device.fingerprints.FingerprintNfcCommandsImpl
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachineImpl
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSettingUiStateMachineImpl
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiStateMachineImpl
@@ -427,8 +424,6 @@ class ActivityComponentImpl(
       bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
       moneyFormatterDefinitions = moneyFormatterDefinitions
     )
-
-  val lightningPreference = LightningPreferenceImpl(appComponent.bitkeyDatabaseProvider)
 
   val decimalSeparatorProvider =
     DecimalSeparatorProviderImpl(
@@ -1332,6 +1327,11 @@ class ActivityComponentImpl(
       fiatCurrencyDefinitionService = fiatCurrencyDefinitionService
     )
 
+  val hideBalancePreference = HideBalancePreferenceImpl(
+    appCoroutineScope = appComponent.appCoroutineScope,
+    databaseProvider = appComponent.bitkeyDatabaseProvider
+  )
+
   val currencyPreferenceUiStateMachine =
     CurrencyPreferenceUiStateMachineImpl(
       bitcoinDisplayPreferenceRepository = appComponent.bitcoinDisplayPreferenceRepository,
@@ -1339,7 +1339,9 @@ class ActivityComponentImpl(
       eventTracker = appComponent.eventTracker,
       currencyConverter = currencyConverter,
       fiatCurrencyRepository = fiatCurrencyRepository,
-      moneyDisplayFormatter = moneyDisplayFormatter
+      moneyDisplayFormatter = moneyDisplayFormatter,
+      inAppSecurityFeatureFlag = appComponent.inAppSecurityFeatureFlag,
+      hideBalancePreference = hideBalancePreference
     )
 
   val onboardKeyboxUiStateMachine =
@@ -1416,14 +1418,14 @@ class ActivityComponentImpl(
       delayer = appComponent.delayer,
       fwupProgressCalculator = appComponent.fwupProgressCalculator,
       nfcReaderCapabilityProvider = nfcReaderCapabilityProvider,
-      nfcTransactor = nfcTransactor
+      nfcTransactor = nfcTransactor,
+      fwupDataDao = appComponent.fwupDataDao
     )
 
   val fwupNfcUiStateMachine =
     FwupNfcUiStateMachineImpl(
       deviceInfoProvider = appComponent.deviceInfoProvider,
-      fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine,
-      deviceOs = appComponent.deviceOs
+      fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine
     )
 
   val infoOptionsStateMachine =
@@ -1439,11 +1441,6 @@ class ActivityComponentImpl(
   val bitkeyOptionsStateMachine =
     BitkeyDeviceOptionsUiStateMachineImpl(
       appVariant = appComponent.appVariant
-    )
-
-  val lightningOptionsStateMachine =
-    LightningOptionsUiStateMachineImpl(
-      lightningPreference = lightningPreference
     )
 
   val firmwareMetadataStateMachine =
@@ -1511,27 +1508,6 @@ class ActivityComponentImpl(
       dateTimeFormatter = dateTimeFormatter,
       logStore = appComponent.logStore,
       timeZoneProvider = timeZoneProvider
-    )
-
-  val connectAndOpenChannelStateMachine =
-    ConnectAndOpenChannelStateMachineImpl(
-      ldkNodeService = appComponent.ldkNodeService,
-      clipboard = clipboard
-    )
-
-  val sendReceiveStateMachine =
-    LightningSendReceiveUiStateMachineImpl(
-      ldkNodeService = appComponent.ldkNodeService,
-      lightningInvoiceParser = lightningInvoiceParser,
-      moneyDisplayFormatter = moneyDisplayFormatter
-    )
-
-  val lightningStateMachine =
-    LightningDebugMenuUiStateMachineImpl(
-      clipboard = clipboard,
-      connectAndOpenChannelStateMachine = connectAndOpenChannelStateMachine,
-      lightningSendReceiveUiStateMachine = sendReceiveStateMachine,
-      ldkNodeService = appComponent.ldkNodeService
     )
 
   val delayNotifyHardwareRecoveryStarter =
@@ -1713,10 +1689,15 @@ class ActivityComponentImpl(
   val partnershipsTransactionsDao =
     PartnershipTransactionsDaoImpl(appComponent.bitkeyDatabaseProvider)
 
+  val getPartnershipTransactionService = GetPartnershipTransactionServiceImpl(
+    client = appComponent.f8eHttpClient
+  )
+
   val partnershipTransactionsStatusRepository = PartnershipTransactionsRepositoryImpl(
     dao = partnershipsTransactionsDao,
     uuidGenerator = appComponent.uuidGenerator,
-    clock = appComponent.clock
+    clock = appComponent.clock,
+    getPartnershipTransactionService = getPartnershipTransactionService
   )
 
   val getTransferPartnerListService = GetTransferPartnerListServiceImpl(
@@ -1814,6 +1795,21 @@ class ActivityComponentImpl(
       appVariant = appComponent.appVariant
     )
 
+  val editingFingerprintUiStateMachine = EditingFingerprintUiStateMachineImpl()
+
+  val fingerprintNfcCommands = FingerprintNfcCommandsImpl()
+  val enrollingFingerprintUiStateMachine = EnrollingFingerprintUiStateMachineImpl(
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    fingerprintNfcCommands = fingerprintNfcCommands
+  )
+
+  val managingFingerprintsUiStateMachine = ManagingFingerprintsUiStateMachineImpl(
+    editingFingerprintUiStateMachine = editingFingerprintUiStateMachine,
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    enrollingFingerprintUiStateMachine = enrollingFingerprintUiStateMachine,
+    gettingStartedTaskDao = gettingStartedTaskDao
+  )
+
   val moneyHomeViewingBalanceUiStateMachine =
     MoneyHomeViewingBalanceUiStateMachineImpl(
       addBitcoinUiStateMachine = addBitcoinUiStateMachine,
@@ -1826,8 +1822,9 @@ class ActivityComponentImpl(
       viewingInvitationUiStateMachine = viewingInvitationUiStateMachine,
       viewingRecoveryContactUiStateMachine = viewingRecoveryContactUiStateMachine,
       eventTracker = appComponent.eventTracker,
-      currencyConverter = currencyConverter,
-      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
+      hideBalancePreference = hideBalancePreference,
+      inAppSecurityFeatureFlag = appComponent.inAppSecurityFeatureFlag
     )
   val customAmountEntryUiStateMachine =
     CustomAmountEntryUiStateMachineImpl(
@@ -1852,7 +1849,8 @@ class ActivityComponentImpl(
       moneyHomeViewingBalanceUiStateMachine = moneyHomeViewingBalanceUiStateMachine,
       customAmountEntryUiStateMachine = customAmountEntryUiStateMachine,
       repairCloudBackupStateMachine = repairMobileKeyBackupUiStateMachine,
-      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
+      managingFingerprintsUiStateMachine = managingFingerprintsUiStateMachine
     )
 
   val appStateDeleterOptionsUiStateMachine =
@@ -1912,7 +1910,6 @@ class ActivityComponentImpl(
       infoOptionsUiStateMachine = infoOptionsStateMachine,
       onboardingAppKeyDeletionUiStateMachine = onboardingAppKeyDeletionUiStateMachine,
       onboardingConfigStateMachine = onboardingConfigStateMachine,
-      lightningOptionsUiStateMachine = lightningOptionsStateMachine,
       cloudSignUiStateMachine = cloudSignInUiStateMachine
     )
 
@@ -1924,7 +1921,6 @@ class ActivityComponentImpl(
       featureFlagsStateMachine = featureFlagsStateMachine,
       firmwareMetadataUiStateMachine = firmwareMetadataStateMachine,
       fwupNfcUiStateMachine = fwupNfcUiStateMachine,
-      lightningDebugMenuUiStateMachine = lightningStateMachine,
       logsUiStateMachine = logsStateMachine,
       networkingDebugConfigPickerUiStateMachine = networkingDebugConfigPickerUiStateMachine,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,
@@ -1956,18 +1952,6 @@ class ActivityComponentImpl(
       customElectrumServerUIStateMachine = customElectrumServerUiStateMachine,
       setElectrumServerUiStateMachine = setElectrumServerUiStateMachine
     )
-
-  val editingFingerprintUiStateMachine = EditingFingerprintUiStateMachineImpl()
-
-  val enrollingFingerprintUiStateMachine = EnrollingFingerprintUiStateMachineImpl(
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine
-  )
-
-  val managingFingerprintsUiStateMachine = ManagingFingerprintsUiStateMachineImpl(
-    editingFingerprintUiStateMachine = editingFingerprintUiStateMachine,
-    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-    enrollingFingerprintUiStateMachine = enrollingFingerprintUiStateMachine
-  )
 
   val deviceSettingsUiStateMachine =
     DeviceSettingsUiStateMachineImpl(
@@ -2035,12 +2019,12 @@ class ActivityComponentImpl(
     sharingManager = sharingManager
   )
 
-  val biometricPreference = BiometricPreferenceImpl(
-    appComponent.bitkeyDatabaseProvider
-  )
-
   val biometricSettingUiStateMachine = BiometricSettingUiStateMachineImpl(
-    biometricPreference = biometricPreference
+    biometricPreference = appComponent.biometricPreference,
+    biometricTextProvider = BiometricTextProviderImpl(),
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    biometricPrompter = appComponent.biometricPrompter,
+    signatureVerifier = appComponent.signatureVerifier
   )
 
   val settingsStateMachine =
@@ -2092,7 +2076,8 @@ class ActivityComponentImpl(
 
   val expectedTransactionNoticeUiStateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
     getTransferPartnerListService = getTransferPartnerListService,
-    dateTimeFormatter = dateTimeFormatter
+    dateTimeFormatter = dateTimeFormatter,
+    transactionsStatusRepository = partnershipTransactionsStatusRepository
   )
 
   val homeUiStateMachine =
@@ -2140,7 +2125,10 @@ class ActivityComponentImpl(
       appSpendingWalletProvider = appComponent.appSpendingWalletProvider
     )
 
-  val fullAccountTransactionsDataStateMachine = FullAccountTransactionsDataStateMachineImpl()
+  val fullAccountTransactionsDataStateMachine = FullAccountTransactionsDataStateMachineImpl(
+      currencyConverter = currencyConverter,
+	  fiatCurrencyPreferenceRepository = appComponent.fiatCurrencyPreferenceRepository,
+	)
 
   val onboardConfigDao =
     OnboardingStepSkipConfigDaoImpl(
@@ -2282,7 +2270,8 @@ class ActivityComponentImpl(
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
       onboardingService = onboardingService,
       onboardingAppKeyKeystore = appComponent.onboardingAppKeyKeystore,
-      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao
+      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
+      multipleFingerprintsIsEnabled = appComponent.multipleFingerprintsIsEnabledFeatureFlag
     )
 
   val createFullAccountDataStateMachine =
@@ -2423,12 +2412,6 @@ class ActivityComponentImpl(
       onboardConfigDataStateMachine = onboardConfigDataStateMachine
     )
 
-  val lightningNodeDataStateMachine =
-    LightningNodeDataStateMachineImpl(
-      lightningPreference = lightningPreference,
-      ldkNodeService = appComponent.ldkNodeService
-    )
-
   val templateFullAccountConfigDataStateMachine =
     TemplateFullAccountConfigDataStateMachineImpl(
       templateFullAccountConfigDao = appComponent.templateFullAccountConfigDao
@@ -2449,7 +2432,6 @@ class ActivityComponentImpl(
       featureFlagInitializer = appComponent.featureFlagInitializer,
       featureFlagSyncer = appComponent.featureFlagSyncer,
       accountDataStateMachine = accountDataStateMachine,
-      lightningNodeDataStateMachine = lightningNodeDataStateMachine,
       templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
       electrumServerDataStateMachine = electrumServerDataStateMachine,
       firmwareDataStateMachine = firmwareDataStateMachine,

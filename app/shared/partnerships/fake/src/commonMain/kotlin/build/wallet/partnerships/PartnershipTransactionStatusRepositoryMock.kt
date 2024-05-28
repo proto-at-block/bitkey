@@ -1,6 +1,8 @@
 package build.wallet.partnerships
 
 import app.cash.turbine.Turbine
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
@@ -10,8 +12,10 @@ class PartnershipTransactionStatusRepositoryMock(
   val clearCalls: Turbine<Unit>,
   val syncCalls: Turbine<Unit>,
   val createCalls: Turbine<Pair<PartnerInfo, PartnershipTransactionType>>,
-  val clearResponse: Result<Unit, Error> = Ok(Unit),
-  val createResponse: Result<PartnershipTransaction, Error> = Ok(FakePartnershipTransaction),
+  val fetchMostRecentCalls: Turbine<PartnershipTransactionId>,
+  var clearResponse: Result<Unit, Error> = Ok(Unit),
+  var createResponse: Result<PartnershipTransaction, Error> = Ok(FakePartnershipTransaction),
+  var fetchMostRecentResult: Result<PartnershipTransaction?, Error> = Ok(null),
 ) : PartnershipTransactionsStatusRepository {
   override val transactions: Flow<List<PartnershipTransaction>> = flow {}
 
@@ -32,5 +36,14 @@ class PartnershipTransactionStatusRepositoryMock(
     createCalls.add(partnerInfo to type)
 
     return createResponse
+  }
+
+  override suspend fun syncTransaction(
+    fullAccountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error> {
+    fetchMostRecentCalls.add(transactionId)
+    return fetchMostRecentResult
   }
 }

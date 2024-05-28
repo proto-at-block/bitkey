@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.datadoghq:dd-sdk-android-logs",
+    "components": [
+        {
+            "version": "2.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dd-sdk-android-logs-2.9.0.aar": "0c0735970fe929805f0703e78482643ad224e88c078a9c47f61546a4955d7d6a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

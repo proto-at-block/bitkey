@@ -22,8 +22,6 @@ import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadingTemplateFullAccountConfigData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDataStateMachine
-import build.wallet.statemachine.data.lightning.LightningNodeData
-import build.wallet.statemachine.data.lightning.LightningNodeDataStateMachine
 import build.wallet.statemachine.data.sync.ElectrumServerData
 import build.wallet.statemachine.data.sync.ElectrumServerDataProps
 import build.wallet.statemachine.data.sync.ElectrumServerDataStateMachine
@@ -33,7 +31,6 @@ class AppDataStateMachineImpl(
   private val featureFlagInitializer: FeatureFlagInitializer,
   private val featureFlagSyncer: FeatureFlagSyncer,
   private val accountDataStateMachine: AccountDataStateMachine,
-  private val lightningNodeDataStateMachine: LightningNodeDataStateMachine,
   private val templateFullAccountConfigDataStateMachine: TemplateFullAccountConfigDataStateMachine,
   private val electrumServerDataStateMachine: ElectrumServerDataStateMachine,
   private val firmwareDataStateMachine: FirmwareDataStateMachine,
@@ -51,8 +48,6 @@ class AppDataStateMachineImpl(
     InitializeFeatureFlagsEffect {
       initializeFeatureFlagsEffectState = COMPLETE
     }
-
-    val lightningNodeData = lightningNodeDataStateMachine.model(Unit)
 
     val templateFullAccountConfigData = templateFullAccountConfigDataStateMachine.model(Unit)
 
@@ -89,7 +84,6 @@ class AppDataStateMachineImpl(
               InitializeRemoteFeatureFlagsEffect()
 
               AppLoadedData(
-                lightningNodeData,
                 templateFullAccountConfigData,
                 electrumServerData,
                 firmwareData
@@ -137,7 +131,6 @@ class AppDataStateMachineImpl(
 
   @Composable
   private fun AppLoadedData(
-    lightningNodeData: LightningNodeData,
     templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     electrumServerData: ElectrumServerData,
     firmwareData: FirmwareData,
@@ -147,7 +140,6 @@ class AppDataStateMachineImpl(
         props = AccountDataProps(templateFullAccountConfigData)
       )
     return AppData.AppLoadedData(
-      lightningNodeData = lightningNodeData,
       accountData = accountData,
       electrumServerData = electrumServerData,
       firmwareData = firmwareData

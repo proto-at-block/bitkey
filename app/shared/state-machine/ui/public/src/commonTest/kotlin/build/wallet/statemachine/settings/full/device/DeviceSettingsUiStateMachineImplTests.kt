@@ -8,7 +8,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.setFlagValue
-import build.wallet.firmware.EnrolledFingerprints
+import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcCommandsMock
@@ -33,6 +33,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
 import build.wallet.time.DateTimeFormatterMock
@@ -275,16 +276,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      // Retrieving enrolled fingerprints
-      val fingerprints = EnrolledFingerprints(maxCount = 3, fingerprintHandles = listOf())
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
-        session(NfcSessionFake(), nfcCommandsMock)
-        onSuccess(EnrolledFingerprintResult.Success(fingerprints))
-      }
-
       // Going to manage fingerprints
       awaitScreenWithBodyModelMock<ManagingFingerprintsProps> {
-        enrolledFingerprints.shouldBe(fingerprints)
         onBack()
       }
 
@@ -306,9 +299,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprintResult>> {
-        session(NfcSessionFake(), nfcCommandsMock)
-        onSuccess(EnrolledFingerprintResult.FwUpRequired)
+      awaitScreenWithBodyModelMock<ManagingFingerprintsProps> {
+        entryPoint.shouldBe(EntryPoint.DEVICE_SETTINGS)
+        onFwUpRequired()
       }
 
       // Device settings screen should be showing with a bottom sheet modal

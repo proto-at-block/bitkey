@@ -19,6 +19,13 @@ interface PartnershipTransactionsDao {
   fun getTransactions(): Flow<Result<List<PartnershipTransaction>, DbTransactionError>>
 
   /**
+   * Get a transaction by a specified ID
+   */
+  suspend fun getById(
+    id: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, DbTransactionError>
+
+  /**
    * Delete a single partnership transaction's local information.
    */
   suspend fun deleteTransaction(

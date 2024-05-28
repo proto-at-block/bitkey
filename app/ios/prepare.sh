@@ -8,4 +8,4 @@ if ! cd "$app"; then
 	exit 1
 fi
 
-core/build_swift_package.sh
+rust/build_swift_package.sh

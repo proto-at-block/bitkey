@@ -61,8 +61,24 @@ class HasActiveFullAccountDataStateMachineImpl(
       exchangeRateSyncer.launchSync(scope = this)
     }
 
-    LaunchedEffect("refresh cloud backups", props.account) {
-      cloudBackupRefresher.refreshCloudBackupsWhenNecessary(scope = this, props.account)
+    /*
+     * Only refresh cloud backups if we don't have an active hardware recovery in progress.
+     * The CloudBackupRefresher updates the backup whenever a new backup is uploaded or when
+     * SocRec relationships change.
+     *
+     * This prevents race conditions between cloud backup uploads performed
+     *  - explicitly by Lost Hardware Recovery using a new but not yet active keybox.
+     *  - implicitly by the CloudBackupRefresher using the active but about to be replaced keybox.
+     * In the past we had a race (W-7790) that causes the app to upload a cloud backup for about to
+     * be replaced keybox (but not yet currently active), resulting in a cloud backup with outdated
+     * auth keys.
+     *
+     * TODO(W-8314): implement a more robust implementation for auto uploading cloud backups.
+     */
+    if (props.hardwareRecovery == null) {
+      LaunchedEffect("refresh cloud backups", props.account) {
+        cloudBackupRefresher.refreshCloudBackupsWhenNecessary(scope = this, props.account)
+      }
     }
 
     LaunchedEffect("authenticate and endorse trusted contacts") {
@@ -86,7 +102,10 @@ class HasActiveFullAccountDataStateMachineImpl(
 
     // Using collectAsState stops and starts each recomposition because the returned flow can differ,
     // so we use produceState directly instead.
-    val pendingAuthKeyRotationAttempt by produceState<PendingAuthKeyRotationAttempt?>(null, "observing pending attempts") {
+    val pendingAuthKeyRotationAttempt by produceState<PendingAuthKeyRotationAttempt?>(
+      null,
+      "observing pending attempts"
+    ) {
       authKeyRotationManager.observePendingKeyRotationAttemptUntilNull()
         .collect { value = it }
     }

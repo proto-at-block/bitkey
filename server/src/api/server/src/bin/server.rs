@@ -52,6 +52,11 @@ pub(crate) enum WorkerCommands {
         #[arg(long, default_value_t = 10, env = "SLEEP_DURATION_SECONDS")]
         sleep_duration_seconds: u64,
     },
+    MempoolPolling {
+        /// Number of seconds to sleep per iteration
+        #[arg(long, default_value_t = 10, env = "SLEEP_DURATION_SECONDS")]
+        sleep_duration_seconds: u64,
+    },
     /// Run the Metrics worker
     Metrics {
         /// Number of seconds to sleep per iteration
@@ -97,6 +102,7 @@ async fn main() -> Result<(), Error> {
                 account_service: bootstrap.services.account_service,
                 recovery_service: bootstrap.services.recovery_service,
                 chain_indexer_service: bootstrap.services.chain_indexer_service,
+                mempool_indexer_service: bootstrap.services.mempool_indexer_service,
                 address_repo: bootstrap.services.address_repo,
                 sqs: bootstrap.services.sqs,
                 feature_flags_service: bootstrap.services.feature_flags_service,
@@ -132,6 +138,11 @@ async fn main() -> Result<(), Error> {
                 } => {
                     workers::jobs::blockchain_polling::handler(&state, sleep_duration_seconds)
                         .await?;
+                }
+                WorkerCommands::MempoolPolling {
+                    sleep_duration_seconds,
+                } => {
+                    workers::jobs::mempool_polling::handler(&state, sleep_duration_seconds).await?;
                 }
                 WorkerCommands::Metrics {
                     sleep_duration_seconds,

@@ -4,7 +4,7 @@ import build.wallet.logging.log
 import com.github.michaelbull.result.coroutines.runSuspendCatching
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
-import build.wallet.core.Invoice as FFILightningInvoice
+import build.wallet.rust.core.Invoice as FFILightningInvoice
 
 class LightningInvoiceParserImpl : LightningInvoiceParser {
   override fun parse(invoiceString: String): LightningInvoice? {

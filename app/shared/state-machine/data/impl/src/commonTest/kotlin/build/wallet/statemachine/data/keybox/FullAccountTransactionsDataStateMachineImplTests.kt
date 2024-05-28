@@ -6,6 +6,10 @@ import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitcoin.wallet.shouldBeZero
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.money.FiatMoney
+import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
+import build.wallet.money.exchange.CurrencyConverterFake
+import build.wallet.money.matchers.shouldBeZero
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.LoadingFullAccountTransactionsData
@@ -14,11 +18,16 @@ import build.wallet.statemachine.data.keybox.transactions.FullAccountTransaction
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
-  val stateMachine = FullAccountTransactionsDataStateMachineImpl()
+  val stateMachine = FullAccountTransactionsDataStateMachineImpl(
+    currencyConverter = CurrencyConverterFake(),
+    fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  )
 
   val account = FullAccountMock
   val wallet = SpendingWalletMock(turbines::create, account.keybox.activeSpendingKeyset.localId)
@@ -35,6 +44,13 @@ class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
       with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
         balance.shouldBeZero()
         transactions.shouldBeEmpty()
+        fiatBalance.shouldBeNull()
+      }
+
+      with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
+        balance.shouldBeZero()
+        transactions.shouldBeEmpty()
+        fiatBalance.shouldNotBeNull().shouldBeZero()
       }
 
       wallet.transactionsFlow.value = listOf(BitcoinTransactionFake)
@@ -50,6 +66,13 @@ class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
       with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
         balance.shouldBe(newBalance)
         transactions.shouldContainExactly(BitcoinTransactionFake)
+        fiatBalance.shouldNotBeNull().shouldBeZero()
+      }
+
+      with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
+        balance.shouldBe(newBalance)
+        transactions.shouldContainExactly(BitcoinTransactionFake)
+        fiatBalance.shouldNotBeNull().shouldBe(FiatMoney.usd(dollars = 0.003))
       }
     }
   }
@@ -66,6 +89,10 @@ class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
 
         syncTransactions()
         // TODO(W-3862): record and validate sync event
+      }
+
+      with(awaitItem().shouldBeInstanceOf<FullAccountTransactionsLoadedData>()) {
+        fiatBalance.shouldNotBeNull().shouldBeZero()
       }
     }
   }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.molecule:molecule-runtime-android",
+    "components": [
+        {
+            "version": "1.4.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "molecule-runtime-release.aar": "aea4b60963365d90c5a40ffbf2393a0af0f2c2cab383d9025735ac3bd81a4b03"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

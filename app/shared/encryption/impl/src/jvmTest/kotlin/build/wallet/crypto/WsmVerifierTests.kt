@@ -1,6 +1,6 @@
 package build.wallet.crypto
 
-import build.wallet.core.WsmIntegrityVerifierException
+import build.wallet.rust.core.WsmIntegrityVerifierException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe

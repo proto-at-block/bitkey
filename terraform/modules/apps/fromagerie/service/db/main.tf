@@ -197,6 +197,7 @@ module "mempool_indexer_table" {
   attributes = [
     { name = "tx_id", type = "S" },
     { name = "network", type = "S" },
+    { name = "expiring_at", type = "N" },
   ]
 
   global_secondary_indexes = [
@@ -205,6 +206,12 @@ module "mempool_indexer_table" {
       hash_key        = "network"
       range_key       = "tx_id"
       projection_type = "KEYS_ONLY"
+    },
+    {
+      name            = "network_expiring_index"
+      hash_key        = "network"
+      range_key       = "expiring_at"
+      projection_type = "ALL"
     }
   ]
 

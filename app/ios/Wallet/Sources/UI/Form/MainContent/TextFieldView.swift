@@ -46,6 +46,14 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: ModeledTextField, context: UIViewRepresentableContext<TextFieldViewRepresentable>) {
+        let capitalization = switch viewModel.capitalization {
+            case .none: UITextAutocapitalizationType.none
+            case .characters: UITextAutocapitalizationType.allCharacters
+            case .words: UITextAutocapitalizationType.words
+            case .sentences: UITextAutocapitalizationType.sentences
+            default: UITextAutocapitalizationType.none
+        }
+        
         uiView.apply(
             model: .standard(
                 placeholder: viewModel.placeholderText,
@@ -54,10 +62,12 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
                 keyboardType: viewModel.keyboardType.nativeModel,
                 textContentType: textContentType ?? viewModel.keyboardType.textContentType,
                 enableAutoCorrect: viewModel.enableAutoCorrect,
-                enableWordAutoCapitalization: viewModel.enableWordAutoCapitalization
+                capitalization: capitalization,
+                maxLength: viewModel.maxLength?.intValue
             ),
             // The range is ignored on iOS side, so pass (0, 0)
-            onEnteredTextChanged: { text in viewModel.onValueChange(text, .init(start: 0, endInclusive: 0)) }
+            onEnteredTextChanged: { text in viewModel.onValueChange(text, .init(start: 0, endInclusive: 0)) },
+            onDone: viewModel.onDone
         )
     }
 

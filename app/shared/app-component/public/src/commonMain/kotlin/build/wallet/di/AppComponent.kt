@@ -42,6 +42,7 @@ import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagInitializer
 import build.wallet.feature.FeatureFlagSyncer
 import build.wallet.feature.MobileTestFeatureFlag
+import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.firmware.FirmwareTelemetryUploader
@@ -49,6 +50,7 @@ import build.wallet.firmware.HardwareAttestation
 import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
 import build.wallet.fwup.FwupProgressCalculator
+import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.config.TemplateFullAccountConfigDao
@@ -57,7 +59,6 @@ import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.ktor.result.client.KtorLogLevelPolicy
-import build.wallet.ldk.LdkNodeService
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStore
 import build.wallet.memfault.MemfaultService
@@ -69,6 +70,7 @@ import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.platform.PlatformContext
+import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -86,7 +88,6 @@ import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
-import build.wallet.statemachine.settings.full.device.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
@@ -156,7 +157,6 @@ interface AppComponent {
   val keyboxDao: KeyboxDao
   val keyValueStoreFactory: KeyValueStoreFactory
   val ktorLogLevelPolicy: KtorLogLevelPolicy
-  val ldkNodeService: LdkNodeService
   val localeCountryCodeProvider: LocaleCountryCodeProvider
   val localeCurrencyCodeProvider: LocaleCurrencyCodeProvider
   val localeLanguageCodeProvider: LocaleLanguageCodeProvider
@@ -195,4 +195,6 @@ interface AppComponent {
   val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag
   val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag
   val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag
+  val biometricPreference: BiometricPreference
+  val biometricPrompter: BiometricPrompter
 }

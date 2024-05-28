@@ -1,4 +1,5 @@
 import AVFAudio
+import SwiftUI
 import Bugsnag
 import DatadogCore
 import DatadogCrashReporting
@@ -19,6 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let appContext: AppContext
 
     var window: UIWindow?
+    var appSwitcherWindow: UIWindow?
     
     // MARK: - Life Cycle
 
@@ -79,10 +81,38 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         // Notify the notification manager that we are now in the foreground so it can perform relevant tasks.
         appContext.notificationManager.applicationDidEnterForeground(application)
+        
+        // clear the app switcher window once the app is foregrounded
+        self.appSwitcherWindow = nil
+        self.window?.makeKeyAndVisible()
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
         appContext.appComponent.appSessionManager.appDidEnterBackground()
+        appContext.appComponent.biometricPreference.get(completionHandler: { result, _ in
+            // If the appSwitcherWindow is not initialized and biometric is enabled,
+            // we add a window to display in the app switcher
+            if self.appSwitcherWindow == nil && result?.component1() == true {
+                DispatchQueue.main.async {
+                    // Reuse an unanimated splash screen for the app switcher window
+                    let vc = UIHostingController(
+                        rootView: SplashScreenView(
+                            viewModel: SplashBodyModel(
+                                bitkeyWordMarkAnimationDelay: 0, 
+                                bitkeyWordMarkAnimationDuration: 0,
+                                eventTrackerScreenInfo: nil
+                            )
+                        )
+                    )
+                    let appSwitcherWindow = UIWindow(frame: self.window!.bounds)
+                    
+                    appSwitcherWindow.rootViewController = vc
+                    appSwitcherWindow.windowLevel = .alert
+                    appSwitcherWindow.makeKeyAndVisible()
+                    self.appSwitcherWindow = appSwitcherWindow
+                }
+            }
+        })
     }
     
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
@@ -113,7 +143,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             ),
             trackingConsent: .granted
         )
-        Datadog.verbosityLevel = .debug
+
+        // Log Datadog SDK errors in development builds to catch SDK configuration errors.
+        if appVariant == AppVariant.development {
+            Datadog.verbosityLevel = .warn
+        }
+
         CrashReporting.enable()
         RUM.enable(
             with: RUM.Configuration(

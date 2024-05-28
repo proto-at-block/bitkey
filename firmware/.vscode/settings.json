@@ -24,5 +24,9 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "git.detectSubmodules": false,
-  "python.defaultInterpreterPath": "${workspaceFolder:Firmware}/bin/python"
+  "python.defaultInterpreterPath": "${workspaceFolder:Firmware}/bin/python",
+  "files.associations": {
+    "SConscript": "python",
+    "stdint.h": "c"
+  }
 }

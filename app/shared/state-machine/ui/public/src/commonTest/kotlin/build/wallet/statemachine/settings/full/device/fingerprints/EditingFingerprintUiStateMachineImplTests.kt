@@ -146,4 +146,33 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
         .shouldBe(FingerprintHandle(index = 0, label = "Right thumb"))
     }
   }
+
+  test("attempt to delete last fingerprint") {
+    stateMachine.test(
+      props.copy(
+        EnrolledFingerprints(
+          maxCount = 3,
+          fingerprintHandles = listOf(
+            FingerprintHandle(index = 0, label = "Left Thumb")
+          )
+        )
+      )
+    ) {
+      // Click Delete fingerprint
+      awaitSheetWithBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull()
+          .text.shouldBe("Delete fingerprint")
+        secondaryButton.shouldNotBeNull()
+          .text.shouldBe("Save fingerprint")
+        clickPrimaryButton()
+      }
+
+      awaitSheetWithBody<FormBodyModel> {
+        // The callout should be visible
+        mainContentList[1]
+          .shouldBeInstanceOf<FormMainContentModel.Callout>()
+          .item.title.shouldBe("At least one fingerprint is required")
+      }
+    }
+  }
 })

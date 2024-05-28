@@ -1,7 +1,7 @@
 package build.wallet.statemachine.core
 
 import androidx.compose.runtime.Composable
-import app.cash.molecule.RecompositionClock.ContextClock
+import app.cash.molecule.RecompositionMode.ContextClock
 import app.cash.molecule.launchMolecule
 import build.wallet.molecule.composeFrameClock
 import kotlinx.coroutines.MainScope
@@ -77,7 +77,7 @@ interface StateMachine<in PropsT : Any, out ModelT : Any?> {
    * to use [StateMachine]s.
    */
   fun modelFlow(props: PropsT): Flow<ModelT> {
-    return MainScope().plus(composeFrameClock()).launchMolecule(clock = ContextClock) {
+    return MainScope().plus(composeFrameClock()).launchMolecule(mode = ContextClock) {
       model(props)
     }
   }

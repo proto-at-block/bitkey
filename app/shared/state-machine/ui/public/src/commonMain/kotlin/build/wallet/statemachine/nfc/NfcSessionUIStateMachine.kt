@@ -113,6 +113,7 @@ class NfcSessionUIStateMachineImpl(
               isHardwareFake = props.isHardwareFake,
               needsAuthentication = props.needsAuthentication,
               shouldLock = props.shouldLock,
+              skipFirmwareTelemetry = false, // Only true for FWUP.
               onTagConnected = { props.onConnected().also { newState = Communicating } },
               onTagDisconnected = {
                 props.onDisconnected().also { if (newState !is Success) newState = Searching }

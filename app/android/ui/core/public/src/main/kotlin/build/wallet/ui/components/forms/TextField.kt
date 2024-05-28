@@ -26,7 +26,9 @@ import androidx.compose.ui.text.Paragraph
 import androidx.compose.ui.text.ParagraphIntrinsics
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Characters
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.None
+import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Sentences
 import androidx.compose.ui.text.input.KeyboardCapitalization.Companion.Words
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -50,6 +52,7 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.input.TextFieldModel
+import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Decimal
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Default
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Email
@@ -98,11 +101,13 @@ fun TextField(
     value = textState,
     labelType = labelType,
     onValueChange = { newTextFieldValue ->
-      textState = newTextFieldValue
-      model.onValueChange(
-        newTextFieldValue.text,
-        newTextFieldValue.selection.start..newTextFieldValue.selection.end
-      )
+      if (model.maxLength == null || newTextFieldValue.text.length <= model.maxLength!!) {
+        textState = newTextFieldValue
+        model.onValueChange(
+          textState.text,
+          textState.selection.start..textState.selection.end
+        )
+      }
     },
     focusRequester = focusRequester,
     textFieldOverflowCharacteristic = textFieldOverflowCharacteristic,
@@ -120,9 +125,11 @@ fun TextField(
           },
         autoCorrect = model.enableAutoCorrect,
         capitalization =
-          when (model.enableWordAutoCapitalization) {
-            true -> Words
-            false -> None
+          when (model.capitalization) {
+            Capitalization.None -> None
+            Capitalization.Characters -> Characters
+            Capitalization.Words -> Words
+            Capitalization.Sentences -> Sentences
           }
       ),
     keyboardActions =

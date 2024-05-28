@@ -18,6 +18,7 @@ members = [
   "src/api/external_identifier",
   "src/api/http_server",
   "src/api/instrumentation",
+  "src/api/mempool_indexer",
   "src/api/migration",
   "src/api/mobile_pay",
   "src/api/notification",
@@ -131,7 +132,8 @@ experimentation = { path = "src/api/experimentation" }
 external_identifier = { path = "src/api/external_identifier" }
 feature_flags = { path = "src/feature_flags" }
 http_server = { path = "src/api/http_server" }
-instrumentation ={ path = "src/api/instrumentation" }
+instrumentation = { path = "src/api/instrumentation" }
+mempool_indexer = { path = "src/api/mempool_indexer" }
 migration = { path = "src/api/migration" }
 mobile_pay = { path = "src/api/mobile_pay" }
 notification = { path = "src/api/notification" }

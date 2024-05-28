@@ -2,7 +2,7 @@ package build.wallet.statemachine.core
 
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import app.cash.molecule.RecompositionClock.Immediate
+import app.cash.molecule.RecompositionMode
 import app.cash.molecule.moleculeFlow
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.test
@@ -66,6 +66,10 @@ suspend inline fun <PropsT : Any, ModelT> StateMachine<PropsT, ModelT>.test(
     }
   } else {
     withTimeout(testTimeout) {
+      // It's possible that `useVirtualTime` is false but the test is still running in a TestScope,
+      // in which case the delays will be still skipped. To avoid this, we run the test in a
+      // different dispatcher which cuts the Test dispatcher and prevents delays from being skipped.
+      // Based on https://github.com/Kotlin/kotlinx.coroutines/issues/3179#issuecomment-1132961347.
       withContext(Dispatchers.Default.limitedParallelism(1)) {
         testInternal(props, turbineTimeout, validate)
       }
@@ -80,7 +84,7 @@ suspend fun <PropsT : Any, ModelT> StateMachine<PropsT, ModelT>.testInternal(
 ) {
   val propsStateFlow = MutableStateFlow(props)
   val models: Flow<ModelT> =
-    moleculeFlow(clock = Immediate) {
+    moleculeFlow(mode = RecompositionMode.Immediate) {
       val latestProps by propsStateFlow.collectAsState()
       model(latestProps)
     }.distinctUntilChanged()
@@ -104,7 +108,7 @@ inline fun <PropsT : Any, ModelT> StateMachine<PropsT, ModelT>.testIn(
 ): StateMachineTester<PropsT, ModelT> {
   val propsStateFlow = MutableStateFlow(props)
   val models: Flow<ModelT> =
-    moleculeFlow(clock = Immediate) {
+    moleculeFlow(mode = RecompositionMode.Immediate) {
       val latestProps by propsStateFlow.collectAsState()
       model(latestProps)
     }.distinctUntilChanged()

@@ -23,9 +23,6 @@ import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigDataStateMachine
-import build.wallet.statemachine.data.lightning.LightningNodeData
-import build.wallet.statemachine.data.lightning.LightningNodeData.LightningNodeDisabledData
-import build.wallet.statemachine.data.lightning.LightningNodeDataStateMachine
 import build.wallet.statemachine.data.sync.ElectrumServerData
 import build.wallet.statemachine.data.sync.ElectrumServerDataProps
 import build.wallet.statemachine.data.sync.ElectrumServerDataStateMachine
@@ -41,9 +38,6 @@ class AppDataStateMachineImplTests : FunSpec({
     object : AccountDataStateMachine, StateMachineMock<AccountDataProps, AccountData>(
       initialModel = CheckingActiveAccountData
     ) {}
-  val lightningNodeDataStateMachine =
-    object : LightningNodeDataStateMachine,
-      StateMachineMock<Unit, LightningNodeData>(initialModel = LightningNodeDisabledData) {}
   val permissionChecker = PermissionCheckerMock()
   val templateFullAccountConfigDataStateMachine =
     object : TemplateFullAccountConfigDataStateMachine,
@@ -72,7 +66,6 @@ class AppDataStateMachineImplTests : FunSpec({
       featureFlagInitializer = featureFlagInitializer,
       featureFlagSyncer = featureFlagSyncer,
       accountDataStateMachine = accountDataStateMachine,
-      lightningNodeDataStateMachine = lightningNodeDataStateMachine,
       templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
       electrumServerDataStateMachine = electrumServerDataStateMachine,
       firmwareDataStateMachine = firmwareDataStateMachine,
@@ -111,7 +104,6 @@ class AppDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBe(
         AppLoadedData(
           accountData = CheckingActiveAccountData,
-          lightningNodeData = LightningNodeDisabledData,
           electrumServerData = PlaceholderElectrumServerDataMock,
           firmwareData = FirmwareDataUpToDateMock
         )
@@ -124,7 +116,6 @@ class AppDataStateMachineImplTests : FunSpec({
       awaitItem().shouldBe(
         AppLoadedData(
           accountData = accountData,
-          lightningNodeData = LightningNodeDisabledData,
           electrumServerData = PlaceholderElectrumServerDataMock,
           firmwareData = FirmwareDataUpToDateMock
         )

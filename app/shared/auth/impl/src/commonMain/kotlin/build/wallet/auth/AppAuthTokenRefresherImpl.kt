@@ -84,9 +84,6 @@ class AppAuthTokenRefresherImpl(
       // Refresh auth tokens with f8e
       val newTokens =
         refresh(f8eEnvironment, authTokens.refreshToken)
-          .logAuthFailure {
-            "Failed to auth refresh using existing tokens (refresh token is likely expired. Re-authenticating.)"
-          }
           .orElse {
             // The refresh token we passed to f8e is likely expired, so we need to re-authenticate.
             if (appAuthKey == null) {

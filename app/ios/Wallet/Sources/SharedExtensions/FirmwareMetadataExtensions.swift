@@ -1,10 +1,10 @@
-import core
+import firmware
 import Foundation
 import Shared
 
 extension Shared.FirmwareMetadata {
 
-    convenience init(coreMetadata metadata: core.FirmwareMetadata) {
+    convenience init(coreMetadata metadata: firmware.FirmwareMetadata) {
         self.init(
             activeSlot: {
                 switch metadata.activeSlot {

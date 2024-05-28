@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import build.wallet.bdk.bindings.BdkUtxo
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.transactions.BitcoinTransaction
+import build.wallet.money.FiatMoney
 import kotlinx.collections.immutable.ImmutableList
 
 /**
@@ -24,8 +25,10 @@ sealed interface FullAccountTransactionsData {
   @Immutable
   data class FullAccountTransactionsLoadedData(
     val balance: BitcoinBalance,
+    val fiatBalance: FiatMoney?,
     val transactions: ImmutableList<BitcoinTransaction>,
     val unspentOutputs: ImmutableList<BdkUtxo>,
+    val syncFiatBalance: () -> Unit,
     val syncTransactions: suspend () -> Unit,
   ) : FullAccountTransactionsData
 }

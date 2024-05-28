@@ -1092,7 +1092,7 @@ impl TestClient {
             .await
     }
 
-    pub(crate) async fn get_account_feature_flags(
+    pub(crate) async fn get_full_account_feature_flags(
         &self,
         account_id: &str,
         request: &GetAccountFeatureFlagsRequest,
@@ -1100,6 +1100,19 @@ impl TestClient {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/feature-flags"))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
+            .post(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_lite_account_feature_flags(
+        &self,
+        account_id: &str,
+        request: &GetAccountFeatureFlagsRequest,
+    ) -> Response<GetFeatureFlagsResponse> {
+        Request::builder()
+            .uri(format!("/api/accounts/{account_id}/feature-flags"))
+            .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
             .post(request)
             .call(&self.router)
             .await

@@ -100,12 +100,12 @@ class SocialRecoveryServiceFakeTests : FunSpec({
       .createInvitation(
         account = fullAccount2,
         hardwareProofOfPossession = hwPopMock,
-        trustedContactAlias = TrustedContactAlias("Kirill"),
+        trustedContactAlias = TrustedContactAlias("Bob"),
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
         it.recoveryRelationshipId.shouldBe("uuid-1")
-        it.trustedContactAlias.shouldBe(TrustedContactAlias("Kirill"))
+        it.trustedContactAlias.shouldBe(TrustedContactAlias("Bob"))
       }
 
     // Relationships should contain first and second invitations
@@ -121,7 +121,7 @@ class SocialRecoveryServiceFakeTests : FunSpec({
 
       relationships.invitations[1].should {
         it.recoveryRelationshipId.shouldBe("uuid-1")
-        it.trustedContactAlias.shouldBe(TrustedContactAlias("Kirill"))
+        it.trustedContactAlias.shouldBe(TrustedContactAlias("Bob"))
       }
     }
   }

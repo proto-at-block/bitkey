@@ -13,9 +13,6 @@ import build.wallet.statemachine.dev.DebugMenuBodyModel
 import build.wallet.statemachine.dev.FirmwareMetadataBodyModel
 import build.wallet.statemachine.dev.analytics.AnalyticsBodyModel
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsBodyModel
-import build.wallet.statemachine.dev.lightning.ConnectAndOpenChannelBodyModel
-import build.wallet.statemachine.dev.lightning.LightningDebugBodyModel
-import build.wallet.statemachine.dev.lightning.LightningSendReceiveBodyModel
 import build.wallet.statemachine.dev.logs.LogsBodyModel
 import build.wallet.statemachine.education.EducationBodyModel
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
@@ -45,9 +42,6 @@ import build.wallet.ui.app.dev.DebugMenuScreen
 import build.wallet.ui.app.dev.FirmwareMetadataScreen
 import build.wallet.ui.app.dev.analytics.AnalyticsScreen
 import build.wallet.ui.app.dev.flags.FeatureFlagsScreen
-import build.wallet.ui.app.dev.lightning.ConnectAndOpenChannelScreen
-import build.wallet.ui.app.dev.lightning.LightningDebugScreen
-import build.wallet.ui.app.dev.lightning.LightningSendAndReceiveScreen
 import build.wallet.ui.app.dev.logs.LogsScreen
 import build.wallet.ui.app.education.EducationScreen
 import build.wallet.ui.app.limit.SpendingLimitPickerScreen
@@ -100,9 +94,6 @@ object AppUiModelMap : UiModelMap by TypedUiModelMap(
   UiModel<QrCodeScanBodyModel> { QrCodeScanScreen(it) },
   UiModel<AskingToGoToSystemBodyModel> { AskingToGoToSystemScreen(it) },
   UiModel<RequestPermissionBodyModel> { RequestPermissionScreen(it) },
-  UiModel<LightningDebugBodyModel> { LightningDebugScreen(it) },
-  UiModel<ConnectAndOpenChannelBodyModel> { ConnectAndOpenChannelScreen(it) },
-  UiModel<LightningSendReceiveBodyModel> { LightningSendAndReceiveScreen(it) },
   UiModel<FwupNfcBodyModel> { FwupNfcScreen(it) },
   UiModel<InAppBrowserModel> { InAppBrowserScreen(it) },
   UiModel<EducationBodyModel> { EducationScreen(it) },

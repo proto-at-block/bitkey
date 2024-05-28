@@ -130,7 +130,14 @@ message start_fingerprint_enrollment_rsp {
 }
 
 // A command used by the mobile client to ask the hw device if fingerprints have been successfully enrolled.
-message get_fingerprint_enrollment_status_cmd {}
+message get_fingerprint_enrollment_status_cmd {
+  // This flag is used to make the command behave as it used to.
+  // This field should always be set to true.
+  // If NOT set, the response will be COMPLETE if any fingerprint template exists.
+  // If set, the response will be indicated by the actual state of enrollment at this moment in time, in
+  // other words it accurately reflects the state of the enrollment process.
+  bool app_knows_about_this_field = 1;
+}
 
 // The response for `get_fingerprint_enrollment_status_cmd `
 message get_fingerprint_enrollment_status_rsp {

@@ -13,6 +13,6 @@ once_cell = { workspace = true }
 opentelemetry = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
-tokio-metrics ="0.3.0"
+tokio-metrics = "0.3.0"
 tower = { workspace = true }
 tracing = { workspace = true }

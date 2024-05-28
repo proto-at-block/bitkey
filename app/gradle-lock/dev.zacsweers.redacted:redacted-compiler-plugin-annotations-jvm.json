@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations-jvm",
+    "components": [
+        {
+            "version": "1.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-annotations-jvm-1.8.1.jar": "ee822aa5f64a807cd404910175c2033202a59a011f04a3a66e5c199741720cdb"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

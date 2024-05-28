@@ -1,17 +1,16 @@
-use std::str::FromStr;
-
 use axum::extract::Path;
 use axum::extract::Query;
 use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
 use experimentation::claims::ExperimentationClaims;
-use jwt_authorizer::JwtClaims;
+
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+
 use utoipa::{OpenApi, ToSchema};
 
-use account::service::{FetchAccountInput, Service as AccountService, Service};
+use account::service::Service as AccountService;
 use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
+use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use partnerships_lib::models::{PartnerTransaction, PurchaseOptions};
@@ -20,8 +19,7 @@ use partnerships_lib::{
     models::{partners::PartnerInfo, PaymentMethod, Quote, RedirectInfo},
     Partnerships,
 };
-use types::account::identifiers::AccountId;
-use types::authn_authz::AccessTokenClaims;
+
 use types::currencies::CurrencyCode;
 use userpool::userpool::UserPoolService;
 
@@ -146,10 +144,14 @@ pub struct ListTransferPartnersResponse {
 )]
 async fn list_transfer_partners(
     State(partnerships): State<Partnerships>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<ListTransferPartnersRequest>,
 ) -> Result<Json<ListTransferPartnersResponse>, ApiError> {
     Ok(Json(ListTransferPartnersResponse {
-        partners: partnerships.transfer_partners(request.country),
+        partners: partnerships.transfer_partners(
+            request.country,
+            ContextKey::try_from(experimentation_claims)?,
+        ),
     }))
 }
 
@@ -219,10 +221,8 @@ pub struct ListPurchaseQuotesResponse {
     ),
 )]
 async fn list_purchase_quotes(
-    State(account_service): State<AccountService>,
-    JwtClaims(claims): JwtClaims<AccessTokenClaims>,
     State(partnerships): State<Partnerships>,
-    _: ExperimentationClaims,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<ListPurchaseQuotesRequest>,
 ) -> Result<Json<ListPurchaseQuotesResponse>, ApiError> {
     let quotes = partnerships
@@ -231,35 +231,10 @@ async fn list_purchase_quotes(
             request.fiat_amount,
             request.fiat_currency,
             request.payment_method,
-            is_test_account(account_service, &claims).await,
+            ContextKey::try_from(experimentation_claims)?,
         )
         .await;
     Ok(Json(ListPurchaseQuotesResponse { quotes }))
-}
-
-// TODO: W-7997 remove when targetted feature flags are available
-async fn is_test_account(account_service: Service, claims: &AccessTokenClaims) -> bool {
-    let account_id = match AccountId::from_str(claims.username.as_ref()) {
-        Ok(account_id) => account_id,
-        Err(e) => {
-            warn!("Error parsing account_id: {:?}", e);
-            return false;
-        }
-    };
-    let account = match account_service
-        .fetch_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await
-    {
-        Ok(account) => account,
-        Err(e) => {
-            warn!("Error fetching account: {:?}", e);
-            return false;
-        }
-    };
-
-    account.get_common_fields().properties.is_test_account
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]

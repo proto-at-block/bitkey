@@ -43,7 +43,7 @@ bdk_utils = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 http_server = { workspace = true }
-instrumentation ={ workspace = true }
+instrumentation = { workspace = true }
 migration = { workspace = true }
 queue = { workspace = true }
 repository = { workspace = true, features = ["consent"] }

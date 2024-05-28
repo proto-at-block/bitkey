@@ -3,7 +3,7 @@ package build.wallet.encrypt
 import build.wallet.toUByteList
 import okio.ByteString.Companion.toByteString
 import java.security.SecureRandom
-import build.wallet.core.SecretKey as CoreSecretKey
+import build.wallet.rust.core.SecretKey as CoreSecretKey
 
 class Secp256k1KeyGeneratorImpl : Secp256k1KeyGenerator {
   /**

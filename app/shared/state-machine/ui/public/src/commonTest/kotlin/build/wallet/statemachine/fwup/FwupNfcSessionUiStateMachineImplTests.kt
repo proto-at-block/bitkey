@@ -8,6 +8,7 @@ import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETEC
 import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.fwup.FwupDataDaoMock
 import build.wallet.fwup.FwupDataMock
 import build.wallet.fwup.FwupProgressCalculatorMock
 import build.wallet.nfc.NfcException
@@ -37,6 +38,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   val eventTracker = EventTrackerMock(turbines::create)
   val deviceInfoProvider = DeviceInfoProviderMock()
   val nfcTransactor = NfcTransactorMock(turbines::create)
+  val fwupDataDao = FwupDataDaoMock(turbines::create)
 
   val stateMachine =
     FwupNfcSessionUiStateMachineImpl(
@@ -46,7 +48,8 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       fwupProgressCalculator = FwupProgressCalculatorMock(),
       deviceInfoProvider = deviceInfoProvider,
       nfcReaderCapabilityProvider = NfcReaderCapabilityProviderMock(),
-      nfcTransactor = nfcTransactor
+      nfcTransactor = nfcTransactor,
+      fwupDataDao = fwupDataDao
     )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")

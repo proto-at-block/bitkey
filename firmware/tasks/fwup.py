@@ -2,6 +2,7 @@ import click
 import tempfile
 import semver
 import sh
+import os
 
 from invoke import task
 from pathlib import Path
@@ -199,10 +200,14 @@ def delta_release(c, to_version=None, revision=None, bearer_token=None, image_ty
         click.echo('Invalid arguments.')
         return
 
+    # Set supplied bearer token in the environment; memfault.py looks for this.
+    if bearer_token:
+        os.environ['MEMFAULT_ORG_TOKEN'] = bearer_token
+
     min_version = '1.0.44'
 
     versions = []
-    for version in released_versions(c, bearer_token, quiet=True):
+    for version in released_versions(c, quiet=True):
         # Prune versions which are < min_version and >= to_version.
         if semver.compare(min_version, version) < 0 and \
                 semver.compare(version, to_version) < 0:
@@ -231,7 +236,7 @@ def delta_release(c, to_version=None, revision=None, bearer_token=None, image_ty
         to_version_dirs[hw_revision] = {}
         for sw_type in sw_types:
             release = fetch_release(
-                c, to_version, hw_revision, sw_type, output_dir.name, bearer_token)
+                c, to_version, hw_revision, sw_type, output_dir.name)
             if release:
                 to_version_dirs[hw_revision][sw_type] = release
                 click.echo(f'Downloaded {hw_revision} {sw_type} {to_version}')
@@ -243,7 +248,7 @@ def delta_release(c, to_version=None, revision=None, bearer_token=None, image_ty
         for hw_revision in hw_revisions:
             for sw_type in sw_types:
                 fwup_bundle = fetch_release(
-                    c, version, hw_revision, sw_type, output_dir.name, bearer_token)
+                    c, version, hw_revision, sw_type, output_dir.name)
                 if not fwup_bundle:
                     click.echo("Continuing...")
                     continue

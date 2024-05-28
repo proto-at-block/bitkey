@@ -107,6 +107,9 @@ class HomeUiStateMachineImpl(
             return@onRouteChange true
           }
           is Route.PartnerTransferDeeplink -> {
+            // Close any in-app browser if open
+            // this can happen when a deeplink is triggered from an in-app browser
+            inAppBrowserNavigator.close()
             uiState =
               uiState.copy(
                 presentedScreen = PresentedScreen.PartnerTransfer(
@@ -178,7 +181,10 @@ class HomeUiStateMachineImpl(
               onSettingsButtonClicked = {
                 uiState = uiState.copy(rootScreen = Settings)
               },
-              origin = rootScreen.origin
+              origin = rootScreen.origin,
+              setPresentedScreen = { newScreen ->
+                uiState = uiState.copy(presentedScreen = newScreen)
+              }
             )
 
           Settings ->
@@ -284,6 +290,7 @@ class HomeUiStateMachineImpl(
     homeStatusBannerModel: StatusBannerModel?,
     onSettingsButtonClicked: () -> Unit,
     origin: MoneyHomeUiProps.Origin,
+    setPresentedScreen: (PresentedScreen) -> Unit,
   ) = moneyHomeUiStateMachine.model(
     props =
       MoneyHomeUiProps(
@@ -294,7 +301,16 @@ class HomeUiStateMachineImpl(
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel,
         onSettings = onSettingsButtonClicked,
-        origin = origin
+        origin = origin,
+        onPartnershipsWebFlowCompleted = { partnerInfo, transaction ->
+          setPresentedScreen(
+            PresentedScreen.PartnerTransfer(
+              partner = partnerInfo.partnerId,
+              event = PartnershipEvent.WebFlowCompleted,
+              partnerTransactionId = transaction.id
+            )
+          )
+        }
       )
   )
 
@@ -382,7 +398,7 @@ private sealed interface PresentedScreen {
     val partnerTransactionId: PartnershipTransactionId?,
   ) : PresentedScreen
 
-  /** Indicates that an in-app browser. */
+  /** Indicates that an in-app browser is currently being displayed. */
   data class InAppBrowser(
     val url: String,
   ) : PresentedScreen

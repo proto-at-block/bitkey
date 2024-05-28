@@ -23,6 +23,10 @@ class InAppBrowserNavigatorMock(
     onCloseCalls += Unit
   }
 
+  override fun close() {
+    onClose()
+  }
+
   fun reset() {
     onCloseCallback = null
   }

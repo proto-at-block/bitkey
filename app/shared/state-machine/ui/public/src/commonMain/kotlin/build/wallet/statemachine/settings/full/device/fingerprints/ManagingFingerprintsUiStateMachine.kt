@@ -1,7 +1,6 @@
 package build.wallet.statemachine.settings.full.device.fingerprints
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -15,5 +14,11 @@ interface ManagingFingerprintsUiStateMachine : StateMachine<ManagingFingerprints
 data class ManagingFingerprintsProps(
   val account: FullAccount,
   val onBack: () -> Unit,
-  val enrolledFingerprints: EnrolledFingerprints,
+  val onFwUpRequired: () -> Unit,
+  val entryPoint: EntryPoint,
 )
+
+enum class EntryPoint {
+  MONEY_HOME,
+  DEVICE_SETTINGS,
+}

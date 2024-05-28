@@ -9,6 +9,9 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.isEnabled
+import build.wallet.inappsecurity.HideBalancePreference
+import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.FiatCurrencyRepository
@@ -23,6 +26,7 @@ import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.Showin
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.ShowingCurrencyPreferenceUiState
 import build.wallet.ui.model.list.ListItemPickerMenu
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 
 class CurrencyPreferenceUiStateMachineImpl(
@@ -32,27 +36,42 @@ class CurrencyPreferenceUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyRepository: FiatCurrencyRepository,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
+  private val hideBalancePreference: HideBalancePreference,
 ) : CurrencyPreferenceUiStateMachine {
   @Composable
   override fun model(props: CurrencyPreferenceProps): ScreenModel {
     var state: CurrencyPreferenceUiState by remember {
-      mutableStateOf(ShowingCurrencyPreferenceUiState)
+      mutableStateOf(ShowingCurrencyPreferenceUiState(isHideBalanceEnabled = false))
     }
 
     val selectedFiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+
+    val isHideBalanceEnabled by remember {
+      hideBalancePreference.isEnabled
+    }.onEach {
+      when (val s = state) {
+        is ShowingCurrencyPreferenceUiState -> state = s.copy(isHideBalanceEnabled = it)
+        else -> {
+          // no-op
+        }
+      }
+    }
+      .collectAsState(false)
 
     return when (state) {
       is ShowingCurrencyPreferenceUiState ->
         CurrencyPreferenceFormModel(
           props = props,
           selectedFiatCurrency = selectedFiatCurrency,
+          isHideBalanceEnabled = isHideBalanceEnabled,
           onFiatCurrencyPreferenceClick = { state = ShowingCurrencyFiatSelectionUiState }
         )
 
       is ShowingCurrencyFiatSelectionUiState -> {
         val scope = rememberStableCoroutineScope()
         FiatCurrencyListFormModel(
-          onClose = { state = ShowingCurrencyPreferenceUiState },
+          onClose = { state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled) },
           selectedCurrency = selectedFiatCurrency,
           currencyList = fiatCurrencyRepository.allFiatCurrencies.value,
           onCurrencySelection = { selectedCurrency ->
@@ -63,7 +82,7 @@ class CurrencyPreferenceUiStateMachineImpl(
                 }
             }
             // Once a selection is made, we auto-close the list screen.
-            state = ShowingCurrencyPreferenceUiState
+            state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled)
           }
         ).asModalScreen()
       }
@@ -74,6 +93,7 @@ class CurrencyPreferenceUiStateMachineImpl(
   private fun CurrencyPreferenceFormModel(
     props: CurrencyPreferenceProps,
     selectedFiatCurrency: FiatCurrency,
+    isHideBalanceEnabled: Boolean,
     onFiatCurrencyPreferenceClick: () -> Unit,
   ): ScreenModel {
     val selectedBitcoinUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
@@ -137,16 +157,24 @@ class CurrencyPreferenceUiStateMachineImpl(
       onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
       bitcoinDisplayPreferenceString = selectedBitcoinUnit.displayText,
       bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
+      shouldShowHideBalance = inAppSecurityFeatureFlag.isEnabled(),
+      isHideBalanceEnabled = isHideBalanceEnabled,
+      onEnableHideBalanceChanged = { isEnabled ->
+        scope.launch {
+          hideBalancePreference.set(isEnabled)
+        }
+      },
       onBitcoinDisplayPreferenceClick = {
         isShowingBitcoinUnitPicker = true
-      },
-      onDone = props.onDone
+      }
     ).asRootScreen()
   }
 }
 
 sealed interface CurrencyPreferenceUiState {
-  data object ShowingCurrencyPreferenceUiState : CurrencyPreferenceUiState
+  data class ShowingCurrencyPreferenceUiState(
+    val isHideBalanceEnabled: Boolean = false,
+  ) : CurrencyPreferenceUiState
 
   data object ShowingCurrencyFiatSelectionUiState : CurrencyPreferenceUiState
 }

@@ -122,16 +122,17 @@ data class ButtonModel(
       isLoading: Boolean = false,
       size: Size,
       testTag: String? = null,
-      onClick: () -> Unit,
+      onClick: Click,
+      treatment: Treatment = Black,
     ) = ButtonModel(
       text = text,
-      treatment = Black,
+      treatment = treatment,
       size = size,
       leadingIcon = Icon.SmallIconBitkey,
       isEnabled = isEnabled,
       isLoading = isLoading,
       testTag = testTag,
-      onClick = StandardClick { onClick() }
+      onClick = onClick
     )
   }
 }

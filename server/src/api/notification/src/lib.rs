@@ -5,7 +5,8 @@ use database::ddb::DatabaseError;
 use derive_builder::Builder;
 use errors::ApiError;
 use payloads::{
-    comms_verification::CommsVerificationPayload, push_blast::PushBlastPayload,
+    comms_verification::CommsVerificationPayload, payment::PendingPaymentPayload,
+    push_blast::PushBlastPayload,
     recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
     recovery_relationship_deleted::RecoveryRelationshipDeletedPayload,
     recovery_relationship_invitation_accepted::RecoveryRelationshipInvitationAcceptedPayload,
@@ -103,12 +104,13 @@ pub enum NotificationPayloadType {
     RecoveryPendingDelayPeriod,
     RecoveryCompletedDelayPeriod,
     RecoveryCanceledDelayPeriod,
-    PaymentNotification,
+    ConfirmedPaymentNotification,
     CommsVerification,
     RecoveryRelationshipInvitationAccepted,
     RecoveryRelationshipDeleted,
     SocialChallengeResponseReceived,
     PushBlast,
+    PendingPaymentNotification,
 }
 
 impl From<NotificationPayloadType> for NotificationCategory {
@@ -125,7 +127,10 @@ impl From<NotificationPayloadType> for NotificationCategory {
             | NotificationPayloadType::TestPushNotification => {
                 NotificationCategory::AccountSecurity
             }
-            NotificationPayloadType::PaymentNotification => NotificationCategory::MoneyMovement,
+            NotificationPayloadType::ConfirmedPaymentNotification
+            | NotificationPayloadType::PendingPaymentNotification => {
+                NotificationCategory::MoneyMovement
+            }
         }
     }
 }
@@ -159,9 +164,9 @@ impl NotificationPayloadType {
                 );
                 payload.recovery_canceled_delay_period_payload.is_some()
             }
-            NotificationPayloadType::PaymentNotification => {
-                builder.payment_payload(payload.payment_payload.clone());
-                payload.payment_payload.is_some()
+            NotificationPayloadType::ConfirmedPaymentNotification => {
+                builder.confirmed_payment_payload(payload.confirmed_payment_payload.clone());
+                payload.confirmed_payment_payload.is_some()
             }
             NotificationPayloadType::CommsVerification => {
                 builder.comms_verification_payload(payload.comms_verification_payload.clone());
@@ -192,6 +197,10 @@ impl NotificationPayloadType {
             NotificationPayloadType::PushBlast => {
                 builder.push_blast_payload(payload.push_blast_payload.clone());
                 payload.push_blast_payload.is_some()
+            }
+            NotificationPayloadType::PendingPaymentNotification => {
+                builder.pending_payment_payload(payload.pending_payment_payload.clone());
+                payload.pending_payment_payload.is_some()
             }
         };
         if valid_payload {
@@ -258,12 +267,14 @@ impl
                     .comms_verification_payload
                     .ok_or(NotificationError::PayloadNotFound(payload_type))?,
             )),
-            NotificationPayloadType::PaymentNotification => NotificationMessage::try_from((
-                composite_key,
-                payload
-                    .payment_payload
-                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
-            )),
+            NotificationPayloadType::ConfirmedPaymentNotification => {
+                NotificationMessage::try_from((
+                    composite_key,
+                    payload
+                        .confirmed_payment_payload
+                        .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+                ))
+            }
             NotificationPayloadType::RecoveryCanceledDelayPeriod => {
                 NotificationMessage::try_from((
                     composite_key,
@@ -322,6 +333,12 @@ impl
                     .push_blast_payload
                     .ok_or(NotificationError::PayloadNotFound(payload_type))?,
             )),
+            NotificationPayloadType::PendingPaymentNotification => NotificationMessage::try_from((
+                composite_key,
+                payload
+                    .pending_payment_payload
+                    .ok_or(NotificationError::PayloadNotFound(payload_type))?,
+            )),
         }
     }
 }
@@ -354,7 +371,9 @@ pub struct NotificationPayload {
     #[serde(default)]
     pub recovery_canceled_delay_period_payload: Option<RecoveryCanceledDelayPeriodPayload>,
     #[serde(default)]
-    pub payment_payload: Option<PaymentPayload>,
+    pub confirmed_payment_payload: Option<PaymentPayload>,
+    #[serde(default)]
+    pub pending_payment_payload: Option<PendingPaymentPayload>,
     #[serde(default)]
     pub comms_verification_payload: Option<CommsVerificationPayload>,
     #[serde(default)]

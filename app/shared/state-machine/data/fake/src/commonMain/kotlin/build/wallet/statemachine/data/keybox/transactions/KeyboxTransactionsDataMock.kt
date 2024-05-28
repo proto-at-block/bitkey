@@ -24,5 +24,7 @@ val KeyboxTransactionsDataMock =
         isSpent = false
       )
     ),
+    fiatBalance = null,
+    syncFiatBalance = {},
     syncTransactions = {}
   )

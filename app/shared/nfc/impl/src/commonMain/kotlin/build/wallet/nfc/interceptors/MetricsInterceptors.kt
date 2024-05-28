@@ -131,8 +131,12 @@ private class MetricsNfcCommandsImpl(
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> =
     measure("getFirmwareFeatureFlags") { commands.getFirmwareFeatureFlags(session) }
 
-  override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
-    measure("getFingerprintEnrollmentStatus") { commands.getFingerprintEnrollmentStatus(session) }
+  override suspend fun getFingerprintEnrollmentStatus(
+    session: NfcSession,
+    isEnrollmentContextAware: Boolean,
+  ) = measure("getFingerprintEnrollmentStatus") {
+    commands.getFingerprintEnrollmentStatus(session, isEnrollmentContextAware)
+  }
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
@@ -141,6 +145,9 @@ private class MetricsNfcCommandsImpl(
 
   override suspend fun getUnlockMethod(session: NfcSession): UnlockInfo =
     measure("getUnlockMethod") { commands.getUnlockMethod(session) }
+
+  override suspend fun cancelFingerprintEnrollment(session: NfcSession): Boolean =
+    measure("cancelFingerprintEnrollment") { commands.cancelFingerprintEnrollment(session) }
 
   override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
     measure("getEnrolledFingerprints") { commands.getEnrolledFingerprints(session) }

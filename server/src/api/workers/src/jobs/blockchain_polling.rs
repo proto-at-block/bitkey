@@ -1,20 +1,15 @@
-use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::Address;
-use futures::stream::{FuturesUnordered, StreamExt};
 use itertools::Itertools;
-use notification::service::SendNotificationInput;
-use notification::{
-    payloads::payment::PaymentPayload, service::Service as NotificationService,
-    NotificationPayloadBuilder, NotificationPayloadType,
-};
 use std::str::FromStr;
-use types::account::identifiers::AccountId;
 
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use tracing::{event, instrument, Level};
 
 use super::WorkerState;
 use crate::error::WorkerError;
+use crate::jobs::helpers::customer_address::{
+    notify_customers_with_addresses, PaymentNotificationType,
+};
 
 #[instrument(skip(state))]
 pub async fn handler(state: &WorkerState, sleep_duration_seconds: u64) -> Result<(), WorkerError> {
@@ -83,71 +78,7 @@ pub async fn run_once(state: &WorkerState) -> Result<(), WorkerError> {
         .unique()
         .collect();
     event!(Level::INFO, "{} addresses found in blocks", addresses.len());
-
-    let account_ids: Vec<AccountId> = state
-        .address_repo
-        .get(&addresses)
-        .await?
-        .values()
-        .cloned()
-        .unique()
-        .collect();
-    event!(
-        Level::INFO,
-        "{} accounts found with payments",
-        account_ids.len()
-    );
-    let mut futures = FuturesUnordered::new();
-    for account_id in account_ids {
-        futures.push(process_account_id(account_id, state));
-    }
-    while let Some(result) = futures.next().await {
-        if let Err(e) = result {
-            event!(Level::ERROR, "Unable to send push notification {e}");
-        }
-    }
-
+    notify_customers_with_addresses(state, addresses, PaymentNotificationType::Confirmed).await?;
     event!(Level::INFO, "Ending blockchain polling job");
-    Ok(())
-}
-
-async fn process_account_id(account_id: AccountId, state: &WorkerState) -> Result<(), WorkerError> {
-    let account = state
-        .account_service
-        .fetch_account(FetchAccountInput {
-            account_id: &account_id,
-        })
-        .await
-        .map_err(|e| WorkerError::AccountErrorWithId(account_id.clone(), e))?;
-
-    // Dont send a push notification if one isn't registered
-    account
-        .get_push_touchpoint()
-        .ok_or_else(|| WorkerError::TouchpointNotFound(account_id.clone()))?;
-
-    send_new_tx_notifications(&account_id, &state.notification_service).await
-}
-
-async fn send_new_tx_notifications(
-    account_id: &AccountId,
-    service: &NotificationService,
-) -> Result<(), WorkerError> {
-    event!(Level::INFO, "Sending notification for account {account_id}");
-
-    let payload = NotificationPayloadBuilder::default()
-        .payment_payload(Some(PaymentPayload {
-            account_id: account_id.clone(),
-        }))
-        .build()?;
-
-    service
-        .send_notification(SendNotificationInput {
-            account_id,
-            payload_type: NotificationPayloadType::PaymentNotification,
-            payload: &payload,
-            only_touchpoints: None,
-        })
-        .await?;
-
     Ok(())
 }

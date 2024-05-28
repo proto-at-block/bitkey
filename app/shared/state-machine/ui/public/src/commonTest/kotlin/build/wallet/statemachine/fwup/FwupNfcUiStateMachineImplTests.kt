@@ -3,7 +3,6 @@ package build.wallet.statemachine.fwup
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcException
-import build.wallet.platform.config.DeviceOs
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.ScreenStateMachineMock
@@ -33,8 +32,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   val stateMachine =
     FwupNfcUiStateMachineImpl(
       deviceInfoProvider = deviceInfoProvider,
-      fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine,
-      deviceOs = DeviceOs.Other
+      fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine
     )
 
   val onDoneCalls = turbines.create<Unit>("onDone calls")
@@ -153,7 +151,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       testBottomSheetContent(
         error = NfcException.CommandErrorUnauthenticated(),
         expectedTitle = "Device Locked",
-        expectedSubline = "Unlock your device with the fingerprint you enrolled during setup and try again.",
+        expectedSubline = "Unlock your device with an enrolled fingerprint and try again.",
         withUpdateInProgress = false,
         withTransactionType = FwupTransactionType.StartFromBeginning
       )

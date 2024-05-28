@@ -11,7 +11,7 @@ internal fun PartnershipTransaction.toEntity(): PartnershipTransactionEntity {
     type = type,
     status = status,
     context = context,
-    partnerId = partnerInfo.partner,
+    partnerId = partnerInfo.partnerId.value,
     partnerLogoUrl = partnerInfo.logoUrl,
     partnerName = partnerInfo.name,
     cryptoAmount = cryptoAmount,
@@ -34,7 +34,7 @@ internal fun PartnershipTransactionEntity.toModel(): PartnershipTransaction {
     status = status,
     context = context,
     partnerInfo = PartnerInfo(
-      partner = partnerId,
+      partnerId = PartnerId(partnerId),
       logoUrl = partnerLogoUrl,
       name = partnerName
     ),

@@ -1,4 +1,4 @@
-import core
+import firmware
 import CoreNFC
 import Shared
 
@@ -72,8 +72,8 @@ public final class NfcCommandsImpl: NfcCommands {
         return .init(fragment: events.fragment.map { KotlinUByte(value: $0) }, remainingSize: events.remainingSize)
     }
 
-    public func getFingerprintEnrollmentStatus(session: NfcSession) async throws -> Shared.FingerprintEnrollmentStatus {
-        let status = try await GetFingerprintEnrollmentStatus().transceive(session: session)
+    public func getFingerprintEnrollmentStatus(session: NfcSession, isEnrollmentContextAware: Bool) async throws -> Shared.FingerprintEnrollmentStatus {
+        let status = try await GetFingerprintEnrollmentStatus(isEnrollmentContextAware:isEnrollmentContextAware).transceive(session: session)
         switch status {
         case .statusUnspecified:
             return .unspecified
@@ -107,7 +107,10 @@ public final class NfcCommandsImpl: NfcCommands {
                                                         ).transceive(session: session))
     }
     
-
+    public func cancelFingerprintEnrollment(session: NfcSession) async throws -> KotlinBoolean {
+        return .init(bool: try await CancelFingerprintEnrollment().transceive(session: session))
+    }
+    
     public func getFirmwareMetadata(session: NfcSession) async throws -> Shared.FirmwareMetadata {
         return .init(coreMetadata: try await GetFirmwareMetadata()
             .transceive(session: session))
@@ -198,7 +201,7 @@ public final class NfcCommandsImpl: NfcCommands {
 // MARK: -
 
 private extension Shared.FwupMode {
-    func toCoreFwupMode() -> core.FwupMode {
+    func toCoreFwupMode() -> firmware.FwupMode {
         switch self {
         case .delta: return .delta
         case .normal: return .normal
@@ -221,7 +224,7 @@ private extension FwupFinishRspStatus {
     }
 }
 
-private extension core.FirmwareFeatureFlagCfg {
+private extension firmware.FirmwareFeatureFlagCfg {
     func toSharedFirmwareFeatureFlagCfg() -> Shared.FirmwareFeatureFlagCfg {
         switch self.flag {
         case .deviceInfoFlag: return Shared.FirmwareFeatureFlagCfg(flag: Shared.FirmwareFeatureFlag.deviceInfoFlag, enabled: self.enabled)
@@ -234,7 +237,7 @@ private extension core.FirmwareFeatureFlagCfg {
 }
 
 private extension FirmwareCertType {
-    func toCoreCertType() -> core.CertType {
+    func toCoreCertType() -> firmware.CertType {
         switch self {
         case .batch: return .batchCert
         case .identity: return .deviceHostCert
@@ -243,7 +246,7 @@ private extension FirmwareCertType {
     }
 }
 
-private extension core.EnrolledFingerprints {
+private extension firmware.EnrolledFingerprints {
     func toSharedEnrolledFingerprints() -> Shared.EnrolledFingerprints {
         return Shared.EnrolledFingerprints(maxCount: Int32(self.maxCount),
                                            fingerprintHandles: self.fingerprints.map({ $0.toSharedFingerprintHandle()})
@@ -251,7 +254,7 @@ private extension core.EnrolledFingerprints {
     }
 }
 
-private extension core.UnlockInfo {
+private extension firmware.UnlockInfo {
     func toSharedUnlockInfo() -> Shared.UnlockInfo {
         return Shared.UnlockInfo(unlockMethod: self.method.toSharedUnlockMethod(),
                                  fingerprintIdx: self.fingerprintIndex.map({ KotlinInt(int: Int32($0)) })
@@ -259,7 +262,7 @@ private extension core.UnlockInfo {
     }
 }
 
-private extension core.UnlockMethod {
+private extension firmware.UnlockMethod {
     func toSharedUnlockMethod() -> Shared.UnlockMethod {
         switch self {
         case .unspecified: return .unspecified
@@ -269,7 +272,7 @@ private extension core.UnlockMethod {
     }
 }
 
-private extension core.FingerprintHandle {
+private extension firmware.FingerprintHandle {
     func toSharedFingerprintHandle() -> Shared.FingerprintHandle {
         return Shared.FingerprintHandle(index: Int32(self.index), label: self.label)
     }

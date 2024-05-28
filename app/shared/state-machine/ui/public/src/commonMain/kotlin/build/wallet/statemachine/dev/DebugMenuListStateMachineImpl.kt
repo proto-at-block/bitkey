@@ -29,8 +29,6 @@ import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiStateMachine
-import build.wallet.statemachine.dev.lightning.LightningOptionsUiProps
-import build.wallet.statemachine.dev.lightning.LightningOptionsUiStateMachine
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -51,7 +49,6 @@ class DebugMenuListStateMachineImpl(
   private val f8eEnvironmentPickerUiStateMachine: F8eEnvironmentPickerUiStateMachine,
   private val featureFlagsOptionsUiStateMachine: FeatureFlagsOptionsUiStateMachine,
   private val infoOptionsUiStateMachine: InfoOptionsUiStateMachine,
-  private val lightningOptionsUiStateMachine: LightningOptionsUiStateMachine,
   private val onboardingAppKeyDeletionUiStateMachine: OnboardingAppKeyDeletionUiStateMachine,
   private val onboardingConfigStateMachine: OnboardingConfigStateMachine,
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
@@ -92,7 +89,6 @@ class DebugMenuListStateMachineImpl(
             props = props,
             onActionConfirmationRequest = { actionConfirmation = it }
           ),
-          LightningOptionsListGroupModel(props.onSetState),
           LogsListGroupModel(props.onSetState),
           AnalyticsOptionsListGroupModel(props.onSetState),
           FeatureFlagsOptionsListGroupModel(props.onSetState),
@@ -132,7 +128,8 @@ class DebugMenuListStateMachineImpl(
     accountData: AccountData,
     onDone: () -> Unit,
   ): BodyModel? {
-    val requiresLogin = !(accountData is AccountData.HasActiveFullAccountData || accountData is HasActiveLiteAccountData)
+    val requiresLogin =
+      !(accountData is AccountData.HasActiveFullAccountData || accountData is HasActiveLiteAccountData)
     var cloudLoggedIn: Boolean by remember { mutableStateOf(false) }
 
     if (requiresLogin && !cloudLoggedIn) {
@@ -234,16 +231,6 @@ class DebugMenuListStateMachineImpl(
           onFirmwareMetadataClick = {
             props.onSetState(DebugMenuState.ShowingFirmwareMetadata(isHardwareFake))
           }
-        )
-    )
-  }
-
-  @Composable
-  private fun LightningOptionsListGroupModel(setState: (DebugMenuState) -> Unit): ListGroupModel? {
-    return lightningOptionsUiStateMachine.model(
-      props =
-        LightningOptionsUiProps(
-          onLightningOptionsClick = { setState(DebugMenuState.ShowingLightningDebugMenu) }
         )
     )
   }
@@ -360,7 +347,12 @@ class DebugMenuListStateMachineImpl(
       F8eEnvironmentPickerUiProps(
         accountData = props.accountData,
         openCustomUrlInput = { customUrl, templateFullAccountConfigData ->
-          props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl, templateFullAccountConfigData))
+          props.onSetState(
+            DebugMenuState.ShowingF8eCustomUrl(
+              customUrl,
+              templateFullAccountConfigData
+            )
+          )
         }
       )
     )

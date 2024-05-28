@@ -23,7 +23,7 @@ class OnboardingServiceImpl(
       .catching {
         post(urlString = "/api/accounts/${fullAccountId.serverId}/complete-onboarding") {
           withDescription("Complete onboarding")
-          setRedactedBody(EmptyRequestBody())
+          setRedactedBody(EmptyRequestBody)
         }
       }
       .mapUnit()

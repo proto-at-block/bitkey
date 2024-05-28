@@ -2,7 +2,7 @@ package build.wallet.encrypt
 
 import build.wallet.toUByteList
 import okio.ByteString
-import build.wallet.core.SecretKey as CoreSecretKey
+import build.wallet.rust.core.SecretKey as CoreSecretKey
 
 class MessageSignerImpl : MessageSigner {
   @Deprecated(

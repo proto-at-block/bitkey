@@ -1,6 +1,7 @@
 package build.wallet.ui.components.amount
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +19,8 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.icon.Icon
 import build.wallet.ui.components.label.AutoResizedLabel
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.layout.CollapsedMoneyView
+import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.theme.WalletTheme
@@ -35,14 +38,16 @@ fun HeroAmount(
   primaryAmount: AnnotatedString,
   primaryAmountLabelType: LabelType = LabelType.Display2,
   secondaryAmountWithCurrency: String?,
+  hideBalance: Boolean = false,
   disabled: Boolean = false,
   onSwapClick: (() -> Unit)? = null,
 ) {
-  Column(
+  CollapsibleLabelContainer(
     modifier = modifier,
-    horizontalAlignment = Alignment.CenterHorizontally
-  ) {
-    Row {
+    collapsed = hideBalance,
+    verticalArrangement = Arrangement.Center,
+    horizontalAlignment = Alignment.CenterHorizontally,
+    topContent = {
       AutoResizedLabel(
         text = primaryAmount,
         type = primaryAmountLabelType,
@@ -53,41 +58,66 @@ fun HeroAmount(
             LabelTreatment.Primary
           }
       )
+    },
+    bottomContent = secondaryAmountWithCurrency?.let {
+      {
+        HeroAmountBottom(
+          secondaryAmountWithCurrency = secondaryAmountWithCurrency,
+          disabled = disabled,
+          onSwapClick = onSwapClick
+        )
+      }
+    },
+    collapsedContent = {
+      CollapsedMoneyView(
+        height = 36.dp,
+        modifier = Modifier
+      )
     }
-    if (secondaryAmountWithCurrency != null) {
-      Spacer(Modifier.height(8.dp))
-      Row(
-        modifier =
-          Modifier.thenIf(onSwapClick != null) {
+  )
+}
+
+@Composable
+private fun HeroAmountBottom(
+  secondaryAmountWithCurrency: String?,
+  disabled: Boolean = false,
+  onSwapClick: (() -> Unit)? = null,
+) {
+  Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Spacer(Modifier.height(8.dp))
+    Row(
+      modifier =
+        Modifier
+          .thenIf(onSwapClick != null) {
             Modifier.clickable {
               onSwapClick?.invoke()
             }
           },
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        AutoResizedLabel(
-          text = secondaryAmountWithCurrency,
-          type = LabelType.Body1Medium,
-          treatment =
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.Center
+    ) {
+      AutoResizedLabel(
+        text = secondaryAmountWithCurrency.orEmpty(),
+        type = LabelType.Body1Medium,
+        treatment =
+          if (disabled) {
+            LabelTreatment.Disabled
+          } else {
+            LabelTreatment.Secondary
+          }
+      )
+      Spacer(Modifier.width(4.dp))
+      if (onSwapClick != null) {
+        Icon(
+          icon = Icon.SmallIconSwap,
+          size = Small,
+          color =
             if (disabled) {
-              LabelTreatment.Disabled
+              WalletTheme.colors.foreground30
             } else {
-              LabelTreatment.Secondary
+              WalletTheme.colors.foreground60
             }
         )
-        Spacer(Modifier.width(4.dp))
-        if (onSwapClick != null) {
-          Icon(
-            icon = Icon.SmallIconSwap,
-            size = Small,
-            color =
-              if (disabled) {
-                WalletTheme.colors.foreground30
-              } else {
-                WalletTheme.colors.foreground60
-              }
-          )
-        }
       }
     }
   }
@@ -175,6 +205,20 @@ internal fun HeroAmountNoSecondary() {
       primaryAmount = AnnotatedString("$1,221.00"),
       secondaryAmountWithCurrency = null,
       disabled = true,
+      onSwapClick = {}
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun HeroAmountHideAmount() {
+  PreviewWalletTheme {
+    HeroAmount(
+      primaryAmount = AnnotatedString("$1,221.00"),
+      secondaryAmountWithCurrency = "test",
+      disabled = true,
+      hideBalance = true,
       onSwapClick = {}
     )
   }

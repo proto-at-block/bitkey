@@ -11,11 +11,12 @@ Each directory in our repository is a seperate project— each with its own buil
 | Directory                                      | Description                                                           |
 | ---------------------------------------------- | --------------------------------------------------------------------- |
 | [`app/android`](app/android)                   | Android mobile app                                                    |
-| [`app/core`](app/core)                         | Key and wallet management (shared)                                    |
+| [`app/rust`](app/core)                         | Key and wallet management                                             |
 | [`app/ios`](app/ios)                           | iOS mobile app                                                        |
 | [`app/shared`](app/shared)                     | Kotlin Multiplatform code shared between Android and iOS              |
 | [`app/style`](app/style)                       | Style Dictionary (shared)                                             |
 | [`app`](app)                                   | Our mobile application's project root                                 |
+| [`core`](core)                                 | Shared rust libraries                                                 |
 | [`firmware`](firmware)                         | Code that powers the Bitkey hardware device                           |
 | [`nodes`](nodes)                               | Nodes (bitcoind / electrum) and service                               |
 | [`server`](server)                             | API Server and Wallet Security Module (WSM)                           |

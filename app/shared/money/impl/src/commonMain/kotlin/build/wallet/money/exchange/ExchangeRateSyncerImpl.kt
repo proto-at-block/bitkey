@@ -26,8 +26,7 @@ class ExchangeRateSyncerImpl(
 ) : ExchangeRateSyncer {
   private val internalFlow = MutableStateFlow<List<ExchangeRate>>(emptyList())
 
-  override val exchangeRates: StateFlow<List<ExchangeRate>>
-    get() = internalFlow.asStateFlow()
+  override val exchangeRates: StateFlow<List<ExchangeRate>> = internalFlow.asStateFlow()
 
   /**
    * Launches non blocking coroutine and keeps syncing exchange rates as long as [CoroutineScope] is

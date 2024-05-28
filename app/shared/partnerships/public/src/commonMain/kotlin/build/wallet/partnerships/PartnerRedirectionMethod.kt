@@ -23,5 +23,8 @@ sealed class PartnerRedirectionMethod {
   /**
    * Partner is redirected via a web url
    */
-  data class Web(val urlString: String) : PartnerRedirectionMethod()
+  data class Web(
+    val urlString: String,
+    val partnerInfo: PartnerInfo,
+  ) : PartnerRedirectionMethod()
 }

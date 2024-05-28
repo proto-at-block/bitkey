@@ -5,6 +5,7 @@ import android.os.Build.VERSION_CODES
 import android.os.StrictMode
 import android.os.StrictMode.ThreadPolicy
 import android.os.StrictMode.VmPolicy
+import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Development
@@ -42,9 +43,7 @@ class StrictModeEnablerImpl(
 private fun VmPolicy.Builder.reportErrorOnViolation(): VmPolicy.Builder {
   return if (VERSION.SDK_INT >= VERSION_CODES.P) {
     penaltyListener(Executors.newSingleThreadExecutor()) {
-      log(tag = STRICT_MODE_TAG, throwable = it.cause) {
-        "Strict mode violation: ${it.message}"
-      }
+      logStrictModeViolation(it)
     }
   } else {
     this
@@ -57,12 +56,20 @@ private fun VmPolicy.Builder.reportErrorOnViolation(): VmPolicy.Builder {
 private fun ThreadPolicy.Builder.reportErrorOnViolation(): ThreadPolicy.Builder {
   return if (VERSION.SDK_INT >= VERSION_CODES.P) {
     penaltyListener(Executors.newSingleThreadExecutor()) {
-      log(tag = STRICT_MODE_TAG, throwable = it.cause) {
-        "Strict mode violation: ${it.message}"
-      }
+      logStrictModeViolation(it)
     }
   } else {
     this
+  }
+}
+
+private fun logStrictModeViolation(throwable: Throwable) {
+  log(
+    tag = STRICT_MODE_TAG,
+    level = LogLevel.Warn,
+    throwable = throwable
+  ) {
+    "Strict mode violation: $throwable"
   }
 }
 

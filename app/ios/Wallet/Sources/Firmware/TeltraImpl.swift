@@ -1,4 +1,4 @@
-import core
+import firmware
 import Foundation
 import Shared
 
@@ -11,9 +11,9 @@ public final class TeltraImpl: Shared.Teltra {
         identifiers: Shared.TelemetryIdentifiers
     ) -> [[KotlinUByte]] {
         do {
-            return try core.Teltra().translateBitlogs(
+            return try firmware.Teltra().translateBitlogs(
                 bitlogBytes: bitlogs.map { $0.uint8Value },
-                identifiers: core.TelemetryIdentifiers(
+                identifiers: firmware.TelemetryIdentifiers(
                     serial: identifiers.serial,
                     version: identifiers.version,
                     swType: identifiers.swType,

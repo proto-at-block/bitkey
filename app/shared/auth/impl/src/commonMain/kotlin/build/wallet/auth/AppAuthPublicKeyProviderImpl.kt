@@ -5,10 +5,11 @@ import build.wallet.account.AccountStatus
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.account.requireAppRecoveryAuthKey
+import build.wallet.bitkey.account.appRecoveryAuthKey
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
+import build.wallet.ensure
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError
@@ -16,7 +17,6 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.binding.binding
-import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 
@@ -62,42 +62,41 @@ class AppAuthPublicKeyProviderImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Result<Account?, AuthError> {
-    return accountRepository.accountStatus().first()
-      .mapError { FailedToReadAccountStatus(it) }
-      .flatMap { accountStatus ->
-        // Get the current account from the account status, or early return null if there is no account
-        val account =
-          when (accountStatus) {
-            is AccountStatus.NoAccount -> return@flatMap Ok(null)
-            is AccountStatus.ActiveAccount -> accountStatus.account
-            is AccountStatus.OnboardingAccount -> accountStatus.account
-            is AccountStatus.LiteAccountUpgradingToFullAccount -> accountStatus.account
-          }
+    return binding {
+      val accountStatus = accountRepository.accountStatus().first()
+        .mapError { FailedToReadAccountStatus(it) }
+        .bind()
 
-        // Check that the returned account matches the expected [F8eEnvironment] and [AccountId]
-        if (account.config.f8eEnvironment != f8eEnvironment) {
-          return@flatMap Err(
-            UnhandledError(
-              IllegalStateException(
-                "Current account f8e environment: ${account.config.f8eEnvironment}. Requested f8e environment: $f8eEnvironment "
-              )
-            )
-          )
-        }
-
-        if (account.accountId.serverId != accountId.serverId) {
-          return@flatMap Err(
-            UnhandledError(
-              IllegalStateException(
-                "Current account ID: ${account.accountId.serverId}. Requested account ID: ${accountId.serverId}"
-              )
-            )
-          )
-        }
-
-        // Return the account
-        Ok(account)
+      // Get the current account from the account status, or early return null if there is no account
+      val account: Account? = when (accountStatus) {
+        is AccountStatus.NoAccount -> null
+        is AccountStatus.ActiveAccount -> accountStatus.account
+        is AccountStatus.OnboardingAccount -> accountStatus.account
+        is AccountStatus.LiteAccountUpgradingToFullAccount -> accountStatus.account
       }
+
+      if (account != null) {
+        // Check that the returned account matches the expected [F8eEnvironment] and [AccountId]
+        ensure(account.config.f8eEnvironment == f8eEnvironment) {
+          UnhandledError(
+            IllegalStateException(
+              "Current account f8e environment: ${account.config.f8eEnvironment}. Requested f8e environment: $f8eEnvironment "
+            )
+          )
+        }
+
+        ensure(account.accountId.serverId == accountId.serverId) {
+          UnhandledError(
+            IllegalStateException(
+              "Current account ID: ${account.accountId.serverId}. Requested account ID: ${accountId.serverId}"
+            )
+          )
+        }
+      }
+
+      // Return the account, if any
+      account
+    }
   }
 }
 
@@ -113,7 +112,7 @@ private fun Account.appAuthPublicKey(
       Ok(
         when (tokenScope) {
           AuthTokenScope.Global -> keybox.activeAppKeyBundle.authKey
-          AuthTokenScope.Recovery -> requireAppRecoveryAuthKey()
+          AuthTokenScope.Recovery -> appRecoveryAuthKey
         }
       )
 

@@ -116,6 +116,81 @@ interface StyleDictionaryColors {
 
   // Color for the out of date icon in the app status screen
   val outOfDate: Color
+
+  // Default callout title color
+  val calloutDefaultTitle: Color
+
+  // Default callout subtitle color
+  val calloutDefaultSubtitle: Color
+
+  // Default callout background color
+  val calloutDefaultBackground: Color
+
+  // Default callout title color
+  val calloutDefaultTrailingIcon: Color
+
+  // Default callout title color
+  val calloutDefaultTrailingIconBackground: Color
+
+  // Information callout title color
+  val calloutInformationTitle: Color
+
+  // Information callout subtitle color
+  val calloutInformationSubtitle: Color
+
+  // Information callout background color
+  val calloutInformationBackground: Color
+
+  // Information callout trailing icon color
+  val calloutInformationTrailingIcon: Color
+
+  // Information callout trailing icon background color
+  val calloutInformationTrailingIconBackground: Color
+
+  // Success callout title color
+  val calloutSuccessTitle: Color
+
+  // Success callout subtitle color
+  val calloutSuccessSubtitle: Color
+
+  // Success callout background color
+  val calloutSuccessBackground: Color
+
+  // Success callout trailing icon color
+  val calloutSuccessTrailingIcon: Color
+
+  // Success callout trailing icon background color
+  val calloutSuccessTrailingIconBackground: Color
+
+  // Warning callout title color
+  val calloutWarningTitle: Color
+
+  // Warning callout subtitle color
+  val calloutWarningSubtitle: Color
+
+  // Warning callout background color
+  val calloutWarningBackground: Color
+
+  // Warning callout trailing icon color
+  val calloutWarningTrailingIcon: Color
+
+  // Warning callout trailing icon background color
+  val calloutWarningTrailingIconBackground: Color
+
+  // Danger callout title color
+  val calloutDangerTitle: Color
+
+  // Danger callout subtitle color
+  val calloutDangerSubtitle: Color
+
+  // Danger callout background color
+  val calloutDangerBackground: Color
+
+  // Danger callout trailing icon color
+  val calloutDangerTrailingIcon: Color
+
+  // Danger callout trailing icon background color
+  val calloutDangerTrailingIconBackground: Color
 }
 
 val lightStyleDictionaryColors =
@@ -157,6 +232,31 @@ val lightStyleDictionaryColors =
     override val bitkeyGetStartedBackground: Color = Color(0xff201e22)
     override val bitkeyGetStartedTint: Color = Color(0xfff8f4e4)
     override val outOfDate: Color = Color(0xffeca900)
+    override val calloutDefaultTitle: Color = Color(0xe5000000)
+    override val calloutDefaultSubtitle: Color = Color(0xb2000000)
+    override val calloutDefaultBackground: Color = Color(0xfff2f2f2)
+    override val calloutDefaultTrailingIcon: Color = Color(0xffffffff)
+    override val calloutDefaultTrailingIconBackground: Color = Color(0xff000000)
+    override val calloutInformationTitle: Color = Color(0xff004b73)
+    override val calloutInformationSubtitle: Color = Color(0xff004b73)
+    override val calloutInformationBackground: Color = Color(0x1a0c9ada)
+    override val calloutInformationTrailingIcon: Color = Color(0xffffffff)
+    override val calloutInformationTrailingIconBackground: Color = Color(0xff0c9ada)
+    override val calloutSuccessTitle: Color = Color(0xff0b5c1f)
+    override val calloutSuccessSubtitle: Color = Color(0xff0b5c1f)
+    override val calloutSuccessBackground: Color = Color(0x1a90c300)
+    override val calloutSuccessTrailingIcon: Color = Color(0xffffffff)
+    override val calloutSuccessTrailingIconBackground: Color = Color(0xff90c300)
+    override val calloutWarningTitle: Color = Color(0xff874900)
+    override val calloutWarningSubtitle: Color = Color(0xff874900)
+    override val calloutWarningBackground: Color = Color(0x1afd8a00)
+    override val calloutWarningTrailingIcon: Color = Color(0xffffffff)
+    override val calloutWarningTrailingIconBackground: Color = Color(0xfffd8a00)
+    override val calloutDangerTitle: Color = Color(0xff74140d)
+    override val calloutDangerSubtitle: Color = Color(0xff74140d)
+    override val calloutDangerBackground: Color = Color(0x1ae14425)
+    override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
+    override val calloutDangerTrailingIconBackground: Color = Color(0xffe14425)
   }
 
 val darkStyleDictionaryColors =
@@ -198,4 +298,29 @@ val darkStyleDictionaryColors =
     override val bitkeyGetStartedBackground: Color = Color(0xff201e22)
     override val bitkeyGetStartedTint: Color = Color(0xfff8f4e4)
     override val outOfDate: Color = Color(0xffeca900)
+    override val calloutDefaultTitle: Color = Color(0xe5000000)
+    override val calloutDefaultSubtitle: Color = Color(0xb2000000)
+    override val calloutDefaultBackground: Color = Color(0xfff2f2f2)
+    override val calloutDefaultTrailingIcon: Color = Color(0xffffffff)
+    override val calloutDefaultTrailingIconBackground: Color = Color(0xff000000)
+    override val calloutInformationTitle: Color = Color(0xff004b73)
+    override val calloutInformationSubtitle: Color = Color(0xff004b73)
+    override val calloutInformationBackground: Color = Color(0x1a0c9ada)
+    override val calloutInformationTrailingIcon: Color = Color(0xffffffff)
+    override val calloutInformationTrailingIconBackground: Color = Color(0xff0c9ada)
+    override val calloutSuccessTitle: Color = Color(0xff0b5c1f)
+    override val calloutSuccessSubtitle: Color = Color(0xff0b5c1f)
+    override val calloutSuccessBackground: Color = Color(0x1a90c300)
+    override val calloutSuccessTrailingIcon: Color = Color(0xffffffff)
+    override val calloutSuccessTrailingIconBackground: Color = Color(0xff90c300)
+    override val calloutWarningTitle: Color = Color(0xff874900)
+    override val calloutWarningSubtitle: Color = Color(0xff874900)
+    override val calloutWarningBackground: Color = Color(0x1afd8a00)
+    override val calloutWarningTrailingIcon: Color = Color(0xffffffff)
+    override val calloutWarningTrailingIconBackground: Color = Color(0xfffd8a00)
+    override val calloutDangerTitle: Color = Color(0xff74140d)
+    override val calloutDangerSubtitle: Color = Color(0xff74140d)
+    override val calloutDangerBackground: Color = Color(0x1ae14425)
+    override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
+    override val calloutDangerTrailingIconBackground: Color = Color(0xffe14425)
   }

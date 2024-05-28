@@ -51,7 +51,7 @@ internal suspend fun logRequest(
       appendLine(description)
     }
     appendLine("REQUEST: ${request.url.build()}")
-    appendLine("METHOD: ${request.method}")
+    appendLine("METHOD: ${request.method.value}")
     appendLine("HEADERS")
     appendHeaders(request.headers.build(), isDebug, headerSanitizers)
 
@@ -172,7 +172,7 @@ internal fun StringBuilder.appendResponseHeader(
     appendLine(description)
   }
   appendLine("RESPONSE: ${response.status}")
-  appendLine("METHOD: ${response.call.request.method}")
+  appendLine("METHOD: ${response.call.request.method.value}")
   appendLine("FROM: ${response.call.request.url}")
 
   appendLine("HEADERS")

@@ -1,10 +1,10 @@
 package build.wallet.crypto
 
-import build.wallet.core.Spake2Context
+import build.wallet.rust.core.Spake2Context
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import build.wallet.core.Spake2Keys as CoreSpake2Keys
-import build.wallet.core.Spake2Role as CoreSpake2Role
+import build.wallet.rust.core.Spake2Keys as CoreSpake2Keys
+import build.wallet.rust.core.Spake2Role as CoreSpake2Role
 
 class Spake2Impl : Spake2 {
   override fun generateKeyPair(spake2Params: Spake2Params): Spake2KeyPair {

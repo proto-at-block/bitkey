@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     env,
     fmt::{self, Debug, Formatter},
     time::Duration,
@@ -6,7 +7,12 @@ use std::{
 
 use async_trait::async_trait;
 use aws_config::{retry::RetryConfig, timeout::TimeoutConfig, BehaviorVersion, SdkConfig};
-use aws_sdk_dynamodb::{config::Builder, error::SdkError, operation::scan::ScanError};
+use aws_sdk_dynamodb::{
+    config::Builder,
+    error::{ProvideErrorMetadata, SdkError},
+    operation::{batch_write_item::BatchWriteItemError, scan::ScanError},
+    types::WriteRequest,
+};
 use aws_sdk_dynamodb::{error::BuildError, Client};
 use aws_smithy_async::rt::sleep::default_async_sleep;
 use aws_types::region::Region;
@@ -17,8 +23,11 @@ use serde_dynamo::{
     from_item, from_items, to_attribute_value, to_item, AttributeValue, Item, Items,
 };
 use thiserror::Error;
+use tracing::{event, instrument, Level};
 
 use crate::{build_fake_sdk_config, DBMode};
+
+pub const CHUNK_SIZE_MAX: usize = 25;
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -101,6 +110,7 @@ impl Connection {
             }
             DatabaseObject::SignedPsbtCache => ("SIGNED_PSBT_CACHE_TABLE", "SignedPsbtCache"),
             DatabaseObject::AddressWatchlist => ("ADDRESS_WATCHLIST_TABLE", "AddressWatchlist"),
+            DatabaseObject::MempoolIndexer => ("MEMPOOL_INDEXER_TABLE", "MempoolIndexer"),
             DatabaseObject::Migration => ("MIGRATION_TABLE", "Migration"),
             DatabaseObject::SocialRecovery => ("SOCIAL_RECOVERY_TABLE", "SocialRecovery"),
             DatabaseObject::Consent => ("CONSENT_TABLE", "Consent"),
@@ -178,6 +188,7 @@ pub enum DatabaseObject {
     DailySpendingRecord,
     SignedPsbtCache,
     AddressWatchlist,
+    MempoolIndexer,
     Migration,
     SocialRecovery,
     Consent,
@@ -194,6 +205,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::DailySpendingRecord => write!(f, "DailySpendingRecord"),
             DatabaseObject::SignedPsbtCache => write!(f, "SignedPsbtCache"),
             DatabaseObject::AddressWatchlist => write!(f, "AddressWatchList"),
+            DatabaseObject::MempoolIndexer => write!(f, "MempoolIndexer"),
             DatabaseObject::Migration => write!(f, "Migration"),
             DatabaseObject::SocialRecovery => write!(f, "SocialRecovery"),
             DatabaseObject::Consent => write!(f, "Consent"),
@@ -231,6 +243,8 @@ pub enum DatabaseError {
     SerializeAttributeValueError(DatabaseObject, serde_dynamo::Error),
     #[error("Could not fetch unique {0}")]
     ObjectNotUnique(DatabaseObject),
+    #[error("Could not add TTL specification on {0}")]
+    TimeToLiveSpecification(DatabaseObject),
 }
 
 impl From<DatabaseError> for ApiError {
@@ -249,7 +263,8 @@ impl From<DatabaseError> for ApiError {
             | DatabaseError::SerializeAttributeValueError(_, _)
             | DatabaseError::ObjectNotUnique(_)
             | DatabaseError::RequestContruction(_)
-            | DatabaseError::DeleteItemsError(_) => {
+            | DatabaseError::DeleteItemsError(_)
+            | DatabaseError::TimeToLiveSpecification(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             DatabaseError::ObjectNotFound(_) => ApiError::GenericNotFound(err_msg),
@@ -291,4 +306,78 @@ where
 {
     to_attribute_value(attr)
         .map_err(|e| DatabaseError::SerializeAttributeValueError(database_obj, e))
+}
+
+#[trait_variant::make(PersistBatchTrait: Send)]
+pub trait LocalPersistBatchTrait {
+    async fn persist(
+        &self,
+        client: &Client,
+        table_name: &str,
+        database_object: DatabaseObject,
+    ) -> Result<(), DatabaseError>;
+    async fn persist_batch_chunk(
+        client: &Client,
+        table_name: &str,
+        ops: &[WriteRequest],
+    ) -> Result<(), SdkError<BatchWriteItemError>>;
+
+    fn unprocessed_count(
+        unprocessed: Option<&HashMap<String, Vec<WriteRequest>>>,
+        table_name: &str,
+    ) -> usize;
+}
+
+impl PersistBatchTrait for Vec<WriteRequest> {
+    #[instrument]
+    async fn persist(
+        &self,
+        client: &Client,
+        table_name: &str,
+        database_object: DatabaseObject,
+    ) -> Result<(), DatabaseError> {
+        // Split the requests into chunks < DDB limitation
+        for chunk in self.chunks(CHUNK_SIZE_MAX) {
+            if let Err(err) =
+                <Self as PersistBatchTrait>::persist_batch_chunk(client, table_name, chunk).await
+            {
+                let service_err = err.into_service_error();
+                event!(
+                    Level::ERROR,
+                    "Could not persist records: {service_err:?} with message: {:?}",
+                    service_err.message()
+                );
+                return Err(DatabaseError::PersistenceError(database_object));
+            }
+        }
+        Ok(())
+    }
+
+    #[instrument]
+    async fn persist_batch_chunk(
+        client: &Client,
+        table_name: &str,
+        ops: &[WriteRequest],
+    ) -> Result<(), SdkError<BatchWriteItemError>> {
+        let mut unprocessed = Some(HashMap::from([(table_name.to_string(), ops.to_vec())]));
+        while <Self as PersistBatchTrait>::unprocessed_count(unprocessed.as_ref(), table_name) > 0 {
+            unprocessed = client
+                .batch_write_item()
+                .set_request_items(unprocessed)
+                .send()
+                .await?
+                .unprocessed_items;
+        }
+
+        Ok(())
+    }
+
+    fn unprocessed_count(
+        unprocessed: Option<&HashMap<String, Vec<WriteRequest>>>,
+        table_name: &str,
+    ) -> usize {
+        unprocessed
+            .map(|m| m.get(table_name).map(|v| v.len()).unwrap_or_default())
+            .unwrap_or_default()
+    }
 }

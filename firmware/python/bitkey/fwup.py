@@ -117,10 +117,11 @@ class Fwup:
 
     def start(self) -> bool:
         """Start the firmware update."""
-        if self.start_sequence_id > 0:
-            return True
         if not self._prepare():
             return False
+        if self.start_sequence_id > 0:
+            return True
+
         cmd = wallet_pb.wallet_cmd()
         msg = wallet_pb.fwup_start_cmd()
         msg.mode = self.mode
@@ -146,9 +147,15 @@ class Fwup:
 
         with open(self.binary, 'rb') as f:
             id = self.start_sequence_id
+            if id != 0:
+                print(f"Starting at sequence id {id}")
+
+            # Start data at the offset indicated by the start_sequence_id.
+            f.seek(id * self.params.chunk_size)
+            remaining = stat(self.binary).st_size - f.tell()
+
             data = f.read(self.params.chunk_size)
-            ui = tqdm(total=ceil(
-                stat(self.binary).st_size / self.params.chunk_size))
+            ui = tqdm(total=ceil(remaining / self.params.chunk_size))
 
             while data:
                 if timeout:

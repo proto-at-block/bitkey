@@ -2,6 +2,7 @@ package build.wallet.ui.model.icon
 
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
+import build.wallet.ui.model.icon.IconBackgroundType.Square
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
@@ -46,6 +47,7 @@ data class IconModel(
     get() =
       when (iconBackgroundType) {
         is Circle -> iconBackgroundType.circleSize
+        is Square -> iconBackgroundType.size
         else -> iconSize
       }
 }
@@ -145,6 +147,23 @@ sealed interface IconBackgroundType {
 
       /** White with a .2 transparency */
       TranslucentWhite,
+    }
+  }
+
+  /**
+   * Draws a square background behind the icon with padding.
+   */
+  data class Square(
+    val size: IconSize,
+    val color: Color,
+    val cornerRadius: Int,
+  ) : IconBackgroundType {
+    enum class Color {
+      Default,
+      Information,
+      Success,
+      Warning,
+      Danger,
     }
   }
 }

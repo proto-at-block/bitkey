@@ -66,7 +66,7 @@ class WalletFS:
             return buf
         except:
             return None
-        
+
     def remove_file(self, filename: str):
         try:
             self.fs.remove(filename)
@@ -98,7 +98,7 @@ class GDBFs:
     def __init__(self, ctx, target) -> None:
         self.meson = MesonBuild(ctx, target=target)
 
-    def fetch(self):
+    def fetch(self) -> WalletFS:
         fs = None
         with tempfile.NamedTemporaryFile(mode='wb') as tmp:
             with JLinkGdbServer(self.meson.platform["jlink_gdb_chip"]) as gdb:

@@ -4,6 +4,7 @@ import build.wallet.gradle.logic.KotlinMultiplatformPlugin
 import build.wallet.gradle.logic.gradle.apply
 import build.wallet.gradle.logic.rust.extension.KotlinMultiplatformRustExtension
 import build.wallet.gradle.logic.rust.util.RustToolchainProvider
+import build.wallet.gradle.logic.rust.util.RustupService
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -22,8 +23,16 @@ internal class KotlinMultiplatformRustPlugin : Plugin<Project> {
         RustToolchainProvider.SERVICE,
         RustToolchainProvider::class.java
       ) {
-        parameters.rustupPath.set(extension.rustupPath)
         parameters.cargoPath.set(extension.cargoPath)
+      }
+
+      gradle.sharedServices.registerIfAbsent(
+        RustupService.SERVICE,
+        RustupService::class.java
+      ) {
+        parameters.rustupPath.set(extension.rustupPath)
+        // Rustup is not concurrent-safe
+        maxParallelUsages.set(1)
       }
     }
   }

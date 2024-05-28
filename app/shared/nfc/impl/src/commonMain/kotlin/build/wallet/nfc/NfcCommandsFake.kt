@@ -119,8 +119,10 @@ class NfcCommandsFake(
     )
   }
 
-  override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
-    fingerprintEnrollmentStatus
+  override suspend fun getFingerprintEnrollmentStatus(
+    session: NfcSession,
+    isEnrollmentContextAware: Boolean,
+  ) = fingerprintEnrollmentStatus
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
@@ -134,6 +136,8 @@ class NfcCommandsFake(
   }
 
   override suspend fun getUnlockMethod(session: NfcSession) = UnlockInfo(UnlockMethod.BIOMETRICS, 0)
+
+  override suspend fun cancelFingerprintEnrollment(session: NfcSession): Boolean = true
 
   override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
     enrolledFingerprints

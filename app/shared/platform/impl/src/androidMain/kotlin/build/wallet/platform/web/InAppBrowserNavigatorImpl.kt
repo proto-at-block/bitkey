@@ -54,6 +54,12 @@ class InAppBrowserNavigatorImpl(
     onCloseBrowser = null
   }
 
+  override fun close() {
+    // Android doesn't provide a way to close custom tabs, but they "close" automatically
+    // when a new activity is started as that brings the app to the foreground
+    onClose()
+  }
+
   private fun isChromeAvailable(packageManager: PackageManager): Boolean {
     if (packageManager.getPackageInformation(CHROME_PACKAGE) == null) {
       return false

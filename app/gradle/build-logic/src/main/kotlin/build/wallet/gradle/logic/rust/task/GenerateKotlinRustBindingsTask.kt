@@ -2,7 +2,6 @@ package build.wallet.gradle.logic.rust.task
 
 import build.wallet.gradle.logic.rust.util.RustToolchainProvider
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.logging.LogLevel
@@ -26,7 +25,7 @@ internal abstract class GenerateKotlinRustBindingsTask : DefaultTask() {
   abstract val outputDirectory: DirectoryProperty
 
   @get:Internal
-  protected val workdir: Directory = project.layout.projectDirectory
+  abstract val workdir: DirectoryProperty
 
   @Suppress("UnstableApiUsage")
   @get:ServiceReference(RustToolchainProvider.SERVICE)
@@ -43,7 +42,7 @@ internal abstract class GenerateKotlinRustBindingsTask : DefaultTask() {
 
     output.mkdirs()
 
-    rust.get().getToolchain(workdir).cargo {
+    rust.get().getToolchain(workdir.get()).cargo {
       args("run")
 
       if (logger.isEnabled(LogLevel.INFO)) {

@@ -30,6 +30,9 @@ INSERT INTO partnershipTransactionEntity VALUES ?;
 getAll:
 SELECT * FROM partnershipTransactionEntity;
 
+getById:
+SELECT * FROM partnershipTransactionEntity WHERE transactionId = ?;
+
 delete:
 DELETE FROM partnershipTransactionEntity WHERE transactionId = ?;
 

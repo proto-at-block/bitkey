@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.datadoghq:dd-sdk-android-rum",
+    "components": [
+        {
+            "version": "2.9.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "dd-sdk-android-rum-2.9.0.aar": "ed20bc4ca837d69ddf1c3a49d821516ee3af9851010e1794ebae64e0cb652550"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

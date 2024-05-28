@@ -29,7 +29,7 @@ kotlin {
 
     val androidMain by getting {
       dependencies {
-        implementation(projects.core)
+        implementation(projects.rust.firmwareFfi)
       }
     }
   }

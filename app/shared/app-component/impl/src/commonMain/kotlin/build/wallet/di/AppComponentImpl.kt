@@ -4,6 +4,7 @@ import build.wallet.account.AccountDao
 import build.wallet.account.AccountDaoImpl
 import build.wallet.account.AccountRepository
 import build.wallet.account.AccountRepositoryImpl
+import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.account.analytics.AppInstallationDaoImpl
 import build.wallet.analytics.events.AnalyticsTrackingPreferenceImpl
 import build.wallet.analytics.events.AppDeviceIdDaoImpl
@@ -95,6 +96,7 @@ import build.wallet.feature.FeatureFlagSyncerImpl
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.MobileTestFeatureFlag
 import build.wallet.feature.StringFlagMobileTestFeatureFlag
+import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.firmware.FirmwareCoredumpQueueImpl
 import build.wallet.firmware.FirmwareCoredumpSenderImpl
 import build.wallet.firmware.FirmwareDeviceInfoDaoImpl
@@ -109,6 +111,7 @@ import build.wallet.fwup.FwupDataDaoImpl
 import build.wallet.fwup.FwupDataFetcherImpl
 import build.wallet.fwup.FwupManifestParserImpl
 import build.wallet.fwup.FwupProgressCalculatorImpl
+import build.wallet.inappsecurity.BiometricPreferenceImpl
 import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.KeyboxDaoImpl
@@ -121,7 +124,6 @@ import build.wallet.keybox.wallet.AppSpendingWalletProviderImpl
 import build.wallet.keybox.wallet.KeysetWalletProviderImpl
 import build.wallet.ktor.result.client.KtorLogLevelPolicy
 import build.wallet.ktor.result.client.KtorLogLevelPolicyImpl
-import build.wallet.ldk.LdkNodeServiceMock
 import build.wallet.logging.LogStoreWriterImpl
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.LogWriterContextStoreImpl
@@ -142,6 +144,7 @@ import build.wallet.notifications.DeviceTokenManagerImpl
 import build.wallet.notifications.RegisterWatchAddressQueueImpl
 import build.wallet.notifications.RegisterWatchAddressSenderImpl
 import build.wallet.platform.PlatformContext
+import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -156,9 +159,14 @@ import build.wallet.platform.permissions.PermissionCheckerImpl
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProviderImpl
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.platform.random.UuidGeneratorImpl
+import build.wallet.platform.settings.CountryCodeGuesser
+import build.wallet.platform.settings.CountryCodeGuesserImpl
+import build.wallet.platform.settings.LocaleCountryCodeProvider
 import build.wallet.platform.settings.LocaleCountryCodeProviderImpl
 import build.wallet.platform.settings.LocaleCurrencyCodeProviderImpl
 import build.wallet.platform.settings.LocaleLanguageCodeProviderImpl
+import build.wallet.platform.settings.TelephonyCountryCodeProvider
+import build.wallet.platform.settings.TelephonyCountryCodeProviderImpl
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.platform.versions.OsVersionInfoProviderImpl
 import build.wallet.queueprocessor.BatcherProcessorImpl
@@ -170,7 +178,6 @@ import build.wallet.recovery.RecoveryDaoImpl
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.SqlDriverFactoryImpl
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
-import build.wallet.statemachine.settings.full.device.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
@@ -248,6 +255,16 @@ class AppComponentImpl(
     NetworkingDebugConfigDaoImpl(bitkeyDatabaseProvider),
   override val networkingDebugConfigRepository: NetworkingDebugConfigRepository =
     NetworkingDebugConfigRepositoryImpl(networkingDebugConfigDao),
+  override val appInstallationDao: AppInstallationDao =
+    AppInstallationDaoImpl(bitkeyDatabaseProvider, uuidGenerator),
+  override val localeCountryCodeProvider: LocaleCountryCodeProvider =
+    LocaleCountryCodeProviderImpl(platformContext),
+  private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider =
+    TelephonyCountryCodeProviderImpl(platformContext),
+  private val countryCodeGuesser: CountryCodeGuesser = CountryCodeGuesserImpl(
+    localeCountryCodeProvider,
+    telephonyCountryCodeProvider
+  ),
   private val f8eHttpClientProvider: F8eHttpClientProvider =
     F8eHttpClientProvider(
       appId = appId,
@@ -255,7 +272,9 @@ class AppComponentImpl(
       appVariant = appVariant,
       platformInfoProvider = platformInfoProvider,
       datadogTracerPluginProvider = DatadogTracerPluginProvider(datadogTracer = datadogTracer),
-      networkingDebugConfigRepository = networkingDebugConfigRepository
+      networkingDebugConfigRepository = networkingDebugConfigRepository,
+      appInstallationDao = appInstallationDao,
+      countryCodeGuesser = countryCodeGuesser
     ),
   private val f8eNetworkReachabilityService: F8eNetworkReachabilityService =
     F8eNetworkReachabilityServiceImpl(
@@ -329,10 +348,9 @@ class AppComponentImpl(
     ),
   override val f8eExchangeRateService: F8eExchangeRateService =
     F8eExchangeRateServiceImpl(f8eHttpClient = f8eHttpClient),
+  override val biometricPrompter: BiometricPrompter,
 ) : AppComponent {
   override val appCoroutineScope = CoroutineScopes.AppScope
-  override val appInstallationDao =
-    AppInstallationDaoImpl(bitkeyDatabaseProvider, uuidGenerator)
   override val bugsnagContext = BugsnagContextImpl(appCoroutineScope, appInstallationDao)
   override val logWriterContextStore = LogWriterContextStoreImpl(appInstallationDao)
   private val logStoreWriter = LogStoreWriterImpl(logStore, clock)
@@ -394,6 +412,9 @@ class AppComponentImpl(
   override val inAppSecurityFeatureFlag = InAppSecurityFeatureFlag(
     featureFlagDao = featureFlagDao
   )
+  override val biometricPreference = BiometricPreferenceImpl(
+    databaseProvider = bitkeyDatabaseProvider
+  )
 
   override val mobileTestFeatureFlag =
     MobileTestFeatureFlag(featureFlagDao)
@@ -418,7 +439,6 @@ class AppComponentImpl(
   override val featureFlagInitializer = FeatureFlagInitializerImpl(allFeatureFlags)
   private val appDeviceIdDao = AppDeviceIdDaoImpl(secureStoreFactory, uuidGenerator)
   override val deviceInfoProvider = DeviceInfoProviderImpl()
-  override val localeCountryCodeProvider = LocaleCountryCodeProviderImpl(platformContext)
   override val localeLanguageCodeProvider = LocaleLanguageCodeProviderImpl(platformContext)
   override val getFeatureFlagsService = GetFeatureFlagsServiceImpl(
     f8eHttpClient = f8eHttpClient,
@@ -632,8 +652,6 @@ class AppComponentImpl(
       watchingWalletProvider = watchingWalletProvider,
       descriptorBuilder = bitcoinMultiSigDescriptorBuilder
     )
-  override val ldkNodeService =
-    LdkNodeServiceMock()
   override val extendedKeyGenerator =
     ExtendedKeyGeneratorImpl(bdkMnemonicGenerator, bdkDescriptorSecretKeyGenerator)
   private val spendingKeyGenerator = SpendingKeyGeneratorImpl(extendedKeyGenerator)

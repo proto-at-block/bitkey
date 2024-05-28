@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -46,7 +47,7 @@ data class SpendingLimitPickerModel(
         size = Footer,
         isEnabled = setLimitButtonEnabled,
         isLoading = setLimitButtonLoading,
-        onClick = onSetLimitClick
+        onClick = StandardClick(onSetLimitClick)
       )
   )
 }

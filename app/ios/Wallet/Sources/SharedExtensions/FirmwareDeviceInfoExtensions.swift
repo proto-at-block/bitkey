@@ -1,10 +1,10 @@
 import Foundation
 import Shared
-import core
+import firmware
 
 extension Shared.FirmwareDeviceInfo {
 
-    convenience init(coreDeviceInfo deviceInfo: core.DeviceInfo) {
+    convenience init(coreDeviceInfo deviceInfo: firmware.DeviceInfo) {
         self.init(
             version: deviceInfo.version,
             serial: deviceInfo.serial,

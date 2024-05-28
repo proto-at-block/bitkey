@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,11 +19,13 @@ import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.sheet.LocalSheetCloser
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.StandardClick
+import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Avatar
 import build.wallet.ui.model.icon.IconSize.Large
 import build.wallet.ui.model.icon.IconSize.Regular
@@ -125,21 +129,44 @@ fun IconButton(
   Column(
     horizontalAlignment = Alignment.CenterHorizontally
   ) {
-    MaterialIconButton(
-      modifier =
-        modifier
-          .size(iconModel.totalSize.dp),
-      onClick = onClick
-    ) {
-      IconImage(
-        model = iconModel,
-        color =
-          when {
-            enabled -> color
-            else -> WalletTheme.colors.foreground30
-          }
-      )
+    when (iconModel.iconBackgroundType) {
+      is IconBackgroundType.Square -> {
+        FilledIconButton(
+          modifier =
+            modifier
+              .size(iconModel.totalSize.dp),
+          shape = RoundedCornerShape((iconModel.iconBackgroundType as IconBackgroundType.Square).cornerRadius.dp),
+          onClick = onClick
+        ) {
+          IconImage(
+            model = iconModel,
+            color =
+              when {
+                enabled -> color
+                else -> WalletTheme.colors.foreground30
+              }
+          )
+        }
+      }
+      else -> {
+        MaterialIconButton(
+          modifier =
+            modifier
+              .size(iconModel.totalSize.dp),
+          onClick = onClick
+        ) {
+          IconImage(
+            model = iconModel,
+            color =
+              when {
+                enabled -> color
+                else -> WalletTheme.colors.foreground30
+              }
+          )
+        }
+      }
     }
+
     text?.let {
       Spacer(Modifier.height(8.dp))
       Label(
@@ -225,6 +252,27 @@ internal fun IconButtonInsideCircle() {
           iconSize = Small,
           iconBackgroundType = Circle(circleSize = Regular)
         ),
+      onClick = {}
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun IconButtonInsideSquarePreview() {
+  PreviewWalletTheme {
+    IconButton(
+      iconModel =
+        IconModel(
+          icon = Icon.SmallIconArrowRight,
+          iconSize = IconSize.Accessory,
+          iconBackgroundType = IconBackgroundType.Square(
+            size = Large,
+            color = IconBackgroundType.Square.Color.Information,
+            cornerRadius = 6
+          )
+        ),
+      color = Color.White,
       onClick = {}
     )
   }

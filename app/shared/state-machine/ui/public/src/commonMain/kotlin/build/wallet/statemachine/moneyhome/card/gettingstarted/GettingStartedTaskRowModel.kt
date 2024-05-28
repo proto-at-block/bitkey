@@ -1,6 +1,7 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.home.GettingStartedTask
+import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
 import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
 import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
@@ -8,6 +9,7 @@ import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
+import build.wallet.statemachine.core.Icon.SmallIconFingerprint
 import build.wallet.statemachine.core.Icon.SmallIconPhone
 import build.wallet.statemachine.core.Icon.SmallIconPlusStroked
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
@@ -30,6 +32,7 @@ data class GettingStartedTaskRowModel(
           AddBitcoin -> Pair("Add bitcoin", SmallIconPlusStroked)
           EnableSpendingLimit -> Pair("Turn on Mobile Pay", SmallIconPhone)
           InviteTrustedContact -> Pair("Invite a Trusted Contact", SmallIconShieldPerson)
+          AddAdditionalFingerprint -> Pair("Add additional fingerprint", SmallIconFingerprint)
         }
 
       return when (task.state) {

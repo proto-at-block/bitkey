@@ -1,6 +1,6 @@
 package build.wallet.encrypt
 
-import build.wallet.core.CryptoBoxException
+import build.wallet.rust.core.CryptoBoxException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual

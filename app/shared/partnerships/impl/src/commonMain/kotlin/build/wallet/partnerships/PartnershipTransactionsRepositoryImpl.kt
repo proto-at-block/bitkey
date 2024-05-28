@@ -1,16 +1,29 @@
 package build.wallet.partnerships
 
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.partnerships.GetPartnershipTransactionService
+import build.wallet.flatMapIfNotNull
+import build.wallet.ktor.result.HttpError
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.getErrorOr
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.mapError
+import com.github.michaelbull.result.recoverIf
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
 
 class PartnershipTransactionsRepositoryImpl(
   private val dao: PartnershipTransactionsDao,
+  private val getPartnershipTransactionService: GetPartnershipTransactionService,
   private val uuidGenerator: UuidGenerator,
   private val clock: Clock,
 ) : PartnershipTransactionsStatusRepository {
@@ -50,5 +63,64 @@ class PartnershipTransactionsRepositoryImpl(
     )
 
     return dao.save(transaction).map { transaction }
+  }
+
+  override suspend fun syncTransaction(
+    fullAccountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error> {
+    return dao.getById(transactionId)
+      .flatMapIfNotNull { mostRecent ->
+        fetchUpdatedTransaction(
+          fullAccountId = fullAccountId,
+          f8eEnvironment = f8eEnvironment,
+          transaction = mostRecent
+        )
+      }
+      // If the update fails because the transaction is not found, emit null, since the transaction does not
+      // exist for the partner.
+      .recoverIf(
+        predicate = { it is HttpError.ClientError && it.response.status == HttpStatusCode.NotFound },
+        transform = { null }
+      )
+  }
+
+  private suspend fun fetchUpdatedTransaction(
+    fullAccountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    transaction: PartnershipTransaction,
+  ): Result<PartnershipTransaction, Error> {
+    return binding {
+      val new = getPartnershipTransactionService.getPartnershipTransaction(
+        fullAccountId = fullAccountId,
+        f8eEnvironment = f8eEnvironment,
+        partner = transaction.partnerInfo.partnerId,
+        partnershipTransactionId = transaction.id
+      ).bind()
+
+      transaction.copy(
+        status = new.status,
+        context = new.context,
+        cryptoAmount = new.cryptoAmount,
+        txid = new.txid,
+        fiatAmount = new.fiatAmount,
+        fiatCurrency = new.fiatCurrency,
+        paymentMethod = new.paymentMethod,
+        updated = clock.now()
+      ).also { updated ->
+        dao.save(updated).bind()
+      }
+    }.mapError { error ->
+      when {
+        error is HttpError.ClientError && error.response.status == HttpStatusCode.NotFound -> {
+          log(LogLevel.Debug) { "Transaction was not found, removing from local database" }
+          dao.deleteTransaction(transaction.id).getErrorOr(error)
+        }
+        else -> error.also {
+          log(LogLevel.Error, throwable = error) { "Failed to fetch updated transaction" }
+        }
+      }
+    }
   }
 }

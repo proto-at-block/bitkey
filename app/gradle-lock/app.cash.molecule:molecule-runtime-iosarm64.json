@@ -1,0 +1,23 @@
+{
+    "module-identifier": "app.cash.molecule:molecule-runtime-iosarm64",
+    "components": [
+        {
+            "version": "1.4.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "molecule-runtime-iosarm64-1.4.2-metadata.jar": "4f52e90eb4cc3c9debafe16a50caf41fc873144f7d6bf1fb31472a1d974ca10b"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "molecule-runtime.klib": "e3443f06cc3f741da65c58f398ab93c8c32fd849caed779f03ab724f4dc52146"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

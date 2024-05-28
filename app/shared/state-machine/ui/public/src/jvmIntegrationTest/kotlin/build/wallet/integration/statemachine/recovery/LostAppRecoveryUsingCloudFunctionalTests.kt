@@ -112,7 +112,7 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
         clickPrimaryButton()
       }
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.primaryAmount.shouldBe("10,000 sats")
+        .balanceModel.primaryAmount.shouldBe("$0.00")
 
       val wallet = app.getActiveWallet()
       wallet.sync().unwrap()

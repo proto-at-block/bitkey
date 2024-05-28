@@ -191,6 +191,131 @@ extension UIColor {
     light: UIColor(red: 0.925, green: 0.663, blue: 0.000, alpha: 1),
     dark: UIColor(red: 0.925, green: 0.663, blue: 0.000, alpha: 1)
   )
+  // Default callout title color
+  public static let calloutDefaultTitle = UIColor(
+    light: UIColor(red: 0.000, green: 0.000, blue: 0.000, alpha: 0.8980392156862745),
+    dark: UIColor(red: 0.000, green: 0.000, blue: 0.000, alpha: 0.8980392156862745)
+  )
+  // Default callout subtitle color
+  public static let calloutDefaultSubtitle = UIColor(
+    light: UIColor(red: 0.000, green: 0.000, blue: 0.000, alpha: 0.6980392156862745),
+    dark: UIColor(red: 0.000, green: 0.000, blue: 0.000, alpha: 0.6980392156862745)
+  )
+  // Default callout background color
+  public static let calloutDefaultBackground = UIColor(
+    light: UIColor(red: 0.949, green: 0.949, blue: 0.949, alpha: 1),
+    dark: UIColor(red: 0.949, green: 0.949, blue: 0.949, alpha: 1)
+  )
+  // Default callout title color
+  public static let calloutDefaultTrailingIcon = UIColor(
+    light: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1),
+    dark: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1)
+  )
+  // Default callout title color
+  public static let calloutDefaultTrailingIconBackground = UIColor(
+    light: UIColor(red: 0.000, green: 0.000, blue: 0.000, alpha: 1),
+    dark: UIColor(red: 0.000, green: 0.000, blue: 0.000, alpha: 1)
+  )
+  // Information callout title color
+  public static let calloutInformationTitle = UIColor(
+    light: UIColor(red: 0.000, green: 0.294, blue: 0.451, alpha: 1),
+    dark: UIColor(red: 0.000, green: 0.294, blue: 0.451, alpha: 1)
+  )
+  // Information callout subtitle color
+  public static let calloutInformationSubtitle = UIColor(
+    light: UIColor(red: 0.000, green: 0.294, blue: 0.451, alpha: 1),
+    dark: UIColor(red: 0.000, green: 0.294, blue: 0.451, alpha: 1)
+  )
+  // Information callout background color
+  public static let calloutInformationBackground = UIColor(
+    light: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 0.10196078431372549),
+    dark: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 0.10196078431372549)
+  )
+  // Information callout trailing icon color
+  public static let calloutInformationTrailingIcon = UIColor(
+    light: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1),
+    dark: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1)
+  )
+  // Information callout trailing icon background color
+  public static let calloutInformationTrailingIconBackground = UIColor(
+    light: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 1),
+    dark: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 1)
+  )
+  // Success callout title color
+  public static let calloutSuccessTitle = UIColor(
+    light: UIColor(red: 0.043, green: 0.361, blue: 0.122, alpha: 1),
+    dark: UIColor(red: 0.043, green: 0.361, blue: 0.122, alpha: 1)
+  )
+  // Success callout subtitle color
+  public static let calloutSuccessSubtitle = UIColor(
+    light: UIColor(red: 0.043, green: 0.361, blue: 0.122, alpha: 1),
+    dark: UIColor(red: 0.043, green: 0.361, blue: 0.122, alpha: 1)
+  )
+  // Success callout background color
+  public static let calloutSuccessBackground = UIColor(
+    light: UIColor(red: 0.565, green: 0.765, blue: 0.000, alpha: 0.10196078431372549),
+    dark: UIColor(red: 0.565, green: 0.765, blue: 0.000, alpha: 0.10196078431372549)
+  )
+  // Success callout trailing icon color
+  public static let calloutSuccessTrailingIcon = UIColor(
+    light: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1),
+    dark: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1)
+  )
+  // Success callout trailing icon background color
+  public static let calloutSuccessTrailingIconBackground = UIColor(
+    light: UIColor(red: 0.565, green: 0.765, blue: 0.000, alpha: 1),
+    dark: UIColor(red: 0.565, green: 0.765, blue: 0.000, alpha: 1)
+  )
+  // Warning callout title color
+  public static let calloutWarningTitle = UIColor(
+    light: UIColor(red: 0.529, green: 0.286, blue: 0.000, alpha: 1),
+    dark: UIColor(red: 0.529, green: 0.286, blue: 0.000, alpha: 1)
+  )
+  // Warning callout subtitle color
+  public static let calloutWarningSubtitle = UIColor(
+    light: UIColor(red: 0.529, green: 0.286, blue: 0.000, alpha: 1),
+    dark: UIColor(red: 0.529, green: 0.286, blue: 0.000, alpha: 1)
+  )
+  // Warning callout background color
+  public static let calloutWarningBackground = UIColor(
+    light: UIColor(red: 0.992, green: 0.541, blue: 0.000, alpha: 0.10196078431372549),
+    dark: UIColor(red: 0.992, green: 0.541, blue: 0.000, alpha: 0.10196078431372549)
+  )
+  // Warning callout trailing icon color
+  public static let calloutWarningTrailingIcon = UIColor(
+    light: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1),
+    dark: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1)
+  )
+  // Warning callout trailing icon background color
+  public static let calloutWarningTrailingIconBackground = UIColor(
+    light: UIColor(red: 0.992, green: 0.541, blue: 0.000, alpha: 1),
+    dark: UIColor(red: 0.992, green: 0.541, blue: 0.000, alpha: 1)
+  )
+  // Danger callout title color
+  public static let calloutDangerTitle = UIColor(
+    light: UIColor(red: 0.455, green: 0.078, blue: 0.051, alpha: 1),
+    dark: UIColor(red: 0.455, green: 0.078, blue: 0.051, alpha: 1)
+  )
+  // Danger callout subtitle color
+  public static let calloutDangerSubtitle = UIColor(
+    light: UIColor(red: 0.455, green: 0.078, blue: 0.051, alpha: 1),
+    dark: UIColor(red: 0.455, green: 0.078, blue: 0.051, alpha: 1)
+  )
+  // Danger callout background color
+  public static let calloutDangerBackground = UIColor(
+    light: UIColor(red: 0.882, green: 0.267, blue: 0.145, alpha: 0.10196078431372549),
+    dark: UIColor(red: 0.882, green: 0.267, blue: 0.145, alpha: 0.10196078431372549)
+  )
+  // Danger callout trailing icon color
+  public static let calloutDangerTrailingIcon = UIColor(
+    light: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1),
+    dark: UIColor(red: 1.000, green: 1.000, blue: 1.000, alpha: 1)
+  )
+  // Danger callout trailing icon background color
+  public static let calloutDangerTrailingIconBackground = UIColor(
+    light: UIColor(red: 0.882, green: 0.267, blue: 0.145, alpha: 1),
+    dark: UIColor(red: 0.882, green: 0.267, blue: 0.145, alpha: 1)
+  )
 }
 
 extension Color {
@@ -231,4 +356,29 @@ extension Color {
   public static let bitkeyGetStartedBackground = Color(from: .bitkeyGetStartedBackground)
   public static let bitkeyGetStartedTint = Color(from: .bitkeyGetStartedTint)
   public static let outOfDate = Color(from: .outOfDate)
+  public static let calloutDefaultTitle = Color(from: .calloutDefaultTitle)
+  public static let calloutDefaultSubtitle = Color(from: .calloutDefaultSubtitle)
+  public static let calloutDefaultBackground = Color(from: .calloutDefaultBackground)
+  public static let calloutDefaultTrailingIcon = Color(from: .calloutDefaultTrailingIcon)
+  public static let calloutDefaultTrailingIconBackground = Color(from: .calloutDefaultTrailingIconBackground)
+  public static let calloutInformationTitle = Color(from: .calloutInformationTitle)
+  public static let calloutInformationSubtitle = Color(from: .calloutInformationSubtitle)
+  public static let calloutInformationBackground = Color(from: .calloutInformationBackground)
+  public static let calloutInformationTrailingIcon = Color(from: .calloutInformationTrailingIcon)
+  public static let calloutInformationTrailingIconBackground = Color(from: .calloutInformationTrailingIconBackground)
+  public static let calloutSuccessTitle = Color(from: .calloutSuccessTitle)
+  public static let calloutSuccessSubtitle = Color(from: .calloutSuccessSubtitle)
+  public static let calloutSuccessBackground = Color(from: .calloutSuccessBackground)
+  public static let calloutSuccessTrailingIcon = Color(from: .calloutSuccessTrailingIcon)
+  public static let calloutSuccessTrailingIconBackground = Color(from: .calloutSuccessTrailingIconBackground)
+  public static let calloutWarningTitle = Color(from: .calloutWarningTitle)
+  public static let calloutWarningSubtitle = Color(from: .calloutWarningSubtitle)
+  public static let calloutWarningBackground = Color(from: .calloutWarningBackground)
+  public static let calloutWarningTrailingIcon = Color(from: .calloutWarningTrailingIcon)
+  public static let calloutWarningTrailingIconBackground = Color(from: .calloutWarningTrailingIconBackground)
+  public static let calloutDangerTitle = Color(from: .calloutDangerTitle)
+  public static let calloutDangerSubtitle = Color(from: .calloutDangerSubtitle)
+  public static let calloutDangerBackground = Color(from: .calloutDangerBackground)
+  public static let calloutDangerTrailingIcon = Color(from: .calloutDangerTrailingIcon)
+  public static let calloutDangerTrailingIconBackground = Color(from: .calloutDangerTrailingIconBackground)
 }

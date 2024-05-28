@@ -23,6 +23,7 @@ import build.wallet.bitkey.socrec.ProtectedCustomerAlias
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.home.GettingStartedTask
+import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
 import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
 import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
@@ -166,7 +167,8 @@ internal fun PreviewMoneyHomeGettingStarted() {
               GettingStartedTask(EnableSpendingLimit, Incomplete),
               false
             ) {},
-            GettingStartedTaskRowModel(GettingStartedTask(InviteTrustedContact, Complete), true) {}
+            GettingStartedTaskRowModel(GettingStartedTask(InviteTrustedContact, Complete), true) {},
+            GettingStartedTaskRowModel(GettingStartedTask(AddAdditionalFingerprint, Incomplete), true) {}
           )
       )
   )

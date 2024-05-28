@@ -93,12 +93,13 @@ class BitcoinFeeRateEstimatorImpl(
   }
 
   /** Represents the response from mempool */
+  @Unredacted
   @Serializable
   private data class Response(
-    @Unredacted val fastestFee: Float,
-    @Unredacted val halfHourFee: Float,
-    @Unredacted val hourFee: Float,
-    @Unredacted val economyFee: Float,
-    @Unredacted val minimumFee: Float,
+    val fastestFee: Float,
+    val halfHourFee: Float,
+    val hourFee: Float,
+    val economyFee: Float,
+    val minimumFee: Float,
   ) : RedactedResponseBody
 }

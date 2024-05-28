@@ -184,8 +184,14 @@ internal suspend fun ReceiveTurbine<ScreenModel>.advanceThroughOnboardKeyboxScre
 private suspend fun ReceiveTurbine<ScreenModel>.advanceThroughEmailScreensEnterAndVerify() {
   awaitUntilScreenWithBody<FormBodyModel>(EMAIL_INPUT_ENTERING_EMAIL)
     .inputTextToMainContentTextInputItem("integration-test@wallet.build") // Fake email
-  awaitUntilScreenWithBody<FormBodyModel>(EMAIL_INPUT_ENTERING_EMAIL)
-    .clickPrimaryButton()
+  awaitUntilScreenWithBody<FormBodyModel>(
+    EMAIL_INPUT_ENTERING_EMAIL,
+    expectedBodyContentMatch = {
+      it.primaryButton?.isEnabled == true
+    }
+  ) {
+    clickPrimaryButton()
+  }
   awaitUntilScreenWithBody<FormBodyModel>(EMAIL_INPUT_ENTERING_CODE)
     .inputTextToMainContentVerificationCodeInputItem(
       "123456"

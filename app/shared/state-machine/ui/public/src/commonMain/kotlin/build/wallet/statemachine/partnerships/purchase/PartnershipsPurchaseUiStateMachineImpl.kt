@@ -26,6 +26,8 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod
+import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
@@ -189,17 +191,25 @@ class PartnershipsPurchaseUiStateMachineImpl(
       }
       is RedirectState.Loading -> {
         LaunchedEffect("load-purchase-partner-redirect-info") {
-          fetchRedirectInfo(props, currentState).onFailure { error ->
+          binding {
+            val localTransaction = partnershipsRepository.create(
+              partnerInfo = currentState.quote.partnerInfo,
+              type = PartnershipTransactionType.PURCHASE
+            ).bind()
+
+            localTransaction to fetchRedirectInfo(props, currentState, localTransaction.id).bind()
+          }.onFailure { error ->
             state =
               RedirectState.LoadingFailure(
                 partner = currentState.quote.partnerInfo,
                 error = error
               )
-          }.onSuccess {
+          }.onSuccess { (transaction, result) ->
             state =
               RedirectState.Loaded(
                 partner = currentState.quote.partnerInfo,
-                redirectInfo = it.redirectInfo
+                redirectInfo = result.redirectInfo,
+                localTransaction = transaction
               )
           }
         }
@@ -226,13 +236,9 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private suspend fun fetchRedirectInfo(
     props: PartnershipsPurchaseUiProps,
     redirectLoadingState: RedirectState.Loading,
+    localTransactionId: PartnershipTransactionId,
   ): Result<GetPurchaseRedirectService.Success, Throwable> =
     binding {
-      val localTransaction = partnershipsRepository.create(
-        partnerInfo = redirectLoadingState.quote.partnerInfo,
-        type = PartnershipTransactionType.PURCHASE
-      ).bind()
-
       props.generateAddress()
         .flatMap { address ->
           getPurchaseRedirectService.purchaseRedirect(
@@ -240,10 +246,10 @@ class PartnershipsPurchaseUiStateMachineImpl(
             address = address,
             f8eEnvironment = props.keybox.config.f8eEnvironment,
             fiatAmount = redirectLoadingState.amount,
-            partner = redirectLoadingState.quote.partnerInfo.partner,
+            partner = redirectLoadingState.quote.partnerInfo.partnerId.value,
             paymentMethod = redirectLoadingState.paymentMethod,
             quoteId = redirectLoadingState.quote.quoteId,
-            partnerTransactionId = localTransaction.id
+            partnerTransactionId = localTransactionId
           )
         }.bind()
     }
@@ -280,13 +286,18 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 )
               },
             partnerName = redirectLoadedState.partner.name
-          )
+          ),
+          redirectLoadedState.localTransaction
         )
       }
 
       RedirectUrlType.WIDGET -> {
         props.onPartnerRedirected(
-          PartnerRedirectionMethod.Web(urlString = redirectLoadedState.redirectInfo.url)
+          PartnerRedirectionMethod.Web(
+            urlString = redirectLoadedState.redirectInfo.url,
+            partnerInfo = redirectLoadedState.partner
+          ),
+          redirectLoadedState.localTransaction
         )
       }
     }
@@ -438,6 +449,7 @@ private sealed interface PartnershipsPurchaseState {
     data class Loaded(
       val partner: PartnerInfo,
       val redirectInfo: RedirectInfo,
+      val localTransaction: PartnershipTransaction,
     ) : RedirectState
 
     /**

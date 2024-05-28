@@ -1,6 +1,8 @@
 package bitkey.sample
 
+import bitkey.sample.ui.core.ErrorScreen
 import bitkey.sample.ui.core.LoadingScreen
+import bitkey.sample.ui.error.ErrorBodyModel
 import bitkey.sample.ui.home.AccountHomeBodyModel
 import bitkey.sample.ui.home.AccountHomeScreen
 import bitkey.sample.ui.model.LoadingBodyModel
@@ -25,5 +27,6 @@ internal object SampleAppUiModelMap : UiModelMap by TypedUiModelMap(
   UiModel<AccountHomeBodyModel> { AccountHomeScreen(it) },
   UiModel<RequestAccountNameBodyModel> { RequestAccountNameScreen(it) },
   UiModel<SettingsListBodyModel> { SettingsListScreen(it) },
-  UiModel<AccountSettingsBodyModel> { AccountSettingsScreen(it) }
+  UiModel<AccountSettingsBodyModel> { AccountSettingsScreen(it) },
+  UiModel<ErrorBodyModel> { ErrorScreen(it) }
 )

@@ -18,9 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
@@ -32,6 +30,8 @@ import build.wallet.ui.components.label.LabelTreatment.Jumbo
 import build.wallet.ui.components.label.LabelTreatment.Primary
 import build.wallet.ui.components.label.LabelTreatment.Secondary
 import build.wallet.ui.components.label.LabelTreatment.Tertiary
+import build.wallet.ui.components.layout.CollapsedMoneyView
+import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.compose.resId
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
@@ -61,8 +61,29 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun ListItem(
   modifier: Modifier = Modifier,
   model: ListItemModel,
+  collapseContent: Boolean = false,
 ) {
   with(model) {
+    val sideTextValue: AnnotatedString? = model.sideText?.let { sideText ->
+      val textColor = when (sideTextTint) {
+        ListItemSideTextTint.PRIMARY -> when (enabled) {
+          true -> WalletTheme.colors.foreground
+          false -> WalletTheme.colors.foreground30
+        }
+
+        ListItemSideTextTint.SECONDARY -> WalletTheme.colors.foreground60
+
+        ListItemSideTextTint.GREEN -> WalletTheme.colors.positiveForeground
+      }
+      AnnotatedString(sideText, SpanStyle(color = textColor))
+    }
+    val secondarySideTextValue: AnnotatedString? = secondarySideText?.let { secondarySideText ->
+      val textColor = when (enabled) {
+        true -> WalletTheme.colors.foreground60
+        false -> WalletTheme.colors.foreground30
+      }
+      AnnotatedString(secondarySideText, SpanStyle(color = textColor))
+    }
     ListItem(
       modifier = modifier,
       title = AnnotatedString(title),
@@ -75,7 +96,7 @@ fun ListItem(
       titleTreatment =
         when (enabled) {
           true ->
-            when (model.treatment) {
+            when (treatment) {
               PRIMARY -> Primary
               SECONDARY -> Secondary
               TERTIARY -> Tertiary
@@ -83,72 +104,23 @@ fun ListItem(
             }
           false -> Disabled
         },
-      titleType =
-        when (model.treatment) {
-          PRIMARY -> LabelType.Body2Medium
-          SECONDARY -> LabelType.Body2Regular
-          TERTIARY -> LabelType.Body3Regular
-          JUMBO -> LabelType.Title1
-        },
+      titleType = when (treatment) {
+        PRIMARY -> LabelType.Body2Medium
+        SECONDARY -> LabelType.Body2Regular
+        TERTIARY -> LabelType.Body3Regular
+        JUMBO -> LabelType.Title1
+      },
       listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
         secondaryText?.let { secondaryText ->
-          buildAnnotatedString {
-            withStyle(
-              style =
-                SpanStyle(
-                  color =
-                    when (model.enabled) {
-                      true -> WalletTheme.colors.foreground60
-                      false -> WalletTheme.colors.foreground30
-                    }
-                )
-            ) {
-              append(secondaryText)
-            }
+          val textColor = when (enabled) {
+            true -> WalletTheme.colors.foreground60
+            false -> WalletTheme.colors.foreground30
           }
+          AnnotatedString(secondaryText, SpanStyle(color = textColor))
         },
-      sideText =
-        sideText?.let { sideText ->
-          buildAnnotatedString {
-            withStyle(
-              style =
-                SpanStyle(
-                  color =
-                    when (model.sideTextTint) {
-                      ListItemSideTextTint.PRIMARY ->
-                        when (enabled) {
-                          true -> WalletTheme.colors.foreground
-                          false -> WalletTheme.colors.foreground30
-                        }
-
-                      ListItemSideTextTint.SECONDARY -> WalletTheme.colors.foreground60
-
-                      ListItemSideTextTint.GREEN -> WalletTheme.colors.positiveForeground
-                    }
-                )
-            ) {
-              append(sideText)
-            }
-          }
-        },
-      secondarySideText =
-        secondarySideText?.let { secondarySideText ->
-          buildAnnotatedString {
-            withStyle(
-              style =
-                SpanStyle(
-                  color =
-                    when (enabled) {
-                      true -> WalletTheme.colors.foreground60
-                      false -> WalletTheme.colors.foreground30
-                    }
-                )
-            ) {
-              append(secondarySideText)
-            }
-          }
-        },
+      sideText = sideTextValue,
+      secondarySideText = secondarySideTextValue,
       leadingAccessory =
         when (enabled) {
           true -> leadingAccessory
@@ -167,6 +139,7 @@ fun ListItem(
       specialTrailingAccessory = specialTrailingAccessory,
       onClick = onClick,
       pickerMenu = pickerMenu,
+      collapseContent = collapseContent,
       testTag = testTag
     )
   }
@@ -246,6 +219,7 @@ fun ListItem(
   pickerMenu: ListItemPickerMenu<*>? = null,
   testTag: String? = null,
   titleLabel: LabelModel? = null,
+  collapseContent: Boolean = false,
 ) {
   ListItem(
     modifier = modifier,
@@ -339,6 +313,7 @@ fun ListItem(
           ListItemPickerMenu(model = pickerMenu)
         }
       },
+    collapseContent = collapseContent,
     testTag = testTag
   )
 }
@@ -360,6 +335,7 @@ private fun ListItem(
   trailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   specialTrailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   pickerMenuContent: @Composable (BoxScope.() -> Unit)?,
+  collapseContent: Boolean = false,
   testTag: String? = null,
 ) {
   Box(
@@ -403,18 +379,26 @@ private fun ListItem(
         }
       }
       if (sideContent != null || secondarySideContent != null) {
-        Column(
+        CollapsibleLabelContainer(
           modifier = Modifier.weight(1F),
+          collapsed = collapseContent,
           verticalArrangement = Arrangement.spacedBy(2.dp),
-          horizontalAlignment = Alignment.End
-        ) {
-          sideContent?.let {
-            Box { sideContent() }
+          horizontalAlignment = Alignment.End,
+          topContent = sideContent?.let {
+            { Box { sideContent() } }
+          },
+          bottomContent = secondarySideContent?.let {
+            { Box { secondarySideContent() } }
+          },
+          collapsedContent = {
+            Box {
+              CollapsedMoneyView(
+                height = 16.dp,
+                modifier = Modifier.align(Alignment.Center)
+              )
+            }
           }
-          secondarySideContent?.let {
-            Box { secondarySideContent() }
-          }
-        }
+        )
       }
       specialTrailingAccessoryContent?.run {
         Box { specialTrailingAccessoryContent() }

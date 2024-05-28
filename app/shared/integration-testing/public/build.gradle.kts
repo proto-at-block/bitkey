@@ -28,6 +28,7 @@ kotlin {
     jvmMain {
       dependencies {
         implementation(projects.shared.moneyFake)
+        implementation(projects.shared.stateMachineFrameworkTesting)
       }
     }
   }

@@ -3,6 +3,7 @@ package build.wallet.statemachine.cloud.health
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
@@ -22,6 +23,6 @@ internal fun ProblemWithCloudBackupFormModel(
   primaryButton = ButtonModel.BitkeyInteractionButtonModel(
     text = "Continue",
     size = Footer,
-    onClick = onContinue
+    onClick = StandardClick(onContinue)
   )
 )

@@ -34,7 +34,6 @@ import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.Get
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.keybox.OnboardingKeyboxDataMock
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
-import build.wallet.statemachine.data.lightning.LightningNodeData.LightningNodeDisabledData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
@@ -168,7 +167,6 @@ class AppUiStateMachineImplTests : FunSpec({
     appDataStateMachine.emitModel(
       AppLoadedData(
         accountData = ActiveKeyboxLoadedDataMock,
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -189,7 +187,6 @@ class AppUiStateMachineImplTests : FunSpec({
             createFullAccountData = OnboardingKeyboxDataMock(),
             templateFullAccountConfig = FullAccountConfigMock
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -217,7 +214,6 @@ class AppUiStateMachineImplTests : FunSpec({
               ),
             isNavigatingBack = false
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -246,7 +242,6 @@ class AppUiStateMachineImplTests : FunSpec({
                   )
               )
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -266,7 +261,6 @@ class AppUiStateMachineImplTests : FunSpec({
             onAccountCreated = {},
             onExit = {}
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -285,7 +279,6 @@ class AppUiStateMachineImplTests : FunSpec({
             templateFullAccountConfig = FullAccountConfigMock,
             onExit = {}
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -303,7 +296,6 @@ class AppUiStateMachineImplTests : FunSpec({
           AccountData.NoLongerRecoveringFullAccountData(
             data = NoLongerRecoveringData.ShowingNoLongerRecoveringData(App, {})
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )
@@ -323,7 +315,6 @@ class AppUiStateMachineImplTests : FunSpec({
             fullAccountConfig = FullAccountConfigMock,
             fullAccountId = FullAccountIdMock
           ),
-        lightningNodeData = LightningNodeDisabledData,
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock
       )

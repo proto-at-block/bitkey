@@ -99,6 +99,11 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         )
         assertBitkeySnapshots(view: view)
     }
+    
+    func test_money_home_with_hidden_balance() {
+        let view = MoneyHomeView(viewModel: .snapshotTestFull(hideBalance: true))
+        assertBitkeySnapshots(view: view)
+    }
 }
 
 // MARK: -
@@ -124,9 +129,11 @@ private extension LiteMoneyHomeBodyModel {
 private extension MoneyHomeBodyModel {
 
     static func snapshotTestFull(
-        cards: [CardModel] = []
+        cards: [CardModel] = [],
+        hideBalance: Bool = false
     ) -> MoneyHomeBodyModel {
         return MoneyHomeBodyModel(
+            hideBalance: hideBalance,
             onSettings: {},
             balanceModel: MoneyAmountModel(
                 primaryAmount: "$123.75",
@@ -142,6 +149,7 @@ private extension MoneyHomeBodyModel {
             seeAllButtonModel: .snapshotTest(text: "See All", treatment: .secondary),
             refresh: TestSuspendFunction(),
             onRefresh: {},
+            onHideBalance: {},
             isRefreshing: false
         )
     }
@@ -156,7 +164,8 @@ private extension CardModel {
         taskModels: [
             .init(task: .init(id: .enablespendinglimit, state: .incomplete), isEnabled: false, onClick: {}),
             .init(task: .init(id: .invitetrustedcontact, state: .incomplete), isEnabled: true, onClick: {}),
-            .init(task: .init(id: .addbitcoin, state: .incomplete), isEnabled: true, onClick: {})
+            .init(task: .init(id: .addbitcoin, state: .incomplete), isEnabled: true, onClick: {}),
+            .init(task: .init(id: .addadditionalfingerprint, state: .incomplete), isEnabled: true, onClick: {})
         ]
     )
 

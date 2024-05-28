@@ -24,6 +24,7 @@ known_fields.17171594621332 = "PhoneMakeAndModel"
 known_fields.19386550194836 = "SystemNameAndVersion"
 known_fields.19386560407956 = "AppVersion"
 known_fields.19386627184148 = "HardwareFirmwareVersion"
+monitored_electrum_nodes = []
 
 [test-docker]
 port = 8080
@@ -87,6 +88,14 @@ analytics_api_url = "https://api.segment.io"
 iterable = { mode = "environment", comms_verification_campaign_id = 9281957, recovery_pending_delay_period_lost_app_campaign_id = 9234980, recovery_pending_delay_period_lost_hw_campaign_id = 9234864, recovery_completed_delay_period_lost_app_campaign_id = 9235008, recovery_completed_delay_period_lost_hw_campaign_id = 9234993, recovery_canceled_delay_period_lost_app_campaign_id = 9235101, recovery_canceled_delay_period_lost_hw_campaign_id = 9235091, recovery_relationship_invitation_accepted_campaign_id = 9235205, recovery_relationship_deleted_campaign_id = 9235258, social_challenge_response_received_campaign_id = 9235231, marketing_channel_id = 87983, transactional_channel_id = 87984, account_security_message_type_id = 125365, money_movement_message_type_id = 125366, product_marketing_message_type_id = 125367 }
 twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c" }
 screener = { mode = "s3" }
+monitored_electrum_nodes = [
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.fra.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.tk7.mempool.space:50002" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://35.192.20.52:50001" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
+]
 
 [staging]
 port = 80
@@ -105,6 +114,14 @@ iterable = { mode = "environment", comms_verification_campaign_id = 9281957, rec
 twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd996a1a6db5d010a34ff55c" }
 zendesk = { mode = "environment" }
 screener = { mode = "s3" }
+monitored_electrum_nodes = [
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.fra.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.tk7.mempool.space:50002" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://35.192.20.52:50001" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
+]
 
 [production]
 port = 80
@@ -124,3 +141,11 @@ twilio = { mode = "environment", default_messaging_service_sid = "MGc5bcad97fd99
 zendesk = { mode = "environment" }
 screener = { mode = "s3" }
 allow_test_accounts_with_mainnet_keysets = true
+monitored_electrum_nodes = [
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.va1.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.fra.mempool.space:50002" },
+    { network = "bitcoin", provider = "mempool", uri = "ssl://node201.tk7.mempool.space:50002" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://35.192.20.52:50001" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://34.147.244.49:50001" },
+    { network = "bitcoin", provider = "blockstream", uri = "tcp://34.131.144.107:50001" },
+]

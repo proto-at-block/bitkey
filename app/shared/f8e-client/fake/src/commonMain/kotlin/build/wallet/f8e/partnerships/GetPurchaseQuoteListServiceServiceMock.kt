@@ -5,6 +5,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.FiatMoney
+import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -28,7 +29,7 @@ class GetPurchaseQuoteListServiceServiceMock(
               PartnerInfo(
                 name = "partner",
                 logoUrl = "https://logo.url.example.com",
-                partner = "partner"
+                partnerId = PartnerId("partner")
               ),
             userFeeFiat = 0.0,
             quoteId = "quoteId"

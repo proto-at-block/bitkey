@@ -1,12 +1,11 @@
 package build.wallet.statemachine.money.currency
 
 import build.wallet.analytics.events.screen.id.CurrencyEventTrackerScreenId
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.ui.model.StandardClick
-import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
@@ -14,38 +13,39 @@ import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.model.list.ListItemSideTextTint
+import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun CurrencyPreferenceFormModel(
-  onBack: (() -> Unit)?,
+  onBack: () -> Unit,
   moneyHomeHero: FormMainContentModel.MoneyHomeHero,
   fiatCurrencyPreferenceString: String,
   onFiatCurrencyPreferenceClick: () -> Unit,
   bitcoinDisplayPreferenceString: String,
   bitcoinDisplayPreferencePickerModel: ListItemPickerMenu<*>,
+  shouldShowHideBalance: Boolean = false,
+  isHideBalanceEnabled: Boolean = false,
+  onEnableHideBalanceChanged: (Boolean) -> Unit,
   onBitcoinDisplayPreferenceClick: () -> Unit,
-  onDone: (() -> Unit)?,
 ) = FormBodyModel(
   id = CurrencyEventTrackerScreenId.CURRENCY_PREFERENCE,
   onBack = onBack,
-  toolbar =
-    onBack?.let {
-      ToolbarModel(
-        leadingAccessory = BackAccessory(onClick = onBack)
-      )
-    },
+  toolbar = ToolbarModel(
+    leadingAccessory = BackAccessory(onClick = onBack)
+  ),
   header =
     FormHeaderModel(
-      headline = "Currency",
+      headline = "Currency Display",
       subline = "Choose how you want currencies to display throughout the app."
     ),
   mainContentList =
-    immutableListOf(
-      moneyHomeHero,
+    buildImmutableList {
+      moneyHomeHero.apply { add(this) }
       FormMainContentModel.ListGroup(
         listGroupModel =
           ListGroupModel(
+            header = "Currency",
             items =
               immutableListOf(
                 ListItemModel(
@@ -66,14 +66,30 @@ fun CurrencyPreferenceFormModel(
               ),
             style = ListGroupStyle.CARD_GROUP_DIVIDER
           )
-      )
-    ),
-  primaryButton =
-    onDone?.let {
-      ButtonModel(
-        text = "Done",
-        size = ButtonModel.Size.Footer,
-        onClick = StandardClick(onDone)
-      )
-    }
+      ).apply { add(this) }
+      FormMainContentModel.ListGroup(
+        listGroupModel =
+          ListGroupModel(
+            header = "Privacy",
+            items =
+              immutableListOf(
+                ListItemModel(
+                  title = "Hide Home Balance by default",
+                  trailingAccessory = ListItemAccessory.SwitchAccessory(
+                    model = SwitchModel(
+                      checked = isHideBalanceEnabled,
+                      onCheckedChange = onEnableHideBalanceChanged
+                    )
+                  )
+                )
+              ),
+            style = ListGroupStyle.CARD_GROUP_DIVIDER
+          )
+      ).apply {
+        if (shouldShowHideBalance) {
+          add(this)
+        }
+      }
+    },
+  primaryButton = null
 )

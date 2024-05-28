@@ -9,8 +9,7 @@ class AppSessionManagerFake(
 ) : AppSessionManager {
   private val flow = MutableStateFlow(AppSessionState.FOREGROUND)
 
-  override val appSessionState: StateFlow<AppSessionState>
-    get() = flow.asStateFlow()
+  override val appSessionState: StateFlow<AppSessionState> = flow.asStateFlow()
 
   override fun getSessionId(): String = sessionId
 

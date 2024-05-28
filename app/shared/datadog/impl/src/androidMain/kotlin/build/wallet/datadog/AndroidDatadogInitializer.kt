@@ -1,6 +1,7 @@
 package build.wallet.datadog
 
 import android.content.Context
+import android.util.Log
 import build.wallet.platform.config.AppVariant
 import com.datadog.android.Datadog
 import com.datadog.android.DatadogSite
@@ -17,7 +18,7 @@ import io.opentracing.util.GlobalTracer
 
 class AndroidDatadogInitializer(
   private val context: Context,
-  appVariant: AppVariant,
+  private val appVariant: AppVariant,
 ) : DatadogInitializer {
   private val config = DatadogConfig.create(appVariant)
 
@@ -35,6 +36,11 @@ class AndroidDatadogInitializer(
         .build()
 
     Datadog.initialize(context, configuration, GRANTED)
+
+    // Log Datadog SDK errors in development builds to catch SDK configuration errors.
+    if (appVariant == AppVariant.Development) {
+      Datadog.setVerbosity(Log.WARN)
+    }
 
     Rum.enable(
       RumConfiguration.Builder(applicationId = DATADOG_RUM_APP_ID)

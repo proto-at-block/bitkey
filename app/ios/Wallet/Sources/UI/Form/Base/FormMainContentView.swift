@@ -72,6 +72,9 @@ public struct FormMainContentView: View {
 
         case let mainContentModel as FormMainContentModelStepperIndicator:
             StepperView(viewModel: mainContentModel)
+            
+        case let calloutModel as FormMainContentModelCallout:
+            CalloutView(model: calloutModel.item)
 
         default:
             fatalError("Unexpected form main content model")

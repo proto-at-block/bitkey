@@ -12,6 +12,12 @@ class MoneyHomeScreenSnapshots : FunSpec({
     }
   }
 
+  test("MoneyHome Screen Full with hidden balance") {
+    paparazzi.snapshot {
+      MoneyHomeScreenFull(hideBalance = true)
+    }
+  }
+
   test("MoneyHome Screen Lite with protecting wallets") {
     paparazzi.snapshot {
       MoneyHomeScreenLite()

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-gradle",
+    "components": [
+        {
+            "version": "1.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-gradle-1.8.1.jar": "0ceb2b8a4c55ac066c7c4ab7b19bfc277675821f8dc0545f26c709cca3edf9d0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

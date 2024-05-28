@@ -17,4 +17,4 @@ url = { workspace = true }
 
 # path dependencies
 errors = { workspace = true }
-instrumentation ={ workspace = true }
+instrumentation = { workspace = true }

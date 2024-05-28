@@ -4,6 +4,7 @@ use aws_sdk_sns::operation::publish::PublishError;
 use bdk_utils::error::BdkUtilError;
 use chain_indexer::ChainIndexerError;
 use errors::ApiError;
+use mempool_indexer::MempoolIndexerError;
 use notification::NotificationError;
 use thiserror::Error;
 use types::account::identifiers::AccountId;
@@ -30,8 +31,8 @@ pub enum WorkerError {
     FetchNotifications,
     #[error("Queue Error: {0}")]
     SQSError(#[from] queue::sqs::QueueError),
-    #[error("Unable to get balance")]
-    GetBalanceError(#[from] BdkUtilError),
+    #[error(transparent)]
+    BdkUtilError(#[from] BdkUtilError),
     #[error("Couldn't retrieve blockchain data due to error: {0}")]
     ChainIndexerError(#[from] ChainIndexerError),
     #[error("Database error due to error: {0}")]
@@ -60,6 +61,8 @@ pub enum WorkerError {
     ElectrumClientError(#[from] bdk_utils::bdk::electrum_client::Error),
     #[error("Failed to grind coins for Signet test wallet: {0}")]
     CoinGrinderError(String),
+    #[error("Couldn't retrieve mempool data due to error: {0}")]
+    MempoolIndexingError(#[from] MempoolIndexerError),
 }
 
 impl From<WorkerError> for ApiError {
@@ -73,7 +76,7 @@ impl From<WorkerError> for ApiError {
             | WorkerError::SESPublishError(_)
             | WorkerError::SNSPublishError(_)
             | WorkerError::SerdeSerialization(_)
-            | WorkerError::GetBalanceError(_)
+            | WorkerError::BdkUtilError(_)
             | WorkerError::FetchNotifications
             | WorkerError::SQSError(_)
             | WorkerError::ChainIndexerError(_)
@@ -89,7 +92,8 @@ impl From<WorkerError> for ApiError {
             | WorkerError::MetricsRegisterCallback
             | WorkerError::ElectrumClientError(_)
             | WorkerError::IncorrectTouchpointType
-            | WorkerError::CoinGrinderError(_) => {
+            | WorkerError::CoinGrinderError(_)
+            | WorkerError::MempoolIndexingError(_) => {
                 ApiError::GenericInternalApplicationError(err_msg)
             }
             WorkerError::AccountNotFound => ApiError::GenericNotFound(err_msg),

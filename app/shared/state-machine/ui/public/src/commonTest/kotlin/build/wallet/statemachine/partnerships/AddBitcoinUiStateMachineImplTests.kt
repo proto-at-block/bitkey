@@ -36,7 +36,8 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
-    createCalls = turbines.create("create calls")
+    createCalls = turbines.create("create calls"),
+    fetchMostRecentCalls = turbines.create("fetch most recent calls")
   )
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
 
@@ -63,7 +64,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     AddBitcoinUiProps(
       purchaseAmount = purchaseAmount,
       onAnotherWalletOrExchange = {},
-      onPartnerRedirected = {},
+      onPartnerRedirected = { _, _ -> },
       onExit = {},
       keybox = KeyboxMock,
       generateAddress = KeyboxAddressDataMock.generateAddress,

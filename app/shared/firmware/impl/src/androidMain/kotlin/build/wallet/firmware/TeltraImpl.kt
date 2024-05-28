@@ -3,8 +3,8 @@ package build.wallet.firmware
 import build.wallet.catching
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getOrElse
-import build.wallet.core.TelemetryIdentifiers as TelemetryIdentifiersCore
-import build.wallet.core.Teltra as TeltraCore
+import build.wallet.rust.firmware.TelemetryIdentifiers as TelemetryIdentifiersCore
+import build.wallet.rust.firmware.Teltra as TeltraCore
 
 class TeltraImpl : Teltra {
   override fun translateBitlogs(

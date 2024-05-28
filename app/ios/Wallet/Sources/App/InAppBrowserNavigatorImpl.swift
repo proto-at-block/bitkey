@@ -12,6 +12,9 @@ class InAppBrowserNavigatorImpl: NSObject, InAppBrowserNavigator, SFSafariViewCo
     //We store a reference to the `appViewController` so we can display the in-app browser on top when needed
     private var onCloseBrowser: (() -> Void)? = nil
     
+    // We store a reference to the `safariViewController` so we can dismiss it later when needed
+    private var safariViewController: SFSafariViewController? = nil
+
     // MARK: - Life Cycle
     
     init(appViewController: UINavigationController) {
@@ -27,11 +30,18 @@ class InAppBrowserNavigatorImpl: NSObject, InAppBrowserNavigator, SFSafariViewCo
         }
         self.onCloseBrowser = onClose
         let vc = SFSafariViewController(url: URL(string: url)!)
+        self.safariViewController = vc
         vc.delegate = self
         topViewController.present(vc, animated: true)
     }
     
+    func close() {
+        self.safariViewController?.dismiss(animated: false)
+        self.onClose()
+    }
+    
     func onClose() {
+        self.safariViewController = nil
         onCloseBrowser?()
         onCloseBrowser = nil
     }

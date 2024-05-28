@@ -6,6 +6,7 @@ import build.wallet.db.DbError
 import build.wallet.logging.logFailure
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
+import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +52,20 @@ class FwupDataDaoImpl(
     return database
       .awaitTransaction { fwupDataQueries.clear() }
       .logFailure { "Failed to clear fwup data" }
+  }
+
+  override suspend fun setSequenceId(sequenceId: UInt): Result<Unit, DbError> {
+    return database
+      .awaitTransaction { fwupDataQueries.setSequenceId(sequenceId.toLong()) }
+      .logFailure { "Failed to set sequence ID" }
+  }
+
+  override suspend fun getSequenceId(): Result<UInt, DbError> {
+    return database
+      .awaitTransactionWithResult {
+        fwupDataQueries.getSequenceId().executeAsOneOrNull()?.toUInt()
+          ?: throw NoSuchElementException("No sequence ID found in the database.")
+      }
   }
 }
 

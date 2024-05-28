@@ -16,7 +16,6 @@ import io.ktor.client.statement.HttpResponse
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.errors.IOException
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 
 /**
  * The base type required by [setRedactedBody] to enforce class
@@ -40,24 +39,16 @@ interface RedactedRequestBody
 interface RedactedResponseBody
 
 /**
- * An empty response body to be used instead of Unit or empty objects
- * since `Redacted` must be applied to data classes.
+ * An empty request body which conforms to [RedactedRequestBody].
  */
 @Serializable
-data class EmptyRequestBody(
-  @Transient
-  val nothing: Int = 0,
-) : RedactedRequestBody
+data object EmptyRequestBody : RedactedRequestBody
 
 /**
- * An empty request body to be used instead of Unit or empty objects
- * since `Redacted` must be applied to data classes.
+ * An empty response body which conforms to [RedactedResponseBody].
  */
 @Serializable
-data class EmptyResponseBody(
-  @Transient
-  val nothing: Int = 0,
-) : RedactedResponseBody
+data object EmptyResponseBody : RedactedResponseBody
 
 inline fun <reified T : RedactedRequestBody> HttpRequestBuilder.setRedactedBody(body: T) {
   setBody(body)

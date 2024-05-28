@@ -227,7 +227,7 @@ fun CloudBackupFoundModel(
   primaryButton =
     BitkeyInteractionButtonModel(
       text = "Restore Bitkey Wallet",
-      onClick = onRestore,
+      onClick = StandardClick(onRestore),
       size = Footer,
       testTag = "restore-bitkey-wallet"
     ),

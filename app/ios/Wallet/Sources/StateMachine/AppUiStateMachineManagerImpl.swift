@@ -451,7 +451,11 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
         case let viewModel as MoneyHomeBodyModel:
             if let vc = rootViewController as? SwiftUIWrapperViewController<MoneyHomeView> {
-                vc.updateWrappedView(MoneyHomeView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView { view in
+                    withAnimation {
+                        view.viewModelHolder.value = viewModel
+                    }
+                }
                 return .none
             } else {
                 let vc = SwiftUIWrapperViewController(MoneyHomeView(viewModel: viewModel), screenModel: screenModel)

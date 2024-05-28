@@ -8,7 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.f8e.onboarding.OnboardingService
+import build.wallet.feature.isEnabled
+import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.keybox.KeyboxDao
@@ -34,6 +37,7 @@ class ActivateFullAccountDataStateMachineImpl(
   private val onboardingService: OnboardingService,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
+  private val multipleFingerprintsIsEnabled: MultipleFingerprintsIsEnabledFeatureFlag,
 ) : ActivateFullAccountDataStateMachine {
   @Composable
   override fun model(
@@ -88,7 +92,7 @@ class ActivateFullAccountDataStateMachineImpl(
         .onSuccess {
           // Add getting started tasks for the new keybox
           val gettingStartedTasks =
-            buildList {
+            buildImmutableList {
               add(
                 GettingStartedTask(
                   GettingStartedTask.TaskId.AddBitcoin,
@@ -109,6 +113,15 @@ class ActivateFullAccountDataStateMachineImpl(
                   GettingStartedTask.TaskState.Incomplete
                 )
               )
+
+              if (multipleFingerprintsIsEnabled.isEnabled()) {
+                add(
+                  GettingStartedTask(
+                    GettingStartedTask.TaskId.AddAdditionalFingerprint,
+                    GettingStartedTask.TaskState.Incomplete
+                  )
+                )
+              }
             }
 
           gettingStartedTaskDao.addTasks(gettingStartedTasks)

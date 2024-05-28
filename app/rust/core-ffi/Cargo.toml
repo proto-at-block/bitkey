@@ -1,0 +1,20 @@
+[package]
+edition = { workspace = true }
+name = "core-ffi"
+publish = { workspace = true }
+version = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "lib", "staticlib"]
+name = "core"
+
+[dependencies]
+bitcoin = { workspace = true }
+crypto = { workspace = true }
+lightning-support = { path = "../lightning-support" }
+thiserror = { workspace = true }
+uniffi = { workspace = true }
+wsm-integrity = { workspace = true }
+
+[build-dependencies]
+uniffi = { workspace = true, features = ["build"] }

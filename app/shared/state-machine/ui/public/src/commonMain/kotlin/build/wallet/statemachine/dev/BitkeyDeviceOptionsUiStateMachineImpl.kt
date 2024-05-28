@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.data.firmware.FirmwareData
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.list.ListGroupModel
@@ -35,7 +36,7 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
                         text = "Update",
                         isLoading = false,
                         size = Compact,
-                        onClick =
+                        onClick = StandardClick
                           {
                             props.onFirmwareUpdateClick(firmwareUpdateState)
                           }
@@ -65,7 +66,7 @@ class BitkeyDeviceOptionsUiStateMachineImpl(
                   BitkeyInteractionButtonModel(
                     text = "Wipe",
                     size = Compact,
-                    onClick = props.onWipeBitkeyClick
+                    onClick = StandardClick(props.onWipeBitkeyClick)
                   )
               )
           )

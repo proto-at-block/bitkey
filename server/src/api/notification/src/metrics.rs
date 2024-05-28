@@ -2,7 +2,7 @@ use instrumentation::metrics::factory::{Counter, MetricsFactory, ObservableGauge
 use once_cell::sync::Lazy;
 
 pub const FACTORY_NAME: &str = "notifications";
-pub const CUSTOMER_NOTIFICATION_TYPE: &str = "customer_notification_type";
+pub const CUSTOMER_NOTIFICATION_TYPE_KEY: &str = "customer_notification_type";
 pub(crate) const COUNTRY_CODE_KEY: &str = "country_code";
 
 pub static FACTORY: Lazy<MetricsFactory> = Lazy::new(|| MetricsFactory::new(FACTORY_NAME));

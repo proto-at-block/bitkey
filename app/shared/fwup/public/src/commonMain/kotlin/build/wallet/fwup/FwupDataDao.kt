@@ -19,4 +19,8 @@ interface FwupDataDao {
    * Clears any stored [FwupData]
    */
   suspend fun clear(): Result<Unit, DbError>
+
+  suspend fun setSequenceId(sequenceId: UInt): Result<Unit, DbError>
+
+  suspend fun getSequenceId(): Result<UInt, DbError>
 }

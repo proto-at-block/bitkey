@@ -4,52 +4,43 @@ import build.wallet.bitkey.socrec.IncomingInvitation
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.bitkey.socrec.TrustedContactAlias
 import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
-import build.wallet.cloud.backup.CloudBackupV2
-import build.wallet.recovery.socrec.syncAndVerifyRelationships
+import build.wallet.cloud.backup.SocRecV1BackupFeatures
+import build.wallet.cloud.backup.socRecDataAvailable
+import build.wallet.cloud.store.CloudStoreAccountFake
+import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.statemachine.core.test
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.withClue
-import io.kotest.matchers.maps.shouldHaveKey
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.timeout
+import kotlinx.coroutines.flow.transform
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
- * Attempts to do PAKE confirmation on all unendorsed TCs and then endorses and verifies
- * the key certificates for any that succeed.
- *
- * The app must already be logged into the cloud and have an existing cloud backup,
- * or method will fail.
- *
- * @param relationshipId the relationship that must be endorsed and verified, or this method
- *   will fail the test.
+ * Wait for the app to sync and verify TC [relationshipId], and include it in cloud backup.
  */
-suspend fun AppTester.endorseAndVerifyTc(relationshipId: String) =
-  withClue("endorse and verify TC") {
-    val account = getActiveFullAccount()
-    // PAKE confirmation and endorsement
-    val unendorsedTcs = app.socRecRelationshipsRepository.syncAndVerifyRelationships(
-      account
-    ).getOrThrow()
-      .unendorsedTrustedContacts
-    unendorsedTcs.first { it.recoveryRelationshipId == relationshipId }
-    app.trustedContactKeyAuthenticator
-      .authenticateAndEndorse(unendorsedTcs, account)
-      .getOrThrow()
+suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
+  withClue("await TC is verified and backed up") {
+    app.appUiStateMachine.test(props = Unit, useVirtualTime = false) {
+      // Wait until TC is synced and verified
+      awaitRelationships { relationships ->
+        relationships.endorsedTrustedContacts.any {
+          it.recoveryRelationshipId == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
+        }
+      }
 
-    // Verify endorsement
-    app.socRecRelationshipsRepository.syncAndVerifyRelationships(account).getOrThrow()
-      .endorsedTrustedContacts
-      .first { it.recoveryRelationshipId == relationshipId }
-      .authenticationState
-      .shouldBe(TrustedContactAuthenticationState.VERIFIED)
-
-    app.bestEffortFullAccountCloudBackupUploader.createAndUploadCloudBackup(account).getOrThrow()
-    app.cloudBackupDao.get(account.accountId.serverId).getOrThrow().shouldNotBeNull()
-      .shouldBeTypeOf<CloudBackupV2>()
-      .fullAccountFields.shouldNotBeNull()
-      .socRecSealedDekMap
-      .shouldHaveKey(relationshipId)
+      // Wait for the TC to be included in the cloud backup
+      awaitCloudBackupRefreshed(relationshipId)
+      cancelAndIgnoreRemainingEvents()
+    }
   }
 
 /**
@@ -83,3 +74,48 @@ data class TrustedContactFullInvite(
   val inviteCode: String,
   val invitation: IncomingInvitation,
 )
+
+suspend fun AppTester.awaitRelationships(
+  timeout: Duration = 3.seconds,
+  predicate: (SocRecRelationships) -> Boolean,
+): SocRecRelationships =
+  withClue("await for SocRec relationships matching a predicate") {
+    app.socRecRelationshipsRepository.relationships
+      .filterNotNull()
+      .transform { relationships ->
+        if (predicate(relationships)) {
+          emit(relationships)
+        }
+      }
+      .timeout(timeout)
+      .first()
+  }
+
+fun AppTester.getSharedInviteCode(): String {
+  val sharedText = lastSharedText.shouldNotBeNull()
+  return """INVITE CODE:\s*(\S+)""".toRegex()
+    .find(sharedText.text)
+    .shouldNotBeNull()
+    .groupValues[1]
+}
+
+/**
+ * Waits for a Full Account cloud backup to contain the given relationship ID. Must be called
+ * while an app is running.
+ */
+suspend fun AppTester.awaitCloudBackupRefreshed(relationshipId: String) {
+  withClue("await cloud backup includes relationships $relationshipId") {
+    withTimeout(2.seconds) {
+      var backupUpdated = false
+      while (isActive && !backupUpdated) {
+        val backup = readCloudBackup(CloudStoreAccountFake.ProtectedCustomerFake)
+          ?: break
+        backupUpdated = backup.socRecDataAvailable &&
+          (backup as SocRecV1BackupFeatures)
+            .fullAccountFields.shouldNotBeNull()
+            .socRecSealedDekMap.containsKey(relationshipId)
+        delay(100.milliseconds)
+      }
+    }
+  }
+}

@@ -26,7 +26,7 @@ import okio.ByteString.Companion.encodeUtf8
 
 class PairingTransactionProviderImplTests : FunSpec({
   val nfcSession = NfcSessionFake()
-  val nfcCommands = NfcCommandsMock(turbines::create)
+  val nfcCommands = NfcCommandsMock(turbine = turbines::create)
   val csekGenerator = CsekGeneratorMock()
   val csek = csekGenerator.csek
   val csekDao = CsekDaoFake()

@@ -29,6 +29,7 @@ kotlin {
         implementation(libs.android.browser)
         implementation(libs.android.core.ktx)
         implementation(libs.android.pbfbox)
+        implementation(libs.android.biometric)
       }
     }
   }

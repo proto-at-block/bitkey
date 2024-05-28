@@ -747,7 +747,7 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 
 [[package]]
 name = "bk"
-version = "2024.58.0"
+version = "2024.59.0"
 dependencies = [
  "aes-gcm-siv",
  "anyhow",
@@ -2666,7 +2666,6 @@ dependencies = [
 name = "teltra"
 version = "0.1.1"
 dependencies = [
- "hex",
  "teltra-sys",
  "thiserror",
 ]
@@ -3126,7 +3125,6 @@ name = "wca"
 version = "0.1.1"
 dependencies = [
  "apdu",
- "bdk",
  "bitcoin",
  "bytes",
  "hex",
@@ -3138,7 +3136,6 @@ dependencies = [
  "rand_core",
  "regex",
  "ring 0.17.8",
- "sha2",
  "teltra",
  "thiserror",
  "x509-parser",

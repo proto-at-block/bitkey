@@ -32,7 +32,7 @@ class CancelDelayNotifyRecoveryServiceImpl(
       .catching {
         delete("/api/accounts/${fullAccountId.serverId}/delay-notify") {
           withDescription("Cancel recovery")
-          setRedactedBody(EmptyRequestBody())
+          setRedactedBody(EmptyRequestBody)
         }
       }.map { Unit }
       .mapError { it.toF8eError<CancelDelayNotifyRecoveryErrorCode>() }

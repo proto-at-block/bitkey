@@ -3,22 +3,18 @@ package build.wallet.inappsecurity
 import build.wallet.db.DbError
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class HideBalancePreferenceFake : HideBalancePreference {
-  private var preference = false
+  override val isEnabled: StateFlow<Boolean> = MutableStateFlow(false)
 
   override suspend fun get(): Result<Boolean, DbError> {
-    return Ok(preference)
+    return Ok(isEnabled.value)
   }
 
   override suspend fun set(enabled: Boolean): Result<Unit, DbError> {
-    this.preference = enabled
+    (isEnabled as MutableStateFlow).value = enabled
     return Ok(Unit)
-  }
-
-  override fun isEnabled(): Flow<Boolean> {
-    return flowOf(preference)
   }
 }

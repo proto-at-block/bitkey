@@ -156,6 +156,7 @@ async fn test_scheduled_handler() {
         account_service: bootstrap.services.account_service.clone(),
         recovery_service: bootstrap.services.recovery_service.clone(),
         chain_indexer_service: bootstrap.services.chain_indexer_service.clone(),
+        mempool_indexer_service: bootstrap.services.mempool_indexer_service.clone(),
         address_repo: bootstrap.services.address_repo.clone(),
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),

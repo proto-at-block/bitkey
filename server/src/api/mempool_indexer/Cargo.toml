@@ -1,0 +1,25 @@
+[package]
+edition = { workspace = true }
+name = "mempool_indexer"
+publish = { workspace = true }
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-stream = "0.3"
+async-trait = { workspace = true }
+config = { workspace = true, features = ["toml"] }
+futures = { workspace = true }
+reqwest = { workspace = true }
+reqwest-middleware = { workspace = true }
+reqwest-retry = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+bdk_utils = { workspace = true }
+database = { workspace = true }
+types = { workspace = true }

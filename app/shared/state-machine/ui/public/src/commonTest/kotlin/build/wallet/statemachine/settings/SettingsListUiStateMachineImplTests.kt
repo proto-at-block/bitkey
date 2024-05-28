@@ -104,8 +104,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
           .map { it.sectionHeaderTitle to it.rowModels.map { row -> row.title } }
           .shouldBe(
             listOf(
-              "General" to listOf("Mobile Pay", "Bitkey Device", "Currency", "Notifications"),
-              "Security & Recovery" to listOf("Face ID", "Mobile Devices", "Cloud Backup", "Trusted Contacts"),
+              "General" to listOf("Mobile Pay", "Bitkey Device", "Currency Display", "Notifications"),
+              "Security & Recovery" to listOf("App Security", "Mobile Devices", "Cloud Backup", "Trusted Contacts"),
               "Advanced" to listOf("Custom Electrum Server"),
               "Support" to listOf("Contact Us", "Help Center")
             )
@@ -149,7 +149,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
 
   test("Currency updates state") {
     stateMachine
-      .testRowOnClickCallsProps<CurrencyPreference>("Currency", props, propsOnClickCalls)
+      .testRowOnClickCallsProps<CurrencyPreference>("Currency Display", props, propsOnClickCalls)
   }
 
   test("Notifications updates state") {
@@ -186,9 +186,9 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       .testRowOnClickCallsProps<RotateAuthKey>("Mobile Devices", props, propsOnClickCalls)
   }
 
-  test("Biometrics updates state") {
+  test("App Security updates state") {
     stateMachine
-      .testRowOnClickCallsProps<Biometric>("Face ID", props, propsOnClickCalls)
+      .testRowOnClickCallsProps<Biometric>("App Security", props, propsOnClickCalls)
   }
 
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
@@ -202,7 +202,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       expectDisabledRows(
         setOf(
           "Mobile Pay",
-          "Currency",
+          "Currency Display",
           "Notifications",
           "Trusted Contacts",
           "Help Center",
@@ -229,7 +229,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
       expectDisabledRows(
         setOf(
           "Mobile Pay",
-          "Currency",
+          "Currency Display",
           "Notifications",
           "Trusted Contacts",
           "Custom Electrum Server",

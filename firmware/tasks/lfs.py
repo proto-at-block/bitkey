@@ -4,6 +4,7 @@ from os import listdir
 from invoke import task
 from datetime import datetime
 from os.path import isfile, join
+from pathlib import Path
 
 from bitkey.walletfs import (WalletFS, GDBFs)
 from bitkey.meson import MesonBuild
@@ -43,6 +44,18 @@ def do_restore(c, file=None):
             click.echo(click.style('Filesystem restored', fg='green'))
         else:
             click.echo(click.style('Error restoring filesystem', fg='red'))
+
+
+@task(help={
+    "file_name": "path to backup file",
+    "output_dir": "output directory",
+})
+def cp_from_hardware(c, file_name, output_dir):
+    gdbfs = GDBFs(c, c.target)
+    fs = gdbfs.fetch()
+    contents = fs.read_file(file_name).getbuffer().tobytes()
+    target_file = Path(output_dir) / Path(file_name)
+    target_file.write_bytes(contents)
 
 
 @task(help={

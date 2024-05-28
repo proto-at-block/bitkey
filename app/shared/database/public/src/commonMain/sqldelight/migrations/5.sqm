@@ -1,0 +1,8 @@
+-- We used to have an experimental implementation of Lightning node could only be enabled through
+-- a debug menu.
+
+-- This migration removes the lightningPreferenceEntity table that tracked the debugging preference
+-- to use the lightning node.
+DROP TABLE lightningPreferenceEntity;
+
+PRAGMA foreign_key_check;

@@ -27,6 +27,7 @@ data class GettingStartedCardUiProps(
   val onAddBitcoin: () -> Unit,
   val onEnableSpendingLimit: () -> Unit,
   val onInviteTrustedContact: () -> Unit,
+  val onAddAdditionalFingerprint: () -> Unit,
   val onShowAlert: (ButtonAlertModel) -> Unit,
   val onDismissAlert: () -> Unit,
 )

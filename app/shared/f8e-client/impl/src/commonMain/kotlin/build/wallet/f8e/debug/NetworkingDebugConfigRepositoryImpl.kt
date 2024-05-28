@@ -18,8 +18,7 @@ class NetworkingDebugConfigRepositoryImpl(
 
   private val configState = MutableStateFlow(defaultConfig)
 
-  override val config: StateFlow<NetworkingDebugConfig>
-    get() = configState.asStateFlow()
+  override val config: StateFlow<NetworkingDebugConfig> = configState.asStateFlow()
 
   override suspend fun setFailF8eRequests(value: Boolean): Result<Unit, Error> {
     return networkingDebugConfigDao.updateConfig { config ->

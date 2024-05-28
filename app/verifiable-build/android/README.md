@@ -70,8 +70,8 @@ You'll need:
 ### Running verification
 
 The verification script `app/verifiable-build/android/verification/verify-android-apk` takes two parameters:
-    - Bitkey repository path
-    - Work directory to perform verification in
+- Bitkey repository path
+- Work directory to perform verification in
 
 Assuming you followed the commands in [Prep work](#prep-work),
 you should be inside the `bitkey` directory containing the sources.
@@ -97,7 +97,7 @@ It should end with builds being identical.
 >
 > Then navigate to `verify-apk/locally-built/apks` and note any missing languages.
 > Once you find missing languages, go to your phone's settings.
-> Add all the languages thare were missing as secondary languages.
+> Add all the languages that were missing as secondary languages.
 > 
 > Once added, rerun verification.
 > If the verification still fails,

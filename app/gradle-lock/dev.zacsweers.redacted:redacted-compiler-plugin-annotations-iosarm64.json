@@ -1,0 +1,23 @@
+{
+    "module-identifier": "dev.zacsweers.redacted:redacted-compiler-plugin-annotations-iosarm64",
+    "components": [
+        {
+            "version": "1.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-annotations-iosarm64-1.8.1-metadata.jar": "e3c9ec6a8ed88359f9919a41f604e78df963ab7b9ddbca44c1c361d6515d90f8"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "redacted-compiler-plugin-annotations.klib": "e48e5e12eb954c160b0aee0eef0de0734308144cfc5ed233f0407f3218e7953c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -7,7 +7,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.nfc.NfcException
-import build.wallet.platform.config.DeviceOs
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.fwup.FwupNfcUiState.InNfcSessionUiState
@@ -20,7 +19,6 @@ import kotlinx.coroutines.delay
 class FwupNfcUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val fwupNfcSessionUiStateMachine: FwupNfcSessionUiStateMachine,
-  private val deviceOs: DeviceOs,
 ) : FwupNfcUiStateMachine {
   @Composable
   override fun model(props: FwupNfcUiProps): ScreenModel {
@@ -34,7 +32,7 @@ class FwupNfcUiStateMachineImpl(
           props = props,
           state = state,
           onLaunchFwup = {
-            uiState = InNfcSessionUiState(transactionType = state.transactionType)
+            uiState = InNfcSessionUiState(state.transactionType)
           }
         )
       }
@@ -54,21 +52,7 @@ class FwupNfcUiStateMachineImpl(
                 uiState =
                   ShowingUpdateInstructionsUiState(
                     updateErrorBottomSheetState = Showing(error, updateWasInProgress),
-                    // TODO(W-5822)
-                    //
-                    // The below line should not be commented out. We've observed a bug where
-                    // FWUP resumption on Android doesn't work, but hitting 'Cancel' or the 'X'
-                    // (i.e. trigger props.onBack) fixes the buggy NFC behavior. However, means
-                    // that resumption doesn't work (because we're not saving the transactionType).
-                    //
-                    // See this thread for context:
-                    // https://build.wallet.slack.com/archives/C01U6JZ3Z3U/p1634020738000100
-                    // transactionType = transactionType
-                    transactionType =
-                      when (deviceOs) {
-                        DeviceOs.Android -> FwupTransactionType.StartFromBeginning
-                        else -> transactionType
-                      }
+                    transactionType = transactionType
                   )
               }
             )

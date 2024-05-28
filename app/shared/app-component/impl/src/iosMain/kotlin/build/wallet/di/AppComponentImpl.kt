@@ -20,6 +20,7 @@ import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStoreInMemoryImpl
 import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
 import build.wallet.platform.PlatformContext
+import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -42,6 +43,7 @@ fun makeAppComponent(
   bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilder,
   bdkTxBuilderFactory: BdkTxBuilderFactory,
   bdkWalletFactory: BdkWalletFactory,
+  biometricPrompter: BiometricPrompter,
   datadogRumMonitor: DatadogRumMonitor,
   datadogTracer: DatadogTracer,
   deviceTokenConfigProvider: DeviceTokenConfigProvider,
@@ -102,6 +104,7 @@ fun makeAppComponent(
     secp256k1KeyGenerator = secp256k1KeyGenerator,
     teltra = teltra,
     hardwareAttestation = hardwareAttestation,
-    wsmVerifier = wsmVerifier
+    wsmVerifier = wsmVerifier,
+    biometricPrompter = biometricPrompter
   )
 }

@@ -1,6 +1,8 @@
 package build.wallet.statemachine.moneyhome.full
 
 import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.partnerships.PartnerInfo
+import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
@@ -30,6 +32,7 @@ data class MoneyHomeUiProps(
   val homeBottomSheetModel: SheetModel?,
   val homeStatusBannerModel: StatusBannerModel?,
   val onSettings: () -> Unit,
+  val onPartnershipsWebFlowCompleted: (PartnerInfo, PartnershipTransaction) -> Unit,
   val origin: Origin,
 ) {
   enum class Origin {

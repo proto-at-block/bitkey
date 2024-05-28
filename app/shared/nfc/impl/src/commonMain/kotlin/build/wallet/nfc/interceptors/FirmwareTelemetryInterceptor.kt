@@ -25,9 +25,12 @@ fun collectFirmwareTelemetry(
     { session, commands ->
       next(session, commands)
 
+      // TODO(W-8000) The query auth causes breakage on android; we see TagLost and then
+      // it looks like the FWUP failed but it didn't.
+
       // Only attempt to collect telemetry if the hardware is unlocked, because
       // the telemetry endpoints require authentication themselves.
-      if (commands.queryAuthentication(session)) {
+      if (!session.parameters.skipFirmwareTelemetry && commands.queryAuthentication(session)) {
         val deviceInfo = commands.getDeviceInfo(session)
         interceptor.persistDeviceInfo(deviceInfo)
         interceptor.uploadTelemetry(deviceInfo, commands, session)

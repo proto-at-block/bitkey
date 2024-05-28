@@ -44,7 +44,7 @@ def cli(ctx, debug, serial_port):
 
 @cli.command()
 @click.option('--index', type=click.INT, required=False)
-@click.option('--label', type=click.STRING, required=False)
+@click.option('--label', type=click.STRING, required=False, default="")
 @click.pass_context
 def start_fingerprint_enrollment(ctx, index=0, label=""):
     result = ctx.obj.start_fingerprint_enrollment(index, label)

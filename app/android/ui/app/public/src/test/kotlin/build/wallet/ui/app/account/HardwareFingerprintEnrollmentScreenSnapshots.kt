@@ -23,7 +23,10 @@ class HardwareFingerprintEnrollmentScreenSnapshots : FunSpec({
           isNavigatingBack = false,
           eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION,
           presentationStyle = ScreenPresentationStyle.Root,
-          headline = "Set up your fingerprint"
+          headline = "Set up your fingerprint",
+          instructions = "Place your finger on the sensor until you see a blue light." +
+            " Repeat this until the device has a solid green light." +
+            " Once done, press the button below to save your fingerprint."
         )
       PairNewHardwareScreen(
         model =

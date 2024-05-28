@@ -222,7 +222,7 @@ fun EmergencyAccessKitRestoreWallet(
     BitkeyInteractionButtonModel(
       text = "Restore Bitkey Wallet",
       size = ButtonModel.Size.Footer,
-      onClick = onRestore
+      onClick = StandardClick(onRestore)
     ),
   id = EmergencyAccessKitTrackerScreenId.RESTORE_YOUR_WALLET
 )

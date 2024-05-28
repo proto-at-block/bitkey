@@ -32,6 +32,8 @@ class AppContext {
     let sharingManager: SharingManagerImpl
     let datadogTracer: DatadogTracer
     let secp256k1KeyGenerator: Secp256k1KeyGenerator
+    let biometricsPrompter: BiometricPrompter
+
 
     // MARK: - Life Cycle
 
@@ -50,6 +52,7 @@ class AppContext {
         self.bdkPsbtBuilder = BdkPartiallySignedTransactionBuilderImpl()
         self.datadogTracer = DatadogTracerImpl()
         self.secp256k1KeyGenerator = Secp256k1KeyGeneratorImpl()
+        self.biometricsPrompter = BiometricPrompterImpl()
 
         let iCloudAccountRepository = iCloudAccountRepositoryImpl()
         let cloudStoreAccountRepository = CloudStoreAccountRepositoryImpl(
@@ -67,6 +70,7 @@ class AppContext {
             bdkPartiallySignedTransactionBuilder: BdkPartiallySignedTransactionBuilderImpl(),
             bdkTxBuilderFactory: bdkTxBuilderFactory,
             bdkWalletFactory: bdkWalletFactory,
+            biometricPrompter: biometricsPrompter,
             datadogRumMonitor: datadogRumMonitor,
             datadogTracer: DatadogTracerImpl(),
             deviceTokenConfigProvider: DeviceTokenConfigProviderImpl(

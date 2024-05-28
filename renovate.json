@@ -16,14 +16,14 @@
       "matchManagers": ["gradle"],
       "matchPaths": ["app/"],
       "enabled": true
-    },    
+    },
     {
       "matchManagers": ["swift"],
       "matchPaths": ["app/ios"]
     },
     {
       "matchManagers": ["cargo"],
-      "matchPaths": ["app/core", "server", "server/auth/auth_lambda_handlers"],
+      "matchPaths": ["app/rust", "core", "server", "server/auth/auth_lambda_handlers"],
       "enabled": false,
       "description": "[W-7885] Enable once Cargo & minimumReleaseAge is supported by Renovate"
     },
@@ -66,7 +66,7 @@
     "fastlane/**",
     "nodes/**",
     "web/**"
-  ],  
+  ],
   "minimumReleaseAge": "120 days",
   "enabledManagers": [
     "cocoapods",

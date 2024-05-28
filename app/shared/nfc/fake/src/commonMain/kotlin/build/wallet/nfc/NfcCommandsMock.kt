@@ -15,6 +15,7 @@ import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.firmware.FirmwareFeatureFlagCfg
 import build.wallet.firmware.FirmwareMetadataMock
 import build.wallet.firmware.UnlockInfo
@@ -25,8 +26,41 @@ import build.wallet.nfc.platform.NfcCommands
 import okio.ByteString
 import okio.ByteString.Companion.encodeUtf8
 
-class NfcCommandsMock(turbine: (String) -> Turbine<Any>) : NfcCommands {
-  val signTransactionCalls = turbine("SignTransaction calls")
+class NfcCommandsMock(
+  turbine: ((String) -> Turbine<Any>),
+) : NfcCommands {
+  val signTransactionCalls = turbine.invoke("SignTransaction calls")
+  val cancelFingerprintEnrollmentCalls = turbine.invoke("CancelFingerprintEnrollment calls")
+  val getEnrolledFingerprintsCalls = turbine.invoke("GetEnrolledFingerprints calls")
+  val deleteFingerprintCalls = turbine.invoke("DeleteFingerprint calls")
+  val startFingerprintEnrollmentCalls = turbine.invoke("StartFingerprintEnrollment calls")
+  val setFingerprintLabelCalls = turbine.invoke("SetFingerprintLabel calls")
+
+  private val defaultEnrollmentStatus = FingerprintEnrollmentStatus.COMPLETE
+  private val defaultEnrolledFingerprints = EnrolledFingerprints(3, emptyList())
+  private val defaultFirmwareFeatureFlags = listOf(
+    FirmwareFeatureFlagCfg(
+      flag = FirmwareFeatureFlag.TELEMETRY,
+      enabled = true
+    ),
+    FirmwareFeatureFlagCfg(
+      flag = FirmwareFeatureFlag.DEVICE_INFO_FLAG,
+      enabled = true
+    ),
+    FirmwareFeatureFlagCfg(
+      flag = FirmwareFeatureFlag.RATE_LIMIT_TEMPLATE_UPDATE,
+      enabled = true
+    ),
+    FirmwareFeatureFlagCfg(
+      flag = FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS,
+      enabled = true
+    )
+  )
+
+  private var enrollmentStatus = defaultEnrollmentStatus
+  private var enrolledFingerprints = defaultEnrolledFingerprints
+  private var firmwareFeatureFlags = defaultFirmwareFeatureFlags
+
   private var keyIndex = 0
 
   override suspend fun fwupStart(
@@ -64,27 +98,33 @@ class NfcCommandsMock(turbine: (String) -> Turbine<Any>) : NfcCommands {
   override suspend fun getEvents(session: NfcSession) = EventFragment(emptyList(), 0)
 
   override suspend fun getFirmwareFeatureFlags(session: NfcSession): List<FirmwareFeatureFlagCfg> =
-    emptyList()
+    firmwareFeatureFlags
 
-  override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
-    FingerprintEnrollmentStatus.COMPLETE
+  override suspend fun getFingerprintEnrollmentStatus(
+    session: NfcSession,
+    isEnrollmentContextAware: Boolean,
+  ) = enrollmentStatus
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
     index: Int,
-  ): Boolean = true
+  ): Boolean = true.also { deleteFingerprintCalls.add(index) }
 
   override suspend fun getEnrolledFingerprints(session: NfcSession) =
-    EnrolledFingerprints(3, emptyList())
+    enrolledFingerprints
+      .also { getEnrolledFingerprintsCalls.add(it) }
 
   override suspend fun setFingerprintLabel(
     session: NfcSession,
     fingerprintHandle: FingerprintHandle,
-  ): Boolean = true
+  ): Boolean = true.also { setFingerprintLabelCalls.add(Unit) }
 
   override suspend fun getUnlockMethod(session: NfcSession): UnlockInfo {
     TODO("Not yet implemented")
   }
+
+  override suspend fun cancelFingerprintEnrollment(session: NfcSession): Boolean =
+    true.also { cancelFingerprintEnrollmentCalls.add(Unit) }
 
   override suspend fun getFirmwareMetadata(session: NfcSession) = FirmwareMetadataMock
 
@@ -132,7 +172,7 @@ class NfcCommandsMock(turbine: (String) -> Turbine<Any>) : NfcCommands {
   override suspend fun startFingerprintEnrollment(
     session: NfcSession,
     fingerprintHandle: FingerprintHandle,
-  ) = true
+  ) = true.also { startFingerprintEnrollmentCalls.add(fingerprintHandle) }
 
   override suspend fun unsealKey(
     session: NfcSession,
@@ -153,6 +193,24 @@ class NfcCommandsMock(turbine: (String) -> Turbine<Any>) : NfcCommands {
     deviceIdentityDer: List<UByte>,
     challenge: List<UByte>,
   ): Boolean = true
+
+  fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
+    this.enrollmentStatus = enrollmentStatus
+  }
+
+  fun setEnrolledFingerprints(enrolledFingerprints: EnrolledFingerprints) {
+    this.enrolledFingerprints = enrolledFingerprints
+  }
+
+  fun setFirmwareFeatureFlags(firmwareFeatureFlags: List<FirmwareFeatureFlagCfg>) {
+    this.firmwareFeatureFlags = firmwareFeatureFlags
+  }
+
+  fun reset() {
+    enrollmentStatus = defaultEnrollmentStatus
+    enrolledFingerprints = defaultEnrolledFingerprints
+    firmwareFeatureFlags = defaultFirmwareFeatureFlags
+  }
 }
 
 private fun spendingPublicKey(index: Int) =

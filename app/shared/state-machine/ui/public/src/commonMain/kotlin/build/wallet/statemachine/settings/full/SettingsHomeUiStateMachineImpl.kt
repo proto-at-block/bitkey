@@ -193,8 +193,7 @@ class SettingsHomeUiStateMachineImpl(
         currencyPreferenceUiStateMachine.model(
           props = CurrencyPreferenceProps(
             onBack = { state = ShowingAllSettingsUiState },
-            btcDisplayAmount = props.accountData.transactionsData.balance.total,
-            onDone = null
+            btcDisplayAmount = props.accountData.transactionsData.balance.total
           )
         )
 
@@ -264,6 +263,7 @@ class SettingsHomeUiStateMachineImpl(
       )
       State.ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
         BiometricSettingUiProps(
+          keybox = props.accountData.account.keybox,
           onBack = { state = ShowingAllSettingsUiState }
         )
       )

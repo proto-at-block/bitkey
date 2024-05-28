@@ -141,7 +141,7 @@ impl SigningService for WsmClient {
         Ok(res.json().await?)
     }
 
-    #[instrument]
+    #[instrument(skip(descriptor, root_key_id, change_descriptor, psbt))]
     async fn sign_psbt(
         &self,
         root_key_id: &str,

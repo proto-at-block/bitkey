@@ -20,6 +20,7 @@ locals {
   # DynamoDB Tables
   ################################################
   tables = {
+    account_table_name               = "${module.this.id_dot}.accounts"
     address_watchlist_table_name     = "${module.this.id_dot}.address_watchlist"
     notification_table_name          = "${module.this.id_dot}.notification"
     chain_indexer_table_name         = "${module.this.id_dot}.chain_indexer"
@@ -29,11 +30,7 @@ locals {
     migration_record_table_name      = "${module.this.id_dot}.migration_records"
     social_recovery_table_name       = "${module.this.id_dot}.social_recovery"
     consent_table_name               = "${module.this.id_dot}.consent"
-
-    # Below are old tables that we retain a name override for the deprecated PrototypeOnboardingStack
-    # New tables should be added above without coalesce()
-    account_table_name  = coalesce(var.account_table_name, "${module.this.id_dot}.accounts")
-    recovery_table_name = coalesce(var.recovery_table_name, "${module.this.id_dot}.account_recovery")
+    recovery_table_name              = "${module.this.id_dot}.account_recovery"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -503,6 +500,7 @@ module "ecs_job_mempool_polling_task_mainnet" {
   })
   secrets          = merge(local.common_secrets, {})
   cpu_architecture = "ARM64"
+  memory           = 1024
 
   desired_count         = var.job_mempool_desired_count
   wait_for_steady_state = var.wait_for_steady_state

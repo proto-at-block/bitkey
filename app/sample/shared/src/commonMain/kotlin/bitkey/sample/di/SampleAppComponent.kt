@@ -5,10 +5,11 @@ import bitkey.sample.functional.AccountRepositoryImpl
 import bitkey.sample.functional.CreateAccountServiceImpl
 import bitkey.sample.ui.SampleAppUiStateMachine
 import bitkey.sample.ui.SampleAppUiStateMachineImpl
+import bitkey.sample.ui.SampleScreenPresenterRegistry
 import bitkey.sample.ui.home.AccountHomeUiStateMachineImpl
 import bitkey.sample.ui.onboarding.CreateAccountUiStateMachineImpl
-import bitkey.sample.ui.settings.SettingsUiStateMachineImpl
-import bitkey.sample.ui.settings.account.AccountSettingsUiStateMachineImpl
+import bitkey.sample.ui.settings.account.AccountSettingsScreenPresenter
+import build.wallet.ui.framework.NavigatorPresenterImpl
 
 interface SampleAppComponent {
   val sampleAppUiStateMachine: SampleAppUiStateMachine
@@ -27,14 +28,18 @@ internal class SampleAppComponentImpl : SampleAppComponent {
     createAccountService = createAccountService
   )
 
-  private val accountSettingsUiStateMachine = AccountSettingsUiStateMachineImpl()
+  private val accountSettingsScreenPresenter = AccountSettingsScreenPresenter(accountRepository)
 
-  private val settingsUiStateMachine = SettingsUiStateMachineImpl(
-    accountSettingsUiStateMachine = accountSettingsUiStateMachine
+  private val screenPresenterRegistry = SampleScreenPresenterRegistry(
+    accountSettingsScreenPresenter = accountSettingsScreenPresenter
+  )
+
+  private val navigatorPresenter = NavigatorPresenterImpl(
+    screenPresenterRegistry = screenPresenterRegistry
   )
 
   private val accountHomeStateMachine = AccountHomeUiStateMachineImpl(
-    settingsUiStateMachine = settingsUiStateMachine
+    navigatorPresenter = navigatorPresenter
   )
 
   private val createAccountStateMachine = CreateAccountUiStateMachineImpl(

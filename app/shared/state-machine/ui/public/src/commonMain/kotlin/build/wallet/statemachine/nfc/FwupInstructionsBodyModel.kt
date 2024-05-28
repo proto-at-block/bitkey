@@ -63,7 +63,7 @@ data class FwupInstructionsBodyModel(
       BitkeyInteractionButtonModel(
         text = buttonText,
         size = Footer,
-        onClick = onButtonClick
+        onClick = StandardClick(onButtonClick)
       ),
     eventTrackerScreenInfo =
       eventTrackerScreenId?.let {

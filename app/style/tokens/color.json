@@ -147,6 +147,106 @@
       "outOfDate": {
         "light": { "value": "#ECA900", "comment": "Color for the out of date icon in the app status screen" },
         "dark": { "value": "#ECA900" }
+      },
+      "calloutDefaultTitle": {
+        "light": { "value": "#000000E5", "comment": "Default callout title color" },
+        "dark": { "value": "#000000E5" }
+      },
+      "calloutDefaultSubtitle": {
+        "light": { "value": "#000000B2", "comment": "Default callout subtitle color" },
+        "dark": { "value": "#000000B2" }
+      },
+      "calloutDefaultBackground": {
+        "light": { "value": "#F2F2F2FF", "comment": "Default callout background color" },
+        "dark": { "value": "#F2F2F2FF" }
+      },
+      "calloutDefaultTrailingIcon": {
+        "light": { "value": "#FFFFFFFF", "comment": "Default callout title color" },
+        "dark": { "value": "#FFFFFFFF" }
+      },
+      "calloutDefaultTrailingIconBackground": {
+        "light": { "value": "#000000FF", "comment": "Default callout title color" },
+        "dark": { "value": "#000000FF" }
+      },
+      "calloutInformationTitle": {
+        "light": { "value": "#004B73FF", "comment": "Information callout title color" },
+        "dark": { "value": "#004B73FF" }
+      },
+      "calloutInformationSubtitle": {
+        "light": { "value": "#004B73FF", "comment": "Information callout subtitle color" },
+        "dark": { "value": "#004B73FF" }
+      },
+      "calloutInformationBackground": {
+        "light": { "value": "#0C9ADA1A", "comment": "Information callout background color" },
+        "dark": { "value": "#0C9ADA1A" }
+      },
+      "calloutInformationTrailingIcon": {
+        "light": { "value": "#FFFFFFFF", "comment": "Information callout trailing icon color" },
+        "dark": { "value": "#FFFFFFFF" }
+      },
+      "calloutInformationTrailingIconBackground": {
+        "light": { "value": "#0C9ADAFF", "comment": "Information callout trailing icon background color" },
+        "dark": { "value": "#0C9ADAFF" }
+      },
+      "calloutSuccessTitle": {
+        "light": { "value": "#0B5C1FFF", "comment": "Success callout title color" },
+        "dark": { "value": "#0B5C1FFF" }
+      },
+      "calloutSuccessSubtitle": {
+        "light": { "value": "#0B5C1FFF", "comment": "Success callout subtitle color" },
+        "dark": { "value": "#0B5C1FFF" }
+      },
+      "calloutSuccessBackground": {
+        "light": { "value": "#90C3001A", "comment": "Success callout background color" },
+        "dark": { "value": "#90C3001A" }
+      },
+      "calloutSuccessTrailingIcon": {
+        "light": { "value": "#FFFFFFFF", "comment": "Success callout trailing icon color" },
+        "dark": { "value": "#FFFFFFFF" }
+      },
+      "calloutSuccessTrailingIconBackground": {
+        "light": { "value": "#90C300FF", "comment": "Success callout trailing icon background color" },
+        "dark": { "value": "#90C300FF" }
+      },
+      "calloutWarningTitle": {
+        "light": { "value": "#874900FF", "comment": "Warning callout title color" },
+        "dark": { "value": "#874900FF" }
+      },
+      "calloutWarningSubtitle": {
+        "light": { "value": "#874900FF", "comment": "Warning callout subtitle color" },
+        "dark": { "value": "#874900FF" }
+      },
+      "calloutWarningBackground": {
+        "light": { "value": "#FD8A001A", "comment": "Warning callout background color" },
+        "dark": { "value": "#FD8A001A" }
+      },
+      "calloutWarningTrailingIcon": {
+        "light": { "value": "#FFFFFFFF", "comment": "Warning callout trailing icon color" },
+        "dark": { "value": "#FFFFFFFF" }
+      },
+      "calloutWarningTrailingIconBackground": {
+        "light": { "value": "#FD8A00FF", "comment": "Warning callout trailing icon background color" },
+        "dark": { "value": "#FD8A00FF" }
+      },
+      "calloutDangerTitle": {
+        "light": { "value": "#74140DFF", "comment": "Danger callout title color" },
+        "dark": { "value": "#74140DFF" }
+      },
+      "calloutDangerSubtitle": {
+        "light": { "value": "#74140DFF", "comment": "Danger callout subtitle color" },
+        "dark": { "value": "#74140DFF" }
+      },
+      "calloutDangerBackground": {
+        "light": { "value": "#E144251A", "comment": "Danger callout background color" },
+        "dark": { "value": "#E144251A" }
+      },
+      "calloutDangerTrailingIcon": {
+        "light": { "value": "#FFFFFFFF", "comment": "Danger callout trailing icon color" },
+        "dark": { "value": "#FFFFFFFF" }
+      },
+      "calloutDangerTrailingIconBackground": {
+        "light": { "value": "#E14425FF", "comment": "Danger callout trailing icon background color" },
+        "dark": { "value": "#E14425FF" }
       }
   }
 }

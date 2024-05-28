@@ -1,5 +1,7 @@
 package build.wallet.ui.app.moneyhome
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -87,8 +89,14 @@ fun MoneyHomeScreen(model: MoneyHomeBodyModel) {
         item {
           with(model.balanceModel) {
             HeroAmount(
+              modifier = Modifier.clickable(
+                interactionSource = MutableInteractionSource(),
+                indication = null,
+                onClick = { model.onHideBalance() }
+              ),
               primaryAmount = AnnotatedString(primaryAmount),
-              secondaryAmountWithCurrency = secondaryAmount
+              secondaryAmountWithCurrency = secondaryAmount,
+              hideBalance = model.hideBalance
             )
           }
           Spacer(Modifier.height(4.dp))
@@ -118,7 +126,13 @@ fun MoneyHomeScreen(model: MoneyHomeBodyModel) {
         }
 
         model.transactionsModel?.let { transactionsModel ->
-          item { Transactions(transactionsModel, model.seeAllButtonModel) }
+          item {
+            Transactions(
+              model = transactionsModel,
+              seeAllButtonModel = model.seeAllButtonModel,
+              hideValue = model.hideBalance
+            )
+          }
         }
       }
 
@@ -225,6 +239,7 @@ private fun CircularActions(
 private fun Transactions(
   model: ListModel,
   seeAllButtonModel: ButtonModel?,
+  hideValue: Boolean,
 ) {
   Column(
     modifier =
@@ -235,7 +250,8 @@ private fun Transactions(
       modifier =
         Modifier
           .fillMaxWidth(),
-      model = model
+      model = model,
+      hideValue = hideValue
     )
     seeAllButtonModel?.let {
       Button(model = seeAllButtonModel)
@@ -245,12 +261,14 @@ private fun Transactions(
 
 @Preview
 @Composable
-internal fun MoneyHomeScreenFull() {
+internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
   PreviewWalletTheme {
     MoneyHomeScreen(
       model =
         MoneyHomeBodyModel(
           onSettings = {},
+          hideBalance = hideBalance,
+          onHideBalance = {},
           balanceModel =
             MoneyAmountModel(
               primaryAmount = "$289,745",

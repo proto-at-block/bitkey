@@ -1,6 +1,6 @@
 package build.wallet.crypto
 
-import build.wallet.core.WsmIntegrityVerifier
+import build.wallet.rust.core.WsmIntegrityVerifier
 
 class WsmVerifierImpl : WsmVerifier {
   override fun verify(

@@ -14,6 +14,7 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.home.GettingStartedTask
+import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
 import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
 import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
@@ -149,6 +150,7 @@ class GettingStartedCardUiStateMachineImpl(
         appFunctionalityStatus.featureStates.mobilePay == Available
       InviteTrustedContact ->
         appFunctionalityStatus.featureStates.securityAndRecovery == Available
+      AddAdditionalFingerprint -> true
     }
 
   private fun GettingStartedTask.onClick(props: GettingStartedCardUiProps) {
@@ -157,6 +159,7 @@ class GettingStartedCardUiStateMachineImpl(
         AddBitcoin -> props.onAddBitcoin()
         EnableSpendingLimit -> props.onEnableSpendingLimit()
         InviteTrustedContact -> props.onInviteTrustedContact()
+        AddAdditionalFingerprint -> props.onAddAdditionalFingerprint()
       }
     } else {
       when (props.appFunctionalityStatus) {

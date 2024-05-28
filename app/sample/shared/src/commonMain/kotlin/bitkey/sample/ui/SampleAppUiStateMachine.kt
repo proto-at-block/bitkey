@@ -21,7 +21,6 @@ import bitkey.sample.ui.onboarding.CreateAccountUiStateMachine
 import bitkey.sample.ui.onboarding.WelcomeBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
@@ -84,20 +83,11 @@ class SampleAppUiStateMachineImpl(
         ).asRootScreen()
       }
       is HasActiveAccountState -> {
-        val scope = rememberCoroutineScope()
         accountHomeUiStateMachine.model(
           AccountHomeUiProps(
             account = currentState.activeAccount,
-            onDeleteAccount = {
-              scope.launch {
-                accountRepository.removeActiveAccount()
-                  .onSuccess {
-                    state = NoActiveAccountState
-                  }
-                  .onFailure {
-                    // todo: show error screen
-                  }
-              }
+            onAccountDeleted = {
+              state = NoActiveAccountState
             },
             onExit = {
               // todo: exit app

@@ -1,5 +1,12 @@
 use account::entities::Factor;
-use bdk_utils::{generate_electrum_rpc_uris, metrics as bdk_utils_metrics};
+use bdk_utils::{
+    generate_electrum_rpc_uris,
+    metrics::{
+        self as bdk_utils_metrics, MonitoredElectrumNode, ELECTRUM_NETWORK_KEY,
+        ELECTRUM_PROVIDER_KEY, ELECTRUM_URI_KEY,
+    },
+    ElectrumRpcUris,
+};
 use instrumentation::metrics::{factory::Histogram, factory::ObservableCallbackRegistry, KeyValue};
 use notification::{
     metrics as notification_metrics, EMAIL_QUEUE_ENV_VAR, PUSH_QUEUE_ENV_VAR, SMS_QUEUE_ENV_VAR,
@@ -10,6 +17,7 @@ use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::electrum_client::ElectrumApi;
 use bdk_utils::get_electrum_client;
 use std::{
+    collections::HashMap,
     env,
     sync::{Arc, RwLock},
 };
@@ -31,6 +39,7 @@ pub struct MeasurementsCache {
     customer_notification_push_queue_num_messages: Arc<RwLock<u64>>,
     customer_notification_email_queue_num_messages: Arc<RwLock<u64>>,
     customer_notification_sms_queue_num_messages: Arc<RwLock<u64>>,
+    electrum_tip_height_by_node: Arc<RwLock<HashMap<MonitoredElectrumNode, u64>>>,
 }
 
 // This cache holds the "current" value of each measurement. The job performs the necessary work
@@ -46,6 +55,7 @@ impl MeasurementsCache {
             customer_notification_push_queue_num_messages: Arc::new(RwLock::new(0)),
             customer_notification_email_queue_num_messages: Arc::new(RwLock::new(0)),
             customer_notification_sms_queue_num_messages: Arc::new(RwLock::new(0)),
+            electrum_tip_height_by_node: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -54,7 +64,7 @@ impl MeasurementsCache {
     //   the cache and emit that value. We decoupled the reporting from the gathering of the metrics
     //   so that we don't need to either do expensive work more frequently or reduce the global metrics
     //   reporting period.
-    fn register_callbacks(&self) -> Result<(), WorkerError> {
+    fn register_callbacks(&self, state: &WorkerState) -> Result<(), WorkerError> {
         let recovery_delay_notify_lost_app_delay_incomplete =
             self.recovery_delay_notify_lost_app_delay_incomplete.clone();
         recovery_metrics::FACTORY
@@ -139,7 +149,7 @@ impl MeasurementsCache {
                         .to_owned()
                 },
                 &[KeyValue::new(
-                    notification_metrics::CUSTOMER_NOTIFICATION_TYPE,
+                    notification_metrics::CUSTOMER_NOTIFICATION_TYPE_KEY,
                     NotificationChannel::Push.to_string(),
                 )],
             )
@@ -157,7 +167,7 @@ impl MeasurementsCache {
                         .to_owned()
                 },
                 &[KeyValue::new(
-                    notification_metrics::CUSTOMER_NOTIFICATION_TYPE,
+                    notification_metrics::CUSTOMER_NOTIFICATION_TYPE_KEY,
                     NotificationChannel::Email.to_string(),
                 )],
             )
@@ -175,11 +185,35 @@ impl MeasurementsCache {
                         .to_owned()
                 },
                 &[KeyValue::new(
-                    notification_metrics::CUSTOMER_NOTIFICATION_TYPE,
+                    notification_metrics::CUSTOMER_NOTIFICATION_TYPE_KEY,
                     NotificationChannel::Sms.to_string(),
                 )],
             )
             .map_err(|_| WorkerError::MetricsRegisterCallback)?;
+
+        for node in state.config.monitored_electrum_nodes.iter() {
+            let electrum_tip_height_by_node = self.electrum_tip_height_by_node.clone();
+            let _node = node.clone();
+            bdk_utils_metrics::FACTORY
+                .register_callback(
+                    bdk_utils_metrics::ELECTRUM_TIP_HEIGHT.to_owned(),
+                    move || {
+                        electrum_tip_height_by_node
+                            .read()
+                            .unwrap()
+                            .get(&_node)
+                            .unwrap_or(&0)
+                            .to_owned()
+                    },
+                    &[
+                        KeyValue::new(ELECTRUM_URI_KEY, node.uri.to_owned()),
+                        KeyValue::new(ELECTRUM_NETWORK_KEY, node.network.to_string()),
+                        KeyValue::new(ELECTRUM_PROVIDER_KEY, node.provider.to_owned()),
+                    ],
+                )
+                .map_err(|_| WorkerError::MetricsRegisterCallback)?;
+        }
+
         Ok(())
     }
 }
@@ -200,7 +234,7 @@ pub async fn handler(state: &WorkerState, sleep_duration_seconds: u64) -> Result
         } else if !callbacks_registered {
             // Only register the metrics callbacks once we know the measurements have been taken
             //   once successfully
-            measurements_cache.register_callbacks()?;
+            measurements_cache.register_callbacks(state)?;
             callbacks_registered = true;
         }
         tokio::time::sleep(sleep_duration).await;
@@ -290,6 +324,7 @@ pub async fn run_once(
 
     measure_electrum_signet_ping_response_time(state).await;
     measure_electrum_mainnet_ping_response_time(state).await;
+    measure_electrum_tip_height(state, measurements_cache).await?;
 
     event!(Level::INFO, "Ending metrics job");
     Ok(())
@@ -335,4 +370,54 @@ async fn measure_electrum_signet_ping_response_time(state: &WorkerState) {
         &bdk_utils_metrics::ELECTRUM_SIGNET_PING_RESPONSE_TIME,
     )
     .await
+}
+
+async fn measure_electrum_tip_height(
+    state: &WorkerState,
+    measurements_cache: &MeasurementsCache,
+) -> Result<(), WorkerError> {
+    for node in state.config.monitored_electrum_nodes.iter() {
+        let electrum_client = match get_electrum_client(
+            node.network,
+            &ElectrumRpcUris {
+                mainnet: node.uri.clone(),
+                testnet: node.uri.clone(),
+                signet: node.uri.clone(),
+            },
+        ) {
+            Ok(electrum_client) => electrum_client,
+            Err(e) => {
+                event!(
+                    Level::WARN,
+                    "Error instantiating {node}'s client: {e}; skipping",
+                    node = node.uri,
+                    e = e
+                );
+                continue;
+            }
+        };
+
+        let tip_height = electrum_client.block_headers_subscribe().map(|r| r.height);
+
+        match tip_height {
+            Ok(tip_height) => {
+                measurements_cache
+                    .electrum_tip_height_by_node
+                    .write()
+                    .unwrap()
+                    .insert(node.to_owned(), tip_height.try_into().unwrap_or_default());
+            }
+            Err(e) => {
+                event!(
+                    Level::WARN,
+                    "Error measuring {node}'s electrum tip height: {e}; skipping",
+                    node = node.uri,
+                    e = e
+                );
+                continue;
+            }
+        }
+    }
+
+    Ok(())
 }

@@ -21,8 +21,6 @@ inputs = {
   internet_facing = true
 
   image_name = "${include.root.locals.aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/wallet-api"
-  // TODO: Remove after initial deploy
-  image_tag = "2c6f6757e7e4f617f19ffdafd7e4d33174ab6a02"
 
   api_desired_count       = 2
   job_email_desired_count = 1

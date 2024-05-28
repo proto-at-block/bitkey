@@ -106,16 +106,22 @@ async fn call_api(
     }
 }
 
-fn purchase_partner_blocklist_overrides(blocklist_csv: &str) -> HashMap<String, String> {
-    HashMap::from([(
-        "f8e-purchase-partner-blocklist".to_string(),
-        blocklist_csv.to_string(),
-    )])
+fn partner_blocklist_overrides(blocklist_csv: &str) -> HashMap<String, String> {
+    HashMap::from([
+        (
+            "f8e-purchase-partner-blocklist".to_string(),
+            blocklist_csv.to_string(),
+        ),
+        (
+            "f8e-transfer-partner-blocklist".to_string(),
+            blocklist_csv.to_string(),
+        ),
+    ])
 }
 
 #[tokio::test]
 async fn transfers() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
 
     let request_body = json!({
         "country": "US",
@@ -145,7 +151,7 @@ async fn transfers() {
 
 #[tokio::test]
 async fn transfers_unauthorized_error() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
 
     let request_body = json!({
         "country": "US",
@@ -165,7 +171,7 @@ async fn transfers_unauthorized_error() {
 
 #[tokio::test]
 async fn transfers_redirect_transfer_not_supported() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -185,7 +191,7 @@ async fn transfers_redirect_transfer_not_supported() {
 
     let expected_body = json!({
         "error": "Internal Server Error",
-        "message": "Issue with configuration for partner SignetFaucet: Transfer not supported"
+        "message": "Issue with configuration for partner Signet Faucet: Transfer not supported"
     });
     assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
     assert_eq!(body, expected_body);
@@ -193,7 +199,7 @@ async fn transfers_redirect_transfer_not_supported() {
 
 #[tokio::test]
 async fn transfers_redirect_unauthorized_error() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -216,7 +222,7 @@ async fn transfers_redirect_unauthorized_error() {
 
 #[tokio::test]
 async fn quotes() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -256,7 +262,7 @@ async fn quotes() {
 
 #[tokio::test]
 async fn quotes_with_blocklist() {
-    let app = authed_router(purchase_partner_blocklist_overrides("SignetFaucet")).await;
+    let app = authed_router(partner_blocklist_overrides("SignetFaucet")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -282,7 +288,7 @@ async fn quotes_with_blocklist() {
 
 #[tokio::test]
 async fn quotes_unauthorized_error() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -304,7 +310,7 @@ async fn quotes_unauthorized_error() {
 
 #[tokio::test]
 async fn purchases_redirect() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -335,7 +341,7 @@ async fn purchases_redirect() {
 
 #[tokio::test]
 async fn purchases_redirect_unauthorized_error() {
-    let app = authed_router(purchase_partner_blocklist_overrides("")).await;
+    let app = authed_router(partner_blocklist_overrides("")).await;
     let request_body = json!({
         "fiat_amount": 100,
         "fiat_currency": "USD",
@@ -359,7 +365,7 @@ async fn purchases_redirect_unauthorized_error() {
 #[tokio::test]
 async fn purchase_options() {
     let (status, _body) = call_api(
-        authed_router(purchase_partner_blocklist_overrides("")).await,
+        authed_router(partner_blocklist_overrides("")).await,
         true,
         http::Method::GET,
         "/api/partnerships/purchases/options?country=US&fiat_currency=USD",

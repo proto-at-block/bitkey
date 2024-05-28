@@ -45,7 +45,7 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
       StateMachineMock<OnboardKeyboxDataProps, OnboardKeyboxDataFull>(
         initialModel = BackingUpKeyboxToCloudDataMock
       ) {}
-  val activateKeyboxDataStateMachine =
+  val activateFullAccountDataStateMachine =
     object : ActivateFullAccountDataStateMachine,
       StateMachineMock<ActivateFullAccountDataProps, ActivateKeyboxDataFull>(
         initialModel = ActivateKeyboxDataFull.ActivatingKeyboxDataFull
@@ -53,7 +53,7 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
 
   val dataStateMachine =
     CreateFullAccountDataStateMachineImpl(
-      activateFullAccountDataStateMachine = activateKeyboxDataStateMachine,
+      activateFullAccountDataStateMachine = activateFullAccountDataStateMachine,
       createKeyboxDataStateMachine = createKeyboxDataStateMachine,
       onboardKeyboxDataStateMachine = onboardKeyboxDataStateMachine,
       appDataDeleter = keyboxDeleter,
@@ -110,7 +110,7 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
       onboardingKeyboxStepStateDao.cloudBackupStateFlow.emit(Complete)
       onboardingKeyboxStepStateDao.notificationPreferencesStateFlow.emit(Complete)
       awaitItem().shouldBeInstanceOf<ActivateKeyboxDataFull>()
-      activateKeyboxDataStateMachine.props.onDeleteKeyboxAndExitOnboarding()
+      activateFullAccountDataStateMachine.props.onDeleteKeyboxAndExitOnboarding()
       keyboxDeleter.deleteCalls.awaitItem()
       rollbackCalls.awaitItem()
     }

@@ -14,7 +14,7 @@ class BdkMnemonicGeneratorImpl : BdkMnemonicGenerator {
     )
   }
 
-  override fun fromString(mnemonic: String): BdkMnemonic {
+  override fun fromStringBlocking(mnemonic: String): BdkMnemonic {
     return BdkMnemonicImpl(FfiMnemonic.fromString(mnemonic))
   }
 }

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.molecule:molecule-runtime-jvm",
+    "components": [
+        {
+            "version": "1.4.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "molecule-runtime-jvm-1.4.2.jar": "a7a2cc7109401dcfc74dbeec82d97de8e234e64eaae1510c54d6b14430bf4a1e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

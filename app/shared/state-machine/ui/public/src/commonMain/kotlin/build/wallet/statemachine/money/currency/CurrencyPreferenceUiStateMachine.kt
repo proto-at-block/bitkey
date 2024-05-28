@@ -8,10 +8,8 @@ interface CurrencyPreferenceUiStateMachine : StateMachine<CurrencyPreferenceProp
 
 /**
  * @param onBack: Callback for toolbar back button. If null, no back button is shown.
- * @param onDone: Callback for Done primary button. If null, no primary button is shown.
  */
 data class CurrencyPreferenceProps(
-  val onBack: (() -> Unit)?,
+  val onBack: () -> Unit,
   val btcDisplayAmount: BitcoinMoney,
-  val onDone: (() -> Unit)?,
 )

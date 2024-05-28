@@ -74,23 +74,6 @@ variable "enable_deletion_protection" {
   default     = true
 }
 
-# DEPRECATED
-# Overrides for table names so that we can import the tables we created with CDK
-# predating the Terraform migration.
-#
-# **DO NOT ADD NEW TABLE NAME OVERRIDES HERE.** You shouldn't need them.
-variable "recovery_table_name" {
-  type        = string
-  description = "Override the name of the account recovery table"
-  default     = null
-}
-
-variable "account_table_name" {
-  type        = string
-  description = "Override the name of the account table"
-  default     = null
-}
-
 ##################################
 # Task Definitions
 ##################################

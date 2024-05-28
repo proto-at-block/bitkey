@@ -164,7 +164,7 @@ class SocialRecoveryServiceImpl(
           "/api/accounts/${accountId.serverId}/recovery/relationships/$relationshipId"
         ) {
           withDescription("Delete recovery relationship")
-          setRedactedBody(EmptyRequestBody())
+          setRedactedBody(EmptyRequestBody)
         }
       }
       .map { Unit }

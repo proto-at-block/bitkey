@@ -4,6 +4,7 @@ import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.money.FiatMoney
 import build.wallet.partnerships.PartnerRedirectionMethod
+import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
 import com.github.michaelbull.result.Result
@@ -25,7 +26,7 @@ data class PartnershipsPurchaseUiProps(
   val keybox: Keybox,
   val generateAddress: suspend () -> Result<BitcoinAddress, Throwable>,
   val selectedAmount: FiatMoney?,
-  val onPartnerRedirected: (PartnerRedirectionMethod) -> Unit,
+  val onPartnerRedirected: (PartnerRedirectionMethod, PartnershipTransaction) -> Unit,
   val onSelectCustomAmount: (FiatMoney, FiatMoney) -> Unit,
   val onBack: () -> Unit,
   val onExit: () -> Unit,

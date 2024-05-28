@@ -33,6 +33,16 @@ class PartnershipTransactionsDaoImpl(
       }
   }
 
+  override suspend fun getById(
+    id: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, DbTransactionError> {
+    return database.awaitTransactionWithResult {
+      queries.getById(id)
+        .executeAsOneOrNull()
+        ?.toModel()
+    }
+  }
+
   override suspend fun deleteTransaction(
     transactionId: PartnershipTransactionId,
   ): Result<Unit, DbTransactionError> {

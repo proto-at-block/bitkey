@@ -3,6 +3,7 @@ package build.wallet
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.runSuspendCatching
+import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -34,3 +35,19 @@ inline fun <V, E, U> Flow<Result<V, E>>.mapResult(
 ): Flow<Result<U, E>> = map { result -> result.map { transform(it) } }
 
 fun <V, E> Result<V, E>.isOk(): Boolean = this is Ok
+
+/**
+ * Map the value of a result only if the value is non-null.
+ */
+inline fun <V : Any, E, U> Result<V?, E>.mapIfNotNull(mapping: (V) -> U): Result<U?, E> {
+  return map { it?.let(mapping) }
+}
+
+/**
+ * Flatmap the value of a result only if the value is non-null.
+ */
+inline fun <V : Any, E, U> Result<V?, E>.flatMapIfNotNull(
+  mapping: (V) -> Result<U, E>,
+): Result<U?, E> {
+  return flatMap { it?.let(mapping) ?: Ok(null) }
+}

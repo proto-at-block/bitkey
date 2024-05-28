@@ -7,23 +7,6 @@ import XCTest
 
 final class CurrencyPreferenceSnapshotTests: XCTestCase {
 
-    func test_currency_preference_without_back() {
-        let view = FormView(
-            viewModel: CurrencyPreferenceFormModelKt.CurrencyPreferenceFormModel(
-                onBack: nil,
-                moneyHomeHero: .init(primaryAmount: "$0", secondaryAmount: "0 sats"),
-                fiatCurrencyPreferenceString: "USD",
-                onFiatCurrencyPreferenceClick: {},
-                bitcoinDisplayPreferenceString: "Sats",
-                bitcoinDisplayPreferencePickerModel: .snapshot,
-                onBitcoinDisplayPreferenceClick: {},
-                onDone: {}
-            )
-        )
-
-        assertBitkeySnapshots(view: view)
-    }
-
     func test_currency_preference_with_back() {
         let view = FormView(
             viewModel: CurrencyPreferenceFormModelKt.CurrencyPreferenceFormModel(
@@ -33,14 +16,34 @@ final class CurrencyPreferenceSnapshotTests: XCTestCase {
                 onFiatCurrencyPreferenceClick: {},
                 bitcoinDisplayPreferenceString: "Sats",
                 bitcoinDisplayPreferencePickerModel: .snapshot,
-                onBitcoinDisplayPreferenceClick: {},
-                onDone: {}
+                shouldShowHideBalance: false,
+                isHideBalanceEnabled: false,
+                onEnableHideBalanceChanged: { _ in },
+                onBitcoinDisplayPreferenceClick: {}
             )
         )
 
         assertBitkeySnapshots(view: view)
     }
 
+    func test_currency_preference_with_hide_balance() {
+        let view = FormView(
+            viewModel: CurrencyPreferenceFormModelKt.CurrencyPreferenceFormModel(
+                onBack: {},
+                moneyHomeHero: .init(primaryAmount: "$0", secondaryAmount: "0 sats"),
+                fiatCurrencyPreferenceString: "USD",
+                onFiatCurrencyPreferenceClick: {},
+                bitcoinDisplayPreferenceString: "Sats",
+                bitcoinDisplayPreferencePickerModel: .snapshot,
+                shouldShowHideBalance: true,
+                isHideBalanceEnabled: true,
+                onEnableHideBalanceChanged: { _ in },
+                onBitcoinDisplayPreferenceClick: {}
+            )
+        )
+
+        assertBitkeySnapshots(view: view)
+    }
 }
 
 private extension ListItemPickerMenu where Option == AnyObject {

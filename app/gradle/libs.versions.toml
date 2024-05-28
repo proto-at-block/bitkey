@@ -9,7 +9,7 @@ jvmTarget = "11"
 # JDK version for builds
 jvmToolchain = "17"
 bdk = "0.31.1"
-datadog = "2.7.1"
+datadog = "2.9.0"
 detekt = "1.23.6"
 kotlin = "1.9.23"
 
@@ -25,7 +25,7 @@ kmp-kotlin-result = "1.1.18"
 kmp-ktor = "2.3.9"
 kmp-matthewnelson-encoding = "2.2.1"
 kmp-mosaic = "0.9.0"
-kmp-redacted = "1.8.0"
+kmp-redacted = "1.8.1"
 kmp-settings = "1.1.1"
 kmp-sqldelight = "2.0.1"
 kmp-sqlighter = "1.3.1"
@@ -102,7 +102,7 @@ kmp-ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "kmp
 kmp-ktor-client-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "kmp-ktor" }
 kmp-ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "kmp-ktor" }
 kmp-matthewnelson-encoding = { module = "io.matthewnelson.encoding:base32", version.ref = "kmp-matthewnelson-encoding" }
-kmp-molecule-runtime = { module = "app.cash.molecule:molecule-runtime", version = "0.9.0" }
+kmp-molecule-runtime = { module = "app.cash.molecule:molecule-runtime", version = "1.4.2" }
 kmp-okhttp = { module = "com.squareup.okhttp3:okhttp", version = "4.12.0" }
 kmp-okio = { module = "com.squareup.okio:okio", version = "3.7.0" }
 kmp-picnic = { module = "com.jakewharton.picnic:picnic", version = "0.7.0" }
@@ -197,6 +197,7 @@ android-arch-core-runtime = { module = "androidx.arch.core:core-runtime", versio
 android-gson = { module = "com.google.code.gson:gson", version = "2.10" }
 android-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version = "1.3.1" }
 android-layoutlib-api = { module = "com.android.tools.layoutlib:layoutlib-api", version = "31.1.2" }
+android-biometric = { module = "androidx.biometric:biometric", version = "1.1.0" }
 
 # Warning: when updating, make sure that Android Studio Gradle sync still works.
 # Newer versions are likely to break due to compatability requirements, even if project still compiles: https://developer.android.com/studio/write/java8-support#library-desugaring-versions.

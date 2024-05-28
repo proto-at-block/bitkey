@@ -40,6 +40,7 @@ import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.AddressInput
 import build.wallet.statemachine.core.form.FormMainContentModel.Button
+import build.wallet.statemachine.core.form.FormMainContentModel.Callout
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DatePicker
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
@@ -60,6 +61,7 @@ import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.app.account.toWalletTheme
 import build.wallet.ui.app.core.fadingEdge
 import build.wallet.ui.components.button.Button
+import build.wallet.ui.components.callout.Callout
 import build.wallet.ui.components.explainer.Explainer
 import build.wallet.ui.components.explainer.Statement
 import build.wallet.ui.components.fee.FeeOption
@@ -159,6 +161,7 @@ fun FormScreen(model: FormBodyModel) {
             is MoneyHomeHero -> MoneyHomeHero(model = mainContent)
             is Picker -> Picker(model = mainContent)
             is StepperIndicator -> StepperIndicator(model = mainContent)
+            is Callout -> Callout(model = mainContent.item)
           }
           if (index < model.mainContentList.lastIndex) {
             Spacer(modifier = Modifier.height(16.dp))

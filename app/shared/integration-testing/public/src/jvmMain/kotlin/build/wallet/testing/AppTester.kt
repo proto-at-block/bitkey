@@ -372,6 +372,10 @@ private val inAppBrowserNavigator =
     }
 
     override fun onClose() = Unit
+
+    override fun close() {
+      onClose()
+    }
   }
 
 private val systemSettingsLauncher =

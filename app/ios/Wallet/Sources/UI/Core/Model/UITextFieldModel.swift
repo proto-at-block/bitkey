@@ -9,7 +9,7 @@ public struct UITextFieldModel {
     public let backgroundColor: UIColor
     public let cornerRadius: CGFloat
     public let enableAutoCorrect: Bool
-    public let enableWordAutoCapitalization: Bool
+    public let capitalization: UITextAutocapitalizationType
     public let height: CGFloat
     public let isSecureTextEntry: Bool
     public let keyboardType: UIKeyboardType
@@ -20,6 +20,7 @@ public struct UITextFieldModel {
     public var textLabelModel: UILabelModel
     public let tintColor: UIColor
     public let trailingTextFieldButtonModel: UIButtonModel?
+    public let maxLength: Int?
 
     // MARK: - Internal Properties
 
@@ -27,7 +28,7 @@ public struct UITextFieldModel {
         backgroundColor: UIColor,
         cornerRadius: CGFloat = 0,
         enableAutoCorrect: Bool,
-        enableWordAutoCapitalization: Bool,
+        capitalization: UITextAutocapitalizationType,
         height: CGFloat,
         isSecureTextEntry: Bool = false,
         keyboardType: UIKeyboardType = .default,
@@ -37,12 +38,13 @@ public struct UITextFieldModel {
         textInset: UIEdgeInsets = .zero,
         textLabelModel: UILabelModel,
         tintColor: UIColor,
-        trailingTextFieldButtonModel: UIButtonModel? = nil
+        trailingTextFieldButtonModel: UIButtonModel? = nil,
+        maxLength: Int?
     ) {
         self.backgroundColor = backgroundColor
         self.cornerRadius = cornerRadius
         self.enableAutoCorrect = enableAutoCorrect
-        self.enableWordAutoCapitalization = enableWordAutoCapitalization
+        self.capitalization = capitalization
         self.keyboardType = keyboardType
         self.height = height
         self.isSecureTextEntry = isSecureTextEntry
@@ -53,16 +55,19 @@ public struct UITextFieldModel {
         self.textLabelModel = textLabelModel
         self.tintColor = tintColor
         self.trailingTextFieldButtonModel = trailingTextFieldButtonModel
+        self.maxLength = maxLength
     }
 
 }
 
 // MARK: -
 
-open class ModeledTextField: UITextField {
+open class ModeledTextField: UITextField, UITextFieldDelegate {
 
+    private var maxLength: Int? = nil
     private var onDeleteBackwards: () -> Void = {}
     private var onEnteredTextChanged: (String) -> Void = { _  in }
+    private var onDone: (() -> Void)? = nil
     private var inset: UIEdgeInsets = .zero
 
     // MARK: - Life Cycle
@@ -75,6 +80,7 @@ open class ModeledTextField: UITextField {
         setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         addTarget(self, action: #selector(valueChanged), for: .editingChanged)
+        delegate = self
     }
 
     public required init?(coder: NSCoder) {
@@ -90,16 +96,36 @@ open class ModeledTextField: UITextField {
     public override func editingRect(forBounds bounds: CGRect) -> CGRect {
         return textRect(forBounds: bounds)
     }
+    
+    // MARK: - UITextFieldDelegate
+    
+    public func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+        let currentString = (textField.text ?? "") as NSString
+        let newString = currentString.replacingCharacters(in: range, with: string)
+
+        if let maxLength {
+            return newString.count <= maxLength
+        }
+        return true
+    }
+    
+    public func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        onDone?()
+        return true;
+    }
 
     // MARK: - Public Methods
 
     public func apply(
         model: UITextFieldModel,
         onEnteredTextChanged: @escaping (String) -> Void,
-        onDeleteBackwards: @escaping () -> Void = {}
+        onDeleteBackwards: @escaping () -> Void = {},
+        onDone: (() -> Void)? = nil
     ) {
         self.onEnteredTextChanged = onEnteredTextChanged
         self.onDeleteBackwards = onDeleteBackwards
+        self.onDone = onDone
+        self.maxLength = model.maxLength
 
         // Don't use model.placeholderLabelModel.attributedText as-is because we don't want to set the line height
         let attributedPlaceholder = model.placeholderLabelModel.attributedText
@@ -117,14 +143,14 @@ open class ModeledTextField: UITextField {
                 attributes: [.font: model.textLabelModel.font, .foregroundColor: model.textLabelModel.textColor]
             )
         }
-
+        
         backgroundColor = model.backgroundColor
         isSecureTextEntry = model.isSecureTextEntry
         keyboardType = model.keyboardType
         returnKeyType = model.returnKeyType
         textContentType = model.textContentType
         tintColor = model.tintColor
-        autocapitalizationType = model.enableWordAutoCapitalization ? .words : .none
+        autocapitalizationType = model.capitalization
         autocorrectionType = model.enableAutoCorrect ? .default : .no
 
         layer.cornerRadius = model.cornerRadius

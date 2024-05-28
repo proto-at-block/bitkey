@@ -13,14 +13,17 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.socrec.Invitation
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
-import build.wallet.money.FiatMoney
+import build.wallet.inappsecurity.HideBalancePreference
+import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerRedirectionMethod
+import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.Failed
@@ -29,6 +32,7 @@ import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.Succe
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
+import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -40,6 +44,7 @@ import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiPr
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.ReplaceHardwareCardUiProps
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.AddAdditionalFingerprintUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FixingCloudBackupState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ReceiveFlowUiState
@@ -49,8 +54,10 @@ import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SetSpendingLimi
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewHardwareRecoveryStatusUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingAllTransactionActivityUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.AddingAdditionalFingerprint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.MobilePay
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.TrustedContact
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
@@ -64,6 +71,8 @@ import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationUiStateMa
 import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiStateMachine
 import build.wallet.statemachine.send.SendEntryPoint
+import build.wallet.statemachine.settings.full.device.fingerprints.AddAdditionalFingerprintGettingStartedModel
+import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.statemachine.transactions.TransactionListUiProps
 import build.wallet.statemachine.transactions.TransactionListUiStateMachine
@@ -71,8 +80,8 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val addBitcoinUiStateMachine: AddBitcoinUiStateMachine,
@@ -85,14 +94,17 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val transactionListUiStateMachine: TransactionListUiStateMachine,
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
-  private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val hideBalancePreference: HideBalancePreference,
+  private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
+    val scope = rememberStableCoroutineScope()
     if (props.state.isRefreshing) {
       LaunchedEffect("refresh-transactions") {
         props.accountData.transactionsData.syncTransactions()
+        props.accountData.transactionsData.syncFiatBalance()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
@@ -107,30 +119,38 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         )
       }.collectAsState(AppFunctionalityStatus.FullFunctionality).value
 
+    val hideBalance by remember {
+      if (inAppSecurityFeatureFlag.isEnabled()) {
+        hideBalancePreference.isEnabled
+      } else {
+        MutableStateFlow(false)
+      }
+    }.collectAsState()
     var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
-    var fiatBalance: FiatMoney? by remember { mutableStateOf(null) }
-
-    SyncFiatBalanceEquivalentEffect(props, fiatCurrency) {
-      fiatBalance = it
-    }
 
     val viewingBalanceModel =
       ScreenModel(
         alertModel = alertModel,
         body =
           MoneyHomeBodyModel(
+            hideBalance = hideBalance,
+            onHideBalance = {
+              if (inAppSecurityFeatureFlag.isEnabled()) {
+                scope.launch { hideBalancePreference.set(!hideBalance) }
+              }
+            },
             onSettings = props.onSettings,
             balanceModel =
               // if fiat balance is null because currency conversion hasn't happened yet, we will show
               // the sats value as the primary until the fiat balance isn't null
               MoneyAmountModel(
-                primaryAmount = when (val balance = fiatBalance) {
+                primaryAmount = when (val balance = props.accountData.transactionsData.fiatBalance) {
                   null ->
                     moneyDisplayFormatter
                       .format(props.accountData.transactionsData.balance.total)
                   else -> moneyDisplayFormatter.format(balance)
                 },
-                secondaryAmount = if (fiatBalance != null) {
+                secondaryAmount = if (props.accountData.transactionsData.fiatBalance != null) {
                   moneyDisplayFormatter
                     .format(props.accountData.transactionsData.balance.total)
                 } else {
@@ -218,47 +238,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   }
 
   @Composable
-  private fun SyncFiatBalanceEquivalentEffect(
-    props: MoneyHomeViewingBalanceUiProps,
-    fiatCurrency: FiatCurrency,
-    onFiatBalanceSynced: (FiatMoney) -> Unit,
-  ) {
-    // update the fiat balance if balance has changed or the selected fiat currency changes
-    LaunchedEffect(
-      "sync-fiat-equivalent-balance",
-      props.accountData.transactionsData.balance.total,
-      fiatCurrency
-    ) {
-      val convertedFiatBalance =
-        currencyConverter
-          .convert(
-            fromAmount = props.accountData.transactionsData.balance.total,
-            toCurrency = fiatCurrency,
-            atTime = null
-          ).filterNotNull().firstOrNull() as? FiatMoney
-          ?: FiatMoney.zero(fiatCurrency)
-
-      onFiatBalanceSynced(convertedFiatBalance)
-    }
-
-    // also manually update fiat balance when refreshing
-    LaunchedEffect("manually-sync-fiat-balance", props.state.isRefreshing) {
-      if (props.state.isRefreshing) {
-        val convertedFiatBalance =
-          currencyConverter
-            .convert(
-              fromAmount = props.accountData.transactionsData.balance.total,
-              toCurrency = fiatCurrency,
-              atTime = null
-            ).filterNotNull().firstOrNull() as? FiatMoney
-            ?: FiatMoney.zero(fiatCurrency)
-
-        onFiatBalanceSynced(convertedFiatBalance)
-      }
-    }
-  }
-
-  @Composable
   private fun MoneyHomeCardsModel(
     props: MoneyHomeViewingBalanceUiProps,
     appFunctionalityStatus: AppFunctionalityStatus,
@@ -299,6 +278,15 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               onInviteTrustedContact = {
                 props.setState(
                   ViewingBalanceUiState(bottomSheetDisplayState = TrustedContact(skipped = false))
+                )
+              },
+              onAddAdditionalFingerprint = {
+                props.setState(
+                  ViewingBalanceUiState(
+                    bottomSheetDisplayState = AddingAdditionalFingerprint(
+                      skipped = false
+                    )
+                  )
                 )
               },
               onShowAlert = onShowAlert,
@@ -434,8 +422,14 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                   purchaseAmount = currentState.purchaseAmount,
                   generateAddress = props.accountData.addressData.generateAddress,
                   onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
-                  onPartnerRedirected = {
-                    handlePartnerRedirected(method = it, props, onShowAlert, onDismissAlert)
+                  onPartnerRedirected = { redirectMethod, transaction ->
+                    handlePartnerRedirected(
+                      method = redirectMethod,
+                      transaction = transaction,
+                      props = props,
+                      onShowAlert = onShowAlert,
+                      onDismissAlert = onDismissAlert
+                    )
                   },
                   onExit = {
                     props.setState(props.state.copy(bottomSheetDisplayState = null))
@@ -497,6 +491,49 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               onClosed = onClosed
             ).asSheetModalScreen(onClosed)
           }
+          is AddingAdditionalFingerprint -> {
+            if (currentState.skipped) {
+              LaunchedEffect("skipping-add-additional-fingerprint") {
+                gettingStartedTaskDao.updateTask(
+                  id = GettingStartedTask.TaskId.AddAdditionalFingerprint,
+                  state = GettingStartedTask.TaskState.Complete
+                ).onSuccess {
+                  eventTracker.track(Action.ACTION_APP_ADD_ADDITIONAL_FINGERPRINT_SKIP)
+                }
+                props.setState(props.state.copy(bottomSheetDisplayState = null))
+              }
+            }
+            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+            AddAdditionalFingerprintGettingStartedModel(
+              onContinue = { props.setState(AddAdditionalFingerprintUiState) },
+              onSetUpLater = {
+                props.setState(
+                  props.state.copy(
+                    bottomSheetDisplayState = AddingAdditionalFingerprint(skipped = true)
+                  )
+                )
+              },
+              onClosed = onClosed
+            ).asSheetModalScreen(onClosed)
+          }
+          PromptingForFwUpUiState -> {
+            val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+            PromptingForFingerprintFwUpSheetModel(
+              onCancel = onClosed,
+              onUpdate = {
+                when (val fwupState = props.firmwareData.firmwareUpdateState) {
+                  is FirmwareData.FirmwareUpdateState.PendingUpdate -> props.setState(
+                    FwupFlowUiState(fwupState)
+                  )
+                  FirmwareData.FirmwareUpdateState.UpToDate -> props.setState(
+                    props.state.copy(
+                      bottomSheetDisplayState = null
+                    )
+                  )
+                }
+              }
+            )
+          }
           null -> null
         }
       }
@@ -506,6 +543,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
 
   private fun handlePartnerRedirected(
     method: PartnerRedirectionMethod,
+    transaction: PartnershipTransaction,
     props: MoneyHomeViewingBalanceUiProps,
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
@@ -554,7 +592,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           MoneyHomeUiState.ShowingInAppBrowserUiState(
             urlString = method.urlString,
             onClose = {
-              props.setState(props.state.copy(bottomSheetDisplayState = null))
+              props.onPartnershipsWebFlowCompleted(method.partnerInfo, transaction)
             }
           )
         )

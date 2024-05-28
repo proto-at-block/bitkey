@@ -149,7 +149,7 @@ class SettingsListUiStateMachineImpl(
       when (this) {
         is MobilePay -> Pair(SmallIconMobileLimit, "Mobile Pay")
         is BitkeyDevice -> Pair(SmallIconBitkey, "Bitkey Device")
-        is CurrencyPreference -> Pair(SmallIconCurrency, "Currency")
+        is CurrencyPreference -> Pair(SmallIconCurrency, "Currency Display")
         is NotificationPreferences -> Pair(SmallIconNotification, "Notifications")
         is RecoveryChannels -> Pair(SmallIconRecovery, "Recovery Methods")
         is CustomElectrumServer -> Pair(SmallIconElectrum, "Custom Electrum Server")
@@ -159,7 +159,7 @@ class SettingsListUiStateMachineImpl(
         is CloudBackupHealth -> Pair(SmallIconCloud, "Cloud Backup")
         is RotateAuthKey -> Pair(SmallIconPhone, "Mobile Devices")
         is DebugMenu -> Pair(SmallIconInformation, "Debug Menu")
-        is Biometric -> Pair(SmallIconLock, "Face ID") // TODO W-7960 Use appropriate string for setting row
+        is Biometric -> Pair(SmallIconLock, "App Security")
       }
     val isRowEnabled = isRowEnabled(appFunctionalityStatus)
     return RowModel(

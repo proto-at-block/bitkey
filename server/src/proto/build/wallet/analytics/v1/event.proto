@@ -201,7 +201,10 @@ enum Action {
     /** [App] Customer denies request for push notifications from initial Bitkey prompt before the OS */
     ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED = 52;
 
-    // Next tag is 53
+    /** [App] Customer taps "Skip" on the add additional fingerprint information screen from the getting started tasks */
+    ACTION_APP_ADD_ADDITIONAL_FINGERPRINT_SKIP = 53;
+
+    // Next tag is 54
 
 }
 

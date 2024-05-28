@@ -6,11 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.FingerprintEnrollmentStatus.COMPLETE
-import build.wallet.firmware.FingerprintEnrollmentStatus.INCOMPLETE
-import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
-import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
 import build.wallet.statemachine.account.create.full.hardware.HardwareFingerprintEnrollmentScreenModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -22,6 +17,7 @@ import build.wallet.statemachine.settings.full.device.fingerprints.EnrollingFing
 
 class EnrollingFingerprintUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val fingerprintNfcCommands: FingerprintNfcCommands,
 ) : EnrollingFingerprintUiStateMachine {
   @Composable
   override fun model(props: EnrollingFingerprintProps): ScreenModel {
@@ -34,15 +30,18 @@ class EnrollingFingerprintUiStateMachineImpl(
         nfcSessionUIStateMachine.model(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
-              commands.startFingerprintEnrollment(
+              fingerprintNfcCommands.prepareForFingerprintEnrollment(
+                commands = commands,
                 session = session,
-                fingerprintHandle = props.fingerprintHandle
+                enrolledFingerprints = props.enrolledFingerprints,
+                fingerprintToEnroll = props.fingerprintHandle
               )
             },
             onSuccess = { uiState = ShowingFingerprintInstructionsUiState() },
             onCancel = props.onCancel,
             isHardwareFake = props.account.config.isHardwareFake,
             screenPresentationStyle = ScreenPresentationStyle.Modal,
+            shouldLock = false,
             eventTrackerContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT
           )
         )
@@ -62,21 +61,20 @@ class EnrollingFingerprintUiStateMachineImpl(
           eventTrackerScreenIdContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT,
           isNavigatingBack = state.isNavigatingBack,
           presentationStyle = ScreenPresentationStyle.RootFullScreen,
-          headline = "Set up another fingerprint"
+          headline = "Set up another fingerprint",
+          instructions = "Place a new finger on the sensor until you see a blue light." +
+            " Repeat this until the device has a solid green light." +
+            " Once done, press the button below to save your fingerprint."
         )
       ConfirmingEnrollmentStatusUiState -> nfcSessionUIStateMachine.model(
         NfcSessionUIStateMachineProps(
           session = { session, commands ->
-            val enrollmentStatus = commands.getFingerprintEnrollmentStatus(session)
-            when (enrollmentStatus) {
-              COMPLETE -> EnrollmentStatusResult.Complete(
-                // Only retrieve enrolled fingerprints if necessary
-                enrolledFingerprints = commands.getEnrolledFingerprints(session)
-              )
-              INCOMPLETE -> EnrollmentStatusResult.Incomplete
-              NOT_IN_PROGRESS -> EnrollmentStatusResult.NotInProgress
-              UNSPECIFIED -> EnrollmentStatusResult.Unspecified
-            }
+            fingerprintNfcCommands.checkEnrollmentStatus(
+              commands = commands,
+              session = session,
+              enrolledFingerprints = props.enrolledFingerprints,
+              fingerprintHandle = props.fingerprintHandle
+            )
           },
           onSuccess = { response ->
             when (response) {
@@ -87,12 +85,6 @@ class EnrollingFingerprintUiStateMachineImpl(
                     showingIncompleteEnrollmentError = true,
                     isNavigatingBack = true
                   )
-
-              EnrollmentStatusResult.NotInProgress -> {
-                // TODO(W-8026): Identify whether the fingerprint was actually enrolled or not,
-                // and start a new enrollment if not.
-                uiState = StartingEnrollmentUiState
-              }
               EnrollmentStatusResult.Unspecified -> error("Unexpected fingerprint enrollment state")
             }
           },
@@ -115,16 +107,4 @@ private sealed interface EnrollingFingerprintUiState {
   data object StartingEnrollmentUiState : EnrollingFingerprintUiState
 
   data object ConfirmingEnrollmentStatusUiState : EnrollingFingerprintUiState
-}
-
-internal sealed interface EnrollmentStatusResult {
-  data object Unspecified : EnrollmentStatusResult
-
-  data object NotInProgress : EnrollmentStatusResult
-
-  data object Incomplete : EnrollmentStatusResult
-
-  data class Complete(
-    val enrolledFingerprints: EnrolledFingerprints,
-  ) : EnrollmentStatusResult
 }

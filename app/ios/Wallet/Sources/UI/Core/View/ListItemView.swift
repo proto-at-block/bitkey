@@ -10,12 +10,18 @@ public struct ListItemView: View {
 
     private let viewModel: ListItemModel
     private let verticalPadding: CGFloat
+    private let hideContent: Bool
 
     // MARK: - Life Cycle
 
-    public init(viewModel: ListItemModel, verticalPadding: CGFloat = 16.f) {
+    public init(
+        viewModel: ListItemModel,
+        verticalPadding: CGFloat = 16.f,
+        hideContent: Bool = false
+    ) {
         self.viewModel = viewModel
         self.verticalPadding = verticalPadding
+        self.hideContent = hideContent
     }
 
     // MARK: - View
@@ -23,18 +29,18 @@ public struct ListItemView: View {
     public var body: some View {
         if let pickerModel = viewModel.pickerMenu {
             ListItemPickerView(viewModel: pickerModel) {
-                ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding)
+                ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding, hideContent: hideContent)
             }.ifNonnull(viewModel.testTag) { view, testTag in
                 view.accessibilityIdentifier(testTag)
             }
         } else if let onClick = viewModel.onClick {
             Button(action: onClick) {
-                ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding)
+                ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding, hideContent: hideContent)
             }.ifNonnull(viewModel.testTag) { view, testTag in
                 view.accessibilityIdentifier(testTag)
             }
         } else {
-            ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding)
+            ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding, hideContent: hideContent)
                 .ifNonnull(viewModel.testTag) { view, testTag in
                     view.accessibilityIdentifier(testTag)
                 }
@@ -47,6 +53,18 @@ public struct ListItemView: View {
 struct ListItemContentView: View {
     let viewModel: ListItemModel
     let verticalPadding: CGFloat
+    let hideContent: Bool
+    
+    init(
+        viewModel: ListItemModel,
+        verticalPadding: CGFloat,
+        hideContent: Bool
+    ) {
+        self.viewModel = viewModel
+        self.verticalPadding = verticalPadding
+        self.hideContent = hideContent
+    }
+    
     var body: some View {
         HStack(alignment: viewModel.accessoryAlignment) {
             // Leading accessory
@@ -96,7 +114,8 @@ struct ListItemContentView: View {
                                 titleFont: viewModel.titleFont,
                                 subtitle: viewModel.secondaryText,
                                 subtitleColor: viewModel.subtitleColor,
-                                enabled: viewModel.enabled
+                                enabled: viewModel.enabled,
+                                hideContent: hideContent
                             )
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .if(viewModel.listItemTitleBackgroundTreatment != nil) { title in
@@ -138,7 +157,8 @@ struct ListItemContentView: View {
                         titleColor: viewModel.sideTextTint.color(enabled: viewModel.enabled),
                         subtitle: viewModel.secondarySideText,
                         subtitleColor: viewModel.subtitleColor,
-                        enabled: viewModel.enabled
+                        enabled: viewModel.enabled,
+                        hideContent: hideContent
                     )
                 }
                 
@@ -168,30 +188,34 @@ private struct TitleSubtitleView: View {
     var subtitle: String?
     var subtitleColor: Color = .foreground60
     var enabled: Bool
+    var hideContent: Bool = false
 
     var body: some View {
-        VStack(spacing: 4) {
-            title.map {
+        CollapsibleLabelContainer(
+            collapsed: hideContent,
+            topContent: title.map { title in
                 ModeledText(
                     model: .standard(
-                        $0,
+                        title,
                         font: titleFont,
                         textAlignment: alignment,
                         textColor: titleColor
                     )
                 )
-            }
-            subtitle.map {
+            },
+            bottomContent: subtitle.map { subtitle in
                 ModeledText(
                     model: .standard(
-                        $0,
+                        subtitle,
                         font: .body3Regular,
                         textAlignment: alignment,
                         textColor: subtitleColor
                     )
                 )
-            }
-        }
+            },
+            collapsedContent: CollapsedMoneyView(height: 12, centered: false),
+            spacing: 4
+        )
     }
 }
 

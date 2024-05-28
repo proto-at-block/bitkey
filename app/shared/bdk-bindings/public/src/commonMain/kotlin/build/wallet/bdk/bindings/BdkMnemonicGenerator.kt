@@ -9,11 +9,17 @@ import kotlinx.coroutines.withContext
 interface BdkMnemonicGenerator {
   fun generateMnemonicBlocking(wordCount: BdkMnemonicWordCount): BdkMnemonic
 
-  fun fromString(mnemonic: String): BdkMnemonic
+  fun fromStringBlocking(mnemonic: String): BdkMnemonic
 }
 
 suspend fun BdkMnemonicGenerator.generateMnemonic(wordCount: BdkMnemonicWordCount): BdkMnemonic {
   return withContext(Dispatchers.BdkIO) {
     generateMnemonicBlocking(wordCount)
+  }
+}
+
+suspend fun BdkMnemonicGenerator.fromString(mnemonic: String): BdkMnemonic {
+  return withContext(Dispatchers.BdkIO) {
+    fromStringBlocking(mnemonic)
   }
 }

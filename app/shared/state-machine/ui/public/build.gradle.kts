@@ -36,10 +36,10 @@ kotlin {
         api(projects.shared.emergencyAccessKitPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.featureFlagPublic)
+        api(projects.shared.fingerprintsPublic)
         api(projects.shared.homePublic)
         api(projects.shared.keyValueStoreImpl)
         api(projects.shared.ktorClientPublic)
-        api(projects.shared.ldkBindingsPublic)
         api(projects.shared.loggingPublic)
         api(projects.shared.nfcPublic)
         api(projects.shared.notificationsPublic)
@@ -95,7 +95,6 @@ kotlin {
         implementation(projects.shared.homeFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.keyValueStoreFake)
-        implementation(projects.shared.ldkBindingsFake)
         implementation(projects.shared.moneyFake)
         implementation(projects.shared.notificationsFake)
         implementation(projects.shared.onboardingFake)
@@ -112,8 +111,10 @@ kotlin {
         implementation(projects.shared.stateMachineFrameworkTesting)
         implementation(projects.shared.stateMachineUiTesting)
         implementation(projects.shared.testingPublic)
+        implementation(projects.shared.uiCoreTesting)
         implementation(projects.shared.workerFake)
         implementation(libs.kmp.okio)
+        implementation(projects.shared.inAppSecurityFake)
       }
     }
 

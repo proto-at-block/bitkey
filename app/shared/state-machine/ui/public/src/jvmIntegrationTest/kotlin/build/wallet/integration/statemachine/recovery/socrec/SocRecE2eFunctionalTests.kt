@@ -1,6 +1,7 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
@@ -11,11 +12,9 @@ import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
-import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.f8e.socrec.endorseTrustedContacts
 import build.wallet.f8e.socrec.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
@@ -27,16 +26,18 @@ import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.shouldHaveTrailingAccessoryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.ext.awaitRelationships
+import build.wallet.testing.ext.awaitTcIsVerifiedAndBackedUp
 import build.wallet.testing.ext.createTcInvite
 import build.wallet.testing.ext.deleteBackupsFromFakeCloud
-import build.wallet.testing.ext.endorseAndVerifyTc
 import build.wallet.testing.ext.getActiveAccount
 import build.wallet.testing.ext.getActiveAppGlobalAuthKey
 import build.wallet.testing.ext.getActiveFullAccount
 import build.wallet.testing.ext.getActiveHwAuthKey
-import build.wallet.testing.ext.lastSharedText
+import build.wallet.testing.ext.getSharedInviteCode
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.testing.ext.onboardLiteAccountFromInvitation
+import build.wallet.testing.ext.readCloudBackup
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.fail
 import io.kotest.assertions.withClue
@@ -53,12 +54,9 @@ import io.kotest.property.checkAll
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.timeout
-import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant
 import org.junit.jupiter.api.fail
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 private const val PROTECTED_CUSTOMER_ALIAS = "alice"
@@ -90,7 +88,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     ) {
       advanceThroughCreateLiteAccountScreens(inviteCode, CloudStoreAccountFake.TrustedContactFake)
       advanceThroughTrustedContactEnrollmentScreens(PROTECTED_CUSTOMER_ALIAS)
-      relationshipId = tcApp.app.socRecRelationshipsRepository.awaitRelationships {
+      relationshipId = tcApp.awaitRelationships {
         !it.protectedCustomers.isEmpty()
       }
         .protectedCustomers
@@ -100,21 +98,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
 
     // PC: Wait for the cloud backup to contain the TC's SocRec PKEK
-    customerApp.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
-      customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.unendorsedTrustedContacts.size == 1 &&
-          it.unendorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED
-      }
-      customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.endorsedTrustedContacts.size == 1 &&
-          it.endorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.VERIFIED
-      }
-      customerApp.awaitCloudBackupRefreshed(relationshipId)
-      cancelAndIgnoreRemainingEvents()
-    }
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
   }
@@ -138,7 +122,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       CloudStoreAccountFake.TrustedContactFake
     )
 
-    customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
 
     customerApp = launchNewApp(
       cloudKeyValueStore = customerApp.app.cloudKeyValueStore
@@ -179,7 +163,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     ) {
       advanceThroughCreateLiteAccountScreens(inviteCode, CloudStoreAccountFake.TrustedContactFake)
       advanceThroughTrustedContactEnrollmentScreens(PROTECTED_CUSTOMER_ALIAS)
-      tcApp.app.socRecRelationshipsRepository.awaitRelationships {
+      tcApp.awaitRelationships {
         !it.protectedCustomers.isEmpty()
       }
       cancelAndIgnoreRemainingEvents()
@@ -243,7 +227,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     ) {
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
-      customerApp.app.socRecRelationshipsRepository.awaitRelationships {
+      customerApp.awaitRelationships {
         it.endorsedTrustedContacts.size == 1 &&
           it.endorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.TAMPERED
       }
@@ -273,7 +257,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         PROTECTED_CUSTOMER_ALIAS,
         CloudStoreAccountFake.TrustedContactFake
       )
-      customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
+      customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
 
       customerApp = launchNewApp(
         cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
@@ -304,8 +288,7 @@ class SocRecE2eFunctionalTests : FunSpec({
 
       // Expect the cloud backup to continue to contain the TC backup.
       customerApp.app.cloudBackupRefresher.lastCheck.value.shouldBeGreaterThan(Instant.DISTANT_PAST)
-      customerApp.app.cloudBackupDao.get(customerApp.getActiveFullAccount().accountId.serverId)
-        .getOrThrow()
+      customerApp.readCloudBackup()
         .shouldNotBeNull()
         .socRecDataAvailable
         .shouldBeTrue()
@@ -344,7 +327,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       protectedCustomerName = PROTECTED_CUSTOMER_ALIAS,
       cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
 
     customerApp = launchNewApp(
       cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
@@ -361,7 +344,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         clickSecondaryButton()
       }
       // Note that the auth rotation should write a new cloud backup with new socrec keys.
-      awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH)
+      awaitUntilScreenWithBody<FormBodyModel>(SUCCESSFULLY_ROTATED_AUTH)
         .clickPrimaryButton()
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
 
@@ -370,6 +353,64 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     verifyKeyCertificatesAreRefreshed(customerApp)
     shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
+  }
+
+  test("Lost App Cloud Recovery should succeed after PC does Lost Hardware D&N with Trusted Contact") {
+    // Onboard the protected customer
+    val customerApp = launchNewApp()
+    customerApp.onboardFullAccountWithFakeHardware(
+      cloudStoreAccountForBackup = CloudStoreAccountFake.ProtectedCustomerFake
+    )
+    val invite = customerApp.createTcInvite("bob")
+    val tcApp = launchNewApp()
+    tcApp.onboardLiteAccountFromInvitation(
+      invite.inviteCode,
+      PROTECTED_CUSTOMER_ALIAS,
+      CloudStoreAccountFake.TrustedContactFake
+    )
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+
+    // PC: lost hardware D+N
+    customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
+    customerApp.app.appUiStateMachine.test(
+      Unit,
+      useVirtualTime = false,
+      testTimeout = 60.seconds,
+      turbineTimeout = 10.seconds
+    ) {
+      advanceThroughLostHardwareAndCloudRecoveryToMoneyHome(customerApp)
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    verifyKeyCertificatesAreRefreshed(customerApp)
+
+    // PC: Start up a fresh app with clean data, persist cloud backup and hardware
+    //     Perform Lost App Cloud Recovery
+    val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
+    val recoveringApp = launchNewApp(
+      cloudStoreAccountRepository = customerApp.app.cloudStoreAccountRepository,
+      cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
+      hardwareSeed = hardwareSeed
+    )
+    recoveringApp.app.appUiStateMachine.test(
+      props = Unit,
+      useVirtualTime = false,
+      turbineTimeout = 5.seconds
+    ) {
+      advanceToCloudRecovery().clickPrimaryButton()
+      // Do auth key rotation
+      screenDecideIfShouldRotate {
+        clickSecondaryButton()
+      }
+      // Note that the auth rotation should write a new cloud backup with new socrec keys.
+      awaitUntilScreenWithBody<FormBodyModel>(SUCCESSFULLY_ROTATED_AUTH)
+        .clickPrimaryButton()
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+
+      cancelAndIgnoreRemainingEvents()
+    }
+
+    verifyKeyCertificatesAreRefreshed(recoveringApp)
   }
 
   test("social recovery should succeed after PC does lost app D&N") {
@@ -385,7 +426,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
 
     // PC: lost app & cloud D+N
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
@@ -438,7 +479,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     ) {
       advanceThroughFullAccountAcceptTCInviteScreens(inviteCode, PROTECTED_CUSTOMER_ALIAS)
 
-      relationshipId = tcApp.app.socRecRelationshipsRepository.awaitRelationships {
+      relationshipId = tcApp.awaitRelationships {
         !it.protectedCustomers.isEmpty()
       }
         .protectedCustomers
@@ -449,21 +490,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
 
     // PC: Wait for the cloud backup to contain the TC's SocRec PKEK
-    customerApp.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
-      customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.unendorsedTrustedContacts.size == 1 &&
-          it.unendorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED
-      }
-      customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.endorsedTrustedContacts.size == 1 &&
-          it.endorsedTrustedContacts.single().authenticationState == TrustedContactAuthenticationState.VERIFIED
-      }
-      customerApp.awaitCloudBackupRefreshed(relationshipId)
-      cancelAndIgnoreRemainingEvents()
-    }
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
 
     // TC: lost app & cloud D+N
     val hardwareSeed = tcApp.fakeHardwareKeyStore.getSeed()
@@ -482,16 +509,7 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
 
     // PC: Wait for the cloud backup to be updated with no trusted contacts
-    customerApp.app.appUiStateMachine.test(
-      props = Unit,
-      useVirtualTime = false
-    ) {
-      customerApp.app.socRecRelationshipsRepository.awaitRelationships {
-        it.endorsedTrustedContacts.isEmpty()
-      }
-      customerApp.awaitCloudBackupRefreshed(relationshipId)
-      cancelAndIgnoreRemainingEvents()
-    }
+    customerApp.awaitTcIsVerifiedAndBackedUp(relationshipId)
   }
 
   test("social recovery should succeed after PC does lost hardware D&N") {
@@ -507,7 +525,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
 
     // PC: lost hardware D+N
     customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
@@ -539,7 +557,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.endorseAndVerifyTc(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
 
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
 
@@ -556,28 +574,6 @@ class SocRecE2eFunctionalTests : FunSpec({
     }
   }
 })
-
-private suspend fun SocRecRelationshipsRepository.awaitRelationships(
-  timeout: Duration = 3.seconds,
-  predicate: (SocRecRelationships) -> Boolean,
-): SocRecRelationships =
-  relationships
-    .filterNotNull()
-    .transform { relationships ->
-      if (predicate(relationships)) {
-        emit(relationships)
-      }
-    }
-    .timeout(timeout)
-    .first()
-
-fun AppTester.getSharedInviteCode(): String {
-  val sharedText = lastSharedText.shouldNotBeNull()
-  return """INVITE CODE:\s*(\S+)""".toRegex()
-    .find(sharedText.text)
-    .shouldNotBeNull()
-    .groupValues[1]
-}
 
 suspend fun buildTrustedContactManagementUiStateMachineProps(
   appTester: AppTester,

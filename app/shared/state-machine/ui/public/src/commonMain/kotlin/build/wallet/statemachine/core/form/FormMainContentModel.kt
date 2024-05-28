@@ -8,6 +8,7 @@ import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.TimerDirection
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.callout.CalloutModel
 import build.wallet.ui.model.datetime.DatePickerModel
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -287,6 +288,14 @@ sealed interface FormMainContentModel {
   ) : FormMainContentModel
 
   data object Loader : FormMainContentModel
+
+  /**
+   * Allows a [CalloutModel] to be rendered in the [FormMainContentModel] list
+   * @property item - the [CalloutModel] to be rendered
+   */
+  data class Callout(
+    val item: CalloutModel,
+  ) : FormMainContentModel
 
   /**
    * Shows a hero of the Money Home screen with the given primary and secondary amount

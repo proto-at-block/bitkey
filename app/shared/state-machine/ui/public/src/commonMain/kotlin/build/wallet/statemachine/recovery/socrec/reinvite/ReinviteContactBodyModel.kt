@@ -3,6 +3,7 @@ package build.wallet.statemachine.recovery.socrec.reinvite
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -44,6 +45,6 @@ fun ReinviteContactBodyModel(
     BitkeyInteractionButtonModel(
       text = "Save Trusted Contact",
       size = ButtonModel.Size.Footer,
-      onClick = onSave
+      onClick = StandardClick(onSave)
     )
 )

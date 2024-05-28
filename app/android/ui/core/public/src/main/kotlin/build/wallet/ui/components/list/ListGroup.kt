@@ -42,11 +42,16 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun ListGroup(
   model: ListGroupModel,
   modifier: Modifier = Modifier,
+  collapseContent: Boolean = false,
 ) {
   when (model.style) {
     CARD_ITEM -> CardListGroup(model)
-    DIVIDER -> RegularListGroup(model, modifier, showsDivider = true) { ListItem(model = it) }
-    NONE -> RegularListGroup(model, modifier, showsDivider = false) { ListItem(model = it) }
+    DIVIDER -> RegularListGroup(model, modifier, showsDivider = true) {
+      ListItem(model = it, collapseContent = collapseContent)
+    }
+    NONE -> RegularListGroup(model, modifier, showsDivider = false) {
+      ListItem(model = it, collapseContent = collapseContent)
+    }
     CARD_GROUP, CARD_GROUP_DIVIDER ->
       Card {
         RegularListGroup(
@@ -173,10 +178,12 @@ private fun RegularListGroup(
 internal fun ListSectionForPreview(
   showHeader: Boolean,
   style: ListGroupStyle = NONE,
+  collapsed: Boolean = false,
 ) {
   PreviewWalletTheme {
     Box(modifier = Modifier.background(WalletTheme.colors.foreground10)) {
       ListGroup(
+        collapseContent = collapsed,
         model =
           ListGroupModel(
             header = "Header".takeIf { showHeader },

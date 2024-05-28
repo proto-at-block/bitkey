@@ -203,7 +203,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<ImmutableList<Psbt>>>(
         id = nfcSessionUIStateMachine.id
       ) {
-        val nfcCommandsMock = NfcCommandsMock(turbines::create)
+        val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
         session(NfcSessionFake(), nfcCommandsMock)
         needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.value }
         isHardwareFake shouldBe FullAccountConfigMock.isHardwareFake

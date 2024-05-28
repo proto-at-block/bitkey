@@ -12,6 +12,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionFake
 import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.home.GettingStartedTask
+import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
 import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
 import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
@@ -22,6 +23,7 @@ import build.wallet.limit.MobilePayBalanceMock
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.Icon.SmallIconFingerprint
 import build.wallet.statemachine.core.Icon.SmallIconPhone
 import build.wallet.statemachine.core.Icon.SmallIconPlusStroked
 import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
@@ -57,6 +59,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   val onAddBitcoinCalls = turbines.create<Unit>("add bitcoin calls")
   val onEnableSpendingLimitCalls = turbines.create<Unit>("enable spending limit calls")
   val onInviteTrustedContactCalls = turbines.create<Unit>("invite trusted contact calls")
+  val onAddAdditionalFingerprintCalls = turbines.create<Unit>("add additional fingerprint calls")
 
   val gettingStartedTaskDao =
     GettingStartedTaskDaoMock(
@@ -81,9 +84,10 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
       accountData = ActiveKeyboxLoadedMock(transactions = emptyList()),
       appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
       trustedContacts = emptyList(),
-      onAddBitcoin = { onAddBitcoinCalls.add(Unit) },
-      onEnableSpendingLimit = { onEnableSpendingLimitCalls.add(Unit) },
+      onAddBitcoin = { onAddBitcoinCalls += Unit },
+      onEnableSpendingLimit = { onEnableSpendingLimitCalls += Unit },
       onInviteTrustedContact = { onInviteTrustedContactCalls += Unit },
+      onAddAdditionalFingerprint = { onAddAdditionalFingerprintCalls += Unit },
       onShowAlert = {},
       onDismissAlert = {}
     )
@@ -165,6 +169,22 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("onAddAdditionalFingerprint click") {
+    stateMachine.test(props) {
+      awaitItem().shouldBeNull()
+      gettingStartedTaskDao.addTasks(
+        listOf(GettingStartedTask(AddAdditionalFingerprint, state = Incomplete))
+      )
+
+      val cardModel = awaitItem().shouldNotBeNull()
+      cardModel.expect(
+        tasks = listOf(GettingStartedTask(AddAdditionalFingerprint, state = Incomplete))
+      )
+      cardModel.onClick("Add additional fingerprint").invoke()
+      onAddAdditionalFingerprintCalls.awaitItem()
+    }
+  }
+
   test("complete all tasks") {
     stateMachine.test(props, useVirtualTime = true) {
       awaitItem().shouldBeNull()
@@ -173,7 +193,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         listOf(
           GettingStartedTask(InviteTrustedContact, state = Incomplete),
           GettingStartedTask(AddBitcoin, state = Incomplete),
-          GettingStartedTask(EnableSpendingLimit, state = Incomplete)
+          GettingStartedTask(EnableSpendingLimit, state = Incomplete),
+          GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
         )
       )
       awaitItem().shouldNotBeNull().expect(
@@ -181,7 +202,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           listOf(
             GettingStartedTask(InviteTrustedContact, state = Incomplete),
             GettingStartedTask(AddBitcoin, state = Incomplete),
-            GettingStartedTask(EnableSpendingLimit, state = Incomplete)
+            GettingStartedTask(EnableSpendingLimit, state = Incomplete),
+            GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
           )
       )
 
@@ -191,7 +213,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           listOf(
             GettingStartedTask(InviteTrustedContact, state = Complete),
             GettingStartedTask(AddBitcoin, state = Incomplete),
-            GettingStartedTask(EnableSpendingLimit, state = Incomplete)
+            GettingStartedTask(EnableSpendingLimit, state = Incomplete),
+            GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
           )
       )
 
@@ -201,7 +224,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           listOf(
             GettingStartedTask(InviteTrustedContact, state = Complete),
             GettingStartedTask(AddBitcoin, state = Complete),
-            GettingStartedTask(EnableSpendingLimit, state = Incomplete)
+            GettingStartedTask(EnableSpendingLimit, state = Incomplete),
+            GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
           )
       )
 
@@ -211,7 +235,19 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           listOf(
             GettingStartedTask(InviteTrustedContact, state = Complete),
             GettingStartedTask(AddBitcoin, state = Complete),
-            GettingStartedTask(EnableSpendingLimit, state = Complete)
+            GettingStartedTask(EnableSpendingLimit, state = Complete),
+            GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
+          )
+      )
+
+      gettingStartedTaskDao.updateTask(AddAdditionalFingerprint, Complete)
+      awaitItem().shouldNotBeNull().expect(
+        tasks =
+          listOf(
+            GettingStartedTask(InviteTrustedContact, state = Complete),
+            GettingStartedTask(AddBitcoin, state = Complete),
+            GettingStartedTask(EnableSpendingLimit, state = Complete),
+            GettingStartedTask(AddAdditionalFingerprint, state = Complete)
           )
       )
 
@@ -367,7 +403,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
         listOf(
           GettingStartedTask(AddBitcoin, state = Incomplete),
           GettingStartedTask(EnableSpendingLimit, state = Incomplete),
-          GettingStartedTask(InviteTrustedContact, state = Incomplete)
+          GettingStartedTask(InviteTrustedContact, state = Incomplete),
+          GettingStartedTask(AddAdditionalFingerprint, state = Incomplete)
         )
       )
 
@@ -377,7 +414,8 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           listOf(
             Pair(GettingStartedTask(AddBitcoin, state = Incomplete), false),
             Pair(GettingStartedTask(EnableSpendingLimit, state = Incomplete), false),
-            Pair(GettingStartedTask(InviteTrustedContact, state = Incomplete), false)
+            Pair(GettingStartedTask(InviteTrustedContact, state = Incomplete), false),
+            Pair(GettingStartedTask(AddAdditionalFingerprint, state = Incomplete), true)
           )
       )
     }
@@ -415,6 +453,7 @@ private fun CardModel.expectTaskModelWithEnabled(
               EnableSpendingLimit -> SmallIconPhone
               AddBitcoin -> SmallIconPlusStroked
               InviteTrustedContact -> SmallIconShieldPerson
+              AddAdditionalFingerprint -> SmallIconFingerprint
             }
         }
       )

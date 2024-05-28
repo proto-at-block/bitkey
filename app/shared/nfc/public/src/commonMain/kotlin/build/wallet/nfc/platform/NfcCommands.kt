@@ -98,8 +98,20 @@ interface NfcCommands {
   /**
    * Get the current fingerprint enrollment status for the hardware device, i.e. whether
    * enrollment is complete or requires additional fingerprints.
+   *
+   * This command's behavior changed when multiple fingerprints were introduced. Originally, it
+   * would always return [FingerprintEnrollmentStatus.COMPLETE] if any fingerprints were enrolled.
+   * It was updated to be aware of a given enrollment context, meaning after an enrollment is
+   * completed and the device eventually resets, it will return [FingerprintEnrollmentStatus.NOT_IN_PROGRESS]
+   * even if there is an enrolled fingerprint. To allow backwards compatibility, we've introduced
+   * [isEnrollmentContextAware], which when set to false will use the old behavior (e.g. for
+   * initial onboarding), and when true will use the new behavior. See W-8306 for more details and
+   * for a more robust fix.
    */
-  suspend fun getFingerprintEnrollmentStatus(session: NfcSession): FingerprintEnrollmentStatus
+  suspend fun getFingerprintEnrollmentStatus(
+    session: NfcSession,
+    isEnrollmentContextAware: Boolean = false,
+  ): FingerprintEnrollmentStatus
 
   /**
    * Removes the fingerprint enrolled for the given [index]. Attempting to remove the
@@ -114,6 +126,14 @@ interface NfcCommands {
    * Returns the method that most recently unlocked the hardware device.
    */
   suspend fun getUnlockMethod(session: NfcSession): UnlockInfo
+
+  /**
+   * Cancels an ongoing fingerprint enrollment; e.g. if [getFingerprintEnrollmentStatus] returned
+   * [FingerprintEnrollmentStatus.INCOMPLETE].
+   *
+   * This can be called safely even if no enrollment is in progress.
+   */
+  suspend fun cancelFingerprintEnrollment(session: NfcSession): Boolean
 
   /**
    * Get all enrolled fingerprints for the hardware device.

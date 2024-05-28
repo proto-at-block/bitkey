@@ -138,6 +138,11 @@ async fn setup_full_accounts_and_server() -> (
             .chain_indexer_service
             .clone()
             .set_mock_server(mock_server.base_url()),
+        mempool_indexer_service: bootstrap
+            .services
+            .mempool_indexer_service
+            .clone()
+            .set_mock_server(mock_server.base_url()),
         sqs: bootstrap.services.sqs.clone(),
         feature_flags_service: bootstrap.services.feature_flags_service.clone(),
     };
@@ -375,7 +380,7 @@ async fn test_queue_message(
     assert!(
         notifications
             .iter()
-            .all(|n| n.payload_type == NotificationPayloadType::PaymentNotification),
+            .all(|n| n.payload_type == NotificationPayloadType::ConfirmedPaymentNotification),
         "{:?}",
         notifications
     );

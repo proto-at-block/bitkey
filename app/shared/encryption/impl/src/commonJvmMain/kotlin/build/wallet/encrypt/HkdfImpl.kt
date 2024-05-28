@@ -4,7 +4,7 @@ import build.wallet.crypto.SymmetricKey
 import build.wallet.crypto.SymmetricKeyImpl
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import build.wallet.core.Hkdf as CoreHkdf
+import build.wallet.rust.core.Hkdf as CoreHkdf
 
 class HkdfImpl : Hkdf {
   override fun deriveKey(

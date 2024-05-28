@@ -16,6 +16,11 @@ struct IconView: View {
                 Circle()
                     .fill(circle.fillColor)
                     .frame(iconSize: circle.circleSize)
+            case let square as IconBackgroundTypeSquare:
+                Rectangle()
+                    .fill(square.fillColor)
+                    .frame(iconSize: square.size)
+                    .cornerRadius(CGFloat(square.cornerRadius))
             case _ as IconBackgroundTypeTransient: Color.clear
             default: Color.clear
             }
@@ -99,6 +104,26 @@ private extension IconBackgroundTypeCircle {
         case .translucentblack: return .black.opacity(0.1)
         case .translucentwhite: return .white.opacity(0.2)
         default: return .foreground10
+        }
+    }
+}
+
+
+private extension IconBackgroundTypeSquare {
+    var fillColor: SwiftUI.Color {
+        switch color {
+        case .default_:
+            .calloutDefaultTrailingIconBackground
+        case .information:
+            .calloutInformationTrailingIconBackground
+        case .success:
+            .calloutSuccessTrailingIconBackground
+        case .warning:
+            .calloutWarningTrailingIconBackground
+        case .danger:
+            .calloutDangerTrailingIconBackground
+        default:
+            .calloutDefaultTrailingIconBackground
         }
     }
 }

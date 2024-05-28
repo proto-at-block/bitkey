@@ -1,6 +1,6 @@
 import Foundation
 import Shared
-import core
+import firmware
 
 public extension BitcoinNetworkType {
     

@@ -8,6 +8,7 @@ data class GettingStartedTask(
     AddBitcoin,
     EnableSpendingLimit,
     InviteTrustedContact,
+    AddAdditionalFingerprint,
   }
 
   enum class TaskState {

@@ -20,7 +20,7 @@ internal fun LockFile.serializeTo(directory: File) {
 
 internal fun LockFile.serialize(): Map<String, String> =
   lockedModules.associate {
-    it.moduleIdentifier.fullIdentifier to it.serialize()
+    "${it.moduleIdentifier.fullIdentifier}.json" to it.serialize()
   }
 
 private fun LockFile.LockedModule.serialize(): String {

@@ -1,5 +1,7 @@
 package build.wallet.f8e.client
 
+import build.wallet.account.analytics.AppInstallation
+import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
@@ -7,6 +9,8 @@ import build.wallet.f8e.logging.F8eServiceLogger
 import build.wallet.logging.log
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.settings.CountryCodeGuesser
+import com.github.michaelbull.result.get
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.HttpClientEngine
@@ -32,11 +36,17 @@ class F8eHttpClientProvider(
   private val platformInfoProvider: PlatformInfoProvider,
   private val datadogTracerPluginProvider: DatadogTracerPluginProvider,
   private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
+  private val appInstallationDao: AppInstallationDao,
+  private val countryCodeGuesser: CountryCodeGuesser,
 ) {
+  private var appInstallation: AppInstallation? = null
+
   suspend fun getHttpClient(
     engine: HttpClientEngine? = null,
     block: HttpClientConfig<*>.() -> Unit,
   ): HttpClient {
+    appInstallation = appInstallationDao.getOrCreateAppInstallation().get()
+
     // HttpClient constructor performs some IO work under the hood - this was caught as a
     // DiskReadViolation on Android, so we call it on IO dispatcher.
     return withContext(Dispatchers.IO) {
@@ -109,5 +119,13 @@ class F8eHttpClientProvider(
     }
 
     config.install(datadogTracerPluginProvider.getPlugin(accountId = accountId))
+
+    config.install(
+      TargetingHeadersPluginProvider(
+        appInstallation = appInstallation,
+        deviceRegion = countryCodeGuesser.countryCode(),
+        platformInfo = platformInfoProvider.getPlatformInfo()
+      ).getPlugin()
+    )
   }
 }

@@ -10,24 +10,6 @@ import io.kotest.core.spec.style.FunSpec
 class CurrencyPreferenceFormSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
-  test("currency preference without back button") {
-    paparazzi.snapshot {
-      FormScreen(
-        model =
-          CurrencyPreferenceFormModel(
-            onBack = null,
-            moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
-            fiatCurrencyPreferenceString = "USD",
-            onFiatCurrencyPreferenceClick = {},
-            bitcoinDisplayPreferenceString = "Sats",
-            bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
-            onBitcoinDisplayPreferenceClick = {},
-            onDone = {}
-          )
-      )
-    }
-  }
-
   test("currency preference with back button") {
     paparazzi.snapshot {
       FormScreen(
@@ -40,7 +22,27 @@ class CurrencyPreferenceFormSnapshots : FunSpec({
             bitcoinDisplayPreferenceString = "Sats",
             bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
             onBitcoinDisplayPreferenceClick = {},
-            onDone = {}
+            onEnableHideBalanceChanged = {}
+          )
+      )
+    }
+  }
+
+  test("currency preference with hide balance switch") {
+    paparazzi.snapshot {
+      FormScreen(
+        model =
+          CurrencyPreferenceFormModel(
+            onBack = {},
+            moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+            fiatCurrencyPreferenceString = "USD",
+            onFiatCurrencyPreferenceClick = {},
+            bitcoinDisplayPreferenceString = "Sats",
+            bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
+            onBitcoinDisplayPreferenceClick = {},
+            isHideBalanceEnabled = true,
+            shouldShowHideBalance = true,
+            onEnableHideBalanceChanged = {}
           )
       )
     }

@@ -32,12 +32,14 @@ use chain_indexer::{
 use comms_verification::Service as CommsVerificationService;
 use database::ddb::{self, DDBService};
 use exchange_rate::service::Service as ExchangeRateService;
-
 use http_server::config::Config;
 use http_server::middlewares::identifier_generator::IdentifierGenerator;
 use http_server::middlewares::wsm;
 use http_server::swagger::SwaggerEndpoint;
 use http_server::{config, healthcheck};
+use mempool_indexer::{
+    repository::Repository as MempoolIndexerRepository, service::Service as MempoolIndexerService,
+};
 use mobile_pay::daily_spend_record::{
     repository::Repository as DailySpendRecordRepository,
     service::Service as DailySpendRecordService,
@@ -81,6 +83,7 @@ pub struct Services {
     pub recovery_relationship_service: RecoveryRelationshipService,
     pub account_service: AccountService,
     pub chain_indexer_service: ChainIndexerService,
+    pub mempool_indexer_service: MempoolIndexerService,
     pub broadcaster: Arc<dyn TransactionBroadcasterTrait>,
     pub daily_spend_record_service: DailySpendRecordService,
     pub address_repo: Box<dyn AddressWatchlistTrait>,
@@ -234,6 +237,12 @@ pub async fn create_bootstrap_with_overrides(
     chain_indexer_repository.create_table_if_necessary().await?;
     let chain_indexer_service = ChainIndexerService::new(chain_indexer_repository);
 
+    let mempool_indexer_repository = MempoolIndexerRepository::new(ddb.clone());
+    mempool_indexer_repository
+        .create_table_if_necessary()
+        .await?;
+    let mempool_indexer_service = MempoolIndexerService::new(mempool_indexer_repository);
+
     let identifier_generator = config::extract::<IdentifierGenerator>(profile)?;
 
     let daily_spend_record_repository = DailySpendRecordRepository::new(ddb.clone());
@@ -332,7 +341,6 @@ pub async fn create_bootstrap_with_overrides(
         .merge(Router::from(mobile_pay.clone()))
         .merge(recovery.authed_router())
         .merge(onboarding.authed_router())
-        .merge(experimentation.authed_router())
         .route_layer(middleware::from_fn(authorize_token_for_path));
 
     let recovery_router = Router::new()
@@ -344,6 +352,7 @@ pub async fn create_bootstrap_with_overrides(
     let account_or_recovery_router = Router::new()
         .merge(recovery.account_or_recovery_authed_router())
         .merge(onboarding.account_or_recovery_authed_router())
+        .merge(experimentation.account_or_recovery_authed_router())
         .route_layer(middleware::from_fn(
             authorize_account_or_recovery_token_for_path,
         ));
@@ -396,6 +405,7 @@ pub async fn create_bootstrap_with_overrides(
             recovery_relationship_service,
             account_service,
             chain_indexer_service,
+            mempool_indexer_service,
             broadcaster,
             daily_spend_record_service,
             address_repo,

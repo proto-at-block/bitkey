@@ -8,6 +8,7 @@ import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
+import build.wallet.ui.model.input.TextFieldModel.Capitalization
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun EnteringProtectedCustomerNameBodyModel(
@@ -37,7 +38,7 @@ fun EnteringProtectedCustomerNameBodyModel(
             placeholderText = "Name",
             onValueChange = { newValue, _ -> onValueChange(newValue) },
             keyboardType = TextFieldModel.KeyboardType.Default,
-            enableWordAutoCapitalization = true,
+            capitalization = Capitalization.Words,
             onDone =
               if (primaryButton.isEnabled) {
                 { primaryButton.onClick() }

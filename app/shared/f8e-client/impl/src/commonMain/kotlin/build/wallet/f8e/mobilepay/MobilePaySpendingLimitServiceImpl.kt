@@ -58,7 +58,7 @@ class MobilePaySpendingLimitServiceImpl(
       .catching {
         delete("/api/accounts/${fullAccountId.serverId}/mobile-pay") {
           withDescription("Disable Mobile Pay")
-          setRedactedBody(EmptyRequestBody())
+          setRedactedBody(EmptyRequestBody)
         }
       }.mapUnit()
       .mapError { it.toF8eError<MobilePayErrorCode>() }

@@ -30,6 +30,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
   presentationStyle: ScreenPresentationStyle,
   isNavigatingBack: Boolean,
   headline: String,
+  instructions: String,
 ) = ScreenModel(
   body =
     PairNewHardwareBodyModel(
@@ -37,10 +38,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
       header =
         FormHeaderModel(
           headline = headline,
-          subline =
-            "Place your finger on the sensor until you see a blue light." +
-              " Repeat this until the device has a solid green light." +
-              " Once done, press the button below to save your fingerprint."
+          subline = instructions
         ),
       primaryButton =
         ButtonModel(

@@ -1,6 +1,7 @@
 gradle := "../bin/gradle"
 gradle_android := "../bin/gradle --project-dir android"
 gradle_shared := "../bin/gradle --project-dir shared"
+gradle_sample_app := "../bin/gradle --project-dir sample"
 xcode_clt_path := "/Library/Developer/CommandLineTools"
 
 [private]
@@ -62,6 +63,7 @@ test-unit-database:
 # Run unit tests targeting JVM
 test-unit-jvm:
   {{gradle_shared}} jvmTest
+  {{gradle_sample_app}} jvmTest
 
 # Run unit tests on host machine targeting Android (with platform stubs)
 test-unit-android-host:
@@ -202,7 +204,7 @@ ktlint-format:
 
 # Run Ktlint and fail on violations.
 ktlint-validate ARGS="":
-  ktlint './**/*.kt' './**/*.kts' '!**/_build/**' '!**/core/target/**' {{ARGS}}
+  ktlint './**/*.kt' './**/*.kts' '!**/_build/**' {{ARGS}}
 
 # Delete XCode cached build intermediates (Derived Data)
 dxdd:

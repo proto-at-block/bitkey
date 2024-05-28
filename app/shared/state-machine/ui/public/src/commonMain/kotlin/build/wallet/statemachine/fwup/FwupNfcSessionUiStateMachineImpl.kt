@@ -16,6 +16,7 @@ import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITI
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_SUCCESS
 import build.wallet.analytics.v1.Action
 import build.wallet.fwup.FwupData
+import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupFinishResponseStatus.Error
 import build.wallet.fwup.FwupFinishResponseStatus.SignatureInvalid
 import build.wallet.fwup.FwupFinishResponseStatus.Success
@@ -25,6 +26,7 @@ import build.wallet.fwup.FwupFinishResponseStatus.VersionInvalid
 import build.wallet.fwup.FwupFinishResponseStatus.WillApplyPatch
 import build.wallet.fwup.FwupMode
 import build.wallet.fwup.FwupProgressCalculator
+import build.wallet.logging.log
 import build.wallet.nfc.NfcAvailability.Available.Disabled
 import build.wallet.nfc.NfcAvailability.Available.Enabled
 import build.wallet.nfc.NfcAvailability.NotAvailable
@@ -49,6 +51,7 @@ import build.wallet.statemachine.nfc.NoNfcMessageModel
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigator
 import build.wallet.time.Delayer
 import build.wallet.toUByteList
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlin.coroutines.cancellation.CancellationException
@@ -62,7 +65,10 @@ class FwupNfcSessionUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val nfcReaderCapabilityProvider: NfcReaderCapabilityProvider,
   private val nfcTransactor: NfcTransactor,
+  private val fwupDataDao: FwupDataDao,
 ) : FwupNfcSessionUiStateMachine {
+  var fwupInProgress = false
+
   @Composable
   override fun model(props: FwupNfcSessionUiProps): ScreenModel {
     var uiState by remember {
@@ -166,10 +172,6 @@ class FwupNfcSessionUiStateMachineImpl(
     setProgress: (progress: Float) -> Unit,
     setState: (FwupNfcSessionUiState) -> Unit,
   ) {
-    var transactionType: FwupTransactionType by remember {
-      mutableStateOf(props.transactionType)
-    }
-
     LaunchedEffect("nfc-transaction") {
       nfcTransactor.transact(
         parameters =
@@ -177,6 +179,7 @@ class FwupNfcSessionUiStateMachineImpl(
             isHardwareFake = props.isHardwareFake,
             needsAuthentication = true,
             shouldLock = true,
+            skipFirmwareTelemetry = true,
             onTagConnected = {
               eventTracker.track(EventTrackerScreenInfo(NFC_DETECTED, FWUP))
               setState(UpdatingUiState)
@@ -192,9 +195,9 @@ class FwupNfcSessionUiStateMachineImpl(
             session = session,
             commands = commands,
             fwupData = props.firmwareData.fwupData,
-            transactionType = transactionType,
             updateSequenceId = { sequenceId ->
-              transactionType = FwupTransactionType.ResumeFromSequenceId(sequenceId)
+              log { "Updating sequence ID: $sequenceId" }
+              setSequenceId(sequenceId)
               val progress =
                 fwupProgressCalculator.calculateProgress(
                   sequenceId = sequenceId,
@@ -211,8 +214,12 @@ class FwupNfcSessionUiStateMachineImpl(
             props.onBack()
           }
           else -> {
-            val updateWasInProgress = transactionType != FwupTransactionType.StartFromBeginning
-            props.onError(error, updateWasInProgress, transactionType)
+            val inProgress = fwupInProgress
+            val transactionType = when (inProgress) {
+              true -> FwupTransactionType.ResumeFromSequenceId(getSequenceId())
+              false -> FwupTransactionType.StartFromBeginning
+            }
+            props.onError(error, fwupInProgress, transactionType)
           }
         }
       }.onSuccess {
@@ -227,11 +234,19 @@ class FwupNfcSessionUiStateMachineImpl(
     session: NfcSession,
     commands: NfcCommands,
     fwupData: FwupData,
-    transactionType: FwupTransactionType,
-    updateSequenceId: (sequenceId: UInt) -> Unit,
+    updateSequenceId: suspend (sequenceId: UInt) -> Unit,
   ) {
-    if (transactionType is FwupTransactionType.StartFromBeginning) {
-      // Start if the type is [StartFromBeginning]
+    commands.getDeviceInfo(session)
+
+    if (!fwupInProgress) {
+      // We have to maintain `fwupInProgress` and reset the sequence ID due to some unfortunate
+      // side effects with the `fwup_start` command in delta mode. In short: the app can't tell
+      // if the firmware update has started on the firmware or not, because there is no NFC command
+      // for that. But at the same time, the app must send `fwup_start` if the firmware hasn't
+      // begun the FWUP, and it must NOT send `fwup_start` if it has. This is fixable in firmware
+      // but the code must be this way for now.
+      setSequenceId(0u)
+
       val didStart =
         commands.fwupStart(
           session = session,
@@ -243,19 +258,15 @@ class FwupNfcSessionUiStateMachineImpl(
           fwupMode = fwupData.fwupMode
         )
 
-      // Early return if failed to start
       if (!didStart) {
         throw NfcException.CommandError()
       }
+
+      fwupInProgress = true
     }
 
-    // Transfer firmware in chunks the number of [finalSequenceId] times, starting
-    // from either 0 or the last sequence ID.
-    var sequenceId =
-      when (transactionType) {
-        is FwupTransactionType.StartFromBeginning -> 0u
-        is FwupTransactionType.ResumeFromSequenceId -> transactionType.sequenceId
-      }
+    var sequenceId = getSequenceId()
+
     while (sequenceId <= fwupData.finalSequenceId()) {
       val off = (sequenceId * fwupData.chunkSize).toInt()
       val size = fwupData.chunkSize.toInt().coerceAtMost(fwupData.firmware.size - off)
@@ -307,6 +318,8 @@ class FwupNfcSessionUiStateMachineImpl(
         fwupMode = fwupData.fwupMode
       )
 
+    fwupInProgress = false
+
     return when (finishResult) {
       Unspecified, SignatureInvalid, VersionInvalid, Error ->
         throw NfcException.CommandError()
@@ -315,6 +328,17 @@ class FwupNfcSessionUiStateMachineImpl(
       Unauthenticated ->
         throw NfcException.CommandErrorUnauthenticated()
     }
+  }
+
+  private suspend fun getSequenceId(): UInt {
+    return fwupDataDao.getSequenceId().getOrElse {
+      log { "Failed to get sequence ID, using 0" }
+      0u
+    }
+  }
+
+  private suspend fun setSequenceId(sequenceId: UInt) {
+    fwupDataDao.setSequenceId(sequenceId)
   }
 }
 

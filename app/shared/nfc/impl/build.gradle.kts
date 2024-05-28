@@ -33,7 +33,7 @@ kotlin {
     val androidMain by getting {
       dependencies {
         implementation(libs.android.datadog.logs)
-        implementation(projects.core)
+        implementation(projects.rust.firmwareFfi)
         implementation(projects.shared.memfaultPublic)
       }
     }

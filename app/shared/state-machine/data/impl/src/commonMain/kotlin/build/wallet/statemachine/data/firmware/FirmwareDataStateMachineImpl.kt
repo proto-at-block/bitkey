@@ -129,7 +129,9 @@ class FirmwareDataStateMachineImpl(
           // No update needed, clear anything in [FwupDataDao] just in case there's something there
           null -> fwupDataDao.clear().bind()
           // There's an update, store it locally to be ready to apply to the HW
-          else -> fwupDataDao.setFwupData(fwupData).bind()
+          else -> {
+            fwupDataDao.setFwupData(fwupData).bind()
+          }
         }
       }
 

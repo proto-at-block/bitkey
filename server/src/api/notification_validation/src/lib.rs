@@ -3,7 +3,8 @@ use error::NotificationValidationError;
 use notification::{
     entities::NotificationCompositeKey,
     payloads::{
-        comms_verification::CommsVerificationPayload, payment::PaymentPayload,
+        comms_verification::CommsVerificationPayload,
+        payment::{PaymentPayload, PendingPaymentPayload},
         push_blast::PushBlastPayload,
         recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
         recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
@@ -66,8 +67,8 @@ pub fn to_validator(
                 .comms_verification_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
-            NotificationPayloadType::PaymentNotification => payload
-                .payment_payload
+            NotificationPayloadType::ConfirmedPaymentNotification => payload
+                .confirmed_payment_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::RecoveryRelationshipInvitationAccepted => payload
@@ -84,6 +85,10 @@ pub fn to_validator(
                 .ok_or(NotificationValidationError::ToValidatorError)?,
             NotificationPayloadType::PushBlast => payload
                 .push_blast_payload
+                .as_ref()
+                .ok_or(NotificationValidationError::ToValidatorError)?,
+            NotificationPayloadType::PendingPaymentNotification => payload
+                .pending_payment_payload
                 .as_ref()
                 .ok_or(NotificationValidationError::ToValidatorError)?,
         };
@@ -178,6 +183,17 @@ impl ValidateNotificationDelivery for CommsVerificationPayload {
 
 #[async_trait]
 impl ValidateNotificationDelivery for PaymentPayload {
+    async fn validate_delivery(
+        &self,
+        _state: &NotificationValidationState,
+        _composite_key: &NotificationCompositeKey,
+    ) -> bool {
+        true
+    }
+}
+
+#[async_trait]
+impl ValidateNotificationDelivery for PendingPaymentPayload {
     async fn validate_delivery(
         &self,
         _state: &NotificationValidationState,

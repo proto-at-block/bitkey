@@ -1,4 +1,4 @@
-import core
+import firmware
 import CoreNFC
 import Shared
 
@@ -28,8 +28,8 @@ extension StartFingerprintEnrollment: IOCommand {
 }
 
 extension GetFingerprintEnrollmentStatus: IOCommand {
-    typealias FFIStateType = core.FingerprintEnrollmentStatusState
-    typealias ResultType = core.FingerprintEnrollmentStatus
+    typealias FFIStateType = firmware.FingerprintEnrollmentStatusState
+    typealias ResultType = firmware.FingerprintEnrollmentStatus
 }
 
 extension DeleteFingerprint: IOCommand {
@@ -38,16 +38,21 @@ extension DeleteFingerprint: IOCommand {
 }
 
 extension GetUnlockMethod: IOCommand {
-    typealias FFIStateType = core.UnlockInfoState
-    typealias ResultType = core.UnlockInfo
+    typealias FFIStateType = firmware.UnlockInfoState
+    typealias ResultType = firmware.UnlockInfo
 }
 
 extension GetEnrolledFingerprints: IOCommand {
-    typealias FFIStateType = core.EnrolledFingerprintsState
-    typealias ResultType = core.EnrolledFingerprints
+    typealias FFIStateType = firmware.EnrolledFingerprintsState
+    typealias ResultType = firmware.EnrolledFingerprints
 }
 
 extension SetFingerprintLabel: IOCommand {
+    typealias FFIStateType = BooleanState
+    typealias ResultType = Bool
+}
+
+extension CancelFingerprintEnrollment: IOCommand {
     typealias FFIStateType = BooleanState
     typealias ResultType = Bool
 }
@@ -102,7 +107,7 @@ extension FwupFinish: IOCommand {
 
 extension GetFirmwareMetadata: IOCommand {
     typealias FFIStateType = FirmwareMetadataState
-    typealias ResultType = core.FirmwareMetadata
+    typealias ResultType = firmware.FirmwareMetadata
 }
 
 extension GetDeviceIdentifiers: IOCommand {
@@ -112,17 +117,17 @@ extension GetDeviceIdentifiers: IOCommand {
 
 extension GetEvents: IOCommand {
     typealias FFIStateType = EventFragmentState
-    typealias ResultType = core.EventFragment
+    typealias ResultType = firmware.EventFragment
 }
 
 extension GetTelemetryIdentifiers: IOCommand {
     typealias FFIStateType = TelemetryIdentifiersState
-    typealias ResultType = core.TelemetryIdentifiers
+    typealias ResultType = firmware.TelemetryIdentifiers
 }
 
 extension GetFirmwareFeatureFlags: IOCommand {
-    typealias FFIStateType = core.FirmwareFeatureFlagsState
-    typealias ResultType = [core.FirmwareFeatureFlagCfg]
+    typealias FFIStateType = firmware.FirmwareFeatureFlagsState
+    typealias ResultType = [firmware.FirmwareFeatureFlagCfg]
 }
 
 extension GetCoredumpCount: IOCommand {
@@ -132,22 +137,22 @@ extension GetCoredumpCount: IOCommand {
 
 extension GetCoredumpFragment: IOCommand {
     typealias FFIStateType = CoredumpFragmentState
-    typealias ResultType = core.CoredumpFragment
+    typealias ResultType = firmware.CoredumpFragment
 }
 
 extension GetAuthenticationKey: IOCommand {
     typealias FFIStateType = PublicKeyState
-    typealias ResultType = core.PublicKey
+    typealias ResultType = firmware.PublicKey
 }
 
 extension GetInitialSpendingKey: IOCommand {
     typealias FFIStateType = DescriptorPublicKeyState
-    typealias ResultType = core.DescriptorPublicKey
+    typealias ResultType = firmware.DescriptorPublicKey
 }
 
 extension GetNextSpendingKey: IOCommand {
     typealias FFIStateType = DescriptorPublicKeyState
-    typealias ResultType = core.DescriptorPublicKey
+    typealias ResultType = firmware.DescriptorPublicKey
 }
 
 extension SignChallenge: IOCommand {
@@ -157,7 +162,7 @@ extension SignChallenge: IOCommand {
 
 extension GetDeviceInfo: IOCommand {
     typealias FFIStateType = DeviceInfoState
-    typealias ResultType = core.DeviceInfo
+    typealias ResultType = firmware.DeviceInfo
 }
 
 extension GetCert: IOCommand {
@@ -194,21 +199,21 @@ extension IOCommand {
         }
     }
 
-    func next(_ response: [UInt8]) throws -> IOResult<core.FingerprintEnrollmentStatus> where FFIStateType == core.FingerprintEnrollmentStatusState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.FingerprintEnrollmentStatus> where FFIStateType == firmware.FingerprintEnrollmentStatusState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.UnlockInfo> where FFIStateType == UnlockInfoState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.UnlockInfo> where FFIStateType == UnlockInfoState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.EnrolledFingerprints> where FFIStateType == EnrolledFingerprintsState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.EnrolledFingerprints> where FFIStateType == EnrolledFingerprintsState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
@@ -229,7 +234,7 @@ extension IOCommand {
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.FirmwareMetadata> where FFIStateType == core.FirmwareMetadataState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.FirmwareMetadata> where FFIStateType == firmware.FirmwareMetadataState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
@@ -243,56 +248,56 @@ extension IOCommand {
         }
     }
 
-    func next(_ response: [UInt8]) throws -> IOResult<core.EventFragment> where FFIStateType == EventFragmentState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.EventFragment> where FFIStateType == EventFragmentState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.TelemetryIdentifiers> where FFIStateType == TelemetryIdentifiersState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.TelemetryIdentifiers> where FFIStateType == TelemetryIdentifiersState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<[core.FirmwareFeatureFlagCfg]> where FFIStateType == core.FirmwareFeatureFlagsState {
+    func next(_ response: [UInt8]) throws -> IOResult<[firmware.FirmwareFeatureFlagCfg]> where FFIStateType == firmware.FirmwareFeatureFlagsState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.CoredumpFragment> where FFIStateType == CoredumpFragmentState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.CoredumpFragment> where FFIStateType == CoredumpFragmentState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.PublicKey> where FFIStateType == PublicKeyState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.PublicKey> where FFIStateType == PublicKeyState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.DescriptorPublicKey> where FFIStateType == DescriptorPublicKeyState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.DescriptorPublicKey> where FFIStateType == DescriptorPublicKeyState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.Signature> where FFIStateType == SignatureState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.Signature> where FFIStateType == SignatureState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)
         }
     }
     
-    func next(_ response: [UInt8]) throws -> IOResult<core.DeviceInfo> where FFIStateType == DeviceInfoState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.DeviceInfo> where FFIStateType == DeviceInfoState {
         switch try self.next(response: response) {
         case .data(response: let response): return .data(response: response)
         case .result(value: let value): return .result(value: value)

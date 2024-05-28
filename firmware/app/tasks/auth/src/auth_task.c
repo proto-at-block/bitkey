@@ -270,7 +270,17 @@ void handle_get_fingerprint_enrollment_status(ipc_ref_t* message) {
   uint32_t existing_template_count = 0;
   bio_storage_get_template_count(&existing_template_count);
   LOGD("Template count: %lu", existing_template_count);
-  if (auth_priv.current_enrollment_ctx.enroll_ok == SECURE_TRUE) {
+
+  bool enroll_ok = false;
+  if (cmd->msg.get_fingerprint_enrollment_status_cmd.app_knows_about_this_field) {
+    // The app has been updated to a version that knows about this field, so we can use
+    // the new fingerprint enrollment status logic.
+    enroll_ok = auth_priv.current_enrollment_ctx.enroll_ok == SECURE_TRUE;
+  } else {
+    enroll_ok = existing_template_count > 0;
+  }
+
+  if (enroll_ok) {
     rsp->msg.get_fingerprint_enrollment_status_rsp.fingerprint_status =
       fwpb_get_fingerprint_enrollment_status_rsp_fingerprint_enrollment_status_COMPLETE;
 

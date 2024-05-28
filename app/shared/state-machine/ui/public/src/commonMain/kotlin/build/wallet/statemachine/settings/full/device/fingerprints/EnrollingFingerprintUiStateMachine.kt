@@ -15,6 +15,7 @@ interface EnrollingFingerprintUiStateMachine : StateMachine<EnrollingFingerprint
 data class EnrollingFingerprintProps(
   val account: FullAccount,
   val onCancel: () -> Unit,
-  val onSuccess: (EnrolledFingerprints) -> Unit,
+  val onSuccess: suspend (EnrolledFingerprints) -> Unit,
   val fingerprintHandle: FingerprintHandle,
+  val enrolledFingerprints: EnrolledFingerprints,
 )

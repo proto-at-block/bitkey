@@ -26,6 +26,7 @@ import build.wallet.logging.log
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod.Deeplink
 import build.wallet.partnerships.PartnerRedirectionMethod.Web
+import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.partnerships.PartnershipTransactionType
 import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.platform.links.AppRestrictions
@@ -144,7 +145,7 @@ class PartnershipsTransferUiStateMachineImpl(
               .getTransferRedirect(
                 fullAccountId = props.keybox.fullAccountId,
                 f8eEnvironment = props.keybox.config.f8eEnvironment,
-                partner = currentState.partnerInfo.partner,
+                partner = currentState.partnerInfo.partnerId.value,
                 address = address,
                 partnerTransactionId = localTransaction.id
               ).bind()
@@ -152,7 +153,8 @@ class PartnershipsTransferUiStateMachineImpl(
             state =
               State.PartnerRedirectInformationLoaded(
                 partnerInfo = currentState.partnerInfo,
-                redirectInfo = result.redirectInfo
+                redirectInfo = result.redirectInfo,
+                localTransaction = localTransaction
               )
           }.onFailure { error ->
             state =
@@ -193,13 +195,17 @@ class PartnershipsTransferUiStateMachineImpl(
                       minVersion = it.minVersion
                     )
                   },
-                partnerName = currentState.partnerInfo.partner
-              )
+                partnerName = currentState.partnerInfo.partnerId.value
+              ),
+              currentState.localTransaction
             )
           }
 
           WIDGET -> {
-            props.onPartnerRedirected(Web(urlString = currentState.redirectInfo.url))
+            props.onPartnerRedirected(
+              Web(urlString = currentState.redirectInfo.url, currentState.partnerInfo),
+              currentState.localTransaction
+            )
           }
         }
         return Loading(
@@ -398,5 +404,6 @@ private sealed interface State {
   data class PartnerRedirectInformationLoaded(
     val partnerInfo: PartnerInfo,
     val redirectInfo: RedirectInfo,
+    val localTransaction: PartnershipTransaction,
   ) : State
 }

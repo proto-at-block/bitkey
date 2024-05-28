@@ -1,7 +1,7 @@
 
 # keep model data classes
 -keep class build.wallet.statemachine.** { *; }
--keep class build.wallet.core.** { *; }
+-keep class build.wallet.rust.** { *; }
 
 # Needed for Google Drive access
 -keep class * extends com.google.api.client.json.GenericJson { *; }

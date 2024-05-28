@@ -17,15 +17,17 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 fun TransactionList(
   modifier: Modifier = Modifier,
   model: ListModel,
+  hideValue: Boolean = false,
 ) {
-  Column(
-    modifier = modifier
-  ) {
+  Column(modifier = modifier) {
     model.headerText?.let {
       ListHeader(title = it)
     }
     model.sections.forEach { section ->
-      ListGroup(model = section)
+      ListGroup(
+        model = section,
+        collapseContent = hideValue
+      )
     }
   }
 }

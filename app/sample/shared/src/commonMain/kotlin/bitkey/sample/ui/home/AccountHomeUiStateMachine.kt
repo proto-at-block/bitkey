@@ -6,21 +6,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import bitkey.sample.functional.Account
-import bitkey.sample.ui.settings.SettingsUiProps
-import bitkey.sample.ui.settings.SettingsUiStateMachine
+import bitkey.sample.ui.settings.SettingsScreen
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
+import build.wallet.ui.framework.NavigatorPresenter
 
 data class AccountHomeUiProps(
   val account: Account,
   val onExit: () -> Unit,
-  val onDeleteAccount: () -> Unit,
+  val onAccountDeleted: () -> Unit,
 )
 
 interface AccountHomeUiStateMachine : StateMachine<AccountHomeUiProps, ScreenModel>
 
 class AccountHomeUiStateMachineImpl(
-  private val settingsUiStateMachine: SettingsUiStateMachine,
+  private val navigatorPresenter: NavigatorPresenter,
 ) : AccountHomeUiStateMachine {
   @Composable
   override fun model(props: AccountHomeUiProps): ScreenModel {
@@ -39,13 +39,13 @@ class AccountHomeUiStateMachineImpl(
       }
 
       is State.ViewingSettingsState -> {
-        settingsUiStateMachine.model(
-          props = SettingsUiProps(
+        navigatorPresenter.model(
+          SettingsScreen(
             account = props.account,
-            onBack = {
+            onExit = {
               state = State.ViewingAccountHomeState
             },
-            onDeleteAccount = props.onDeleteAccount
+            onAccountDeleted = props.onAccountDeleted
           )
         )
       }

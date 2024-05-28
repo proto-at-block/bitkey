@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -42,6 +43,6 @@ fun SaveContactBodyModel(
     BitkeyInteractionButtonModel(
       text = "Save Trusted Contact",
       size = ButtonModel.Size.Footer,
-      onClick = onSave
+      onClick = StandardClick(onSave)
     )
 )

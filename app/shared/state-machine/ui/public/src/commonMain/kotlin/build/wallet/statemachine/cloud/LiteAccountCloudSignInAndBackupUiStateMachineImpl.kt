@@ -115,9 +115,9 @@ class LiteAccountCloudSignInAndBackupUiStateMachineImpl(
           )
             .onFailure { error ->
               val errorData = ErrorData(
-                segment = RecoverySegment.CloudBackup.LiteAccount.Creation,
+                segment = RecoverySegment.CloudBackup.LiteAccount.Upload,
                 cause = error,
-                actionDescription = "Creating lite account cloud backup"
+                actionDescription = "Uploading lite account backup to cloud"
               )
               state =
                 when (error) {

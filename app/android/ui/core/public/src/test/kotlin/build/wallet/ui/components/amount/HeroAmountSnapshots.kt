@@ -42,4 +42,10 @@ class HeroAmountSnapshots : FunSpec({
       HeroAmountNoSecondary()
     }
   }
+
+  test("hero amount with hidden amount") {
+    paparazzi.snapshot {
+      HeroAmountHideAmount()
+    }
+  }
 })

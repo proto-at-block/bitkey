@@ -4,7 +4,11 @@ import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.analytics.v1.PlatformInfo
+import build.wallet.auth.AuthTokenScope.Global
+import build.wallet.auth.AuthTokenScope.Recovery
 import build.wallet.bitkey.f8e.AccountId
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.f8e.LiteAccountId
 import build.wallet.catching
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
@@ -42,12 +46,14 @@ class GetFeatureFlagsServiceImpl(
     accountId: AccountId?,
     flagKeys: List<String>,
   ): Result<List<GetFeatureFlagsService.F8eFeatureFlag>, NetworkingError> {
-    val httpClient =
-      accountId?.let {
-        f8eHttpClient.authenticated(f8eEnvironment, accountId)
-      } ?: run {
+    val httpClient = when (accountId) {
+      null ->
         f8eHttpClient.unauthenticated(f8eEnvironment)
-      }
+      is FullAccountId ->
+        f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
+      is LiteAccountId ->
+        f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Recovery)
+    }
 
     val url =
       accountId?.let {

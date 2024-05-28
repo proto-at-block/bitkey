@@ -1,0 +1,32 @@
+-- 1. Create temp table
+
+-- (Use the new table definition here)
+CREATE TABLE fwupDataEntity_tmp(
+  rowId                INTEGER NOT NULL PRIMARY KEY,
+  version              TEXT NOT NULL,
+  chunkSize            INTEGER NOT NULL,
+  signatureOffset      INTEGER NOT NULL,
+  appPropertiesOffset  INTEGER NOT NULL,
+  firmware             BLOB NOT NULL,
+  signature            BLOB NOT NULL,
+  fwupMode             TEXT AS FwupMode NOT NULL,
+  currentSequenceId    INTEGER NOT NULL
+);
+
+-- 2. Copy rows to temp table
+
+INSERT INTO fwupDataEntity_tmp
+SELECT rowId, version, chunkSize, signatureOffset, appPropertiesOffset, firmware, signature, fwupMode, 0
+FROM fwupDataEntity;
+
+-- 3. Drop old table
+
+DROP TABLE fwupDataEntity;
+
+-- 4. Rename temp table
+
+ALTER TABLE fwupDataEntity_tmp RENAME TO fwupDataEntity;
+
+-- 5. Make sure the foreign keys still work
+
+PRAGMA foreign_key_check;

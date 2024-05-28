@@ -1,6 +1,6 @@
 package build.wallet.crypto
 
-import build.wallet.core.Spake2Exception
+import build.wallet.rust.core.Spake2Exception
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe

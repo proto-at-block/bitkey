@@ -9,7 +9,7 @@ fun FwupUnauthenticatedErrorModel(onClosed: () -> Unit): SheetModel {
   return ErrorFormBottomSheetModel(
     onClosed = onClosed,
     title = "Device Locked",
-    subline = "Unlock your device with the fingerprint you enrolled during setup and try again.",
+    subline = "Unlock your device with an enrolled fingerprint and try again.",
     primaryButton =
       ButtonDataModel(
         text = "Got it",

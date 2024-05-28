@@ -10,12 +10,14 @@ public struct ListGroupView: View {
 
     private let viewModel: ListGroupModel
     private let itemHeight: CGFloat?
+    private let hideContent: Bool
 
     // MARK: - Life Cycle
 
-    public init(viewModel: ListGroupModel, itemHeight: CGFloat? = nil) {
+    public init(viewModel: ListGroupModel, itemHeight: CGFloat? = nil, hideContent: Bool = false) {
         self.viewModel = viewModel
         self.itemHeight = itemHeight
+        self.hideContent = hideContent
     }
 
     // MARK: - View
@@ -52,7 +54,7 @@ public struct ListGroupView: View {
                 .padding(.bottom, viewModel.items.isEmpty ? 16 : 0)
             }
             ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id:\.0) { index, listItem in
-                ListItemView(viewModel: listItem)
+                ListItemView(viewModel: listItem, hideContent: hideContent)
                     .frame(minHeight: minItemHeight)
 
                 if showsDivider, index != viewModel.items.endIndex - 1 {

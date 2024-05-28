@@ -18,5 +18,12 @@ value class PartnershipEvent(val value: String) {
      * be expected to be seen in the future.
      */
     val TransactionCreated = PartnershipEvent("transaction_created")
+
+    /**
+     * Event used for partner transactions that are completed via a web flow.
+     * This may or may not indicate that the transaction has been completed,
+     * but the user has finished and closed the web view.
+     */
+    val WebFlowCompleted = PartnershipEvent("web_flow_completed")
   }
 }

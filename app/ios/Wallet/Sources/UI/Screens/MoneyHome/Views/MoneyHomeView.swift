@@ -7,6 +7,10 @@ public struct MoneyHomeView: View {
 
     // MARK: - Private Properties
     
+    @SwiftUI.ObservedObject
+    public var viewModelHolder: ObservableObjectHolder<MoneyHomeBodyModel>
+    
+    @SwiftUI.State
     private var viewModel: MoneyHomeBodyModel
 
     @SwiftUI.State
@@ -15,6 +19,7 @@ public struct MoneyHomeView: View {
     // MARK: - Lifecycle
 
     public init(viewModel: MoneyHomeBodyModel) {
+        self.viewModelHolder = .init(value: viewModel)
         self.viewModel = viewModel
     }
 
@@ -36,11 +41,16 @@ public struct MoneyHomeView: View {
                         }
 
                         // Balance
-                        MoneyHomeBalanceView(model: viewModel.balanceModel)
+                        MoneyHomeBalanceView(
+                            model: viewModel.balanceModel,
+                            hideBalance: viewModel.hideBalance,
+                            onHideBalance: { viewModel.onHideBalance() }
+                        )
                             .padding(.top, 40)
 
                         // Balance Hero
                         MoneyHomeButtonsView(viewModel: viewModel.buttonsModel)
+                            .animation(.none, value: viewModel)
 
                         // No UI between the action buttons and the tx list so show a divider
                         if viewModel.cardsModel.cards.isEmpty, viewModel.transactionsModel != nil {
@@ -53,11 +63,13 @@ public struct MoneyHomeView: View {
                         // Cards
                         if viewModel.cardsModel.cards.count > 0, moneyHomeCardsHeight != 0 {
                             MoneyHomeCardsView(viewModel: viewModel.cardsModel, height: $moneyHomeCardsHeight)
+                                .animation(.none, value: viewModel)
                         }
 
                         // Transactions
                         if let transactionsModel = viewModel.transactionsModel {
-                            ListView(model: transactionsModel)
+                            ListView(model: transactionsModel, hideContent: viewModel.hideBalance)
+                                .animation(.none, value: viewModel)
                             viewModel.seeAllButtonModel.map { seeAllButtonModel in
                                 ButtonView(model: seeAllButtonModel)
                             }
@@ -75,6 +87,9 @@ public struct MoneyHomeView: View {
                 .opacity(overlayHeaderOpacity)
         }
         .navigationBarHidden(true)
+        .onReceive(viewModelHolder.$value, perform: { vm in
+            self.viewModel = vm
+        })
     }
 
     // MARK: - Scroll Animations
@@ -124,6 +139,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
     static var previews: some View {
         MoneyHomeView(
             viewModel: MoneyHomeBodyModel(
+                hideBalance: false,
                 onSettings: {},
                 balanceModel: MoneyAmountModel(
                     primaryAmount: "$123.75",
@@ -196,6 +212,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                 ),
                 refresh: TestSuspendFunction(),
                 onRefresh: {},
+                onHideBalance: {},
                 isRefreshing: false
             )
         )

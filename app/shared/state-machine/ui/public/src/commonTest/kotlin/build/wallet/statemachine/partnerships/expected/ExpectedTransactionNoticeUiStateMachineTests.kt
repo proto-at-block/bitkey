@@ -6,11 +6,13 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.partnerships.GetTransferPartnerListService.Success
 import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
 import build.wallet.ktor.result.HttpBodyError
+import build.wallet.partnerships.FakePartnershipTransaction
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransactionId
+import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
@@ -35,9 +37,16 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     turbines::create
   )
   val dateTimeFormatter = DateTimeFormatterMock()
+  val transactionStatusRepository = PartnershipTransactionStatusRepositoryMock(
+    clearCalls = turbines.create("clear calls"),
+    createCalls = turbines.create("create calls"),
+    syncCalls = turbines.create("sync calls"),
+    fetchMostRecentCalls = turbines.create("fetch most recent calls")
+  )
   val stateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
     getTransferPartnerListService = getTransferPartnerListService,
-    dateTimeFormatter = dateTimeFormatter
+    dateTimeFormatter = dateTimeFormatter,
+    transactionsStatusRepository = transactionStatusRepository
   )
   val onBack = turbines.create<Unit>("on back calls")
   val onViewCalls = turbines.create<PartnerRedirectionMethod>("view in partner app calls")
@@ -49,13 +58,13 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     partnerTransactionId = PartnershipTransactionId("test-transaction-id"),
     onBack = { onBack.add(Unit) },
     onViewInPartnerApp = { method -> onViewCalls.add(method) },
-    event = PartnershipEvent("test-event")
+    event = PartnershipEvent.TransactionCreated
   )
 
   val successPartnershipsCall = Ok(
     Success(
       listOf(
-        PartnerInfo("test-logo", "Test Partner", "test-partner-id")
+        PartnerInfo("test-logo", "Test Partner", PartnerId("test-partner-id"))
       )
     )
   )
@@ -79,7 +88,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     getTransferPartnerListService.partnersResult = Ok(
       Success(
         listOf(
-          PartnerInfo("test-logo", "Test Partner", "CashApp")
+          PartnerInfo("test-logo", "Test Partner", PartnerId("CashApp"))
         )
       )
     )
@@ -105,7 +114,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     getTransferPartnerListService.partnersResult = Ok(
       Success(
         listOf(
-          PartnerInfo("test-logo", "Test Partner", "Coinbase")
+          PartnerInfo("test-logo", "Test Partner", PartnerId("Coinbase"))
         )
       )
     )
@@ -124,6 +133,61 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
             .urlString.shouldBe("https://coinbase.com")
         }
       }
+    }
+  }
+
+  test("Web Flow Completed") {
+    transactionStatusRepository.fetchMostRecentResult = FakePartnershipTransaction.copy(
+      partnerInfo = PartnerInfo(
+        partnerId = PartnerId("Coinbase"),
+        name = "Test Partner",
+        logoUrl = null
+      )
+    ).let(::Ok)
+    stateMachine.test(
+      props.copy(event = PartnershipEvent.WebFlowCompleted)
+    ) {
+      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      transactionStatusRepository.fetchMostRecentCalls.awaitItem()
+      awaitScreenWithBody<FormBodyModel> {
+        secondaryButton.shouldNotBeNull().text.shouldContain("Test Partner")
+        secondaryButton.shouldNotBeNull().onClick()
+        onViewCalls.awaitItem().should {
+          it.shouldBeTypeOf<PartnerRedirectionMethod.Web>()
+            .urlString.shouldBe("https://coinbase.com")
+        }
+      }
+    }
+  }
+
+  test("No Transaction Found") {
+    transactionStatusRepository.fetchMostRecentResult = Ok(null)
+    stateMachine.test(
+      props.copy(event = PartnershipEvent.WebFlowCompleted)
+    ) {
+      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      transactionStatusRepository.fetchMostRecentCalls.awaitItem()
+      onBack.awaitItem()
+    }
+  }
+
+  test("Transaction Fetch Error") {
+    transactionStatusRepository.fetchMostRecentResult = Err(Error())
+    stateMachine.test(
+      props.copy(event = PartnershipEvent.WebFlowCompleted)
+    ) {
+      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      transactionStatusRepository.fetchMostRecentCalls.awaitItem()
+      onBack.awaitItem()
+    }
+  }
+
+  test("Unknown Event") {
+    stateMachine.test(
+      props.copy(event = PartnershipEvent("unknown-event"))
+    ) {
+      awaitScreenWithBody<LoadingSuccessBodyModel>()
+      onBack.awaitItem()
     }
   }
 

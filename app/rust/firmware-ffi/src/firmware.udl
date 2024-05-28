@@ -1,0 +1,566 @@
+namespace firmware {};
+
+interface Version {
+  constructor();
+  [Throws=CommandError]
+  U16State next(sequence<u8> response);
+};
+
+interface StartFingerprintEnrollment {
+  constructor(u32 index, string label);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface QueryAuthentication {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetFingerprintEnrollmentStatus {
+  constructor(boolean is_enrollment_context_aware);
+  [Throws=CommandError]
+  FingerprintEnrollmentStatusState next(sequence<u8> response);
+};
+
+interface SignTransaction {
+  constructor(PartiallySignedTransaction serialized_psbt);
+  [Throws=CommandError]
+  PartiallySignedTransactionState next(sequence<u8> response);
+};
+
+interface WipeState {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface SealKey {
+  [Throws=CommandError]
+  constructor(sequence<u8> unsealed_key);
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface UnsealKey {
+  constructor(sequence<u8> sealed_key);
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface GetFirmwareMetadata {
+  constructor();
+  [Throws=CommandError]
+  FirmwareMetadataState next(sequence<u8> response);
+};
+
+interface GetDeviceIdentifiers {
+  constructor();
+  [Throws=CommandError]
+  DeviceIdentifiersState next(sequence<u8> response);
+};
+
+interface FwupStart {
+  constructor(u32? patch_size, FwupMode fwup_mode);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface FwupTransfer {
+  constructor(u32 sequence_id, sequence<u8> fwup_data, u32 offset, FwupMode fwup_mode);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface FwupFinish {
+  constructor(u32 app_properties_offset, u32 signature_offset, FwupMode fwup_mode);
+  [Throws=CommandError]
+  FwupFinishRspStatusState next(sequence<u8> response);
+};
+
+interface GetFirmwareFeatureFlags {
+  constructor();
+  [Throws=CommandError]
+  FirmwareFeatureFlagsState next(sequence<u8> response);
+};
+
+interface SetFirmwareFeatureFlags {
+  constructor(sequence<FirmwareFeatureFlag> flags, boolean enabled);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetEvents {
+  constructor();
+  [Throws=CommandError]
+  EventFragmentState next(sequence<u8> response);
+};
+
+interface GetTelemetryIdentifiers {
+  constructor();
+  [Throws=CommandError]
+  TelemetryIdentifiersState next(sequence<u8> response);
+};
+
+interface GetDeviceInfo {
+  constructor();
+  [Throws=CommandError]
+  DeviceInfoState next(sequence<u8> response);
+};
+
+interface GetCoredumpFragment {
+  constructor(u32 offset);
+  [Throws=CommandError]
+  CoredumpFragmentState next(sequence<u8> response);
+};
+
+interface GetCoredumpCount {
+  constructor();
+  [Throws=CommandError]
+  U16State next(sequence<u8> response);
+};
+
+interface GetAuthenticationKey {
+  constructor();
+  [Throws=CommandError]
+  PublicKeyState next(sequence<u8> response);
+};
+
+interface GetAuthenticationKeyV2 {
+  constructor();
+  [Throws=CommandError]
+  PublicKeyHandleState next(sequence<u8> response);
+};
+
+interface SignChallenge {
+  constructor(sequence<u8> challenge);
+  [Throws=CommandError]
+  SignatureState next(sequence<u8> response);
+};
+
+interface SignChallengeV2 {
+  constructor(sequence<u8> challenge);
+  [Throws=CommandError]
+  SignatureContextState next(sequence<u8> response);
+};
+
+interface GetInitialSpendingKey {
+  constructor(BtcNetwork network);
+  [Throws=CommandError]
+  DescriptorPublicKeyState next(sequence<u8> response);
+};
+
+interface GetNextSpendingKey {
+  constructor(sequence<DescriptorPublicKey> existing, BtcNetwork network);
+  [Throws=CommandError]
+  DescriptorPublicKeyState next(sequence<u8> response);
+};
+
+interface LockDevice {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetCert {
+  constructor(CertType kind);
+  [Throws=CommandError]
+  BytesState next(sequence<u8> response);
+};
+
+interface SignVerifyAttestationChallenge {
+  constructor(sequence<u8> device_identity_der, sequence<u8> challenge);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface SetFingerprintLabel {
+  constructor(u32 index, string label);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetEnrolledFingerprints {
+  constructor();
+  [Throws=CommandError]
+  EnrolledFingerprintsState next(sequence<u8> response);
+};
+
+interface DeleteFingerprint {
+  constructor(u32 index);
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+interface GetUnlockMethod {
+  constructor();
+  [Throws=CommandError]
+  UnlockInfoState next(sequence<u8> response);
+};
+
+interface CancelFingerprintEnrollment {
+  constructor();
+  [Throws=CommandError]
+  BooleanState next(sequence<u8> response);
+};
+
+[Enum]
+interface BooleanState {
+  Data(sequence<u8> response);
+  Result(boolean value);
+};
+
+[Enum]
+interface U16State {
+  Data(sequence<u8> response);
+  Result(u16 value);
+};
+
+[Enum]
+interface PartiallySignedTransactionState {
+  Data(sequence<u8> response);
+  Result(PartiallySignedTransaction value);
+};
+
+[Enum]
+interface FingerprintEnrollmentStatusState {
+  Data(sequence<u8> response);
+  Result(FingerprintEnrollmentStatus value);
+};
+
+[Enum]
+interface BytesState {
+  Data(sequence<u8> response);
+  Result(sequence<u8> value);
+};
+
+[Enum]
+interface FirmwareMetadataState {
+  Data(sequence<u8> response);
+  Result(FirmwareMetadata value);
+};
+
+[Enum]
+interface DeviceIdentifiersState {
+  Data(sequence<u8> response);
+  Result(DeviceIdentifiers value);
+};
+
+[Enum]
+interface TelemetryIdentifiersState {
+  Data(sequence<u8> response);
+  Result(TelemetryIdentifiers value);
+};
+
+[Enum]
+interface DeviceInfoState {
+  Data(sequence<u8> response);
+  Result(DeviceInfo value);
+};
+
+[Enum]
+interface FwupFinishRspStatusState {
+  Data(sequence<u8> response);
+  Result(FwupFinishRspStatus value);
+};
+
+[Enum]
+interface FirmwareFeatureFlagsState {
+  Data(sequence<u8> response);
+  Result(sequence<FirmwareFeatureFlagCfg> value);
+};
+
+[Enum]
+interface EventFragmentState {
+  Data(sequence<u8> response);
+  Result(EventFragment value);
+};
+
+[Enum]
+interface PublicKeyState {
+  Data(sequence<u8> response);
+  Result(PublicKey value);
+};
+
+[Enum]
+interface DescriptorPublicKeyState {
+  Data(sequence<u8> response);
+  Result(DescriptorPublicKey value);
+};
+
+[Enum]
+interface PublicKeyHandleState {
+  Data(sequence<u8> response);
+  Result(PublicKeyHandle value);
+};
+
+[Enum]
+interface SignatureContextState {
+  Data(sequence<u8> response);
+  Result(SignatureContext value);
+};
+
+[Enum]
+interface SignatureState {
+  Data(sequence<u8> response);
+  Result(Signature value);
+};
+
+[Enum]
+interface CoredumpFragmentState {
+  Data(sequence<u8> response);
+  Result(CoredumpFragment value);
+};
+
+[Enum]
+interface EnrolledFingerprintsState {
+  Data(sequence<u8> response);
+  Result(EnrolledFingerprints value);
+};
+
+[Enum]
+interface UnlockInfoState {
+  Data(sequence<u8> response);
+  Result(UnlockInfo value);
+};
+
+enum FingerprintEnrollmentStatus {
+  "StatusUnspecified",
+  "Incomplete",
+  "Complete",
+  "NotInProgress",
+};
+
+enum FwupFinishRspStatus {
+  "Unspecified",
+  "Success",
+  "SignatureInvalid",
+  "VersionInvalid",
+  "Error",
+  "WillApplyPatch",
+  "Unauthenticated",
+};
+
+[Error]
+enum CommandError {
+  "InvalidArguments",
+  "InvalidResponse",
+  "EncodeError",
+  "CorruptResponseEnvelope",
+  "CorruptResponsePayload",
+  "MissingMessage",
+  "PoisonedLockError",
+  "UnspecifiedCommandError",
+  "GeneralCommandError",
+  "SigningError",
+  "Unauthenticated",
+  "Unimplemented",
+  "ECDSASigningError",
+  "DescriptorKeyParseError",
+  "PsbtParseError",
+  "SealCsekResponseSealError",
+  "SealCsekResponseUnsealError",
+  "SealCsekResponseUnauthenticatedError",
+  "KeySizeError",
+  "SignatureInvalid",
+  "VersionInvalid",
+  "KeyGenerationFailed",
+  "PSBTSigningError",
+  "MetadataError",
+  "BatteryError",
+  "SerialError",
+  "UnknownMessage",
+  "NoSecureChannel",
+  "KeyDerivationFailed",
+  "SecureChannelError",
+  "WrongSecret",
+  "StorageErr",
+  "NoSecretProvisioned",
+  "WaitingOnDelay",
+  "FeatureNotSupported",
+  "CertReadFail",
+  "AttestationError",
+  "FileNotFound",
+  "InvalidState",
+};
+
+enum FirmwareSlot {
+  "A",
+  "B",
+};
+
+enum FwupMode {
+  "Normal",
+  "Delta",
+};
+
+enum FirmwareFeatureFlag {
+  "Telemetry",
+  "DeviceInfoFlag",
+  "RateLimitTemplateUpdate",
+  "Unlock",
+  "MultipleFingerprints",
+};
+
+enum SecureBootConfig {
+  "Dev",
+  "Prod",
+};
+
+dictionary FirmwareMetadata {
+  FirmwareSlot active_slot;
+  string git_id;
+  string git_branch;
+  string version;
+  string build;
+  u64 timestamp;
+  sequence<u8> hash;
+  string hw_revision;
+};
+
+dictionary DeviceIdentifiers {
+  string mlb_serial;
+  string assy_serial;
+};
+
+dictionary FirmwareFeatureFlagCfg {
+  FirmwareFeatureFlag flag;
+  boolean enabled;
+};
+
+dictionary EventFragment {
+  sequence<u8> fragment;
+  i32 remaining_size;
+};
+
+dictionary TelemetryIdentifiers {
+  string serial;
+  string version;
+  string sw_type;
+  string hw_revision;
+};
+
+dictionary DeviceInfo {
+  string version;
+  string serial;
+  string sw_type;
+  string hw_revision;
+  FirmwareSlot active_slot;
+  f32 battery_charge;
+  u32 vcell;
+  i32 avg_current_ma;
+  u32 battery_cycles;
+  SecureBootConfig? secure_boot_config;
+};
+
+dictionary CoredumpFragment {
+  sequence<u8> data;
+  i32 offset;
+  boolean complete;
+  i32 coredumps_remaining;
+};
+
+[Error]
+enum TeltraError {
+  "ParsingError",
+  "TranslationError",
+  "LockError",
+};
+
+interface Teltra {
+  constructor();
+
+  [Throws=TeltraError]
+  sequence<sequence<u8>> translate_bitlogs(sequence<u8> bitlog_bytes, TelemetryIdentifiers identifiers);
+};
+
+[Error]
+enum AttestationError {
+  "NotForBlock",
+  "InvalidChain",
+  "ParseFailure",
+  "VerificationFailure",
+};
+
+interface Attestation {
+  constructor();
+
+  [Throws=AttestationError]
+  string verify_device_identity_cert_chain(sequence<u8> identity_cert_der, sequence<u8> batch_cert_der);
+
+  [Throws=AttestationError]
+  sequence<u8> generate_challenge();
+};
+
+enum BtcNetwork {
+  "Bitcoin",
+  "Testnet",
+  "Signet",
+  "Regtest",
+};
+
+enum CertType {
+  "Unspecified",
+  "BatchCert",
+  "DeviceSeCert",
+  "DeviceHostCert",
+};
+
+enum EllipticCurve {
+  "Secp256k1",
+  "P256",
+  "Ed25519",
+};
+
+enum KeyEncoding {
+  "Raw",
+};
+
+dictionary PublicKeyMetadata {
+  EllipticCurve curve;
+  KeyEncoding encoding;
+};
+
+dictionary PublicKeyHandle {
+  PublicKeyMetadata metadata;
+  sequence<u8> material;
+};
+
+dictionary SignatureContext {
+  PublicKeyHandle? pubkey;
+  sequence<u8> signature;
+};
+
+enum UnlockMethod {
+  "Unspecified",
+  "Biometrics",
+  "UnlockSecret",
+};
+
+dictionary UnlockInfo {
+  UnlockMethod method;
+  u32? fingerprint_index;
+};
+
+dictionary FingerprintHandle {
+  u32 index;
+  string label;
+};
+
+dictionary EnrolledFingerprints {
+  u32 max_count;
+  sequence<FingerprintHandle> fingerprints;
+};
+
+[Custom]
+typedef string PartiallySignedTransaction;
+
+[Custom]
+typedef string DescriptorPublicKey;
+
+[Custom]
+typedef string PublicKey;
+
+[Custom]
+typedef string Signature;

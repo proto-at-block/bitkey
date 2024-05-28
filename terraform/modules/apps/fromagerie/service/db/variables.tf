@@ -10,11 +10,9 @@ variable "enable_deletion_protection" {
   default     = true
 }
 
-// Overrides for table names so that we can import the PrototypeOnboardingStack tables
-// instead of creating new ones.
 variable "recovery_table_name" {
   type        = string
-  description = "Override the name of the account recovery table"
+  description = "The name of the account recovery table"
 }
 
 variable "social_recovery_table_name" {
@@ -24,7 +22,7 @@ variable "social_recovery_table_name" {
 
 variable "account_table_name" {
   type        = string
-  description = "Override the name of the account table"
+  description = "The name of the account table"
 }
 
 variable "notification_table_name" {
@@ -44,22 +42,22 @@ variable "mempool_indexer_table_name" {
 
 variable "daily_spending_record_table_name" {
   type        = string
-  description = "Override the name of the daily spend record table"
+  description = "The name of the daily spend record table"
 }
 
 variable "signed_psbt_cache_table_name" {
   type        = string
-  description = "Override the name of the signed psbt cache table"
+  description = "The name of the signed psbt cache table"
 }
 
 variable "address_watchlist_table_name" {
   type        = string
-  description = "Override the name of the address watchlist table"
+  description = "The name of the address watchlist table"
 }
 
 variable "migration_record_table_name" {
   type        = string
-  description = "Override the name of the address watchlist table"
+  description = "The name of the migration record table"
 }
 
 variable "consent_table_name" {

@@ -7,7 +7,7 @@ services:
       REGTEST_ELECTRUM_SERVER_URI: tcp://localhost:50001
       LAUNCHDARKLY_SDK_KEY: ${LAUNCHDARKLY_SDK_KEY:-}
     healthcheck:
-      test: wget --tries 1 --spider http://localhost:8080 || exit 1
+      test: wget --tries 1 --spider http://127.0.0.1:8080 || exit 1
       interval: 10s # increase after start_interval supported (engine 25)
       timeout: 5s
       retries: 3

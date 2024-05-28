@@ -7,7 +7,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.GET_ENROLLED_FINGERPRINTS
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
@@ -19,14 +18,9 @@ import build.wallet.feature.FeatureFlagValue.BooleanFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.firmware.FirmwareFeatureFlag
-import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormHeaderModel
-import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
@@ -41,26 +35,19 @@ import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyl
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.HardwareRecoveryDelayAndNotifyUiState
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.InitiatingHardwareRecoveryUiState
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.ManagingFingerprintsUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.RetrievingEnrolledFingerprintsUiState
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.TappingForFirmwareMetadataUiState
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.UpdatingFirmwareUiState
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.ViewingDeviceDataUiState
-import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult.FwUpRequired
-import build.wallet.statemachine.settings.full.device.EnrolledFingerprintResult.Success
+import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.fingerprints.PromptingForFingerprintFwUpSheetModel
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.time.nonNegativeDurationBetween
-import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
-import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
@@ -134,10 +121,10 @@ class DeviceSettingsUiStateMachineImpl(
           replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available,
           multipleFingerprintsEnabled = multipleFingerprintsEnabled,
           resetDeviceEnabled = resetDeviceEnabled,
-          onManageFingerprints = { uiState = RetrievingEnrolledFingerprintsUiState }
+          onManageFingerprints = { uiState = ManagingFingerprintsUiState }
         ).copy(
           alertModel = alertModel,
-          bottomSheetModel = promptingForFwUpModel(
+          bottomSheetModel = PromptingForFingerprintFwUpSheetModel(
             onCancel = { uiState = ViewingDeviceDataUiState() },
             onUpdate = {
               uiState = when (val fwupState = props.firmwareData.firmwareUpdateState) {
@@ -204,79 +191,19 @@ class DeviceSettingsUiStateMachineImpl(
             )
         )
 
-      RetrievingEnrolledFingerprintsUiState ->
-        nfcSessionUIStateMachine.model(
-          NfcSessionUIStateMachineProps(
-            session = { session, commands ->
-              // Check that the fw supports multiple fingerprints
-              val enabled = commands.getFirmwareFeatureFlags(session)
-                .find { it.flag == FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS }
-                ?.enabled
-
-              when (enabled) {
-                true -> Success(commands.getEnrolledFingerprints(session))
-                else -> FwUpRequired
-              }
-            },
-            onSuccess = {
-              uiState = when (it) {
-                FwUpRequired -> ViewingDeviceDataUiState(showingPromptForFingerprintFwUpdate = true)
-                is Success -> ManagingFingerprintsUiState(it.enrolledFingerprints)
-              }
-            },
-            onCancel = { uiState = ViewingDeviceDataUiState() },
-            isHardwareFake = props.accountData.account.config.isHardwareFake,
-            screenPresentationStyle = Modal,
-            eventTrackerContext = GET_ENROLLED_FINGERPRINTS
-          )
-        )
-
       is ManagingFingerprintsUiState -> managingFingerprintsUiStateMachine.model(
         props = ManagingFingerprintsProps(
           account = props.accountData.account,
           onBack = { uiState = ViewingDeviceDataUiState() },
-          enrolledFingerprints = state.enrolledFingerprints
+          onFwUpRequired = {
+            uiState = ViewingDeviceDataUiState(showingPromptForFingerprintFwUpdate = true)
+          },
+          entryPoint = EntryPoint.DEVICE_SETTINGS
         )
       )
     }
   }
 }
-
-private fun promptingForFwUpModel(
-  onCancel: () -> Unit,
-  onUpdate: () -> Unit,
-) = FormBodyModel(
-  id = null,
-  onBack = onCancel,
-  toolbar = null,
-  header = FormHeaderModel(
-    iconModel = IconModel(
-      icon = Icon.LargeIconWarningStroked,
-      iconSize = IconSize.Small,
-      iconTint = IconTint.Primary,
-      iconBackgroundType = IconBackgroundType.Circle(
-        circleSize = IconSize.Avatar,
-        color = IconBackgroundType.Circle.CircleColor.PrimaryBackground20
-      )
-    ),
-    headline = "Update your hardware device",
-    subline = "Looks like you need to update your hardware device to add additional fingerprints."
-  ),
-  primaryButton = ButtonModel(
-    text = "I'll do this later",
-    size = ButtonModel.Size.Footer,
-    treatment = ButtonModel.Treatment.Secondary,
-    onClick = StandardClick(onCancel)
-  ),
-  secondaryButton = ButtonModel(
-    text = "Update hardware",
-    requiresBitkeyInteraction = true,
-    onClick = onUpdate,
-    treatment = ButtonModel.Treatment.Black,
-    size = ButtonModel.Size.Footer
-  ),
-  renderContext = RenderContext.Sheet
-).asSheetModalScreen(onClosed = onCancel)
 
 @Composable
 private fun ViewingDeviceScreenModel(
@@ -428,14 +355,7 @@ sealed interface DeviceSettingsUiState {
   /**
    * Managing (i.e. adding/editing/deleting) enrolled fingerprints
    */
-  data class ManagingFingerprintsUiState(
-    val enrolledFingerprints: EnrolledFingerprints,
-  ) : DeviceSettingsUiState
-
-  /**
-   * Retrieving enrolled fingerprints from hardware
-   */
-  data object RetrievingEnrolledFingerprintsUiState : DeviceSettingsUiState
+  data object ManagingFingerprintsUiState : DeviceSettingsUiState
 }
 
 sealed interface EnrolledFingerprintResult {

@@ -4,7 +4,6 @@ import build.wallet.gradle.logic.rust.util.RustCompilationProfile
 import build.wallet.gradle.logic.rust.util.RustTarget
 import build.wallet.gradle.logic.rust.util.RustToolchainProvider
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.Directory
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.provider.Property
@@ -32,7 +31,7 @@ internal abstract class BaseCompileRustTask : DefaultTask() {
   abstract val targetDirectory: DirectoryProperty
 
   @get:Internal
-  protected val workdir: Directory = project.layout.projectDirectory
+  abstract val workdir: DirectoryProperty
 
   @get:OutputDirectory
   abstract val outputDirectory: DirectoryProperty
@@ -48,17 +47,9 @@ internal abstract class BaseCompileRustTask : DefaultTask() {
 
   @TaskAction
   fun runTask() {
-    setupToolchain()
-
     compile()
 
     copyBinariesToOutputDirectory()
-  }
-
-  protected open fun setupToolchain() {
-    if (!target.get().isHost) {
-      rust.get().getToolchain(workdir).addTarget(target.get())
-    }
   }
 
   protected fun ExecSpec.commonBuildArgs() {

@@ -41,6 +41,7 @@ class Wallet:
     def get_fingerprint_enrollment_status(self):
         cmd = self._build_cmd()
         msg = wallet_pb.get_fingerprint_enrollment_status_cmd()
+        msg.app_knows_about_this_field = True  # Set this to false simulate an old app
         cmd.get_fingerprint_enrollment_status_cmd.CopyFrom(msg)
         return self.comms.transceive(cmd)
 

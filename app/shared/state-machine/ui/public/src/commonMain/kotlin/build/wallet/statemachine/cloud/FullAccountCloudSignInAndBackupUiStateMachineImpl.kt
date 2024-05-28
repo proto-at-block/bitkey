@@ -441,7 +441,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             val errorData = ErrorData(
               segment = RecoverySegment.CloudBackup.FullAccount.Upload,
               cause = cloudBackupFailure,
-              actionDescription = "Writing backup to cloud storage"
+              actionDescription = "Uploading full account backup to cloud"
             )
             if (cloudBackupFailure is RectifiableCloudBackupError) {
               onRectifiableError(
@@ -484,7 +484,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
             val errorData = ErrorData(
               segment = RecoverySegment.EmergencyAccess.Upload,
               cause = writeFailure,
-              actionDescription = "Writing emergency access kit to cloud file store"
+              actionDescription = "Uploading emergency access kit to cloud"
             )
             if (writeFailure is RectifiableCloudError) {
               onRectifiableError(

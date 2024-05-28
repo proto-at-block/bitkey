@@ -16,7 +16,11 @@ utoipa = { workspace = true }
 # path dependencies
 account = { workspace = true }
 analytics = { workspace = true }
+authn_authz = { workspace = true }
 errors = { workspace = true }
 feature_flags = { workspace = true }
 instrumentation = { workspace = true }
 types = { workspace = true, features = ["account"] }
+
+[dev-dependencies]
+tokio = { workspace = true }

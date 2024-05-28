@@ -2,8 +2,8 @@ package build.wallet.encrypt
 
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
-import build.wallet.core.CryptoBox as CoreCryptoBox
-import build.wallet.core.CryptoBoxKeyPair as CoreCryptoBoxKeyPair
+import build.wallet.rust.core.CryptoBox as CoreCryptoBox
+import build.wallet.rust.core.CryptoBoxKeyPair as CoreCryptoBoxKeyPair
 
 class CryptoBoxImpl : CryptoBox {
   override fun generateKeyPair(): CryptoBoxKeyPair =

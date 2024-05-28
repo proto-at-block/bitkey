@@ -19,8 +19,6 @@ import build.wallet.statemachine.dev.debug.NetworkingDebugConfigPickerUiStateMac
 import build.wallet.statemachine.dev.debug.NetworkingDebugConfigProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsProps
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsStateMachine
-import build.wallet.statemachine.dev.lightning.LightningDebugMenuUiStateMachine
-import build.wallet.statemachine.dev.lightning.LightningDebugMenuUiStateMachine.LightningDebugMenuUiProps
 import build.wallet.statemachine.dev.logs.LogsUiStateMachine
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
@@ -34,7 +32,6 @@ class DebugMenuStateMachineImpl(
   private val featureFlagsStateMachine: FeatureFlagsStateMachine,
   private val firmwareMetadataUiStateMachine: FirmwareMetadataUiStateMachine,
   private val fwupNfcUiStateMachine: FwupNfcUiStateMachine,
-  private val lightningDebugMenuUiStateMachine: LightningDebugMenuUiStateMachine,
   private val logsUiStateMachine: LogsUiStateMachine,
   private val networkingDebugConfigPickerUiStateMachine: NetworkingDebugConfigPickerUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
@@ -63,11 +60,6 @@ class DebugMenuStateMachineImpl(
             templateFullAccountConfigData = state.templateFullAccountConfigData,
             onBack = { uiState = DebugMenuState.ShowingDebugMenu }
           )
-        )
-
-      is DebugMenuState.ShowingLightningDebugMenu ->
-        lightningDebugMenuUiStateMachine.model(
-          LightningDebugMenuUiProps(onBack = { uiState = DebugMenuState.ShowingDebugMenu })
         )
 
       is DebugMenuState.ShowingLogs ->
@@ -163,6 +155,4 @@ sealed interface DebugMenuState {
   data class ShowingFirmwareMetadata(
     val isHardwareFake: Boolean,
   ) : DebugMenuState
-
-  data object ShowingLightningDebugMenu : DebugMenuState
 }

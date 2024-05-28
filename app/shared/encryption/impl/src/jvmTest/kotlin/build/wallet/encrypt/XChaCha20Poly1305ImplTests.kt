@@ -1,7 +1,7 @@
 package build.wallet.encrypt
 
-import build.wallet.core.ChaCha20Poly1305Exception.DecryptException
 import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.rust.core.ChaCha20Poly1305Exception.DecryptException
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual

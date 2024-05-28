@@ -8,7 +8,7 @@ val FakePartnershipTransaction = PartnershipTransaction(
   status = null,
   context = null,
   partnerInfo = PartnerInfo(
-    partner = "fake-partner",
+    partnerId = PartnerId("fake-partner"),
     name = "fake-partner-name",
     logoUrl = null
   ),

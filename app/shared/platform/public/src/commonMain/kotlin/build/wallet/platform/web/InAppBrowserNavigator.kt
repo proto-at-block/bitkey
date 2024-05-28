@@ -16,4 +16,9 @@ interface InAppBrowserNavigator {
    * Gets invoked when the browser closes.
    */
   fun onClose()
+
+  /**
+   * close the in-app browser
+   */
+  fun close()
 }

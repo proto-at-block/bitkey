@@ -14,7 +14,7 @@ use wallet_telemetry::APP_INSTALLATION_ID_BAGGAGE_KEY;
 use crate::metrics::factory::{Counter, Histogram, UpDownCounter};
 use crate::metrics::KeyValue;
 
-pub const APP_INSTALLATION_ID_HEADER_NAME: &str = "App-Installation-Id";
+pub const APP_INSTALLATION_ID_HEADER_NAME: &str = "Bitkey-App-Installation-ID";
 
 const METHOD_KEY: &str = "method";
 const PATH_KEY: &str = "path";

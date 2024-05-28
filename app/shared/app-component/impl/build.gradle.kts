@@ -34,7 +34,6 @@ kotlin {
         api(projects.shared.homeImpl)
         api(projects.shared.keyValueStoreImpl)
         api(projects.shared.keyboxImpl)
-        api(projects.shared.ldkBindingsFake)
         api(projects.shared.loggingImpl)
         api(projects.shared.memfaultImpl)
         api(projects.shared.mobilePayImpl)

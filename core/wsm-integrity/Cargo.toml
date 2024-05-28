@@ -1,0 +1,10 @@
+[package]
+edition = { workspace = true }
+name = "wsm-integrity"
+publish = { workspace = true }
+version = { workspace = true }
+
+[dependencies]
+bitcoin = { workspace = true }
+hex = "0.4.3"
+thiserror = { workspace = true }

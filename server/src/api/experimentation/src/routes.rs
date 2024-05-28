@@ -29,7 +29,7 @@ pub struct Config {}
 pub struct RouteState(pub Config, pub AccountService, pub FeatureFlagsService);
 
 impl RouteState {
-    pub fn authed_router(&self) -> Router {
+    pub fn account_or_recovery_authed_router(&self) -> Router {
         Router::new()
             .route(
                 "/api/accounts/:account_id/feature-flags",

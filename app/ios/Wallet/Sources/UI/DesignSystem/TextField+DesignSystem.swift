@@ -12,20 +12,22 @@ public extension UITextFieldModel {
         textContentType: UITextContentType? = nil,
         textInset: UIEdgeInsets = .init(top: 0, left: 24, bottom: 0, right: 24),
         enableAutoCorrect: Bool = false,
-        enableWordAutoCapitalization: Bool = false
+        capitalization: UITextAutocapitalizationType = .none,
+        maxLength: Int?
     ) -> UITextFieldModel {
         return .init(
             backgroundColor: .foreground10,
             cornerRadius: DesignSystemMetrics.textFieldHeight / 2,
             enableAutoCorrect: enableAutoCorrect,
-            enableWordAutoCapitalization: enableWordAutoCapitalization,
+            capitalization: capitalization,
             height: DesignSystemMetrics.textFieldHeight,
             isSecureTextEntry: isSecureTextEntry,
             keyboardType: keyboardType,
             placeholderLabelModel: .standard(placeholder, font: .body2Regular, textColor: .foreground60),
             textInset: textInset,
             textLabelModel: .standard(text, font: .body2Regular),
-            tintColor: .foreground
+            tintColor: .foreground,
+            maxLength: maxLength
         )
     }
     
@@ -44,14 +46,15 @@ public extension UITextFieldModel {
             backgroundColor: .foreground10,
             cornerRadius: DesignSystemMetrics.textFieldHeight / 2,
             enableAutoCorrect: false,
-            enableWordAutoCapitalization: false,
+            capitalization: .none,
             height: DesignSystemMetrics.textFieldHeight,
             keyboardType: keyboardType,
             placeholderLabelModel: .standard(placeholder, font: .body2Regular, textColor: .foreground60),
             textInset: .init(top: 16, left: 12, bottom: 16, right: 12),
             textLabelModel: textLabelModel,
             tintColor: .foreground,
-            trailingTextFieldButtonModel: trailingButtonModel
+            trailingTextFieldButtonModel: trailingButtonModel,
+            maxLength: nil
         )
     }
 }

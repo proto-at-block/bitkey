@@ -2,7 +2,7 @@
 	"folders": [
 		{
 			"name": "Core",
-			"path": "app/core"
+			"path": "core"
 		},
 		{
 			"name": "Github",

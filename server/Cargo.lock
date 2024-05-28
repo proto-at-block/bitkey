@@ -2015,6 +2015,8 @@ dependencies = [
  "serde",
  "serde_dynamo",
  "thiserror",
+ "tracing",
+ "trait-variant",
 ]
 
 [[package]]
@@ -2402,6 +2404,7 @@ version = "0.1.0"
 dependencies = [
  "account",
  "analytics",
+ "authn_authz",
  "axum 0.7.4",
  "axum-macros",
  "errors",
@@ -2410,6 +2413,7 @@ dependencies = [
  "instrumentation",
  "serde",
  "thiserror",
+ "tokio",
  "tracing",
  "types",
  "utoipa",
@@ -3680,6 +3684,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "mempool_indexer"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "bdk_utils",
+ "config",
+ "database",
+ "futures",
+ "reqwest",
+ "reqwest-middleware",
+ "reqwest-retry",
+ "serde",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "types",
+]
+
+[[package]]
 name = "migration"
 version = "0.1.0"
 dependencies = [
@@ -4309,12 +4334,14 @@ dependencies = [
  "axum 0.7.4",
  "bdk",
  "chrono",
+ "experimentation",
  "feature_flags",
  "futures",
  "hmac",
  "http 0.2.11",
  "isocountry",
  "opentelemetry",
+ "regex",
  "reqwest",
  "rstest",
  "serde",
@@ -5610,6 +5637,7 @@ dependencies = [
  "isocountry",
  "jwt-authorizer",
  "launchdarkly-server-sdk",
+ "mempool_indexer",
  "migration",
  "mobile_pay",
  "mockall",
@@ -7170,6 +7198,7 @@ dependencies = [
  "instrumentation",
  "isocountry",
  "itertools 0.12.1",
+ "mempool_indexer",
  "notification",
  "notification_validation",
  "queue",

@@ -30,4 +30,10 @@ class ListGroupSnapshots : FunSpec({
       ListSectionForPreview(showHeader = false, style = ListGroupStyle.CARD_ITEM)
     }
   }
+
+  test("list group collapsed") {
+    paparazzi.snapshot {
+      ListSectionForPreview(showHeader = false, style = ListGroupStyle.NONE, collapsed = true)
+    }
+  }
 })

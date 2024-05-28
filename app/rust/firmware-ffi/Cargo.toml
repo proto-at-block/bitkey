@@ -1,0 +1,19 @@
+[package]
+edition = { workspace = true }
+name = "firmware-ffi"
+publish = { workspace = true }
+version = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "lib", "staticlib"]
+name = "firmware"
+
+[dependencies]
+bitcoin = { workspace = true }
+teltra = { path = "../teltra" }
+thiserror = { workspace = true }
+uniffi = { workspace = true }
+wca = { path = "../wca", default-features = false }
+
+[build-dependencies]
+uniffi = { workspace = true, features = ["build"] }

@@ -30,7 +30,7 @@ errors = { workspace = true }
 external_identifier = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
-instrumentation ={ workspace = true }
+instrumentation = { workspace = true }
 notification = { workspace = true }
 recovery = { workspace = true }
 types = { workspace = true, features = ["account"] }

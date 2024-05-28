@@ -49,7 +49,8 @@ experimentation = { workspace = true }
 external_identifier = { workspace = true }
 feature_flags = { workspace = true }
 http_server = { workspace = true }
-instrumentation ={ workspace = true }
+instrumentation = { workspace = true }
+mempool_indexer = { workspace = true }
 migration = { workspace = true }
 mobile_pay = { workspace = true }
 notification = { workspace = true }

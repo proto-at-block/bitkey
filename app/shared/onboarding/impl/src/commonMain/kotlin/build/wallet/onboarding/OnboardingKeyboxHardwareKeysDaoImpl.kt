@@ -4,6 +4,7 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
+import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 
@@ -39,5 +40,9 @@ class OnboardingKeyboxHardwareKeysDaoImpl(
     }
   }
 
-  override suspend fun clear() = queries.clear()
+  override suspend fun clear() {
+    database.awaitTransaction {
+      queries.clear()
+    }
+  }
 }

@@ -5,6 +5,7 @@ import {
     metric_avg_query,
     metric_sum_query,
     log_count_query,
+    Comparator,
 } from "./common/queries";
 import { HttpStatusCompositeMonitor } from "./common/http";
 import { getCriticalRecipients, getErrorRecipients, getWarningRecipients } from "./recipients";
@@ -115,6 +116,7 @@ export class MoneyMovementMonitors extends Construct {
             ),
             name: `[Money Movement] Attempted to cosign above user daily spending limit on env: ${environment}`,
             message: "Illegal Mobile Pay cosign above user spending limit",
+            runbook: "https://docs.wallet.build/runbooks/server/mobile-pay/cosign-overflow",
             tags: tags,
             ...securityRiskAlertConfig
         })
@@ -217,7 +219,7 @@ export class MoneyMovementMonitors extends Construct {
                 latencyConfig.monitorThresholds.critical
             ),
             name: `[Money Movement] High latency connecting to mainnet Electrum server on ${environment}`,
-            message: "https://github.com/squareup/wallet/blob/main/docs/docs/runbooks/apps/server/electrum-failure.md",
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...tempLatencyConfig
@@ -230,7 +232,7 @@ export class MoneyMovementMonitors extends Construct {
                 latencyConfig.monitorThresholds.critical
             ),
             name: `[Money Movement] High latency connecting to signet Electrum server on ${environment}`,
-            message: "https://github.com/squareup/wallet/blob/main/docs/docs/runbooks/apps/server/electrum-failure.md",
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...tempLatencyConfig
@@ -248,7 +250,7 @@ export class MoneyMovementMonitors extends Construct {
         new Monitor(this, "high-electrum-rum-error-rate", {
             query: `formula("moving_rollup(query1, 3600, 'avg') / moving_rollup(query2, 3600, 'avg')").last("5m") > 1`,
             name: `[Money Movement] Percentage of connection errors to Electrum server is too high for env:${environment}`,
-            message: "https://github.com/squareup/wallet/blob/main/docs/docs/runbooks/apps/server/electrum-failure.md",
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             variables: {
                 eventQuery:  [
@@ -295,7 +297,7 @@ export class MoneyMovementMonitors extends Construct {
                 log_alert_config.monitorThresholds.critical
             ),
             name: `[Money Movement] Mainnet Electrum connection error rate too high on env:${environment}`,
-            message: "https://github.com/squareup/wallet/blob/main/docs/docs/runbooks/apps/server/electrum-failure.md",
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...log_alert_config
@@ -308,10 +310,77 @@ export class MoneyMovementMonitors extends Construct {
                 log_alert_config.monitorThresholds.critical
             ),
             name: `[Money Movement] Signet Electrum connection error rate too high on env:${environment}`,
-            message: "https://github.com/squareup/wallet/blob/main/docs/docs/runbooks/apps/server/electrum-failure.md",
+            message: "https://docs.wallet.build/runbooks/infra/electrum-failure",
             tags: tags,
             dataDogLink: datadogLinks.electrumDashboard,
             ...log_alert_config
+        });
+
+        // Electrum node monitoring alerts
+
+        let electrumNodeMonitoringConfig = {
+            recipients: errorRecipients,
+            type: "query alert",
+            monitorThresholds: {
+                critical: "5",
+            },
+            window: "25m",
+        }
+
+        new Monitor(this, "Mempool regional mainnet tip height drift", {
+            query: metric_avg_query(
+                `max:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:mempool} - min:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:mempool}`,
+                electrumNodeMonitoringConfig.window,
+                electrumNodeMonitoringConfig.monitorThresholds.critical,
+                Comparator.AboveOrEqualTo,
+            ),
+            name: `[Electrum] Mempool regional mainnet tip height drift`,
+            message: `The minimum mainnet tip height reported by mempool's nodes trails that of the maximum tip height by more than the threshold.\nhttps://docs.wallet.build/runbooks/infra/electrum-failure`,
+            tags: tags,
+            dataDogLink: datadogLinks.electrumDashboard,
+            ...electrumNodeMonitoringConfig,
+        });
+
+        new Monitor(this, "Mempool aggregate mainnet tip height drift", {
+            query: metric_avg_query(
+                `avg:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:blockstream} - avg:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:mempool}`,
+                electrumNodeMonitoringConfig.window,
+                electrumNodeMonitoringConfig.monitorThresholds.critical,
+                Comparator.AboveOrEqualTo,
+            ),
+            name: `[Electrum] Mempool aggregate mainnet tip height drift`,
+            message: `The average mainnet tip height reported by mempool's nodes trails that of blockstream's by more than the threshold.\nhttps://docs.wallet.build/runbooks/infra/electrum-failure`,
+            tags: tags,
+            dataDogLink: datadogLinks.electrumDashboard,
+            ...electrumNodeMonitoringConfig,
+        });
+
+        new Monitor(this, "Blockstream regional mainnet tip height drift", {
+            query: metric_avg_query(
+                `max:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:blockstream} - min:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:blockstream}`,
+                electrumNodeMonitoringConfig.window,
+                electrumNodeMonitoringConfig.monitorThresholds.critical,
+                Comparator.AboveOrEqualTo,
+            ),
+            name: `[Electrum] Blockstream mainnet regional tip height drift`,
+            message: `The minimum mainnet tip height reported by blockstream's nodes trails that of the maximum tip height by more than the threshold.\nhttps://docs.wallet.build/runbooks/infra/electrum-failure`,
+            tags: tags,
+            dataDogLink: datadogLinks.electrumDashboard,
+            ...electrumNodeMonitoringConfig,
+        });
+
+        new Monitor(this, "Blockstream aggregate mainnet tip height drift", {
+            query: metric_avg_query(
+                `avg:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:mempool} - avg:bitkey.bdk_utils.electrum_tip_height{env:${environment},network:bitcoin,provider:blockstream}`,
+                electrumNodeMonitoringConfig.window,
+                electrumNodeMonitoringConfig.monitorThresholds.critical,
+                Comparator.AboveOrEqualTo,
+            ),
+            name: `[Electrum] Blockstream mainnet aggregate tip height drift`,
+            message: `The average mainnet tip height reported by blockstream's nodes trails that of mempool's by more than the threshold.\nhttps://docs.wallet.build/runbooks/infra/electrum-failure`,
+            tags: tags,
+            dataDogLink: datadogLinks.electrumDashboard,
+            ...electrumNodeMonitoringConfig,
         });
     }
 }

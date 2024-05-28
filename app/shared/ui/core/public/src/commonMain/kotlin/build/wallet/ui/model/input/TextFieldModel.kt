@@ -12,7 +12,7 @@ package build.wallet.ui.model.input
  * @property keyboardType - the keyboard that should be used for this input field
  * @property masksText - whether the entered text should be masked or not
  * @property enableAutoCorrect - controls whether the input field will include OS autocorrect
- * @property enableWordAutoCapitalization - when enabled, input field will auto capitalize the first character of each word
+ * @property capitalization - defines the capitalization behavior of entered text
  * @property onDone - action taken when keyboard done is invoked
  * @property focusByDefault - if keyboard should be active for input field by default
  */
@@ -24,9 +24,10 @@ data class TextFieldModel(
   val keyboardType: KeyboardType,
   val masksText: Boolean = false,
   val enableAutoCorrect: Boolean = false,
-  val enableWordAutoCapitalization: Boolean = false,
+  val capitalization: Capitalization = Capitalization.None,
   val onDone: (() -> Unit)? = null,
   val focusByDefault: Boolean = true,
+  val maxLength: Int? = null,
 ) {
   enum class KeyboardType {
     /** Default keyboard */
@@ -46,5 +47,28 @@ data class TextFieldModel(
 
     /** Keyboard optimized for uri entry */
     Uri,
+  }
+
+  /** The keyboard capitalization defaults, implemented using each platform's UI kit. */
+  enum class Capitalization {
+    /**
+     * Do not auto-capitalize text.
+     */
+    None,
+
+    /**
+     * Capitalize all characters.
+     */
+    Characters,
+
+    /**
+     * Capitalize the first character of every word.
+     */
+    Words,
+
+    /**
+     * Capitalize the first character of each sentence.
+     */
+    Sentences,
   }
 }

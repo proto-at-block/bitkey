@@ -10,9 +10,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,6 +26,7 @@ import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconBackgroundType
 import build.wallet.ui.model.icon.IconBackgroundType.Circle
+import build.wallet.ui.model.icon.IconBackgroundType.Square
 import build.wallet.ui.model.icon.IconBackgroundType.Transient
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconImage.LocalImage
@@ -131,7 +134,7 @@ fun IconImage(
           foreground10 = WalletTheme.colors.foreground10,
           primary = WalletTheme.colors.primary,
           type = model.iconBackgroundType
-        ).thenIf(model.iconBackgroundType is Circle) {
+        ).thenIf(model.iconBackgroundType is Circle || model.iconBackgroundType is Square) {
           Modifier.size(model.totalSize.dp)
         },
     contentAlignment = Alignment.Center
@@ -166,26 +169,40 @@ private fun Modifier.background(
   foreground10: Color,
   primary: Color,
   type: IconBackgroundType,
-): Modifier {
-  return when (type) {
-    Transient ->
-      this
+): Modifier =
+  composed {
+    when (type) {
+      Transient ->
+        this
 
-    is Circle ->
-      this.then(
-        background(
-          color =
-            when (type.color) {
-              Circle.CircleColor.Foreground10 -> foreground10
-              Circle.CircleColor.PrimaryBackground20 -> primary.copy(alpha = .2f)
-              Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
-              Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
-            },
-          shape = CircleShape
+      is Circle ->
+        this.then(
+          background(
+            color =
+              when (type.color) {
+                Circle.CircleColor.Foreground10 -> foreground10
+                Circle.CircleColor.PrimaryBackground20 -> primary.copy(alpha = .2f)
+                Circle.CircleColor.TranslucentBlack -> Color.Black.copy(alpha = .1f)
+                Circle.CircleColor.TranslucentWhite -> Color.White.copy(alpha = .2f)
+              },
+            shape = CircleShape
+          )
         )
-      )
+      is Square ->
+        this.then(
+          background(
+            when (type.color) {
+              Square.Color.Default -> WalletTheme.colors.calloutDefaultTrailingIconBackground
+              Square.Color.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground
+              Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
+              Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
+              Square.Color.Danger -> WalletTheme.colors.calloutDangerTrailingIconBackground
+            },
+            shape = RoundedCornerShape(type.cornerRadius)
+          )
+        )
+    }
   }
-}
 
 @Preview
 @Composable
@@ -200,6 +217,23 @@ internal fun IconImageWithCircleBackground() {
         color = Circle.CircleColor.PrimaryBackground20
       )
     )
+  )
+}
+
+@Preview
+@Composable
+internal fun IconImageWithSquareBackgroundPreview() {
+  IconImage(
+    model = IconModel(
+      icon = Icon.SmallIconArrowRight,
+      iconSize = IconSize.Accessory,
+      iconBackgroundType = Square(
+        size = IconSize.Large,
+        color = Square.Color.Default,
+        cornerRadius = 12
+      )
+    ),
+    color = Color.White
   )
 }
 

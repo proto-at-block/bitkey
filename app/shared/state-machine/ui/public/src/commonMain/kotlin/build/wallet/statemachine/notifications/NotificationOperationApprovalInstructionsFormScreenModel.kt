@@ -10,6 +10,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
@@ -40,7 +41,7 @@ fun NotificationOperationApprovalInstructionsFormScreenModel(
           text = "Approve",
           isLoading = isApproveButtonLoading,
           size = Footer,
-          onClick = onApprove
+          onClick = StandardClick(onApprove)
         )
     ),
   presentationStyle = ScreenPresentationStyle.Modal,

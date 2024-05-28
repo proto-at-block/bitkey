@@ -127,7 +127,8 @@ struct CardView_Previews: PreviewProvider {
                     taskModels: [
                         .init(task: .init(id: .invitetrustedcontact, state: .complete), isEnabled: true, onClick: {}),
                         .init(task: .init(id: .enablespendinglimit, state: .incomplete), isEnabled: true, onClick: {}),
-                        .init(task: .init(id: .addbitcoin, state: .incomplete), isEnabled: true, onClick: {})
+                        .init(task: .init(id: .addbitcoin, state: .incomplete), isEnabled: true, onClick: {}),
+                        .init(task: .init(id: .addadditionalfingerprint, state: .incomplete), isEnabled: true, onClick: {})
                     ]
                 )
             )

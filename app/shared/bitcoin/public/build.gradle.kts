@@ -23,7 +23,6 @@ kotlin {
         api(projects.shared.f8ePublic)
         api(projects.shared.featureFlagPublic)
         api(projects.shared.ktorClientPublic)
-        api(projects.shared.ldkBindingsPublic)
         api(projects.shared.moneyPublic)
         api(projects.shared.platformPublic)
         implementation(projects.shared.loggingPublic)

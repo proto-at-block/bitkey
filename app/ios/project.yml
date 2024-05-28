@@ -2,7 +2,7 @@
 name: Wallet
 options:
   deploymentTarget: '15.2'
-  preGenCommand: "../core/build_swift_package.sh"
+  preGenCommand: "../rust/build_swift_package.sh"
 configs:
   Release: release
   Beta: release
@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.58.0
-        PROJECT_BUNDLE_VERSION: 2
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.59.0
+        PROJECT_BUNDLE_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -111,7 +111,10 @@ targets:
     - package: PhoneNumberKit
     - package: ZIPFoundation
     - package: SVGView
-    - package: core
+    - package: rust
+      products:
+        - core
+        - firmware
 
     sources:
     - Wallet/Sources
@@ -134,8 +137,8 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UILaunchStoryboardName: SplashScreen
         NSCameraUsageDescription: Allow access to your camera in order to scan QR codes
-        NFCReaderUsageDescription: We use NFC to connect your phone to your W1
-        NSFaceIDUsageDescription: We use FaceID to securely store your wallet keys
+        NFCReaderUsageDescription: We use NFC to connect your phone to your Bitkey Hardware
+        NSFaceIDUsageDescription: We use Face ID to allow the secure use of Bitkey
         com.apple.developer.nfc.readersession.iso7816.select-identifiers:
         - D2760000850101
         bugsnag:
@@ -254,8 +257,8 @@ settings:
     FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]: $(inherited) "../shared/xc-framework/_build/xcode-frameworks/$(CONFIGURATION)/iphoneos$(SDK_VERSION)"
 
 packages:
-  core:
-    path: ../core
+  rust:
+    path: ../rust
   bdk-swift:
     url: https://github.com/bitcoindevkit/bdk-swift
     exactVersion: 0.31.1

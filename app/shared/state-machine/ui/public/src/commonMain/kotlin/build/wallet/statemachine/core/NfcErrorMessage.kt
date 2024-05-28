@@ -17,7 +17,7 @@ data class NfcErrorMessage(
         Unauthenticated ->
           NfcErrorMessage(
             title = "Device Locked",
-            description = "Unlock your device with the fingerprint you enrolled during setup and try again."
+            description = "Unlock your device with an enrolled fingerprint and try again."
           )
 
         else ->
@@ -36,7 +36,7 @@ data class NfcErrorMessage(
         is NfcException.CommandErrorUnauthenticated ->
           NfcErrorMessage(
             title = "Device Locked",
-            description = "Unlock your device with the fingerprint you enrolled during setup and try again."
+            description = "Unlock your device with an enrolled fingerprint and try again."
           )
 
         is NfcException.InauthenticHardware ->

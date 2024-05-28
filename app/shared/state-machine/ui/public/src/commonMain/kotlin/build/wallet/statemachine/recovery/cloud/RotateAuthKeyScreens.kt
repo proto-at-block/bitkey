@@ -165,7 +165,7 @@ object RotateAuthKeyScreens {
         "Remove all other devices",
         size = ButtonModel.Size.Footer,
         isEnabled = removeAllOtherDevicesEnabled,
-        onClick = onRemoveAllOtherDevices
+        onClick = StandardClick(onRemoveAllOtherDevices)
       ),
     primaryButton =
       ButtonModel(
@@ -197,7 +197,7 @@ object RotateAuthKeyScreens {
       "Remove all other devices",
       isEnabled = removeAllOtherDevicesEnabled,
       size = ButtonModel.Size.Footer,
-      onClick = onRemoveAllOtherDevices
+      onClick = StandardClick(onRemoveAllOtherDevices)
     )
   )
 }

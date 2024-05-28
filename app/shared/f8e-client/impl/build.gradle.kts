@@ -42,6 +42,7 @@ kotlin {
         implementation(projects.shared.platformFake)
         implementation(projects.shared.testingPublic)
         implementation(libs.kmp.test.ktor.client.mock)
+        implementation(projects.shared.accountFake)
       }
     }
     val commonJvmMain by getting {

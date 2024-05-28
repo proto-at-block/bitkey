@@ -5,6 +5,7 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.partnerships.GetTransferPartnerListService.Success
 import build.wallet.ktor.result.NetworkingError
+import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -18,8 +19,8 @@ class GetTransferPartnerListServiceMock(
     Ok(
       Success(
         listOf(
-          PartnerInfo("LogoUrl", "Partner 1", "Partner1"),
-          PartnerInfo(null, "Partner 2", "Partner2")
+          PartnerInfo("LogoUrl", "Partner 1", PartnerId("Partner1")),
+          PartnerInfo(null, "Partner 2", PartnerId("Partner2"))
         )
       )
     )

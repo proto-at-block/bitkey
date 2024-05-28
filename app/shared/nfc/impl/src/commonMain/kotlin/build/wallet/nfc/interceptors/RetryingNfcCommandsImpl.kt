@@ -52,7 +52,11 @@ private class RetryingNfcCommandsImpl(
     fwupData: List<UByte>,
     offset: UInt,
     fwupMode: FwupMode,
-  ) = retry { commands.fwupTransfer(session, sequenceId, fwupData, offset, fwupMode) }
+  ): Boolean {
+    // TODO(W-8001): This intentionally does not retry for now.
+    // See: https://sq-block.slack.com/archives/C043X6LRLJX/p1713568061850029?thread_ts=1713568055.125989&cid=C043X6LRLJX
+    return commands.fwupTransfer(session, sequenceId, fwupData, offset, fwupMode)
+  }
 
   override suspend fun fwupFinish(
     session: NfcSession,
@@ -83,8 +87,10 @@ private class RetryingNfcCommandsImpl(
   override suspend fun getFirmwareMetadata(session: NfcSession) =
     retry { commands.getFirmwareMetadata(session) }
 
-  override suspend fun getFingerprintEnrollmentStatus(session: NfcSession) =
-    retry { commands.getFingerprintEnrollmentStatus(session) }
+  override suspend fun getFingerprintEnrollmentStatus(
+    session: NfcSession,
+    isEnrollmentContextAware: Boolean,
+  ) = retry { commands.getFingerprintEnrollmentStatus(session, isEnrollmentContextAware) }
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
@@ -93,6 +99,9 @@ private class RetryingNfcCommandsImpl(
 
   override suspend fun getUnlockMethod(session: NfcSession) =
     retry { commands.getUnlockMethod(session) }
+
+  override suspend fun cancelFingerprintEnrollment(session: NfcSession): Boolean =
+    retry { commands.cancelFingerprintEnrollment(session) }
 
   override suspend fun getEnrolledFingerprints(session: NfcSession): EnrolledFingerprints =
     retry { commands.getEnrolledFingerprints(session) }

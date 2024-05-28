@@ -1,5 +1,6 @@
 package bitkey.sample.functional
 
+import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.delay
@@ -33,7 +34,13 @@ class AccountDaoImpl : AccountDao {
   }
 
   override fun removeActiveAccount(): Result<Unit, Error> {
-    accountState.value = null
-    return Ok(Unit)
+    // Simulate occasional failure to remove the account from the database
+    val shouldFail = setOf(false, true).random()
+    return if (shouldFail) {
+      Err(Error("Fake error removing account from db"))
+    } else {
+      accountState.value = null
+      Ok(Unit)
+    }
   }
 }

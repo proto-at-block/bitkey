@@ -17,5 +17,5 @@ data class PartnerInfo(
   @SerialName("name")
   val name: String,
   @SerialName("partner")
-  val partner: String,
+  val partnerId: PartnerId,
 )

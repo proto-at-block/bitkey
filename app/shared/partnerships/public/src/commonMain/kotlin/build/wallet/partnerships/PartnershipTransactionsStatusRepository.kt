@@ -1,5 +1,7 @@
 package build.wallet.partnerships
 
+import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
@@ -29,4 +31,19 @@ interface PartnershipTransactionsStatusRepository {
     partnerInfo: PartnerInfo,
     type: PartnershipTransactionType,
   ): Result<PartnershipTransaction, Error>
+
+  /**
+   * Immediately update the specified transaction.
+   *
+   * This will update the local copy of the transaction before returning it,
+   * including deleting the transaction if it is not found in the API.
+   * If this fails to fetch an update, it will return an error rather than
+   * falling back to the local transaction. The local transaction will not
+   * be modified.
+   */
+  suspend fun syncTransaction(
+    fullAccountId: FullAccountId,
+    f8eEnvironment: F8eEnvironment,
+    transactionId: PartnershipTransactionId,
+  ): Result<PartnershipTransaction?, Error>
 }
