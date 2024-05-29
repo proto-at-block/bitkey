@@ -7,6 +7,15 @@ module "vpc" {
 
   azs            = ["us-west-2a", "us-west-2b", "us-west-2c"]
   public_subnets = ["10.3.101.0/24", "10.3.102.0/24", "10.3.103.0/24"]
+
+  default_security_group_egress = [
+    {
+      from_port   = 0
+      to_port     = 0
+      protocol    = "-1"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
 }
 
 data "aws_iam_policy_document" "assume_role_policy_document" {

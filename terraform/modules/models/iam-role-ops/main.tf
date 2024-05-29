@@ -34,6 +34,7 @@ data "aws_iam_policy_document" "ops" {
   statement {
     effect = "Allow"
     actions = [
+      "secretsmanager:CreateSecret",
       "secretsmanager:PutSecretValue",
       "secretsmanager:UpdateSecret",
       "secretsmanager:UpdateSecretVersionStage",
