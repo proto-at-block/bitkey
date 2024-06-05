@@ -22,12 +22,6 @@
       "matchPaths": ["app/ios"]
     },
     {
-      "matchManagers": ["cargo"],
-      "matchPaths": ["app/rust", "core", "server", "server/auth/auth_lambda_handlers"],
-      "enabled": false,
-      "description": "[W-7885] Enable once Cargo & minimumReleaseAge is supported by Renovate"
-    },
-    {
       "matchManagers": ["pip_requirements"],
       "matchPaths": ["firmware"]
     },
@@ -74,7 +68,6 @@
     "regex",
     "swift",
     "gradle",
-    "cargo",
     "npm",
     "dockerfile",
     "pip_requirements",

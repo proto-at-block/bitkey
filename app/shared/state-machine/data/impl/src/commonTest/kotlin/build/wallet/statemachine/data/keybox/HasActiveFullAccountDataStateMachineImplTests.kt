@@ -88,7 +88,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
 
   val exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
 
-  val cloudBackupRefresher = CloudBackupRefresherFake(turbines::create)
+  val trustedContactCloudBackupRefresher = TrustedContactCloudBackupRefresherFake(turbines::create)
 
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
 
@@ -105,7 +105,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
       notificationTouchpointDataStateMachine = notificationTouchpointDataStateMachine,
       appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
       exchangeRateSyncer = exchangeRateSyncer,
-      cloudBackupRefresher = cloudBackupRefresher,
+      trustedContactCloudBackupRefresher = trustedContactCloudBackupRefresher,
       postSocRecTaskRepository = postSocRecTaskRepository,
       authKeyRotationManager = authKeyRotationManager,
       trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
@@ -127,7 +127,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
     authKeyRotationManager.pendingKeyRotationAttempt.value =
       PendingAuthKeyRotationAttempt.ProposedAttempt
     stateMachine.test(props()) {
-      cloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
+      trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
         .shouldBeEqual(FullAccountMock)
       trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorseCalls.awaitItem()
         .shouldBeEqual(FullAccountMock)
@@ -147,7 +147,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
 
   test("load active keybox") {
     stateMachine.test(props()) {
-      cloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
+      trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
         .shouldBeEqual(FullAccountMock)
       trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorseCalls.awaitItem()
         .shouldBeEqual(FullAccountMock)

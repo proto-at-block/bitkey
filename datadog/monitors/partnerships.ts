@@ -1,6 +1,6 @@
 import {Construct} from "constructs";
 import {Monitor} from "./common/monitor";
-import {log_count_query, metric_sum_query, trace_analytics_count_query} from "./common/queries";
+import {ErrorMetricCompositeMonitor, log_count_query, metric_sum_query} from "./common/queries";
 
 import {Environment} from "./common/environments";
 import {getCriticalRecipients, getErrorRecipients} from "./recipients";
@@ -52,22 +52,18 @@ export class PartnershipsMonitors extends Construct {
       ...metricsAlertConfig,
     });
 
-    let errorThresholds = {
-      critical: "10",
-      warning: "5",
-    }
-
-    new Monitor(this, "elevated_error_rate", {
-      query: log_count_query(
-        `service:fromagerie-api @target:*partnerships_lib* status:error env:${environment}`,
-        window,
-          errorThresholds.critical
-      ),
-      name: `[Partnerships] Too many errors on env:${environment}`,
-      message: "Elevated rate of errors from partnerships_lib",
+    new ErrorMetricCompositeMonitor(this, "elevated_error_logs", {
+      name: "partnerships_errors",
+      total_count_metric: "partnerships.logs",
+      error_count_metric: "partnerships.errors",
+      group: "Partnerships",
+      environment,
       tags: tags,
-      ...logAlertConfig,
-      monitorThresholds: errorThresholds,
+      window: "30m",
+      rateThreshold: "0.5",
+      countThreshold: "20",
+      recipients: errorRecipients,
+      dataDogLink: "https://app.datadoghq.com/logs?saved-view-id=1918377",
       runbook: "https://docs.wallet.build/runbooks/apps/server/partnerships/home/",
     });
 

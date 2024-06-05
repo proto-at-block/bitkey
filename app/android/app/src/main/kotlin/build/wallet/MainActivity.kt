@@ -7,10 +7,10 @@ import android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.fragment.app.FragmentActivity
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.cloud.store.CloudFileStoreImpl
@@ -44,6 +44,7 @@ import build.wallet.nfc.NfcCommandsImpl
 import build.wallet.nfc.NfcSessionProviderImpl
 import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
+import build.wallet.platform.biometrics.BiometricPrompterImpl
 import build.wallet.platform.notifications.NotificationChannelRepository
 import build.wallet.platform.pdf.PdfAnnotatorFactoryImpl
 import build.wallet.platform.settings.SystemSettingsLauncherImpl
@@ -58,7 +59,7 @@ import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachineImpl
 import build.wallet.ui.app.App
 import build.wallet.ui.app.AppUiModelMap
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
   private lateinit var appComponent: AppComponent
   private lateinit var inAppBrowserNavigator: InAppBrowserNavigator
   private lateinit var activityComponent: ActivityComponent
@@ -82,6 +83,13 @@ class MainActivity : ComponentActivity() {
         model = activityComponent.appUiStateMachine.model(Unit),
         uiModelMap = AppUiModelMap
       )
+
+      activityComponent.biometricPromptUiStateMachine.model(Unit)?.let {
+        App(
+          model = it,
+          uiModelMap = AppUiModelMap
+        )
+      }
     }
     createNotificationChannel()
     logEventIfFromNotification()
@@ -251,7 +259,8 @@ class MainActivity : ComponentActivity() {
       xNonceGenerator = XNonceGeneratorImpl(),
       pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(applicationContext = this),
       spake2 = Spake2Impl(),
-      cryptoBox = CryptoBoxImpl()
+      cryptoBox = CryptoBoxImpl(),
+      biometricPrompter = BiometricPrompterImpl(this)
     )
   }
 }

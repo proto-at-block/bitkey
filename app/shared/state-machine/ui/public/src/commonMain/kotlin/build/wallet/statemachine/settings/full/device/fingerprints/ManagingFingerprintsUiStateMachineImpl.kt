@@ -6,12 +6,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
@@ -24,12 +27,17 @@ import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFinge
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.ListingFingerprintsUiState
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.RetrievingEnrolledFingerprintsUiState
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiState.SavingFingerprintLabelUiState
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.toast.ToastModel
 
 class ManagingFingerprintsUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val editingFingerprintUiStateMachine: EditingFingerprintUiStateMachine,
   private val enrollingFingerprintUiStateMachine: EnrollingFingerprintUiStateMachine,
   private val gettingStartedTaskDao: GettingStartedTaskDao,
+  private val eventTracker: EventTracker,
 ) : ManagingFingerprintsUiStateMachine {
   @Composable
   override fun model(props: ManagingFingerprintsProps): ScreenModel {
@@ -38,24 +46,53 @@ class ManagingFingerprintsUiStateMachineImpl(
     }
 
     return when (val state = uiState) {
-      is ListingFingerprintsUiState -> ListingFingerprintsBodyModel(
-        enrolledFingerprints = state.enrolledFingerprints,
-        onBack = props.onBack,
-        onEditFingerprint = {
-          uiState = EditingFingerprintUiState(
-            enrolledFingerprints = state.enrolledFingerprints,
-            isExistingFingerprint = true,
-            fingerprintToEdit = it
+      is ListingFingerprintsUiState -> ScreenModel(
+        body = ListingFingerprintsBodyModel(
+          enrolledFingerprints = state.enrolledFingerprints,
+          onBack = props.onBack,
+          onEditFingerprint = {
+            uiState = EditingFingerprintUiState(
+              enrolledFingerprints = state.enrolledFingerprints,
+              isExistingFingerprint = true,
+              fingerprintToEdit = EditingFingerprintHandle(
+                index = it.index,
+                label = it.label
+              )
+            )
+          },
+          onAddFingerprint = {
+            uiState = EditingFingerprintUiState(
+              enrolledFingerprints = state.enrolledFingerprints,
+              isExistingFingerprint = false,
+              fingerprintToEdit = EditingFingerprintHandle(index = it, label = "")
+            )
+          }
+        ),
+        presentationStyle = ScreenPresentationStyle.Root,
+        toastModel = if (state.fingerprintDeleted) {
+          ToastModel(
+            title = "Fingerprint deleted",
+            leadingIcon = IconModel(
+              icon = Icon.SmallIconCheckFilled,
+              iconTint = IconTint.Success,
+              iconSize = IconSize.Accessory
+            ),
+            whiteIconStroke = true
           )
-        },
-        onAddFingerprint = {
-          uiState = EditingFingerprintUiState(
-            enrolledFingerprints = state.enrolledFingerprints,
-            isExistingFingerprint = false,
-            fingerprintToEdit = FingerprintHandle(index = it, label = "")
+        } else if (state.fingerprintAdded) {
+          ToastModel(
+            title = "Fingerprint added",
+            leadingIcon = IconModel(
+              icon = Icon.SmallIconCheckFilled,
+              iconTint = IconTint.Success,
+              iconSize = IconSize.Accessory
+            ),
+            whiteIconStroke = true
           )
+        } else {
+          null
         }
-      ).asRootScreen()
+      )
       is EditingFingerprintUiState -> ScreenModel(
         body = ListingFingerprintsBodyModel(
           enrolledFingerprints = state.enrolledFingerprints,
@@ -64,14 +101,17 @@ class ManagingFingerprintsUiStateMachineImpl(
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
               isExistingFingerprint = true,
-              fingerprintToEdit = it
+              fingerprintToEdit = EditingFingerprintHandle(
+                index = it.index,
+                label = it.label
+              )
             )
           },
           onAddFingerprint = {
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
               isExistingFingerprint = false,
-              fingerprintToEdit = FingerprintHandle(index = it, label = "")
+              fingerprintToEdit = EditingFingerprintHandle(index = it, label = "")
             )
           }
         ),
@@ -79,20 +119,26 @@ class ManagingFingerprintsUiStateMachineImpl(
           EditingFingerprintProps(
             enrolledFingerprints = state.enrolledFingerprints,
             onBack = {
-              uiState = ListingFingerprintsUiState(
-                enrolledFingerprints = state.enrolledFingerprints
-              )
+              uiState = ListingFingerprintsUiState(enrolledFingerprints = state.enrolledFingerprints)
             },
             onSave = {
               if (state.isExistingFingerprint) {
                 uiState = SavingFingerprintLabelUiState(
                   enrolledFingerprints = state.enrolledFingerprints,
-                  fingerprintHandle = it
+                  fingerprintToSave = EditingFingerprintHandle(
+                    index = it.index,
+                    originalLabel = state.fingerprintToEdit.originalLabel,
+                    currentLabel = it.label
+                  )
                 )
               } else {
                 uiState = AddingNewFingerprintUiState(
                   enrolledFingerprints = state.enrolledFingerprints,
-                  fingerprintHandle = it
+                  fingerprintToAdd = EditingFingerprintHandle(
+                    index = it.index,
+                    originalLabel = state.fingerprintToEdit.originalLabel,
+                    currentLabel = it.label
+                  )
                 )
               }
             },
@@ -102,7 +148,11 @@ class ManagingFingerprintsUiStateMachineImpl(
                 fingerprintToDelete = state.fingerprintToEdit
               )
             },
-            fingerprintToEdit = state.fingerprintToEdit,
+            originalFingerprintLabel = state.fingerprintToEdit.originalLabel,
+            fingerprintToEdit = FingerprintHandle(
+              index = state.fingerprintToEdit.index,
+              label = state.fingerprintToEdit.currentLabel
+            ),
             isExistingFingerprint = state.isExistingFingerprint
           )
         )
@@ -116,18 +166,20 @@ class ManagingFingerprintsUiStateMachineImpl(
             commands.setFingerprintLabel(
               session,
               FingerprintHandle(
-                index = state.fingerprintHandle.index,
-                label = state.fingerprintHandle.label
+                index = state.fingerprintToSave.index,
+                label = state.fingerprintToSave.currentLabel
               )
             )
             commands.getEnrolledFingerprints(session)
           },
-          onSuccess = { uiState = ListingFingerprintsUiState(enrolledFingerprints = it) },
+          onSuccess = {
+            uiState = ListingFingerprintsUiState(enrolledFingerprints = it)
+          },
           onCancel = {
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
               isExistingFingerprint = true,
-              fingerprintToEdit = state.fingerprintHandle
+              fingerprintToEdit = state.fingerprintToSave
             )
           },
           isHardwareFake = props.account.config.isHardwareFake,
@@ -143,7 +195,7 @@ class ManagingFingerprintsUiStateMachineImpl(
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
               isExistingFingerprint = false,
-              fingerprintToEdit = state.fingerprintHandle
+              fingerprintToEdit = state.fingerprintToAdd
             )
           },
           onSuccess = {
@@ -152,9 +204,19 @@ class ManagingFingerprintsUiStateMachineImpl(
               state = GettingStartedTask.TaskState.Complete
             )
 
-            uiState = ListingFingerprintsUiState(it)
+            eventTracker.track(
+              EventTrackerCountInfo(
+                eventTrackerCounterId = FingerprintEventTrackerCounterId.FINGERPRINT_ADDED_COUNT,
+                count = it.fingerprintHandles.size
+              )
+            )
+
+            uiState = ListingFingerprintsUiState(it, fingerprintAdded = true)
           },
-          fingerprintHandle = state.fingerprintHandle,
+          fingerprintHandle = FingerprintHandle(
+            index = state.fingerprintToAdd.index,
+            label = state.fingerprintToAdd.currentLabel
+          ),
           enrolledFingerprints = state.enrolledFingerprints
         )
       )
@@ -167,7 +229,15 @@ class ManagingFingerprintsUiStateMachineImpl(
             commands.deleteFingerprint(session, state.fingerprintToDelete.index)
             commands.getEnrolledFingerprints(session)
           },
-          onSuccess = { uiState = ListingFingerprintsUiState(it) },
+          onSuccess = {
+            eventTracker.track(
+              EventTrackerCountInfo(
+                eventTrackerCounterId = FingerprintEventTrackerCounterId.FINGERPRINT_DELETED_COUNT,
+                count = it.fingerprintHandles.size
+              )
+            )
+            uiState = ListingFingerprintsUiState(it, fingerprintDeleted = true)
+          },
           onCancel = {
             uiState = EditingFingerprintUiState(
               enrolledFingerprints = state.enrolledFingerprints,
@@ -213,11 +283,10 @@ class ManagingFingerprintsUiStateMachineImpl(
                   EntryPoint.MONEY_HOME -> EditingFingerprintUiState(
                     enrolledFingerprints = it.enrolledFingerprints,
                     isExistingFingerprint = false,
-                    fingerprintToEdit = FingerprintHandle(index = 1, label = "")
+                    fingerprintToEdit = EditingFingerprintHandle(index = 1, label = "")
                   )
-                  EntryPoint.DEVICE_SETTINGS -> ListingFingerprintsUiState(
-                    it.enrolledFingerprints
-                  )
+
+                  EntryPoint.DEVICE_SETTINGS -> ListingFingerprintsUiState(it.enrolledFingerprints)
                 }
               }
             },
@@ -235,6 +304,8 @@ class ManagingFingerprintsUiStateMachineImpl(
 private sealed interface ManagingFingerprintsUiState {
   data class ListingFingerprintsUiState(
     val enrolledFingerprints: EnrolledFingerprints,
+    val fingerprintDeleted: Boolean = false,
+    val fingerprintAdded: Boolean = false,
   ) : ManagingFingerprintsUiState
 
   data class CheckingFingerprintsUiState(
@@ -244,25 +315,44 @@ private sealed interface ManagingFingerprintsUiState {
   data class EditingFingerprintUiState(
     val enrolledFingerprints: EnrolledFingerprints,
     val isExistingFingerprint: Boolean,
-    val fingerprintToEdit: FingerprintHandle,
+    val fingerprintToEdit: EditingFingerprintHandle,
   ) : ManagingFingerprintsUiState
 
   data class AddingNewFingerprintUiState(
     val enrolledFingerprints: EnrolledFingerprints,
-    val fingerprintHandle: FingerprintHandle,
+    val fingerprintToAdd: EditingFingerprintHandle,
   ) : ManagingFingerprintsUiState
 
   data class SavingFingerprintLabelUiState(
     val enrolledFingerprints: EnrolledFingerprints,
-    val fingerprintHandle: FingerprintHandle,
+    val fingerprintToSave: EditingFingerprintHandle,
   ) : ManagingFingerprintsUiState
 
   data class DeletingFingerprintUiState(
     val enrolledFingerprints: EnrolledFingerprints,
-    val fingerprintToDelete: FingerprintHandle,
+    val fingerprintToDelete: EditingFingerprintHandle,
   ) : ManagingFingerprintsUiState
 
   data class RetrievingEnrolledFingerprintsUiState(
     val fwUpdateRequired: Boolean = false,
   ) : ManagingFingerprintsUiState
+}
+
+/**
+ * A wrapper around [FingerprintHandle] that includes the original label of the
+ * fingerprint to ensure that both the original label and label-in-flight are preserved,
+ * such as if the user cancels saving a change and goes back to editing the handle.
+ */
+private data class EditingFingerprintHandle(
+  val index: Int,
+  /** The name of the fingerprint when it was read from hardware. */
+  val originalLabel: String,
+  /** The updated name of the fingerprint due to the user making edits. */
+  val currentLabel: String,
+) {
+  constructor(index: Int, label: String) : this(
+    index = index,
+    originalLabel = label,
+    currentLabel = label
+  )
 }

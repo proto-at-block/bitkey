@@ -10,6 +10,7 @@ public struct FormView: View {
 
     @SwiftUI.State
     private var safariUrl: URL?
+    @SwiftUI.State private var isShowingToast = false
     
     // MARK: - Life Cycle
 

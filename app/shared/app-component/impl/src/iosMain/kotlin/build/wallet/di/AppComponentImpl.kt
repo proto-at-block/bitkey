@@ -104,7 +104,6 @@ fun makeAppComponent(
     secp256k1KeyGenerator = secp256k1KeyGenerator,
     teltra = teltra,
     hardwareAttestation = hardwareAttestation,
-    wsmVerifier = wsmVerifier,
-    biometricPrompter = biometricPrompter
+    wsmVerifier = wsmVerifier
   )
 }

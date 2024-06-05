@@ -4,7 +4,9 @@ use database::{
         error::ProvideErrorMetadata,
         types::{
             AttributeDefinition, BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType,
-            Projection, ProjectionType::KeysOnly, ScalarAttributeType, TimeToLiveSpecification,
+            Projection,
+            ProjectionType::{All, KeysOnly},
+            ScalarAttributeType, TimeToLiveSpecification,
         },
     },
     ddb::{Connection, DDBService, DatabaseError, DatabaseObject},
@@ -13,12 +15,17 @@ use tracing::{event, Level};
 
 mod fetch;
 mod persist;
+mod update_expiry;
 
 pub(crate) const PARTITION_KEY: &str = "tx_id";
 
 pub(crate) const NETWORK_TX_IDS_IDX: &str = "network_tx_ids_index";
 pub(crate) const NETWORK_TX_IDS_IDX_PARTITION_KEY: &str = "network";
 pub(crate) const NETWORK_TX_IDS_IDX_SORT_KEY: &str = "tx_id";
+
+pub(crate) const NETWORK_EXPIRING_IDX: &str = "network_expiring_index";
+pub(crate) const NETWORK_EXPIRING_IDX_PARTITION_KEY: &str = "network";
+pub(crate) const NETWORK_EXPIRING_IDX_SORT_KEY: &str = "expiring_at";
 
 #[derive(Clone)]
 pub struct Repository {
@@ -57,24 +64,36 @@ impl DDBService for Repository {
 
     async fn create_table(&self) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
-        let pk_attribute_definition = AttributeDefinition::builder()
+        let tx_id_attribute_definition = AttributeDefinition::builder()
             .attribute_name(PARTITION_KEY)
             .attribute_type(ScalarAttributeType::S)
             .build()?;
-        let sk_attribute_definition = AttributeDefinition::builder()
+        let network_attribute_definition = AttributeDefinition::builder()
             .attribute_name(NETWORK_TX_IDS_IDX_PARTITION_KEY)
             .attribute_type(ScalarAttributeType::S)
+            .build()?;
+        let expiring_at_attribute_definition: AttributeDefinition = AttributeDefinition::builder()
+            .attribute_name(NETWORK_EXPIRING_IDX_SORT_KEY)
+            .attribute_type(ScalarAttributeType::N)
             .build()?;
         let pk_key_schema = KeySchemaElement::builder()
             .attribute_name(PARTITION_KEY)
             .key_type(KeyType::Hash)
             .build()?;
-        let secondary_pk_key_schema = KeySchemaElement::builder()
+        let secondary_tx_ids_pk_key_schema = KeySchemaElement::builder()
             .attribute_name(NETWORK_TX_IDS_IDX_PARTITION_KEY)
             .key_type(KeyType::Hash)
             .build()?;
-        let secondary_sk_key_schema = KeySchemaElement::builder()
+        let secondary_tx_ids_sk_key_schema = KeySchemaElement::builder()
             .attribute_name(NETWORK_TX_IDS_IDX_SORT_KEY)
+            .key_type(KeyType::Range)
+            .build()?;
+        let secondary_expiring_pk_key_schema = KeySchemaElement::builder()
+            .attribute_name(NETWORK_EXPIRING_IDX_PARTITION_KEY)
+            .key_type(KeyType::Hash)
+            .build()?;
+        let secondary_expiring_sk_key_schema = KeySchemaElement::builder()
+            .attribute_name(NETWORK_EXPIRING_IDX_SORT_KEY)
             .key_type(KeyType::Range)
             .build()?;
 
@@ -83,15 +102,24 @@ impl DDBService for Repository {
             .create_table()
             .table_name(table_name.clone())
             .billing_mode(BillingMode::PayPerRequest)
-            .attribute_definitions(pk_attribute_definition)
-            .attribute_definitions(sk_attribute_definition)
+            .attribute_definitions(tx_id_attribute_definition)
+            .attribute_definitions(network_attribute_definition)
+            .attribute_definitions(expiring_at_attribute_definition)
             .key_schema(pk_key_schema.clone())
             .global_secondary_indexes(
                 GlobalSecondaryIndex::builder()
                     .index_name(NETWORK_TX_IDS_IDX)
                     .projection(Projection::builder().projection_type(KeysOnly).build())
-                    .key_schema(secondary_pk_key_schema)
-                    .key_schema(secondary_sk_key_schema)
+                    .key_schema(secondary_tx_ids_pk_key_schema)
+                    .key_schema(secondary_tx_ids_sk_key_schema)
+                    .build()?,
+            )
+            .global_secondary_indexes(
+                GlobalSecondaryIndex::builder()
+                    .index_name(NETWORK_EXPIRING_IDX)
+                    .projection(Projection::builder().projection_type(All).build())
+                    .key_schema(secondary_expiring_pk_key_schema)
+                    .key_schema(secondary_expiring_sk_key_schema)
                     .build()?,
             )
             .send()

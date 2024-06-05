@@ -1,0 +1,19 @@
+[package]
+
+authors = [
+  "Andreas Ots <qrpth@qrpth.eu>",
+  "Dave Grantham <dwg@linuxprogrammer.org>",
+  "Tim Dumol <tim@timdumol.com>",
+]
+categories = ["encoding", "parser-implementations"]
+description = "Base32 encoder/decoder for Rust"
+license = "MIT OR Apache-2.0"
+name = "base32"
+repository = "https://github.com/andreasots/base32"
+version = "0.5.0"
+
+[lib]
+name = "base32"
+
+[dev-dependencies]
+quickcheck = "1.0.3"

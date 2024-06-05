@@ -16,6 +16,7 @@ data class EditingFingerprintProps(
   val onBack: () -> Unit,
   val onSave: (fingerprintHandle: FingerprintHandle) -> Unit,
   val onDeleteFingerprint: (fingerprintHandle: FingerprintHandle) -> Unit,
+  val originalFingerprintLabel: String,
   val fingerprintToEdit: FingerprintHandle,
   val isExistingFingerprint: Boolean,
 )

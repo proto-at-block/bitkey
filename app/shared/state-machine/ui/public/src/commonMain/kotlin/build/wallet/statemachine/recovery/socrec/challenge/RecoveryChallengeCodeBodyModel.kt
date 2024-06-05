@@ -36,7 +36,7 @@ fun RecoveryChallengeCodeBodyModel(
               ListItemModel(
                 title = recoveryChallengeCode,
                 titleAlignment = ListItemTitleAlignment.CENTER,
-                treatment = ListItemTreatment.JUMBO,
+                treatment = ListItemTreatment.PRIMARY_TITLE,
                 listItemTitleBackgroundTreatment = ListItemTitleBackgroundTreatment.RECOVERY
               )
             ),

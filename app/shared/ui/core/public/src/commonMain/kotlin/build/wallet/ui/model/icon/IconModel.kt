@@ -106,6 +106,7 @@ enum class IconSize {
   Accessory,
   Keypad,
   HeaderToolbar,
+  Subtract,
   ;
 
   val value: Int
@@ -120,6 +121,7 @@ enum class IconSize {
         Accessory -> 20
         Keypad -> 30
         HeaderToolbar -> 24
+        Subtract -> 18
       }
 }
 
@@ -181,4 +183,5 @@ enum class IconTint {
   OnTranslucent,
   Green,
   Warning,
+  Success,
 }

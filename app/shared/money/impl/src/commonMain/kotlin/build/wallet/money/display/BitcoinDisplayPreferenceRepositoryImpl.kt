@@ -17,7 +17,7 @@ class BitcoinDisplayPreferenceRepositoryImpl(
     bitcoinDisplayPreferenceDao
       .bitcoinDisplayPreference()
       .filterNotNull()
-      .stateIn(appScope, started = SharingStarted.Lazily, initialValue = defaultUnit)
+      .stateIn(appScope, started = SharingStarted.Eagerly, initialValue = defaultUnit)
 
   override suspend fun setBitcoinDisplayUnit(
     bitcoinDisplayUnit: BitcoinDisplayUnit,

@@ -4,7 +4,7 @@ use notification::{
     entities::NotificationCompositeKey,
     payloads::{
         comms_verification::CommsVerificationPayload,
-        payment::{PaymentPayload, PendingPaymentPayload},
+        payment::{ConfirmedPaymentPayload, PendingPaymentPayload},
         push_blast::PushBlastPayload,
         recovery_canceled_delay_period::RecoveryCanceledDelayPeriodPayload,
         recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
@@ -182,7 +182,7 @@ impl ValidateNotificationDelivery for CommsVerificationPayload {
 }
 
 #[async_trait]
-impl ValidateNotificationDelivery for PaymentPayload {
+impl ValidateNotificationDelivery for ConfirmedPaymentPayload {
     async fn validate_delivery(
         &self,
         _state: &NotificationValidationState,

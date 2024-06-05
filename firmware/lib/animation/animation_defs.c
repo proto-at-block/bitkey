@@ -157,6 +157,10 @@ static const animation_keyframe_t locked_from_fwup[] = {
   KEYFRAME_LERP(COLOUR_LIGHT_BLUE, COLOUR_NONE, DURATION_SEC(0.5)),
 };
 
+static const animation_keyframe_t locked_from_enrollment[] = {
+  KEYFRAME_LERP(COLOUR_WHITE_DIM, COLOUR_NONE, DURATION_SEC(0.5)),
+};
+
 static const animation_keyframe_t charging[] = {
   KEYFRAME_SOLID(COLOUR_ORANGE_DIM, DURATION_SEC(1.25)),
   KEYFRAME_LERP(COLOUR_ORANGE_DIM, COLOUR_NONE, DURATION_SEC(0.5)),
@@ -207,6 +211,7 @@ static const animation_t animations[] = {
   DEFINE_ANIMATION(ANI_UNLOCKED, unlocked, false),
   DEFINE_ANIMATION(ANI_LOCKED, locked, false),
   DEFINE_ANIMATION(ANI_LOCKED_FROM_FWUP, locked_from_fwup, false),
+  DEFINE_ANIMATION(ANI_LOCKED_FROM_ENROLLMENT, locked_from_enrollment, false),
   DEFINE_ANIMATION(ANI_CHARGING, charging, false),
   DEFINE_ANIMATION(ANI_CHARGING_FINISHED, charging_finished, false),
   DEFINE_ANIMATION(ANI_CHARGING_FINISHED_PERSISTENT, charging_finished_persistent, false),

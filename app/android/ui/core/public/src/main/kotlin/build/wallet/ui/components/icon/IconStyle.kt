@@ -45,6 +45,7 @@ fun WalletTheme.iconStyle(
                 IconTint.OnTranslucent -> colors.translucentForeground
                 IconTint.Green -> colors.positiveForeground
                 IconTint.Warning -> colors.warningForeground
+                IconTint.Success -> colors.calloutSuccessTrailingIconBackground
                 null ->
                   when (color) {
                     Color.Unspecified -> colors.primaryIcon
@@ -70,6 +71,7 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.BitkeyDeviceRaised,
     Icon.BitkeyDeviceRaisedSmall,
     Icon.BitkeyDevice3D,
+    Icon.SmallIconCheckboxSelected,
     -> false
 
     else -> true

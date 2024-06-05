@@ -6,6 +6,7 @@ import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyMode
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.SplashBodyModel
+import build.wallet.statemachine.core.SplashLockModel
 import build.wallet.statemachine.core.TabBarModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.demo.DemoModeConfigBodyModel
@@ -46,6 +47,7 @@ import build.wallet.ui.app.dev.logs.LogsScreen
 import build.wallet.ui.app.education.EducationScreen
 import build.wallet.ui.app.limit.SpendingLimitPickerScreen
 import build.wallet.ui.app.loading.SplashScreen
+import build.wallet.ui.app.lock.SplashLockScreen
 import build.wallet.ui.app.mobilepay.MobilePayStatusScreen
 import build.wallet.ui.app.moneyhome.LiteMoneyHomeScreen
 import build.wallet.ui.app.moneyhome.MoneyHomeScreen
@@ -100,6 +102,7 @@ object AppUiModelMap : UiModelMap by TypedUiModelMap(
   UiModel<CustomAmountBodyModel> { CustomAmountScreen(it) },
   UiModel<CloudBackupHealthDashboardBodyModel> { CloudBackupHealthDashboardScreen(it) },
   UiModel<DemoModeConfigBodyModel> { DemoModeConfigScreen(it) },
+  UiModel<SplashLockModel> { SplashLockScreen(it) },
   // Components
   UiModel<StatusBannerModel> { StatusBanner(it) },
   UiModel<TabBarModel> { TabBar(it) },

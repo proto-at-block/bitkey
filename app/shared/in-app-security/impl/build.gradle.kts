@@ -13,5 +13,13 @@ kotlin {
         implementation(projects.shared.databasePublic)
       }
     }
+
+    commonTest {
+      dependencies {
+        implementation(projects.shared.analyticsFake)
+        implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.coroutinesTesting)
+      }
+    }
   }
 }

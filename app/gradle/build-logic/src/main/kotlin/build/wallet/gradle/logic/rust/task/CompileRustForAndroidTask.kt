@@ -4,12 +4,10 @@ import build.wallet.gradle.logic.rust.util.CpuArchitecture
 import build.wallet.gradle.logic.rust.util.OsFamily
 import build.wallet.gradle.logic.rust.util.RustCompilationProfile
 import build.wallet.gradle.logic.rust.util.RustTarget
-import org.gradle.api.file.FileSystemOperations
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import java.io.File
-import javax.inject.Inject
 
 internal abstract class CompileRustForAndroidTask : BaseCompileRustTask() {
   @get:Input
@@ -17,9 +15,6 @@ internal abstract class CompileRustForAndroidTask : BaseCompileRustTask() {
 
   @get:InputDirectory
   abstract val ndkDirectory: Property<File>
-
-  @get:Inject
-  protected abstract val fileSystemOperations: FileSystemOperations
 
   private val clangPath: String
     get() =
@@ -80,17 +75,7 @@ internal abstract class CompileRustForAndroidTask : BaseCompileRustTask() {
   }
 
   override fun copyBinariesToOutputDirectory() {
-    // Due to https://github.com/bbqsrc/cargo-ndk/issues/89, cargo-ndk copies
-    // output from all existing library targets to the output directory. We
-    // then need to delete everything that wasn't built in this task.
-    // See https://linear.app/squareup/issue/W-8318 for more context.
-    val libraryFile = getLibraryFileName(libraryName.get(), target.get())
-    val toDelete = outputDirectory.get().asFileTree.matching {
-      exclude {
-        it.name == libraryFile
-      }
-    }
-    fileSystemOperations.delete { delete(toDelete) }
+    // Already done by the cargo ndk extension
   }
 
   companion object {

@@ -22,6 +22,8 @@ extension IconTint {
             return .positiveForeground
         case .warning:
             return .warningForeground
+        case .success:
+            return .calloutSuccessTrailingIconBackground
         default:
             return .foreground
         }

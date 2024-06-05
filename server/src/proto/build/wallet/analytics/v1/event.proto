@@ -204,8 +204,19 @@ enum Action {
     /** [App] Customer taps "Skip" on the add additional fingerprint information screen from the getting started tasks */
     ACTION_APP_ADD_ADDITIONAL_FINGERPRINT_SKIP = 53;
 
-    // Next tag is 54
+    /** [App] Customer enables the biometric settings to allow for biometric auth */
+    ACTION_APP_BIOMETRICS_ENABLED = 54;
 
+    /** [App] Customer disables the biometric settings to allow for biometric auth */
+    ACTION_APP_BIOMETRICS_DISABLED = 55;
+
+    /** [App] Customer enables the hide balance by default preference to hide balance in Money Home */
+    ACTION_APP_HIDE_BALANCE_BY_DEFAULT_ENABLED = 56;
+
+    /** [App] Customer disables the hide balance by default preference to hide balance in Money Home */
+    ACTION_APP_HIDE_BALANCE_BY_DEFAULT_DISABLED = 57;
+
+    // Next tag is 58
 }
 
 message PlatformInfo {

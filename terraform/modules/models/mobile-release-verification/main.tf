@@ -5,8 +5,11 @@ module "vpc" {
   name = "bitkey-mobile-release-verification"
   cidr = "10.3.0.0/16"
 
-  azs            = ["us-west-2a", "us-west-2b", "us-west-2c"]
-  public_subnets = ["10.3.101.0/24", "10.3.102.0/24", "10.3.103.0/24"]
+  azs             = ["us-west-2a", "us-west-2b", "us-west-2c"]
+  public_subnets  = ["10.3.101.0/24", "10.3.102.0/24", "10.3.103.0/24"]
+  private_subnets = ["10.3.1.0/24", "10.3.2.0/24", "10.3.3.0/24"]
+
+  enable_nat_gateway = true
 
   default_security_group_egress = [
     {
@@ -66,11 +69,11 @@ resource "aws_launch_template" "launch_template" {
     }
   }
   network_interfaces {
-    associate_public_ip_address = true
+    associate_public_ip_address = false
     delete_on_termination       = true
     device_index                = 0
     security_groups             = [module.vpc.default_security_group_id]
-    subnet_id                   = module.vpc.public_subnets[0]
+    subnet_id                   = module.vpc.private_subnets[0]
   }
   image_id      = "ami-052c9ea013e6e3567"
   instance_type = "c5.4xlarge"

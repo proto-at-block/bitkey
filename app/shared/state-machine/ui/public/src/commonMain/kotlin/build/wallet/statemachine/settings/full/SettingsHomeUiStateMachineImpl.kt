@@ -202,7 +202,8 @@ class SettingsHomeUiStateMachineImpl(
           props = DeviceSettingsProps(
             accountData = props.accountData,
             firmwareData = props.firmwareData,
-            onBack = { state = ShowingAllSettingsUiState }
+            onBack = { state = ShowingAllSettingsUiState },
+            onUnwindToMoneyHome = props.onBack
           )
         )
 

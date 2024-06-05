@@ -12,10 +12,11 @@ import build.wallet.compose.collections.immutableListOf
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.inappsecurity.BiometricPreference
-import build.wallet.isOk
 import build.wallet.nfc.platform.signChallenge
+import build.wallet.platform.biometrics.BiometricError
 import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.biometrics.BiometricTextProvider
+import build.wallet.platform.settings.SystemSettingsLauncher
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
@@ -48,6 +49,7 @@ class BiometricSettingUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val biometricPrompter: BiometricPrompter,
   private val signatureVerifier: SignatureVerifier,
+  private val settingsLauncher: SystemSettingsLauncher,
 ) : BiometricSettingUiStateMachine {
   @Composable
   override fun model(props: BiometricSettingUiProps): ScreenModel {
@@ -74,24 +76,59 @@ class BiometricSettingUiStateMachineImpl(
         onEnableCheckedChange = {
           if (!isEnabled) {
             val biometricsAvailability = biometricPrompter.biometricsAvailability().result
-            if (biometricsAvailability.isOk()) {
-              sheetModel = nfcPromptSheetModel(
-                onScanBitkeyDevice = {
-                  sheetModel = null
-                  uiState = State.Verifying
-                },
-                onCancel = {
-                  sheetModel = null
-                },
-                onBack = {
-                  sheetModel = null
+            biometricsAvailability
+              .onSuccess {
+                sheetModel = nfcPromptSheetModel(
+                  biometricText = biometricTextProvider.getSettingsTitleText(),
+                  isDisabling = isEnabled,
+                  onScanBitkeyDevice = {
+                    sheetModel = null
+                    uiState = State.Verifying
+                  },
+                  onCancel = {
+                    sheetModel = null
+                  },
+                  onBack = {
+                    sheetModel = null
+                  }
+                )
+              }
+              .onFailure { error ->
+                sheetModel = when (error) {
+                  is BiometricError.BiometricsLocked -> errorSheetModel(
+                    headline = "Unable to enable biometrics",
+                    subline = "Your biometrics are locked. Please unlock your device and try again.",
+                    onCancel = { sheetModel = null },
+                    onBack = { sheetModel = null }
+                  )
+                  is BiometricError.NoBiometricEnrolled -> notEnrolledErrorSheetModel(
+                    headline = "No Biometric is enrolled",
+                    subline = "Please visit system settings to enable biometrics.",
+                    onCancel = { sheetModel = null },
+                    onBack = { sheetModel = null },
+                    onGoToSettings = {
+                      sheetModel = null
+                      settingsLauncher.launchSecuritySettings()
+                    }
+                  )
+                  is BiometricError.NoHardware -> errorSheetModel(
+                    headline = "No Biometric hardware found",
+                    subline = "Please verify your phone has biometric hardware.",
+                    onCancel = { sheetModel = null },
+                    onBack = { sheetModel = null }
+                  )
+                  else -> errorSheetModel(
+                    headline = "Unable to enable biometrics.",
+                    subline = "Please try again later.",
+                    onCancel = { sheetModel = null },
+                    onBack = { sheetModel = null }
+                  )
                 }
-              )
-            } else {
-              // TODO W-8192 Handle unable to enable biometrics flows
-            }
+              }
           } else {
             sheetModel = nfcPromptSheetModel(
+              biometricText = biometricTextProvider.getSettingsTitleText(),
+              isDisabling = isEnabled,
               onScanBitkeyDevice = {
                 sheetModel = null
                 uiState = State.Verifying
@@ -120,24 +157,48 @@ class BiometricSettingUiStateMachineImpl(
               publicKey = props.keybox.activeHwKeyBundle.authKey.pubKey
             )
             if (verification.get() == true) {
-              // the signed challenged was verified so we can enable biometrics
-              // on android this immediately succeeds
-              // on ios, enrollment requires verification of biometric auth
-              biometricPrompter.enrollBiometrics()
-                .result
-                .onSuccess {
-                  biometricPreference.set(enabled = !isEnabled)
-                  uiState = State.EnablingBiometricSetting(isEnabled = !isEnabled)
-                }
-                .onFailure {
-                  uiState = State.EnablingBiometricSetting(isEnabled = isEnabled)
-                  // TODO W-8192 Handle unable to enroll biometrics flows
-                }
+              if (!isEnabled) {
+                // the signed challenged was verified so we can enable biometrics
+                // on android this immediately succeeds
+                // on ios, enrollment requires verification of biometric auth
+                biometricPrompter.enrollBiometrics()
+                  .result
+                  .onSuccess {
+                    biometricPreference.set(enabled = !isEnabled)
+                    uiState = State.EnablingBiometricSetting(isEnabled = !isEnabled)
+                  }
+                  .onFailure { error ->
+                    uiState = State.EnablingBiometricSetting(isEnabled = isEnabled)
+                    sheetModel = when (error) {
+                      is BiometricError.AuthenticationFailed -> errorSheetModel(
+                        headline = "Unable to verify",
+                        subline = "We were unable to verify your biometric authentication. Please try again.",
+                        onCancel = { sheetModel = null },
+                        onBack = { sheetModel = null }
+                      )
+                      is BiometricError.BiometricsLocked -> errorSheetModel(
+                        headline = "Unable to verify",
+                        subline = "We were unable to due to your biometrics being locked. Please try again later.",
+                        onCancel = { sheetModel = null },
+                        onBack = { sheetModel = null }
+                      )
+                      else -> errorSheetModel(
+                        headline = "Unable to enable biometrics.",
+                        subline = "Please try again later.",
+                        onCancel = { sheetModel = null },
+                        onBack = { sheetModel = null }
+                      )
+                    }
+                  }
+              } else {
+                biometricPreference.set(enabled = !isEnabled)
+                uiState = State.EnablingBiometricSetting(isEnabled = !isEnabled)
+              }
             } else {
               // we were unable to verify the signature from the hardware so we show an error
               uiState = State.EnablingBiometricSetting(isEnabled = isEnabled)
               sheetModel = errorSheetModel(
-                headline = "Unable to verify your Bitkey device.",
+                headline = "Unable to verify your Bitkey device",
                 subline = "Verify you are using the hardware for this wallet and it is unlocked.",
                 onCancel = { sheetModel = null },
                 onBack = { sheetModel = null }
@@ -200,16 +261,19 @@ private fun biometricSettingScreen(
 }
 
 private fun nfcPromptSheetModel(
+  biometricText: String,
+  isDisabling: Boolean = false,
   onScanBitkeyDevice: () -> Unit,
   onCancel: () -> Unit,
   onBack: () -> Unit,
 ): SheetModel {
+  val biometricActionText = if (isDisabling) "disable $biometricText" else "enable $biometricText"
   return SheetModel(
     onClosed = onCancel,
     body = FormBodyModel(
       toolbar = null,
       header = FormHeaderModel(
-        headline = "Scan your Bitkey device to enable Face ID.",
+        headline = "Scan your Bitkey device to $biometricActionText",
         subline = "To keep your bitcoin secure, your Bitkey device is required for any security changes."
       ),
       renderContext = RenderContext.Sheet,
@@ -259,7 +323,40 @@ private fun errorSheetModel(
   )
 }
 
-sealed interface State {
+private fun notEnrolledErrorSheetModel(
+  headline: String,
+  subline: String,
+  onCancel: () -> Unit,
+  onBack: () -> Unit,
+  onGoToSettings: () -> Unit,
+): SheetModel {
+  return SheetModel(
+    onClosed = onCancel,
+    body = FormBodyModel(
+      toolbar = null,
+      header = FormHeaderModel(
+        headline = headline,
+        subline = subline
+      ),
+      renderContext = RenderContext.Sheet,
+      primaryButton = ButtonModel(
+        text = "Go to Settings",
+        size = ButtonModel.Size.Footer,
+        onClick = SheetClosingClick { onGoToSettings() }
+      ),
+      secondaryButton = ButtonModel(
+        text = "Cancel",
+        treatment = ButtonModel.Treatment.Secondary,
+        size = ButtonModel.Size.Footer,
+        onClick = SheetClosingClick { onCancel() }
+      ),
+      onBack = onBack,
+      id = null
+    )
+  )
+}
+
+private sealed interface State {
   /**
    * Setting screen for biometric auth
    *

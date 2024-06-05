@@ -1,0 +1,21 @@
+[package]
+authors = [
+  "Bertram Truong <b@bertramtruong.com>",
+  "Kornel <kornel@geekhood.net>",
+]
+categories = ["encoding", "web-programming"]
+description = "A Rust library for doing URL percentage encoding."
+edition = "2021"
+homepage = "https://lib.rs/urlencoding"
+keywords = ["escape", "percent", "url", "urldecode", "urlencode"]
+license = "MIT"
+name = "urlencoding"
+readme = "README.md"
+repository = "https://github.com/kornelski/rust_urlencoding"
+version = "2.1.3"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[badges]
+maintenance = { status = "looking-for-maintainer" }

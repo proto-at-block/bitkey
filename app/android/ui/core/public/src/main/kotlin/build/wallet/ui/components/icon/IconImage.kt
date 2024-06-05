@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
 import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
+import build.wallet.statemachine.core.Icon.SubtractLeft
+import build.wallet.statemachine.core.Icon.SubtractRight
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconBackgroundType
@@ -319,6 +321,6 @@ internal fun IconsForPreview(
 private fun iconsToPreview(): List<Icon> {
   // Filter shared icon definitions that shouldn't be snapshot tested
   return Icon.entries.filter {
-    it != BuyOwnBitkeyHero
+    it != BuyOwnBitkeyHero && it != SubtractLeft && it != SubtractRight
   }.toList()
 }

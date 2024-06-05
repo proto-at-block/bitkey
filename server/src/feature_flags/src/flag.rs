@@ -201,6 +201,42 @@ impl From<FlagValue> for FeatureFlagValue {
     }
 }
 
+pub trait FlagValueConvertible {
+    fn from_flag_value(value: FeatureFlagValue) -> Result<Self, Error>
+    where
+        Self: Sized;
+}
+
+impl FlagValueConvertible for f64 {
+    fn from_flag_value(value: FeatureFlagValue) -> Result<Self, Error> {
+        if let FeatureFlagValue::Double { double } = value {
+            Ok(double)
+        } else {
+            Err(Error::InvalidType(format!("{:?}", value)))
+        }
+    }
+}
+
+impl FlagValueConvertible for String {
+    fn from_flag_value(value: FeatureFlagValue) -> Result<Self, Error> {
+        if let FeatureFlagValue::String { string } = value {
+            Ok(string)
+        } else {
+            Err(Error::InvalidType(format!("{:?}", value)))
+        }
+    }
+}
+
+impl FlagValueConvertible for bool {
+    fn from_flag_value(value: FeatureFlagValue) -> Result<Self, Error> {
+        if let FeatureFlagValue::Boolean { boolean } = value {
+            Ok(boolean)
+        } else {
+            Err(Error::InvalidType(format!("{:?}", value)))
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct FeatureFlag {
     pub key: String,
@@ -244,6 +280,19 @@ impl TryFrom<ContextKey> for Context {
             )
             .collect::<Result<Vec<_>, _>>()?;
         builder.build().map_err(Error::Context)
+    }
+}
+
+pub fn evaluate_flag_value<T: FlagValueConvertible>(
+    service: &Service,
+    flag_key: String,
+    context_key: ContextKey,
+) -> Result<T, Error> {
+    let context = context_key.try_into()?;
+    match resolve_flag_value(service, &flag_key, &context) {
+        Err(EvalError::FlagNotFound) => Err(Error::NotFound(flag_key)),
+        Err(_) => Err(Error::Resolve(flag_key)),
+        Ok(flag_value) => T::from_flag_value(flag_value.into()),
     }
 }
 

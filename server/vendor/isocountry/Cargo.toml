@@ -1,0 +1,16 @@
+[package]
+authors = ["Bree (formerly Brett) <sifton@users.noreply.github.com>"]
+description = "ISO 3166-1 enumeration for Rust"
+documentation = "http://docs.rs/isocountry"
+edition = "2018"
+homepage = "https://github.com/sifton/isocountry-rs"
+keywords = ["country", "countrycode", "iso3166", "iso3166-1", "region"]
+license = "MIT"
+name = "isocountry"
+readme = "Readme.md"
+repository = "https://github.com/sifton/isocountry-rs.git"
+version = "0.3.2"
+
+[dependencies]
+serde = "1"
+thiserror = "1"

@@ -27,7 +27,7 @@ static TWILIO_SUPPORTED_SMS_COUNTRIES: OnceLock<BiMap<CountryCode, &'static str>
 
 fn init_twilio_supported_sms_countries() -> BiMap<CountryCode, &'static str> {
     let mut map = BiMap::new();
-    map.insert(CountryCode::ARE, "971");
+    // map.insert(CountryCode::ARE, "971"); # Disable pending W-8480
     map.insert(CountryCode::ARG, "54");
     map.insert(CountryCode::AUS, "61");
     map.insert(CountryCode::AUT, "43");

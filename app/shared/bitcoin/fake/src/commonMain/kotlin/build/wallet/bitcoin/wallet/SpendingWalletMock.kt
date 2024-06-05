@@ -162,6 +162,10 @@ class SpendingWalletMock(
       )
     )
   }
+
+  override suspend fun isBalanceSpendable(): Result<Boolean, Error> {
+    return Ok(true)
+  }
 }
 
 private fun signature(localId: String) = "is_app_signed($localId)"

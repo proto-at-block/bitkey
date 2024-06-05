@@ -4,7 +4,7 @@ pub mod enclave;
 use std::fmt::{Debug, Formatter};
 
 use crate::derivation::WSMSupportedDomain;
-use const_format::concatcp;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
 pub const TEST_DEK_ID: &str = "THIS_IS_A_FAKE_DEK_ID_WHAT_DO_THEY_LOOK_LIKE_THOUGH_HUH_I_DONNO";
@@ -20,7 +20,8 @@ pub const TEST_KEY_IDS: [&str; 5] = [
 pub const TEST_XPUB: &str = "tpubD6NzVbkrYhZ4YPNfxZxodhEgkY1fbM9oc7pFb8q6FzQhf61LZPyiH5gywAcrieNLZUmLNG7P6EmjbR43V1SiFRw5mUg4LdXHAYCGVPo8Dmh";
 pub const TEST_XPUB_SPEND_ORIGIN: &str = "[c345e1e9/84'/1'/0']";
 pub const TEST_XPUB_SPEND: &str = "tpubDDC5YGNGhebUAGw8nKsTCTbfutQwAXNzyATcnCsbhCjfdt2a8cpGbojfgAzPnsdsXxVypwjz2uGUV9dpWh211PeYhuHHumjRs7dgRLKcKk1";
-pub const TEST_DPUB_SPEND: &str = concatcp!(TEST_XPUB_SPEND_ORIGIN, TEST_XPUB_SPEND, "/*");
+pub static TEST_DPUB_SPEND: Lazy<String> =
+    Lazy::new(|| format!("{}{}/*", TEST_XPUB_SPEND_ORIGIN, TEST_XPUB_SPEND));
 pub const TEST_XPUB_CONFIG_ORIGIN: &str = "[c345e1e9/212152'/0'/0']";
 pub const TEST_XPUB_CONFIG: &str = "tpubDCxnJZFqzhFis9Ytx1y3BCAvFmXcsprsVJGxd4V8134A38zAY3qssgE1ZtnUbT9XdmY9KtPvs33HtnyGBj1uf5hVKXDT3S26pvzWwdyWiHi";
 

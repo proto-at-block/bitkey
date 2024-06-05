@@ -8,7 +8,7 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use aes_gcm::aead::{Aead, Payload};
+use aes_gcm::aead::{Aead, AeadCore, OsRng, Payload};
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use anyhow::bail;
 
@@ -26,7 +26,7 @@ use bdk::database::MemoryDatabase;
 use bdk::descriptor::Segwitv0;
 use bdk::keys::{DerivableKey, DescriptorKey, DescriptorSecretKey, ExtendedKey};
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper, TransactionSigner};
-use bdk::{bitcoin, KeychainKind, SignOptions, Wallet};
+use bdk::{KeychainKind, SignOptions, Wallet};
 
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
@@ -560,8 +560,7 @@ fn encrypt_root_key(
     network: Option<Network>,
     log_buffer: &mut LogBuffer,
 ) -> Result<(String, String), WsmError> {
-    let nonce_bytes = get_nonce_bytes(root_key_id.as_ref());
-    let nonce = Nonce::from(nonce_bytes);
+    let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     let aad = Aad::new(root_key_id.to_string(), network);
     let payload = Payload {
         aad: &try_with_log_and_error!(log_buffer, WsmError::ServerError, aad.serialize())?,
@@ -683,31 +682,6 @@ async fn decode_wrapped_xprv(
     let xprv = ExtendedPrivKey::decode(plaintext_prv.as_slice()).expect("Could not decrypt xprv");
 
     Ok(xprv)
-}
-
-/*  generate a a 12-byte nonce from msg_seed.
-   Why 12 bytes? AES256-GCM nonces are 96 bits (12 bytes)
-   *Security Warning*: We can NEVER reuse nonces for the same key. So we
-   add some random junk to the wallet-id, take the sha256, and then take the first 12 bytes.
-   We'll probably want to either partition wallets across a set of data keys, or do a data key per
-   wallet to avoid eventual nonce-collision
-*/
-const NONCE_SIZE: usize = 12;
-
-fn get_nonce_bytes(msg_seed: &str) -> [u8; NONCE_SIZE] {
-    let mut rng = rand::thread_rng();
-    let mut random_junk = [0u8; 256];
-    rng.fill_bytes(&mut random_junk);
-    // nonce <- h(seed || random)
-    let nonce = bitcoin::hashes::sha256::Hash::hash(
-        format!("{}{}", msg_seed, hex::encode(random_junk)).as_ref(),
-    );
-    // aes256-gcm nonces are 96 bits = 12 bytes
-    let mut nonce_bytes = [0u8; NONCE_SIZE];
-    let nonce_slice: &[u8] = nonce.as_ref();
-    let read_bytes = nonce_slice.take(12).read(&mut nonce_bytes).unwrap();
-    assert_eq!(read_bytes, NONCE_SIZE);
-    nonce_bytes
 }
 
 fn decode_der_secp256k1_private_key(
@@ -996,7 +970,7 @@ mod tests {
         let body = response.into_body().collect().await.unwrap().to_bytes();
         let actual_created_spend_key: DerivedKey = serde_json::from_slice(&body).unwrap();
         assert_eq!(actual_created_spend_key.xpub.to_string(), TEST_XPUB_SPEND);
-        assert_eq!(actual_created_spend_key.dpub.to_string(), TEST_DPUB_SPEND);
+        assert_eq!(actual_created_spend_key.dpub.to_string(), *TEST_DPUB_SPEND);
     }
 
     #[tokio::test]

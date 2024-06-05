@@ -55,6 +55,8 @@ import build.wallet.bitcoin.bdk.BdkWalletProviderImpl
 import build.wallet.bitcoin.bdk.BdkWalletSyncerImpl
 import build.wallet.bitcoin.bdk.ElectrumReachabilityImpl
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderImpl
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorImpl
+import build.wallet.bitcoin.fees.MempoolHttpClientImpl
 import build.wallet.bitcoin.keys.ExtendedKeyGeneratorImpl
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepositoryImpl
 import build.wallet.bitcoin.sync.ElectrumServerSettingProviderImpl
@@ -144,7 +146,6 @@ import build.wallet.notifications.DeviceTokenManagerImpl
 import build.wallet.notifications.RegisterWatchAddressQueueImpl
 import build.wallet.notifications.RegisterWatchAddressSenderImpl
 import build.wallet.platform.PlatformContext
-import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -348,7 +349,6 @@ class AppComponentImpl(
     ),
   override val f8eExchangeRateService: F8eExchangeRateService =
     F8eExchangeRateServiceImpl(f8eHttpClient = f8eHttpClient),
-  override val biometricPrompter: BiometricPrompter,
 ) : AppComponent {
   override val appCoroutineScope = CoroutineScopes.AppScope
   override val bugsnagContext = BugsnagContextImpl(appCoroutineScope, appInstallationDao)
@@ -411,9 +411,6 @@ class AppComponentImpl(
 
   override val inAppSecurityFeatureFlag = InAppSecurityFeatureFlag(
     featureFlagDao = featureFlagDao
-  )
-  override val biometricPreference = BiometricPreferenceImpl(
-    databaseProvider = bitkeyDatabaseProvider
   )
 
   override val mobileTestFeatureFlag =
@@ -506,6 +503,10 @@ class AppComponentImpl(
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
       analyticsTrackingPreference = analyticsTrackingPreference
     )
+  override val biometricPreference = BiometricPreferenceImpl(
+    databaseProvider = bitkeyDatabaseProvider,
+    eventTracker = eventTracker
+  )
   override val memfaultService =
     MemfaultServiceImpl(
       MemfaultHttpClientImpl(
@@ -618,6 +619,17 @@ class AppComponentImpl(
       electrumReachability = electrumReachability,
       networkReachabilityProvider = networkReachabilityProvider
     )
+
+  override val bitcoinFeeRateEstimator =
+    BitcoinFeeRateEstimatorImpl(
+      mempoolHttpClient =
+        MempoolHttpClientImpl(
+          logLevelPolicy = ktorLogLevelPolicy,
+          networkReachabilityProvider = networkReachabilityProvider
+        ),
+      bdkBlockchainProvider = bdkBlockchainProvider
+    )
+
   override val spendingWalletProvider =
     SpendingWalletProviderImpl(
       bdkWalletProvider,
@@ -627,7 +639,8 @@ class AppComponentImpl(
       bdkTxBuilderFactory,
       bdkAddressBuilder,
       bdkBumpFeeTxBuilderFactory,
-      appSessionManager
+      appSessionManager,
+      bitcoinFeeRateEstimator = bitcoinFeeRateEstimator
     )
   override val bitcoinMultiSigDescriptorBuilder = BitcoinMultiSigDescriptorBuilderImpl()
   override val appSpendingWalletProvider =
@@ -645,7 +658,8 @@ class AppComponentImpl(
       bdkTxBuilderFactory,
       bdkAddressBuilder,
       bdkBumpFeeTxBuilderFactory,
-      appSessionManager
+      appSessionManager,
+      bitcoinFeeRateEstimator
     )
   override val keysetWalletProvider =
     KeysetWalletProviderImpl(

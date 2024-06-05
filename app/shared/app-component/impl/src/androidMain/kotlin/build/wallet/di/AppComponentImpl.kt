@@ -20,7 +20,6 @@ import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStoreInMemoryImpl
 import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
 import build.wallet.platform.PlatformContext
-import build.wallet.platform.biometrics.BiometricPrompterImpl
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -93,7 +92,6 @@ fun makeAppComponent(
     teltra = teltra,
     hardwareAttestation = hardwareAttestation,
     deviceOs = deviceOs,
-    wsmVerifier = wsmVerifier,
-    biometricPrompter = BiometricPrompterImpl(platformContext)
+    wsmVerifier = wsmVerifier
   )
 }

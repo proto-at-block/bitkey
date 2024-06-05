@@ -34,6 +34,7 @@ module "fromagerie" {
   wsm_ingress_security_group = module.wsm_asg.allow_ingress_security_group_id
 
   enable_deletion_protection = false
+  sns_platform_applications  = false
 
   cognito_user_pool_arn       = module.cognito.cognito_user_pool_arn
   cognito_user_pool_client_id = module.cognito.cognito_user_pool_client_id

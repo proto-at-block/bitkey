@@ -45,6 +45,8 @@
           "smallIconCaretRight",
           "smallIconCaretUp",
           "smallIconCheck",
+          "smallIconCheckbox",
+          "smallIconCheckboxSelected",
           "smallIconCheckFilled",
           "smallIconCheckStroked",
           "smallIconCircleStroked",
@@ -104,6 +106,9 @@
           "smallIconXFilled",
           "smallIconXStroked",
 
+          "subtractLeft",
+          "subtractRight",
+          
           "tabIconHome",
           "tabIconProfile"
       ]

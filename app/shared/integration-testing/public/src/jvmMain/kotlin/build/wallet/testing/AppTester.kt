@@ -55,6 +55,7 @@ import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.PlatformContext
+import build.wallet.platform.biometrics.BiometricPrompterImpl
 import build.wallet.platform.config.DeviceTokenConfig
 import build.wallet.platform.config.DeviceTokenConfigProviderImpl
 import build.wallet.platform.config.TouchpointPlatform.FcmTeam
@@ -315,7 +316,8 @@ private fun createActivityComponent(
     xNonceGenerator = XNonceGeneratorImpl(),
     pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(),
     spake2 = Spake2Impl(),
-    cryptoBox = CryptoBoxImpl()
+    cryptoBox = CryptoBoxImpl(),
+    biometricPrompter = BiometricPrompterImpl()
   )
 }
 
@@ -380,8 +382,12 @@ private val inAppBrowserNavigator =
 
 private val systemSettingsLauncher =
   object : SystemSettingsLauncher {
-    override fun launchSettings() {
-      log { "Launch Settings" }
+    override fun launchAppSettings() {
+      log { "Launch App Settings" }
+    }
+
+    override fun launchSecuritySettings() {
+      log { "Launch Security Settings" }
     }
   }
 

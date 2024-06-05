@@ -2,6 +2,9 @@ package build.wallet.statemachine.settings.full.device.fingerprints
 
 import app.cash.turbine.ReceiveTurbine
 import app.cash.turbine.plusAssign
+import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.events.TrackedAction
+import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
@@ -38,12 +41,14 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.collections.shouldContainExactly
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
   val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
+  val eventTracker = EventTrackerMock(turbines::create)
 
   val stateMachine = ManagingFingerprintsUiStateMachineImpl(
     editingFingerprintUiStateMachine =
@@ -58,7 +63,8 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
       object : EnrollingFingerprintUiStateMachine, ScreenStateMachineMock<EnrollingFingerprintProps>(
         "enrolling fingerprints"
       ) {},
-    gettingStartedTaskDao = gettingStartedTaskDao
+    gettingStartedTaskDao = gettingStartedTaskDao,
+    eventTracker = eventTracker
   )
   val onBackCalls = turbines.create<Unit>("on back calls")
   val onFwUpRequiredCalls = turbines.create<Unit>("onFwUpRequired calls")
@@ -261,15 +267,26 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         onSuccess(fingerprints)
       }
 
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          Action.ACTION_APP_COUNT,
+          counterId = FingerprintEventTrackerCounterId.FINGERPRINT_ADDED_COUNT,
+          count = 3
+        )
+      )
+
       // See the newly enrolled fingerprint in the list
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList[0]
+      with(awaitItem()) {
+        body.shouldBeInstanceOf<FormBodyModel>().mainContentList[0]
           .shouldBeInstanceOf<ListGroup>()
           .listGroupModel.apply {
             items[0].shouldBeEnrolledFingerprint(title = "Left Thumb")
             items[1].shouldBeEnrolledFingerprint(title = "Right Pinky")
             items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
           }
+
+        // Delete fingerprint toast is shown
+        toastModel.shouldNotBeNull().title.shouldBe("Fingerprint added")
       }
 
       gettingStartedTaskDao.getTasks().shouldContainExactly(
@@ -346,13 +363,54 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
       nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
 
       // See the updated label in the list
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList[0]
+      with(awaitItem()) {
+        body.shouldBeInstanceOf<FormBodyModel>().mainContentList[0]
           .shouldBeInstanceOf<ListGroup>()
           .listGroupModel.apply {
             items[0].shouldBeEnrolledFingerprint(title = "New Finger")
             items[1].shouldBeFingerprintPlaceholder(title = "Finger 2")
             items[2].shouldBeEnrolledFingerprint(title = "Right Thumb")
+          }
+
+        // No toast is shown for editing
+        toastModel.shouldBeNull()
+      }
+    }
+  }
+
+  test("tap on existing fingerprint and cancel during nfc keeps original label title") {
+    stateMachine.test(props) {
+      awaitRetrievingFingerprints(
+        nfcCommandsMock = nfcCommandsMock,
+        fingerprints = enrolledFingerprints
+      )
+
+      // Tap on the edit button
+      awaitScreenWithBody<FormBodyModel> {
+        mainContentList[0]
+          .shouldBeInstanceOf<ListGroup>()
+          .clickEditFingerprint(0)
+      }
+
+      // "Edit" the label
+      with(awaitItem()) {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<BodyModelMock<EditingFingerprintProps>>()
+          .latestProps.onSave(FingerprintHandle(index = 0, label = "New Finger"))
+      }
+
+      // Cancel the NFC command
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<EnrolledFingerprints>> {
+        onCancel()
+      }
+
+      // Ensure the original fingerprint label continues to be "Left Thumb"
+      with(awaitItem()) {
+        bottomSheetModel.shouldNotBeNull()
+          .body.shouldBeInstanceOf<BodyModelMock<EditingFingerprintProps>>()
+          .latestProps.apply {
+            originalFingerprintLabel.shouldBe("Left Thumb")
+            fingerprintToEdit.shouldBe(FingerprintHandle(index = 0, label = "New Finger"))
           }
       }
     }
@@ -391,6 +449,14 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
         onSuccess(fingerprints)
       }
 
+      eventTracker.eventCalls.awaitItem().shouldBe(
+        TrackedAction(
+          Action.ACTION_APP_COUNT,
+          counterId = FingerprintEventTrackerCounterId.FINGERPRINT_DELETED_COUNT,
+          count = 1
+        )
+      )
+
       // Confirm that any in-progress enrollment is canceled when deleting a fingerprint
       nfcCommandsMock.cancelFingerprintEnrollmentCalls.awaitItem().shouldBe(Unit)
       // Delete the fingerprint
@@ -399,14 +465,17 @@ class ManagingFingerprintsUiStateMachineImplTests : FunSpec({
       nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
 
       // See that the index is now a placeholder in the list
-      awaitScreenWithBody<FormBodyModel> {
-        mainContentList[0]
+      with(awaitItem()) {
+        body.shouldBeInstanceOf<FormBodyModel>().mainContentList[0]
           .shouldBeInstanceOf<ListGroup>()
           .listGroupModel.apply {
             items[0].shouldBeEnrolledFingerprint(title = "New Finger")
             items[1].shouldBeFingerprintPlaceholder(title = "Finger 2")
             items[2].shouldBeFingerprintPlaceholder(title = "Finger 3")
           }
+
+        // Delete fingerprint toast is shown
+        toastModel.shouldNotBeNull().title.shouldBe("Fingerprint deleted")
       }
     }
   }

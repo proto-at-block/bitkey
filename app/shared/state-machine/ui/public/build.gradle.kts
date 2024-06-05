@@ -115,6 +115,7 @@ kotlin {
         implementation(projects.shared.workerFake)
         implementation(libs.kmp.okio)
         implementation(projects.shared.inAppSecurityFake)
+        implementation(projects.shared.platformFake)
       }
     }
 

@@ -36,6 +36,8 @@ import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiSta
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
 import build.wallet.time.DateTimeFormatterMock
 import build.wallet.time.DurationFormatterFake
 import build.wallet.time.TimeZoneProviderMock
@@ -87,6 +89,10 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       managingFingerprintsUiStateMachine = object : ManagingFingerprintsUiStateMachine,
         ScreenStateMachineMock<ManagingFingerprintsProps>(
           id = "managing fingerprints"
+        ) {},
+      resettingDeviceUiStateMachine =
+        object : ResettingDeviceUiStateMachine, ScreenStateMachineMock<ResettingDeviceProps>(
+          "resetting device"
         ) {}
     )
 
@@ -95,7 +101,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   val props = DeviceSettingsProps(
     accountData = ActiveKeyboxLoadedDataMock,
     firmwareData = FirmwareDataUpToDateMock.copy(firmwareUpdateState = UpToDate),
-    onBack = { onBackCalls += Unit }
+    onBack = { onBackCalls += Unit },
+    onUnwindToMoneyHome = {}
   )
 
   val nfcCommandsMock = NfcCommandsMock(turbines::create)

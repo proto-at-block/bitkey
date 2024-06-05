@@ -1,6 +1,8 @@
 package build.wallet.platform.biometrics
 
 class BiometricPrompterImpl : BiometricPrompter {
+  override val isPrompting: Boolean = false
+
   override fun biometricsAvailability(): BiometricsResult<Boolean> {
     // no-op on jvm, just return error
     return BiometricsResult.Err(BiometricError.HardwareUnavailable())
@@ -11,7 +13,8 @@ class BiometricPrompterImpl : BiometricPrompter {
     return BiometricsResult.Ok(Unit)
   }
 
-  override fun promptForAuth() {
-    // no-op on jvm
+  override suspend fun promptForAuth(): BiometricsResult<Unit> {
+    // no-op on jvm, just return ok
+    return BiometricsResult.Ok(Unit)
   }
 }

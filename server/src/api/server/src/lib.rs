@@ -394,8 +394,8 @@ pub async fn create_bootstrap_with_overrides(
         ]))
         .layer(HttpMetrics::new())
         .layer(OtelInResponseLayer)
-        .layer(middleware::from_fn(request_baggage))
-        .layer(OtelAxumLayer::default());
+        .layer(OtelAxumLayer::default())
+        .layer(middleware::from_fn(request_baggage));
 
     Ok(Bootstrap {
         config,

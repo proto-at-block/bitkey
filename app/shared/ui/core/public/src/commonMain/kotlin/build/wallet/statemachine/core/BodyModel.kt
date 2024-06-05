@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
+import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
@@ -73,5 +74,15 @@ abstract class BodyModel : Model() {
     body = this,
     presentationStyle = presentationStyle,
     alertModel = alertModel
+  )
+
+  fun asRootFullScreen(
+    colorMode: ScreenColorMode = ScreenColorMode.SystemPreference,
+    alertModel: ButtonAlertModel? = null,
+  ) = ScreenModel(
+    body = this,
+    presentationStyle = RootFullScreen,
+    alertModel = alertModel,
+    colorMode = colorMode
   )
 }

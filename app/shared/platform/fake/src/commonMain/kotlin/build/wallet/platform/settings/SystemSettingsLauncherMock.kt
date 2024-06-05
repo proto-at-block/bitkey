@@ -1,5 +1,7 @@
 package build.wallet.platform.settings
 
 class SystemSettingsLauncherMock : SystemSettingsLauncher {
-  override fun launchSettings() {}
+  override fun launchAppSettings() {}
+
+  override fun launchSecuritySettings() {}
 }

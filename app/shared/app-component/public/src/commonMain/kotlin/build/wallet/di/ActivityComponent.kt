@@ -1,5 +1,7 @@
 package build.wallet.di
 
+import build.wallet.nfc.NfcTransactor
+import build.wallet.statemachine.biometric.BiometricPromptUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachine
 
 /**
@@ -12,4 +14,6 @@ import build.wallet.statemachine.root.AppUiStateMachine
  */
 interface ActivityComponent {
   val appUiStateMachine: AppUiStateMachine
+  val nfcTransactor: NfcTransactor
+  val biometricPromptUiStateMachine: BiometricPromptUiStateMachine
 }

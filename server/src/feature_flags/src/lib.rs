@@ -16,4 +16,6 @@ pub enum Error {
     Resolve(String),
     #[error("Could not find flag with key: {0}")]
     NotFound(String),
+    #[error("Invalid type for flag value: {0}")]
+    InvalidType(String),
 }

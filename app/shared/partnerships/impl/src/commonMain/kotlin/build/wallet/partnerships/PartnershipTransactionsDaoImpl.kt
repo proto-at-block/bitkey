@@ -19,7 +19,7 @@ class PartnershipTransactionsDaoImpl(
     transaction: PartnershipTransaction,
   ): Result<Unit, DbTransactionError> {
     return database.awaitTransaction {
-      queries.insertEntity(transaction.toEntity())
+      queries.saveEntity(transaction.toEntity())
     }
   }
 

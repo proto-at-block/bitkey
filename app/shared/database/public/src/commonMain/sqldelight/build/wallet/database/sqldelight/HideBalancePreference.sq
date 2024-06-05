@@ -13,3 +13,6 @@ VALUES(0, ?);
 getHideBalancePeference:
 SELECT * FROM hideBalancePreferenceEntity
 WHERE rowId = 0;
+
+clear:
+DELETE FROM hideBalancePreferenceEntity;

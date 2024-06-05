@@ -24,7 +24,7 @@ use ulid::DecodeError;
 use self::{
     email::EmailPayload,
     payloads::{
-        payment::PaymentPayload,
+        payment::ConfirmedPaymentPayload,
         recovery_completed_delay_period::RecoveryCompletedDelayPeriodPayload,
         recovery_pending_delay_period::RecoveryPendingDelayPeriodPayload,
         test_notification::TestNotificationPayload,
@@ -371,7 +371,7 @@ pub struct NotificationPayload {
     #[serde(default)]
     pub recovery_canceled_delay_period_payload: Option<RecoveryCanceledDelayPeriodPayload>,
     #[serde(default)]
-    pub confirmed_payment_payload: Option<PaymentPayload>,
+    pub confirmed_payment_payload: Option<ConfirmedPaymentPayload>,
     #[serde(default)]
     pub pending_payment_payload: Option<PendingPaymentPayload>,
     #[serde(default)]

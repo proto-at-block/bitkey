@@ -5,6 +5,7 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.ui.model.Model
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.status.StatusBannerModel
+import build.wallet.ui.model.toast.ToastModel
 
 /**
  * Model for rendering full screen UI.
@@ -18,6 +19,7 @@ import build.wallet.ui.model.status.StatusBannerModel
  * @property alertModel an alert to show over the screen, if any.
  * @property statusBannerModel a status banner to show attached to the top edge and extending into
  * the status bar, if any. Currently only expected in Root presentation style, errors otherwise.
+ * @property toastModel a temporary toast shown at the bottom of the screen, if any.
  * @property bottomSheetModel a half sheet to show over the screen, if any.
  * @property onBack back handler for Android, if any.
  */
@@ -29,6 +31,7 @@ data class ScreenModel(
   val colorMode: ScreenColorMode = SystemPreference,
   val alertModel: AlertModel? = null,
   val statusBannerModel: StatusBannerModel? = null,
+  val toastModel: ToastModel? = null,
   val bottomSheetModel: SheetModel? = null,
   val systemUIModel: SystemUIModel? = null,
 ) : Model() {

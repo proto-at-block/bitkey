@@ -177,7 +177,21 @@ fun EventBodyModel(
               )
             )
         )
-      }
+      },
+      FormMainContentModel.DataList(
+        items =
+          immutableListOf(
+            FormMainContentModel.DataList.Data(
+              title = "Counter ID",
+              sideText = event.counter_id,
+              showBottomDivider = true
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "Counter Count",
+              sideText = event.counter_count.toString()
+            )
+          )
+      ).takeIf { event.counter_id.isNotBlank() }
     ),
   primaryButton = null,
   // This is only used by the debug menu, it doesn't need a screen ID

@@ -53,8 +53,8 @@ class CloudBackupRefresherImplTests : FunSpec({
 
   val cloudAccount = CloudAccountMock(cloudInstanceId)
 
-  val cloudBackupRefresherImpl =
-    CloudBackupRefresherImpl(
+  val trustedContactCloudBackupRefresher =
+    TrustedContactCloudBackupRefresherImpl(
       socRecRelationshipsRepository = socRecRelationshipsRepository,
       cloudBackupDao = cloudBackupDao,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
@@ -81,7 +81,7 @@ class CloudBackupRefresherImplTests : FunSpec({
   test("success") {
     runTest {
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(
@@ -100,7 +100,7 @@ class CloudBackupRefresherImplTests : FunSpec({
   test("success - multiple") {
     runTest {
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -133,7 +133,7 @@ class CloudBackupRefresherImplTests : FunSpec({
   test("success - duplicate ignored") {
     runTest {
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -158,7 +158,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
 
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       runCurrent()
     }
@@ -168,7 +168,7 @@ class CloudBackupRefresherImplTests : FunSpec({
     runTest {
       cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithLiteAccountMock)
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       runCurrent()
     }
@@ -181,7 +181,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       socRecRelationshipsRepository.relationshipsFlow.emit(SocRecRelationships.EMPTY)
       cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(
@@ -201,7 +201,7 @@ class CloudBackupRefresherImplTests : FunSpec({
     runTest {
       cloudBackupDao.clear()
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
 
       runCurrent()
@@ -212,7 +212,7 @@ class CloudBackupRefresherImplTests : FunSpec({
     runTest {
       cloudStoreAccountRepository.currentAccountResult = Ok(null)
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(
@@ -229,7 +229,7 @@ class CloudBackupRefresherImplTests : FunSpec({
     runTest {
       cloudStoreAccountRepository.currentAccountResult = Err(CloudStoreAccountError())
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(
@@ -247,7 +247,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       cloudBackupRepository.returnWriteError =
         CloudBackupError.UnrectifiableCloudBackupError(Throwable())
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(
@@ -266,7 +266,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       fullAccountCloudBackupCreator.backupResult =
         Err(FullAccountFieldsCreationError())
       backgroundScope.launch {
-        cloudBackupRefresherImpl.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)
       }
       eventTracker.eventCalls.awaitItem().shouldBe(
         TrackedAction(

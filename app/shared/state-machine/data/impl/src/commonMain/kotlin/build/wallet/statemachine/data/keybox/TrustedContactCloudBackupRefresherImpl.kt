@@ -18,8 +18,8 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
-import build.wallet.statemachine.data.keybox.CloudBackupRefresherImpl.StoredBackupState.NeedsUpdate
-import build.wallet.statemachine.data.keybox.CloudBackupRefresherImpl.StoredBackupState.UpToDate
+import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.NeedsUpdate
+import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.UpToDate
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -38,7 +38,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 // TODO(BKR-1135): merge into FullAccountCloudBackupRepairer
-class CloudBackupRefresherImpl(
+class TrustedContactCloudBackupRefresherImpl(
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val cloudBackupDao: CloudBackupDao,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
@@ -46,7 +46,7 @@ class CloudBackupRefresherImpl(
   private val fullAccountCloudBackupCreator: FullAccountCloudBackupCreator,
   private val eventTracker: EventTracker,
   private val clock: Clock,
-) : CloudBackupRefresher {
+) : TrustedContactCloudBackupRefresher {
   private val lastCheckState: MutableStateFlow<Instant> = MutableStateFlow(Instant.DISTANT_PAST)
 
   override val lastCheck: StateFlow<Instant> = lastCheckState

@@ -20,4 +20,5 @@ data class DeviceSettingsProps(
   val accountData: ActiveFullAccountLoadedData,
   val firmwareData: FirmwareData,
   val onBack: () -> Unit,
+  val onUnwindToMoneyHome: () -> Unit,
 )

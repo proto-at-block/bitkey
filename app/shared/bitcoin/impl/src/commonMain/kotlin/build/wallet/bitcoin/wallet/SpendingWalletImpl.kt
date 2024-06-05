@@ -27,10 +27,12 @@ import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.bdk.BdkTransactionMapper
 import build.wallet.bitcoin.bdk.BdkWalletSyncer
 import build.wallet.bitcoin.bdk.bdkNetwork
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.BumpFee
@@ -46,6 +48,7 @@ import com.github.michaelbull.result.coroutines.binding.binding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.recoverIf
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -71,6 +74,7 @@ class SpendingWalletImpl(
   private val bdkAddressBuilder: BdkAddressBuilder,
   private val bdkBumpFeeTxBuilderFactory: BdkBumpFeeTxBuilderFactory,
   private val appSessionManager: AppSessionManager,
+  private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val syncContext: CoroutineContext = Dispatchers.IO,
 ) : SpendingWallet {
   private val balanceState = MutableStateFlow<BitcoinBalance?>(null)
@@ -224,6 +228,29 @@ class SpendingWalletImpl(
           .flatMap { signPsbt(it) }
     }
   }
+
+  override suspend fun isBalanceSpendable(): Result<Boolean, Error> =
+    binding {
+      val destinationAddress = getLastUnusedAddress().bind()
+
+      val feeRate =
+        bitcoinFeeRateEstimator.estimatedFeeRateForTransaction(
+          networkType = networkType,
+          estimatedTransactionPriority = EstimatedTransactionPriority.THIRTY_MINUTES
+        )
+
+      createPsbt(
+        recipientAddress = destinationAddress,
+        amount = BitcoinTransactionSendAmount.SendAll,
+        feePolicy = FeePolicy.Rate(feeRate)
+      )
+        .recoverIf(
+          predicate = { it is BdkError.InsufficientFunds },
+          transform = { false }
+        )
+        .map { true }
+        .bind()
+    }
 
   /**
    * Creates a PSBT using BDK. If [bdkWallet] was created with signing descriptor, the resulting

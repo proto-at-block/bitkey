@@ -37,6 +37,7 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
     onBack = { onBackCalls += Unit },
     onSave = { onSaveCalls += it },
     onDeleteFingerprint = { onDeleteFingerprintCalls += it },
+    originalFingerprintLabel = "Left Thumb",
     fingerprintToEdit = FingerprintHandle(index = 0, label = "Left Thumb"),
     isExistingFingerprint = true
   )
@@ -52,6 +53,13 @@ class EditingFingerprintUiStateMachineImplTests : FunSpec({
 
       // Click Save fingerprint
       awaitSheetWithBody<FormBodyModel> {
+        header.shouldNotBeNull()
+          .headline.shouldBe("Manage Left Thumb")
+
+        mainContentList[0]
+          .shouldBeInstanceOf<FormMainContentModel.TextInput>()
+          .fieldModel.value.shouldBe("Right index")
+
         clickSecondaryButton()
       }
 

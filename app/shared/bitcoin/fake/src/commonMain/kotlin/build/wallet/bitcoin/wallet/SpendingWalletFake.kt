@@ -229,6 +229,10 @@ class SpendingWalletFake(
     error("Not supported")
   }
 
+  override suspend fun isBalanceSpendable(): Result<Boolean, Error> {
+    error("Not supported")
+  }
+
   private var transactionIndex: Int = 0
 
   private val defaultFee = BitcoinMoney.sats(500)

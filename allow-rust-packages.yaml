@@ -3,9 +3,15 @@ packages:
     reason: "Belongs to LaunchDarkly so we can probably trust this package."
   - name: prost-build-config
     reason: "Using Prost for Analytics and there isn't a suitable alternative."
-  - name: health
-    reason: "To be removed (W-5808)."
-  - name: urn
-    reason: "To be pulled in (W-5809)."
   - name: trait-variant
     reason: "This is an official Rust crate and the replacement for async-trait."
+  - name: assert-json-diff
+    reason: "Dev dependency used only in tests, has a small codebase, and limited/no transitive dependencies."
+  - name: dyn-clone
+    reason: "High number of stars, is used in many other projects, and has frequent maintenance."
+  - name: temp-env
+    reason: "Dev dependency used only in tests, has a small codebase, and limited/no transitive dependencies."
+  - name: tracing-test
+    reason: "Dev dependency used only in tests, has a small codebase, and limited/no transitive dependencies."
+  - name: jwt-authorizer
+    reason: "We manually audited the codebase, has frequent maintenance, no known better alternatives."

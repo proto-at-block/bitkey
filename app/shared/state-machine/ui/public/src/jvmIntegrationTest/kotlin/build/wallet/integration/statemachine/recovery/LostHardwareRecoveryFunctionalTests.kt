@@ -23,7 +23,6 @@ import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
-import build.wallet.coroutines.actualDelay
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.integration.statemachine.create.restoreButton
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_ABORTED
@@ -293,12 +292,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         awaitUntilScreenWithBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_PENDING)
-        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY) {
-          actualDelay(3.seconds) {
-            // TODO(W-3916) App is not using server recovery status
-            "Allow for a teeny bit of clock skew"
-          }
-        }
+        awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_READY)
           .clickPrimaryButton()
         awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS) {
           state.shouldBe(LoadingSuccessBodyModel.State.Loading)

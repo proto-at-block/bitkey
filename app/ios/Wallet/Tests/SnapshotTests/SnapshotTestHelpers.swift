@@ -122,6 +122,7 @@ extension ScreenModel {
             colorMode: .dark,
             alertModel: nil,
             statusBannerModel: statusBannerModel,
+            toastModel: nil,
             bottomSheetModel: nil,
             systemUIModel: nil
         )

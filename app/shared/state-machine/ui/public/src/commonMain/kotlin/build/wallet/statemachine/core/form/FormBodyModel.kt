@@ -30,6 +30,7 @@ import kotlinx.collections.immutable.ImmutableList
  * @property secondaryButton: Optional secondary button shown below the primary button.
  * @property tertiaryButton: Optional tertiary button shown below the secondary button.
  * @property ctaWarning If specified, show a warning text above button stack.
+ * @property keepScreenOn: Prevent screen dimming from inactivity.
  * @property renderContext [RenderContext]: how the model will be displayed to the user, defaults to
  * [Screen]
  * @property eventTrackerShouldTrack: whether the screen event should be tracked for analytics
@@ -47,7 +48,6 @@ data class FormBodyModel(
   val secondaryButton: ButtonModel? = null,
   val tertiaryButton: ButtonModel? = null,
   val ctaWarning: CallToActionModel? = null,
-  /** Prevent screen dimming from inactivity. */
   val keepScreenOn: Boolean = false,
   val renderContext: RenderContext = Screen,
   val onLoaded: ((BrowserNavigator) -> Unit) = {},

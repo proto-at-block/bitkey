@@ -11,7 +11,7 @@ use tracing::{event, instrument, Level};
 use super::WorkerState;
 use crate::error::WorkerError;
 use crate::jobs::helpers::customer_address::{
-    notify_customers_with_addresses, PaymentNotificationType,
+    notify_customers_with_addresses, CustomerNotificationFeatureFlag, PaymentNotificationType,
 };
 
 #[instrument(skip(state))]
@@ -37,7 +37,7 @@ pub async fn run_once(state: &WorkerState) -> Result<(), WorkerError> {
     while let Some(txs) = txs_stream.next().await {
         let txs_batch = match txs {
             Ok(txs) => {
-                event!(Level::INFO, "{} txs found", txs.len());
+                event!(Level::INFO, "Yielded {} new txs from mempool", txs.len());
                 txs
             }
             Err(e) => {
@@ -62,8 +62,40 @@ pub async fn run_once(state: &WorkerState) -> Result<(), WorkerError> {
             "{} addresses found in unrecorded mempool txs",
             addresses.len()
         );
-        notify_customers_with_addresses(state, addresses, PaymentNotificationType::Pending).await?;
+        notify_customers_with_addresses(
+            state,
+            addresses,
+            PaymentNotificationType::Pending,
+            Some(CustomerNotificationFeatureFlag::UnconfirmedMempoolTransaction),
+        )
+        .await?;
     }
-    event!(Level::INFO, "Stream completed  mempool polling job");
+
+    event!(
+        Level::INFO,
+        "Stream completed for new mempool txs, taking a look at expiring txs now"
+    );
+    let stale_txs_stream = state.mempool_indexer_service.get_stale_txs();
+    pin_mut!(stale_txs_stream);
+
+    // We can inform customers here if their transactions are in the mempool for longer than the expiry period.
+    while let Some(records) = stale_txs_stream.next().await {
+        match records {
+            Ok(txs) => {
+                event!(
+                    Level::INFO,
+                    "Yielded {} expiring txs that are still present in mempool",
+                    txs.len()
+                );
+                txs
+            }
+            Err(e) => {
+                event!(Level::ERROR, "Failed to get expiring txs from ddb: {e}");
+                continue;
+            }
+        };
+    }
+
+    event!(Level::INFO, "Stream completed mempool polling job");
     Ok(())
 }

@@ -20,7 +20,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let appContext: AppContext
 
     var window: UIWindow?
-    var appSwitcherWindow: UIWindow?
+    var appSwitcherWindow: AppSwitcherWindow?
     
     // MARK: - Life Cycle
 
@@ -37,6 +37,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         super.init()
 
         appContext.appUiStateMachineManager.connectSharedStateMachine()
+        appContext.biometricPromptUiStateMachineManager.connectSharedStateMachine()
     }
 
     // MARK: - UIApplicationDelegate
@@ -82,17 +83,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Notify the notification manager that we are now in the foreground so it can perform relevant tasks.
         appContext.notificationManager.applicationDidEnterForeground(application)
         
-        // clear the app switcher window once the app is foregrounded
-        self.appSwitcherWindow = nil
-        self.window?.makeKeyAndVisible()
+        appSwitcherWindow?.rootViewController = appContext.biometricPromptUiStateMachineManager.appViewController
+        appSwitcherWindow?.makeKeyAndVisible()
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
-        appContext.appComponent.appSessionManager.appDidEnterBackground()
+        if (!appContext.biometricsPrompter.isPrompting && !appContext.activityComponent.nfcTransactor.isTransacting) {
+            appContext.appComponent.appSessionManager.appDidEnterBackground()
+        }
         appContext.appComponent.biometricPreference.get(completionHandler: { result, _ in
             // If the appSwitcherWindow is not initialized and biometric is enabled,
             // we add a window to display in the app switcher
-            if self.appSwitcherWindow == nil && result?.component1() == true {
+            if result?.component1() == true && !self.appContext.activityComponent.nfcTransactor.isTransacting {
                 DispatchQueue.main.async {
                     // Reuse an unanimated splash screen for the app switcher window
                     let vc = UIHostingController(
@@ -104,7 +106,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                             )
                         )
                     )
-                    let appSwitcherWindow = UIWindow(frame: self.window!.bounds)
+                    let appSwitcherWindow = AppSwitcherWindow(frame: self.window!.bounds)
                     
                     appSwitcherWindow.rootViewController = vc
                     appSwitcherWindow.windowLevel = .alert
@@ -130,55 +132,59 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
+// MARK: -
+
+class AppSwitcherWindow : UIWindow {}
+
 // MARK: - Private Methods
 
-    fileprivate func initializeDatadog(appVariant: AppVariant) {
-        let config = DatadogConfig.companion.create(appVariant: appVariant)
-        // TODO(W-1144): extract builder configuration to Info.plist
-        Datadog.initialize(
-            with: .init(
-                clientToken: "pubc98a5dc771810d55d228a00baa7c4cdd",
-                env: config.environmentName,
-                site: .us1
+fileprivate func initializeDatadog(appVariant: AppVariant) {
+    let config = DatadogConfig.companion.create(appVariant: appVariant)
+    // TODO(W-1144): extract builder configuration to Info.plist
+    Datadog.initialize(
+        with: .init(
+            clientToken: "pubc98a5dc771810d55d228a00baa7c4cdd",
+            env: config.environmentName,
+            site: .us1
+        ),
+        trackingConsent: .granted
+    )
+
+    // Log Datadog SDK errors in development builds to catch SDK configuration errors.
+    if appVariant == AppVariant.development {
+        Datadog.verbosityLevel = .warn
+    }
+
+    CrashReporting.enable()
+    RUM.enable(
+        with: RUM.Configuration(
+            applicationID: "4a66b458-4cb8-444e-9298-cf9ac3d1f25e",
+            uiKitViewsPredicate: DefaultUIKitRUMViewsPredicate(),
+            uiKitActionsPredicate: DefaultUIKitRUMActionsPredicate(),
+            urlSessionTracking: RUM.Configuration.URLSessionTracking(
+                firstPartyHostsTracing: .trace(hosts: ["wallet.build", "bitkey.build"], sampleRate: 100)
             ),
-            trackingConsent: .granted
+            telemetrySampleRate: 100
         )
+    )
+    Trace.enable(
+        with: Trace.Configuration(
+            sampleRate: 100,
+            urlSessionTracking: .init(
+                firstPartyHostsTracing: .trace(hosts: ["wallet.build", "bitkey.build"], sampleRate: 100)
+            ),
+            networkInfoEnabled: true
+        )
+    )
+    Logs.enable()
+}
 
-        // Log Datadog SDK errors in development builds to catch SDK configuration errors.
-        if appVariant == AppVariant.development {
-            Datadog.verbosityLevel = .warn
-        }
-
-        CrashReporting.enable()
-        RUM.enable(
-            with: RUM.Configuration(
-                applicationID: "4a66b458-4cb8-444e-9298-cf9ac3d1f25e",
-                uiKitViewsPredicate: DefaultUIKitRUMViewsPredicate(),
-                uiKitActionsPredicate: DefaultUIKitRUMActionsPredicate(),
-                urlSessionTracking: RUM.Configuration.URLSessionTracking(
-                    firstPartyHostsTracing: .trace(hosts: ["wallet.build", "bitkey.build"], sampleRate: 100)
-                ),
-                telemetrySampleRate: 100
-            )
-        )
-        Trace.enable(
-            with: Trace.Configuration(
-                sampleRate: 100,
-                urlSessionTracking: .init(
-                    firstPartyHostsTracing: .trace(hosts: ["wallet.build", "bitkey.build"], sampleRate: 100)
-                ),
-                networkInfoEnabled: true
-            )
-        )
-        Logs.enable()
-    }
-    
-    fileprivate func initializeBugsnag(appVariant: AppVariant) {
-        // Get common config
-        let config = BugsnagConfig(appVariant: appVariant)
-        // Initialize Bugsnag using iOS SDK
-        let bugsnagConfig = BugsnagConfiguration.loadConfig()
-        bugsnagConfig.enabledBreadcrumbTypes = [.all]
-        bugsnagConfig.releaseStage = config.releaseStage
-        Bugsnag().initialize(config: bugsnagConfig)
-    }
+fileprivate func initializeBugsnag(appVariant: AppVariant) {
+    // Get common config
+    let config = BugsnagConfig(appVariant: appVariant)
+    // Initialize Bugsnag using iOS SDK
+    let bugsnagConfig = BugsnagConfiguration.loadConfig()
+    bugsnagConfig.enabledBreadcrumbTypes = [.all]
+    bugsnagConfig.releaseStage = config.releaseStage
+    Bugsnag().initialize(config: bugsnagConfig)
+}

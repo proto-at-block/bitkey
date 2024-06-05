@@ -34,7 +34,7 @@ class RecoveryChannelsSetupPushItemModelProviderImpl(
                 {
                   onShowAlert(
                     RecoveryChannelsSetupPushActionState.OpenSettings(openAction = {
-                      systemSettingsLauncher.launchSettings()
+                      systemSettingsLauncher.launchAppSettings()
                     })
                   )
                 }
@@ -44,7 +44,7 @@ class RecoveryChannelsSetupPushItemModelProviderImpl(
                 {
                   onShowAlert(
                     RecoveryChannelsSetupPushActionState.OpenSettings(openAction = {
-                      systemSettingsLauncher.launchSettings()
+                      systemSettingsLauncher.launchAppSettings()
                     })
                   )
                 }

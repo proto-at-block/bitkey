@@ -1,5 +1,7 @@
+use std::hash::{Hash, Hasher};
+
 use bdk_utils::bdk::{
-    bitcoin::{Network, Txid},
+    bitcoin::{Network, Txid, Weight},
     FeeRate,
 };
 use serde::{Deserialize, Serialize};
@@ -20,11 +22,11 @@ pub(crate) struct TransactionResponse {
     txid: Txid,
     vout: Vec<TransactionVout>,
     size: usize,
-    weight: u64,
+    weight: Weight,
     fee: u64,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct TransactionRecord {
     #[serde(rename = "tx_id")]
     pub txid: Txid, // Partition Key
@@ -39,13 +41,29 @@ pub struct TransactionRecord {
 }
 
 impl TransactionRecord {
+    pub(crate) fn update_expiry(mut self) -> Self {
+        self.expiring_at = OffsetDateTime::now_utc() + Duration::days(RETENTION_DAYS);
+        self
+    }
+}
+
+impl Eq for TransactionRecord {}
+
+impl Hash for TransactionRecord {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.txid.hash(state);
+        self.network.hash(state);
+    }
+}
+
+impl TransactionRecord {
     pub(crate) fn from_mempool_tx(tx: &TransactionResponse, network: Network) -> Self {
         let now: OffsetDateTime = OffsetDateTime::now_utc();
         TransactionRecord {
             txid: tx.txid,
             network,
             received: tx.vout.clone(),
-            fee_rate: FeeRate::from_vb(tx.fee, tx.size).as_sat_per_vb(),
+            fee_rate: FeeRate::from_wu(tx.fee, tx.weight).as_sat_per_vb(),
             first_seen: now,
             expiring_at: now + Duration::days(RETENTION_DAYS),
         }

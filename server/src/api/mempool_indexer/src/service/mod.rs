@@ -7,18 +7,22 @@ use reqwest::Client;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::Deserialize;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
 mod get_new_txs;
+mod get_stale_txs;
 
 const MEMPOOL_SPACE_SIGNET_URL: &str = "https://bitkey.mempool.space/signet/api";
 
 #[derive(Clone)]
 pub struct Service {
-    repo: Repository,
+    pub repo: Repository,
     http_client: ClientWithMiddleware,
     settings: Settings,
     recorded_txids: Arc<RwLock<HashSet<Txid>>>,
+    last_refreshed_recorded_txids: Arc<RwLock<OffsetDateTime>>,
+    current_mempool_txids: Arc<RwLock<HashSet<Txid>>>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -51,6 +55,8 @@ impl Service {
             http_client,
             settings,
             recorded_txids: Arc::new(RwLock::new(HashSet::new())),
+            last_refreshed_recorded_txids: Arc::new(RwLock::new(OffsetDateTime::UNIX_EPOCH)),
+            current_mempool_txids: Arc::new(RwLock::new(HashSet::new())),
         }
     }
 

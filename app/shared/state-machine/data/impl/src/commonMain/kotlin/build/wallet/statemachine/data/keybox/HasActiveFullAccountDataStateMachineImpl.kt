@@ -44,7 +44,7 @@ class HasActiveFullAccountDataStateMachineImpl(
   private val notificationTouchpointDataStateMachine: NotificationTouchpointDataStateMachine,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val exchangeRateSyncer: ExchangeRateSyncer,
-  private val cloudBackupRefresher: CloudBackupRefresher,
+  private val trustedContactCloudBackupRefresher: TrustedContactCloudBackupRefresher,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val authKeyRotationManager: AuthKeyRotationManager,
   private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
@@ -77,7 +77,7 @@ class HasActiveFullAccountDataStateMachineImpl(
      */
     if (props.hardwareRecovery == null) {
       LaunchedEffect("refresh cloud backups", props.account) {
-        cloudBackupRefresher.refreshCloudBackupsWhenNecessary(scope = this, props.account)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(scope = this, props.account)
       }
     }
 

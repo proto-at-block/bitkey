@@ -22,4 +22,9 @@ interface BiometricPreference {
    * A flow of values of the current state of the preference
    */
   fun isEnabled(): Flow<Boolean>
+
+  /**
+   * Clear the value of the preference
+   */
+  suspend fun clear(): Result<Unit, DbError>
 }

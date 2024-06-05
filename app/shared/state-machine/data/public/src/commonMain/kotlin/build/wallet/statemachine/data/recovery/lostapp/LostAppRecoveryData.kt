@@ -10,8 +10,8 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.crypto.PublicKey
+import build.wallet.f8e.auth.AuthenticationService.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.recovery.InitiateHardwareAuthService.AuthChallenge
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 
@@ -76,7 +76,7 @@ sealed interface LostAppRecoveryData {
        * [InitiatingLostAppRecoveryWithF8eData].
        */
       data class AwaitingAppSignedAuthChallengeData(
-        val challenge: AuthChallenge,
+        val challenge: InitiateAuthenticationSuccess,
         val addSignedChallenge: (String) -> Unit,
         val rollback: () -> Unit,
       ) : InitiatingLostAppRecoveryData

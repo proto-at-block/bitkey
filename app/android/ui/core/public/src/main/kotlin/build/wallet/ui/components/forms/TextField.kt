@@ -101,7 +101,15 @@ fun TextField(
     value = textState,
     labelType = labelType,
     onValueChange = { newTextFieldValue ->
-      if (model.maxLength == null || newTextFieldValue.text.length <= model.maxLength!!) {
+      model.maxLength?.let { maxLength ->
+        if (newTextFieldValue.text.length <= maxLength) {
+          textState = newTextFieldValue
+          model.onValueChange(
+            textState.text,
+            textState.selection.start..textState.selection.end
+          )
+        }
+      } ?: run {
         textState = newTextFieldValue
         model.onValueChange(
           textState.text,

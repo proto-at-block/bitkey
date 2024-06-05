@@ -11,6 +11,7 @@ class AppContext {
     // MARK: - Classes
 
     let appUiStateMachineManager: AppUiStateMachineManager
+    let biometricPromptUiStateMachineManager: BiometricPromptUiStateMachineManager
 
     let notificationManager: NotificationManager
 
@@ -152,7 +153,8 @@ class AppContext {
             xNonceGenerator: XNonceGeneratorImpl(),
             spake2: Spake2Impl(),
             cryptoBox: CryptoBoxImpl(),
-            pdfAnnotatorFactory: PdfAnnotatorFactoryImpl()
+            pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(), 
+            biometricPrompter: biometricsPrompter
         )
 
         self.appUiStateMachineManager = AppUiStateMachineManagerImpl(
@@ -161,6 +163,11 @@ class AppContext {
             context: .init(
                 qrCodeScannerViewControllerFactory: QRCodeScannerViewControllerFactoryImpl()
             )
+        )
+        
+        self.biometricPromptUiStateMachineManager = BiometricPromptUiStateMachineManager(
+            biometricPromptUiStateMachine: activityComponent.biometricPromptUiStateMachine,
+            appViewController: HiddenBarNavigationController()
         )
     }
 }

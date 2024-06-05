@@ -48,7 +48,8 @@ enum class ListItemTreatment {
   PRIMARY,
   SECONDARY,
   TERTIARY,
-  JUMBO,
+  PRIMARY_TITLE,
+  SECONDARY_DISPLAY,
 }
 
 enum class ListItemTitleBackgroundTreatment {

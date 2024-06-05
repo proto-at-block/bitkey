@@ -24,8 +24,8 @@ CREATE TABLE partnershipTransactionEntity (
     updated INTEGER AS Instant NOT NULL
 );
 
-insertEntity:
-INSERT INTO partnershipTransactionEntity VALUES ?;
+saveEntity:
+INSERT OR REPLACE INTO partnershipTransactionEntity VALUES ?;
 
 getAll:
 SELECT * FROM partnershipTransactionEntity;

@@ -614,7 +614,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
                       },
                       onPrimaryButtonClick = {
                         updateState(ShowingNotificationsSettingsUiState())
-                        systemSettingsLauncher.launchSettings()
+                        systemSettingsLauncher.launchAppSettings()
                       },
                       onSecondaryButtonClick = {
                         updateState(ShowingNotificationsSettingsUiState())

@@ -3,11 +3,18 @@ package build.wallet.platform.biometrics
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import androidx.biometric.BiometricManager.Authenticators.DEVICE_CREDENTIAL
-import build.wallet.platform.PlatformContext
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
-class BiometricPrompterImpl(platformContext: PlatformContext) : BiometricPrompter {
+class BiometricPrompterImpl(private val activity: FragmentActivity) : BiometricPrompter {
+  override var isPrompting: Boolean = false
+    private set
+
   private val biometricManager by lazy {
-    BiometricManager.from(platformContext.appContext)
+    BiometricManager.from(activity)
   }
 
   override fun biometricsAvailability(): BiometricsResult<Boolean> {
@@ -25,7 +32,35 @@ class BiometricPrompterImpl(platformContext: PlatformContext) : BiometricPrompte
     return BiometricsResult.Ok(Unit)
   }
 
-  override fun promptForAuth() {
-    // TODO W-xxxx show android auth prompt
-  }
+  override suspend fun promptForAuth(): BiometricsResult<Unit> =
+    suspendCoroutine {
+      isPrompting = true
+      val executor = ContextCompat.getMainExecutor(activity)
+      val prompt = BiometricPrompt(
+        activity,
+        executor,
+        object : BiometricPrompt.AuthenticationCallback() {
+          override fun onAuthenticationError(
+            errorCode: Int,
+            errString: CharSequence,
+          ) {
+            isPrompting = false
+            it.resume(BiometricsResult.Err(BiometricError.AuthenticationFailed()))
+          }
+
+          override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+            isPrompting = false
+            it.resume(BiometricsResult.Ok(Unit))
+          }
+        }
+      )
+      val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Biometric login for Bitkey")
+        .setSubtitle("Log in using your biometric credential")
+        .setConfirmationRequired(false)
+        .setAllowedAuthenticators(BIOMETRIC_STRONG or DEVICE_CREDENTIAL)
+        .build()
+
+      prompt.authenticate(promptInfo)
+    }
 }

@@ -19,7 +19,6 @@ import build.wallet.firmware.Teltra
 import build.wallet.logging.dev.LogStoreNoop
 import build.wallet.money.exchange.F8eExchangeRateService
 import build.wallet.platform.PlatformContext
-import build.wallet.platform.biometrics.BiometricPrompterImpl
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -56,7 +55,6 @@ fun makeAppComponent(
   val publicKeyGenerator = Secp256k1KeyGeneratorImpl()
   val hardwareAttestation = HardwareAttestationMock()
   val wsmVerifier = WsmVerifierImpl()
-  val biometricsPrompter = BiometricPrompterImpl()
 
   return AppComponentImpl(
     appId = appId,
@@ -87,7 +85,6 @@ fun makeAppComponent(
     hardwareAttestation = hardwareAttestation,
     teltra = teltra,
     wsmVerifier = wsmVerifier,
-    f8eExchangeRateService = f8eExchangeRateService,
-    biometricPrompter = biometricsPrompter
+    f8eExchangeRateService = f8eExchangeRateService
   )
 }

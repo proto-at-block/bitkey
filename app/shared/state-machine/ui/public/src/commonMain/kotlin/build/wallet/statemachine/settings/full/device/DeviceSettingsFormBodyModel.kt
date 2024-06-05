@@ -61,6 +61,7 @@ fun DeviceSettingsFormBodyModel(
   onSyncDeviceInfo: () -> Unit,
   onReplaceDevice: () -> Unit,
   onManageReplacement: (() -> Unit)?,
+  onResetDevice: (() -> Unit)?,
   onBack: () -> Unit,
   multipleFingerprintsEnabled: Boolean,
   resetDeviceEnabled: Boolean,
@@ -189,7 +190,7 @@ fun DeviceSettingsFormBodyModel(
               title = "Reset device",
               treatment = ListItemTreatment.SECONDARY,
               trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
-              onClick = {}
+              onClick = onResetDevice
             ).takeIf { resetDeviceEnabled }
           ),
           style = ListGroupStyle.CARD_GROUP_DIVIDER

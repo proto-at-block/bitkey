@@ -1,5 +1,7 @@
 package build.wallet.inappsecurity
 
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
 import build.wallet.logging.logFailure
@@ -9,6 +11,7 @@ import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted.Companion.Lazily
 import kotlinx.coroutines.flow.StateFlow
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.stateIn
 
 class HideBalancePreferenceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
+  private val eventTracker: EventTracker,
   appCoroutineScope: CoroutineScope,
 ) : HideBalancePreference {
   private val db by lazy {
@@ -42,6 +46,19 @@ class HideBalancePreferenceImpl(
     return db.hideBalancePreferenceQueries
       .awaitTransactionWithResult {
         setHideBalancePreference(enabled)
+      }.onSuccess {
+        if (enabled) {
+          eventTracker.track(Action.ACTION_APP_HIDE_BALANCE_BY_DEFAULT_ENABLED)
+        } else {
+          eventTracker.track(Action.ACTION_APP_HIDE_BALANCE_BY_DEFAULT_DISABLED)
+        }
+      }
+  }
+
+  override suspend fun clear(): Result<Unit, DbError> {
+    return db.hideBalancePreferenceQueries
+      .awaitTransactionWithResult {
+        clear()
       }
   }
 }

@@ -1,6 +1,5 @@
 package build.wallet.limit
 
-import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.sqldelight.FiatCurrencyEntity
 import build.wallet.database.sqldelight.SpendingLimitEntity
@@ -14,10 +13,10 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.fold
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
+import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -31,14 +30,12 @@ class SpendingLimitDaoImpl(
       .asFlowOfOneOrNull()
       .distinctUntilChanged()
       .transformLatest { result ->
-        result
+        val limit = result
           .logFailure { "Failed to read active spending limit from database" }
-          .onSuccess { activeLimit ->
-            emit(activeLimit?.toSpendingLimit())
-          }
-          .onFailure {
-            emit(null)
-          }
+          .flatMap { it?.toSpendingLimit() ?: Ok(null) }
+          .get()
+
+        emit(limit)
       }
   }
 
@@ -56,7 +53,7 @@ class SpendingLimitDaoImpl(
 
   override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, DbError> {
     return databaseProvider.database().spendingLimitQueries.lastLimit().awaitAsOneOrNullResult()
-      .map { lastLimitEntity -> lastLimitEntity?.toSpendingLimit() }
+      .flatMap { lastLimitEntity -> lastLimitEntity?.toSpendingLimit() ?: Ok(null) }
       .logFailure { "Failed to fetch most recent spending limit from database:" }
   }
 
@@ -96,22 +93,23 @@ class SpendingLimitDaoImpl(
       .logFailure { "Failed to remove all limits" }
   }
 
-  private suspend fun SpendingLimitEntity.toSpendingLimit(): SpendingLimit? {
-    val fiatCurrencyEntity =
-      databaseProvider.database()
-        .fiatCurrencyQueries
-        .getFiatCurrencyByTextCode(limitAmountCurrencyAlphaCode)
-        .awaitAsOneOrNull() ?: return null
-    return SpendingLimit(
-      active = active,
-      amount =
-        FiatMoney(
+  private suspend fun SpendingLimitEntity.toSpendingLimit(): Result<SpendingLimit?, DbError> =
+    binding {
+      val fiatCurrencyEntity =
+        databaseProvider.database()
+          .fiatCurrencyQueries
+          .getFiatCurrencyByTextCode(limitAmountCurrencyAlphaCode)
+          .awaitAsOneOrNullResult().bind() ?: return@binding null
+
+      SpendingLimit(
+        active = active,
+        amount = FiatMoney(
           currency = fiatCurrencyEntity.toFiatCurrency(),
           fractionalUnitAmount = limitAmountFractionalUnitValue.toBigInteger()
         ),
-      timezone = limitTimeZoneZoneId
-    )
-  }
+        timezone = limitTimeZoneZoneId
+      )
+    }
 }
 
 private fun FiatCurrencyEntity.toFiatCurrency() =

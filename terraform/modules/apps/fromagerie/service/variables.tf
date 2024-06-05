@@ -152,3 +152,13 @@ variable "config_profile" {
   type        = string
   description = "Name of the config profile, typically the same as environment"
 }
+
+################################################
+# SNS Platform Applications (Push Notifications)
+################################################
+
+variable "sns_platform_applications" {
+  type        = bool
+  description = "Whether or not to create SNS platform applications for push notifications"
+  default     = true
+}

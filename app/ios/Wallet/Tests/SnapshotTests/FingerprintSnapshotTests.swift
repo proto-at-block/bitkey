@@ -39,7 +39,7 @@ final class FingerprintSnapshotTests: XCTestCase {
         
         let view = FormView(
             viewModel: ListingFingerprintsBodyModelKt.ListingFingerprintsBodyModel(
-                enrolledFingerprints: enrolledFingerprints,
+                enrolledFingerprints: enrolledFingerprints, 
                 onBack: {},
                 onAddFingerprint: {_ in},
                 onEditFingerprint: {_ in}

@@ -17,4 +17,9 @@ class HideBalancePreferenceFake : HideBalancePreference {
     (isEnabled as MutableStateFlow).value = enabled
     return Ok(Unit)
   }
+
+  override suspend fun clear(): Result<Unit, DbError> {
+    (isEnabled as MutableStateFlow).value = false
+    return Ok(Unit)
+  }
 }

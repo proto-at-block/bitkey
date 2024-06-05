@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Clock
 
-class CloudBackupRefresherFake(turbine: (String) -> Turbine<Any>) : CloudBackupRefresher {
+class TrustedContactCloudBackupRefresherFake(turbine: (String) -> Turbine<Any>) : TrustedContactCloudBackupRefresher {
   val refreshCloudBackupsWhenNecessaryCalls = turbine("refresh when necessary calls")
 
   override val lastCheck = MutableStateFlow(Clock.System.now())

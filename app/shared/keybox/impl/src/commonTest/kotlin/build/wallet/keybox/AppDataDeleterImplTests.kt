@@ -29,6 +29,8 @@ import build.wallet.firmware.FirmwareMetadataDaoMock
 import build.wallet.fwup.FwupDataDaoMock
 import build.wallet.home.GettingStartedTaskDaoMock
 import build.wallet.home.HomeUiBottomSheetDaoMock
+import build.wallet.inappsecurity.BiometricPreferenceFake
+import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.keybox.keys.OnboardingAppKeyKeystoreFake
 import build.wallet.limit.SpendingLimitDaoMock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
@@ -111,7 +113,9 @@ class AppDataDeleterImplTests : FunSpec({
       csekDao = CsekDaoFake(),
       authKeyRotationAttemptDao = authKeyRotationAttemptMock,
       recoveryDao = recoveryDaoMock,
-      authSignatureStatusProvider = authSignatureStatusProvider
+      authSignatureStatusProvider = authSignatureStatusProvider,
+      hideBalancePreference = HideBalancePreferenceFake(),
+      biometricPreference = BiometricPreferenceFake()
     )
 
   beforeTest {

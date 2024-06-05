@@ -7,6 +7,8 @@ import com.github.michaelbull.result.Result
  * platforms
  */
 interface BiometricPrompter {
+  val isPrompting: Boolean
+
   /**
    * Determines the availability of enabling biometric auth on the platform. Returns [Ok] when it is
    * available - otherwise a descriptive [BiometricError] is returned
@@ -22,10 +24,8 @@ interface BiometricPrompter {
 
   /**
    * Prompts the caller to authenticate via biometric login once the setting is enabled
-   *
-   * TODO: W-8188 Implement and call to prompt on launch
    */
-  fun promptForAuth()
+  suspend fun promptForAuth(): BiometricsResult<Unit>
 }
 
 /**

@@ -21,6 +21,7 @@ import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.bdk.BdkBlockchainProvider
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilder
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.keys.ExtendedKeyGenerator
 import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepository
@@ -70,7 +71,6 @@ import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.RegisterWatchAddressContext
 import build.wallet.platform.PlatformContext
-import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.DeviceOs
@@ -182,6 +182,7 @@ interface AppComponent {
   val recoveryDao: RecoveryDao
   val secureStoreFactory: EncryptedKeyValueStoreFactory
   val appSessionManager: AppSessionManager
+  val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator
   val spendingWalletProvider: SpendingWalletProvider
   val templateFullAccountConfigDao: TemplateFullAccountConfigDao
   val outgoingTransactionDetailDao: OutgoingTransactionDetailDao
@@ -196,5 +197,4 @@ interface AppComponent {
   val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag
   val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag
   val biometricPreference: BiometricPreference
-  val biometricPrompter: BiometricPrompter
 }

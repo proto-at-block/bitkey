@@ -20,7 +20,7 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.59.1
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.60.0
         PROJECT_BUNDLE_VERSION: 1
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -117,8 +117,13 @@ targets:
         - firmware
 
     sources:
-    - Wallet/Sources
-    - Wallet/Resources
+    - path: Wallet/Sources
+      excludes:
+        - "Encryption/sqlite3.c"
+    - path: Wallet/Sources/Encryption/sqlite3.c
+      compilerFlags:
+        - "-w"
+    - path: Wallet/Resources
     - path: ../shared
       includes:
         - "**/src/commonMain/kotlin/**"

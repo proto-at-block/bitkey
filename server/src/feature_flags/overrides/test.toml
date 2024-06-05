@@ -1,6 +1,6 @@
 electrum-rpc-uri-mainnet = "ssl://electrum.blockstream.info:50002"
 electrum-rpc-uri-testnet = "ssl://electrum.blockstream.info:60002"
-electrum-rpc-uri-signet = "ssl://electrum.nodes.wallet.build:51002"
+electrum-rpc-uri-signet = "ssl://bitkey.mempool.space:60602"
 f8e-is-using-cash-exchange-rate-provider = "false"
 f8e-social-recovery-enable = "true"
 f8e-mobile-pay-enabled = "true"

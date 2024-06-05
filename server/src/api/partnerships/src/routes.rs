@@ -311,10 +311,15 @@ pub struct PurchaseOptionsResponse {
 )]
 async fn get_purchase_options(
     State(partnerships): State<Partnerships>,
+    experimentation_claims: ExperimentationClaims,
     request: Query<PurchaseOptionsRequest>,
 ) -> Result<Json<PurchaseOptionsResponse>, ApiError> {
     let purchase_options = partnerships
-        .purchase_options(request.country.clone(), request.fiat_currency.clone())
+        .purchase_options(
+            request.country.clone(),
+            request.fiat_currency.clone(),
+            ContextKey::try_from(experimentation_claims)?,
+        )
         .await;
     Ok(Json(PurchaseOptionsResponse { purchase_options }))
 }

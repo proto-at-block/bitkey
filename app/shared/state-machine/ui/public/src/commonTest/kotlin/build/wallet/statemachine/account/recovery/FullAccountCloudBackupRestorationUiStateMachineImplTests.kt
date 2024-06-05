@@ -26,7 +26,6 @@ import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
-import build.wallet.f8e.recovery.InitiateHardwareAuthServiceMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.notifications.DeviceTokenManagerMock
@@ -88,8 +87,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
   val socRecChallengeRepository = SocRecChallengeRepositoryMock()
 
-  val initiateHardwareAuthService = InitiateHardwareAuthServiceMock(turbines::create)
-
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val appAuthKeyMessageSigner = AppAuthKeyMessageSignerMock()
   val deviceInfoProvider = DeviceInfoProviderMock()
@@ -145,7 +142,6 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     appAuthKeyMessageSigner.reset()
-    initiateHardwareAuthService.reset()
     keyboxDao.reset()
     authTokenDao.reset()
     recoverySyncer.reset()

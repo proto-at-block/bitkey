@@ -13,6 +13,7 @@ import build.wallet.bitcoin.bdk.BdkTxBuilderFactoryMock
 import build.wallet.bitcoin.bdk.BdkTxBuilderMock
 import build.wallet.bitcoin.bdk.BdkWalletMock
 import build.wallet.bitcoin.bdk.BdkWalletSyncerMock
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorMock
 import build.wallet.coroutines.turbine.turbines
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
@@ -29,6 +30,7 @@ class SpendingWalletImplTests : FunSpec({
   val bdkWalletSyncer = BdkWalletSyncerMock(turbines::create)
   val bdkAddressBuilder = BdkAddressBuilderMock(turbines::create)
   val appSessionManager = AppSessionManagerFake()
+  val bitcoinFeeRateEstimator = BitcoinFeeRateEstimatorMock()
 
   fun buildWallet(syncScope: CoroutineScope) =
     SpendingWalletImpl(
@@ -42,7 +44,8 @@ class SpendingWalletImplTests : FunSpec({
       bdkAddressBuilder = bdkAddressBuilder,
       bdkBumpFeeTxBuilderFactory = BdkBumpFeeTxBuilderFactoryMock(BdkBumpFeeTxBuilderMock()),
       appSessionManager = appSessionManager,
-      syncContext = syncScope.coroutineContext
+      syncContext = syncScope.coroutineContext,
+      bitcoinFeeRateEstimator = bitcoinFeeRateEstimator
     )
 
   beforeEach {

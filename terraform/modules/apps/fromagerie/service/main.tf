@@ -134,6 +134,14 @@ data "aws_secretsmanager_secret" "fromagerie_sq_sdn_s3_uri" {
   name = "${module.this.id}/sq_sdn/s3_uri"
 }
 
+data "aws_secretsmanager_secret" "gcm_firebase_admin_key" {
+  name = "gcm_firebase_admin_key"
+}
+
+data "aws_secretsmanager_secret_version" "gcm_firebase_admin_key" {
+  secret_id = data.aws_secretsmanager_secret.gcm_firebase_admin_key.id
+}
+
 data "aws_acm_certificate" "external_certs" {
   count  = length(var.external_certs)
   domain = var.external_certs[count.index]
@@ -879,4 +887,38 @@ module "sms_notification_queue" {
   // Tag v4.0.1
 
   name = "${module.this.id}-sms-notification"
+}
+
+################################################
+# SNS Platform Applications (Push Notifications)
+################################################
+
+resource "aws_sns_platform_application" "gcm_application_customer" {
+  count                        = var.sns_platform_applications ? 1 : 0
+  name                         = "bitkey-customer-android"
+  platform                     = "GCM"
+  platform_credential          = data.aws_secretsmanager_secret_version.gcm_firebase_admin_key.secret_string
+  failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
+  success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
+  success_feedback_sample_rate = "100"
+}
+
+resource "aws_sns_platform_application" "gcm_application_team" {
+  count                        = var.sns_platform_applications ? 1 : 0
+  name                         = "bitkey-team-android"
+  platform                     = "GCM"
+  platform_credential          = data.aws_secretsmanager_secret_version.gcm_firebase_admin_key.secret_string
+  failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
+  success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
+  success_feedback_sample_rate = "100"
+}
+
+resource "aws_sns_platform_application" "gcm_application_public_beta" {
+  count                        = var.sns_platform_applications ? 1 : 0
+  name                         = "bitkey-android"
+  platform                     = "GCM"
+  platform_credential          = data.aws_secretsmanager_secret_version.gcm_firebase_admin_key.secret_string
+  failure_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSFailureFeedback"
+  success_feedback_role_arn    = "arn:aws:iam::${data.aws_caller_identity.this.account_id}:role/SNSSuccessFeedback"
+  success_feedback_sample_rate = "100"
 }

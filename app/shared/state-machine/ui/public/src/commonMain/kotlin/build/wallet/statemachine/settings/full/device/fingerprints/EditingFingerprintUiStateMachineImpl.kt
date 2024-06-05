@@ -31,7 +31,7 @@ class EditingFingerprintUiStateMachineImpl : EditingFingerprintUiStateMachine {
         SheetModel(
           body = EditingFingerprintBodyModel(
             index = props.fingerprintToEdit.index,
-            label = props.fingerprintToEdit.label,
+            label = props.originalFingerprintLabel,
             textFieldValue = labelValue,
             onDelete = {
               uiState = if (props.enrolledFingerprints.fingerprintHandles.size > 1) {
@@ -72,7 +72,7 @@ sealed interface EditingFingerprintUiState {
   ) : EditingFingerprintUiState
 
   /**
-   * Confirming that the user actually wants delete the selected fingerprint
+   * Confirming that the user actually wants to delete the selected fingerprint
    */
   data object ConfirmDeleteFingerprintUiState : EditingFingerprintUiState
 }

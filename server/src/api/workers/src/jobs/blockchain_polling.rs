@@ -78,7 +78,8 @@ pub async fn run_once(state: &WorkerState) -> Result<(), WorkerError> {
         .unique()
         .collect();
     event!(Level::INFO, "{} addresses found in blocks", addresses.len());
-    notify_customers_with_addresses(state, addresses, PaymentNotificationType::Confirmed).await?;
+    notify_customers_with_addresses(state, addresses, PaymentNotificationType::Confirmed, None)
+        .await?;
     event!(Level::INFO, "Ending blockchain polling job");
     Ok(())
 }

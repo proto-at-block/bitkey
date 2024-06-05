@@ -71,7 +71,7 @@ class RotateAuthKeyUIStateMachineImpl(
 ) : RotateAuthKeyUIStateMachine {
   @Composable
   override fun model(props: RotateAuthKeyUIStateMachineProps): ScreenModel {
-    val evenTrackerScreenIdContext = remember(props.origin) {
+    val eventTrackerScreenIdContext = remember(props.origin) {
       when (props.origin) {
         is RotateAuthKeyUIOrigin.PendingAttempt -> when (props.origin.attempt) {
           is PendingAuthKeyRotationAttempt.IncompleteAttempt -> AuthKeyRotationEventTrackerScreenIdContext.FAILED_ATTEMPT
@@ -149,11 +149,11 @@ class RotateAuthKeyUIStateMachineImpl(
         }
 
         RotateAuthKeyScreens.RotatingKeys(
-          context = evenTrackerScreenIdContext
+          context = eventTrackerScreenIdContext
         ).asRootScreen()
       }
       is State.AcknowledgingSuccess -> RotateAuthKeyScreens.Confirmation(
-        context = evenTrackerScreenIdContext,
+        context = eventTrackerScreenIdContext,
         onSelected = {
           uiState.onAcknowledge()
           if (props.origin is RotateAuthKeyUIOrigin.Settings) {
@@ -162,7 +162,7 @@ class RotateAuthKeyUIStateMachineImpl(
         }
       ).asRootScreen()
       is State.PresentingUnexpectedFailure -> RotateAuthKeyScreens.UnexpectedFailure(
-        context = evenTrackerScreenIdContext,
+        context = eventTrackerScreenIdContext,
         onRetry = {
           state = State.RotatingAuthKeys(uiState.retryRequest)
         },
@@ -171,7 +171,7 @@ class RotateAuthKeyUIStateMachineImpl(
         }
       ).asRootScreen()
       is State.PresentingRecoverableFailure -> RotateAuthKeyScreens.AcceptableFailure(
-        context = evenTrackerScreenIdContext,
+        context = eventTrackerScreenIdContext,
         onRetry = { state = State.ObtainingHwProofOfPossession(uiState.newAppAuthKeys) },
         onAcknowledge = {
           uiState.onAcknowledge()
@@ -181,7 +181,7 @@ class RotateAuthKeyUIStateMachineImpl(
         }
       ).asRootScreen()
       is State.PresentingAccountLockedFailure -> RotateAuthKeyScreens.AccountLockedFailure(
-        context = evenTrackerScreenIdContext,
+        context = eventTrackerScreenIdContext,
         onRetry = {
           state = State.RotatingAuthKeys(uiState.retryRequest)
         },
@@ -194,7 +194,7 @@ class RotateAuthKeyUIStateMachineImpl(
           authKeyRotationManager.dismissProposedRotationAttempt()
         }
 
-        RotateAuthKeyScreens.DismissingProposal(evenTrackerScreenIdContext).asRootScreen()
+        RotateAuthKeyScreens.DismissingProposal(eventTrackerScreenIdContext).asRootScreen()
       }
     }
   }

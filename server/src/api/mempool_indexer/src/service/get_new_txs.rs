@@ -1,9 +1,10 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use async_stream::try_stream;
 use bdk_utils::bdk::bitcoin::Txid;
 use database::ddb::CHUNK_SIZE_MAX;
-use futures::{stream::FuturesUnordered, FutureExt, Stream, StreamExt};
+use futures::Stream;
+use time::OffsetDateTime;
 use tracing::{event, Level};
 
 use super::Service;
@@ -11,6 +12,9 @@ use crate::{
     entities::{TransactionRecord, TransactionResponse},
     MempoolIndexerError,
 };
+
+// Refresh the recorded txids every 6 hours
+pub const EXPIRY_UPDATE_WINDOW_MINS: Duration = Duration::from_secs(6 * 60 * 60);
 
 impl Service {
     pub fn get_new_mempool_txs(
@@ -25,32 +29,49 @@ impl Service {
                 self.settings.base_url,
             );
 
-            // If this is the first time we're calling this method, fetch the recorded txids from the database
-            let is_empty = {
-                let read_guard = self.recorded_txids.read().await;
-                read_guard.is_empty()
+            // If this is the first time we're calling this method or every 6 hours, fetch the recorded txids from the database
+            let should_refresh = {
+                let last_refreshed_read_guard = self.last_refreshed_recorded_txids.read().await;
+                let is_outdated = OffsetDateTime::now_utc() - *last_refreshed_read_guard > EXPIRY_UPDATE_WINDOW_MINS;
+                let recorded_txids_read_guard = self.recorded_txids.read().await;
+                let is_empty = recorded_txids_read_guard.is_empty();
+                is_outdated || is_empty
             };
-            if is_empty {
+            if should_refresh {
+                let mut write_guard_last_refreshed = self.last_refreshed_recorded_txids.write().await;
+                *write_guard_last_refreshed = OffsetDateTime::now_utc();
                 let new_tx_ids = self.repo.fetch_recorded_transaction_ids(network).await?;
                 let mut write_guard = self.recorded_txids.write().await;
+                write_guard.clear();
                 write_guard.extend(new_tx_ids);
             }
 
-            let current_mempool_tx_ids = self.get_transaction_ids_from_mempool().await?;
-            let num_tx_ids = current_mempool_tx_ids.len();
+            let num_txids = {
+                let txids = self.get_transaction_ids_from_mempool().await?;
+                let num_txids = txids.len();
+                let mut write_guard = self.current_mempool_txids.write().await;
+                write_guard.clear();
+                write_guard.extend(txids);
+                num_txids
+            };
             event!(
                 Level::INFO,
-                "Retrieved {num_tx_ids} mempool transactions from network {network}"
+                "Retrieved {num_txids} mempool transactions from network {network}"
             );
 
-
             let unrecorded_tx_ids = {
+                let current_mempool_txids = self.current_mempool_txids.read().await;
                 let recorded_txids = self.recorded_txids.read().await;
-                current_mempool_tx_ids
+                current_mempool_txids
                     .difference(&recorded_txids)
                     .cloned()
                     .collect::<Vec<Txid>>()
             };
+            let num_unrecorded_tx_ids = unrecorded_tx_ids.len();
+            event!(
+                Level::INFO,
+                "Found {num_unrecorded_tx_ids} unrecorded mempool transactions from network {network}"
+            );
 
             // We do these in batches to avoid hitting the DDB write limit
             let chunks = unrecorded_tx_ids
@@ -61,15 +82,11 @@ impl Service {
             for unrecorded_tx_ids in chunks {
                 let mut tx_records = Vec::new();
 
-                let mut mempool_futures = unrecorded_tx_ids.into_iter().map(|tx_id| {
-                    let cloned_tx_id = tx_id;
-                    self.fetch_transaction_from_mempool(tx_id).map(move |x| (cloned_tx_id, x))
-                }).collect::<FuturesUnordered<_>>();
-                while let Some((tx_id, result)) = mempool_futures.next().await {
-                    match result {
+                for tx_id in &unrecorded_tx_ids {
+                    match self.fetch_transaction_from_mempool(tx_id).await {
                         Ok(transaction_response) => {
                             let record = TransactionRecord::from_mempool_tx(&transaction_response, network);
-                            tx_records.push(record.clone());
+                            tx_records.push(record);
                         }
                         Err(e) => {
                             event!(
@@ -88,7 +105,7 @@ impl Service {
                     event!(
                         Level::ERROR,
                         "Failed to persist tx record for batch with tx ids: {}",
-                        tx_records.into_iter().map(|r| r.txid.clone().to_string()).collect::<Vec<String>>().join(", ")
+                        tx_records.into_iter().map(|r| r.txid.to_string()).collect::<Vec<String>>().join(", ")
                     );
                 }
         }
@@ -99,9 +116,17 @@ impl Service {
         self.recorded_txids.read().await.clone()
     }
 
+    pub async fn get_fetched_mempool_txids(&self) -> HashSet<Txid> {
+        self.current_mempool_txids.read().await.clone()
+    }
+
+    pub async fn get_last_refreshed_recorded_txids(&self) -> OffsetDateTime {
+        *self.last_refreshed_recorded_txids.read().await
+    }
+
     async fn fetch_transaction_from_mempool(
         &self,
-        tx_id: Txid,
+        tx_id: &Txid,
     ) -> Result<TransactionResponse, MempoolIndexerError> {
         self.http_client
             .get(&format!("{}/tx/{tx_id}", self.settings.base_url))
@@ -112,7 +137,9 @@ impl Service {
             .map_err(MempoolIndexerError::from)
     }
 
-    async fn get_transaction_ids_from_mempool(&self) -> Result<HashSet<Txid>, MempoolIndexerError> {
+    pub async fn get_transaction_ids_from_mempool(
+        &self,
+    ) -> Result<HashSet<Txid>, MempoolIndexerError> {
         self.http_client
             .get(&format!("{}/mempool/txids", self.settings.base_url))
             .send()

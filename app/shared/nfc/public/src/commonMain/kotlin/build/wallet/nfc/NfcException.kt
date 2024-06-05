@@ -43,6 +43,12 @@ sealed class NfcException : Error() {
     override val cause: Throwable? = null,
   ) : NfcException()
 
+  /** Indicates that a transaction was attempted while another was in progress */
+  class TransactionInProgress(
+    override val message: String? = null,
+    override val cause: Throwable? = null,
+  ) : NfcException()
+
   /** Catch-all for unknown or unexpected errors */
   class UnknownError(
     override val message: String? = null,

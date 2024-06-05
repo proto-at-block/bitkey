@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
@@ -30,12 +31,14 @@ import build.wallet.ui.components.sheet.Sheet
 import build.wallet.ui.components.status.backgroundColor
 import build.wallet.ui.components.system.SystemUI
 import build.wallet.ui.components.tabbar.TabBarContainer
+import build.wallet.ui.components.toast.Toast
 import build.wallet.ui.compose.gestures.onTwoFingerDoubleTap
 import build.wallet.ui.compose.gestures.onTwoFingerTripleTap
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.UiModelContent
 import build.wallet.ui.model.alert.AlertModel
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.toast.ToastModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -98,6 +101,7 @@ fun Screen(
         }
       },
       alertModel = model.alertModel,
+      toastModel = model.toastModel,
       bottomSheetModel = model.bottomSheetModel,
       onTwoFingerDoubleTap = model.onTwoFingerDoubleTap,
       systemUiModel = model.systemUIModel
@@ -116,6 +120,7 @@ private fun Screen(
   bodyContent: @Composable () -> Unit,
   tabBarContent: @Composable (() -> Unit)? = null,
   statusBannerContent: @Composable () -> Unit = {},
+  toastModel: ToastModel? = null,
   alertModel: AlertModel? = null,
   bottomSheetModel: SheetModel? = null,
   systemUiModel: SystemUIModel? = null,
@@ -127,6 +132,7 @@ private fun Screen(
     ScreenContents(
       modifier = modifier,
       addSystemBarsPadding = addSystemBarsPadding,
+      toastModel = toastModel,
       statusBannerContent = statusBannerContent,
       bodyContent = bodyContent,
       tabBarContent = tabBarContent,
@@ -151,12 +157,16 @@ private fun Screen(
     ScreenContents()
   }
 
-  // Add bottom sheet and system UI, if any
+  // Add bottom sheet, system UI, toast if any
   bottomSheetModel?.let {
     Sheet(model = it)
   }
   systemUiModel?.let {
     SystemUI(model = it)
+  }
+
+  toastModel?.let {
+    Toast(model = it)
   }
 }
 
@@ -164,6 +174,7 @@ private fun Screen(
 private fun ScreenContents(
   modifier: Modifier = Modifier,
   addSystemBarsPadding: Boolean,
+  toastModel: ToastModel?,
   statusBannerContent: @Composable () -> Unit,
   bodyContent: @Composable () -> Unit,
   tabBarContent: @Composable (() -> Unit)? = null,
@@ -175,7 +186,15 @@ private fun ScreenContents(
       modifier
         .fillMaxSize()
         .background(color = WalletTheme.colors.background)
-        .thenIf(addSystemBarsPadding) { Modifier.systemBarsPadding() }
+        .thenIf(addSystemBarsPadding) {
+          if (toastModel != null) {
+            // If we're showing a toast, we need to explicitly ignore the bottom bar safe area
+            // so that the toast can slide in from the bottom unobstructed
+            Modifier.statusBarsPadding()
+          } else {
+            Modifier.systemBarsPadding()
+          }
+        }
         .onTwoFingerDoubleTap {
           onTwoFingerDoubleTap?.invoke()
         }

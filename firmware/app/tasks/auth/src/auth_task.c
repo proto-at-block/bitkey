@@ -130,15 +130,17 @@ static void lock_animation(bool previously_authenticated) {
   static led_set_rest_animation_t LED_TASK_DATA rest_msg = {.animation = (uint32_t)ANI_OFF};
   ipc_send(led_port, &rest_msg, sizeof(rest_msg), IPC_LED_SET_REST_ANIMATION);
 
+  static led_start_animation_t LED_TASK_DATA msg = {.immediate = true};
+
   if (fwup_started) {
-    static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_LOCKED_FROM_FWUP,
-                                                      .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    msg.animation = (uint32_t)ANI_LOCKED_FROM_FWUP;
+  } else if (auth_priv.current_enrollment_ctx.enrollment_in_progress) {
+    msg.animation = (uint32_t)ANI_LOCKED_FROM_ENROLLMENT;
   } else {
-    static led_start_animation_t LED_TASK_DATA msg = {.animation = (uint32_t)ANI_LOCKED,
-                                                      .immediate = true};
-    ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
+    msg.animation = (uint32_t)ANI_LOCKED;
   }
+
+  ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
 }
 
 NO_OPTIMIZE void set_authenticated_with_animation(secure_bool_t state) {

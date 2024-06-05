@@ -32,7 +32,15 @@ class InAppBrowserNavigatorImpl: NSObject, InAppBrowserNavigator, SFSafariViewCo
         let vc = SFSafariViewController(url: URL(string: url)!)
         self.safariViewController = vc
         vc.delegate = self
-        topViewController.present(vc, animated: true)
+
+        // This is a workaround for (W-5874) until we have time to fix it properly. We need an action that runs after bottom sheet has been closed.
+        if topViewController.presentedViewController != nil {
+            topViewController.dismiss(animated: true) {
+                topViewController.present(vc, animated: true)
+            }
+        } else {
+            topViewController.present(vc, animated: true)
+        }
     }
     
     func close() {

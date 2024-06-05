@@ -48,7 +48,8 @@ public struct WrapperView<T: View>: View {
 
     @ObservedObject var wrappedViewHolder: ObservableObjectHolder<T>
     @ObservedObject var screenModelHolder: ObservableObjectHolder<ScreenModel>
-    
+    @SwiftUI.State private var isShowingToast = false
+
     var wrappedView: T {
         wrappedViewHolder.value
     }
@@ -69,12 +70,37 @@ public struct WrapperView<T: View>: View {
             wrappedView
             screenModel.tabBar.map { TabBarView(viewModel: $0) }
         }
+        // Check for uniqueness of toast id, otherwise we're trying showing a new toast so reset the state flag
+        .onChange(of: screenModel.toastModel?.id) { _ in
+            self.isShowingToast = false
+        }
         .safeAreaInset(edge: .top) {
             if let statusBannerModel = screenModel.statusBannerModel {
                 StatusBannerView(viewModel: statusBannerModel)
             }
         }
         .animation(.easeInOut(duration: 0.4), value: screenModel.statusBannerModel)
+        
+        // Show a toast if we've got oen
+        if let toast = screenModel.toastModel {
+            // This entire animation block is very fragile, attempt to improve at your own risk
+            if !isShowingToast {
+                ToastView(model: toast)
+                    .transition(.move(edge: .bottom))
+                    .animation(.smooth.delay(0.25))
+                    .onAppear {
+                        // Delay and then set the state flag to trigger the dismiss animation in the else block below
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5.seconds, execute: {
+                            self.isShowingToast = true
+                        })
+                    }
+            } else {
+                ToastView(model: toast)
+                    // we don't really fade out here, but need to change a value to trigger the animation
+                    .opacity(0.0)
+                    .transition(.moveOutToBottom.animation(.easeOut))
+            }
+        }
     }
 
     public func updateWrappedView(_ wrappedView: T, screenModel: ScreenModel) {

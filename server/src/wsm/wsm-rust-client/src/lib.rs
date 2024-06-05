@@ -212,7 +212,7 @@ mod tests {
         let root_key = client.create_root_key(TEST_KEY_ID, Signet).await.unwrap();
 
         assert_eq!(root_key.root_key_id, TEST_KEY_ID);
-        assert_eq!(root_key.xpub, TEST_DPUB_SPEND);
+        assert_eq!(root_key.xpub, *TEST_DPUB_SPEND);
     }
 
     async fn signing_from_descriptor_is_finalized(
@@ -227,7 +227,7 @@ mod tests {
             MemoryDatabase::default(),
         )
         .unwrap();
-        let electrum_client = Client::new("ssl://electrum.nodes.wallet.build:51002").unwrap();
+        let electrum_client = Client::new("ssl://bitkey.mempool.space:60602").unwrap();
         let blockchain = ElectrumBlockchain::from(electrum_client);
         wallet.sync(&blockchain, SyncOptions::default()).unwrap();
         let send_to = wallet.get_address(AddressIndex::New).unwrap();

@@ -9,6 +9,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.coroutines.callCoroutineEvery
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
+import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
@@ -167,6 +168,7 @@ class CloudBackupHealthRepositoryImpl(
         },
         failure = {
           // TODO(BKR-1156): handle unknown loading errors
+          log(Warn) { "Failed to read cloud backup during sync: $it" }
           MobileKeyBackupStatus.ProblemWithBackup.NoCloudAccess
         }
       )

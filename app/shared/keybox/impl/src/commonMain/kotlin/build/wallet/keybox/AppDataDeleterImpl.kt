@@ -14,6 +14,8 @@ import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.fwup.FwupDataDao
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.home.HomeUiBottomSheetDao
+import build.wallet.inappsecurity.BiometricPreference
+import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.limit.SpendingLimitDao
 import build.wallet.logging.log
@@ -60,6 +62,8 @@ class AppDataDeleterImpl(
   private val authKeyRotationAttemptDao: AuthKeyRotationAttemptDao,
   private val recoveryDao: RecoveryDao,
   private val authSignatureStatusProvider: F8eAuthSignatureStatusProvider,
+  private val hideBalancePreference: HideBalancePreference,
+  private val biometricPreference: BiometricPreference,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
     binding {
@@ -92,6 +96,8 @@ class AppDataDeleterImpl(
       authKeyRotationAttemptDao.clear()
       recoveryDao.clear()
       authSignatureStatusProvider.clear()
+      biometricPreference.clear()
+      hideBalancePreference.clear()
 
       // Make sure we clear Account data last because this will transition the UI
       accountRepository.clear().bind()

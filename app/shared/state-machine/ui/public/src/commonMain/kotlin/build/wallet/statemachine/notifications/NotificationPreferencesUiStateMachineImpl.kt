@@ -199,7 +199,7 @@ class NotificationPreferencesUiStateMachineImpl(
           alertModel = OpenSettingsForPushAlertModel(
             pushEnabled = false,
             settingsOpenAction = {
-              systemSettingsLauncher.launchSettings()
+              systemSettingsLauncher.launchAppSettings()
               uiState = UiState.MainViewState.Editing
             },
             onClose = { uiState = UiState.MainViewState.Editing }

@@ -165,9 +165,9 @@ static void configure(void) {
   const max77734_reg_cnfg_chg_c_t c = {
     .values =
       {
-        .T_TOPOFF = 1,   /* 5 minutes */
-        .I_TERM = 1,     /* 7.5% = 15mA */
-        .CHG_PQ = 0b111, /* 3.0V */
+        .T_TOPOFF = 0b111, /* 35 minutes */
+        .I_TERM = 1,       /* 7.5% = 15mA */
+        .CHG_PQ = 0b111,   /* 3.0V */
       },
   };
   write_register(MAX77734_REG_CNFG_CHG_C, c.bytes);

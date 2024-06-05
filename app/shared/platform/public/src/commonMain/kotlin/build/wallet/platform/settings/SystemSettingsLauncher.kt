@@ -5,7 +5,12 @@ package build.wallet.platform.settings
  */
 interface SystemSettingsLauncher {
   /**
-   * Launch the native system settings
+   * Launch the native system settings specific to Bitkey app
    */
-  fun launchSettings()
+  fun launchAppSettings()
+
+  /**
+   * Launch the native system settings to the security settings
+   */
+  fun launchSecuritySettings()
 }

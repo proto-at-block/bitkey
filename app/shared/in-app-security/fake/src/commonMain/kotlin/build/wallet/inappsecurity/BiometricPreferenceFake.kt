@@ -21,4 +21,13 @@ class BiometricPreferenceFake : BiometricPreference {
   override fun isEnabled(): Flow<Boolean> {
     return flowOf(preference)
   }
+
+  override suspend fun clear(): Result<Unit, DbError> {
+    reset()
+    return Ok(Unit)
+  }
+
+  fun reset() {
+    preference = false
+  }
 }

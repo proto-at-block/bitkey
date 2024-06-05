@@ -47,9 +47,10 @@ import build.wallet.ui.model.list.ListItemPickerMenu
 import build.wallet.ui.model.list.ListItemSideTextTint
 import build.wallet.ui.model.list.ListItemTitleAlignment
 import build.wallet.ui.model.list.ListItemTitleBackgroundTreatment
-import build.wallet.ui.model.list.ListItemTreatment.JUMBO
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
+import build.wallet.ui.model.list.ListItemTreatment.PRIMARY_TITLE
 import build.wallet.ui.model.list.ListItemTreatment.SECONDARY
+import build.wallet.ui.model.list.ListItemTreatment.SECONDARY_DISPLAY
 import build.wallet.ui.model.list.ListItemTreatment.TERTIARY
 import build.wallet.ui.model.list.disable
 import build.wallet.ui.model.switch.SwitchModel
@@ -64,26 +65,9 @@ fun ListItem(
   collapseContent: Boolean = false,
 ) {
   with(model) {
-    val sideTextValue: AnnotatedString? = model.sideText?.let { sideText ->
-      val textColor = when (sideTextTint) {
-        ListItemSideTextTint.PRIMARY -> when (enabled) {
-          true -> WalletTheme.colors.foreground
-          false -> WalletTheme.colors.foreground30
-        }
+    val sideTextValue: AnnotatedString? = model.sideText()
+    val secondarySideTextValue: AnnotatedString? = model.secondarySideText()
 
-        ListItemSideTextTint.SECONDARY -> WalletTheme.colors.foreground60
-
-        ListItemSideTextTint.GREEN -> WalletTheme.colors.positiveForeground
-      }
-      AnnotatedString(sideText, SpanStyle(color = textColor))
-    }
-    val secondarySideTextValue: AnnotatedString? = secondarySideText?.let { secondarySideText ->
-      val textColor = when (enabled) {
-        true -> WalletTheme.colors.foreground60
-        false -> WalletTheme.colors.foreground30
-      }
-      AnnotatedString(secondarySideText, SpanStyle(color = textColor))
-    }
     ListItem(
       modifier = modifier,
       title = AnnotatedString(title),
@@ -100,16 +84,19 @@ fun ListItem(
               PRIMARY -> Primary
               SECONDARY -> Secondary
               TERTIARY -> Tertiary
-              JUMBO -> Jumbo
+              PRIMARY_TITLE -> Jumbo
+              SECONDARY_DISPLAY -> Jumbo
             }
           false -> Disabled
         },
-      titleType = when (treatment) {
-        PRIMARY -> LabelType.Body2Medium
-        SECONDARY -> LabelType.Body2Regular
-        TERTIARY -> LabelType.Body3Regular
-        JUMBO -> LabelType.Title1
-      },
+      titleType =
+        when (model.treatment) {
+          PRIMARY -> LabelType.Body2Medium
+          SECONDARY -> LabelType.Body2Regular
+          TERTIARY -> LabelType.Body3Regular
+          PRIMARY_TITLE -> LabelType.Title1
+          SECONDARY_DISPLAY -> LabelType.Display2
+        },
       listItemTitleBackgroundTreatment = listItemTitleBackgroundTreatment,
       secondaryText =
         secondaryText?.let { secondaryText ->
@@ -118,6 +105,11 @@ fun ListItem(
             false -> WalletTheme.colors.foreground30
           }
           AnnotatedString(secondaryText, SpanStyle(color = textColor))
+        },
+      secondaryTextType =
+        when (model.treatment) {
+          SECONDARY_DISPLAY -> LabelType.Body1Regular
+          else -> LabelType.Body3Regular
         },
       sideText = sideTextValue,
       secondarySideText = secondarySideTextValue,
@@ -209,6 +201,7 @@ fun ListItem(
   titleType: LabelType = LabelType.Body2Medium,
   listItemTitleBackgroundTreatment: ListItemTitleBackgroundTreatment? = null,
   secondaryText: AnnotatedString? = null,
+  secondaryTextType: LabelType = LabelType.Body3Regular,
   sideText: AnnotatedString? = null,
   secondarySideText: AnnotatedString? = null,
   leadingAccessory: ListItemAccessory? = null,
@@ -270,7 +263,7 @@ fun ListItem(
         {
           Label(
             text = secondaryText,
-            type = LabelType.Body3Regular
+            type = secondaryTextType
           )
         }
       },
@@ -412,6 +405,32 @@ private fun ListItem(
     }
   }
 }
+
+@Composable
+private fun ListItemModel.sideText(): AnnotatedString? =
+  sideText?.let { sideText ->
+    val textColor = when (sideTextTint) {
+      ListItemSideTextTint.PRIMARY -> when (enabled) {
+        true -> WalletTheme.colors.foreground
+        false -> WalletTheme.colors.foreground30
+      }
+
+      ListItemSideTextTint.SECONDARY -> WalletTheme.colors.foreground60
+
+      ListItemSideTextTint.GREEN -> WalletTheme.colors.positiveForeground
+    }
+    AnnotatedString(sideText, SpanStyle(color = textColor))
+  }
+
+@Composable
+private fun ListItemModel.secondarySideText(): AnnotatedString? =
+  secondarySideText?.let { secondarySideText ->
+    val textColor = when (enabled) {
+      true -> WalletTheme.colors.foreground60
+      false -> WalletTheme.colors.foreground30
+    }
+    AnnotatedString(secondarySideText, SpanStyle(color = textColor))
+  }
 
 @Preview
 @Composable
@@ -673,7 +692,7 @@ internal fun ListItemRecoveryCode() {
       model =
         ListItemModel(
           title = "1234-ABCD-EF",
-          treatment = JUMBO,
+          treatment = PRIMARY_TITLE,
           listItemTitleBackgroundTreatment = ListItemTitleBackgroundTreatment.RECOVERY
         )
     )

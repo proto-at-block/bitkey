@@ -49,6 +49,8 @@ enum class Icon {
   SmallIconCaretRight,
   SmallIconCaretUp,
   SmallIconCheck,
+  SmallIconCheckbox,
+  SmallIconCheckboxSelected,
   SmallIconCheckFilled,
   SmallIconCheckStroked,
   SmallIconCircleStroked,
@@ -107,6 +109,8 @@ enum class Icon {
   SmallIconX,
   SmallIconXFilled,
   SmallIconXStroked,
+  SubtractLeft,
+  SubtractRight,
   TabIconHome,
   TabIconProfile,
 }

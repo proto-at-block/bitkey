@@ -47,6 +47,8 @@ import build.wallet.statemachine.core.Icon.SmallIconCaretUp
 import build.wallet.statemachine.core.Icon.SmallIconCheck
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
+import build.wallet.statemachine.core.Icon.SmallIconCheckbox
+import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
 import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
@@ -103,6 +105,8 @@ import build.wallet.statemachine.core.Icon.SmallIconWarningFilled
 import build.wallet.statemachine.core.Icon.SmallIconX
 import build.wallet.statemachine.core.Icon.SmallIconXFilled
 import build.wallet.statemachine.core.Icon.SmallIconXStroked
+import build.wallet.statemachine.core.Icon.SubtractLeft
+import build.wallet.statemachine.core.Icon.SubtractRight
 import build.wallet.statemachine.core.Icon.TabIconHome
 import build.wallet.statemachine.core.Icon.TabIconProfile
 
@@ -150,6 +154,8 @@ private val Icon.drawableRes
       SmallIconCaretRight -> R.drawable.small_icon_caret_right
       SmallIconCaretUp -> R.drawable.small_icon_caret_up
       SmallIconCheck -> R.drawable.small_icon_check
+      SmallIconCheckbox -> R.drawable.small_icon_checkbox
+      SmallIconCheckboxSelected -> R.drawable.small_icon_checkbox_selected
       SmallIconCheckFilled -> R.drawable.small_icon_check_filled
       SmallIconCheckStroked -> R.drawable.small_icon_check_stroked
       SmallIconCircleStroked -> R.drawable.small_icon_circle_stroked
@@ -208,6 +214,8 @@ private val Icon.drawableRes
       SmallIconX -> R.drawable.small_icon_x
       SmallIconXFilled -> R.drawable.small_icon_xfilled
       SmallIconXStroked -> R.drawable.small_icon_xstroked
+      SubtractLeft -> R.drawable.subtract_left
+      SubtractRight -> R.drawable.subtract_right
       TabIconHome -> R.drawable.tab_icon_home
       TabIconProfile -> R.drawable.tab_icon_profile
     }

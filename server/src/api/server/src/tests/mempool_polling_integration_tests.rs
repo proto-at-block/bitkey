@@ -1,13 +1,19 @@
-use crate::tests::{
-    gen_services,
-    lib::{create_account, create_default_account_with_predefined_wallet},
-    requests::{axum::TestClient, worker::TestWorker},
+use crate::{
+    tests::{
+        gen_services_with_overrides,
+        lib::{create_account, create_default_account_with_predefined_wallet},
+        requests::{axum::TestClient, worker::TestWorker},
+    },
+    GenServiceOverrides,
 };
 use account::entities::FullAccount;
 use account::{entities::TouchpointPlatform, service::AddPushTouchpointToAccountInput};
-use bdk_utils::bdk::bitcoin::Txid;
+use bdk_utils::bdk::bitcoin::{Network, Txid};
 use httpmock::prelude::*;
-use mempool_indexer::service::Service as MempoolIndexerService;
+use mempool_indexer::{
+    entities::{TransactionRecord, TransactionVout},
+    service::Service as MempoolIndexerService,
+};
 use notification::address_repo::AddressAndKeysetId;
 use notification::service::FetchForAccountInput;
 use notification::service::Service as NotificationService;
@@ -17,6 +23,7 @@ use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
 };
+use time::{Duration, OffsetDateTime};
 use types::{
     account::identifiers::{AccountId, KeysetId},
     notification::{NotificationChannel, NotificationsPreferences},
@@ -84,10 +91,13 @@ async fn assert_indexer_recorded_ids_includes(
 #[tokio::test]
 async fn test_init_mempool_received_pending_payment() {
     let (mock_server, account, worker, notification_service, indexer_service) =
-        setup_full_accounts_and_server(vec![
-            "tb1qtssct2napwu7n8djqkhpzserhdjhfqujv2jv8fp4wz6dzwzrhghshckgeu",
-            "tb1qke2zj0a25exlkvrdzku2und773uzzu4lak6enlmgtp2xw8umvhqqrz5pct",
-        ])
+        setup_full_accounts_and_server(
+            vec![
+                "tb1qtssct2napwu7n8djqkhpzserhdjhfqujv2jv8fp4wz6dzwzrhghshckgeu",
+                "tb1qke2zj0a25exlkvrdzku2und773uzzu4lak6enlmgtp2xw8umvhqqrz5pct",
+            ],
+            true,
+        )
         .await;
 
     // Mempool only has one transaction addressed to customer
@@ -171,14 +181,19 @@ async fn test_init_mempool_received_pending_payment() {
         ],
     )
     .await;
+    assert_ne!(
+        indexer_service.get_last_refreshed_recorded_txids().await,
+        OffsetDateTime::UNIX_EPOCH
+    );
 }
 
 #[tokio::test]
 async fn test_duplicates_in_mempool() {
     let (mock_server, account, worker, notification_service, indexer_service) =
-        setup_full_accounts_and_server(vec![
-            "tb1qkrw4dts90c7udh843r4qupq6helf8g7362dxtlkmv0lcv7ajr58qtqpefp",
-        ])
+        setup_full_accounts_and_server(
+            vec!["tb1qkrw4dts90c7udh843r4qupq6helf8g7362dxtlkmv0lcv7ajr58qtqpefp"],
+            true,
+        )
         .await;
 
     run_and_test_mempool_polling(MempoolPollingMockData {
@@ -221,9 +236,10 @@ async fn test_duplicates_in_mempool() {
 #[tokio::test]
 async fn test_tx_not_available_with_txid_in_mempool() {
     let (mock_server, account, worker, notification_service, indexer_service) =
-        setup_full_accounts_and_server(vec![
-            "tb1qtp00ma7wrq46ceeuwcapjayyq9s5ahnpw7qpvl25yp644lzd0fsq3aphsj",
-        ])
+        setup_full_accounts_and_server(
+            vec!["tb1qtp00ma7wrq46ceeuwcapjayyq9s5ahnpw7qpvl25yp644lzd0fsq3aphsj"],
+            true,
+        )
         .await;
 
     // The transaction is in the mempool but not available to fetch
@@ -259,8 +275,124 @@ async fn test_tx_not_available_with_txid_in_mempool() {
     .await;
 }
 
+#[tokio::test]
+async fn test_disabled_feature_flag() {
+    let (mock_server, account, worker, notification_service, indexer_service) =
+        setup_full_accounts_and_server(
+            vec!["tb1ql32k6py6h4ywswwelkpxk8ajyd2xkdk63tfzct6fyvf28uudxahqreyd44"],
+            false,
+        )
+        .await;
+
+    // The transaction is in the mempool but not available to fetch
+    run_and_test_mempool_polling(MempoolPollingMockData {
+        mock_server: &mock_server,
+        worker: &worker,
+        current_mempool_txids: vec![
+            "1ffc03e12d9bb95be58154ddef1de3776a8c33f31d34d5572210df38edd6a156",
+        ],
+        all_txids: vec!["1ffc03e12d9bb95be58154ddef1de3776a8c33f31d34d5572210df38edd6a156"],
+        expected_tx_hits: vec!["1ffc03e12d9bb95be58154ddef1de3776a8c33f31d34d5572210df38edd6a156"],
+    })
+    .await;
+    // The account should not receive any pending payment notifications
+    test_queue_message(&notification_service, &account.id, 0).await;
+    assert_indexer_recorded_ids_includes(
+        &indexer_service,
+        vec!["1ffc03e12d9bb95be58154ddef1de3776a8c33f31d34d5572210df38edd6a156"],
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_update_expiry_for_mempool_tx_record() {
+    let (mock_server, account, worker, notification_service, indexer_service) =
+        setup_full_accounts_and_server(vec!["tb1q3fd3hf4ccfa0qsne3hcj3k7h6272sg00g4458q"], false)
+            .await;
+
+    let network = Network::Signet;
+    let non_expiring_record = TransactionRecord {
+        txid: "2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"
+            .parse()
+            .unwrap(),
+        received: vec![TransactionVout {
+            value: 9843,
+            scriptpubkey_address: Some("tb1q3fd3hf4ccfa0qsne3hcj3k7h6272sg00g4458q".to_string()),
+        }],
+        fee_rate: 1.01,
+        first_seen: OffsetDateTime::now_utc() - Duration::hours(48) + Duration::minutes(2),
+        network,
+        expiring_at: OffsetDateTime::now_utc() + Duration::days(2),
+    };
+    let expired_record = TransactionRecord {
+        expiring_at: OffsetDateTime::now_utc() + Duration::minutes(2),
+        ..non_expiring_record.clone()
+    };
+
+    // Persisting a non-expiring tx and calling mempool should not do anything to that tx
+    indexer_service
+        .repo
+        .persist_batch(&vec![non_expiring_record])
+        .await
+        .expect("Persisted the transaction record successfully");
+    assert_eq!(
+        indexer_service
+            .repo
+            .fetch_expiring_transactions(network)
+            .await
+            .expect("Failed to get expiring transactions")
+            .len(),
+        0
+    );
+
+    indexer_service
+        .repo
+        .persist_batch(&vec![expired_record])
+        .await
+        .expect("Persisted the transaction record successfully");
+    assert_eq!(
+        indexer_service
+            .repo
+            .fetch_expiring_transactions(network)
+            .await
+            .expect("Failed to get expiring transactions")
+            .len(),
+        1
+    );
+
+    // Now this should update the expiry
+    run_and_test_mempool_polling(MempoolPollingMockData {
+        mock_server: &mock_server,
+        worker: &worker,
+        current_mempool_txids: vec![
+            "2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca",
+        ],
+        all_txids: vec!["2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"],
+        expected_tx_hits: vec![],
+    })
+    .await;
+    // The account should not receive any pending payment notifications
+    test_queue_message(&notification_service, &account.id, 0).await;
+    assert_indexer_recorded_ids_includes(
+        &indexer_service,
+        vec!["2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"],
+    )
+    .await;
+    assert_eq!(
+        indexer_service
+            .repo
+            .fetch_expiring_transactions(network)
+            .await
+            .expect("Failed to get expiring transactions")
+            .len(),
+        0
+    );
+    assert_eq!(indexer_service.get_fetched_mempool_txids().await.len(), 1);
+}
+
 async fn setup_full_accounts_and_server(
     addresses: Vec<&str>,
+    override_mempool_unconfirmed_tx_flag: bool,
 ) -> (
     MockServer,
     FullAccount,
@@ -269,7 +401,18 @@ async fn setup_full_accounts_and_server(
     MempoolIndexerService,
 ) {
     let mock_server = MockServer::start();
-    let (mut context, bootstrap) = gen_services().await;
+    let feature_flag_override = if override_mempool_unconfirmed_tx_flag {
+        vec![(
+            "f8e-mempool-unconfirmed-tx-push-notification".to_owned(),
+            "true".to_owned(),
+        )]
+    } else {
+        vec![]
+    }
+    .into_iter()
+    .collect::<HashMap<String, String>>();
+    let overrides = GenServiceOverrides::new().feature_flags(feature_flag_override);
+    let (mut context, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router.clone()).await;
     let (account_with_payment, _) =
         create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)

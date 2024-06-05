@@ -1,5 +1,7 @@
 package build.wallet.inappsecurity
 
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.v1.Action
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbError
 import build.wallet.logging.logFailure
@@ -9,11 +11,13 @@ import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class BiometricPreferenceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
+  private val eventTracker: EventTracker,
 ) : BiometricPreference {
   private val db by lazy {
     databaseProvider.database()
@@ -32,6 +36,13 @@ class BiometricPreferenceImpl(
       .awaitTransactionWithResult {
         setBiometricPreference(enabled)
       }
+      .onSuccess {
+        if (enabled) {
+          eventTracker.track(Action.ACTION_APP_BIOMETRICS_ENABLED)
+        } else {
+          eventTracker.track(Action.ACTION_APP_BIOMETRICS_DISABLED)
+        }
+      }
   }
 
   override fun isEnabled(): Flow<Boolean> {
@@ -39,5 +50,12 @@ class BiometricPreferenceImpl(
       .getBiometricPeference()
       .asFlowOfOneOrNull()
       .map { it.get()?.enabled ?: false }
+  }
+
+  override suspend fun clear(): Result<Unit, DbError> {
+    return db.biometricPreferenceQueries
+      .awaitTransactionWithResult {
+        clear()
+      }
   }
 }

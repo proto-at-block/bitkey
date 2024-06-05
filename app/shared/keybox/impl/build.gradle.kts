@@ -29,6 +29,7 @@ kotlin {
         implementation(projects.shared.keyValueStorePublic)
         implementation(projects.shared.recoveryPublic)
         implementation(libs.kmp.settings)
+        implementation(projects.shared.inAppSecurityPublic)
       }
     }
 
@@ -53,6 +54,7 @@ kotlin {
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.availabilityImpl)
+        implementation(projects.shared.inAppSecurityFake)
       }
     }
 

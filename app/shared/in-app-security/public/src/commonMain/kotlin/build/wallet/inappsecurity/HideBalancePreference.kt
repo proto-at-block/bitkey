@@ -22,4 +22,9 @@ interface HideBalancePreference {
    * Update the current value of the preference
    */
   suspend fun set(enabled: Boolean): Result<Unit, DbError>
+
+  /**
+   * Clear the value of the preference
+   */
+  suspend fun clear(): Result<Unit, DbError>
 }

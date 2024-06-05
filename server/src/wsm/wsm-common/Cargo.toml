@@ -7,6 +7,6 @@ version = "0.1.0"
 [dependencies]
 base64 = { workspace = true }
 bitcoin = { version = "0.30", features = ["serde"] }
-const_format = "0.2.32"
+once_cell = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

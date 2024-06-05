@@ -10,7 +10,7 @@ use super::Repository;
 
 impl Repository {
     #[instrument(skip(self))]
-    pub(crate) async fn persist_batch(
+    pub async fn persist_batch(
         &self,
         records: &Vec<TransactionRecord>,
     ) -> Result<(), DatabaseError> {

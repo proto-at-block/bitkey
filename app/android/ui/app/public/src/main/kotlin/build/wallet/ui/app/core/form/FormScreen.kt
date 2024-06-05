@@ -40,6 +40,7 @@ fun FormScreen(
   fullHeight: Boolean = true,
   horizontalPadding: Int = 20,
   headerToMainContentSpacing: Int = 16,
+  background: Color = WalletTheme.colors.background,
   toolbarContent: @Composable (() -> Unit)? = null,
   headerContent: @Composable (() -> Unit)? = null,
   mainContent: @Composable (ColumnScope.() -> Unit)? = null,
@@ -52,7 +53,7 @@ fun FormScreen(
   Column(
     modifier =
       modifier
-        .background(WalletTheme.colors.background)
+        .background(background)
         .padding(horizontal = horizontalPadding.dp)
         .imePadding()
         .thenIf(fullHeight) {

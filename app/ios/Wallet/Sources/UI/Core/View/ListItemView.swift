@@ -87,6 +87,7 @@ struct ListItemContentView: View {
                             titleFont: viewModel.titleFont,
                             subtitle: viewModel.secondaryText,
                             subtitleColor: viewModel.subtitleColor,
+                            subtitleFont: viewModel.subtitleFont,
                             enabled: viewModel.enabled
                         )
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -187,6 +188,7 @@ private struct TitleSubtitleView: View {
     var titleFont: FontTheme = FontTheme.body2Medium
     var subtitle: String?
     var subtitleColor: Color = .foreground60
+    var subtitleFont: FontTheme = .body3Regular
     var enabled: Bool
     var hideContent: Bool = false
 
@@ -207,7 +209,7 @@ private struct TitleSubtitleView: View {
                 ModeledText(
                     model: .standard(
                         subtitle,
-                        font: .body3Regular,
+                        font: subtitleFont,
                         textAlignment: alignment,
                         textColor: subtitleColor
                     )
@@ -262,11 +264,22 @@ private extension Shared.ListItemModel {
             return FontTheme.body2Regular
         case .tertiary:
             return FontTheme.body3Regular
-        case .jumbo:
+        case .primaryTitle:
             return FontTheme.title1
+        case .secondaryDisplay:
+            return FontTheme.display2
         default:
             return FontTheme.body2Medium
 
+        }
+    }
+
+    var subtitleFont: FontTheme {
+        switch treatment {
+        case .secondaryDisplay:
+            return .body1Regular
+        default:
+            return .body3Regular
         }
     }
 
@@ -411,7 +424,7 @@ struct ListItemView_Preview: PreviewProvider {
                         leadingAccessory: nil,
                         trailingAccessory: nil,
                         specialTrailingAccessory: nil,
-                        treatment: .jumbo,
+                        treatment: .primaryTitle,
                         sideTextTint: .primary,
                         enabled: true,
                         selected: false,

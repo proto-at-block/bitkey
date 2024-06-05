@@ -26,6 +26,11 @@ interface SpendingWallet : WatchingWallet {
    */
   suspend fun createSignedPsbt(constructionType: PsbtConstructionMethod): Result<Psbt, Throwable>
 
+  /**
+   * Checks if the balance is spendable.
+   */
+  suspend fun isBalanceSpendable(): Result<Boolean, Error>
+
   /*
    * Enum class representing the different ways to construct PSBTs with BDK.
    */

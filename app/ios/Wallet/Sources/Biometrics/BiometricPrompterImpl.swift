@@ -4,6 +4,7 @@ import Shared
 // MARK: -
 
 public final class BiometricPrompterImpl: BiometricPrompter {
+    public var isPrompting: Bool = false
     
     public func biometricsAvailability() -> BiometricsResult<KotlinBoolean> {
         let context = LAContext()
@@ -29,11 +30,13 @@ public final class BiometricPrompterImpl: BiometricPrompter {
     }
     
     public func enrollBiometrics(completionHandler: @escaping (BiometricsResult<KotlinUnit>?, Error?) -> Void) {
+        isPrompting = true
         let context = LAContext()
         context.evaluatePolicy(
             .deviceOwnerAuthenticationWithBiometrics,
             localizedReason: "To use secure features",
             reply: { success, authenticationError in
+                self.isPrompting = false
                 if (success) {
                     completionHandler(BiometricsResultOk(value: KotlinUnit()), nil)
                 } else {
@@ -57,7 +60,20 @@ public final class BiometricPrompterImpl: BiometricPrompter {
         )
     }
     
-    public func promptForAuth() {
-        
+    public func promptForAuth(completionHandler: @escaping (BiometricsResult<KotlinUnit>?, Error?) -> Void) {
+        isPrompting = true
+        let context = LAContext()
+        context.evaluatePolicy(
+            .deviceOwnerAuthenticationWithBiometrics,
+            localizedReason: "To use secure features",
+            reply: { success, authenticationError in
+                self.isPrompting = false
+                if (success) {
+                    completionHandler(BiometricsResultOk(value: KotlinUnit()), nil)
+                } else {
+                    completionHandler(BiometricsResultErr(error: BiometricError.AuthenticationFailed()), nil)
+                }
+            }
+        )
     }
 }

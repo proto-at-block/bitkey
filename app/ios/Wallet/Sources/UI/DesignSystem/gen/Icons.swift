@@ -43,6 +43,8 @@ public extension UIImage {
   static let smallIconCaretRight = UIImage(named: "SmallIconCaretRight", in: .main, compatibleWith: nil)!
   static let smallIconCaretUp = UIImage(named: "SmallIconCaretUp", in: .main, compatibleWith: nil)!
   static let smallIconCheck = UIImage(named: "SmallIconCheck", in: .main, compatibleWith: nil)!
+  static let smallIconCheckbox = UIImage(named: "SmallIconCheckbox", in: .main, compatibleWith: nil)!
+  static let smallIconCheckboxSelected = UIImage(named: "SmallIconCheckboxSelected", in: .main, compatibleWith: nil)!
   static let smallIconCheckFilled = UIImage(named: "SmallIconCheckFilled", in: .main, compatibleWith: nil)!
   static let smallIconCheckStroked = UIImage(named: "SmallIconCheckStroked", in: .main, compatibleWith: nil)!
   static let smallIconCircleStroked = UIImage(named: "SmallIconCircleStroked", in: .main, compatibleWith: nil)!
@@ -101,6 +103,8 @@ public extension UIImage {
   static let smallIconX = UIImage(named: "SmallIconX", in: .main, compatibleWith: nil)!
   static let smallIconXFilled = UIImage(named: "SmallIconXFilled", in: .main, compatibleWith: nil)!
   static let smallIconXStroked = UIImage(named: "SmallIconXStroked", in: .main, compatibleWith: nil)!
+  static let subtractLeft = UIImage(named: "SubtractLeft", in: .main, compatibleWith: nil)!
+  static let subtractRight = UIImage(named: "SubtractRight", in: .main, compatibleWith: nil)!
   static let tabIconHome = UIImage(named: "TabIconHome", in: .main, compatibleWith: nil)!
   static let tabIconProfile = UIImage(named: "TabIconProfile", in: .main, compatibleWith: nil)!
 }
@@ -148,6 +152,8 @@ public extension Icon {
         case .smalliconcaretright: return .smallIconCaretRight
         case .smalliconcaretup: return .smallIconCaretUp
         case .smalliconcheck: return .smallIconCheck
+        case .smalliconcheckbox: return .smallIconCheckbox
+        case .smalliconcheckboxselected: return .smallIconCheckboxSelected
         case .smalliconcheckfilled: return .smallIconCheckFilled
         case .smalliconcheckstroked: return .smallIconCheckStroked
         case .smalliconcirclestroked: return .smallIconCircleStroked
@@ -206,6 +212,8 @@ public extension Icon {
         case .smalliconx: return .smallIconX
         case .smalliconxfilled: return .smallIconXFilled
         case .smalliconxstroked: return .smallIconXStroked
+        case .subtractleft: return .subtractLeft
+        case .subtractright: return .subtractRight
         case .tabiconhome: return .tabIconHome
         case .tabiconprofile: return .tabIconProfile
         default: fatalError("Unimplemented shared icon: \(self)")

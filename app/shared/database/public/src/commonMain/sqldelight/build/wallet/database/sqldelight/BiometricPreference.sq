@@ -13,3 +13,6 @@ VALUES(0, ?);
 getBiometricPeference:
 SELECT * FROM biometricPreferenceEntity
 WHERE rowId = 0;
+
+clear:
+DELETE FROM biometricPreferenceEntity;

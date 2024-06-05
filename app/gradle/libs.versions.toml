@@ -80,7 +80,7 @@ kmp-crashkios-bugsnag = { module = "co.touchlab.crashkios:bugsnag", version.ref 
 kmp-compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "kmp-compose-runtime" }
 kmp-kermit = { module = "co.touchlab:kermit", version.ref = "kmp-kermit" }
 kmp-kotlin-annotations = { module = "org.jetbrains:annotations", version = "24.1.0" }
-kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.21.0" }
+kmp-kotlin-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version = "0.23.2" }
 kmp-kermit-bugsnag = { module = "co.touchlab:kermit-bugsnag", version.ref = "kmp-kermit" }
 kmp-kotlin-codepoints = { module = "de.cketti.unicode:kotlin-codepoints-deluxe", version = "0.6.1" }
 kmp-kotlin-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collections-immutable", version =  "0.3.7" }

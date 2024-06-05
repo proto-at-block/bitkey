@@ -33,7 +33,8 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onManageReplacement = {},
             multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
-            onManageFingerprints = {}
+            onManageFingerprints = {},
+            onResetDevice = {}
           )
       )
     }
@@ -62,7 +63,8 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onManageReplacement = {},
             multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
-            onManageFingerprints = {}
+            onManageFingerprints = {},
+            onResetDevice = {}
           )
       )
     }
@@ -91,7 +93,8 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onManageReplacement = {},
             multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
-            onManageFingerprints = {}
+            onManageFingerprints = {},
+            onResetDevice = {}
           )
       )
     }
@@ -120,7 +123,8 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onManageReplacement = {},
             multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
-            onManageFingerprints = {}
+            onManageFingerprints = {},
+            onResetDevice = {}
           )
       )
     }
@@ -149,7 +153,8 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onManageReplacement = {},
             multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
-            onManageFingerprints = {}
+            onManageFingerprints = {},
+            onResetDevice = {}
           )
       )
     }

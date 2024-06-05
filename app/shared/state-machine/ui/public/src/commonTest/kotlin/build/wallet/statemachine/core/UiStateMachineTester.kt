@@ -90,3 +90,25 @@ suspend inline fun <reified T : Model> ReceiveTurbine<SheetModel>.awaitSheetWith
     }
   }
 }
+
+suspend inline fun <reified T : BodyModel> ReceiveTurbine<ScreenModel>.awaitScreenWithSheetModelBody(
+  id: EventTrackerScreenId? = null,
+  block: T.() -> Unit = {},
+) {
+  awaitItem().bottomSheetModel?.asClue { sheetModel ->
+    sheetModel.body.shouldBeInstanceOf<T>()
+
+    sheetModel.body.shouldNotBeInstanceOf<BodyModelMock<*>>()
+
+    if (id != null) {
+      sheetModel.body.eventTrackerScreenInfo
+        .shouldNotBeNull()
+        .eventTrackerScreenId
+        .shouldBe(id)
+    }
+
+    assertSoftly {
+      block(sheetModel.body as T)
+    }
+  }
+}
