@@ -12,7 +12,7 @@ public final class TeltraImpl: Shared.Teltra {
     ) -> [[KotlinUByte]] {
         do {
             return try firmware.Teltra().translateBitlogs(
-                bitlogBytes: bitlogs.map { $0.uint8Value },
+                bitlogBytes: bitlogs.map(\.uint8Value),
                 identifiers: firmware.TelemetryIdentifiers(
                     serial: identifiers.serial,
                     version: identifiers.version,

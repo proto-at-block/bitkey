@@ -8,7 +8,7 @@ RUN apt update
 RUN apt install -y git=1:2.34.1-1ubuntu1.11
 RUN apt install -y build-essential=12.9ubuntu3
 RUN apt install -y libclang1=1:14.0-55~exp2
-RUN apt install -y openjdk-17-jdk=17.0.10+7-1~22.04.1
+RUN apt install -y openjdk-17-jdk=17.0.11+9-1~22.04.1
 RUN apt install -y curl=7.81.0-1ubuntu1.16
 RUN apt install -y sdkmanager=0.5.1-1
 

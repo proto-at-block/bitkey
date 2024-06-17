@@ -8,7 +8,7 @@ import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError.NoRecoveryInP
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 
@@ -18,7 +18,7 @@ class RecoveryAppAuthPublicKeyProviderImpl(
   override suspend fun getAppPublicKeyForInProgressRecovery(
     scope: AuthTokenScope,
   ): Result<PublicKey<out AppAuthKey>, RecoveryAppAuthPublicKeyProviderError> {
-    return binding {
+    return coroutineBinding {
       // Get the recovery status from the Dao
       val recovery =
         recoveryDao.activeRecovery().first()
@@ -33,6 +33,7 @@ class RecoveryAppAuthPublicKeyProviderImpl(
             AuthTokenScope.Recovery -> Ok(recovery.appRecoveryAuthKey)
           }
         }
+
         else -> Err(NoRecoveryInProgress)
       }.bind()
     }

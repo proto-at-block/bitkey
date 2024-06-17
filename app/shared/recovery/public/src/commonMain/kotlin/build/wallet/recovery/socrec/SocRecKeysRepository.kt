@@ -5,7 +5,7 @@ import build.wallet.bitkey.socrec.SocRecKey
 import build.wallet.crypto.CurveType
 import build.wallet.crypto.PublicKey
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +25,7 @@ class SocRecKeysRepository(
   suspend fun <T> getOrCreateKey(
     keyClass: KClass<T>,
   ): Result<PublicKey<T>, SocRecKeyError> where T : SocRecKey, T : CurveType.Curve25519 =
-    binding {
+    coroutineBinding {
       socRecKeysDao.getPublicKey(keyClass)
         .recoverIf({ it is SocRecKeyError.NoKeyAvailable }) {
           withContext(Dispatchers.Default) {
@@ -50,7 +50,7 @@ class SocRecKeysRepository(
   suspend fun <T> getKeyWithPrivateMaterialOrCreate(
     keyClass: KClass<T>,
   ): Result<AppKey<T>, SocRecKeyError> where T : SocRecKey, T : CurveType.Curve25519 =
-    binding {
+    coroutineBinding {
       socRecKeysDao.getKeyWithPrivateMaterial(keyClass)
         .recoverIf({ it is SocRecKeyError.NoKeyAvailable }) {
           withContext(Dispatchers.Default) {

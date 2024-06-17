@@ -2,11 +2,11 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines-jvm",
     "components": [
         {
-            "version": "1.1.18",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines-jvm-1.1.18.jar": "8fc8b306e238959340c9cf777549ecfe4d253a7b9afac724e668f28f454bb613"
+                        "kotlin-result-coroutines-jvm-2.0.0.jar": "b39426218673e669b62216fc7dff952d64f85976c6ddf0e0468b9ede61e9e422"
                     }
                 }
             ],

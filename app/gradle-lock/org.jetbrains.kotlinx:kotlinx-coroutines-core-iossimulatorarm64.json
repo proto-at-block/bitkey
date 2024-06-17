@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-core-iossimulatorarm64",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-core-iossimulatorarm64-1.8.0-metadata.jar": "98bd7cbc4068db77b41743e095d5d9159bdfdb5bcc93932400cae3cd2cb46b33"
+                        "kotlinx-coroutines-core-iossimulatorarm64-1.8.1-metadata.jar": "97528e61f5b97f852e7e862a8d0f669117e3953f56fd361253e33084ac8fb1b3"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-core.klib": "cd9d4282b16a8b486c9b294a4f330b24fc9fb1b7ed8edecfb46a846725667131"
+                        "kotlinx-coroutines-core.klib": "e7e0719a5f470e8c45708070ff8a55ea5ea2a1c08b2251e43a06ddbd88d7fd10"
                     }
                 }
             ],

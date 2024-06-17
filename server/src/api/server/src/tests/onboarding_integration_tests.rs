@@ -1600,7 +1600,12 @@ async fn test_revoked_access_token_add_push_touchpoint() {
     bootstrap
         .services
         .userpool_service
-        .rotate_account_auth_keys(&account_id, create_pubkey(), create_pubkey(), None)
+        .rotate_account_auth_keys(
+            &account_id,
+            Some(create_pubkey()),
+            Some(create_pubkey()),
+            None,
+        )
         .await
         .unwrap();
 

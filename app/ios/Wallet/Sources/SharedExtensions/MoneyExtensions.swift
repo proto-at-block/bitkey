@@ -2,17 +2,17 @@ import Shared
 
 // MARK: -
 
-extension Money {
+public extension Money {
 
-    public static func >(lhs: Money, rhs: Money) -> Bool {
+    static func > (lhs: Money, rhs: Money) -> Bool {
         return lhs.compareTo(other_: rhs) > 0
     }
 
-    public static func ==(lhs: Money, rhs: Money) -> Bool {
+    static func == (lhs: Money, rhs: Money) -> Bool {
         return lhs.compareTo(other_: rhs) == 0
     }
 
-    public static func <(lhs: Money, rhs: Money) -> Bool {
+    static func < (lhs: Money, rhs: Money) -> Bool {
         return lhs.compareTo(other_: rhs) < 0
     }
 
@@ -20,12 +20,12 @@ extension Money {
 
 // MARK: -
 
-extension FiatCurrency {
-    public static let usd = CurrencyDefinitionsKt.USD
-    public static let gbp = CurrencyDefinitionsKt.GBP
-    public static let eur = CurrencyDefinitionsKt.EUR
+public extension FiatCurrency {
+    static let usd = CurrencyDefinitionsKt.USD
+    static let gbp = CurrencyDefinitionsKt.GBP
+    static let eur = CurrencyDefinitionsKt.EUR
 }
 
-extension CryptoCurrency {
-    public static let btc = CurrencyDefinitionsKt.BTC
+public extension CryptoCurrency {
+    static let btc = CurrencyDefinitionsKt.BTC
 }

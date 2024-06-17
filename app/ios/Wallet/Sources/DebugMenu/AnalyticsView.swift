@@ -3,7 +3,9 @@ import SwiftUI
 
 // MARK: -
 
-public class AnalyticsViewController: UIHostingController<AnalyticsView>, ModelRepresentableViewController {
+public class AnalyticsViewController: UIHostingController<AnalyticsView>,
+    ModelRepresentableViewController
+{
 
     // MARK: - Life Cycle
 
@@ -11,7 +13,8 @@ public class AnalyticsViewController: UIHostingController<AnalyticsView>, ModelR
         super.init(rootView: AnalyticsView(viewModel: viewModel))
     }
 
-    required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -45,7 +48,10 @@ public struct AnalyticsView: View {
         NavigationView {
             List {
                 Section {
-                    ForEach(Array(zip(viewModel.events.indices, viewModel.events)), id: \.0) { _, eventModel in
+                    ForEach(
+                        Array(zip(viewModel.events.indices, viewModel.events)),
+                        id: \.0
+                    ) { _, eventModel in
                         ListItemView(viewModel: eventModel)
                     }
                 } header: {
@@ -79,7 +85,10 @@ public struct AnalyticsView: View {
                                 titleLabel: nil
                             )
                         )
-                        ButtonView(model: .tertiaryDestructive(text: "Clear events", onClick: viewModel.onClear))
+                        ButtonView(model: .tertiaryDestructive(
+                            text: "Clear events",
+                            onClick: viewModel.onClear
+                        ))
                     }
                 }
             }

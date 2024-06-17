@@ -2,23 +2,23 @@ import Shared
 import SwiftUI
 
 struct TextInputView: View {
-    
+
     // MARK: - Private Types
-    
+
     private enum FocusedField {
         case text
     }
-    
+
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelTextInput
+    private let viewModel: FormMainContentModel.TextInput
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelTextInput) {
+    init(viewModel: FormMainContentModel.TextInput) {
         self.viewModel = viewModel
     }
-    
+
     @FocusState
     private var focusedField: FocusedField?
 
@@ -29,11 +29,11 @@ struct TextInputView: View {
             if let title = viewModel.title {
                 ModeledText(model: .standard(title, font: .title2))
             }
-            
+
             TextFieldView(viewModel: viewModel.fieldModel)
                 .focused($focusedField, equals: .text)
                 .onAppear {
-                    if (viewModel.fieldModel.focusByDefault) {
+                    if viewModel.fieldModel.focusByDefault {
                         focusedField = .text
                     }
                 }

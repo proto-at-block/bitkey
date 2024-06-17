@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-core",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-core-metadata-1.8.0.jar": "20aa434b6a930ea66d2e61b00deefae09fea3d32f9640d2e0c271312880e0add"
+                        "kotlinx-coroutines-core-metadata-1.8.1.jar": "daf50f1c9404b224a1d6dd5286f8e8ee7d63fe807f78ea98f71795c183b6025f"
                     }
                 }
             ],

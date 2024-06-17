@@ -7,8 +7,8 @@ import build.wallet.bitkey.keybox.WithAppKeysAndHardwareKeysMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.error.F8eError
-import build.wallet.f8e.onboarding.UpgradeAccountService
-import build.wallet.f8e.onboarding.UpgradeAccountServiceMock
+import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
+import build.wallet.f8e.onboarding.UpgradeAccountF8eClientMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.notifications.DeviceTokenManagerError
 import build.wallet.notifications.DeviceTokenManagerMock
@@ -28,7 +28,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
   val authTokenDao = AuthTokenDaoMock(turbines::create)
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create, defaultOnboardingKeybox = null)
-  val upgradeAccountService = UpgradeAccountServiceMock(turbines::create)
+  val upgradeAccountF8eClient = UpgradeAccountF8eClientMock(turbines::create)
 
   val upgrader =
     LiteToFullAccountUpgraderImpl(
@@ -36,7 +36,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
       authTokenDao = authTokenDao,
       deviceTokenManager = deviceTokenManager,
       keyboxDao = keyboxDao,
-      upgradeAccountService = upgradeAccountService,
+      upgradeAccountF8eClient = upgradeAccountF8eClient,
       uuidGenerator = UuidGeneratorFake()
     )
 
@@ -45,7 +45,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     authTokenDao.reset()
     deviceTokenManager.reset()
     keyboxDao.reset()
-    upgradeAccountService.reset()
+    upgradeAccountF8eClient.reset()
   }
 
   test("Happy path") {
@@ -54,9 +54,9 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     val liteAccount = LiteAccountMock.copy(
       recoveryAuthKey = PublicKey("other-app-recovery-auth-dpub")
     )
-    upgradeAccountService.upgradeAccountResult =
+    upgradeAccountF8eClient.upgradeAccountResult =
       Ok(
-        UpgradeAccountService.Success(
+        UpgradeAccountF8eClient.Success(
           KeyboxMock.activeSpendingKeyset.f8eSpendingKeyset,
           FullAccountId(liteAccount.accountId.serverId)
         )
@@ -68,7 +68,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     fullAccount.accountId.serverId.shouldBe(liteAccount.accountId.serverId)
     fullAccount.keybox.activeAppKeyBundle.recoveryAuthKey.shouldBe(liteAccount.recoveryAuthKey)
 
-    upgradeAccountService.upgradeAccountCalls.awaitItem()
+    upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
 
     accountAuthorizer.authCalls.awaitItem()
       .shouldBe(keys.appKeyBundle.authKey)
@@ -81,12 +81,12 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     keyboxDao.onboardingKeybox.value.shouldBeOk(fullAccount.keybox)
   }
 
-  test("UpgradeAccountService failure binds") {
-    upgradeAccountService.upgradeAccountResult = Err(F8eError.UnhandledError(Error()))
+  test("UpgradeAccountF8eClient failure binds") {
+    upgradeAccountF8eClient.upgradeAccountResult = Err(F8eError.UnhandledError(Error()))
     upgrader.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)
       .shouldBeErrOfType<AccountCreationError.AccountCreationF8eError>()
 
-    upgradeAccountService.upgradeAccountCalls.awaitItem()
+    upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
   }
 
   test("AccountAuthenticator failure binds") {
@@ -94,7 +94,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     upgrader.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)
       .shouldBeErrOfType<AccountCreationError.AccountCreationAuthError>()
 
-    upgradeAccountService.upgradeAccountCalls.awaitItem()
+    upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
     accountAuthorizer.authCalls.awaitItem()
   }
 
@@ -106,7 +106,7 @@ class LiteToFullAccountUpgraderImplTests : FunSpec({
     upgrader.upgradeAccount(LiteAccountMock, WithAppKeysAndHardwareKeysMock)
       .shouldBeOk()
 
-    upgradeAccountService.upgradeAccountCalls.awaitItem()
+    upgradeAccountF8eClient.upgradeAccountCalls.awaitItem()
     accountAuthorizer.authCalls.awaitItem()
     authTokenDao.setTokensCalls.awaitItem()
     deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()

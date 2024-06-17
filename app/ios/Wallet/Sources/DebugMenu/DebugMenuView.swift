@@ -36,10 +36,16 @@ public struct DebugMenuView: View {
                     message: alertModel.subline != nil
                         ? Text(alertModel.subline!)
                         : nil,
-                    primaryButton: .destructive(Text(alertModel.primaryButtonText), action: alertModel.onPrimaryButtonClick),
-                    secondaryButton:  {
+                    primaryButton: .destructive(
+                        Text(alertModel.primaryButtonText),
+                        action: alertModel.onPrimaryButtonClick
+                    ),
+                    secondaryButton: {
                         if let onSecondaryButtonClick = alertModel.onSecondaryButtonClick {
-                            return Alert.Button.default(Text(alertModel.secondaryButtonText!), action: onSecondaryButtonClick)
+                            return Alert.Button.default(
+                                Text(alertModel.secondaryButtonText!),
+                                action: onSecondaryButtonClick
+                            )
                         } else {
                             return Alert.Button.cancel()
                         }
@@ -63,7 +69,7 @@ private struct DebugMenuListGroupView: View {
 
     var body: some View {
         Section {
-            ForEach(viewModel.items, id:\.title) { listItem in
+            ForEach(viewModel.items, id: \.title) { listItem in
                 if let onClick = listItem.onClick {
                     DebugListItemView(viewModel: listItem)
                         .onTapGesture {
@@ -72,7 +78,7 @@ private struct DebugMenuListGroupView: View {
                 } else {
                     DebugListItemView(viewModel: listItem)
                 }
-             }
+            }
         } header: {
             if let header = viewModel.header {
                 Text(header)

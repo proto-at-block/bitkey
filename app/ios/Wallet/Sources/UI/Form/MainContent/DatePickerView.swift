@@ -6,22 +6,22 @@ struct DatePickerView: View {
         static let height = 56.f
         static let cornerRadius = 32.f
     }
-    
-    private let viewModel: FormMainContentModelDatePicker
-    
-    init(viewModel: FormMainContentModelDatePicker) {
+
+    private let viewModel: FormMainContentModel.DatePicker
+
+    init(viewModel: FormMainContentModel.DatePicker) {
         self.viewModel = viewModel
     }
-    
+
     @SwiftUI.State
     private var datePickerPresentation: DatePickerPopoverState? = nil
-        
+
     var body: some View {
         VStack(spacing: 8) {
             if let title = viewModel.title {
                 ModeledText(model: .standard(title, font: .title2))
             }
-            
+
             Button {
                 datePickerPresentation = DatePickerPopoverState(
                     initialDate: viewModel.fieldModel.value?.toNativeDate() ?? Date.now,
@@ -30,7 +30,8 @@ struct DatePickerView: View {
                         viewModel.fieldModel.onValueChange(
                             LocalDateExtKt.toLocalDate(newDate)
                         )
-                    })
+                    }
+                )
             } label: {
                 Text(viewModel.fieldModel.valueStringRepresentation)
                     .frame(height: Metrics.height)
@@ -44,7 +45,6 @@ struct DatePickerView: View {
                     .tint(.foreground)
             }
             .datePickerPopover(popoverState: $datePickerPresentation)
-            
         }
     }
 }
@@ -55,10 +55,10 @@ private struct DatePickerPopoverState {
 }
 
 private struct DatePickerDialogContent: View {
-    
+
     @Binding
     private var selectedDate: Date
-    
+
     init(popoverState: DatePickerPopoverState) {
         var date = popoverState.initialDate
         _selectedDate = Binding(get: {
@@ -68,7 +68,7 @@ private struct DatePickerDialogContent: View {
             popoverState.onDateChanged(newDate)
         })
     }
- 
+
     var body: some View {
         DatePicker(
             "Please Choose a Date",
@@ -95,39 +95,52 @@ private extension View {
 }
 
 private struct DatePickerAnchorView: UIViewControllerRepresentable {
-    
+
     @Binding
     var popoverState: DatePickerPopoverState?
-    
-    func makeUIViewController(context: Context) -> UIViewController {
+
+    func makeUIViewController(context _: Context) -> UIViewController {
         let anchorController = UIViewController()
         anchorController.view.backgroundColor = UIColor.clear
         anchorController.view.bounds.size = .zero
         return anchorController
     }
-    
+
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
-        let presentedContentController = uiViewController.presentedViewController as? UIHostingController<DatePickerDialogContent>
+        let presentedContentController = uiViewController
+            .presentedViewController as? UIHostingController<DatePickerDialogContent>
         if let popoverState {
-            // Make sure the keyboard is closed so we have enough space to show the whole date picker
-            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-            
+            // Make sure the keyboard is closed so we have enough space to show the whole date
+            // picker
+            UIApplication.shared.sendAction(
+                #selector(UIResponder.resignFirstResponder),
+                to: nil,
+                from: nil,
+                for: nil
+            )
+
             if let presentedContentController {
                 // We'll just update the currently presented controller's content
-                presentedContentController.rootView = DatePickerDialogContent(popoverState: popoverState)
+                presentedContentController
+                    .rootView = DatePickerDialogContent(popoverState: popoverState)
             } else {
                 // We need to create and configure a new controller that holds the DatePicker
-                let contentController = UIHostingController(rootView: DatePickerDialogContent(popoverState: popoverState))
+                let contentController =
+                    UIHostingController(
+                        rootView: DatePickerDialogContent(popoverState: popoverState)
+                    )
                 contentController.modalPresentationStyle = .popover
-                
-                // The `popoverPresentationController` never returns `nil` as long as `modalPresentationStyle = .popover`,
-                //   but we want to make sure the date picker is presented even if this invariant is broken.
+
+                // The `popoverPresentationController` never returns `nil` as long as
+                // `modalPresentationStyle = .popover`,
+                //   but we want to make sure the date picker is presented even if this invariant is
+                //   broken.
                 if let popover = contentController.popoverPresentationController {
                     popover.sourceView = uiViewController.view
                     popover.sourceRect = uiViewController.view.bounds
                     popover.delegate = context.coordinator
                 }
-                
+
                 contentController.preferredContentSize = contentController.sizeThatFits(
                     in: UIView.layoutFittingExpandedSize
                 )
@@ -137,7 +150,7 @@ private struct DatePickerAnchorView: UIViewControllerRepresentable {
             presentedContentController.dismiss(animated: true)
         }
     }
-    
+
     func makeCoordinator() -> Coordinator {
         Coordinator(
             onDismiss: {
@@ -145,27 +158,31 @@ private struct DatePickerAnchorView: UIViewControllerRepresentable {
             }
         )
     }
-    
-    static func dismantleUIViewController(_ uiViewController: UIViewController, coordinator: Coordinator) {
+
+    static func dismantleUIViewController(
+        _ uiViewController: UIViewController,
+        coordinator _: Coordinator
+    ) {
         uiViewController.presentedViewController?.dismiss(animated: true)
     }
-    
+
     class Coordinator: NSObject, UIPopoverPresentationControllerDelegate {
         private let onDismiss: () -> Void
-        
+
         init(onDismiss: @escaping () -> Void) {
             self.onDismiss = onDismiss
         }
-        
-        func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+
+        func presentationControllerDidDismiss(_: UIPresentationController) {
             onDismiss()
         }
-        
+
         func adaptivePresentationStyle(
-            for controller: UIPresentationController,
-            traitCollection: UITraitCollection
+            for _: UIPresentationController,
+            traitCollection _: UITraitCollection
         ) -> UIModalPresentationStyle {
-            // This way we tell iOS to present as a popover, by effectively disabling adaptive presentation style.
+            // This way we tell iOS to present as a popover, by effectively disabling adaptive
+            // presentation style.
             return .none
         }
     }
@@ -173,7 +190,7 @@ private struct DatePickerAnchorView: UIViewControllerRepresentable {
 
 #Preview {
     DatePickerView(
-        viewModel: FormMainContentModelDatePicker(
+        viewModel: FormMainContentModel.DatePicker(
             title: "Date field preview",
             fieldModel: DatePickerModel(
                 valueStringRepresentation: "",
@@ -186,7 +203,7 @@ private struct DatePickerAnchorView: UIViewControllerRepresentable {
 
 #Preview {
     DatePickerView(
-        viewModel: FormMainContentModelDatePicker(
+        viewModel: FormMainContentModel.DatePicker(
             title: "Date field preview",
             fieldModel: DatePickerModel(
                 valueStringRepresentation: Date.now.formatted(date: .long, time: .omitted),

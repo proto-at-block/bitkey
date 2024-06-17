@@ -1,6 +1,7 @@
 package build.wallet.platform.data
 
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.Err as ResultErr
 import com.github.michaelbull.result.Ok as ResultOk
 
@@ -32,8 +33,8 @@ sealed class FileManagerResult<out V : Any> {
  * Wraps [Result] into [FileManagerResult].
  */
 fun <V : Any> Result<V, FileManagerError>.toFileManagerResult(): FileManagerResult<V> {
-  return when (this) {
-    is ResultOk -> FileManagerResult.Ok(value)
-    is ResultErr -> FileManagerResult.Err(error)
-  }
+  return mapBoth(
+    success = { FileManagerResult.Ok(it) },
+    failure = { FileManagerResult.Err(it) }
+  )
 }

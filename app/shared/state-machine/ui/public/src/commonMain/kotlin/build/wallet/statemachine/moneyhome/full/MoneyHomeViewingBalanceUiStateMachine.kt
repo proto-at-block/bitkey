@@ -33,4 +33,5 @@ data class MoneyHomeViewingBalanceUiProps(
   val onPartnershipsWebFlowCompleted: (PartnerInfo, PartnershipTransaction) -> Unit,
   val state: MoneyHomeUiState.ViewingBalanceUiState,
   val setState: (MoneyHomeUiState) -> Unit,
+  val onStartSweepFlow: () -> Unit,
 )

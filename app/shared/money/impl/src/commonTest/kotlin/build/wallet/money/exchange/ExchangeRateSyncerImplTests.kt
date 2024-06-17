@@ -16,7 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class ExchangeRateSyncerImplTests : FunSpec({
   val exchangeRateDao = ExchangeRateDaoMock(turbines::create)
-  val f8eExchangeRateService = F8eExchangeRateServiceMock()
+  val exchangeRateF8eClient = ExchangeRateF8eClientMock()
   val activeF8eEnvironmentRepository =
     ActiveF8eEnvironmentRepositoryMock(turbines::create)
   val appSessionManager = AppSessionManagerFake()
@@ -24,7 +24,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
   val syncer =
     ExchangeRateSyncerImpl(
       exchangeRateDao = exchangeRateDao,
-      f8eExchangeRateService = f8eExchangeRateService,
+      exchangeRateF8eClient = exchangeRateF8eClient,
       activeF8eEnvironmentRepository = activeF8eEnvironmentRepository,
       appSessionManager = appSessionManager
     )
@@ -42,7 +42,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
       syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
 
       activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
-      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
     }
   }
@@ -52,7 +52,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
       backgroundScope.launch {
         syncer.launchSync(scope = this, syncFrequency = 3.seconds)
       }
-      f8eExchangeRateService.exchangeRates.value = Err(UnhandledException(Exception("oops")))
+      exchangeRateF8eClient.exchangeRates.value = Err(UnhandledException(Exception("oops")))
 
       runCurrent()
 
@@ -65,7 +65,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
       activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
       exchangeRateDao.storeExchangeRateCalls.expectNoEvents()
 
-      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
       advanceTimeBy(2.seconds)
       activeF8eEnvironmentRepository.activeF8eEnvironmentCalls.awaitItem()
@@ -78,7 +78,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
       backgroundScope.launch {
         syncer.launchSync(scope = this, syncFrequency = 3.seconds)
       }
-      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
       runCurrent()
 
@@ -86,7 +86,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate1)
 
       // Update the exchange rate response.
-      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate2))
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate2))
 
       // 3 seconds total haven't passed yet.
       advanceTimeBy(2.seconds)
@@ -98,7 +98,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
       exchangeRateDao.storeExchangeRateCalls.awaitItem().shouldBe(exchangeRate2)
 
       // Update the exchange rate response.
-      f8eExchangeRateService.exchangeRates.value = Ok(listOf(exchangeRate1))
+      exchangeRateF8eClient.exchangeRates.value = Ok(listOf(exchangeRate1))
 
       // Another sync after 3 seconds.
       advanceTimeBy(3.seconds)
@@ -110,7 +110,7 @@ class ExchangeRateSyncerImplTests : FunSpec({
   test("sync multiple currencies immediately") {
     runTest {
       val exchangeRates = listOf(exchangeRate1, eurtoBtcExchangeRate)
-      f8eExchangeRateService.exchangeRates.value = Ok(exchangeRates)
+      exchangeRateF8eClient.exchangeRates.value = Ok(exchangeRates)
 
       syncer.launchSync(scope = backgroundScope, syncFrequency = 3.seconds)
 

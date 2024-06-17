@@ -5,18 +5,18 @@ struct TextAreaView: View {
     private enum FocusedField {
         case textArea
     }
-    
-    let viewModel: FormMainContentModelTextArea
-    
+
+    let viewModel: FormMainContentModel.TextArea
+
     @FocusState
     private var focusedField: FocusedField?
-    
+
     var body: some View {
         VStack(spacing: 8) {
             if let title = viewModel.title {
                 ModeledText(model: .standard(title, font: .title2))
             }
-            
+
             TextFieldViewRepresentable(viewModel: viewModel.fieldModel)
                 .focused($focusedField, equals: .textArea)
                 .background(
@@ -26,14 +26,13 @@ struct TextAreaView: View {
                 .foregroundColor(.foreground)
                 .tint(.foreground)
                 .onAppear {
-                    if (viewModel.fieldModel.focusByDefault) {
+                    if viewModel.fieldModel.focusByDefault {
                         focusedField = .textArea
                     }
                 }
         }
     }
 }
-
 
 /**
  * We need to create a wrapper around `ExpandableTextField`,
@@ -42,9 +41,10 @@ struct TextAreaView: View {
  */
 private struct TextFieldViewRepresentable: UIViewRepresentable {
     var viewModel: TextFieldModel
-    
-    func makeUIView(context: UIViewRepresentableContext<TextFieldViewRepresentable>) -> ExpandableTextField {
-    
+
+    func makeUIView(context _: UIViewRepresentableContext<TextFieldViewRepresentable>)
+        -> ExpandableTextField
+    {
         let uiView = ExpandableTextField(frame: .zero)
         // Manually constrain the width here or else the field will expand beyond it's bounds.
         // We constrain it to the bounds minus the horizontal padding on either side
@@ -52,8 +52,8 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
         uiView.widthAnchor.constraint(equalToConstant: width).isActive = true
         return uiView
     }
-    
-    func updateUIView(_ uiView: ExpandableTextField, context: Context) {
+
+    func updateUIView(_ uiView: ExpandableTextField, context _: Context) {
         uiView.apply(
             model: .standardExpandable(
                 placeholder: viewModel.placeholderText,
@@ -63,7 +63,7 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
                     font: .body2Regular
                 )
             ),
-            onEnteredTextChanged: { text, selection in
+            onEnteredTextChanged: { text, _ in
                 // The range is ignored on iOS side, so pass (0, 0)
                 viewModel.onValueChange(text, .init(start: 0, endInclusive: 0))
             }

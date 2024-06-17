@@ -1,6 +1,6 @@
+import BitcoinDevKit
 import Foundation
 import Shared
-import BitcoinDevKit
 
 extension FfiOutPoint {
     func toBdkOutPoint() -> BdkOutPoint {

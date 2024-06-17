@@ -1,6 +1,6 @@
 package build.wallet.serialization
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import io.matthewnelson.encoding.base32.Base32Crockford
 import io.matthewnelson.encoding.core.Decoder.Companion.decodeToByteArray
@@ -22,7 +22,7 @@ class Base32Encoding {
    * @return the Base32 encoded string
    */
   fun encode(input: ByteString): Result<String, Throwable> {
-    return Result.catching {
+    return catchingResult {
       input.toByteArray().encodeToString(base32Crockford)
     }
   }
@@ -34,7 +34,7 @@ class Base32Encoding {
    * @return the decoded byte array
    */
   fun decode(input: String): Result<ByteString, Throwable> {
-    return Result.catching {
+    return catchingResult {
       input.decodeToByteArray(base32Crockford).toByteString()
     }
   }

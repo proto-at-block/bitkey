@@ -1,10 +1,10 @@
-import Shared
 import core
+import Shared
 
 typealias FFILightningInvoice = core.Invoice
 
 public final class LightningInvoiceParserImpl: LightningInvoiceParser {
-    public init () { }
+    public init() {}
 
     public func parse(invoiceString: String) -> LightningInvoice? {
         do {
@@ -16,8 +16,8 @@ public final class LightningInvoiceParserImpl: LightningInvoiceParser {
     }
 }
 
-extension FFILightningInvoice {
-    fileprivate var lightningInvoice: LightningInvoice {
+private extension FFILightningInvoice {
+    var lightningInvoice: LightningInvoice {
         return LightningInvoice(
             payeePubKey: payeePubkey(),
             paymentHash: paymentHash(),

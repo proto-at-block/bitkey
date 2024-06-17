@@ -17,17 +17,20 @@ class PhoneNumberValidatorImplTests: XCTestCase {
         countryCodeGuesser.fakeCountryCode = "US"
         XCTAssertEqual(validator.exampleFormattedNumberForCurrentRegion(), "+1 201-555-0123")
 
-        phoneNumberKit.allValidCountries().forEach { country in
+        for country in phoneNumberKit.allValidCountries() {
             countryCodeGuesser.fakeCountryCode = country
             XCTAssertNotNil(validator.exampleFormattedNumberForCurrentRegion())
         }
     }
 
     func testValidatePhoneNumberWithRawNumber() {
-        phoneNumberKit.allCountries().forEach { country in
+        for country in phoneNumberKit.allCountries() {
             if let validNumber = phoneNumberKit.getExampleNumber(forCountry: country) {
                 XCTAssertNotNil(
-                    validator.validatePhoneNumber(number: phoneNumberKit.format(validNumber, toType: .international))
+                    validator.validatePhoneNumber(number: phoneNumberKit.format(
+                        validNumber,
+                        toType: .international
+                    ))
                 )
             }
         }

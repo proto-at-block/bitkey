@@ -32,6 +32,10 @@
 extern bio_config_t fpc_config;
 extern security_config_t security_config;
 
+// This being externed is evidence that fpc_biometrics and fpc_hal have improper
+// separation of concerns. We should fix that if we end up writing more biometrics code.
+extern uint32_t number_required_samples;
+
 static struct {
   const fpc_bep_sensor_t* bep_sensor;
   const fpc_bep_algorithm_t* algorithm;
@@ -143,7 +147,12 @@ void fpc_biometrics_init(void) {
   fpc_bep_result_t result = fpc_bep_bio_get_recommended_param(fpc_priv.algorithm, &param);
   ASSERT_LOG(result == FPC_BEP_RESULT_OK, "%d", result);
 
-  param.enroll.nbr_of_images = ENROLL_REQUIRED_SAMPLES;
+  number_required_samples = param.enroll.nbr_of_images;
+
+  // By default, the max number of immobile touches is 4. We want to be more aggressive, and
+  // ensure a high quality template is enrolled, so we set it to 0 to enforce all samples are
+  // good.
+  param.enroll.max_nbr_of_immobile_touches = 0;
 
   result = fpc_bep_bio_init(&param, fpc_priv.algorithm);
   ASSERT_LOG(result == FPC_BEP_RESULT_OK, "%d", result);

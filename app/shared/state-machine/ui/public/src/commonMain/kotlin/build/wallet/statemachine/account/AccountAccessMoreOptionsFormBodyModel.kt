@@ -21,6 +21,7 @@ fun AccountAccessMoreOptionsFormBodyModel(
   onBack: () -> Unit,
   onRestoreYourWalletClick: (() -> Unit)?,
   onBeTrustedContactClick: (() -> Unit)?,
+  onResetExistingDevice: (() -> Unit)?,
   onRestoreEmergencyAccessKit: (() -> Unit)?,
 ) = FormBodyModel(
   id = GeneralEventTrackerScreenId.ACCOUNT_ACCESS_MORE_OPTIONS,
@@ -69,6 +70,23 @@ fun AccountAccessMoreOptionsFormBodyModel(
                     onClick = it,
                     trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
                     testTag = "restore-your-wallet"
+                  )
+                },
+                onResetExistingDevice?.let {
+                  ListItemModel(
+                    leadingAccessory =
+                      ListItemAccessory.IconAccessory(
+                        iconPadding = 12,
+                        model =
+                          IconModel(
+                            icon = Icon.SmallIconBitkey,
+                            iconSize = IconSize.Small
+                          )
+                      ),
+                    title = "Reset an existing device",
+                    onClick = it,
+                    trailingAccessory = ListItemAccessory.drillIcon(IconTint.On30),
+                    testTag = "reset-existing-device"
                   )
                 },
                 onRestoreEmergencyAccessKit?.let {

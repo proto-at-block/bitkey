@@ -1,12 +1,6 @@
 package build.wallet.statemachine.settings.full.device
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
@@ -32,13 +26,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.HardwareRecoveryDelayAndNotifyUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.InitiatingHardwareRecoveryUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.ManagingFingerprintsUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.ResettingDeviceUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.TappingForFirmwareMetadataUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.UpdatingFirmwareUiState
-import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.ViewingDeviceDataUiState
+import build.wallet.statemachine.settings.full.device.DeviceSettingsUiState.*
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsProps
 import build.wallet.statemachine.settings.full.device.fingerprints.ManagingFingerprintsUiStateMachine
@@ -119,7 +107,7 @@ class DeviceSettingsUiStateMachineImpl(
             }
           },
           onManageReplacement = { uiState = HardwareRecoveryDelayAndNotifyUiState },
-          onResetDevice = { uiState = DeviceSettingsUiState.ResettingDeviceUiState },
+          onResetDevice = { uiState = ResettingDeviceUiState },
           dateTimeFormatter = dateTimeFormatter,
           timeZoneProvider = timeZoneProvider,
           durationFormatter = durationFormatter,
@@ -210,11 +198,11 @@ class DeviceSettingsUiStateMachineImpl(
       is ResettingDeviceUiState -> resettingDeviceUiStateMachine.model(
         props = ResettingDeviceProps(
           onBack = { uiState = ViewingDeviceDataUiState() },
-          onUnwindToMoneyHome = props.onUnwindToMoneyHome,
+          onSuccess = props.onUnwindToMoneyHome,
           spendingWallet = props.accountData.spendingWallet,
-          keybox = props.accountData.account.keybox,
-          balance = props.accountData.transactionsData.balance,
-          isHardwareFake = props.accountData.account.config.isHardwareFake
+          fullAccountConfig = props.accountData.account.config,
+          fullAccount = props.accountData.account,
+          balance = props.accountData.transactionsData.balance
         )
       )
     }

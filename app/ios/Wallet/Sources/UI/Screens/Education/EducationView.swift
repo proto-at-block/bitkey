@@ -3,17 +3,17 @@ import Shared
 import SwiftUI
 
 public struct EducationView: View {
-    
+
     // MARK: - Private Properties
 
     private let viewModel: EducationBodyModel
-    
+
     // MARK: - Life Cycle
 
     public init(viewModel: EducationBodyModel) {
         self.viewModel = viewModel
     }
-    
+
     public var body: some View {
         VStack(alignment: .center) {
             ExplainerToolbar(viewModel: viewModel)
@@ -31,20 +31,21 @@ public struct EducationView: View {
 // MARK: -
 
 private struct ExplainerToolbar: View {
-    
+
     // MARK: - Private Properties
 
     private let viewModel: EducationBodyModel
-    
+
     // MARK: - Life Cycle
 
     public init(viewModel: EducationBodyModel) {
         self.viewModel = viewModel
     }
-    
+
     var body: some View {
         HStack {
-            IconButtonView(model: 
+            IconButtonView(
+                model:
                 .init(
                     iconModel: .init(
                         iconImage: .LocalImage(icon: .smalliconx),
@@ -58,7 +59,7 @@ private struct ExplainerToolbar: View {
                         iconTopSpacing: nil,
                         text: nil
                     ),
-                    onClick: StandardClick { viewModel.onDismiss() } ,
+                    onClick: StandardClick { viewModel.onDismiss() },
                     enabled: true
                 )
             )
@@ -75,26 +76,31 @@ private struct ExplainerToolbar: View {
 
 // MARK: -
 
-private struct EducationItemView : View {
-    
+private struct EducationItemView: View {
+
     private let item: EducationBodyModel
-    
+
     public init(item: EducationBodyModel) {
         self.item = item
     }
-    
+
     var body: some View {
         VStack {
             Spacer()
 
             ModeledText(model: .standard(item.title, font: .body1Medium, textAlignment: .center))
             if let subtitle = item.subtitle {
-                ModeledText(model: .standard(subtitle, font: .body2Regular, textAlignment: .center, textColor: .foreground60))
-                    .padding(.top, 16)
+                ModeledText(model: .standard(
+                    subtitle,
+                    font: .body2Regular,
+                    textAlignment: .center,
+                    textColor: .foreground60
+                ))
+                .padding(.top, 16)
             }
-            
+
             Spacer()
-            
+
             VStack {
                 if let primaryButton = item.primaryButton {
                     ButtonView(model: primaryButton)

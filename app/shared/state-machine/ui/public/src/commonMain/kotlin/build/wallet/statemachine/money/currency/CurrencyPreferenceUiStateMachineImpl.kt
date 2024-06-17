@@ -1,11 +1,6 @@
 package build.wallet.statemachine.money.currency
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -151,7 +146,8 @@ class CurrencyPreferenceUiStateMachineImpl(
       moneyHomeHero =
         FormMainContentModel.MoneyHomeHero(
           primaryAmount = moneyHomeHeroPrimaryAmountString,
-          secondaryAmount = moneyHomeHeroSecondaryAmountString
+          secondaryAmount = moneyHomeHeroSecondaryAmountString,
+          isHidden = isHideBalanceEnabled
         ),
       fiatCurrencyPreferenceString = selectedFiatCurrency.textCode.code,
       onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,

@@ -29,21 +29,33 @@ public struct ListItemView: View {
     public var body: some View {
         if let pickerModel = viewModel.pickerMenu {
             ListItemPickerView(viewModel: pickerModel) {
-                ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding, hideContent: hideContent)
+                ListItemContentView(
+                    viewModel: viewModel,
+                    verticalPadding: verticalPadding,
+                    hideContent: hideContent
+                )
             }.ifNonnull(viewModel.testTag) { view, testTag in
                 view.accessibilityIdentifier(testTag)
             }
         } else if let onClick = viewModel.onClick {
             Button(action: onClick) {
-                ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding, hideContent: hideContent)
+                ListItemContentView(
+                    viewModel: viewModel,
+                    verticalPadding: verticalPadding,
+                    hideContent: hideContent
+                )
             }.ifNonnull(viewModel.testTag) { view, testTag in
                 view.accessibilityIdentifier(testTag)
             }
         } else {
-            ListItemContentView(viewModel: viewModel, verticalPadding: verticalPadding, hideContent: hideContent)
-                .ifNonnull(viewModel.testTag) { view, testTag in
-                    view.accessibilityIdentifier(testTag)
-                }
+            ListItemContentView(
+                viewModel: viewModel,
+                verticalPadding: verticalPadding,
+                hideContent: hideContent
+            )
+            .ifNonnull(viewModel.testTag) { view, testTag in
+                view.accessibilityIdentifier(testTag)
+            }
         }
     }
 }
@@ -54,7 +66,7 @@ struct ListItemContentView: View {
     let viewModel: ListItemModel
     let verticalPadding: CGFloat
     let hideContent: Bool
-    
+
     init(
         viewModel: ListItemModel,
         verticalPadding: CGFloat,
@@ -64,7 +76,7 @@ struct ListItemContentView: View {
         self.verticalPadding = verticalPadding
         self.hideContent = hideContent
     }
-    
+
     var body: some View {
         HStack(alignment: viewModel.accessoryAlignment) {
             // Leading accessory
@@ -73,9 +85,9 @@ struct ListItemContentView: View {
             }
 
             HStack {
-                if(viewModel.titleLabel == nil){
-                    if (!viewModel.title.isEmpty) {
-                        let titleAlignment = switch viewModel.titleAlignment{
+                if viewModel.titleLabel == nil {
+                    if !viewModel.title.isEmpty {
+                        let titleAlignment = switch viewModel.titleAlignment {
                         case .left: TextAlignment.leading
                         case .center: TextAlignment.center
                         default: TextAlignment.leading
@@ -102,8 +114,8 @@ struct ListItemContentView: View {
                 } else {
                     switch viewModel.titleLabel {
                     case let model as LabelModelStringModel:
-                        if (!model.string.isEmpty) {
-                            let titleAlignment = switch viewModel.titleAlignment{
+                        if !model.string.isEmpty {
+                            let titleAlignment = switch viewModel.titleAlignment {
                             case .left: TextAlignment.leading
                             case .center: TextAlignment.center
                             default: TextAlignment.leading
@@ -128,7 +140,6 @@ struct ListItemContentView: View {
                             }
                         }
 
-
                     case let model as LabelModelStringWithStyledSubstringModel:
                         ModeledText(
                             model: .standard(
@@ -140,7 +151,10 @@ struct ListItemContentView: View {
                     case let model as LabelModelLinkSubstringModel:
                         ModeledText(
                             model: .linkedText(
-                                textContent: .linkedText(string: model.markdownString(), links: model.linkedSubstrings),
+                                textContent: .linkedText(
+                                    string: model.markdownString(),
+                                    links: model.linkedSubstrings
+                                ),
                                 font: FontTheme.body2Regular
                             )
                         )
@@ -150,7 +164,7 @@ struct ListItemContentView: View {
                     }
                 }
 
-                if (viewModel.sideText != nil || viewModel.secondarySideText != nil) {
+                if viewModel.sideText != nil || viewModel.secondarySideText != nil {
                     Spacer()
                     TitleSubtitleView(
                         alignment: .trailing,
@@ -162,7 +176,7 @@ struct ListItemContentView: View {
                         hideContent: hideContent
                     )
                 }
-                
+
                 // Special Trailing accessory
                 viewModel.specialTrailingAccessory.map { specialTrailingAccessory in
                     ListItemAccessoryView(viewModel: specialTrailingAccessory)
@@ -185,7 +199,7 @@ private struct TitleSubtitleView: View {
     var alignment: TextAlignment
     var title: String?
     var titleColor: Color = .foreground
-    var titleFont: FontTheme = FontTheme.body2Medium
+    var titleFont: FontTheme = .body2Medium
     var subtitle: String?
     var subtitleColor: Color = .foreground60
     var subtitleFont: FontTheme = .body3Regular
@@ -240,7 +254,7 @@ private extension Shared.ListItemSideTextTint {
 }
 
 private extension Shared.ListItemModel {
-    
+
     var titleColor: Color {
         if enabled {
             switch treatment {
@@ -270,7 +284,6 @@ private extension Shared.ListItemModel {
             return FontTheme.display2
         default:
             return FontTheme.body2Medium
-
         }
     }
 
@@ -305,134 +318,135 @@ private extension Shared.ListItemModel {
 
 // MARK: - Preview
 
-
 struct ListItemView_Preview: PreviewProvider {
     static var previews: some View {
         ListItemView(
             viewModel:
-                    .init(
-                        title: "Primary",
-                        titleAlignment: .left,
-                        listItemTitleBackgroundTreatment: nil,
-                        secondaryText: "Seconday Text",
-                        sideText: "Side Text",
-                        secondarySideText: "Secondary Side Text",
-                        leadingAccessoryAlignment: .center,
-                        leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
-                        trailingAccessory: nil,
-                        specialTrailingAccessory:
-                            ListItemAccessoryIconAccessory(
-                                iconPadding: nil,
-                                model: .init(
-                                    iconImage: .LocalImage(icon: .smalliconwarningfilled),
-                                    iconSize: .accessory,
-                                    iconBackgroundType: IconBackgroundTypeTransient(),
-                                    iconTint: .warning,
-                                    iconOpacity: nil,
-                                    iconTopSpacing: nil,
-                                    text: nil)),
-                        treatment: .primary,
-                        sideTextTint: .primary,
-                        enabled: true,
-                        selected: false,
-                        onClick: {},
-                        pickerMenu: nil,
-                        testTag: nil,
-                        titleLabel: nil
+            .init(
+                title: "Primary",
+                titleAlignment: .left,
+                listItemTitleBackgroundTreatment: nil,
+                secondaryText: "Seconday Text",
+                sideText: "Side Text",
+                secondarySideText: "Secondary Side Text",
+                leadingAccessoryAlignment: .center,
+                leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
+                trailingAccessory: nil,
+                specialTrailingAccessory:
+                ListItemAccessoryIconAccessory(
+                    iconPadding: nil,
+                    model: .init(
+                        iconImage: .LocalImage(icon: .smalliconwarningfilled),
+                        iconSize: .accessory,
+                        iconBackgroundType: IconBackgroundTypeTransient(),
+                        iconTint: .warning,
+                        iconOpacity: nil,
+                        iconTopSpacing: nil,
+                        text: nil
                     )
+                ),
+                treatment: .primary,
+                sideTextTint: .primary,
+                enabled: true,
+                selected: false,
+                onClick: {},
+                pickerMenu: nil,
+                testTag: nil,
+                titleLabel: nil
+            )
         )
         ListItemView(
             viewModel:
-                    .init(
-                        title: "Disabled",
-                        titleAlignment: .left,
-                        listItemTitleBackgroundTreatment: nil,
-                        secondaryText: "Seconday Text",
-                        sideText: "Side Text",
-                        secondarySideText: "Secondary Side Text",
-                        leadingAccessoryAlignment: .center,
-                        leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
-                        trailingAccessory: nil,
-                        specialTrailingAccessory: nil,
-                        treatment: .primary,
-                        sideTextTint: .primary,
-                        enabled: false,
-                        selected: false,
-                        onClick: {},
-                        pickerMenu: nil,
-                        testTag: nil,
-                        titleLabel: nil
-                    )
+            .init(
+                title: "Disabled",
+                titleAlignment: .left,
+                listItemTitleBackgroundTreatment: nil,
+                secondaryText: "Seconday Text",
+                sideText: "Side Text",
+                secondarySideText: "Secondary Side Text",
+                leadingAccessoryAlignment: .center,
+                leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
+                trailingAccessory: nil,
+                specialTrailingAccessory: nil,
+                treatment: .primary,
+                sideTextTint: .primary,
+                enabled: false,
+                selected: false,
+                onClick: {},
+                pickerMenu: nil,
+                testTag: nil,
+                titleLabel: nil
+            )
         )
         ListItemView(
             viewModel:
-                    .init(
-                        title: "Secondary",
-                        titleAlignment: .left,
-                        listItemTitleBackgroundTreatment: nil,
-                        secondaryText: "Seconday Text",
-                        sideText: "Side Text",
-                        secondarySideText: "Secondary Side Text",
-                        leadingAccessoryAlignment: .center,
-                        leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
-                        trailingAccessory: nil,
-                        specialTrailingAccessory: nil,
-                        treatment: .secondary,
-                        sideTextTint: .primary,
-                        enabled: true,
-                        selected: false,
-                        onClick: {},
-                        pickerMenu: nil,
-                        testTag: nil,
-                        titleLabel: nil
-                    )
+            .init(
+                title: "Secondary",
+                titleAlignment: .left,
+                listItemTitleBackgroundTreatment: nil,
+                secondaryText: "Seconday Text",
+                sideText: "Side Text",
+                secondarySideText: "Secondary Side Text",
+                leadingAccessoryAlignment: .center,
+                leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
+                trailingAccessory: nil,
+                specialTrailingAccessory: nil,
+                treatment: .secondary,
+                sideTextTint: .primary,
+                enabled: true,
+                selected: false,
+                onClick: {},
+                pickerMenu: nil,
+                testTag: nil,
+                titleLabel: nil
+            )
         )
         ListItemView(
             viewModel:
-                    .init(
-                        title: "Seconday Disabled",
-                        titleAlignment: .left,
-                        listItemTitleBackgroundTreatment: nil,
-                        secondaryText: "Seconday Text",
-                        sideText: "Side Text",
-                        secondarySideText: "Secondary Side Text",
-                        leadingAccessoryAlignment: .center,
-                        leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
-                        trailingAccessory: nil,
-                        specialTrailingAccessory: nil,
-                        treatment: .secondary,
-                        sideTextTint: .primary,
-                        enabled: false,
-                        selected: false,
-                        onClick: {},
-                        pickerMenu: nil,
-                        testTag: nil,
-                        titleLabel: nil
-                    )
+            .init(
+                title: "Seconday Disabled",
+                titleAlignment: .left,
+                listItemTitleBackgroundTreatment: nil,
+                secondaryText: "Seconday Text",
+                sideText: "Side Text",
+                secondarySideText: "Secondary Side Text",
+                leadingAccessoryAlignment: .center,
+                leadingAccessory: ListItemAccessoryIconAccessory(icon: .largeiconadd),
+                trailingAccessory: nil,
+                specialTrailingAccessory: nil,
+                treatment: .secondary,
+                sideTextTint: .primary,
+                enabled: false,
+                selected: false,
+                onClick: {},
+                pickerMenu: nil,
+                testTag: nil,
+                titleLabel: nil
+            )
         )
-        
+
         ListItemView(
             viewModel:
-                    .init(
-                        title: "1234-ABCD-EF",
-                        titleAlignment: .center,
-                        listItemTitleBackgroundTreatment: .recovery,
-                        secondaryText: nil,
-                        sideText: nil,
-                        secondarySideText: nil,
-                        leadingAccessoryAlignment: .center,
-                        leadingAccessory: nil,
-                        trailingAccessory: nil,
-                        specialTrailingAccessory: nil,
-                        treatment: .primaryTitle,
-                        sideTextTint: .primary,
-                        enabled: true,
-                        selected: false,
-                        onClick: {},
-                        pickerMenu: nil,
-                        testTag: nil,
-                        titleLabel: nil
-                    )
+            .init(
+                title: "1234-ABCD-EF",
+                titleAlignment: .center,
+                listItemTitleBackgroundTreatment: .recovery,
+                secondaryText: nil,
+                sideText: nil,
+                secondarySideText: nil,
+                leadingAccessoryAlignment: .center,
+                leadingAccessory: nil,
+                trailingAccessory: nil,
+                specialTrailingAccessory: nil,
+                treatment: .primaryTitle,
+                sideTextTint: .primary,
+                enabled: true,
+                selected: false,
+                onClick: {},
+                pickerMenu: nil,
+                testTag: nil,
+                titleLabel: nil
+            )
         )
     }
 }

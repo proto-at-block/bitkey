@@ -1,10 +1,12 @@
 import PDFKit
 import Shared
 
-
 // MARK: - PdfAnnotatorFactoryImpl
+
 public final class PdfAnnotatorFactoryImpl: Shared.PdfAnnotatorFactory {
-    public func createBlocking(pdfTemplateData: OkioByteString) -> PdfAnnotationResult<PdfAnnotator> {
+    public func createBlocking(pdfTemplateData: OkioByteString)
+        -> PdfAnnotationResult<PdfAnnotator>
+    {
         guard let pdf = PDFDocument(data: pdfTemplateData.toData()) else {
             return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidData())
         }
@@ -13,6 +15,7 @@ public final class PdfAnnotatorFactoryImpl: Shared.PdfAnnotatorFactory {
 }
 
 // MARK: - PdfAnnotatorImpl
+
 public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
 
     private var pdf: PDFDocument
@@ -25,7 +28,12 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
 
     // MARK: - PdfAnnotator
 
-    public func addTextBlocking(text: TextAnnotation, pageNum: Int32, frame: PdfFrame, url: String?) -> PdfAnnotationResult<KotlinUnit> {
+    public func addTextBlocking(
+        text: TextAnnotation,
+        pageNum: Int32,
+        frame: PdfFrame,
+        url: String?
+    ) -> PdfAnnotationResult<KotlinUnit> {
         let pageNum = Int(pageNum)
         guard let page = pdf.page(at: pageNum) else {
             return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidPage())
@@ -35,7 +43,7 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
             return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidFont())
         }
 
-        if let url = url, url.count > 0 {
+        if let url, url.count > 0 {
             guard let url = URL(string: url) else {
                 return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidURL())
             }
@@ -46,7 +54,8 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
         let annotation = PDFAnnotation(
             bounds: frame.asBounds(),
             forType: .freeText,
-            withProperties: nil)
+            withProperties: nil
+        )
         annotation.font = font
         annotation.fontColor = text.color.asUiColor()
         annotation.color = .clear
@@ -57,7 +66,12 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
         return PdfAnnotationResultOk(value: KotlinUnit())
     }
 
-    public func addImageDataBlocking(data: OkioByteString, pageNum: Int32, frame: PdfFrame, url: String?) -> PdfAnnotationResult<KotlinUnit> {
+    public func addImageDataBlocking(
+        data: OkioByteString,
+        pageNum: Int32,
+        frame: PdfFrame,
+        url: String?
+    ) -> PdfAnnotationResult<KotlinUnit> {
         let pageNum = Int(pageNum)
         guard let page = pdf.page(at: pageNum) else {
             return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidPage())
@@ -67,7 +81,7 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
             return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidImage())
         }
 
-        if let url = url, url.count > 0 {
+        if let url, url.count > 0 {
             guard let url = URL(string: url) else {
                 return PdfAnnotationResultErr(error: PdfAnnotationError.InvalidURL())
             }
@@ -77,7 +91,8 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
 
         let annotation = ImageStampAnnotation(
             image: image,
-            bounds: frame.asBounds())
+            bounds: frame.asBounds()
+        )
 
         page.addAnnotation(annotation)
 
@@ -108,13 +123,14 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
         let annotation = PDFAnnotation(
             bounds: link.frame.asBounds(),
             forType: .link,
-            withProperties: nil)
+            withProperties: nil
+        )
         annotation.action = PDFActionURL(url: link.url)
 
         page.addAnnotation(annotation)
     }
 
-    fileprivate func flatten() -> Result<(), FlattenAnnotationError> {
+    fileprivate func flatten() -> Result<Void, FlattenAnnotationError> {
         let writeOptions = if #available(iOS 16.0, *) {
             [PDFDocumentWriteOption.burnInAnnotationsOption: true]
         } else {
@@ -156,17 +172,16 @@ public final class PdfAnnotatorImpl: Shared.PdfAnnotator {
 
 }
 
-
 extension PdfFrame {
     func asBounds() -> CGRect {
         return CGRect(
             x: Int(x),
             y: Int(y),
             width: Int(width),
-            height: Int(height))
+            height: Int(height)
+        )
     }
 }
-
 
 extension PdfColor {
     func asUiColor() -> UIColor {
@@ -174,12 +189,12 @@ extension PdfColor {
             red: CGFloat(r),
             green: CGFloat(g),
             blue: CGFloat(b),
-            alpha: 1.0)
+            alpha: 1.0
+        )
     }
 }
 
-
-fileprivate class ImageStampAnnotation: PDFAnnotation {
+private class ImageStampAnnotation: PDFAnnotation {
     let image: UIImage
 
     init(image: UIImage, bounds: CGRect) {
@@ -187,11 +202,12 @@ fileprivate class ImageStampAnnotation: PDFAnnotation {
         super.init(bounds: bounds, forType: .stamp, withProperties: nil)
     }
 
-    required init?(coder: NSCoder) {
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func draw(with box: PDFDisplayBox, in context: CGContext) {
+    override func draw(with _: PDFDisplayBox, in context: CGContext) {
         guard let cgImage = self.image.cgImage else {
             return
         }

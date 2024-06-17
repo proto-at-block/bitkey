@@ -63,7 +63,7 @@ extension UIFont {
     /// Convenience initializer to build a `UIFont` with a string size.
     static func make(name: String, size: String) -> UIFont {
         _ = UIFont.registerWeightsOnce
-        return .init(name: name, size:  CGFloat(Int(size)!))!
+        return .init(name: name, size: CGFloat(Int(size)!))!
     }
 
     // MARK: - Internal Static Methods
@@ -72,18 +72,18 @@ extension UIFont {
         // We call `familyNames` before registering fonts to avoid a possible deadlock bug.
         _ = UIFont.familyNames
 
-        FontName.allCases.forEach { name in
+        for name in FontName.allCases {
             guard let fontURL = Bundle.main.url(
                 forResource: name.rawValue, withExtension: "otf"
             ) ?? Bundle.main.url(
                 forResource: name.rawValue, withExtension: "ttf"
             ) else {
                 assertionFailure("Unable to find font resource: \(name)")
-                return
+                continue
             }
             var errorReference: Unmanaged<CFError>?
             if CTFontManagerRegisterFontsForURL(fontURL as CFURL, .process, &errorReference) {
-                return
+                continue
             }
             let error = errorReference!.takeRetainedValue()
             assertionFailure("Unable to register font: \(name): \(error.localizedDescription)")

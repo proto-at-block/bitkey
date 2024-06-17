@@ -12,10 +12,20 @@ final class ErrorSnapshotTests: XCTestCase {
             viewModel: ErrorFormBodyModelKt.ErrorFormBodyModel(
                 title: "Error message",
                 subline: "Error description",
-                primaryButton: ButtonDataModel(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
+                primaryButton: ButtonDataModel(
+                    text: "Done",
+                    isLoading: false,
+                    onClick: {},
+                    leadingIcon: nil
+                ),
                 onBack: {},
                 toolbar: nil,
-                secondaryButton: ButtonDataModel(text: "Go Back", isLoading: false, onClick: {}, leadingIcon: nil),
+                secondaryButton: ButtonDataModel(
+                    text: "Go Back",
+                    isLoading: false,
+                    onClick: {},
+                    leadingIcon: nil
+                ),
                 renderContext: RenderContext.screen,
                 eventTrackerScreenId: nil,
                 eventTrackerScreenIdContext: nil,
@@ -33,7 +43,12 @@ final class ErrorSnapshotTests: XCTestCase {
             viewModel: ErrorFormBodyModelKt.ErrorFormBodyModel(
                 title: "Error message",
                 subline: nil,
-                primaryButton: ButtonDataModel(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
+                primaryButton: ButtonDataModel(
+                    text: "Done",
+                    isLoading: false,
+                    onClick: {},
+                    leadingIcon: nil
+                ),
                 onBack: {},
                 toolbar: nil,
                 secondaryButton: nil,
@@ -54,7 +69,12 @@ final class ErrorSnapshotTests: XCTestCase {
             viewModel: ErrorFormBodyModelKt.ErrorFormBodyModel(
                 title: "Error message",
                 subline: nil,
-                primaryButton: ButtonDataModel(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
+                primaryButton: ButtonDataModel(
+                    text: "Done",
+                    isLoading: false,
+                    onClick: {},
+                    leadingIcon: nil
+                ),
                 onBack: {},
                 toolbar: nil,
                 secondaryButton: nil,

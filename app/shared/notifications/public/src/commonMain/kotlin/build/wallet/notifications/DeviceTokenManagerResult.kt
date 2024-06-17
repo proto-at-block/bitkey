@@ -2,6 +2,7 @@ package build.wallet.notifications
 
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.Err as ResultErr
@@ -54,8 +55,8 @@ sealed class DeviceTokenManagerResult<out V : Any, out E : Error> {
  * Wraps [Result] into [DeviceTokenManagerResult].
  */
 fun <V : Any, E : Error> Result<V, E>.toDeviceTokenManagerResult(): DeviceTokenManagerResult<V, E> {
-  return when (this) {
-    is ResultOk -> DeviceTokenManagerResult.Ok(value)
-    is ResultErr -> DeviceTokenManagerResult.Err(error)
-  }
+  return mapBoth(
+    success = { DeviceTokenManagerResult.Ok(it) },
+    failure = { DeviceTokenManagerResult.Err(it) }
+  )
 }

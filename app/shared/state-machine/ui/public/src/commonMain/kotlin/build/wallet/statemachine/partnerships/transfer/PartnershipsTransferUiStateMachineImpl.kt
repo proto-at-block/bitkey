@@ -15,8 +15,8 @@ import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANS
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNER_REDIRECTING
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNER_REDIRECT_ERROR
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.partnerships.GetTransferPartnerListService
-import build.wallet.f8e.partnerships.GetTransferRedirectService
+import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
+import build.wallet.f8e.partnerships.GetTransferRedirectF8eClient
 import build.wallet.f8e.partnerships.RedirectInfo
 import build.wallet.f8e.partnerships.RedirectUrlType.DEEPLINK
 import build.wallet.f8e.partnerships.RedirectUrlType.WIDGET
@@ -53,15 +53,15 @@ import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 
 class PartnershipsTransferUiStateMachineImpl(
-  private val getTransferPartnerListService: GetTransferPartnerListService,
-  private val getTransferRedirectService: GetTransferRedirectService,
+  private val getTransferPartnerListF8eClient: GetTransferPartnerListF8eClient,
+  private val getTransferRedirectF8eClient: GetTransferRedirectF8eClient,
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
 ) : PartnershipsTransferUiStateMachine {
   @Composable
@@ -71,7 +71,7 @@ class PartnershipsTransferUiStateMachineImpl(
     when (val currentState = state) {
       State.LoadingPartnershipsTransfer -> {
         LaunchedEffect("load-transfer-partners") {
-          getTransferPartnerListService
+          getTransferPartnerListF8eClient
             .getTransferPartners(
               fullAccountId = props.keybox.fullAccountId,
               f8eEnvironment = props.keybox.config.f8eEnvironment
@@ -135,13 +135,13 @@ class PartnershipsTransferUiStateMachineImpl(
       }
       is State.LoadingPartnerRedirect -> {
         LaunchedEffect("load-transfer-partner-redirect-info") {
-          binding {
+          coroutineBinding {
             val localTransaction = partnershipsRepository.create(
               partnerInfo = currentState.partnerInfo,
               type = PartnershipTransactionType.TRANSFER
             ).bind()
             val address = props.generateAddress().bind()
-            val result = getTransferRedirectService
+            val result = getTransferRedirectF8eClient
               .getTransferRedirect(
                 fullAccountId = props.keybox.fullAccountId,
                 f8eEnvironment = props.keybox.config.f8eEnvironment,

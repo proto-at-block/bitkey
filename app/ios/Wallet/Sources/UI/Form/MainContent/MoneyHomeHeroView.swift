@@ -8,11 +8,11 @@ struct MoneyHomeHeroView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelMoneyHomeHero
+    private let viewModel: FormMainContentModel.MoneyHomeHero
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelMoneyHomeHero) {
+    init(viewModel: FormMainContentModel.MoneyHomeHero) {
         self.viewModel = viewModel
     }
 
@@ -29,11 +29,29 @@ struct MoneyHomeHeroView: View {
             VStack(spacing: 0) {
                 Spacer()
                     .frame(height: 64)
-                ModeledText(
-                    model: .standard(viewModel.primaryAmount, font: .title1, textAlignment: .center)
-                )
-                ModeledText(
-                    model: .standard(viewModel.secondaryAmount, font: .body4Medium, textAlignment: .center, textColor: .foreground60)
+                CollapsibleLabelContainer(
+                    collapsed: viewModel.isHidden,
+                    topContent: HStack {
+                        Spacer()
+                        ModeledText(
+                            model: .standard(
+                                viewModel.primaryAmount,
+                                font: .title1,
+                                textAlignment: nil
+                            )
+                        )
+                        .numericTextAnimation(numericText: viewModel.primaryAmount)
+                        Spacer()
+                    },
+                    bottomContent: ModeledText(
+                        model: .standard(
+                            viewModel.secondaryAmount,
+                            font: .body4Medium,
+                            textAlignment: .center,
+                            textColor: .foreground60
+                        )
+                    ),
+                    collapsedContent: CollapsedMoneyView(height: 16)
                 )
                 Spacer()
             }

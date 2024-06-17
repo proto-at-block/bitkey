@@ -9,7 +9,7 @@ import build.wallet.db.DbTransactionError
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.toErrorIfNull
 
 class SocRecEnrollmentAuthenticationDaoImpl(
@@ -23,7 +23,7 @@ class SocRecEnrollmentAuthenticationDaoImpl(
     protectedCustomerEnrollmentPakeKey: AppKey<ProtectedCustomerEnrollmentPakeKey>,
     pakeCode: PakeCode,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
         protectedCustomerEnrollmentPakeKey.publicKey,
         requireNotNull(protectedCustomerEnrollmentPakeKey.privateKey)
@@ -40,7 +40,7 @@ class SocRecEnrollmentAuthenticationDaoImpl(
   override suspend fun getByRelationshipId(
     recoveryRelationshipId: String,
   ): Result<SocRecEnrollmentAuthenticationDao.SocRecEnrollmentAuthenticationRow?, Throwable> =
-    binding {
+    coroutineBinding<SocRecEnrollmentAuthenticationDao.SocRecEnrollmentAuthenticationRow?, Throwable> {
       val auth =
         database.awaitTransactionWithResult {
           database.socRecEnrollmentAuthenticationQueries.getByRelationshipId(
@@ -48,7 +48,7 @@ class SocRecEnrollmentAuthenticationDaoImpl(
           ).executeAsOneOrNull()
         }.bind()
       if (auth == null) {
-        return@binding Ok(null).bind()
+        return@coroutineBinding Ok(null).bind()
       }
       val privateKey =
         appPrivateKeyDao.getAsymmetricPrivateKey(auth.protectedCustomerEnrollmentPakeKey)

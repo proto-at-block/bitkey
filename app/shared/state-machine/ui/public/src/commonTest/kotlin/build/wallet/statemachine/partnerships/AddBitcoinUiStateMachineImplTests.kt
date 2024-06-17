@@ -3,11 +3,11 @@ package build.wallet.statemachine.partnerships
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.GetPurchaseOptionsServiceMock
-import build.wallet.f8e.partnerships.GetPurchaseQuoteListServiceServiceMock
-import build.wallet.f8e.partnerships.GetPurchaseRedirectServiceMock
-import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
-import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
+import build.wallet.f8e.partnerships.GetPurchaseOptionsF8eClientMock
+import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClientMock
+import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClientMock
+import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
+import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -28,11 +28,11 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class AddBitcoinUiStateMachineImplTests : FunSpec({
   // turbines
-  val getPurchaseAmountsServiceMock = GetPurchaseOptionsServiceMock(turbines::create)
-  val getPurchaseQuoteListServiceMock = GetPurchaseQuoteListServiceServiceMock(turbines::create)
-  val getPurchaseRedirectServiceMock = GetPurchaseRedirectServiceMock(turbines::create)
-  val getTransferPartnerListService = GetTransferPartnerListServiceMock(turbines::create)
-  val getTransferRedirectService = GetTransferRedirectServiceMock(turbines::create)
+  val getPurchaseAmountsF8eClient = GetPurchaseOptionsF8eClientMock(turbines::create)
+  val getPurchaseQuoteListF8eClient = GetPurchaseQuoteListF8eClientMock(turbines::create)
+  val getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientMock(turbines::create)
+  val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
+  val getTransferRedirectF8eClient = GetTransferRedirectF8eClientMock(turbines::create)
   val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
@@ -46,15 +46,15 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     AddBitcoinUiStateMachineImpl(
       partnershipsTransferUiStateMachine =
         PartnershipsTransferUiStateMachineImpl(
-          getTransferPartnerListService = getTransferPartnerListService,
-          getTransferRedirectService = getTransferRedirectService,
+          getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
+          getTransferRedirectF8eClient = getTransferRedirectF8eClient,
           partnershipsRepository = partnershipRepositoryMock
         ),
       partnershipsPurchaseUiStateMachine = PartnershipsPurchaseUiStateMachineImpl(
         moneyDisplayFormatter = MoneyDisplayFormatterFake,
-        getPurchaseOptionsService = getPurchaseAmountsServiceMock,
-        getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-        getPurchaseRedirectService = getPurchaseRedirectServiceMock,
+        getPurchaseOptionsF8eClient = getPurchaseAmountsF8eClient,
+        getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
+        getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
         partnershipsRepository = partnershipRepositoryMock,
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
       )
@@ -90,11 +90,11 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     val purchaseAmount = FiatMoney.Companion.usd(123.0)
     stateMachine.test(props(purchaseAmount = purchaseAmount)) {
       // load purchase amounts
-      getPurchaseAmountsServiceMock.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseAmountsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       // load purchase quotes
-      getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
+      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes

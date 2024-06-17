@@ -17,6 +17,7 @@ public struct CustomAmountView: View {
     }
 
     // MARK: - View
+
     let springAnimation = Animation.spring(response: 0.1, dampingFraction: 0.8, blendDuration: 0)
 
     public var body: some View {
@@ -64,12 +65,14 @@ private struct AmountView: View {
 
     private var primaryAmountAttributedString: AttributedString {
         var attributedString = AttributedString(viewModel.primaryAmount)
-        guard let primaryAmountGhostedSubstringRange = viewModel.primaryAmountGhostedSubstringRange else {
+        guard let primaryAmountGhostedSubstringRange = viewModel.primaryAmountGhostedSubstringRange
+        else {
             return attributedString
         }
         let substringStart = attributedString.index(to: primaryAmountGhostedSubstringRange.start)
-        let substringEnd = attributedString.index(to: primaryAmountGhostedSubstringRange.endInclusive)
-        attributedString[substringStart...substringEnd].foregroundColor = .foreground30
+        let substringEnd = attributedString
+            .index(to: primaryAmountGhostedSubstringRange.endInclusive)
+        attributedString[substringStart ... substringEnd].foregroundColor = .foreground30
         return attributedString
     }
 }

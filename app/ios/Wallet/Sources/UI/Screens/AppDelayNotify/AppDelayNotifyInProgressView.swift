@@ -25,8 +25,8 @@ public struct AppDelayNotifyInProgressView: View {
                     toolbarModel: viewModel.toolbar,
                     headerModel: viewModel.header,
                     mainContentList: [
-                        FormMainContentModelSpacer(height: 24),
-                        viewModel.timerModel
+                        FormMainContentModel.Spacer(height: 24),
+                        viewModel.timerModel,
                     ],
                     renderContext: .screen
                 )

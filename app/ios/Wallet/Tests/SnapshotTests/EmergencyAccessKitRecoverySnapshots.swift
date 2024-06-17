@@ -21,13 +21,14 @@ final class EmergencyAccessKitRecoverySnapshots: XCTestCase {
 
     func test_paste_mobile_key() {
         let view = FormView(
-            viewModel: FormScreenModel_EmergencyAccessKitKt.EmergencyAccessKitImportPasteMobileKeyModel(
-                enteredText: "",
-                onBack: {},
-                onEnterTextChanged: {_ in },
-                onPasteButtonClick: {},
-                onContinue: {}
-            )
+            viewModel: FormScreenModel_EmergencyAccessKitKt
+                .EmergencyAccessKitImportPasteMobileKeyModel(
+                    enteredText: "",
+                    onBack: {},
+                    onEnterTextChanged: { _ in },
+                    onPasteButtonClick: {},
+                    onContinue: {}
+                )
         )
 
         assertBitkeySnapshots(view: view)

@@ -198,7 +198,7 @@ private fun Modifier.background(
               Square.Color.Information -> WalletTheme.colors.calloutInformationTrailingIconBackground
               Square.Color.Success -> WalletTheme.colors.calloutSuccessTrailingIconBackground
               Square.Color.Warning -> WalletTheme.colors.calloutWarningTrailingIconBackground
-              Square.Color.Danger -> WalletTheme.colors.calloutDangerTrailingIconBackground
+              Square.Color.Danger -> WalletTheme.colors.danger
             },
             shape = RoundedCornerShape(type.cornerRadius)
           )

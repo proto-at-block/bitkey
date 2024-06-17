@@ -63,11 +63,6 @@ pub async fn notify_customers_with_addresses(
         .cloned()
         .unique()
         .collect();
-    event!(
-        Level::INFO,
-        "{} accounts found with payments",
-        account_ids.len()
-    );
     let flag_key = flag.map(|f| f.to_string());
     let inform_account_ids = account_ids
         .iter()
@@ -88,7 +83,8 @@ pub async fn notify_customers_with_addresses(
         .collect::<Vec<_>>();
     event!(
         Level::INFO,
-        "{} accounts found with payments and passing check",
+        "{} accounts found with payments and {} accounts passing checks",
+        account_ids.len(),
         inform_account_ids.len()
     );
     let mut futures = inform_account_ids

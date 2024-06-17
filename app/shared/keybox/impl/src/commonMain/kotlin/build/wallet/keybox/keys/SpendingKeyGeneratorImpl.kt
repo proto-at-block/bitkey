@@ -7,13 +7,13 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeypair
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class SpendingKeyGeneratorImpl(
   private val extendedKeyGenerator: ExtendedKeyGenerator,
 ) : SpendingKeyGenerator {
   override suspend fun generate(network: BitcoinNetworkType): Result<SpendingKeypair, Throwable> =
-    binding {
+    coroutineBinding {
       log { "Generating app spending key" }
 
       val spendingDescriptorKeypair = extendedKeyGenerator.generate(network).bind()

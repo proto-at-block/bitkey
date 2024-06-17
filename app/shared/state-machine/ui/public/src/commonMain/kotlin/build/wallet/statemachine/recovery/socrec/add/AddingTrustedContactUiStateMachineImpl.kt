@@ -39,8 +39,7 @@ import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiState
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachineImpl.State.Success
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 
@@ -133,20 +132,20 @@ class AddingTrustedContactUiStateMachineImpl(
               current.proofOfPossession
             )
           state =
-            when (result) {
-              is Err -> {
+            result.mapBoth(
+              success = {
+                ShareState(
+                  invitation = result.value
+                )
+              },
+              failure = {
                 FailedToSaveState(
                   proofOfPossession = current.proofOfPossession,
                   error = result.error,
                   tcName = current.tcName
                 )
               }
-              is Ok -> {
-                ShareState(
-                  invitation = result.value
-                )
-              }
-            }
+            )
         }.let {
           LoadingBodyModel(
             id = null

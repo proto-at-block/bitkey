@@ -1,6 +1,6 @@
 package build.wallet.serialization.json
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
@@ -13,8 +13,7 @@ import kotlinx.serialization.json.Json
  * JSON encoding error. This is the preferred way for encoding values to JSON.
  */
 inline fun <reified T> Json.encodeToStringResult(value: T): Result<String, JsonEncodingError> {
-  return Result
-    .catching { encodeToString(value) }
+  return catchingResult { encodeToString(value) }
     .mapError { JsonEncodingError(it) }
 }
 
@@ -23,7 +22,6 @@ inline fun <reified T> Json.encodeToStringResult(value: T): Result<String, JsonE
  * JSON decoding error. This is the preferred way for decoding JSON to values.
  */
 inline fun <reified T> Json.decodeFromStringResult(json: String): Result<T, JsonDecodingError> {
-  return Result
-    .catching { decodeFromString<T>(json) }
+  return catchingResult { decodeFromString<T>(json) }
     .mapError { JsonDecodingError(it) }
 }

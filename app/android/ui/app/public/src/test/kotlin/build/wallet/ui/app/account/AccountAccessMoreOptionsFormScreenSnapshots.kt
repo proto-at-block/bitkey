@@ -15,6 +15,7 @@ class AccountAccessMoreOptionsFormScreenSnapshots : FunSpec({
           onBack = {},
           onBeTrustedContactClick = {},
           onRestoreYourWalletClick = {},
+          onResetExistingDevice = {},
           onRestoreEmergencyAccessKit = null
         )
       )

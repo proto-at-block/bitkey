@@ -22,7 +22,7 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.recovery.ListKeysetsServiceMock
+import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.money.BitcoinMoney
@@ -31,6 +31,7 @@ import build.wallet.queueprocessor.ProcessorMock
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
 import build.wallet.testing.shouldBeErrOfType
+import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -39,7 +40,6 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class SweepGeneratorImplTests : FunSpec({
   val psbtMock = PsbtMock.copy(fee = BitcoinMoney.btc(BigDecimal.TEN))
@@ -171,21 +171,21 @@ class SweepGeneratorImplTests : FunSpec({
         return Ok(wallet)
       }
     }
-  val listKeysetsService = ListKeysetsServiceMock()
+  val listKeysetsF8eClient = ListKeysetsF8eClientMock()
   val appPrivateKeyDao = AppPrivateKeyDaoFake()
-  val registerWatchAddressService = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
+  val registerWatchAddressF8eClient = ProcessorMock<RegisterWatchAddressContext>(turbines::create)
   val sweepGenerator =
     SweepGeneratorImpl(
-      listKeysetsService,
+      listKeysetsF8eClient,
       BitcoinFeeRateEstimatorMock(),
       keysetWalletProvider,
       appPrivateKeyDao,
-      registerWatchAddressService
+      registerWatchAddressF8eClient
     )
 
   beforeEach {
     keyboxDao.reset()
-    listKeysetsService.reset()
+    listKeysetsF8eClient.reset()
 
     wallets.values.forEach { it.reset() }
   }
@@ -206,26 +206,26 @@ class SweepGeneratorImplTests : FunSpec({
   }
 
   beforeTest {
-    registerWatchAddressService.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
+    registerWatchAddressF8eClient.processBatchReturnValues = listOf(Ok(Unit), Ok(Unit))
   }
 
   afterTest {
-    registerWatchAddressService.reset()
+    registerWatchAddressF8eClient.reset()
   }
 
   test("lost app recovery - single keyset - success") {
     wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
-    listKeysetsService.result = Ok(listOf(lostAppKeyset1))
+    listKeysetsF8eClient.result = Ok(listOf(lostAppKeyset1))
 
-    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeTypeOf<Ok<List<SweepPsbt>>>()
-    result.component1().shouldHaveSize(1)
-    result.component1()[0]
+    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeOkOfType<List<SweepPsbt>>()
+    result.shouldHaveSize(1)
+    result.first()
       .shouldBe(
         SweepPsbt(psbtMock, Hardware, lostAppKeyset1)
       )
     // single address to watch
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
@@ -245,21 +245,19 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(activeKeyset.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
     wallets.getValue(lostAppKeyset2.localId).createPsbtResult = Ok(psbtMock)
-    listKeysetsService.result = Ok(listOf(lostAppKeyset1, lostAppKeyset2))
+    listKeysetsF8eClient.result = Ok(listOf(lostAppKeyset1, lostAppKeyset2))
 
-    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeTypeOf<Ok<List<SweepPsbt>>>()
-    result.component1().shouldHaveSize(2)
+    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeOkOfType<List<SweepPsbt>>()
+    result.shouldHaveSize(2)
     result.shouldBe(
-      Ok(
-        listOf(
-          SweepPsbt(psbtMock, Hardware, lostAppKeyset1),
-          SweepPsbt(psbtMock, Hardware, lostAppKeyset2)
-        )
+      listOf(
+        SweepPsbt(psbtMock, Hardware, lostAppKeyset1),
+        SweepPsbt(psbtMock, Hardware, lostAppKeyset2)
       )
     )
 
     // two addresses to watch
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
@@ -273,7 +271,7 @@ class SweepGeneratorImplTests : FunSpec({
           )
         )
       )
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
       .shouldBe(
         listOf(
           RegisterWatchAddressContext(
@@ -295,54 +293,50 @@ class SweepGeneratorImplTests : FunSpec({
       Err(Generic(Exception("Dang."), null))
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
 
-    listKeysetsService.result = Ok(listOf(lostAppKeyset1))
+    listKeysetsF8eClient.result = Ok(listOf(lostAppKeyset1))
 
     sweepGenerator.generateSweep(activeKeybox)
       .shouldBeErrOfType<SweepGeneratorError.FailedToGenerateDestinationAddress>()
   }
 
   test("lost hardware recovery") {
-    listKeysetsService.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
+    listKeysetsF8eClient.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
 
-    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeTypeOf<Ok<List<SweepPsbt>>>()
-    result.component1().shouldHaveSize(2)
+    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeOkOfType<List<SweepPsbt>>()
+    result.shouldHaveSize(2)
     result.shouldBe(
-      Ok(
-        listOf(
-          SweepPsbt(psbtMock, App, lostHwKeyset1),
-          SweepPsbt(psbtMock, App, lostHwKeyset2)
-        )
+      listOf(
+        SweepPsbt(psbtMock, App, lostHwKeyset1),
+        SweepPsbt(psbtMock, App, lostHwKeyset2)
       )
     )
     // two addresses to watch
-    registerWatchAddressService.processBatchCalls.awaitItem()
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
   }
 
   test("no signable keysets - lost both") {
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
-    listKeysetsService.result = Ok(listOf(lostBothKeyset))
+    listKeysetsF8eClient.result = Ok(listOf(lostBothKeyset))
 
-    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeTypeOf<Ok<List<SweepPsbt>>>()
-    result.component1().shouldBeEmpty()
+    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeOkOfType<List<SweepPsbt>>()
+    result.shouldBeEmpty()
   }
 
   test("some signable keysets") {
     wallets.getValue(lostAppKeyset1.localId).createPsbtResult = Ok(psbtMock)
-    listKeysetsService.result = Ok(listOf(lostBothKeyset, lostAppKeyset1, lostHwKeyset1))
+    listKeysetsF8eClient.result = Ok(listOf(lostBothKeyset, lostAppKeyset1, lostHwKeyset1))
 
-    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeTypeOf<Ok<List<SweepPsbt>>>()
+    val result = sweepGenerator.generateSweep(activeKeybox).shouldBeOkOfType<List<SweepPsbt>>()
     result.shouldBe(
-      Ok(
-        listOf(
-          SweepPsbt(psbtMock, Hardware, lostAppKeyset1),
-          SweepPsbt(psbtMock, App, lostHwKeyset1)
-        )
+      listOf(
+        SweepPsbt(psbtMock, Hardware, lostAppKeyset1),
+        SweepPsbt(psbtMock, App, lostHwKeyset1)
       )
     )
     // two addresses to watch
-    registerWatchAddressService.processBatchCalls.awaitItem()
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
   }
 
   test("insufficient balance for one keyset should skip the keyset") {
@@ -350,13 +344,13 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset1.localId).createPsbtResult =
       Err(InsufficientFunds(Exception("too poor"), null))
     wallets.getValue(lostHwKeyset2.localId).createPsbtResult = Ok(psbtMock)
-    listKeysetsService.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
+    listKeysetsF8eClient.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
 
     sweepGenerator.generateSweep(activeKeybox)
       .shouldBe(Ok(listOf(SweepPsbt(psbtMock, App, lostHwKeyset2))))
     // two addresses to watch
-    registerWatchAddressService.processBatchCalls.awaitItem()
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
   }
 
   test("psbt create failure for one keyset should fail all") {
@@ -364,10 +358,10 @@ class SweepGeneratorImplTests : FunSpec({
     wallets.getValue(lostHwKeyset1.localId).createPsbtResult =
       Err(Generic(Exception("Dang."), null))
     wallets.getValue(lostHwKeyset2.localId).createPsbtResult = Ok(psbtMock)
-    listKeysetsService.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
+    listKeysetsF8eClient.result = Ok(listOf(lostHwKeyset1, lostHwKeyset2))
 
     sweepGenerator.generateSweep(activeKeybox).shouldBeErrOfType<BdkFailedToCreatePsbt>()
     // single address to watch, subsequent fail and don't trigger
-    registerWatchAddressService.processBatchCalls.awaitItem()
+    registerWatchAddressF8eClient.processBatchCalls.awaitItem()
   }
 })

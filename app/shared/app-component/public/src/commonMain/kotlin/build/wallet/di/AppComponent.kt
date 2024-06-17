@@ -2,11 +2,7 @@ package build.wallet.di
 
 import build.wallet.account.AccountRepository
 import build.wallet.account.analytics.AppInstallationDao
-import build.wallet.analytics.events.AnalyticsTrackingPreference
-import build.wallet.analytics.events.AppSessionManager
-import build.wallet.analytics.events.EventStore
-import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.events.PlatformInfoProvider
+import build.wallet.analytics.events.*
 import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenDao
@@ -29,16 +25,17 @@ import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bugsnag.BugsnagContext
+import build.wallet.configuration.MobilePayFiatConfigService
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.SignatureVerifier
-import build.wallet.f8e.auth.AuthenticationService
+import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
-import build.wallet.f8e.featureflags.GetFeatureFlagsService
+import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagInitializer
 import build.wallet.feature.FeatureFlagSyncer
@@ -62,11 +59,11 @@ import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.ktor.result.client.KtorLogLevelPolicy
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStore
-import build.wallet.memfault.MemfaultService
+import build.wallet.memfault.MemfaultClient
 import build.wallet.money.currency.FiatCurrencyDao
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.money.exchange.F8eExchangeRateService
+import build.wallet.money.exchange.ExchangeRateF8eClient
 import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.RegisterWatchAddressContext
@@ -87,6 +84,7 @@ import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
+import build.wallet.recovery.sweep.PromptSweepFeatureFlag
 import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
 import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
@@ -105,7 +103,7 @@ interface AppComponent {
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
   val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>
   val appWorkerExecutor: AppWorkerExecutor
-  val authenticationService: AuthenticationService
+  val authF8eClient: AuthF8eClient
   val authTokensRepository: AuthTokensRepository
   val appCoroutineScope: CoroutineScope
   val appId: AppId
@@ -153,7 +151,7 @@ interface AppComponent {
   val fwupDataFetcher: FwupDataFetcher
   val fwupDataDao: FwupDataDao
   val fwupProgressCalculator: FwupProgressCalculator
-  val getFeatureFlagsService: GetFeatureFlagsService
+  val featureFlagsF8eClient: FeatureFlagsF8eClient
   val keyboxDao: KeyboxDao
   val keyValueStoreFactory: KeyValueStoreFactory
   val ktorLogLevelPolicy: KtorLogLevelPolicy
@@ -162,9 +160,10 @@ interface AppComponent {
   val localeLanguageCodeProvider: LocaleLanguageCodeProvider
   val logStore: LogStore
   val logWriterContextStore: LogWriterContextStore
-  val memfaultService: MemfaultService
+  val memfaultClient: MemfaultClient
   val messageSigner: MessageSigner
   val mobileTestFeatureFlag: MobileTestFeatureFlag
+  val mobilePayFiatConfigService: MobilePayFiatConfigService
   val signatureVerifier: SignatureVerifier
   val networkingDebugConfigRepository: NetworkingDebugConfigRepository
   val networkReachabilityEventDao: NetworkReachabilityEventDao
@@ -192,9 +191,10 @@ interface AppComponent {
   val hardwareAttestation: HardwareAttestation
   val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider
   val analyticsTrackingPreference: AnalyticsTrackingPreference
-  val f8eExchangeRateService: F8eExchangeRateService
+  val exchangeRateF8eClient: ExchangeRateF8eClient
   val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag
   val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag
   val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag
+  val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val biometricPreference: BiometricPreference
 }

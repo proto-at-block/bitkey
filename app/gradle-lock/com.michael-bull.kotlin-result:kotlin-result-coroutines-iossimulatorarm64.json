@@ -2,16 +2,16 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-coroutines-iossimulatorarm64",
     "components": [
         {
-            "version": "1.1.18",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines-iossimulatorarm64-1.1.18-metadata.jar": "4356527c57b56e055cb4901b79d5788d546af6d85942c332619fc0e360800555"
+                        "kotlin-result-coroutines-iossimulatorarm64-2.0.0-metadata.jar": "888fe5e54691dec4cc08d5e8f6d9feb09bad0123c71e4492819cd9e52fc18f25"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-result-coroutines.klib": "3e37fd7ec6b97316b1bf0ab4c36febd93d39141672341f0ee65a65e5a3e54d5e"
+                        "kotlin-result-coroutines.klib": "bda26199d801cfcb017867f808ec8e7a221361a92828ca1da73381ffc9ea16b1"
                     }
                 }
             ],

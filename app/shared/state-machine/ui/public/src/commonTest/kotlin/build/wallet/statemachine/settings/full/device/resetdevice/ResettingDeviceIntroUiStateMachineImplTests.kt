@@ -2,7 +2,10 @@ package build.wallet.statemachine.settings.full.device.resetdevice
 
 import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifierMock
+import build.wallet.f8e.auth.AuthF8eClientMock
+import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
@@ -26,6 +29,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
+
+  val mobilePayService = MobilePayServiceMock(turbines::create)
+
   val stateMachine = ResettingDeviceIntroUiStateMachineImpl(
     nfcSessionUIStateMachine =
       object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
@@ -34,7 +40,9 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
     signatureVerifier = SignatureVerifierMock(),
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
     fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
-    currencyConverter = CurrencyConverterFake(conversionRate = 3.0)
+    currencyConverter = CurrencyConverterFake(conversionRate = 3.0),
+    mobilePayService = mobilePayService,
+    authF8eClient = AuthF8eClientMock()
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -45,10 +53,10 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
     onBack = { onBackCalls += Unit },
     onUnwindToMoneyHome = {},
     onDeviceConfirmed = {},
+    fullAccountConfig = activeKeyboxLoadedData.account.config,
+    fullAccount = activeKeyboxLoadedData.account,
     spendingWallet = activeKeyboxLoadedData.spendingWallet,
-    keybox = activeKeyboxLoadedData.account.keybox,
-    balance = activeKeyboxLoadedData.transactionsData.balance,
-    isHardwareFake = true
+    balance = activeKeyboxLoadedData.transactionsData.balance
   )
 
   test("onBack calls") {
@@ -112,11 +120,10 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
           .primaryButton?.onClick?.invoke()
       }
 
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<String>> {
-        onSuccess("success")
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Pair<Secp256k1PublicKey, String>>> {
+        onSuccess(Pair(Secp256k1PublicKey("public"), "success"))
       }
 
-      // TODO: assert specific values on these sheets
       // Transfer funds warning sheet
       with(awaitItem()) {
         bottomSheetModel.shouldNotBeNull()
@@ -126,9 +133,20 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
 
       // Transfer funds balance loaded
       with(awaitItem()) {
-        bottomSheetModel.shouldNotBeNull()
-          .body.shouldBeInstanceOf<FormBodyModel>()
-          .id.shouldBe(ResettingDeviceEventTrackerScreenId.RESET_DEVICE_TRANSFER_FUNDS)
+        val bottomSheet = bottomSheetModel.shouldNotBeNull()
+        val body = bottomSheet.body.shouldBeInstanceOf<FormBodyModel>()
+        body.id.shouldBe(ResettingDeviceEventTrackerScreenId.RESET_DEVICE_TRANSFER_FUNDS)
+
+        val header = body.header.shouldNotBeNull()
+        header.headline.shouldBe("Transfer funds before you reset the device")
+
+        val mainContentList = body.mainContentList.shouldNotBeNull()
+        val listGroup = mainContentList[0].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        val listGroupModel = listGroup.listGroupModel.shouldNotBeNull()
+
+        listGroupModel.header.shouldBe("Your funds")
+        listGroupModel.items[0].title.shouldBe("$0.00")
+        listGroupModel.items[0].secondaryText.shouldBe("100,000 sats")
       }
     }
   }

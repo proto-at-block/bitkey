@@ -1,13 +1,7 @@
 package build.wallet.ui.app.lock
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -48,7 +42,7 @@ fun SplashLockScreen(model: SplashLockModel) {
       androidx.compose.material3.Icon(
         painter = painterResource(R.drawable.bitkey_full_logo),
         contentDescription = "Bitkey Logo",
-        tint = Color.White.copy(alpha = 0.2F)
+        tint = Color.White.copy(alpha = 0.5F)
       )
     }
     Column(
@@ -62,18 +56,21 @@ fun SplashLockScreen(model: SplashLockModel) {
       Icon(
         icon = build.wallet.statemachine.core.Icon.SmallIconLock,
         tint = IconTint.OnTranslucent,
-        opacity = 0.2F,
+        opacity = 0.5F,
         size = IconSize.Large
       )
       Label(
         text = "Locked",
         type = LabelType.Body1Medium,
-        color = Color.White.copy(alpha = 0.2F),
-        treatment = LabelTreatment.Disabled
+        color = Color.White.copy(alpha = 0.5F),
+        treatment = LabelTreatment.Unspecified
       )
     }
     Spacer(Modifier.height(24.dp))
-    Button(model.unlockButtonModel)
+    Button(
+      modifier = Modifier.padding(horizontal = 4.dp),
+      model = model.unlockButtonModel
+    )
     Spacer(Modifier.height(28.dp))
   }
 }

@@ -17,7 +17,7 @@ import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.mobilepay.MobilePaySigningServiceMock
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.f8e.mobilepay.isServerSignedWithKeyset
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.HttpError.NetworkError
@@ -50,7 +50,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class SweepDataStateMachineImplTests : FunSpec({
   val sweepGenerator = SweepGeneratorMock()
-  val serverSigner = MobilePaySigningServiceMock(turbines::create)
+  val serverSigner = MobilePaySigningF8eClientMock(turbines::create)
   val bitcoinBlockchain = BitcoinBlockchainMock(turbines::create)
   val spendingWallets = mutableMapOf<String, SpendingWalletMock>()
   val appSpendingWalletProvider =
@@ -92,7 +92,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     spendingWallets.clear()
   }
 
-  fun props() = SweepDataProps(App, KeyboxMock, {})
+  fun props() = SweepDataProps(KeyboxMock, {})
 
   test("failed to generate sweep") {
     sweepGenerator.generateSweepResult =

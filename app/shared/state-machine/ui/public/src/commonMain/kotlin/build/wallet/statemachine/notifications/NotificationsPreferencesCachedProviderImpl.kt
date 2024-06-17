@@ -3,7 +3,7 @@ package build.wallet.statemachine.notifications
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.notifications.NotificationTouchpointService
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.log
 import build.wallet.notifications.NotificationChannel
@@ -25,7 +25,7 @@ internal const val PRODUCT_MARKETING_CHANNELS = "productMarketing-channels"
 internal const val ACCOUNT_SECURITY_CHANNELS = "accountSecurity-channels"
 
 class NotificationsPreferencesCachedProviderImpl(
-  private val notificationTouchpointService: NotificationTouchpointService,
+  private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val keyValueStoreFactory: KeyValueStoreFactory,
 ) : NotificationsPreferencesCachedProvider {
   override suspend fun getNotificationsPreferences(
@@ -39,7 +39,7 @@ class NotificationsPreferencesCachedProviderImpl(
         // Emit saved values right away
         emit(Ok(loadedPrefs))
 
-        notificationTouchpointService.getNotificationsPreferences(
+        notificationTouchpointF8eClient.getNotificationsPreferences(
           f8eEnvironment = f8eEnvironment,
           fullAccountId = fullAccountId
         ).onSuccess { serverPrefs ->
@@ -52,12 +52,14 @@ class NotificationsPreferencesCachedProviderImpl(
             )
           }
         }.onFailure {
-          // We assume the local values are sufficient and do not emit an error
-          // NotificationTouchpointServiceImpl will log the error detail for us
+          /**
+           * We assume the local values are sufficient and do not emit an error
+           * [NotificationTouchpointF8eClientImpl] will log the error detail for us
+           */
           log { "Failed to load prefs. Using cached values." }
         }
       } else {
-        notificationTouchpointService.getNotificationsPreferences(
+        notificationTouchpointF8eClient.getNotificationsPreferences(
           f8eEnvironment = f8eEnvironment,
           fullAccountId = fullAccountId
         ).onSuccess { serverPrefs ->
@@ -79,7 +81,7 @@ class NotificationsPreferencesCachedProviderImpl(
     preferences: NotificationPreferences,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, NetworkingError> =
-    notificationTouchpointService.updateNotificationsPreferences(
+    notificationTouchpointF8eClient.updateNotificationsPreferences(
       f8eEnvironment = f8eEnvironment,
       fullAccountId = fullAccountId,
       preferences = preferences,

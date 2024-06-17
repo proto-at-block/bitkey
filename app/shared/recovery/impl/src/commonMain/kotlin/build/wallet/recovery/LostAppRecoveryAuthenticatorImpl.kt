@@ -13,7 +13,7 @@ import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuth
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError.AccessTokensNotSavedError
 import build.wallet.recovery.LostAppRecoveryAuthenticator.DelayNotifyLostAppAuthError.F8eAccountAuthenticationFailed
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LostAppRecoveryAuthenticatorImpl(
@@ -28,7 +28,7 @@ class LostAppRecoveryAuthenticatorImpl(
     hardwareAuthSignature: String,
     hardwareAuthPublicKey: HwAuthPublicKey,
   ): Result<AccountAuthTokens, DelayNotifyLostAppAuthError> =
-    binding {
+    coroutineBinding {
       val authTokens =
         accountAuthenticator
           .hwAuth(

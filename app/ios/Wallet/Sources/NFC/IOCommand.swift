@@ -1,5 +1,5 @@
-import firmware
 import CoreNFC
+import firmware
 import Shared
 
 // MARK: - monomorphised FFI result types
@@ -180,127 +180,157 @@ extension IOCommand {
 
     func next(_ response: [UInt8]) throws -> IOResult<Bool> where FFIStateType == BooleanState {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
 
     func next(_ response: [UInt8]) throws -> IOResult<UInt16> where FFIStateType == U16State {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
 
-    func next(_ response: [UInt8]) throws -> IOResult<String> where FFIStateType == PartiallySignedTransactionState {
+    func next(_ response: [UInt8]) throws -> IOResult<String>
+        where FFIStateType == PartiallySignedTransactionState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
 
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.FingerprintEnrollmentStatus> where FFIStateType == firmware.FingerprintEnrollmentStatusState {
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.FingerprintEnrollmentStatus>
+        where FFIStateType == firmware.FingerprintEnrollmentStatusState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.UnlockInfo> where FFIStateType == UnlockInfoState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.UnlockInfo>
+        where FFIStateType == UnlockInfoState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.EnrolledFingerprints> where FFIStateType == EnrolledFingerprintsState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.EnrolledFingerprints>
+        where FFIStateType == EnrolledFingerprintsState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
+
     func next(_ response: [UInt8]) throws -> IOResult<[UInt8]> where FFIStateType == BytesState {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
-        }
-    }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<FwupFinishRspStatus> where FFIStateType == FwupFinishRspStatusState {
-        switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
-        }
-    }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.FirmwareMetadata> where FFIStateType == firmware.FirmwareMetadataState {
-        switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
-        }
-    }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<DeviceIdentifiers> where FFIStateType == DeviceIdentifiersState {
-        switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
 
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.EventFragment> where FFIStateType == EventFragmentState {
+    func next(_ response: [UInt8]) throws -> IOResult<FwupFinishRspStatus>
+        where FFIStateType == FwupFinishRspStatusState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.TelemetryIdentifiers> where FFIStateType == TelemetryIdentifiersState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.FirmwareMetadata>
+        where FFIStateType == firmware.FirmwareMetadataState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<[firmware.FirmwareFeatureFlagCfg]> where FFIStateType == firmware.FirmwareFeatureFlagsState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<DeviceIdentifiers>
+        where FFIStateType == DeviceIdentifiersState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.CoredumpFragment> where FFIStateType == CoredumpFragmentState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.EventFragment>
+        where FFIStateType == EventFragmentState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.PublicKey> where FFIStateType == PublicKeyState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.TelemetryIdentifiers>
+        where FFIStateType == TelemetryIdentifiersState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.DescriptorPublicKey> where FFIStateType == DescriptorPublicKeyState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<[firmware.FirmwareFeatureFlagCfg]>
+        where FFIStateType == firmware.FirmwareFeatureFlagsState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.Signature> where FFIStateType == SignatureState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.CoredumpFragment>
+        where FFIStateType == CoredumpFragmentState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
-    
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.DeviceInfo> where FFIStateType == DeviceInfoState {
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.PublicKey>
+        where FFIStateType == PublicKeyState
+    {
         switch try self.next(response: response) {
-        case .data(response: let response): return .data(response: response)
-        case .result(value: let value): return .result(value: value)
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.DescriptorPublicKey>
+        where FFIStateType == DescriptorPublicKeyState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.Signature>
+        where FFIStateType == SignatureState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
+        }
+    }
+
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.DeviceInfo>
+        where FFIStateType == DeviceInfoState
+    {
+        switch try self.next(response: response) {
+        case let .data(response: response): return .data(response: response)
+        case let .result(value: value): return .result(value: value)
         }
     }
 }
@@ -314,12 +344,12 @@ extension IOCommand {
         var data: [KotlinUByte] = []
         while true {
             do {
-                switch try next(data.map { $0.uint8Value }) {
-                case .data(response: let response):
+                switch try next(data.map(\.uint8Value)) {
+                case let .data(response: response):
                     let buffer = response.map { KotlinUByte(value: $0) }
                     data = try await session.transceive(buffer: buffer)
 
-                case .result(value: let value):
+                case let .result(value: value):
                     log(tag: "NFC") { "NFC Command \(self) succeeded" }
                     return value
                 }
@@ -329,12 +359,16 @@ extension IOCommand {
                 case CommandError.Unauthenticated:
                     throw NfcException.CommandErrorUnauthenticated().asError()
 
-                // If there was an issue with the specific command, it will be thrown as a `CommandError`
+                // If there was an issue with the specific command, it will be thrown as a
+                // `CommandError`
                 case is CommandError:
-                    throw NfcException.CommandError(message: error.localizedDescription, cause: nil).asError()
+                    throw NfcException.CommandError(message: error.localizedDescription, cause: nil)
+                        .asError()
 
-                // Otherwise, if there was an issue with the session in general (like a timeout or cancellation),
-                // that will be thrown by the session and already mapped to an NfcException in NfcSession.transceive,
+                // Otherwise, if there was an issue with the session in general (like a timeout or
+                // cancellation),
+                // that will be thrown by the session and already mapped to an NfcException in
+                // NfcSession.transceive,
                 // so just return the error
                 default:
                     throw error
@@ -344,6 +378,6 @@ extension IOCommand {
     }
 }
 
-enum NFCSessionError : Error {
+enum NFCSessionError: Error {
     case InvalidAPDU
 }

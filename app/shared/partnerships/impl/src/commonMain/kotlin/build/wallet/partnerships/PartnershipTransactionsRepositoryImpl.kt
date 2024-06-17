@@ -2,7 +2,7 @@ package build.wallet.partnerships
 
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.partnerships.GetPartnershipTransactionService
+import build.wallet.f8e.partnerships.GetPartnershipTransactionF8eClient
 import build.wallet.flatMapIfNotNull
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.LogLevel
@@ -10,7 +10,7 @@ import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.getErrorOr
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.map
@@ -23,7 +23,7 @@ import kotlinx.datetime.Clock
 
 class PartnershipTransactionsRepositoryImpl(
   private val dao: PartnershipTransactionsDao,
-  private val getPartnershipTransactionService: GetPartnershipTransactionService,
+  private val getPartnershipTransactionF8eClient: GetPartnershipTransactionF8eClient,
   private val uuidGenerator: UuidGenerator,
   private val clock: Clock,
 ) : PartnershipTransactionsStatusRepository {
@@ -91,8 +91,8 @@ class PartnershipTransactionsRepositoryImpl(
     f8eEnvironment: F8eEnvironment,
     transaction: PartnershipTransaction,
   ): Result<PartnershipTransaction, Error> {
-    return binding {
-      val new = getPartnershipTransactionService.getPartnershipTransaction(
+    return coroutineBinding {
+      val new = getPartnershipTransactionF8eClient.getPartnershipTransaction(
         fullAccountId = fullAccountId,
         f8eEnvironment = f8eEnvironment,
         partner = transaction.partnerInfo.partnerId,
@@ -117,6 +117,7 @@ class PartnershipTransactionsRepositoryImpl(
           log(LogLevel.Debug) { "Transaction was not found, removing from local database" }
           dao.deleteTransaction(transaction.id).getErrorOr(error)
         }
+
         else -> error.also {
           log(LogLevel.Error, throwable = error) { "Failed to fetch updated transaction" }
         }

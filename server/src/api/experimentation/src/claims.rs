@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::async_trait;
 use axum::extract::{FromRef, FromRequestParts};
 use axum::http::request::Parts;
@@ -7,6 +9,7 @@ use account::service::Service as AccountService;
 use authn_authz::key_claims::{get_jwt_from_request_parts, get_user_name_from_jwt};
 use feature_flags::flag::ContextKey;
 use instrumentation::middleware::APP_INSTALLATION_ID_HEADER_NAME;
+use types::authn_authz::cognito::CognitoUser;
 
 use crate::attributes::ToLaunchDarklyAttributes;
 use crate::error::ExperimentationError;
@@ -41,7 +44,8 @@ impl ExperimentationClaims {
     fn extract_account_id(parts: &mut Parts) -> Option<String> {
         get_jwt_from_request_parts(parts)
             .and_then(|jwt| get_user_name_from_jwt(&jwt))
-            .map(|username| username.as_ref().to_string())
+            .and_then(|u| CognitoUser::from_str(u.as_ref()).ok())
+            .map(|cognito_user| cognito_user.get_account_id().to_string())
     }
 
     fn extract_header_value(parts: &mut Parts, header_name: &str) -> Option<String> {

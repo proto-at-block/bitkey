@@ -58,6 +58,8 @@ import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitR
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
 import build.wallet.statemachine.root.AppUiStateMachineImpl
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
 import build.wallet.time.Delayer
@@ -107,6 +109,10 @@ class AppUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>(
         id = "rotate-auth-key"
       ) {}
+  val resettingDeviceUiStateMachine =
+    object : ResettingDeviceUiStateMachine,
+      ScreenStateMachineMock<ResettingDeviceProps>(id = "resetting-device") {}
+
   lateinit var stateMachine: AppUiStateMachineImpl
 
   val appWorkerExecutor = AppWorkerExecutorMock(turbines::create)
@@ -140,6 +146,7 @@ class AppUiStateMachineImplTests : FunSpec({
         liteAccountCloudBackupRestorationUiStateMachine,
         emergencyAccessKitRecoveryUiStateMachine = emergencyAccessKitRecoveryUiStateMachine,
         authKeyRotationUiStateMachine = authKeyRotationUiStateMachine,
+        resettingDeviceUiStateMachine = resettingDeviceUiStateMachine,
         appWorkerExecutor = appWorkerExecutor
       )
   }
@@ -206,6 +213,7 @@ class AppUiStateMachineImplTests : FunSpec({
             startLiteAccountCreation = {},
             startRecovery = {},
             startEmergencyAccessRecovery = {},
+            resetExistingDevice = {},
             newAccountOnboardConfigData = LoadedOnboardConfigDataMock,
             templateFullAccountConfigData =
               LoadedTemplateFullAccountConfigData(

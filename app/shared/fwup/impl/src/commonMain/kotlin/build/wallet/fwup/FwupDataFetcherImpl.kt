@@ -15,7 +15,7 @@ import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import okio.ByteString.Companion.toByteString
 
@@ -33,7 +33,7 @@ class FwupDataFetcherImpl(
   override suspend fun fetchLatestFwupData(
     deviceInfo: FirmwareDeviceInfo,
   ): Result<FwupData, FwupDataFetcher.FwupDataFetcherError> {
-    return binding {
+    return coroutineBinding {
       // Get the latest firmware, if there is a newer version than specified by the
       // current manifest
       firmwareDownloader.download(deviceInfo)

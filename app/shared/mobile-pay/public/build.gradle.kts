@@ -20,6 +20,7 @@ kotlin {
         api(projects.shared.featureFlagPublic)
         api(projects.shared.dbResultPublic)
         api(projects.shared.moneyPublic)
+        api(projects.shared.workerPublic)
         implementation(libs.kmp.kotlin.serialization.core)
         implementation(libs.kmp.kotlin.serialization.json)
         implementation(projects.shared.timePublic)

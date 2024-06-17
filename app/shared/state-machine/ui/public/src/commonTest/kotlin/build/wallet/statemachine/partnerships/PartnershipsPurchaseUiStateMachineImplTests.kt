@@ -3,9 +3,9 @@ package build.wallet.statemachine.partnerships
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.GetPurchaseOptionsServiceMock
-import build.wallet.f8e.partnerships.GetPurchaseQuoteListServiceServiceMock
-import build.wallet.f8e.partnerships.GetPurchaseRedirectServiceMock
+import build.wallet.f8e.partnerships.GetPurchaseOptionsF8eClientMock
+import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClientMock
+import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClientMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.GBP
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
@@ -33,9 +33,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
-  val getPurchaseOptionsService = GetPurchaseOptionsServiceMock(turbines::create)
-  val getPurchaseQuoteListServiceMock = GetPurchaseQuoteListServiceServiceMock(turbines::create)
-  val getPurchaseRedirectServiceMock = GetPurchaseRedirectServiceMock(turbines::create)
+  val getPurchaseOptionsF8eClient = GetPurchaseOptionsF8eClientMock(turbines::create)
+  val getPurchaseQuoteListF8eClient = GetPurchaseQuoteListF8eClientMock(turbines::create)
+  val getPurchaseRedirectF8eClient = GetPurchaseRedirectF8eClientMock(turbines::create)
   val onPartnerRedirectedCalls =
     turbines.create<PartnerRedirectionMethod>(
       "on partner redirected calls"
@@ -54,9 +54,9 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
 
   val stateMachine = PartnershipsPurchaseUiStateMachineImpl(
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
-    getPurchaseOptionsService = getPurchaseOptionsService,
-    getPurchaseQuoteListService = getPurchaseQuoteListServiceMock,
-    getPurchaseRedirectService = getPurchaseRedirectServiceMock,
+    getPurchaseOptionsF8eClient = getPurchaseOptionsF8eClient,
+    getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
+    getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
     partnershipsRepository = partnershipRepositoryMock,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )
@@ -80,7 +80,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = GBP
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -93,7 +93,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("partnerships purchase options") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       // show purchase amounts
@@ -137,7 +137,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("partnerships purchase quotes") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -146,7 +146,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
+      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -165,7 +165,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("partnerships purchase redirect") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -174,7 +174,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load purchase quotes
-      getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
+      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -188,7 +188,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
       }
 
       // load redirect info
-      getPurchaseRedirectServiceMock.getPurchasePartnersRedirectCall.awaitItem()
+      getPurchaseRedirectF8eClient.getPurchasePartnersRedirectCall.awaitItem()
       awaitSheetWithBody<FormBodyModel>()
 
       awaitSheetWithBody<FormBodyModel> {
@@ -222,11 +222,11 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     val selectedAmount = FiatMoney.usd(123.0)
     stateMachine.test(props(selectedAmount = selectedAmount)) {
       // load purchase amounts
-      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       // load purchase quotes
-      getPurchaseQuoteListServiceMock.getPurchaseQuotesListServiceCall.awaitItem()
+      getPurchaseQuoteListF8eClient.getPurchaseQuotesListCall.awaitItem()
       awaitLoader()
 
       // show purchase quotes
@@ -245,7 +245,7 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
   test("select custom amount") {
     stateMachine.test(props()) {
       // load purchase amounts
-      getPurchaseOptionsService.getPurchaseOptionsServiceCall.awaitItem()
+      getPurchaseOptionsF8eClient.getPurchaseOptionsCall.awaitItem()
       awaitLoader()
 
       awaitSheetWithBody<FormBodyModel> {

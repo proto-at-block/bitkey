@@ -9,5 +9,8 @@ public protocol NotificationManager: AnyObject, UNUserNotificationCenterDelegate
     func applicationDidEnterForeground(_ application: Application)
 
     // Called by the application delegate when the app successfully registers for notifcations
-    func application(_: Application, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data)
+    func application(
+        _: Application,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    )
 }

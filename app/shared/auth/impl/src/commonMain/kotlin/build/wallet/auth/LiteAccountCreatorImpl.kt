@@ -8,10 +8,10 @@ import build.wallet.auth.LiteAccountCreationError.LiteAccountCreationF8eError
 import build.wallet.auth.LiteAccountCreationError.LiteAccountKeyGenerationError
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
-import build.wallet.f8e.onboarding.CreateLiteAccountService
+import build.wallet.f8e.onboarding.CreateLiteAccountF8eClient
 import build.wallet.keybox.keys.AppKeysGenerator
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LiteAccountCreatorImpl(
@@ -19,12 +19,12 @@ class LiteAccountCreatorImpl(
   private val accountRepository: AccountRepository,
   private val authTokenDao: AuthTokenDao,
   private val appKeysGenerator: AppKeysGenerator,
-  private val createLiteAccountService: CreateLiteAccountService,
+  private val createLiteAccountF8eClient: CreateLiteAccountF8eClient,
 ) : LiteAccountCreator {
   override suspend fun createAccount(
     config: LiteAccountConfig,
   ): Result<LiteAccount, LiteAccountCreationError> =
-    binding {
+    coroutineBinding {
       // Create keys
       val recoveryKey =
         appKeysGenerator.generateRecoveryAuthKey()
@@ -33,7 +33,7 @@ class LiteAccountCreatorImpl(
 
       // Create a new lite account on the server and get an account ID back.
       val accountId =
-        createLiteAccountService
+        createLiteAccountF8eClient
           .createAccount(
             recoveryKey = recoveryKey,
             config = config

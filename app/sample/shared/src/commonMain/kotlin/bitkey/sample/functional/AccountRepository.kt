@@ -17,13 +17,13 @@ interface AccountRepository {
 
 class AccountRepositoryImpl(
   private val accountDao: AccountDao,
-  private val createAccountService: CreateAccountService,
+  private val createAccountF8eClient: CreateAccountF8eClient,
 ) : AccountRepository {
   override fun activeAccount(): Flow<Account?> = accountDao.activeAccount()
 
   override suspend fun createAccount(name: String): Result<Account, Error> {
     delay(1.seconds)
-    return createAccountService.createAccount(name)
+    return createAccountF8eClient.createAccount(name)
   }
 
   override suspend fun activateAccount(account: Account): Result<Unit, Error> {

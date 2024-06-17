@@ -4,7 +4,7 @@ import SwiftUI
 // MARK: -
 
 struct IconView: View {
-    
+
     let model: Shared.IconModel
     var colorOverride: Color? = nil
 
@@ -31,7 +31,7 @@ struct IconView: View {
 
         }.frame(iconSize: model.totalSize)
     }
-    
+
     @ViewBuilder
     private var icon: some View {
         let opacity = model.iconOpacity as? Double ?? 1.0
@@ -53,7 +53,7 @@ struct IconView: View {
             } else {
                 Image(uiImage: image.fallbackIcon.uiImage).opacity(opacity)
             }
-        
+
         case let icon as IconImage.LocalImage:
             Image(uiImage: icon.icon.uiImage)
                 .resizable()
@@ -80,18 +80,18 @@ struct IconViewPreview: PreviewProvider {
     static var previews: some View {
         IconView(
             model:
-                IconModel(
-                    iconImage: .UrlImage(
-                        url: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg",
-                        fallbackIcon: .bitcoin
-                    ),
-                    iconSize: .small,
-                    iconBackgroundType: IconBackgroundTypeTransient(),
-                    iconTint: nil,
-                    iconOpacity: nil,
-                    iconTopSpacing: nil,
-                    text: nil
-                )
+            IconModel(
+                iconImage: .UrlImage(
+                    url: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg",
+                    fallbackIcon: .bitcoin
+                ),
+                iconSize: .small,
+                iconBackgroundType: IconBackgroundTypeTransient(),
+                iconTint: nil,
+                iconOpacity: nil,
+                iconTopSpacing: nil,
+                text: nil
+            )
         )
     }
 }
@@ -108,7 +108,6 @@ private extension IconBackgroundTypeCircle {
     }
 }
 
-
 private extension IconBackgroundTypeSquare {
     var fillColor: SwiftUI.Color {
         switch color {
@@ -121,7 +120,7 @@ private extension IconBackgroundTypeSquare {
         case .warning:
             .calloutWarningTrailingIconBackground
         case .danger:
-            .calloutDangerTrailingIconBackground
+            .danger
         default:
             .calloutDefaultTrailingIconBackground
         }

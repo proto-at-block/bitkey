@@ -25,21 +25,35 @@ public struct PairNewHardwareView: View {
             VStack(spacing: 0) {
                 // Toolbar
                 ToolbarView(viewModel: viewModel.toolbarModel)
-                    .padding(.top, reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0)
+                    .padding(
+                        .top,
+                        reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0
+                    )
                     .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
 
                 Spacer()
 
                 // Header and button
                 VStack {
-                    FormHeaderView(viewModel: viewModel.viewModel.header, headlineFont: .title1, headlineTextColor: .white, sublineTextColor: .white)
-                        .id(viewModel.animatableContentId) // Trigger animation when the text changes
-                        .transition(viewModel.transition)
+                    FormHeaderView(
+                        viewModel: viewModel.viewModel.header,
+                        headlineFont: .title1,
+                        headlineTextColor: .white,
+                        sublineTextColor: .white
+                    )
+                    .id(
+                        viewModel
+                            .animatableContentId
+                    ) // Trigger animation when the text changes
+                    .transition(viewModel.transition)
 
                     Spacer()
                         .frame(height: 24)
                     ButtonView(model: viewModel.viewModel.primaryButton)
-                        .id(viewModel.animatableContentId) // Trigger animation when the text changes
+                        .id(
+                            viewModel
+                                .animatableContentId
+                        ) // Trigger animation when the text changes
                         .transition(viewModel.transition)
                 }
                 .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
@@ -53,7 +67,10 @@ public struct PairNewHardwareView: View {
 
                     VideoView(viewModel: viewModel.videoViewModel)
                         .frame(height: 640)
-                        .padding(.horizontal, -100) // Let the video width extend beyond the edges a bit
+                        .padding(
+                            .horizontal,
+                            -100
+                        ) // Let the video width extend beyond the edges a bit
                         .clipped()
 
                     Spacer(minLength: 250) // The minLength ensures enough space on smaller devices
@@ -67,8 +84,8 @@ public struct PairNewHardwareView: View {
 
 // MARK: -
 
-extension PairNewHardwareView {
-    public class ViewModel: ObservableObject {
+public extension PairNewHardwareView {
+    class ViewModel: ObservableObject {
 
         // MARK: - Public Properties
 
@@ -119,7 +136,10 @@ extension PairNewHardwareView {
             // Animation the view model update if the content is changing
             if viewModel.header != self.viewModel.header {
                 self.transition = viewModel.slideAndFadeTransition()
-                withAnimation(.easeInOut(duration: PairNewHardwareBodyModel.Metrics.totalTransitionDuration)) {
+                withAnimation(.easeInOut(
+                    duration: PairNewHardwareBodyModel.Metrics
+                        .totalTransitionDuration
+                )) {
                     self.viewModel = viewModel
                     self.animatableContentId = UUID()
                 }
@@ -164,10 +184,14 @@ extension PairNewHardwareBodyModel {
 
     func slideAndFadeTransition() -> AnyTransition {
         func slideTransition(isNegated: Bool) -> AnyTransition {
-            return .offset(x: isNegated ? -(Metrics.slideTransitionXOffset) : Metrics.slideTransitionXOffset)
-                .animation(.easeInOut(duration: Metrics.slideTransitionDuration))
+            return .offset(
+                x: isNegated ? -(Metrics.slideTransitionXOffset) : Metrics
+                    .slideTransitionXOffset
+            )
+            .animation(.easeInOut(duration: Metrics.slideTransitionDuration))
         }
-        let fadeTransition: AnyTransition = .opacity.animation(.easeInOut(duration: Metrics.fadeTransitionDuration))
+        let fadeTransition: AnyTransition = .opacity
+            .animation(.easeInOut(duration: Metrics.fadeTransitionDuration))
 
         return .asymmetric(
             insertion: slideTransition(isNegated: isNavigatingBack).combined(with: fadeTransition),

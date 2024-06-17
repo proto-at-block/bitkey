@@ -16,7 +16,7 @@ import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.flow.first
 
@@ -29,7 +29,7 @@ class AppAuthPublicKeyProviderImpl(
     accountId: AccountId,
     tokenScope: AuthTokenScope,
   ): Result<PublicKey<out AppAuthKey>, AuthError> {
-    return binding {
+    return coroutineBinding {
       // First, try to get the active or onboarding account
       val account =
         getAccount(f8eEnvironment, accountId)
@@ -62,7 +62,7 @@ class AppAuthPublicKeyProviderImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Result<Account?, AuthError> {
-    return binding {
+    return coroutineBinding {
       val accountStatus = accountRepository.accountStatus().first()
         .mapError { FailedToReadAccountStatus(it) }
         .bind()

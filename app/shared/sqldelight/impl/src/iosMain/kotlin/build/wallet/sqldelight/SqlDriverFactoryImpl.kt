@@ -5,7 +5,7 @@ import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import app.cash.sqldelight.driver.native.wrapConnection
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.FileDirectoryProvider
@@ -14,7 +14,6 @@ import build.wallet.store.EncryptedKeyValueStoreFactory
 import co.touchlab.sqliter.DatabaseConfiguration
 import co.touchlab.sqliter.JournalMode
 import co.touchlab.sqliter.createDatabaseManager
-import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
 
 /**
@@ -114,7 +113,7 @@ actual class SqlDriverFactoryImpl actual constructor(
       .createMultiThreadedConnection().close()
 
     val connectAttempt =
-      Result.catching {
+      catchingResult {
         createDatabaseManager(createClearDatabaseConfig(dataBaseName, dataBaseSchema))
           .createMultiThreadedConnection().close()
       }

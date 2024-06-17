@@ -7,7 +7,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryServiceMock
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
@@ -27,7 +27,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 
 class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
 
-  val cancelDelayNotifyRecoveryService = CancelDelayNotifyRecoveryServiceMock(turbines::create)
+  val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
   val recoveryNotificationVerificationDataStateMachine =
     object : RecoveryNotificationVerificationDataStateMachine, StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
       LoadingNotificationTouchpointData
@@ -35,7 +35,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
   val recoverySyncer = RecoverySyncerMock(NoActiveRecovery, turbines::create)
   val stateMachine =
     SomeoneElseIsRecoveringDataStateMachineImpl(
-      cancelDelayNotifyRecoveryService = cancelDelayNotifyRecoveryService,
+      cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       recoverySyncer = recoverySyncer
     )
@@ -69,7 +69,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeInstanceOf<CancelingSomeoneElsesRecoveryData>()
-      cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+      cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
       recoverySyncer.clearCalls.awaitItem()
     }
   }
@@ -82,13 +82,13 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeInstanceOf<CancelingSomeoneElsesRecoveryData>()
-      cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+      cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
       recoverySyncer.clearCalls.awaitItem()
     }
   }
 
   test("cancel recovery failure - retry and rollback") {
-    cancelDelayNotifyRecoveryService.cancelResult =
+    cancelDelayNotifyRecoveryF8eClient.cancelResult =
       Err(F8eError.UnhandledException(HttpError.UnhandledException(Throwable())))
     stateMachine.test(canceledByLostHwProps) {
       awaitItem().let {
@@ -102,7 +102,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeInstanceOf<CancelingSomeoneElsesRecoveryData>()
-      cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+      cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeInstanceOf<CancelingSomeoneElsesRecoveryFailedData>()
@@ -110,7 +110,7 @@ class SomeoneElseIsRecoveringDataStateMachineImplTests : FunSpec({
       }
 
       awaitItem().shouldBeInstanceOf<CancelingSomeoneElsesRecoveryData>()
-      cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+      cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeInstanceOf<CancelingSomeoneElsesRecoveryFailedData>()

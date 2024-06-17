@@ -25,9 +25,8 @@ indent_size = 2
 ij_continuation_indent_size = 4
 
 # Imports
-# Disallow wildcard imports
-ij_kotlin_name_count_to_use_star_import = 999
-ij_kotlin_name_count_to_use_star_import_for_members = 999
+ij_kotlin_name_count_to_use_star_import = 5
+ij_kotlin_name_count_to_use_star_import_for_members = 3
 # https://github.com/squareup/wallet/pull/10791
 ij_kotlin_import_nested_classes = false
 
@@ -38,4 +37,4 @@ ij_kotlin_allow_trailing_comma_on_call_site = false
 # Comments
 ktlint_standard_value-parameter-comment=disabled
 ktlint_standard_value-argument-comment=disabled
-
+ktlint_standard_no-wildcard-imports = disabled

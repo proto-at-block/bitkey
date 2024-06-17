@@ -116,6 +116,14 @@
         "light": { "value": "#F46E38", "comment": "Warning foreground color" },
         "dark": { "value": "#F46E38" }
       },
+      "danger": {
+        "light": { "value": "#E14425FF", "comment": "Danger color" },
+        "dark": { "value": "#E14425FF" }
+      },
+      "dangerBackground": {
+        "light": { "value": "#E144251A", "comment": "Danger background color" },
+        "dark": { "value": "#E144251A" }
+      },
       "deviceLEDGreen": {
         "light": { "value": "#008000", "comment": "Device LED green color" },
         "dark": { "value": "#008000" }
@@ -236,17 +244,9 @@
         "light": { "value": "#74140DFF", "comment": "Danger callout subtitle color" },
         "dark": { "value": "#74140DFF" }
       },
-      "calloutDangerBackground": {
-        "light": { "value": "#E144251A", "comment": "Danger callout background color" },
-        "dark": { "value": "#E144251A" }
-      },
       "calloutDangerTrailingIcon": {
         "light": { "value": "#FFFFFFFF", "comment": "Danger callout trailing icon color" },
         "dark": { "value": "#FFFFFFFF" }
-      },
-      "calloutDangerTrailingIconBackground": {
-        "light": { "value": "#E14425FF", "comment": "Danger callout trailing icon background color" },
-        "dark": { "value": "#E14425FF" }
       }
   }
 }

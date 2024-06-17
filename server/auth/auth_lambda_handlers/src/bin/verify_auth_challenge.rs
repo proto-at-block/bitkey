@@ -15,9 +15,13 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-//IMPORTANT: Update terraform files and F8E when changing these attributes
+//IMPORTANT: Update terraform files and Lambdas when changing these attributes
+const PUBLIC_KEY_ATTRIBUTE: &str = "custom:publicKey";
+#[deprecated(note = "Remove after W-8550 migration is complete")]
 const APP_KEY_ATTRIBUTE: &str = "custom:appPubKey";
+#[deprecated(note = "Remove after W-8550 migration is complete")]
 const HW_KEY_ATTRIBUTE: &str = "custom:hwPubKey";
+#[deprecated(note = "Remove after W-8550 migration is complete")]
 const RECOVERY_KEY_ATTRIBUTE: &str = "custom:recoveryPubKey";
 
 // Lambda request/response parameters
@@ -30,11 +34,6 @@ const LAMBDA_RESPONSE_PARAM: &str = "response";
 const LAMBDA_ANSWER_CORRECT_PARAM: &str = "answerCorrect";
 
 #[derive(Debug, PartialEq, Eq)]
-struct RecoveryUserKeys {
-    rpk: PublicKey,
-}
-
-#[derive(Debug, PartialEq, Eq)]
 struct WalletUserKeys {
     apk: PublicKey,
     hpk: PublicKey,
@@ -42,18 +41,24 @@ struct WalletUserKeys {
 
 #[derive(Debug, PartialEq, Eq)]
 enum UserType {
-    Recovery(RecoveryUserKeys),
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
     Wallet(WalletUserKeys),
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
+    Recovery(PublicKey),
+    Generic(PublicKey),
 }
 
 impl fmt::Display for UserType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UserType::Recovery(k) => {
-                write!(f, "RecoveryUserKeys {{ rpk: {} }}", k.rpk)
-            }
             UserType::Wallet(k) => {
-                write!(f, "WalletUserKeys {{ apk: {}, hpk: {} }}", k.apk, k.hpk)
+                write!(f, "WalletUser {{ apk: {}, hpk: {} }}", k.apk, k.hpk)
+            }
+            UserType::Recovery(k) => {
+                write!(f, "RecoveryUser {{ rpk: {} }}", k)
+            }
+            UserType::Generic(k) => {
+                write!(f, "GenericUser {{ pk: {} }}", k)
             }
         }
     }
@@ -62,12 +67,15 @@ impl fmt::Display for UserType {
 impl UserType {
     fn validate(&self, secp: &Secp256k1<All>, message: &Message, signature: &Signature) -> bool {
         match self {
-            UserType::Recovery(k) => {
-                secp.verify_ecdsa(message, signature, &k.rpk).is_ok()
-            }
             UserType::Wallet(k) => {
                 secp.verify_ecdsa(message, signature, &k.apk).is_ok()
                     || secp.verify_ecdsa(message, signature, &k.hpk).is_ok()
+            }
+            UserType::Recovery(k) => {
+                secp.verify_ecdsa(message, signature, k).is_ok()
+            }
+            UserType::Generic(k) => {
+                secp.verify_ecdsa(message, signature, k).is_ok()
             }
         }
     }
@@ -77,12 +85,20 @@ impl TryFrom<&Map<std::string::String, Value>> for UserType {
     type Error = Error;
 
     fn try_from(attrs: &Map<std::string::String, Value>) -> Result<Self, Self::Error> {
-        let (app_pub_key, hw_pub_key, recovery_pub_key) = (
+        let (app_pub_key, hw_pub_key, recovery_pub_key, pub_key) = (
             attrs.get(APP_KEY_ATTRIBUTE),
             attrs.get(HW_KEY_ATTRIBUTE),
             attrs.get(RECOVERY_KEY_ATTRIBUTE),
+            attrs.get(PUBLIC_KEY_ATTRIBUTE),
         );
-        if let (Some(app_pub_key), Some(hw_pub_key)) = (app_pub_key, hw_pub_key) {
+        if let Some(pub_key) = pub_key {
+            let pub_key = pub_key
+                .as_str()
+                .ok_or(Error::from("Could not deserialize publicKey"))?;
+            let pk = PublicKey::from_str(pub_key)
+                .map_err(|err| Error::from(format!("Could not parse pubkey: {}", err)))?;
+            Ok(UserType::Generic(pk))
+        } else if let (Some(app_pub_key), Some(hw_pub_key)) = (app_pub_key, hw_pub_key) {
             let app_pub_key = app_pub_key
                 .as_str()
                 .ok_or(Error::from("Could not deserialize appPubKey"))?;
@@ -100,7 +116,7 @@ impl TryFrom<&Map<std::string::String, Value>> for UserType {
                 .ok_or(Error::from("Could not deserialize recoveryPubKey"))?;
             let rpk = PublicKey::from_str(recovery_pub_key)
                 .map_err(|err| Error::from(format!("Could not parse recovery pubkey: {}", err)))?;
-            Ok(UserType::Recovery(RecoveryUserKeys { rpk }))
+            Ok(UserType::Recovery(rpk))
         } else {
             Err(Error::from("Could not find the attributes for Wallet user or Recovery user in user attributes"))
         }
@@ -191,8 +207,8 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
 #[cfg(test)]
 mod test {
     use crate::{
-        UserType, RecoveryUserKeys, WalletUserKeys, APP_KEY_ATTRIBUTE,
-        HW_KEY_ATTRIBUTE, RECOVERY_KEY_ATTRIBUTE,
+        UserType, WalletUserKeys, APP_KEY_ATTRIBUTE,
+        HW_KEY_ATTRIBUTE, RECOVERY_KEY_ATTRIBUTE, PUBLIC_KEY_ATTRIBUTE,
     };
     use bitcoin_hashes::{sha256, Hash};
     use secp256k1::ecdsa::Signature;
@@ -211,7 +227,7 @@ mod test {
     }
 
     impl TestData {
-        fn gen_user_attrs(&self) -> ((String, Value), (String, Value), (String, Value)) {
+        fn gen_user_attrs(&self) -> ((String, Value), (String, Value), (String, Value), (String, Value)) {
             let app = (
                 APP_KEY_ATTRIBUTE.to_string(),
                 Value::String(self.app.0.to_string()),
@@ -224,7 +240,11 @@ mod test {
                 RECOVERY_KEY_ATTRIBUTE.to_string(),
                 Value::String(self.recovery.0.to_string()),
             );
-            (app, hw, recovery)
+            let generic: (String, Value) = (
+                PUBLIC_KEY_ATTRIBUTE.to_string(),
+                Value::String(self.app.0.to_string()),
+            );
+            (app, hw, recovery, generic)
         }
     }
 
@@ -265,7 +285,7 @@ mod test {
     fn test_matched_wallet_user_with_recovery_key() {
         let secp = Secp256k1::new();
         let input = gen_test_data();
-        let (app, hw, recovery) = input.gen_user_attrs();
+        let (app, hw, recovery, _) = input.gen_user_attrs();
 
         let all_attrs: Map<String, Value> = vec![app.clone(), hw.clone(), recovery.clone()]
             .into_iter()
@@ -280,8 +300,9 @@ mod test {
         );
         assert!(matched_user.validate(&secp, &input.msg, &input.app.1));
         assert!(matched_user.validate(&secp, &input.msg, &input.hw.1));
-        assert!(
-            !matched_user.validate(&secp, &input.msg, &input.recovery.1)
+        assert_eq!(
+            false,
+            matched_user.validate(&secp, &input.msg, &input.recovery.1)
         );
     }
 
@@ -289,7 +310,7 @@ mod test {
     fn test_matched_wallet_user_with_no_recovery_key() {
         let secp = Secp256k1::new();
         let input = gen_test_data();
-        let (app, hw, _) = input.gen_user_attrs();
+        let (app, hw, _, _) = input.gen_user_attrs();
 
         let no_recovery_key: Map<String, Value> =
             vec![app.clone(), hw.clone()].into_iter().collect();
@@ -303,8 +324,9 @@ mod test {
         );
         assert!(matched_user.validate(&secp, &input.msg, &input.app.1));
         assert!(matched_user.validate(&secp, &input.msg, &input.hw.1));
-        assert!(
-            !matched_user.validate(&secp, &input.msg, &input.recovery.1)
+        assert_eq!(
+            false,
+            matched_user.validate(&secp, &input.msg, &input.recovery.1)
         );
     }
 
@@ -312,23 +334,45 @@ mod test {
     fn test_matched_recovery_user() {
         let secp = Secp256k1::new();
         let input = gen_test_data();
-        let (_, _, recovery) = input.gen_user_attrs();
+        let (_, _, recovery, _) = input.gen_user_attrs();
 
         let only_recovery_key: Map<String, Value> = vec![recovery.clone()].into_iter().collect();
         let matched_user = UserType::try_from(&only_recovery_key).unwrap();
         assert_eq!(
             matched_user,
-            UserType::Recovery(RecoveryUserKeys {
-                rpk: input.recovery.0,
-            })
+            UserType::Recovery(input.recovery.0)
         );
-        assert!(
-            !matched_user.validate(&secp, &input.msg, &input.app.1)
+        assert_eq!(
+            false,
+            matched_user.validate(&secp, &input.msg, &input.app.1)
         );
-        assert!(
-            !matched_user.validate(&secp, &input.msg, &input.hw.1)
+        assert_eq!(
+            false,
+            matched_user.validate(&secp, &input.msg, &input.hw.1)
         );
         assert!(matched_user.validate(&secp, &input.msg, &input.recovery.1));
+    }
+
+    #[test]
+    fn test_matched_generic_user() {
+        let secp = Secp256k1::new();
+        let input = gen_test_data();
+        let (_, _, _, generic) = input.gen_user_attrs();
+
+        let only_generic_key: Map<String, Value> = vec![generic.clone()].into_iter().collect();
+        let matched_user = UserType::try_from(&only_generic_key).unwrap();
+        assert_eq!(
+            matched_user,
+            UserType::Generic(input.app.0)
+        );
+        assert!(
+            matched_user.validate(&secp, &input.msg, &input.app.1)
+        );
+        assert_eq!(
+            false,
+            matched_user.validate(&secp, &input.msg, &input.hw.1)
+        );
+        assert_eq!(false, matched_user.validate(&secp, &input.msg, &input.recovery.1));
     }
 
     #[test]

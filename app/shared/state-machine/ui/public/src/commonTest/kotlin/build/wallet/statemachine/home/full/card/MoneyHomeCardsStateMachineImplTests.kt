@@ -20,8 +20,10 @@ import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
-import build.wallet.statemachine.moneyhome.card.replacehardware.ReplaceHardwareCardUiProps
-import build.wallet.statemachine.moneyhome.card.replacehardware.ReplaceHardwareCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
+import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
+import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiStateMachine
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
@@ -52,12 +54,17 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
     object : RecoveryContactCardsUiStateMachine, StateMachineMock<RecoveryContactCardsUiProps, ImmutableList<CardModel>>(
       initialModel = emptyImmutableList()
     ) {}
-  val replaceHardwareCardUiStateMachine =
-    object : ReplaceHardwareCardUiStateMachine, StateMachineMock<ReplaceHardwareCardUiProps, CardModel?>(
+  val setupHardwareCardUiStateMachine =
+    object : SetupHardwareCardUiStateMachine, StateMachineMock<SetupHardwareCardUiProps, CardModel?>(
       initialModel = null
     ) {}
   val cloudBackupHealthCardUiStateMachine =
     object : CloudBackupHealthCardUiStateMachine, StateMachineMock<CloudBackupHealthCardUiProps, CardModel?>(
+      initialModel = null
+    ) {}
+
+  val startSweepCardUiStateMachine =
+    object : StartSweepCardUiStateMachine, StateMachineMock<StartSweepCardUiProps, CardModel?>(
       initialModel = null
     ) {}
 
@@ -67,8 +74,9 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       gettingStartedCardUiStateMachine = gettingStartedCardStateMachine,
       hardwareRecoveryStatusCardUiStateMachine = hardwareRecoveryStatusCardUiStateMachine,
       recoveryContactCardsUiStateMachine = recoveryContactCardsUiStateMachine,
-      replaceHardwareCardUiStateMachine = replaceHardwareCardUiStateMachine,
-      cloudBackupHealthCardUiStateMachine = cloudBackupHealthCardUiStateMachine
+      setupHardwareCardUiStateMachine = setupHardwareCardUiStateMachine,
+      cloudBackupHealthCardUiStateMachine = cloudBackupHealthCardUiStateMachine,
+      startSweepCardUiStateMachine = startSweepCardUiStateMachine
     )
 
   val props =
@@ -104,13 +112,17 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
           relationships = SocRecRelationships.EMPTY,
           onClick = {}
         ),
-      replaceHardwareCardUiProps =
-        ReplaceHardwareCardUiProps(
+      setupHardwareCardUiProps =
+        SetupHardwareCardUiProps(
+          deviceInfo = null,
           onReplaceDevice = {}
         ),
       cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
         appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
         onActionClick = {}
+      ),
+      startSweepCardUiProps = StartSweepCardUiProps(
+        onStartSweepClicked = {}
       )
     )
 
@@ -182,7 +194,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
           )
       )
     )
-    replaceHardwareCardUiStateMachine.emitModel(
+    setupHardwareCardUiStateMachine.emitModel(
       TEST_CARD_MODEL.copy(
         title =
           LabelModel.StringWithStyledSubstringModel.from(

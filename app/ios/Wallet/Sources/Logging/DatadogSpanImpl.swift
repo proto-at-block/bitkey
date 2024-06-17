@@ -1,7 +1,7 @@
-import Shared
 import DatadogTrace
+import Shared
 
-class DatadogSpanImpl : DatadogSpan {
+class DatadogSpanImpl: DatadogSpan {
     var resourceName: String? {
         didSet {
             if let name = resourceName {
@@ -28,7 +28,8 @@ class DatadogSpanImpl : DatadogSpan {
         span.setError(
             kind: cause.description,
             message: cause.message ?? "",
-            stack: KotlinArrayIterator(cause.getStackTrace()).map { $0 as String }.joined(separator: "\n"),
+            stack: KotlinArrayIterator(cause.getStackTrace()).map { $0 as String }
+                .joined(separator: "\n"),
             file: ""
         )
 
@@ -36,7 +37,7 @@ class DatadogSpanImpl : DatadogSpan {
     }
 }
 
-fileprivate class KotlinArrayIterator<T : AnyObject> : Sequence, IteratorProtocol {
+private class KotlinArrayIterator<T: AnyObject>: Sequence, IteratorProtocol {
     typealias Element = T
 
     let inner: KotlinArray<T>

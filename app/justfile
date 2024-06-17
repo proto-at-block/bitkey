@@ -124,7 +124,7 @@ ios-snapshot-prework:
   just xcodegen
 
 # Configure and onboard local environment:
-onboard: install-git-lfs install-xcode-clt install-jetbrains-toolbox submodules install-xcode-kmp-plugin install-docker install-aws-creds sync-aws-creds list-env-vars install-coreutils
+onboard: install-git-lfs install-xcode-clt install-jetbrains-toolbox submodules install-xcode-kmp-plugin install-docker install-aws-creds sync-aws-creds list-env-vars install-coreutils install-swiftformat
 
 # Generate Xcode project (for both device and simulator targets)
 xcodegen:
@@ -174,6 +174,11 @@ install-docker:
   @echo "Docker is installed."
 
 [private]
+install-swiftformat:
+  brew install swiftformat
+  @echo "swiftformat is installed."
+
+[private]
 list-env-vars:
   @echo "Set these environment variables OR add them to  ~/.zprofile:"
   @echo 'export ANDROID_HOME="$HOME/Library/Android/sdk"'
@@ -205,6 +210,10 @@ ktlint-format:
 # Run Ktlint and fail on violations.
 ktlint-validate ARGS="":
   ktlint './**/*.kt' './**/*.kts' '!**/_build/**' {{ARGS}}
+
+# Run swiftformat
+swiftformat:
+  swiftformat ios/Wallet
 
 # Delete XCode cached build intermediates (Derived Data)
 dxdd:

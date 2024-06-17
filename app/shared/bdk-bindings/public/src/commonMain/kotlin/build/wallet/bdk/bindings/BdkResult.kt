@@ -2,6 +2,7 @@ package build.wallet.bdk.bindings
 
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.Err as ResultErr
@@ -54,8 +55,8 @@ sealed class BdkResult<out V : Any> {
  * Wraps [Result] into [BdkResult].
  */
 fun <V : Any> Result<V, BdkError>.toBdkResult(): BdkResult<V> {
-  return when (this) {
-    is ResultOk -> BdkResult.Ok(value)
-    is ResultErr -> BdkResult.Err(error)
-  }
+  return mapBoth(
+    success = { BdkResult.Ok(it) },
+    failure = { BdkResult.Err(it) }
+  )
 }

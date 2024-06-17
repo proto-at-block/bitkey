@@ -35,6 +35,7 @@ import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.AddAdditionalFingerprintUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.PerformingSweep
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ReceiveFlowUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SendFlowUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SetSpendingLimitFlowUiState
@@ -57,6 +58,8 @@ import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryUiSta
 import build.wallet.statemachine.recovery.losthardware.initiate.InstructionsStyle
 import build.wallet.statemachine.recovery.socrec.inviteflow.InviteTrustedContactFlowUiProps
 import build.wallet.statemachine.recovery.socrec.inviteflow.InviteTrustedContactFlowUiStateMachine
+import build.wallet.statemachine.recovery.sweep.SweepUiProps
+import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
 import build.wallet.statemachine.send.SendEntryPoint
 import build.wallet.statemachine.send.SendUiProps
 import build.wallet.statemachine.send.SendUiStateMachine
@@ -90,6 +93,7 @@ class MoneyHomeUiStateMachineImpl(
   private val repairCloudBackupStateMachine: RepairCloudBackupStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
+  private val sweepUiStateMachine: SweepUiStateMachine,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -148,9 +152,22 @@ class MoneyHomeUiStateMachineImpl(
             onSettings = props.onSettings,
             state = state,
             setState = { uiState = it },
-            onPartnershipsWebFlowCompleted = props.onPartnershipsWebFlowCompleted
+            onPartnershipsWebFlowCompleted = props.onPartnershipsWebFlowCompleted,
+            onStartSweepFlow = {
+              uiState = PerformingSweep
+            }
           )
         )
+
+      is PerformingSweep -> sweepUiStateMachine.model(
+        SweepUiProps(
+          presentationStyle = Modal,
+          onExit = { uiState = ViewingBalanceUiState() },
+          onSuccess = { uiState = ViewingBalanceUiState() },
+          recoveredFactor = null,
+          keybox = props.accountData.account.keybox
+        )
+      )
 
       ReceiveFlowUiState ->
         ReceiveBitcoinModel(
@@ -445,6 +462,8 @@ sealed interface MoneyHomeUiState {
       data object PromptingForFwUpUiState : BottomSheetDisplayState
     }
   }
+
+  data object PerformingSweep : MoneyHomeUiState
 
   /**
    * Indicates that we are viewing the status of an active HW recovery

@@ -8,11 +8,11 @@ struct StepperView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelStepperIndicator
+    private let viewModel: FormMainContentModel.StepperIndicator
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelStepperIndicator) {
+    init(viewModel: FormMainContentModel.StepperIndicator) {
         self.viewModel = viewModel
     }
 

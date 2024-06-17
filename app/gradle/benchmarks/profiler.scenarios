@@ -22,13 +22,8 @@ android {
 
 # Inheritable config
 base {
-    # TODO: This was taken from the previous scenarios file in this repo, 
-    #   we need to find the number of warmups and iterations we want, 
-    #   as well as whether the `--no-build-cache` is something we want.
-    # warm-ups = 3
-    # iterations = 2
-    # 
-    # gradle-args = ["--no-build-cache"]
+    warm-ups = 4
+    iterations = 5
 }
 
 base_android = ${base} {
@@ -79,7 +74,7 @@ ios_app_incremental_build_nonabi_change = ${base_ios} ${base_nonabi_change} {
 sync_android_studio: ${base} {
     title = "Android Studio Sync"
     android-studio-sync {
-        studio-jvm-args = ["-Xmx8192m"]
+        studio-jvm-args = ["-Xmx8192m", "-XX:+HeapDumpOnOutOfMemoryError"]
         idea-properties = ["gradle.tooling.models.parallel.fetch=true"]
     }
 }

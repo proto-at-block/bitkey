@@ -24,7 +24,7 @@ import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
@@ -55,7 +55,7 @@ class BdkWalletSyncerImpl(
     bdkWallet: BdkWallet,
     networkType: BitcoinNetworkType,
   ): Result<Unit, BdkError> =
-    binding {
+    coroutineBinding {
       log { "Attempting wallet sync..." }
       // Ignore a request if there is already a sync in progress
       if (syncLock.isLocked) {
@@ -98,6 +98,7 @@ class BdkWalletSyncerImpl(
               attributes = emptyMap()
             )
           }
+
           else -> Unit
         }
 
@@ -119,6 +120,7 @@ class BdkWalletSyncerImpl(
                   attributes = emptyMap()
                 )
               }
+
               else -> Unit
             }
           }

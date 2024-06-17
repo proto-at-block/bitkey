@@ -59,7 +59,7 @@ class OnboardingAndMobilePaySmokeTests : FunSpec({
             )
           ).getOrThrow()
 
-      val serverSignedPsbt = mobilePaySigningService.signWithSpecificKeyset(
+      val serverSignedPsbt = mobilePaySigningF8eClient.signWithSpecificKeyset(
         account.config.f8eEnvironment,
         account.accountId,
         account.keybox.activeSpendingKeyset.f8eSpendingKeyset.keysetId,

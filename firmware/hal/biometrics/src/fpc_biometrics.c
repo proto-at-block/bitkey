@@ -23,6 +23,9 @@
 #define BIO_IMAGE_CAPTURE_MAX_TRIES (4)
 #define BLOCKING_WAIT               (RTOS_EVENT_GROUP_TIMEOUT_MAX)
 
+// See note in fpc_hal.c about why this is bad.
+uint32_t number_required_samples = 0;
+
 static struct {
   uint32_t sensor_hw_detect_poll_period_ms;
   uint32_t finger_detect_timeout_ms;
@@ -276,7 +279,7 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
   }
 
   uint32_t tries = 0;
-  uint32_t previous_samples_remaining = ENROLL_REQUIRED_SAMPLES - 4;
+  uint32_t previous_samples_remaining = number_required_samples;
   while (tries < bio_priv.enroll_tries) {
     if (bio_priv.cancel_triggered) {
       LOGD("Enrollment cancelled");
@@ -318,6 +321,10 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
     // Indicate whether the sample was accepted to the user via the LED.
     static led_start_animation_t msg = {.animation = 0, .immediate = true};
     if (enroll_status.samples_remaining < previous_samples_remaining) {
+      // Record good samples only; we want to see the quality of the template, which
+      // is formed from only samples we accept.
+      bio_get_and_update_diagnostics(&stats->diagnostics);
+
       perf_count(perf.enroll_pass);
       msg.animation = (uint32_t)ANI_FINGERPRINT_SAMPLE_GOOD;
       ipc_send(led_port, &msg, sizeof(msg), IPC_LED_START_ANIMATION);
@@ -444,4 +451,60 @@ out:
     fpc_bep_image_delete(&image);
   }
   return ret;
+}
+
+bio_diagnostics_t bio_get_diagnostics(void) {
+  const fpc_bep_diagnostics_parameters_t diagnostics = fpc_bep_diagnostic_data_read();
+
+  bio_diagnostics_t out = {0};
+
+  if (diagnostics.finger_coverage & 0x8000) {
+    out.finger_coverage = diagnostics.finger_coverage & 0x7FFF;
+    out.finger_coverage_valid = true;
+  }
+
+  if (diagnostics.common_mode_noise & 0x80) {
+    out.common_mode_noise = diagnostics.common_mode_noise & 0x7F;
+    out.common_mode_noise_valid = true;
+  }
+
+  if (diagnostics.image_quality & 0x80) {
+    out.image_quality = diagnostics.image_quality & 0x7F;
+    out.image_quality_valid = true;
+  }
+
+  if (diagnostics.sensor_coverage & 0x80) {
+    out.sensor_coverage = diagnostics.sensor_coverage & 0x7F;
+    out.sensor_coverage_valid = true;
+  }
+
+  if (diagnostics.template_data_update & 0x80) {
+    out.template_data_update = diagnostics.template_data_update & 0x7F;
+    out.template_data_update_valid = true;
+  }
+
+  return out;
+}
+
+// Calculate a running average of the diagnostics fields.
+#define UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, field)           \
+  do {                                                             \
+    if (new.field##_valid) {                                       \
+      if (diagnostics->field##_valid) {                            \
+        diagnostics->field = (diagnostics->field + new.field) / 2; \
+      } else {                                                     \
+        diagnostics->field = new.field;                            \
+        diagnostics->field##_valid = true;                         \
+      }                                                            \
+    }                                                              \
+  } while (0)
+
+void bio_get_and_update_diagnostics(bio_diagnostics_t* diagnostics) {
+  ASSERT(diagnostics);
+  const bio_diagnostics_t new = bio_get_diagnostics();
+  UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, finger_coverage);
+  UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, common_mode_noise);
+  UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, image_quality);
+  UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, sensor_coverage);
+  UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, template_data_update);
 }

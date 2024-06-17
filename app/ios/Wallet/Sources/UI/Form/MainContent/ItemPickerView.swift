@@ -7,12 +7,12 @@ struct ItemPickerView: View {
         static let cornerRadius = 32.f
     }
 
-    private let viewModel: FormMainContentModelPicker
-    
-    init(viewModel: FormMainContentModelPicker) {
+    private let viewModel: FormMainContentModel.Picker
+
+    init(viewModel: FormMainContentModel.Picker) {
         self.viewModel = viewModel
     }
-        
+
     var body: some View {
         VStack(spacing: 8) {
             if let title = viewModel.title {

@@ -41,9 +41,9 @@ import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataSt
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
@@ -71,76 +71,77 @@ class AccountDataStateMachineImpl(
         is LoadedOnboardConfigData -> onboardConfigData
       }
 
-    return when (activeAccountResult) {
-      null ->
-        // If we don't have results yet, we're still checking
-        CheckingActiveAccountData
+    if (activeAccountResult == null) {
+      // If we don't have results yet, we're still checking
+      return CheckingActiveAccountData
+    }
 
-      is Ok -> {
-        // We have results from the DB for active account,
-        when (val account = activeAccountResult.value) {
-          is LiteAccount ->
-            hasActiveLiteAccountDataStateMachine.model(
-              props =
-                HasActiveLiteAccountDataProps(
-                  account = account,
-                  accountUpgradeOnboardConfigData = onboardConfigData,
-                  accountUpgradeTemplateFullAccountConfigData = props.templateFullAccountConfigData
-                )
-            )
+    return activeAccountResult
+      .mapBoth(
+        success = {
+          // We have results from the DB for active account,
+          when (val account = activeAccountResult.value) {
+            is LiteAccount ->
+              hasActiveLiteAccountDataStateMachine.model(
+                props =
+                  HasActiveLiteAccountDataProps(
+                    account = account,
+                    accountUpgradeOnboardConfigData = onboardConfigData,
+                    accountUpgradeTemplateFullAccountConfigData = props.templateFullAccountConfigData
+                  )
+              )
 
-          is FullAccount? -> {
-            // now get the active recovery from the DB
-            when (activeRecoveryResult) {
-              is Ok -> {
-                maybePollRecoveryStatus(
-                  templateFullAccountConfigData = props.templateFullAccountConfigData,
-                  activeKeybox = account?.keybox,
-                  activeRecovery = activeRecoveryResult.value
-                )
+            is FullAccount? -> {
+              // now get the active recovery from the DB
+              activeAccountResult.mapBoth(
+                success = {
+                  maybePollRecoveryStatus(
+                    templateFullAccountConfigData = props.templateFullAccountConfigData,
+                    activeKeybox = account?.keybox,
+                    activeRecovery = activeRecoveryResult.value
+                  )
 
-                // We have results from DB for both keybox and recovery.
-                // First, try to create [KeyboxData] based on recovery state.
-                fullAccountDataBasedOnRecovery(
-                  props = props,
-                  activeAccount = account,
-                  activeRecovery = activeRecoveryResult.value,
-                  onboardConfigData = onboardConfigData
-                )
-              }
+                  // We have results from DB for both keybox and recovery.
+                  // First, try to create [KeyboxData] based on recovery state.
+                  fullAccountDataBasedOnRecovery(
+                    props = props,
+                    activeAccount = account,
+                    activeRecovery = activeRecoveryResult.value,
+                    onboardConfigData = onboardConfigData
+                  )
+                },
+                failure = {
+                  maybePollRecoveryStatus(
+                    templateFullAccountConfigData = props.templateFullAccountConfigData,
+                    activeKeybox = account?.keybox,
+                    activeRecovery = NoActiveRecovery
+                  )
+                  NoActiveAccountData(
+                    templateFullAccountConfigData = props.templateFullAccountConfigData,
+                    activeRecovery = null,
+                    onboardConfigData = onboardConfigData
+                  )
+                }
+              )
+            }
 
-              is Err -> {
-                maybePollRecoveryStatus(
-                  templateFullAccountConfigData = props.templateFullAccountConfigData,
-                  activeKeybox = account?.keybox,
-                  activeRecovery = NoActiveRecovery
-                )
-                NoActiveAccountData(
-                  templateFullAccountConfigData = props.templateFullAccountConfigData,
-                  activeRecovery = null,
-                  onboardConfigData = onboardConfigData
-                )
-              }
+            else -> {
+              NoActiveAccountData(
+                templateFullAccountConfigData = props.templateFullAccountConfigData,
+                activeRecovery = null,
+                onboardConfigData = onboardConfigData
+              )
             }
           }
-
-          else -> {
-            NoActiveAccountData(
-              templateFullAccountConfigData = props.templateFullAccountConfigData,
-              activeRecovery = null,
-              onboardConfigData = onboardConfigData
-            )
-          }
+        },
+        failure = {
+          NoActiveAccountData(
+            templateFullAccountConfigData = props.templateFullAccountConfigData,
+            activeRecovery = null,
+            onboardConfigData = onboardConfigData
+          )
         }
-      }
-
-      is Err ->
-        NoActiveAccountData(
-          templateFullAccountConfigData = props.templateFullAccountConfigData,
-          activeRecovery = null,
-          onboardConfigData = onboardConfigData
-        )
-    }
+      )
   }
 
   @Composable

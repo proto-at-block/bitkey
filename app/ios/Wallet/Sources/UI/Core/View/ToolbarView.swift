@@ -24,9 +24,18 @@ public struct ToolbarView: View {
             Spacer()
             viewModel.middleAccessory.map { middleAccessory in
                 VStack(spacing: 2) {
-                    ModeledText(model: .standard(middleAccessory.title, font: .title2, textAlignment: .center))
+                    ModeledText(model: .standard(
+                        middleAccessory.title,
+                        font: .title2,
+                        textAlignment: .center
+                    ))
                     middleAccessory.subtitle.map {
-                        ModeledText(model: .standard($0, font: .title3, textAlignment: .center, textColor: .mask))
+                        ModeledText(model: .standard(
+                            $0,
+                            font: .title3,
+                            textAlignment: .center,
+                            textColor: .mask
+                        ))
                     }
                 }.frame(maxWidth: .infinity)
             }
@@ -57,7 +66,7 @@ public struct ToolbarIconView: View {
     public init(viewModel: IconButtonModel) {
         self.viewModel = viewModel
     }
-    
+
     // MARK: - View
 
     public var body: some View {
@@ -92,7 +101,7 @@ public struct ToolbarAccessoryView: View {
 
 // MARK: -
 
-extension Optional where Wrapped == ToolbarAccessoryModel {
+extension ToolbarAccessoryModel? {
 
     var viewOrPlaceholder: some View {
         guard let model = self else {
@@ -104,4 +113,3 @@ extension Optional where Wrapped == ToolbarAccessoryModel {
     }
 
 }
-

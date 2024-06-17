@@ -14,7 +14,7 @@ extension Network {
 
 extension BdkNetwork {
 
-    var ffiNetwork : Network {
+    var ffiNetwork: Network {
         switch self {
         case BdkNetwork.bitcoin: return .bitcoin
         case BdkNetwork.regtest: return .regtest

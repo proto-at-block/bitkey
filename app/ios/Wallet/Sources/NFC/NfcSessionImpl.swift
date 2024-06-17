@@ -1,5 +1,5 @@
-import core
 import Combine
+import core
 import CoreNFC
 import Shared
 
@@ -18,26 +18,32 @@ public class NfcSessionImpl: NSObject, NfcSession {
             throw NfcException.IOSOnlyNotAvailable().asError()
         }
 
-        // We need to init first before we can reference self when instantiating the delegate object.
+        // We need to init first before we can reference self when instantiating the delegate
+        // object.
         self.parameters = parameters
         self.delegate = nil
         super.init()
-        let delegate = NfcSessionDelegate({ parameters.onTagConnected() }, parameters.onTagDisconnected)
+        let delegate = NfcSessionDelegate(
+            { parameters.onTagConnected() },
+            parameters.onTagDisconnected
+        )
 
         if let session = NFCTagReaderSession(pollingOption: .iso14443, delegate: delegate) {
             delegate.setInitialSession(session: session)
-            session.alertMessage = parameters.needsAuthentication ? NFCStrings.tapInstructions : NFCStrings.tapInstructionsNoAuthNeeded
+            session.alertMessage = parameters.needsAuthentication ? NFCStrings
+                .tapInstructions : NFCStrings.tapInstructionsNoAuthNeeded
             session.begin()
         } else {
             throw NfcException.IOSOnlyNoSession(message: nil, cause: nil).asError()
         }
-        
+
         self.delegate = delegate
     }
 
     public func transceive(buffer: [KotlinUByte]) async throws -> [KotlinUByte] {
-        guard let delegate = delegate,
-            let apdu = NFCISO7816APDU(data: Data(buffer.map { $0.uint8Value })) else {
+        guard let delegate,
+              let apdu = NFCISO7816APDU(data: Data(buffer.map(\.uint8Value)))
+        else {
             throw NfcException.IOSOnlyInvalidAPDU().asError()
         }
 
@@ -46,34 +52,43 @@ public class NfcSessionImpl: NSObject, NfcSession {
             case .Waiting:
                 continue
 
-            case .Ready(let tag):
-                var response = Data.init()
+            case let .Ready(tag):
+                var response = Data()
                 do {
                     let (data, sw1, sw2) = try await tag.sendCommand(apdu: apdu)
                     response.append(contentsOf: data)
                     response.append(sw1)
                     response.append(sw2)
-                } catch let error {
+                } catch {
                     self.delegate?.reconnect()
-                    throw NfcException.CanBeRetriedTransceiveFailure(message: error.localizedDescription, cause: nil)
-                        .asError()
+                    throw NfcException.CanBeRetriedTransceiveFailure(
+                        message: error.localizedDescription,
+                        cause: nil
+                    )
+                    .asError()
                 }
 
                 return response.map { KotlinUByte(value: $0) }
 
-            case .Invalidated(let error):
+            case let .Invalidated(error):
                 switch error.code {
                 case .readerSessionInvalidationErrorSessionTimeout:
                     throw NfcException.Timeout(message: error.localizedDescription, cause: nil)
                         .asError()
 
                 case .readerSessionInvalidationErrorUserCanceled:
-                    throw NfcException.IOSOnlyUserCancellation(message: error.localizedDescription, cause: nil)
-                        .asError()
+                    throw NfcException.IOSOnlyUserCancellation(
+                        message: error.localizedDescription,
+                        cause: nil
+                    )
+                    .asError()
 
                 default:
-                    throw NfcException.IOSOnlyNoSession(message: error.localizedDescription, cause: nil)
-                        .asError()
+                    throw NfcException.IOSOnlyNoSession(
+                        message: error.localizedDescription,
+                        cause: nil
+                    )
+                    .asError()
                 }
             }
         }
@@ -85,7 +100,7 @@ public class NfcSessionImpl: NSObject, NfcSession {
     }
 }
 
-fileprivate class NfcSessionDelegate : NSObject, NFCTagReaderSessionDelegate {
+private class NfcSessionDelegate: NSObject, NFCTagReaderSessionDelegate {
     @Published var tag = SessionReadiness.Waiting
     private let onTagConnected: () -> Void
     private let onTagDisconnected: () -> Void
@@ -94,7 +109,7 @@ fileprivate class NfcSessionDelegate : NSObject, NFCTagReaderSessionDelegate {
     public var message: String? {
         get { self.session?.alertMessage }
         set(message) {
-            guard let nfcSession = self.session, let message = message else { return }
+            guard let nfcSession = self.session, let message else { return }
             nfcSession.alertMessage = message
         }
     }
@@ -103,7 +118,7 @@ fileprivate class NfcSessionDelegate : NSObject, NFCTagReaderSessionDelegate {
         self.onTagConnected = onTagConnected
         self.onTagDisconnected = onTagDisconnected
     }
-    
+
     func setInitialSession(session: NFCTagReaderSession) {
         guard self.session == nil else { return }
         self.session = session
@@ -123,15 +138,16 @@ fileprivate class NfcSessionDelegate : NSObject, NFCTagReaderSessionDelegate {
         self.session = session
     }
 
-    public func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: Error) {
+    public func tagReaderSession(_: NFCTagReaderSession, didInvalidateWithError error: Error) {
         DispatchQueue.main.async {
             FwupNfcMaskOverlayViewController.hide()
         }
         log(.debug, tag: "NFC") { "Invalidating NFC session: \(error)" }
         self.session = nil
         self.tag = .Invalidated(error as! NFCReaderError)
-        
-        // Don't send onTagDisconnected for all errors or else we will try to reconnect again when the session
+
+        // Don't send onTagDisconnected for all errors or else we will try to reconnect again when
+        // the session
         // was invalidated. TODO: Figure out what situations iOS can be reconnected.
     }
 
@@ -149,11 +165,13 @@ fileprivate class NfcSessionDelegate : NSObject, NFCTagReaderSessionDelegate {
         }
 
         session.connect(to: tag, completionHandler: { (error: Error?) in
-            if let error = error {
+            if let error {
                 log(.debug, tag: "NFC") { "Failed to establish NFC connection: \(error)" }
                 session.restartPolling()
             } else {
-                log(.debug, tag: "NFC") { "Connecting to tag: \(isoTag.identifier.hexEncodedString())" }
+                log(.debug, tag: "NFC") {
+                    "Connecting to tag: \(isoTag.identifier.hexEncodedString())"
+                }
                 self.tag = .Ready(isoTag)
                 self.onTagConnected()
             }
@@ -161,20 +179,20 @@ fileprivate class NfcSessionDelegate : NSObject, NFCTagReaderSessionDelegate {
     }
 }
 
-fileprivate enum SessionReadiness {
+private enum SessionReadiness {
     case Waiting
     case Ready(_ tag: NFCISO7816Tag)
     case Invalidated(_ error: NFCReaderError)
 }
 
-fileprivate extension Data {
+private extension Data {
     func hexEncodedString() -> String {
         return map { String(format: "%02hhx", $0) }.joined()
     }
 }
 
 // TODO: foundation-[mobile]-app-localization-4f75ff34e3da
-fileprivate struct NFCStrings {
+private enum NFCStrings {
     static let tapInstructions = "Hold your unlocked device to the back of your phone"
     static let tapInstructionsNoAuthNeeded = "Hold your device to the back of your phone"
 }

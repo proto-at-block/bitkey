@@ -27,7 +27,8 @@ public struct ButtonView: View {
 
     public var body: some View {
         switch model.treatment {
-        case .tertiary, .tertiarydestructive, .tertiaryprimary, .tertiarynounderline, .tertiaryprimarynounderline:
+        case .tertiary, .tertiarydestructive, .tertiarynounderline, .tertiaryprimary,
+             .tertiaryprimarynounderline:
             Button(action: model.onClick.invoke) {
                 ButtonContentView(model: model)
                     .frame(size: model.size)
@@ -66,9 +67,11 @@ private struct ButtonContentView: View {
                 }
                 Text(model.text)
                     .font(FontTheme.label1.font)
-                    .if(model.treatment == .tertiary ||
-                        model.treatment == .tertiaryprimary ||
-                        model.treatment == .tertiarydestructive) { text in
+                    .if(
+                        model.treatment == .tertiary ||
+                            model.treatment == .tertiaryprimary ||
+                            model.treatment == .tertiarydestructive
+                    ) { text in
                         text.underline()
                     }
             }
@@ -76,7 +79,7 @@ private struct ButtonContentView: View {
         .foregroundColor(model.titleColor)
         .ifNonnull(model.testTag) { view, testTag in
             view.accessibilityIdentifier(testTag)
-         }
+        }
     }
 
 }
@@ -99,7 +102,7 @@ public extension View {
 
         case .fitcontent:
             frame(maxWidth: .infinity, maxHeight: .infinity)
-            
+
         default:
             fatalError("Unexpected button size")
         }

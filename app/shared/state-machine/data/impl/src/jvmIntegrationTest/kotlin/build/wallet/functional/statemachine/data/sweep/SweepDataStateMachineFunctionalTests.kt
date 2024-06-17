@@ -2,14 +2,12 @@ package build.wallet.functional.statemachine.data.sweep
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.encrypt.toSecp256k1PublicKey
-import build.wallet.f8e.onboarding.CreateAccountKeysetService
+import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -45,7 +43,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
   lateinit var app: AppTester
   lateinit var account: FullAccount
   lateinit var stateMachine: SweepDataStateMachineImpl
-  lateinit var createAccountKeysetService: CreateAccountKeysetService
+  lateinit var createAccountKeysetF8eClient: CreateAccountKeysetF8eClient
   lateinit var appKeysGenerator: AppKeysGenerator
   lateinit var appPrivateKeyDao: AppPrivateKeyDao
   lateinit var keyboxDao: KeyboxDao
@@ -56,7 +54,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
       app = launchNewApp()
 
       account = app.onboardFullAccountWithFakeHardware()
-      createAccountKeysetService = app.app.createAccountKeysetService
+      createAccountKeysetF8eClient = app.app.createAccountKeysetF8eClient
       appKeysGenerator = app.app.appKeysGenerator
       appPrivateKeyDao = app.app.appComponent.appPrivateKeyDao
       keyboxDao = app.app.appComponent.keyboxDao
@@ -67,7 +65,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
           SweepDataStateMachineImpl(
             bitcoinBlockchain,
             sweepGenerator,
-            mobilePaySigningService,
+            mobilePaySigningF8eClient,
             appSpendingWalletProvider,
             exchangeRateSyncer,
             outgoingTransactionDetailRepository
@@ -77,7 +75,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
 
     test("sweep funds for account with no inactive keysets and recovered app key") {
       stateMachine.test(
-        SweepDataProps(App, account.keybox, onSuccess = {}),
+        SweepDataProps(account.keybox, onSuccess = {}),
         useVirtualTime = false,
         turbineTimeout = 20.seconds
       ) {
@@ -88,7 +86,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
 
     test("sweep funds for account with no inactive keysets and recovered hardware key") {
       stateMachine.test(
-        SweepDataProps(Hardware, account.keybox, onSuccess = {}),
+        SweepDataProps(account.keybox, onSuccess = {}),
         useVirtualTime = false,
         turbineTimeout = 20.seconds
       ) {
@@ -121,7 +119,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
       app.setupMobilePay(account, FiatMoney.usd(100.0))
 
       stateMachine.test(
-        SweepDataProps(Hardware, account.keybox) {},
+        SweepDataProps(account.keybox) {},
         useVirtualTime = false,
         testTimeout = 60.seconds,
         turbineTimeout = 10.seconds
@@ -171,7 +169,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
     val appKeyBundle = appKeysGenerator.generateKeyBundle(network).getOrThrow()
 
     val f8eSpendingKeyset =
-      createAccountKeysetService
+      createAccountKeysetF8eClient
         .createKeyset(
           f8eEnvironment = account.config.f8eEnvironment,
           fullAccountId = account.accountId,

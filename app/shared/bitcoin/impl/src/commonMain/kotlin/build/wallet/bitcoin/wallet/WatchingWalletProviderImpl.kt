@@ -11,7 +11,7 @@ import build.wallet.bitcoin.bdk.BdkWalletSyncer
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class WatchingWalletProviderImpl(
   private val bdkWalletProvider: BdkWalletProvider,
@@ -27,7 +27,7 @@ class WatchingWalletProviderImpl(
   override suspend fun getWallet(
     walletDescriptor: WatchingWalletDescriptor,
   ): Result<WatchingWallet, Throwable> =
-    binding {
+    coroutineBinding {
       // TODO(W-4257): create actual WatchingWalletImpl instance.
       //         Unfortunately, we cannot reuse BdkWallet instance between spending and watching
       //         descriptors so ideally we will need to create WatchingWalletImpl instance which

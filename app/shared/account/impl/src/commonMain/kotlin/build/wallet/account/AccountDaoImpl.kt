@@ -26,7 +26,7 @@ import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -41,7 +41,7 @@ class AccountDaoImpl(
       activeFullAccount(),
       activeLiteAccount()
     ) { activeFullAccountResult, activeLiteAccountResult ->
-      binding {
+      coroutineBinding {
         val activeFullAccount = activeFullAccountResult.bind()
         val activeLiteAccount = activeLiteAccountResult.bind()
         activeFullAccount ?: activeLiteAccount
@@ -54,7 +54,7 @@ class AccountDaoImpl(
       onboardingFullAccount(),
       onboardingLiteAccount()
     ) { onboardingFullAccountResult, onboardingLiteAccountResult ->
-      binding {
+      coroutineBinding {
         val onboardingFullAccount = onboardingFullAccountResult.bind()
         val onboardingLiteAccount = onboardingLiteAccountResult.bind()
         onboardingFullAccount ?: onboardingLiteAccount

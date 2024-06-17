@@ -5,12 +5,14 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbTransactionError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.partnerships.FakePartnershipTransfer
-import build.wallet.f8e.partnerships.GetPartnershipTransactionServiceMock
+import build.wallet.f8e.partnerships.GetPartnershipTransactionF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.get
+import com.github.michaelbull.result.getError
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.should
@@ -33,7 +35,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
     deleteTransactionCalls = turbines.create("Delete Transaction Calls"),
     clearCalls = turbines.create("Clear Calls")
   )
-  val fakeService = GetPartnershipTransactionServiceMock(
+  val getPartnershipsF8eClient = GetPartnershipTransactionF8eClientMock(
     turbine = turbines::create
   )
 
@@ -46,7 +48,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       dao = daoMock,
       uuidGenerator = { "test-uuid" },
       clock = clock,
-      getPartnershipTransactionService = fakeService
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
 
     val result = repository.create(
@@ -59,8 +61,9 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
     )
 
     val savedTransaction = daoMock.saveCalls.awaitItem()
-    result.shouldBeInstanceOf<Ok<PartnershipTransaction>>()
-      .should { (result) ->
+    result.get()
+      .shouldBeInstanceOf<PartnershipTransaction>()
+      .should { result ->
         savedTransaction.shouldBeSameInstanceAs(result)
         result.id.value.shouldBe("test-uuid")
         result.type.shouldBe(PartnershipTransactionType.PURCHASE)
@@ -83,7 +86,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       dao = daoMock,
       uuidGenerator = { TODO() },
       clock = clock,
-      getPartnershipTransactionService = fakeService
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
     daoMock.getByIdResult = Ok(
       FakePartnershipTransaction.copy(
@@ -95,7 +98,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
         )
       )
     )
-    fakeService.response = Ok(
+    getPartnershipsF8eClient.response = Ok(
       FakePartnershipTransfer.copy(
         id = PartnershipTransactionId("test-transaction-id"),
         paymentMethod = "test-update"
@@ -105,12 +108,12 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
     val result = repository.syncTransaction(FullAccountIdMock, F8eEnvironment.Local, testId)
 
     daoMock.getByIdCalls.awaitItem().shouldBe(testId)
-    val (fetchedPartnerId, fetchedTransactionId) = fakeService.getTransactionCalls.awaitItem()
+    val (fetchedPartnerId, fetchedTransactionId) = getPartnershipsF8eClient.getTransactionCalls.awaitItem()
     val savedTransaction = daoMock.saveCalls.awaitItem()
 
     fetchedPartnerId.shouldBe(PartnerId("test-partner"))
     fetchedTransactionId.shouldBe(testId)
-    result.shouldBeInstanceOf<Ok<PartnershipTransaction?>>().value?.should {
+    result.value.shouldBeInstanceOf<PartnershipTransaction>().should {
       it.id.shouldBe(testId)
       it.paymentMethod.shouldBe("test-update")
     }
@@ -121,7 +124,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       dao = daoMock,
       uuidGenerator = { TODO() },
       clock = clock,
-      getPartnershipTransactionService = fakeService
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
     daoMock.getByIdResult = Ok(
       FakePartnershipTransaction.copy(
@@ -133,7 +136,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
         )
       )
     )
-    fakeService.response = Ok(
+    getPartnershipsF8eClient.response = Ok(
       FakePartnershipTransfer.copy(
         id = testId,
         paymentMethod = "test-update"
@@ -144,9 +147,9 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
     val result = repository.syncTransaction(FullAccountIdMock, F8eEnvironment.Local, testId)
 
     daoMock.getByIdCalls.awaitItem()
-    fakeService.getTransactionCalls.awaitItem()
+    getPartnershipsF8eClient.getTransactionCalls.awaitItem()
     daoMock.saveCalls.awaitItem()
-    result.shouldBeTypeOf<Err<DbTransactionError>>().error.cause.message.shouldBe("test save failure")
+    result.getError().shouldBeTypeOf<DbTransactionError>().cause.message.shouldBe("test save failure")
   }
 
   test("Sync Most Recent Transaction -- DAO delete Failure") {
@@ -154,7 +157,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       dao = daoMock,
       uuidGenerator = { TODO() },
       clock = clock,
-      getPartnershipTransactionService = fakeService
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
     daoMock.getByIdResult = Ok(
       FakePartnershipTransaction.copy(
@@ -166,15 +169,16 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
         )
       )
     )
-    fakeService.response = Err(HttpError.ClientError(HttpResponseMock(NotFound)))
-    daoMock.deleteTransactionResult = Err(DbTransactionError(RuntimeException("test delete failure")))
+    getPartnershipsF8eClient.response = Err(HttpError.ClientError(HttpResponseMock(NotFound)))
+    daoMock.deleteTransactionResult =
+      Err(DbTransactionError(RuntimeException("test delete failure")))
 
     val result = repository.syncTransaction(FullAccountIdMock, F8eEnvironment.Local, testId)
 
     daoMock.getByIdCalls.awaitItem()
-    fakeService.getTransactionCalls.awaitItem()
+    getPartnershipsF8eClient.getTransactionCalls.awaitItem()
     daoMock.deleteTransactionCalls.awaitItem()
-    result.shouldBeTypeOf<Err<DbTransactionError>>().error.cause.message.shouldBe("test delete failure")
+    result.getError().shouldBeTypeOf<DbTransactionError>().cause.message.shouldBe("test delete failure")
   }
 
   test("Sync Most Recent Transaction -- Not Found") {
@@ -182,7 +186,7 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       dao = daoMock,
       uuidGenerator = { TODO() },
       clock = clock,
-      getPartnershipTransactionService = fakeService
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
     daoMock.getByIdResult = Ok(
       FakePartnershipTransaction.copy(
@@ -194,17 +198,18 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
         )
       )
     )
-    fakeService.response = Err(HttpError.ClientError(HttpResponseMock(NotFound)))
+    getPartnershipsF8eClient.response = Err(HttpError.ClientError(HttpResponseMock(NotFound)))
 
     val result = repository.syncTransaction(FullAccountIdMock, F8eEnvironment.Local, testId)
 
     daoMock.getByIdCalls.awaitItem()
-    val (fetchedPartnerId, fetchedTransactionId) = fakeService.getTransactionCalls.awaitItem()
+    val (fetchedPartnerId, fetchedTransactionId) = getPartnershipsF8eClient.getTransactionCalls.awaitItem()
 
     fetchedPartnerId.shouldBe(PartnerId("test-partner"))
     fetchedTransactionId.shouldBe(PartnershipTransactionId("test-transaction-id"))
     result.shouldBe(Ok(null))
-    daoMock.deleteTransactionCalls.awaitItem().shouldBe(PartnershipTransactionId("test-transaction-id"))
+    daoMock.deleteTransactionCalls.awaitItem()
+      .shouldBe(PartnershipTransactionId("test-transaction-id"))
   }
 
   test("Sync Most Recent Transaction -- Server Error") {
@@ -212,20 +217,21 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
       dao = daoMock,
       uuidGenerator = { TODO() },
       clock = clock,
-      getPartnershipTransactionService = fakeService
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
     )
     daoMock.getByIdResult = Ok(
       FakePartnershipTransaction.copy(
         id = PartnershipTransactionId("test-transaction-id")
       )
     )
-    fakeService.response = Err(HttpError.ServerError(HttpResponseMock(HttpStatusCode.ServiceUnavailable)))
+    getPartnershipsF8eClient.response =
+      Err(HttpError.ServerError(HttpResponseMock(HttpStatusCode.ServiceUnavailable)))
 
     val result = repository.syncTransaction(FullAccountIdMock, F8eEnvironment.Local, testId)
 
     daoMock.getByIdCalls.awaitItem()
-    fakeService.getTransactionCalls.awaitItem()
+    getPartnershipsF8eClient.getTransactionCalls.awaitItem()
 
-    result.shouldBeInstanceOf<Err<Error>>()
+    result.getError().shouldBeInstanceOf<HttpError.ServerError>()
   }
 })

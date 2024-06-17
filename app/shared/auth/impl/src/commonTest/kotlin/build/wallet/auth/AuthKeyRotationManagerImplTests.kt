@@ -16,7 +16,7 @@ import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploaderMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.auth.RotateAuthKeysServiceMock
+import build.wallet.f8e.auth.RotateAuthKeysF8eClientMock
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.ktor.result.HttpBodyError
 import build.wallet.ktor.result.HttpError
@@ -42,7 +42,7 @@ import io.ktor.http.HttpStatusCode
 class AuthKeyRotationManagerImplTests : FunSpec({
 
   val authKeyRotationAttemptDao = AuthKeyRotationAttemptDaoMock(turbines::create)
-  val rotateAuthKeysService = RotateAuthKeysServiceMock(turbines::create)
+  val rotateAuthKeysF8eClient = RotateAuthKeysF8eClientMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val accountAuthenticator = AccountAuthenticatorMock(turbines::create)
   val bestEffortFullAccountCloudBackupUploader =
@@ -52,7 +52,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
   val authKeyRotationManager = AuthKeyRotationManagerImpl(
     authKeyRotationAttemptDao = authKeyRotationAttemptDao,
-    rotateAuthKeysService = rotateAuthKeysService,
+    rotateAuthKeysF8eClient = rotateAuthKeysF8eClient,
     keyboxDao = keyboxDao,
     accountAuthenticator = accountAuthenticator,
     bestEffortFullAccountCloudBackupUploader = bestEffortFullAccountCloudBackupUploader,
@@ -63,7 +63,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
   beforeEach {
     keyboxDao.reset()
     bestEffortFullAccountCloudBackupUploader.reset()
-    rotateAuthKeysService.reset()
+    rotateAuthKeysF8eClient.reset()
   }
 
   val generatedGlobalAuthKey =
@@ -110,7 +110,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
     authKeyRotationAttemptDao.getAuthKeyRotationAttemptStateCalls.expectNoEvents()
     authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
     authKeyRotationAttemptDao.clearCalls.awaitItem()
-    rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+    rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
     keyboxDao.rotateAuthKeysCalls.awaitItem()
     accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
     accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -208,7 +208,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
       authKeyRotationAttemptDao.getAuthKeyRotationAttemptStateCalls.expectNoEvents()
       authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
       authKeyRotationAttemptDao.clearCalls.awaitItem()
-      rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
       keyboxDao.rotateAuthKeysCalls.awaitItem()
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -252,7 +252,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
       authKeyRotationAttemptDao.getAuthKeyRotationAttemptStateCalls.expectNoEvents()
       authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
       // Note: clear is never called on authKeyRotationAttemptDao
-      rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+      rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
       keyboxDao.rotateAuthKeysCalls.awaitItem()
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
       accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -269,7 +269,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
     test("rotation response doesn't matter") {
       checkAll(rotateAuthKeysSuccessResponses + rotateAuthKeysFailedResponses) { rotateAuthKeysResponse ->
-        rotateAuthKeysService.rotateKeysetResult = rotateAuthKeysResponse
+        rotateAuthKeysF8eClient.rotateKeysetResult = rotateAuthKeysResponse
 
         accountAuthenticator.authResults = mutableListOf(
           // New global key validation
@@ -292,7 +292,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.awaitItem()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.awaitItem()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -334,7 +334,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.awaitItem()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
@@ -371,7 +371,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.awaitItem()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -410,7 +410,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
@@ -451,7 +451,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -483,7 +483,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.expectNoEvents()
@@ -515,7 +515,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey
@@ -553,7 +553,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe KeyboxMock.activeAppKeyBundle.authKey
@@ -594,7 +594,7 @@ class AuthKeyRotationManagerImplTests : FunSpec({
 
         authKeyRotationAttemptDao.setAuthKeysWrittenCalls.awaitItem()
         authKeyRotationAttemptDao.clearCalls.expectNoEvents()
-        rotateAuthKeysService.rotateKeysetCalls.awaitItem()
+        rotateAuthKeysF8eClient.rotateKeysetCalls.awaitItem()
         keyboxDao.rotateAuthKeysCalls.expectNoEvents()
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedGlobalAuthKey
         accountAuthenticator.authCalls.awaitItem() shouldBe generatedRecoveryAuthKey

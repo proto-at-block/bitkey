@@ -6,7 +6,7 @@ import XCTest
 @testable import Wallet
 
 final class MobilePayOnboardingScreenSnapshotTests: XCTestCase {
-    
+
     func test_mobile_pay_onboarding() {
         let view = FormView(
             viewModel: MobilePayOnboardingModelKt.MobilePayOnboardingScreenModel(

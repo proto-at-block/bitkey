@@ -10,7 +10,7 @@ import build.wallet.store.clearWithResult
 import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.mapError
 import com.russhwolf.settings.coroutines.SuspendSettings
@@ -50,7 +50,7 @@ class CloudBackupDaoImpl(
   }
 
   override suspend fun get(accountId: String): Result<CloudBackup?, BackupStorageError> =
-    binding {
+    coroutineBinding<CloudBackupV2?, BackupStorageError> {
       val backupJson =
         secureStore()
           .getStringOrNullWithResult(accountId)
@@ -58,7 +58,7 @@ class CloudBackupDaoImpl(
           .mapError(::BackupStorageError)
           .bind()
 
-      if (backupJson == null) return@binding null
+      if (backupJson == null) return@coroutineBinding null
 
       Json.decodeFromStringResult<CloudBackupV2>(backupJson)
         .mapError(::BackupStorageError)

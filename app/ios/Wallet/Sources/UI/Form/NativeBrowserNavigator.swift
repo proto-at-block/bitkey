@@ -3,7 +3,7 @@ import Shared
 import SwiftUI
 import UIKit
 
-class NativeBrowserNavigator : BrowserNavigator {
+class NativeBrowserNavigator: BrowserNavigator {
 
     var openSafariView: (String) -> Void
 
@@ -23,16 +23,16 @@ struct SafariView: UIViewControllerRepresentable {
 
     let url: URL
 
-    func makeUIViewController(context: Context) -> SFSafariViewController {
+    func makeUIViewController(context _: Context) -> SFSafariViewController {
         return SFSafariViewController(url: url)
     }
 
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+    func updateUIViewController(_: SFSafariViewController, context _: Context) {}
 
 }
 
 // MARK: -
 
-extension URL : Identifiable {
+extension URL: Identifiable {
     public var id: URL { return self }
 }

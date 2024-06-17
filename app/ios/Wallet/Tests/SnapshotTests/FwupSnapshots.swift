@@ -30,4 +30,3 @@ final class FwupSnapshotTests: XCTestCase {
     }
 
 }
-

@@ -19,7 +19,7 @@ public struct FormHeaderView: View {
             }
         }
     }
-    
+
     // MARK: - Private Properties
 
     private let headlineFont: HeadlineFont

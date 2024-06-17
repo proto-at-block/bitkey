@@ -5,7 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import build.wallet.email.Email
-import build.wallet.f8e.notifications.NotificationTouchpointService
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.logging.logFailure
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.phonenumber.PhoneNumber
@@ -14,7 +14,7 @@ import com.github.michaelbull.result.onSuccess
 
 class NotificationTouchpointDataStateMachineImpl(
   private val notificationTouchpointDao: NotificationTouchpointDao,
-  private val notificationTouchpointService: NotificationTouchpointService,
+  private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
 ) : NotificationTouchpointDataStateMachine {
   @Composable
   override fun model(props: NotificationTouchpointProps): NotificationTouchpointData {
@@ -35,7 +35,7 @@ class NotificationTouchpointDataStateMachineImpl(
    * notification touchpoints with those returned by the server.
    */
   private suspend fun refreshFromF8e(props: NotificationTouchpointProps) {
-    notificationTouchpointService.getTouchpoints(
+    notificationTouchpointF8eClient.getTouchpoints(
       f8eEnvironment = props.account.config.f8eEnvironment,
       fullAccountId = props.account.accountId
     ).onSuccess { touchpoints ->
@@ -47,8 +47,10 @@ class NotificationTouchpointDataStateMachineImpl(
           }
       }
     }.onFailure {
-      // Don't do anything if we fail. [NotificationTouchpointService] will log the failure
-      // and we will try to pull the touchpoints again the next time the app opens.
+      /**
+       * Don't do anything if we fail. [NotificationTouchpointF8eClient] will log the failure,
+       * and we will try to pull the touchpoints again the next time the app opens.
+       */
     }
   }
 

@@ -1,9 +1,9 @@
+import firmware
 import Foundation
 import Shared
-import firmware
 
 public extension BitcoinNetworkType {
-    
+
     /*
         Converts the Shared `BitcoinNetworkType` to the Core `BtcNetwork`
      */
@@ -14,7 +14,7 @@ public extension BitcoinNetworkType {
         case .signet: return .signet
         case .regtest: return .regtest
         default:
-           fatalError()
+            fatalError()
         }
     }
 }

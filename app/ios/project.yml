@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.60.0
-        PROJECT_BUNDLE_VERSION: 1
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.61.0
+        PROJECT_BUNDLE_VERSION: 3
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -216,6 +216,8 @@ targets:
     scheme:
       gatherCoverageData: true
       stopOnEveryMainThreadCheckerIssue: true
+      commandLineArguments:
+        -AppleLocale en_US: true
       testTargets:
       - name: WalletUnitTests
         parallelizable: true

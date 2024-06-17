@@ -1,15 +1,16 @@
 import SwiftUI
 
 public extension View {
-    /// Extension to animate numeric text. Used for amount strings that change (i.e. via slider or key entry)
-    func numericTextAnimation<T: Equatable>(numericText: T) -> some View {
+    /// Extension to animate numeric text. Used for amount strings that change (i.e. via slider or
+    /// key entry)
+    func numericTextAnimation(numericText: some Equatable) -> some View {
         modifier(NumericTextAnimation(numericText: numericText))
     }
 }
 
 // MARK: -
 
-private struct NumericTextAnimation<T : Equatable>: ViewModifier {
+private struct NumericTextAnimation<T: Equatable>: ViewModifier {
     var numericText: T
     func body(content: Content) -> some View {
         if #available(iOS 16.0, *) {

@@ -171,8 +171,8 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // Attacker impersonating as PC: Endorse TC with a tampered key certificate
     val customerAccount = customerApp.getActiveFullAccount()
-    val socRecService = customerApp.app.socialRecoveryServiceProvider.get()
-    val relationships = socRecService.getRelationships(
+    val socRecF8eClient = customerApp.app.socialRecoveryF8eClientProvider.get()
+    val relationships = socRecF8eClient.getRelationships(
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
     ).getOrThrow()
@@ -187,7 +187,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature("tampered-app-auth-key-sig"),
       trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature("tampered-tc-identity-key-sig")
     )
-    socRecService.endorseTrustedContacts(
+    socRecF8eClient.endorseTrustedContacts(
       account = customerAccount,
       endorsements = listOf(
         TrustedContactEndorsement(
@@ -197,7 +197,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       )
     ).getOrThrow()
     // Sanity check that the TC has been successfully endorsed with the tampered key certificate
-    socRecService.getRelationships(
+    socRecF8eClient.getRelationships(
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
     ).getOrThrow()
@@ -650,7 +650,7 @@ suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
   val hwPubKey = account.keybox.activeHwKeyBundle.authKey.pubKey
   hwPubKey.shouldBeEqual(appTester.fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
 
-  val serverTcs = appTester.app.socialRecoveryServiceProvider.get()
+  val serverTcs = appTester.app.socialRecoveryF8eClientProvider.get()
     .getRelationships(account).getOrThrow()
     .endorsedTrustedContacts
   val dbTcs = appTester.app.socRecRelationshipsDao

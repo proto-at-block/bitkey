@@ -46,7 +46,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
   }
 
   beforeAny {
-    appTester.app.socialRecoveryServiceFake.reset()
+    appTester.app.socialRecoveryF8eClientFake.reset()
   }
 
   test("Enter TC Name") {

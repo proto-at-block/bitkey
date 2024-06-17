@@ -12,12 +12,12 @@ import build.wallet.crypto.random.SecureRandom
 import build.wallet.crypto.random.nextBytes
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.socrec.SocialRecoveryService
+import build.wallet.f8e.socrec.SocRecF8eClient
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
 import build.wallet.recovery.socrec.RecoveryCodeParts.Schema
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -25,9 +25,9 @@ import kotlinx.collections.immutable.ImmutableList
 import okio.ByteString
 
 class SocRecChallengeRepositoryImpl(
-  private val socRec: SocialRecoveryService,
+  private val socRec: SocRecF8eClient,
   private val socRecCrypto: SocRecCrypto,
-  private val socRecFake: SocialRecoveryService,
+  private val socRecFake: SocRecF8eClient,
   private val socRecCodeBuilder: SocialRecoveryCodeBuilder,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val socRecStartedChallengeAuthenticationDao: SocRecStartedChallengeAuthenticationDao,
@@ -39,7 +39,7 @@ class SocRecChallengeRepositoryImpl(
     sealedDekMap: Map<String, XCiphertext>,
     isUsingSocRecFakes: Boolean,
   ): Result<ChallengeWrapper, Error> =
-    binding {
+    coroutineBinding {
       // clear auth table on each new challenge
       socRecStartedChallengeAuthenticationDao.clear()
 
@@ -67,7 +67,7 @@ class SocRecChallengeRepositoryImpl(
           )
         }
       }
-      getSocialRecoveryService(isUsingSocRecFakes).startChallenge(
+      socRecF8eClient(isUsingSocRecFakes).startChallenge(
         f8eEnvironment = f8eEnvironment,
         fullAccountId = accountId,
         trustedContacts = startSocialChallengeTcs.filterNotNull()
@@ -110,8 +110,8 @@ class SocRecChallengeRepositoryImpl(
     f8eEnvironment: F8eEnvironment,
     isUsingSocRecFakes: Boolean,
   ): Result<ChallengeWrapper, Error> =
-    binding {
-      val socialChallenge = getSocialRecoveryService(isUsingSocRecFakes).getSocialChallengeStatus(
+    coroutineBinding {
+      val socialChallenge = socRecF8eClient(isUsingSocRecFakes).getSocialChallengeStatus(
         f8eEnvironment = f8eEnvironment,
         fullAccountId = accountId,
         challengeId = challengeId
@@ -141,7 +141,7 @@ class SocRecChallengeRepositoryImpl(
     recoveryRelationshipId: String,
     code: Int,
   ): Result<ChallengeVerificationResponse, Error> {
-    return getSocialRecoveryService(account.config.isUsingSocRecFakes).verifyChallenge(
+    return socRecF8eClient(account.config.isUsingSocRecFakes).verifyChallenge(
       account = account,
       recoveryRelationshipId = recoveryRelationshipId,
       counter = code
@@ -155,7 +155,7 @@ class SocRecChallengeRepositoryImpl(
     recoveryPakeConfirmation: ByteString,
     resealedDek: XCiphertext,
   ): Result<Unit, Error> {
-    return getSocialRecoveryService(account.config.isUsingSocRecFakes).respondToChallenge(
+    return socRecF8eClient(account.config.isUsingSocRecFakes).respondToChallenge(
       account,
       socialChallengeId,
       trustedContactRecoveryPakePubkey,
@@ -164,7 +164,7 @@ class SocRecChallengeRepositoryImpl(
     )
   }
 
-  private fun getSocialRecoveryService(isUsingSocRecFakes: Boolean): SocialRecoveryService {
+  private fun socRecF8eClient(isUsingSocRecFakes: Boolean): SocRecF8eClient {
     return if (isUsingSocRecFakes) {
       socRecFake
     } else {

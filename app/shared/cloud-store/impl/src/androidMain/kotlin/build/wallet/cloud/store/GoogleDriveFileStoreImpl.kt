@@ -1,12 +1,12 @@
 package build.wallet.cloud.store
 
 import android.accounts.Account
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.platform.data.MimeType
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recover
@@ -22,7 +22,7 @@ import okio.Buffer
 import okio.ByteString
 
 class GoogleDriveFileStoreImpl(
-  private val googleDriveService: GoogleDriveService,
+  private val googleDriveClientProvider: GoogleDriveClientProvider,
 ) : GoogleDriveFileStore {
   /**
    * Lock to ensure that ensure concurrent-safe access to the Google Drive API.
@@ -35,22 +35,22 @@ class GoogleDriveFileStoreImpl(
   private val driveClientLock = Mutex()
 
   private suspend fun drive(androidAccount: Account): Result<Drive, GoogleDriveError> {
-    return googleDriveService.drive(androidAccount, scope = GoogleDriveScope.File)
+    return googleDriveClientProvider.drive(androidAccount, scope = GoogleDriveScope.File)
   }
 
   override suspend fun exists(
     account: GoogleAccount,
     fileName: String,
   ): CloudFileStoreResult<Boolean> =
-    binding {
+    coroutineBinding {
       driveClientLock.withLock {
         val androidAccount = account.credentials.androidAccount().bind()
-        val driveService = drive(androidAccount).bind()
+        val drive = drive(androidAccount).bind()
 
-        val bitkeyFolderId = driveService.getBitkeyFolderId().bind()
+        val bitkeyFolderId = drive.getBitkeyFolderId().bind()
 
         bitkeyFolderId?.let {
-          driveService.getFileIdInFolder(bitkeyFolderId, fileName).bind()
+          drive.getFileIdInFolder(bitkeyFolderId, fileName).bind()
         }
       }
     }
@@ -62,14 +62,14 @@ class GoogleDriveFileStoreImpl(
     account: GoogleAccount,
     fileName: String,
   ): CloudFileStoreResult<ByteString> =
-    binding {
+    coroutineBinding {
       driveClientLock.withLock {
         val androidAccount = account.credentials.androidAccount().bind()
-        val driveService = drive(androidAccount).bind()
+        val drive = drive(androidAccount).bind()
 
         val fileId = getFileIdInBitkeyFolder(account, fileName).bind()
 
-        driveService.downloadFile(fileId).bind()
+        drive.downloadFile(fileId).bind()
       }
     }
       .logFailure { "Failed to read file='$fileName' in Bitkey folder on Google Drive" }
@@ -79,14 +79,14 @@ class GoogleDriveFileStoreImpl(
     account: GoogleAccount,
     fileName: String,
   ): CloudFileStoreResult<Unit> =
-    binding {
+    coroutineBinding {
       driveClientLock.withLock {
         val androidAccount = account.credentials.androidAccount().bind()
-        val driveService = drive(androidAccount).bind()
+        val drive = drive(androidAccount).bind()
 
         val fileId = getFileIdInBitkeyFolder(account, fileName).bind()
 
-        driveService.deleteFile(fileId).bind()
+        drive.deleteFile(fileId).bind()
       }
     }
       .logFailure { "Failed to delete file='$fileName' in Bitkey folder on Google Drive" }
@@ -98,28 +98,28 @@ class GoogleDriveFileStoreImpl(
     fileName: String,
     mimeType: MimeType,
   ): CloudFileStoreResult<Unit> =
-    binding {
+    coroutineBinding {
       driveClientLock.withLock {
         val androidAccount = account.credentials.androidAccount().bind()
-        val driveService = drive(androidAccount).bind()
+        val drive = drive(androidAccount).bind()
 
         val bitkeyFolderId =
-          driveService.getBitkeyFolderId()
+          drive.getBitkeyFolderId()
             .recover { null } // continue from the error when the Bitkey folder doesn't exist yet
             .bind()
 
         if (bitkeyFolderId == null) {
           // The Bitkey folder doesn't yet exist; so create it and then create the file.
-          val newBitkeyFolderId = driveService.createBitkeyFolder().bind()
-          driveService.createFile(fileName, mimeType, newBitkeyFolderId, bytes).bind()
+          val newBitkeyFolderId = drive.createBitkeyFolder().bind()
+          drive.createFile(fileName, mimeType, newBitkeyFolderId, bytes).bind()
         } else {
           // The Bitkey folder does exist; so check to see if the file already exists to decide if the
           // file should be updated or created.
-          val fileId = driveService.getFileIdInFolder(bitkeyFolderId, fileName).bind()
+          val fileId = drive.getFileIdInFolder(bitkeyFolderId, fileName).bind()
           if (fileId == null) {
-            driveService.createFile(fileName, mimeType, bitkeyFolderId, bytes).bind()
+            drive.createFile(fileName, mimeType, bitkeyFolderId, bytes).bind()
           } else {
-            driveService.updateFile(fileId, mimeType, bytes).bind()
+            drive.updateFile(fileId, mimeType, bytes).bind()
           }
         }
       }
@@ -133,76 +133,71 @@ class GoogleDriveFileStoreImpl(
     bitkeyFolderId: String,
     bytes: ByteString,
   ): Result<Unit, GoogleDriveError> =
-    Result
-      .catching {
-        val fileMetadata =
-          File()
-            .setName(fileName)
-            .setMimeType(mimeType.name)
-            .setParents(listOf(bitkeyFolderId))
+    catchingResult {
+      val fileMetadata =
+        File()
+          .setName(fileName)
+          .setMimeType(mimeType.name)
+          .setParents(listOf(bitkeyFolderId))
 
-        val fileContent = ByteArrayContent(mimeType.name, bytes.toByteArray())
-        runInterruptible(Dispatchers.IO) {
-          files().create(fileMetadata, fileContent).execute()
-        }
+      val fileContent = ByteArrayContent(mimeType.name, bytes.toByteArray())
+      runInterruptible(Dispatchers.IO) {
+        files().create(fileMetadata, fileContent).execute()
       }
+    }
       .mapUnit()
       .mapError { GoogleDriveError(cause = it) }
 
   private suspend fun Drive.createBitkeyFolder(): Result<String, GoogleDriveError> =
-    Result
-      .catching {
-        val fileMetadata =
-          File()
-            .setName(BITKEY_FOLDER)
-            .setMimeType(MimeType.GOOGLE_DRIVE_FOLDER.name)
+    catchingResult {
+      val fileMetadata =
+        File()
+          .setName(BITKEY_FOLDER)
+          .setMimeType(MimeType.GOOGLE_DRIVE_FOLDER.name)
 
-        runInterruptible(Dispatchers.IO) {
-          files().create(fileMetadata)
-            .setFields("id")
-            .execute()
-        }
+      runInterruptible(Dispatchers.IO) {
+        files().create(fileMetadata)
+          .setFields("id")
+          .execute()
       }
+    }
       .map { it.id }
       .mapError { GoogleDriveError(cause = it) }
 
   private suspend fun Drive.deleteFile(fileId: String): Result<Unit, GoogleDriveError> =
-    Result
-      .catching {
-        runInterruptible(Dispatchers.IO) {
-          files().delete(fileId).execute()
-        }
+    catchingResult {
+      runInterruptible(Dispatchers.IO) {
+        files().delete(fileId).execute()
       }
+    }
       .mapUnit()
       .mapError { GoogleDriveError(cause = it) }
 
   private suspend fun Drive.downloadFile(fileId: String): Result<ByteString, GoogleDriveError> =
-    Result
-      .catching {
-        val buffer = Buffer()
-        val get = files().get(fileId)
-        buffer.use {
-          runInterruptible(Dispatchers.IO) {
-            get.executeMediaAndDownloadTo(buffer.outputStream())
-          }
+    catchingResult {
+      val buffer = Buffer()
+      val get = files().get(fileId)
+      buffer.use {
+        runInterruptible(Dispatchers.IO) {
+          get.executeMediaAndDownloadTo(buffer.outputStream())
         }
-        buffer.readByteString()
       }
+      buffer.readByteString()
+    }
       .mapError { GoogleDriveError(cause = it) }
 
   private suspend fun Drive.getBitkeyFolderId(): Result<String?, GoogleDriveError> =
-    Result
-      .catching {
-        runInterruptible(Dispatchers.IO) {
-          files().list()
-            .setQ(
-              "mimeType = '${MimeType.GOOGLE_DRIVE_FOLDER.name}' and name = '$BITKEY_FOLDER' and 'root' in parents"
-            )
-            .setSpaces(DRIVE_SPACE)
-            .setFields("files(id)")
-            .execute()
-        }
+    catchingResult {
+      runInterruptible(Dispatchers.IO) {
+        files().list()
+          .setQ(
+            "mimeType = '${MimeType.GOOGLE_DRIVE_FOLDER.name}' and name = '$BITKEY_FOLDER' and 'root' in parents"
+          )
+          .setSpaces(DRIVE_SPACE)
+          .setFields("files(id)")
+          .execute()
       }
+    }
       .map { it.files }
       .map { it.getOrNull(0)?.id }
       .mapError { GoogleDriveError(cause = it) }
@@ -211,16 +206,15 @@ class GoogleDriveFileStoreImpl(
     folderId: String,
     fileName: String,
   ): Result<String?, GoogleDriveError> =
-    Result
-      .catching {
-        runInterruptible(Dispatchers.IO) {
-          files().list()
-            .setQ("name = '$fileName' and '$folderId' in parents and trashed = false")
-            .setSpaces(DRIVE_SPACE)
-            .setFields("files(id)")
-            .execute()
-        }
+    catchingResult {
+      runInterruptible(Dispatchers.IO) {
+        files().list()
+          .setQ("name = '$fileName' and '$folderId' in parents and trashed = false")
+          .setSpaces(DRIVE_SPACE)
+          .setFields("files(id)")
+          .execute()
       }
+    }
       .map { it.files }
       .map { it.getOrNull(0)?.id }
       .mapError { GoogleDriveError(cause = it) }
@@ -230,13 +224,12 @@ class GoogleDriveFileStoreImpl(
     mimeType: MimeType,
     bytes: ByteString,
   ): Result<Unit, GoogleDriveError> =
-    Result
-      .catching {
-        val fileContent = ByteArrayContent(mimeType.name, bytes.toByteArray())
-        runInterruptible(Dispatchers.IO) {
-          files().update(fileId, null, fileContent).execute()
-        }
+    catchingResult {
+      val fileContent = ByteArrayContent(mimeType.name, bytes.toByteArray())
+      runInterruptible(Dispatchers.IO) {
+        files().update(fileId, null, fileContent).execute()
       }
+    }
       .mapUnit()
       .mapError { GoogleDriveError(cause = it) }
 
@@ -249,12 +242,12 @@ class GoogleDriveFileStoreImpl(
     account: GoogleAccount,
     fileName: String,
   ): Result<String, GoogleDriveError> =
-    binding {
+    coroutineBinding {
       val androidAccount = account.credentials.androidAccount().bind()
-      val driveService = drive(androidAccount).bind()
+      val drive = drive(androidAccount).bind()
 
       val bitkeyFolderId =
-        driveService.getBitkeyFolderId()
+        drive.getBitkeyFolderId()
           .toErrorIfNull {
             GoogleDriveError(
               message = "Failed to find Bitkey folder in Google Drive"
@@ -262,7 +255,7 @@ class GoogleDriveFileStoreImpl(
           }
           .bind()
 
-      driveService.getFileIdInFolder(bitkeyFolderId, fileName).bind()
+      drive.getFileIdInFolder(bitkeyFolderId, fileName).bind()
     }
       .toErrorIfNull {
         GoogleDriveError(message = "Failed to find fileId for fileName='$fileName' in Google Drive")

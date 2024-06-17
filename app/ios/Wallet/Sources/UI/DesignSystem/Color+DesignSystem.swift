@@ -8,19 +8,19 @@ extension UIColor {
     convenience init(
         light lightModeColor: UIColor,
         dark darkModeColor: UIColor
-     ) {
-         self.init(
-              dynamicProvider: { traitCollection in
-                  switch traitCollection.userInterfaceStyle {
-                  case .light, .unspecified:
-                      return lightModeColor
-                  case .dark:
-                      return darkModeColor
-                  @unknown default:
-                      return lightModeColor
-                  }
-              }
-          )
+    ) {
+        self.init(
+            dynamicProvider: { traitCollection in
+                switch traitCollection.userInterfaceStyle {
+                case .light, .unspecified:
+                    return lightModeColor
+                case .dark:
+                    return darkModeColor
+                @unknown default:
+                    return lightModeColor
+                }
+            }
+        )
     }
 
 }
@@ -43,9 +43,9 @@ extension Color {
 
 // MARK: -
 
-extension UIColor {
+public extension UIColor {
 
-    public var highlightedColor: UIColor {
+    var highlightedColor: UIColor {
         switch self {
         case .primary:
             return .primary.withAlphaComponent(0.85)

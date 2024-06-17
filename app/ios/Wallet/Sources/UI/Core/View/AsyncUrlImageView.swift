@@ -1,6 +1,6 @@
 import Shared
-import SwiftUI
 import SVGView
+import SwiftUI
 
 // MARK: -
 
@@ -21,7 +21,7 @@ struct AsyncUrlImageView<T: View>: View {
         } else {
             AsyncImage(url: url) { phase in
                 switch phase {
-                case .success(let image):
+                case let .success(image):
                     image.resizable().opacity(opacity)
                 case .empty:
                     RotatingLoadingIcon(size: size, tint: .black)
@@ -38,7 +38,9 @@ struct AsyncUrlImageView<T: View>: View {
 struct AsyncUrlImageView_Previews: PreviewProvider {
     static var previews: some View {
         AsyncUrlImageView(
-            url: URL(string: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg")!,
+            url: URL(
+                string: "https://upload.wikimedia.org/wikipedia/commons/c/c5/Square_Cash_app_logo.svg"
+            )!,
             size: .small,
             opacity: 0.5,
             fallbackContent: {

@@ -9,7 +9,7 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.BestEffortFullAccountCloudBackupUploader
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.recovery.RotateAuthKeysService
+import build.wallet.f8e.recovery.RotateAuthKeysF8eClient
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -21,7 +21,8 @@ import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.flatMapEither
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
@@ -37,7 +38,7 @@ import kotlinx.coroutines.flow.flow
 
 class AuthKeyRotationManagerImpl(
   private val authKeyRotationAttemptDao: AuthKeyRotationAttemptDao,
-  private val rotateAuthKeysService: RotateAuthKeysService,
+  private val rotateAuthKeysF8eClient: RotateAuthKeysF8eClient,
   private val keyboxDao: KeyboxDao,
   private val accountAuthenticator: AccountAuthenticator,
   private val bestEffortFullAccountCloudBackupUploader: BestEffortFullAccountCloudBackupUploader,
@@ -72,7 +73,7 @@ class AuthKeyRotationManagerImpl(
     request: AuthKeyRotationRequest,
     account: FullAccount,
   ): AuthKeyRotationResult =
-    binding {
+    coroutineBinding {
       val resumeRequest = createAndSubmitKeysIfNeeded(request, account.keybox).bind()
 
       // Any unexpected error will be propagated by the .bind() call.
@@ -106,7 +107,7 @@ class AuthKeyRotationManagerImpl(
     request: AuthKeyRotationRequest,
     keyboxToRotate: Keybox,
   ): Result<AuthKeyRotationRequest.Resume, AuthKeyRotationFailure> =
-    binding {
+    coroutineBinding {
       when (request) {
         is AuthKeyRotationRequest.Resume -> request
         is AuthKeyRotationRequest.Start -> {
@@ -147,20 +148,22 @@ class AuthKeyRotationManagerImpl(
       appRecoveryAuthPublicKey = request.newKeys.appRecoveryAuthPublicKey
     )
 
-    return when (keysetValidationResult) {
-      is Ok -> Ok(NewKeyValidationSuccessOrContinue.NewKeysValid(request.newKeys))
-      is Err -> when (keysetValidationResult.error) {
-        KeySetValidationFailure.Invalid -> Ok(NewKeyValidationSuccessOrContinue.NewKeysInvalid)
-        KeySetValidationFailure.Unexpected -> Err(AuthKeyRotationFailure.Unexpected(request))
+    return keysetValidationResult.flatMapEither(
+      success = { Ok(NewKeyValidationSuccessOrContinue.NewKeysValid(request.newKeys)) },
+      failure = { error ->
+        when (error) {
+          KeySetValidationFailure.Invalid -> Ok(NewKeyValidationSuccessOrContinue.NewKeysInvalid)
+          KeySetValidationFailure.Unexpected -> Err(AuthKeyRotationFailure.Unexpected(request))
+        }
       }
-    }
+    )
   }
 
   private suspend fun validateOldKeys(
     retryRequest: AuthKeyRotationRequest.Resume,
     keyboxToRotate: Keybox,
   ): Result<Nothing, AuthKeyRotationFailure> =
-    binding {
+    coroutineBinding {
       validateKeySet(
         f8eEnvironment = keyboxToRotate.config.f8eEnvironment,
         appGlobalAuthPublicKey = keyboxToRotate.activeAppKeyBundle.authKey,
@@ -196,7 +199,7 @@ class AuthKeyRotationManagerImpl(
     appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
     appRecoveryAuthPublicKey: PublicKey<AppRecoveryAuthKey>,
   ): Result<Unit, KeySetValidationFailure> =
-    binding {
+    coroutineBinding {
       // TODO: What if just one of Global vs Recovery keys are invalid?
       accountAuthenticator.appAuth(
         f8eEnvironment = f8eEnvironment,
@@ -256,7 +259,7 @@ class AuthKeyRotationManagerImpl(
     request: AuthKeyRotationRequest.Start,
     keyboxToRotate: Keybox,
   ): Result<Unit, Throwable> {
-    return rotateAuthKeysService.rotateKeyset(
+    return rotateAuthKeysF8eClient.rotateKeyset(
       f8eEnvironment = keyboxToRotate.config.f8eEnvironment,
       fullAccountId = keyboxToRotate.fullAccountId,
       newAppAuthPublicKeys = request.newKeys,
@@ -271,7 +274,7 @@ class AuthKeyRotationManagerImpl(
     newKeys: AppAuthPublicKeys,
     account: FullAccount,
   ): Result<AuthKeyRotationSuccess, AuthKeyRotationFailure.Unexpected> =
-    binding {
+    coroutineBinding {
       val rotatedKeybox = keyboxDao.rotateKeyboxAuthKeys(account.keybox, newKeys)
         .mapError {
           AuthKeyRotationFailure.Unexpected(
@@ -331,7 +334,7 @@ class AuthKeyRotationManagerImpl(
     oldHwAuthPublicKey: HwAuthPublicKey,
     newAppKeys: AppAuthPublicKeys,
   ): Result<Unit, Error> =
-    binding {
+    coroutineBinding {
       val relationships = socRecRelationshipsRepository.relationships
         .filterNotNull()
         .first()

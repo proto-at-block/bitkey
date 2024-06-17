@@ -23,12 +23,12 @@ import kotlinx.datetime.Instant
 class CurrencyConverterImplTests : FunSpec({
   val exchangeRateDao = ExchangeRateDaoMock(turbines::create)
   val accountRepository = AccountRepositoryFake()
-  val f8eExchangeRateService = F8eExchangeRateServiceMock()
+  val exchangeRateF8eClient = ExchangeRateF8eClientMock()
   val converter =
     CurrencyConverterImpl(
       accountRepository = accountRepository,
       exchangeRateDao = exchangeRateDao,
-      f8eExchangeRateService = f8eExchangeRateService
+      exchangeRateF8eClient = exchangeRateF8eClient
     )
 
   beforeTest {
@@ -125,7 +125,7 @@ class CurrencyConverterImplTests : FunSpec({
     exchangeRateDao.historicalExchangeRates = mapOf(differentTime to listOf(USDtoBTC(0.2)))
     accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
 
-    f8eExchangeRateService.historicalBtcToUsdExchangeRate.value = Ok(USDtoBTC(0.5))
+    exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value = Ok(USDtoBTC(0.5))
 
     // The value for `historicalExchangeRates` doesn't match the time, so we should use
     // the value from F8e
@@ -145,7 +145,7 @@ class CurrencyConverterImplTests : FunSpec({
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
     exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.1))
     exchangeRateDao.historicalExchangeRates = mapOf(differentTime to listOf(USDtoBTC(0.5)))
-    f8eExchangeRateService.historicalBtcToUsdExchangeRate.value =
+    exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value =
       Err(NetworkError(Throwable()))
 
     // Should have the same behavior as getting the current rate if we failed to look up in db
@@ -164,7 +164,7 @@ class CurrencyConverterImplTests : FunSpec({
     val time = Instant.fromEpochMilliseconds(1673338945736L)
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
     exchangeRateDao.historicalExchangeRates = mapOf(differentTime to listOf(USDtoBTC(0.5)))
-    f8eExchangeRateService.historicalBtcToUsdExchangeRate.value =
+    exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value =
       Err(NetworkError(Throwable()))
 
     converter.convert(BitcoinMoney.btc(1.toBigDecimal()), USD, time).test {

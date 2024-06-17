@@ -48,7 +48,11 @@ private extension SpendingLimitPickerModel {
         let maxValue = Float(200.0)
         return .init(
             onBack: {},
-            toolbarModel: .init(leadingAccessory: .IconAccessoryCompanion().BackAccessory(onClick: {}), middleAccessory: nil, trailingAccessory: nil),
+            toolbarModel: .init(
+                leadingAccessory: .IconAccessoryCompanion().BackAccessory(onClick: {}),
+                middleAccessory: nil,
+                trailingAccessory: nil
+            ),
             limitSliderModel: .init(
                 primaryAmount: primaryAmount,
                 secondaryAmount: secondaryAmount,
@@ -74,11 +78,11 @@ private class FloatingPointRange: KotlinClosedFloatingPointRange {
         self.endInclusive = KotlinFloat(float: endInclusive)
     }
 
-    func lessThanOrEquals(a: Any, b: Any) -> Bool {
+    func lessThanOrEquals(a _: Any, b _: Any) -> Bool {
         return false
     }
 
-    func contains(value: Any) -> Bool {
+    func contains(value _: Any) -> Bool {
         return true
     }
 

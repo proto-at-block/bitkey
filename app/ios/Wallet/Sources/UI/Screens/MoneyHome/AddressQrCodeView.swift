@@ -30,25 +30,31 @@ public struct AddressQrCodeView: View {
                             case let contentModel as AddressQrCodeBodyModelContentQrCode:
                                 AddressQrCodeContentView(
                                     viewModel: contentModel,
-                                    qrCodeAndAddressHorizontalPadding: Metrics.qrCodeAndAddressHorizontalPadding,
+                                    qrCodeAndAddressHorizontalPadding: Metrics
+                                        .qrCodeAndAddressHorizontalPadding,
                                     qrCodeSize: reader.size.width
-                                    - (DesignSystemMetrics.horizontalPadding * 2)
-                                    - (Metrics.qrCodeAndAddressHorizontalPadding * 2)
+                                        - (DesignSystemMetrics.horizontalPadding * 2)
+                                        - (Metrics.qrCodeAndAddressHorizontalPadding * 2)
                                 )
-                                
+
                             case let errorModel as AddressQrCodeBodyModelContentError:
                                 AddressQrCodeErrorView(errorModel: errorModel)
-                                
+
                             default:
-                                fatalError("Unexpected address qr code content model: \(viewModel.content)")
+                                fatalError(
+                                    "Unexpected address qr code content model: \(viewModel.content)"
+                                )
                             }
                         }
                     }
-                    .frame(minHeight: reader.size.height - DesignSystemMetrics.toolbarHeight - DesignSystemMetrics.verticalPadding)
+                    .frame(
+                        minHeight: reader.size.height - DesignSystemMetrics
+                            .toolbarHeight - DesignSystemMetrics.verticalPadding
+                    )
                     .padding(.vertical, DesignSystemMetrics.verticalPadding)
                     .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
                 }
-                
+
                 ToolbarView(viewModel: viewModel.toolbarModel)
                     .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
                     .background(Color.background)
@@ -70,14 +76,18 @@ private struct AddressQrCodeContentView: View {
             VStack(spacing: 24) {
                 // QR Code, either loading or showing the generated code
                 ZStack(alignment: .center) {
-                    if let addressQrImageUrl = viewModel.addressQrImageUrl, let fallbackAddressQrCodeModel = viewModel.fallbackAddressQrCodeModel {
-                        AddressQrCodeContentQrView(addressQrImageUrl: addressQrImageUrl, fallbackAddressQrCodeModel: fallbackAddressQrCodeModel)
+                    if let addressQrImageUrl = viewModel.addressQrImageUrl,
+                       let fallbackAddressQrCodeModel = viewModel.fallbackAddressQrCodeModel
+                    {
+                        AddressQrCodeContentQrView(
+                            addressQrImageUrl: addressQrImageUrl,
+                            fallbackAddressQrCodeModel: fallbackAddressQrCodeModel
+                        )
                     } else {
                         RotatingLoadingIcon(size: .avatar, tint: .black)
                     }
                 }
                 .frame(width: qrCodeSize, height: qrCodeSize)
-
 
                 // Address text
                 ModeledText(
@@ -99,7 +109,13 @@ private struct AddressQrCodeContentView: View {
                 viewModel.onCopyClick()
             }
             ModeledText(
-                model: .standard("This address only accepts Bitcoin (BTC). Sending other assets will result in permanent loss of funds.", font: .body4Regular, textAlignment: .center, textColor: .foreground60))
+                model: .standard(
+                    "This address only accepts Bitcoin (BTC). Sending other assets will result in permanent loss of funds.",
+                    font: .body4Regular,
+                    textAlignment: .center,
+                    textColor: .foreground60
+                )
+            )
 
             // Share and copy buttons
             HStack(spacing: 16) {
@@ -109,8 +125,6 @@ private struct AddressQrCodeContentView: View {
         }
     }
 }
-
-
 
 // MARK: -
 
@@ -122,7 +136,11 @@ private struct AddressQrCodeErrorView: View {
                 .foregroundColor(.primary)
                 .padding(.bottom, 8)
             ModeledText(model: .standard(errorModel.title, font: .title1, textAlignment: .center))
-            ModeledText(model: .standard(errorModel.subline, font: .body1Regular, textAlignment: .center))
+            ModeledText(model: .standard(
+                errorModel.subline,
+                font: .body1Regular,
+                textAlignment: .center
+            ))
         }
     }
 }
@@ -170,7 +188,8 @@ private struct FallbackAddressQrCodeContentQrView: View {
         filter.setValue(data, forKey: "inputMessage")
 
         if let outputImage = filter.outputImage,
-            let cgimg = context.createCGImage(outputImage, from: outputImage.extent) {
+           let cgimg = context.createCGImage(outputImage, from: outputImage.extent)
+        {
             return UIImage(cgImage: cgimg)
         }
 

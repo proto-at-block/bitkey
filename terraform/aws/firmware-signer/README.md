@@ -78,8 +78,11 @@ You can also bypass that step by providing the variable:
 -var 'is_localstack=true'
 ```
 
+When developing locally, it is difficult to try to deploy the whole project because some resource are only supported in CI/CD.
+To avoid this, you can use the `-target` option to deploy only the resources that you are working on.
+
 ```bash
-signer-utils generate-new-yubikey-cert --ldap <ldap> --output-path <output-path> --yubikey-slot <slot>
+terraform plan -var-file=tfvars/development/development.tfvars -var-file=tfvars/development/backends.tfvars -var 'is_localstack=false' -target=aws_s3_object.certs
 ```
 
 ## Deployments

@@ -12,7 +12,7 @@ use tracing::{event, instrument, Level};
 use super::{Repository, NETWORK_EXPIRING_IDX, PARTITION_KEY};
 use crate::entities::TransactionRecord;
 
-const EXPIRY_UPDATE_WINDOW_MINS: i64 = 2;
+const EXPIRY_UPDATE_WINDOW_MINS: i64 = 20;
 
 #[derive(Debug, Deserialize)]
 struct FetchTransactionId {
@@ -80,21 +80,33 @@ impl Repository {
     pub async fn fetch_expiring_transactions(
         &self,
         network: Network,
+        expiring_after: OffsetDateTime,
     ) -> Result<HashSet<TransactionRecord>, DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();
 
-        let now = OffsetDateTime::now_utc();
-        let expiring_at = now + Duration::minutes(EXPIRY_UPDATE_WINDOW_MINS);
+        let expiring_before =
+            OffsetDateTime::now_utc() + Duration::minutes(EXPIRY_UPDATE_WINDOW_MINS);
         let network_attr: AttributeValue =
             try_to_attribute_val(network.to_string(), self.get_database_object())?;
-        let now_attr: AttributeValue =
-            try_to_attribute_val(now.unix_timestamp(), self.get_database_object())?;
-        let expiring_at_attr: AttributeValue =
-            try_to_attribute_val(expiring_at.unix_timestamp(), self.get_database_object())?;
+        let expiring_after_attr: AttributeValue =
+            try_to_attribute_val(expiring_after.unix_timestamp(), self.get_database_object())?;
+        let expiring_before_attr: AttributeValue =
+            try_to_attribute_val(expiring_before.unix_timestamp(), self.get_database_object())?;
 
         let mut exclusive_start_key = None;
         let mut result = HashSet::new();
+
+        event!(
+            Level::INFO,
+            "Fetched expiring txs between {} and {}",
+            expiring_after.unix_timestamp(),
+            expiring_before.unix_timestamp()
+        );
+        // This should never happen
+        if expiring_after >= expiring_before {
+            return Ok(result);
+        }
 
         loop {
             let item_output = self
@@ -103,10 +115,10 @@ impl Repository {
                 .query()
                 .index_name(NETWORK_EXPIRING_IDX)
                 .table_name(table_name.clone())
-                .key_condition_expression("network = :network AND expiring_at BETWEEN :now AND :expiring_at")
+                .key_condition_expression("network = :network AND expiring_at BETWEEN :expiring_after AND :expiring_before")
                 .expression_attribute_values(":network", network_attr.clone())
-                .expression_attribute_values(":now", now_attr.clone())
-                .expression_attribute_values(":expiring_at", expiring_at_attr.clone())
+                .expression_attribute_values(":expiring_after", expiring_after_attr.clone())
+                .expression_attribute_values(":expiring_before", expiring_before_attr.clone())
                 .set_exclusive_start_key(exclusive_start_key.clone())
                 .send()
                 .await

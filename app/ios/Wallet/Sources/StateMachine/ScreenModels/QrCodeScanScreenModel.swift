@@ -61,7 +61,7 @@ extension QrCodeScanBodyModel {
                         )
                     } else {
                         return nil
-                }
+                    }
                 }()
             )
         )
@@ -72,9 +72,9 @@ extension QrCodeScanBodyModel {
 // MARK: -
 
 public extension UIButtonModel {
-    
+
     // MARK: - Image Based
-    
+
     /// Returns an image-based button inset in a circle
     static func header(
         _ image: UIImage,

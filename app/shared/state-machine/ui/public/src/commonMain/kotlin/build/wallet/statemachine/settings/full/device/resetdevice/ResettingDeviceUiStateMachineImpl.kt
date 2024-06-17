@@ -1,24 +1,23 @@
 package build.wallet.statemachine.settings.full.device.resetdevice
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiState.ResettingDeviceConfirmationUiState
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiState.ResettingDeviceIntroUiState
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiState.ResettingDeviceProgressUiState
-import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiState.ResettingDeviceSuccessUiState
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiState.*
+import build.wallet.statemachine.settings.full.device.resetdevice.complete.ResettingDeviceSuccessProps
+import build.wallet.statemachine.settings.full.device.resetdevice.complete.ResettingDeviceSuccessUiStateMachine
 import build.wallet.statemachine.settings.full.device.resetdevice.confirmation.ResettingDeviceConfirmationProps
 import build.wallet.statemachine.settings.full.device.resetdevice.confirmation.ResettingDeviceConfirmationUiStateMachine
 import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroProps
 import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroUiStateMachine
+import build.wallet.statemachine.settings.full.device.resetdevice.processing.ResettingDeviceProgressProps
+import build.wallet.statemachine.settings.full.device.resetdevice.processing.ResettingDeviceProgressUiStateMachine
 
 class ResettingDeviceUiStateMachineImpl(
   private val resettingDeviceIntroUiStateMachine: ResettingDeviceIntroUiStateMachine,
   private val resettingDeviceConfirmationUiStateMachine: ResettingDeviceConfirmationUiStateMachine,
+  private val resettingDeviceProgressUiStateMachine: ResettingDeviceProgressUiStateMachine,
+  private val resettingDeviceSuccessUiStateMachine: ResettingDeviceSuccessUiStateMachine,
 ) : ResettingDeviceUiStateMachine {
   @Composable
   override fun model(props: ResettingDeviceProps): ScreenModel {
@@ -30,19 +29,19 @@ class ResettingDeviceUiStateMachineImpl(
       )
     }
 
-    return when (uiState) {
+    return when (val state = uiState) {
       is ResettingDeviceIntroUiState -> {
         resettingDeviceIntroUiStateMachine.model(
           ResettingDeviceIntroProps(
             onBack = props.onBack,
-            onUnwindToMoneyHome = props.onUnwindToMoneyHome,
-            onDeviceConfirmed = {
-              uiState = ResettingDeviceConfirmationUiState
+            onUnwindToMoneyHome = props.onSuccess,
+            onDeviceConfirmed = { isDevicePaired ->
+              uiState = ResettingDeviceConfirmationUiState(isDevicePaired)
             },
+            fullAccountConfig = props.fullAccountConfig,
+            fullAccount = props.fullAccount,
             spendingWallet = props.spendingWallet,
-            keybox = props.keybox,
-            balance = props.balance,
-            isHardwareFake = props.isHardwareFake
+            balance = props.balance
           )
         )
       }
@@ -50,16 +49,31 @@ class ResettingDeviceUiStateMachineImpl(
       is ResettingDeviceConfirmationUiState -> {
         resettingDeviceConfirmationUiStateMachine.model(
           ResettingDeviceConfirmationProps(
-            onBack = props.onBack,
-            onConfirmResetDevice = {
+            onBack = {
+              uiState = ResettingDeviceIntroUiState()
+            },
+            onResetDevice = {
               uiState = ResettingDeviceProgressUiState
-            }
+            },
+            isDevicePaired = state.isDevicePaired,
+            isHardwareFake = props.fullAccountConfig.isHardwareFake
           )
         )
       }
 
-      ResettingDeviceProgressUiState -> TODO()
-      ResettingDeviceSuccessUiState -> TODO()
+      is ResettingDeviceProgressUiState -> {
+        resettingDeviceProgressUiStateMachine.model(
+          ResettingDeviceProgressProps {
+            uiState = ResettingDeviceSuccessUiState
+          }
+        )
+      }
+
+      is ResettingDeviceSuccessUiState -> {
+        resettingDeviceSuccessUiStateMachine.model(
+          ResettingDeviceSuccessProps(onDone = props.onSuccess)
+        )
+      }
     }
   }
 }
@@ -77,7 +91,9 @@ private sealed interface ResettingDeviceUiState {
   /**
    * Viewing the reset device confirmation screen
    */
-  data object ResettingDeviceConfirmationUiState : ResettingDeviceUiState
+  data class ResettingDeviceConfirmationUiState(
+    val isDevicePaired: Boolean,
+  ) : ResettingDeviceUiState
 
   /**
    * Viewing the reset device progress screen

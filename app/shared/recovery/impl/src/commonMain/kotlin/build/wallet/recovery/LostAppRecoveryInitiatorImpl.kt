@@ -8,18 +8,18 @@ import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.recovery.InitiateAccountDelayNotifyService
+import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient
 import build.wallet.logging.logFailure
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError
 import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError.F8eInitiateDelayNotifyError
 import build.wallet.recovery.LostAppRecoveryInitiator.InitiateDelayNotifyAppRecoveryError.FailedToPersistRecoveryStateError
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LostAppRecoveryInitiatorImpl(
-  private val initiateAccountDelayNotifyService: InitiateAccountDelayNotifyService,
+  private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
 ) : LostAppRecoveryInitiator {
   override suspend fun initiate(
@@ -31,7 +31,7 @@ class LostAppRecoveryInitiatorImpl(
     fullAccountId: FullAccountId,
     hwFactorProofOfPossession: HwFactorProofOfPossession,
   ): Result<Unit, InitiateDelayNotifyAppRecoveryError> =
-    binding {
+    coroutineBinding {
       // Persist local pending recovery state
       recoveryDao
         .setLocalRecoveryProgress(
@@ -49,7 +49,7 @@ class LostAppRecoveryInitiatorImpl(
 
       // Initiate recovery with f8e
       val serverRecovery =
-        initiateAccountDelayNotifyService
+        initiateAccountDelayNotifyF8eClient
           .initiate(
             f8eEnvironment = f8eEnvironment,
             fullAccountId = fullAccountId,

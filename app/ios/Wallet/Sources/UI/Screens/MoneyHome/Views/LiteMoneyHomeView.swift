@@ -5,11 +5,12 @@ import SwiftUI
 
 public struct LiteMoneyHomeView: View {
     // MARK: - Private Properties
+
     private var viewModel: LiteMoneyHomeBodyModel
 
     @SwiftUI.State
     private var moneyHomeCardsHeight: CGFloat?
-    
+
     // MARK: - Lifecycle
 
     public init(viewModel: LiteMoneyHomeBodyModel) {
@@ -30,15 +31,20 @@ public struct LiteMoneyHomeView: View {
                             Spacer()
                             ToolbarAccessoryView(viewModel: viewModel.trailingToolbarAccessoryModel)
                         }
-                        
+
                         Spacer(minLength: 40)
 
                         // Cards
                         if viewModel.cardsModel.cards.count > 0, moneyHomeCardsHeight != 0 {
-                            MoneyHomeCardsView(viewModel: viewModel.cardsModel, height: $moneyHomeCardsHeight)
+                            MoneyHomeCardsView(
+                                viewModel: viewModel.cardsModel,
+                                height: $moneyHomeCardsHeight
+                            )
                         }
-                        
-                        if let buttonModel = viewModel.buttonsModel as? MoneyHomeButtonsModelSingleButtonModel {
+
+                        if let buttonModel = viewModel
+                            .buttonsModel as? MoneyHomeButtonsModelSingleButtonModel
+                        {
                             ButtonView(model: buttonModel.button).padding(.vertical, 10)
                         }
                     }
@@ -61,11 +67,12 @@ struct LiteMoneyHomeView_Preview: PreviewProvider {
                     onSetUpBitkeyDevice: {}
                 ),
                 protectedCustomers: [
-                    ProtectedCustomer(recoveryRelationshipId: "", alias: "bob")
+                    ProtectedCustomer(recoveryRelationshipId: "", alias: "bob"),
                 ],
-                onProtectedCustomerClick: { ProtectedCustomer in },
+                onProtectedCustomerClick: { _ in },
                 onBuyOwnBitkeyClick: {},
-                onAcceptInviteClick: {})
+                onAcceptInviteClick: {}
+            )
         )
         LiteMoneyHomeView(
             viewModel: LiteMoneyHomeBodyModel(
@@ -74,10 +81,10 @@ struct LiteMoneyHomeView_Preview: PreviewProvider {
                     onSetUpBitkeyDevice: {}
                 ),
                 protectedCustomers: [],
-                onProtectedCustomerClick: { ProtectedCustomer in },
+                onProtectedCustomerClick: { _ in },
                 onBuyOwnBitkeyClick: {},
-                onAcceptInviteClick: {})
+                onAcceptInviteClick: {}
+            )
         )
     }
 }
-

@@ -18,7 +18,7 @@ import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICATION_REQUIRED
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryService
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.recovery.LostHardwareRecoveryStarter
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError.F8eInitiateDelayNotifyError
@@ -61,7 +61,7 @@ data class InitiatingLostHardwareRecoveryProps(
 class InitiatingLostHardwareRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
   private val lostHardwareRecoveryStarter: LostHardwareRecoveryStarter,
-  private val cancelDelayNotifyRecoveryService: CancelDelayNotifyRecoveryService,
+  private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val delayer: Delayer,
   private val recoveryNotificationVerificationDataStateMachine:
     RecoveryNotificationVerificationDataStateMachine,
@@ -226,7 +226,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImpl(
 
       is CancellingConflictingRecoveryWithF8eState -> {
         LaunchedEffect("cancelling-existing-recovery") {
-          cancelDelayNotifyRecoveryService.cancel(
+          cancelDelayNotifyRecoveryF8eClient.cancel(
             props.account.config.f8eEnvironment,
             props.account.accountId,
             s.hwFactorProofOfPossession

@@ -8,11 +8,11 @@ public struct TimerView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelTimer
+    private let viewModel: FormMainContentModel.Timer
 
     // MARK: - Life Cycle
 
-    public init(viewModel: FormMainContentModelTimer) {
+    public init(viewModel: FormMainContentModel.Timer) {
         self.viewModel = viewModel
     }
 
@@ -30,8 +30,17 @@ public struct TimerView: View {
 
                 VStack {
                     Spacer()
-                    ModeledText(model: .standard(viewModel.title, font: .title1, textAlignment: .center))
-                    ModeledText(model: .standard(viewModel.subtitle, font: .body3Regular, textAlignment: .center, textColor: .foreground60))
+                    ModeledText(model: .standard(
+                        viewModel.title,
+                        font: .title1,
+                        textAlignment: .center
+                    ))
+                    ModeledText(model: .standard(
+                        viewModel.subtitle,
+                        font: .body3Regular,
+                        textAlignment: .center,
+                        textColor: .foreground60
+                    ))
                     Spacer()
                 }
             }
@@ -66,7 +75,7 @@ struct TimerView_Previews: PreviewProvider {
                     timerRemainingSeconds: 10000
                 )
             ).previewDisplayName("Timer full")
-            
+
             TimerView(
                 viewModel: .init(
                     title: "Replacement ready",
@@ -76,7 +85,7 @@ struct TimerView_Previews: PreviewProvider {
                     timerRemainingSeconds: 0
                 )
             ).previewDisplayName("Timer empty")
-            
+
             TimerView(
                 viewModel: .init(
                     title: "12 hours",
@@ -86,7 +95,7 @@ struct TimerView_Previews: PreviewProvider {
                     timerRemainingSeconds: 10800
                 )
             ).previewDisplayName("Timer elapsed counter-clockwise")
-            
+
             TimerView(
                 viewModel: .init(
                     title: "12 hours",
@@ -96,7 +105,7 @@ struct TimerView_Previews: PreviewProvider {
                     timerRemainingSeconds: 10000
                 )
             ).previewDisplayName("Timer full counter-clockwise")
-            
+
             TimerView(
                 viewModel: .init(
                     title: "Replacement ready",

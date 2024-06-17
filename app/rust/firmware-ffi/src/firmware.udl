@@ -401,6 +401,7 @@ enum FirmwareFeatureFlag {
   "RateLimitTemplateUpdate",
   "Unlock",
   "MultipleFingerprints",
+  "ImprovedFingerprintEnrollment",
 };
 
 enum SecureBootConfig {

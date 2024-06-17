@@ -63,4 +63,7 @@ enum class NfcEventTrackerScreenIdContext : EventTrackerScreenIdContext {
 
   /** Checking the enrollment status of an additional fingerprint. */
   CHECKING_FINGERPRINT_ENROLLMENT_STATUS,
+
+  /** NFC flow to wipe a device */
+  WIPE_DEVICE,
 }

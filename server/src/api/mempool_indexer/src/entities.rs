@@ -18,12 +18,24 @@ pub struct TransactionVout {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct TransactionRecordStatus {
+    confirmed: bool,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub(crate) struct TransactionResponse {
     txid: Txid,
     vout: Vec<TransactionVout>,
     size: usize,
     weight: Weight,
     fee: u64,
+    status: TransactionRecordStatus,
+}
+
+impl TransactionResponse {
+    pub(crate) fn is_confirmed(&self) -> bool {
+        self.status.confirmed
+    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]

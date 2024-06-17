@@ -12,7 +12,7 @@ import build.wallet.crypto.PublicKey
 import build.wallet.logging.logFailure
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class AppKeysGeneratorImpl(
   private val uuidGenerator: UuidGenerator,
@@ -23,7 +23,7 @@ class AppKeysGeneratorImpl(
   override suspend fun generateKeyBundle(
     network: BitcoinNetworkType,
   ): Result<AppKeyBundle, Throwable> =
-    binding {
+    coroutineBinding {
       val appSpendingPublicKey = generateAppSpendingKey(network).bind()
       val appAuthPublicKey = generateGlobalAuthKey().bind()
       AppKeyBundle(
@@ -38,7 +38,7 @@ class AppKeysGeneratorImpl(
   private suspend fun generateAppSpendingKey(
     network: BitcoinNetworkType,
   ): Result<AppSpendingPublicKey, Throwable> =
-    binding {
+    coroutineBinding {
       val spendingKeypair = spendingKeyGenerator.generate(network).bind()
       val appSpendingKeypair =
         AppSpendingKeypair(
@@ -51,7 +51,7 @@ class AppKeysGeneratorImpl(
     }.logFailure { "Error generating new app spending key" }
 
   override suspend fun generateGlobalAuthKey(): Result<PublicKey<AppGlobalAuthKey>, Throwable> =
-    binding {
+    coroutineBinding {
       val authKeypair = appAuthKeyGenerator.generateGlobalAuthKey().bind()
       appPrivateKeyDao.storeAppKeyPair(authKeypair).bind()
 
@@ -59,7 +59,7 @@ class AppKeysGeneratorImpl(
     }.logFailure { "Error generating new app global auth key" }
 
   override suspend fun generateRecoveryAuthKey(): Result<PublicKey<AppRecoveryAuthKey>, Throwable> =
-    binding {
+    coroutineBinding {
       val authKeypair = appAuthKeyGenerator.generateRecoveryAuthKey().bind()
       appPrivateKeyDao.storeAppKeyPair(authKeypair).bind()
 

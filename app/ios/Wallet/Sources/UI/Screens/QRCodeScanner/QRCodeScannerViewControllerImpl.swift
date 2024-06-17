@@ -29,36 +29,36 @@ public final class QRCodeScannerViewControllerImpl: UIViewController, QRCodeScan
     }
 
     @available(*, unavailable)
-    required init?(coder: NSCoder) {
+    required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     // MARK: - UIViewController
 
-    public override var preferredStatusBarStyle: UIStatusBarStyle {
+    override public var preferredStatusBarStyle: UIStatusBarStyle {
         return .lightContent
     }
 
-    public override func loadView() {
+    override public func loadView() {
         view = mainView
     }
 
-    public override func viewWillAppear(_ animated: Bool) {
+    override public func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         presenter.viewWillAppear()
     }
 
-    public override func viewDidAppear(_ animated: Bool) {
+    override public func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         presenter.viewDidAppear()
     }
 
-    public override func viewWillDisappear(_ animated: Bool) {
+    override public func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         presenter.viewWillDisappear()
     }
 
-    public override func viewDidLayoutSubviews() {
+    override public func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         mainView.applyMask()
     }
@@ -113,7 +113,7 @@ private extension QRCodeScannerViewControllerImpl {
 
             super.init(frame: .zero)
 
-            if let previewLayer = previewLayer {
+            if let previewLayer {
                 layer.addSublayer(previewLayer)
             }
 
@@ -121,17 +121,17 @@ private extension QRCodeScannerViewControllerImpl {
             reticleView.layer.cornerRadius = Metrics.reticleCornerRadius
 
             addSubview(overlayView)
-            
-            [primaryButton, secondaryButton].forEach {
-                $0.translatesAutoresizingMaskIntoConstraints = false
+
+            for item in [primaryButton, secondaryButton] {
+                item.translatesAutoresizingMaskIntoConstraints = false
             }
-            
+
             callToActionStackView.addArrangedSubview(primaryButton)
             callToActionStackView.addArrangedSubview(secondaryButton)
-            
-            [headerView, reticleView, reticleDescriptionLabel, callToActionStackView].forEach {
-                $0.translatesAutoresizingMaskIntoConstraints = false
-                addSubview($0)
+
+            for item in [headerView, reticleView, reticleDescriptionLabel, callToActionStackView] {
+                item.translatesAutoresizingMaskIntoConstraints = false
+                addSubview(item)
             }
 
             // Start the view out with a black background. If the camera is available, it will be
@@ -140,7 +140,7 @@ private extension QRCodeScannerViewControllerImpl {
         }
 
         @available(*, unavailable)
-        required init(coder: NSCoder) {
+        required init(coder _: NSCoder) {
             fatalError("init(coder:) has not been implemented")
         }
 
@@ -211,13 +211,19 @@ private extension QRCodeScannerViewControllerImpl {
                     constant: 16
                 ),
                 reticleDescriptionLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
-                
+
                 secondaryButton.heightAnchor.constraint(equalToConstant: 52),
                 primaryButton.heightAnchor.constraint(equalToConstant: 52),
-                
-                callToActionStackView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
-                callToActionStackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
-                callToActionStackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -60)
+
+                callToActionStackView.leadingAnchor.constraint(
+                    equalTo: leadingAnchor,
+                    constant: 20
+                ),
+                callToActionStackView.trailingAnchor.constraint(
+                    equalTo: trailingAnchor,
+                    constant: -20
+                ),
+                callToActionStackView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -60),
             ])
         }
 

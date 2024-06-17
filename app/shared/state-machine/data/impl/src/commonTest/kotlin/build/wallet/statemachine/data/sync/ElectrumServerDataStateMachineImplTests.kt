@@ -9,7 +9,7 @@ import build.wallet.bitcoin.sync.OffElectrumServerPreferenceValueMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Production
 import build.wallet.f8e.configuration.ElectrumServers
-import build.wallet.f8e.configuration.GetBdkConfigurationServiceMock
+import build.wallet.f8e.configuration.GetBdkConfigurationF8eClientMock
 import build.wallet.statemachine.core.test
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -23,8 +23,8 @@ class ElectrumServerDataStateMachineImplTests : FunSpec({
       testnet = F8eDefined(ElectrumServerDetails("chicken.info", "50002")),
       regtest = null
     )
-  val getBdkConfigurationService =
-    GetBdkConfigurationServiceMock(
+  val getBdkConfigurationF8eClient =
+    GetBdkConfigurationF8eClientMock(
       turbines::create,
       defaultElectrumServers = allElectrumServers
     )
@@ -33,7 +33,7 @@ class ElectrumServerDataStateMachineImplTests : FunSpec({
   val dataStateMachine =
     ElectrumServerDataStateMachineImpl(
       electrumServerRepository = electrumServerRepository,
-      getBdkConfigurationService = getBdkConfigurationService
+      getBdkConfigurationF8eClient = getBdkConfigurationF8eClient
     )
 
   val defaultProps =
@@ -52,7 +52,7 @@ class ElectrumServerDataStateMachineImplTests : FunSpec({
         }
 
         // Reaches out to F8e to get configuration
-        getBdkConfigurationService.getConfigurationCalls.awaitItem()
+        getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
         // Updates local SQLite DB
         electrumServerRepository.storeF8eDefinedServerCalls.awaitItem()
 
@@ -83,7 +83,7 @@ class ElectrumServerDataStateMachineImplTests : FunSpec({
         }
 
         // Reaches out to F8e to get configuration
-        getBdkConfigurationService.getConfigurationCalls.awaitItem()
+        getBdkConfigurationF8eClient.getConfigurationCalls.awaitItem()
         // Updates local KV store
         electrumServerRepository.storeF8eDefinedServerCalls.awaitItem()
       }

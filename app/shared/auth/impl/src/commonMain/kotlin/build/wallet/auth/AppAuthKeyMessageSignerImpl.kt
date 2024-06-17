@@ -8,7 +8,7 @@ import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.signResult
 import build.wallet.encrypt.toSecp256k1PrivateKey
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.toErrorIfNull
 import okio.ByteString
 
@@ -20,7 +20,7 @@ class AppAuthKeyMessageSignerImpl(
     publicKey: PublicKey<T>,
     message: ByteString,
   ): Result<String, Throwable> where T : AppAuthKey, T : CurveType.Secp256K1 {
-    return binding {
+    return coroutineBinding {
       val privateKeyResult = appPrivateKeyDao.getAsymmetricPrivateKey(publicKey)
 
       val privateKey =

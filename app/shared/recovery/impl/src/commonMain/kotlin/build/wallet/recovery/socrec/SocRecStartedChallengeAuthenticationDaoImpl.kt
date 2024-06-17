@@ -12,7 +12,7 @@ import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.toErrorIfNull
 
 class SocRecStartedChallengeAuthenticationDaoImpl(
@@ -26,7 +26,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
     protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,
     pakeCode: PakeCode,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
         protectedCustomerRecoveryPakeKey.publicKey,
         requireNotNull(protectedCustomerRecoveryPakeKey.privateKey)
@@ -43,7 +43,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
   override suspend fun getByRelationshipId(
     recoveryRelationshipId: String,
   ): Result<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow?, Throwable> =
-    binding {
+    coroutineBinding<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow?, Throwable> {
       val challengeAuth =
         database.awaitTransactionWithResult {
           database.socRecStartedChallengeAuthenticationQueries.getByRelationshipId(
@@ -52,7 +52,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
         }.bind()
 
       if (challengeAuth == null) {
-        return@binding Ok(null).bind()
+        return@coroutineBinding Ok(null).bind()
       }
 
       val privateKey =
@@ -76,7 +76,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
     }
 
   override suspend fun getAll(): Result<List<SocRecStartedChallengeAuthenticationDao.SocRecStartedChallengeAuthenticationRow>, Throwable> =
-    binding {
+    coroutineBinding {
       val challengeAuths = database.awaitTransactionWithResult {
         database.socRecStartedChallengeAuthenticationQueries
           .getAll()

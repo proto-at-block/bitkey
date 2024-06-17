@@ -12,7 +12,12 @@ final class SuccessSnapshotTests: XCTestCase {
             viewModel: SuccessBodyModelKt.SuccessBodyModel(
                 title: "You have succeeded",
                 message: nil,
-                primaryButtonModel: .init(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
+                primaryButtonModel: .init(
+                    text: "Done",
+                    isLoading: false,
+                    onClick: {},
+                    leadingIcon: nil
+                ),
                 id: .none
             )
         )
@@ -25,7 +30,12 @@ final class SuccessSnapshotTests: XCTestCase {
             viewModel: SuccessBodyModelKt.SuccessBodyModel(
                 title: "You have succeeded",
                 message: "Congratulations for doing such a great job.",
-                primaryButtonModel: .init(text: "Done", isLoading: false, onClick: {}, leadingIcon: nil),
+                primaryButtonModel: .init(
+                    text: "Done",
+                    isLoading: false,
+                    onClick: {},
+                    leadingIcon: nil
+                ),
                 id: .none
             )
         )

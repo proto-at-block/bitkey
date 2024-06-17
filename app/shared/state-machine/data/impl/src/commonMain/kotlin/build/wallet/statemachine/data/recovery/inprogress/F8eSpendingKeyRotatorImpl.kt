@@ -8,15 +8,15 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.f8e.onboarding.CreateAccountKeysetService
-import build.wallet.f8e.onboarding.SetActiveSpendingKeysetService
+import build.wallet.f8e.onboarding.CreateAccountKeysetF8eClient
+import build.wallet.f8e.onboarding.SetActiveSpendingKeysetF8eClient
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class F8eSpendingKeyRotatorImpl(
-  private val createAccountKeysetService: CreateAccountKeysetService,
-  private val setActiveSpendingKeysetService: SetActiveSpendingKeysetService,
+  private val createAccountKeysetF8eClient: CreateAccountKeysetF8eClient,
+  private val setActiveSpendingKeysetF8eClient: SetActiveSpendingKeysetF8eClient,
 ) : F8eSpendingKeyRotator {
   override suspend fun rotateSpendingKey(
     fullAccountConfig: FullAccountConfig,
@@ -28,9 +28,9 @@ class F8eSpendingKeyRotatorImpl(
   ): Result<F8eSpendingKeyset, Error> {
     log { "Rotating f8e spending key" }
 
-    return binding {
+    return coroutineBinding {
       val f8eSpendingKeyset =
-        createAccountKeysetService
+        createAccountKeysetF8eClient
           .createKeyset(
             f8eEnvironment = fullAccountConfig.f8eEnvironment,
             fullAccountId = fullAccountId,
@@ -42,7 +42,7 @@ class F8eSpendingKeyRotatorImpl(
           )
           .bind()
 
-      setActiveSpendingKeysetService
+      setActiveSpendingKeysetF8eClient
         .set(
           f8eEnvironment = fullAccountConfig.f8eEnvironment,
           fullAccountId = fullAccountId,

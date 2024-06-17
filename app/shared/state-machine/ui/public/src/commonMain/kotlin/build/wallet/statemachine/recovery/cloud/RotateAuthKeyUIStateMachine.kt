@@ -26,7 +26,7 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.StateMachine
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.onSuccess
 
@@ -230,7 +230,7 @@ class RotateAuthKeyUIStateMachineImpl(
   )
 
   private suspend fun generateAppAuthKeys(): Result<AppAuthPublicKeys, Throwable> =
-    binding {
+    coroutineBinding {
       with(appKeysGenerator) {
         val appGlobalAuthPublicKey = generateGlobalAuthKey().bind()
         val appRecoveryAuthPublicKey = generateRecoveryAuthKey().bind()

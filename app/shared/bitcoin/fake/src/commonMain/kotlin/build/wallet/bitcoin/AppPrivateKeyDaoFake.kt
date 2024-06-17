@@ -5,13 +5,13 @@ import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.crypto.KeyPurpose
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
 
 /**
  * Fake implementation of [AppPrivateKeyDao] baked by in memory storage.
@@ -22,13 +22,13 @@ class AppPrivateKeyDaoFake : AppPrivateKeyDao {
   val asymmetricKeys = mutableMapOf<PublicKey<*>, PrivateKey<*>>()
   var storeAppSpendingKeyPairResult: Result<Unit, Throwable> = Ok(Unit)
   var storeAppAuthKeyPairResult: Result<Unit, Throwable> = Ok(Unit)
-  var getAppSpendingPrivateKeyErrResult: Err<Throwable>? = null
-  var getAppPrivateKeyErrResult: Err<Throwable>? = null
+  var getAppSpendingPrivateKeyErrResult: Result<AppSpendingPrivateKey?, Throwable>? = null
+  var getAppPrivateKeyErrResult: Result<PrivateKey<*>?, Throwable>? = null
 
   override suspend fun storeAppSpendingKeyPair(
     keyPair: AppSpendingKeypair,
   ): Result<Unit, Throwable> {
-    if (storeAppSpendingKeyPairResult !is Err) {
+    if (storeAppSpendingKeyPairResult.isOk) {
       appSpendingKeys[keyPair.publicKey] = keyPair.privateKey
     }
     return storeAppSpendingKeyPairResult
@@ -37,7 +37,7 @@ class AppPrivateKeyDaoFake : AppPrivateKeyDao {
   override suspend fun <T : AppAuthKey> storeAppKeyPair(
     keyPair: AppKey<T>,
   ): Result<Unit, Throwable> {
-    if (storeAppAuthKeyPairResult !is Err) {
+    if (storeAppAuthKeyPairResult.isOk) {
       asymmetricKeys[keyPair.publicKey] = keyPair.privateKey
     }
     return storeAppAuthKeyPairResult
@@ -47,7 +47,7 @@ class AppPrivateKeyDaoFake : AppPrivateKeyDao {
     publicKey: PublicKey<T>,
     privateKey: PrivateKey<T>,
   ): Result<Unit, Throwable> {
-    return Result.catching {
+    return catchingResult {
       asymmetricKeys[publicKey] = privateKey
     }
   }
@@ -60,7 +60,9 @@ class AppPrivateKeyDaoFake : AppPrivateKeyDao {
   override suspend fun <T : KeyPurpose> getAsymmetricPrivateKey(
     key: PublicKey<T>,
   ): Result<PrivateKey<T>?, Throwable> {
-    return getAppPrivateKeyErrResult ?: Ok(asymmetricKeys[key] as PrivateKey<T>?)
+    return getAppPrivateKeyErrResult
+      ?.map { it as? PrivateKey<T> }
+      ?: Ok(asymmetricKeys[key] as PrivateKey<T>?)
   }
 
   override suspend fun remove(key: AppSpendingPublicKey): Result<Unit, Throwable> {

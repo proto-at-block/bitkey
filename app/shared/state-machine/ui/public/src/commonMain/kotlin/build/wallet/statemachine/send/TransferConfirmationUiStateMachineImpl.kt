@@ -23,7 +23,7 @@ import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.factor.SigningFactor.F8e
 import build.wallet.bitkey.factor.SigningFactor.Hardware
-import build.wallet.f8e.mobilepay.MobilePaySigningService
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.limit.SpendingLimit
 import build.wallet.logging.LogLevel.Error
@@ -62,9 +62,8 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -73,7 +72,7 @@ import kotlinx.collections.immutable.persistentMapOf
 import kotlinx.collections.immutable.toImmutableMap
 
 class TransferConfirmationUiStateMachineImpl(
-  private val mobilePaySigningService: MobilePaySigningService,
+  private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
@@ -378,7 +377,7 @@ class TransferConfirmationUiStateMachineImpl(
             )
 
           // If we can't build or sign the psbt for the selected fee, we will invoke the error handlers
-          if (entry.key == selectedPriority && psbtResult is Err) {
+          if (entry.key == selectedPriority && psbtResult.isErr) {
             when (val error = psbtResult.error) {
               is BdkError -> onPsbtCreateError(error)
               else -> onAppSignError()
@@ -409,7 +408,7 @@ class TransferConfirmationUiStateMachineImpl(
     onSignError: () -> Unit,
   ) {
     LaunchedEffect("signing-with-server") {
-      mobilePaySigningService
+      mobilePaySigningF8eClient
         .signWithSpecificKeyset(
           f8eEnvironment = props.accountData.account.config.f8eEnvironment,
           fullAccountId = props.accountData.account.accountId,
@@ -519,7 +518,7 @@ class TransferConfirmationUiStateMachineImpl(
     account: FullAccount,
     constructionMethod: SpendingWallet.PsbtConstructionMethod,
   ): Result<Psbt, Throwable> =
-    binding {
+    coroutineBinding {
       val wallet =
         appSpendingWalletProvider
           .getSpendingWallet(account)

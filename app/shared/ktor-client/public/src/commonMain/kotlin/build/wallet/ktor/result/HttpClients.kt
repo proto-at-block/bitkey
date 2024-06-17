@@ -2,7 +2,7 @@
 
 package build.wallet.ktor.result
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
@@ -80,8 +80,7 @@ suspend inline fun <reified T : RedactedResponseBody> HttpClient.bodyResult(
 suspend fun HttpClient.catching(
   requestBody: suspend HttpClient.() -> HttpResponse,
 ): Result<HttpResponse, HttpError> =
-  Result
-    .catching { requestBody() }
+  catchingResult { requestBody() }
     .mapError {
       when (it) {
         is IOException -> HttpError.NetworkError(it)

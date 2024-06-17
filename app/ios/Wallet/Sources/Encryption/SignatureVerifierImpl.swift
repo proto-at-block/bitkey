@@ -1,11 +1,11 @@
-import Foundation
 import core
+import Foundation
 import Shared
 
 public final class SignatureVerifierImpl: Shared.SignatureVerifier {
 
-    public init () { }
-    
+    public init() {}
+
     public func verifyEcdsa(
         message: OkioByteString,
         signature: String,
@@ -15,7 +15,7 @@ public final class SignatureVerifierImpl: Shared.SignatureVerifier {
         let verifier = try core.SignatureVerifier(signature: decodedSignature)
         let decodedPublicKey = OkioByteString.companion.decodeHex(publicKey.value).toData()
         try verifier.verifyEcdsa(message: message.toData(), pubkey: decodedPublicKey)
-        
+
         return SignatureVerifierVerifyEcdsaResult(isValid: true)
     }
 }

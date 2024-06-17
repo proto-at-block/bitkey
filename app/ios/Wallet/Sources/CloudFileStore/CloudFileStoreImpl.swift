@@ -7,17 +7,17 @@ import Shared
  * Currently only iCloud Drive is supported.
  */
 public final class CloudFileStoreImpl: Shared.CloudFileStore {
-    
+
     // MARK: - Private Properties
-    
+
     private let iCloudDriveFileStore: iCloudDriveFileStore
-    
+
     public init(iCloudDriveFileStore: iCloudDriveFileStore) {
         self.iCloudDriveFileStore = iCloudDriveFileStore
     }
-    
+
     // MARK: - CloudFileStore
-    
+
     public func exists(
         account: CloudStoreAccount,
         fileName: String
@@ -33,7 +33,7 @@ public final class CloudFileStoreImpl: Shared.CloudFileStore {
             return error.toCloudFileStoreResultErr()
         }
     }
-    
+
     public func read(
         account: CloudStoreAccount,
         fileName: String
@@ -49,7 +49,7 @@ public final class CloudFileStoreImpl: Shared.CloudFileStore {
             return error.toCloudFileStoreResultErr()
         }
     }
-    
+
     public func remove(
         account: CloudStoreAccount,
         fileName: String
@@ -65,12 +65,12 @@ public final class CloudFileStoreImpl: Shared.CloudFileStore {
             return error.toCloudFileStoreResultErr()
         }
     }
-    
+
     public func write(
         account: CloudStoreAccount,
         bytes: OkioByteString,
         fileName: String,
-        mimeType: MimeType
+        mimeType _: MimeType
     ) async throws -> CloudFileStoreResult<KotlinUnit> {
         do {
             switch account {
@@ -83,12 +83,12 @@ public final class CloudFileStoreImpl: Shared.CloudFileStore {
             return error.toCloudFileStoreResultErr()
         }
     }
-    
+
 }
 
 // MARK: -
 
-public enum CloudFileStoreError : Error {
+public enum CloudFileStoreError: Error {
     case unsupportedAccount(CloudStoreAccount)
 }
 

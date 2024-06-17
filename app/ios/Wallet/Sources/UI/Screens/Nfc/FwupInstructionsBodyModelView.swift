@@ -21,7 +21,10 @@ public struct FwupInstructionsView: View {
         GeometryReader { reader in
             VStack {
                 ToolbarView(viewModel: viewModel.toolbarModel)
-                    .padding(.top, reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0)
+                    .padding(
+                        .top,
+                        reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0
+                    )
                     .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
 
                 Spacer()
@@ -44,7 +47,10 @@ public struct FwupInstructionsView: View {
                     Spacer()
                     VideoView(viewModel: .init(videoUrl: .bitkeyPairVideoUrl))
                         .frame(height: 640)
-                        .padding(.horizontal, -100) // Let the video width extend beyond the edges a bit
+                        .padding(
+                            .horizontal,
+                            -100
+                        ) // Let the video width extend beyond the edges a bit
                         .clipped()
                     Spacer(minLength: 250) // The minLength ensures enough space on smaller devices
                 }
@@ -63,7 +69,11 @@ private struct ContentView: View {
 
     var body: some View {
         VStack {
-            FormHeaderView(viewModel: viewModel.headerModel, headlineFont: .title1, sublineTextColor: .foreground)
+            FormHeaderView(
+                viewModel: viewModel.headerModel,
+                headlineFont: .title1,
+                sublineTextColor: .foreground
+            )
             Spacer()
                 .frame(height: 32)
             ButtonView(model: viewModel.buttonModel)

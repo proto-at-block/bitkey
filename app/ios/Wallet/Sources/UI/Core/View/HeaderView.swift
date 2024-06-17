@@ -32,9 +32,9 @@ public final class HeaderView<
     public init() {
         super.init(frame: .zero)
 
-        [leadingView, middleView, trailingView].forEach {
-            addArrangedSubview($0)
-            $0.translatesAutoresizingMaskIntoConstraints = false
+        for item in [leadingView, middleView, trailingView] {
+            addArrangedSubview(item)
+            item.translatesAutoresizingMaskIntoConstraints = false
         }
 
         axis = .horizontal
@@ -45,21 +45,23 @@ public final class HeaderView<
         trailingView.setContentHuggingPriority(.defaultHigh, for: .horizontal)
     }
 
-    required init(coder: NSCoder) {
+    @available(*, unavailable)
+    required init(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
     // MARK: - UIView
 
-    public override func layoutSubviews() {
+    override public func layoutSubviews() {
         leadingView.sizeToFit()
         trailingView.sizeToFit()
 
-        // If we only have one side filled, artificially fill the other side proportionally to make sure the
+        // If we only have one side filled, artificially fill the other side proportionally to make
+        // sure the
         // middle is centered, if middle content was provided
         if leadingView.frame.isEmpty || trailingView.frame.isEmpty {
             NSLayoutConstraint.activate([
-                leadingView.widthAnchor.constraint(equalTo: trailingView.widthAnchor)
+                leadingView.widthAnchor.constraint(equalTo: trailingView.widthAnchor),
             ])
         }
     }
@@ -83,9 +85,9 @@ public final class HeaderView<
 
 // MARK: -
 
-extension HeaderView {
+public extension HeaderView {
 
-    public struct Model {
+    struct Model {
         let leadingModel: LeadingView.Model?
         let middleModel: MiddleView.Model?
         let trailingModel: TrailingView.Model?

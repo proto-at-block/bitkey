@@ -1,19 +1,19 @@
 import Shared
 
 // Convenience initializer that mirrors default parameter values in Kotlin.
-extension FormMainContentModelDataList.Data {
+extension FormMainContentModel.DataListData {
     convenience init(
         withTitle title: String,
         titleIcon: IconModel? = nil,
         onTitle: (() -> Void)? = nil,
         sideText: String,
-        sideTextType: FormMainContentModelDataList.DataSideTextType = .medium,
-        sideTextTreatment: FormMainContentModelDataList.DataSideTextTreatment = .primary,
+        sideTextType: FormMainContentModel.DataListDataSideTextType = .medium,
+        sideTextTreatment: FormMainContentModel.DataListDataSideTextTreatment = .primary,
         secondarySideText: String? = nil,
-        secondarySideTextType: FormMainContentModelDataList.DataSideTextType = .regular,
-        secondarySideTextTreatment: FormMainContentModelDataList.DataSideTextTreatment = .secondary,
+        secondarySideTextType: FormMainContentModel.DataListDataSideTextType = .regular,
+        secondarySideTextTreatment: FormMainContentModel.DataListDataSideTextTreatment = .secondary,
         showBottomDivider: Bool = false,
-        explainer: FormMainContentModelDataList.DataExplainer? = nil,
+        explainer: FormMainContentModel.DataListDataExplainer? = nil,
         onClick: (() -> Void)? = nil
     ) {
         self.init(

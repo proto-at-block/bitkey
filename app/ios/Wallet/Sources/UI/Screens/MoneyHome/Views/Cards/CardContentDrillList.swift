@@ -21,7 +21,10 @@ struct CardContentDrillList: View {
 
     var body: some View {
         VStack {
-            ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id: \.0) { index, itemModel in
+            ForEach(
+                Array(zip(viewModel.items.indices, viewModel.items)),
+                id: \.0
+            ) { index, itemModel in
                 VStack {
                     ListItemView(viewModel: itemModel, verticalPadding: 0)
                         .frame(minHeight: Metrics.height)

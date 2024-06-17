@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.buildImmutableList
-import build.wallet.f8e.onboarding.OnboardingService
+import build.wallet.f8e.onboarding.OnboardingF8eClient
 import build.wallet.feature.isEnabled
 import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTask
@@ -34,7 +34,7 @@ class ActivateFullAccountDataStateMachineImpl(
   private val gettingStartedTaskDao: GettingStartedTaskDao,
   private val keyboxDao: KeyboxDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
-  private val onboardingService: OnboardingService,
+  private val onboardingF8eClient: OnboardingF8eClient,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
   private val multipleFingerprintsIsEnabled: MultipleFingerprintsIsEnabledFeatureFlag,
@@ -82,7 +82,7 @@ class ActivateFullAccountDataStateMachineImpl(
       onboardingKeyboxHardwareKeysDao.clear()
 
       // Tell the server that onboarding has been completed.
-      onboardingService.completeOnboarding(
+      onboardingF8eClient.completeOnboarding(
         f8eEnvironment = props.keybox.config.f8eEnvironment,
         fullAccountId = props.keybox.fullAccountId
       )

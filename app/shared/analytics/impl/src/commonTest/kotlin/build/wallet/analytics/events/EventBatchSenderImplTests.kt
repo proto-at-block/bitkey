@@ -4,7 +4,7 @@ import build.wallet.analytics.v1.Event
 import build.wallet.analytics.v1.EventBundle
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Production
-import build.wallet.f8e.analytics.EventTrackerServiceMock
+import build.wallet.f8e.analytics.EventTrackerF8eClientMock
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
@@ -14,7 +14,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
 class EventBatchSenderImplTests : FunSpec({
-  val eventTrackerMock = EventTrackerServiceMock(turbines::create)
+  val eventTrackerMock = EventTrackerF8eClientMock(turbines::create)
 
   test("successful send returns true") {
     eventTrackerMock.trackedEventResult = Ok(Unit)

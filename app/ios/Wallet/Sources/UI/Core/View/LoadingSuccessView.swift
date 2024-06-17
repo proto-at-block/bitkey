@@ -39,9 +39,11 @@ struct LoadingSuccessView: View {
 
             switch viewModel.bodyModel.state {
             case _ as LoadingSuccessBodyModelStateLoading:
-                // The `loadingAndSuccess` animation shows both loading and success, and here we just want it
+                // The `loadingAndSuccess` animation shows both loading and success, and here we
+                // just want it
                 // to loop the loading portion (which is from progress 0 to 0.3)
-                // In the below `LoadingSuccessBodyModelStateSuccess` case we will let the rest of the animation play
+                // In the below `LoadingSuccessBodyModelStateSuccess` case we will let the rest of
+                // the animation play
                 LottieView(animation: .loadingAndSuccess)
                     .playing(.fromProgress(0, toProgress: 0.3, loopMode: .loop))
                     .getRealtimeAnimationProgress($progress)
@@ -49,7 +51,8 @@ struct LoadingSuccessView: View {
 
             case _ as LoadingSuccessBodyModelStateSuccess:
                 // The `loadingAndSuccess` animation shows both loading and success, and here
-                // we want it to play out the rest of the animation, starting with where the loading in
+                // we want it to play out the rest of the animation, starting with where the loading
+                // in
                 // the above `LoadingSuccessBodyModelStateLoading` case left off
                 LottieView(animation: .loadingAndSuccess)
                     .playing(.fromProgress(progress, toProgress: 1, loopMode: .playOnce))
@@ -59,7 +62,8 @@ struct LoadingSuccessView: View {
                 EmptyView()
             }
 
-            // Explicitly show text here, even if the message is null and state is loading to make sure it aligns
+            // Explicitly show text here, even if the message is null and state is loading to make
+            // sure it aligns
             ModeledText(model: .standard(viewModel.bodyModel.message ?? " ", font: .title1))
 
             Spacer()

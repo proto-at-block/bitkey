@@ -8,7 +8,7 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -20,7 +20,7 @@ class AccountRepositoryImpl(
       accountDao.activeAccount(),
       accountDao.onboardingAccount()
     ) { activeAccountResult, onboardingAccountResult ->
-      binding {
+      coroutineBinding {
         val activeAccount = activeAccountResult.bind()
         val onboardingAccount = onboardingAccountResult.bind()
 

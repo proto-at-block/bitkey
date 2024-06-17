@@ -16,8 +16,12 @@ extension Shared.FirmwareMetadata {
             gitBranch: metadata.gitBranch,
             version: metadata.version,
             build: metadata.build,
-            timestamp: .Companion.shared.fromEpochSeconds(epochSeconds: Int64(metadata.timestamp), nanosecondAdjustment: 0),
-            hash: .Companion.shared.decodeHex(metadata.hash.map { String(format: "%02X", $0) }.joined()),
+            timestamp: .Companion.shared.fromEpochSeconds(
+                epochSeconds: Int64(metadata.timestamp),
+                nanosecondAdjustment: 0
+            ),
+            hash: .Companion.shared
+                .decodeHex(metadata.hash.map { String(format: "%02X", $0) }.joined()),
             hwRevision: metadata.hwRevision
         )
     }

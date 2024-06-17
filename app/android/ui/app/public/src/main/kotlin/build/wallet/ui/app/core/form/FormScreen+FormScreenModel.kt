@@ -1,22 +1,14 @@
 package build.wallet.ui.app.core.form
 
 import android.annotation.SuppressLint
+import android.widget.VideoView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -38,25 +30,8 @@ import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.AddressInput
-import build.wallet.statemachine.core.form.FormMainContentModel.Button
-import build.wallet.statemachine.core.form.FormMainContentModel.Callout
-import build.wallet.statemachine.core.form.FormMainContentModel.DataList
-import build.wallet.statemachine.core.form.FormMainContentModel.DatePicker
-import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
+import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer.Statement
-import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.form.FormMainContentModel.Loader
-import build.wallet.statemachine.core.form.FormMainContentModel.MoneyHomeHero
-import build.wallet.statemachine.core.form.FormMainContentModel.Picker
-import build.wallet.statemachine.core.form.FormMainContentModel.Spacer
-import build.wallet.statemachine.core.form.FormMainContentModel.StepperIndicator
-import build.wallet.statemachine.core.form.FormMainContentModel.TextArea
-import build.wallet.statemachine.core.form.FormMainContentModel.TextInput
-import build.wallet.statemachine.core.form.FormMainContentModel.Timer
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
-import build.wallet.statemachine.core.form.FormMainContentModel.WebView
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.app.account.toWalletTheme
 import build.wallet.ui.app.core.fadingEdge
@@ -72,21 +47,28 @@ import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Multilin
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
+import build.wallet.ui.components.layout.CollapsedMoneyView
+import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.components.list.ListGroup
 import build.wallet.ui.components.loading.FormLoader
 import build.wallet.ui.components.progress.StepperIndicator
 import build.wallet.ui.components.timer.Timer
 import build.wallet.ui.components.toolbar.Toolbar
+import build.wallet.ui.components.video.Video
 import build.wallet.ui.components.webview.WebView
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.data.DataGroup
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.label.CallToActionModel
+import build.wallet.ui.model.video.VideoStartingPosition
 import build.wallet.ui.system.KeepScreenOn
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
+import build.wallet.ui.tokens.painter
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun FormScreen(model: FormBodyModel) {
@@ -162,6 +144,7 @@ fun FormScreen(model: FormBodyModel) {
             is Picker -> Picker(model = mainContent)
             is StepperIndicator -> StepperIndicator(model = mainContent)
             is Callout -> Callout(model = mainContent.item)
+            is Showcase -> Showcase(model = mainContent)
           }
           if (index < model.mainContentList.lastIndex) {
             Spacer(modifier = Modifier.height(16.dp))
@@ -191,6 +174,74 @@ fun FormScreen(model: FormBodyModel) {
           else -> null
         }
     )
+  }
+}
+
+@Composable
+private fun Showcase(model: Showcase) {
+  Column(
+    modifier = Modifier.fillMaxSize(),
+    horizontalAlignment = CenterHorizontally,
+    verticalArrangement = Arrangement.Top
+  ) {
+    when (val content = model.content) {
+      is Showcase.Content.IconContent -> {
+        Image(
+          modifier = Modifier
+            .aspectRatio(1f)
+            .padding(horizontal = 24.dp),
+          painter = content.icon.painter(),
+          contentDescription = null
+        )
+      }
+      is Showcase.Content.VideoContent -> {
+        var videoView: VideoView? by remember { mutableStateOf(null) }
+        LaunchedEffect(videoView) {
+          // Short delay to avoid playing over screen transitions
+          delay(200.milliseconds)
+          videoView?.start()
+        }
+        Video(
+          modifier =
+            Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 24.dp)
+              .aspectRatio(1f),
+          resource = when (content.video) {
+            Showcase.Content.VideoContent.Video.BITKEY_RESET -> R.raw.bitkey_reset
+          },
+          backgroundColor = Color.White,
+          autoStart = false,
+          isLooping = content.video.looping,
+          startingPosition = VideoStartingPosition.START,
+          videoViewCallback = { view ->
+            videoView = view
+          }
+        )
+      }
+    }
+
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 8.dp),
+      verticalArrangement = Arrangement.Top,
+      horizontalAlignment = CenterHorizontally
+    ) {
+      Label(
+        model = StringModel(model.title),
+        treatment = LabelTreatment.Primary,
+        type = LabelType.Body1Medium,
+        alignment = TextAlign.Center
+      )
+      Spacer(modifier = Modifier.height(6.dp))
+      Label(
+        model = model.body,
+        treatment = LabelTreatment.Secondary,
+        type = LabelType.Body2Regular,
+        alignment = TextAlign.Center
+      )
+    }
   }
 }
 
@@ -358,22 +409,27 @@ private fun MoneyHomeHero(model: MoneyHomeHero) {
           .width(210.dp)
           .height(224.dp)
     )
-
-    Column(
-      modifier =
-        Modifier
-          .padding(vertical = 64.dp)
-          .align(Alignment.TopCenter),
-      horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-      Label(model.primaryAmount, type = LabelType.Title1)
-      Label(
-        model.secondaryAmount,
-        type = LabelType.Body4Medium,
-        treatment = LabelTreatment.Secondary
-      )
-    }
-
+    CollapsibleLabelContainer(
+      modifier = Modifier
+        .padding(vertical = 64.dp)
+        .align(Alignment.TopCenter),
+      collapsed = model.isHidden,
+      verticalArrangement = Arrangement.Center,
+      horizontalAlignment = Alignment.CenterHorizontally,
+      topContent = { Label(model.primaryAmount, type = LabelType.Title1) },
+      bottomContent = {
+        Label(
+          model.secondaryAmount,
+          type = LabelType.Body4Medium,
+          treatment = LabelTreatment.Secondary
+        )
+      },
+      collapsedContent = {
+        CollapsedMoneyView(
+          height = 16.dp
+        )
+      }
+    )
     Box(
       modifier =
         Modifier

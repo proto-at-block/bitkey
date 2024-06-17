@@ -6,7 +6,7 @@ import build.wallet.availability.F8eAuthSignatureStatusProviderImpl
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.auth.AuthenticationServiceMock
+import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.testing.shouldBeErrOfType
@@ -19,12 +19,12 @@ import io.ktor.http.HttpStatusCode
 
 class AuthTokenRefresherImplTests : FunSpec({
   val authTokenDao = AuthTokenDaoMock(turbines::create)
-  val authenticationService = AuthenticationServiceMock()
+  val authenticationF8eClient = AuthF8eClientMock()
   val f8eAuthSignatureStatusProvider = F8eAuthSignatureStatusProviderImpl()
   val accountAuthorizer =
     AccountAuthenticatorMock(
       turbine = turbines::create,
-      authenticationService = authenticationService
+      authF8eClient = authenticationF8eClient
     )
   val appAuthPublicKeyProvider = AppAuthPublicKeyProviderMock()
 
@@ -32,7 +32,7 @@ class AuthTokenRefresherImplTests : FunSpec({
     AppAuthTokenRefresherImpl(
       authTokenDao = authTokenDao,
       accountAuthenticator = accountAuthorizer,
-      authenticationService = authenticationService,
+      authF8eClient = authenticationF8eClient,
       appAuthPublicKeyProvider = appAuthPublicKeyProvider,
       f8eAuthSignatureStatusProvider = f8eAuthSignatureStatusProvider
     )
@@ -55,7 +55,7 @@ class AuthTokenRefresherImplTests : FunSpec({
         accessToken = AccessToken(originalAccessToken),
         refreshToken = RefreshToken(originalRefreshToken)
       )
-    authenticationService.refreshResult =
+    authenticationF8eClient.refreshResult =
       Ok(
         AccountAuthTokens(accessToken = AccessToken(newAccessToken), refreshToken = RefreshToken(originalRefreshToken))
       )
@@ -97,7 +97,7 @@ class AuthTokenRefresherImplTests : FunSpec({
         refreshToken = RefreshToken(originalRefreshToken)
       )
 
-    authenticationService.refreshResult = Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
+    authenticationF8eClient.refreshResult = Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
     val newTokens =
       AccountAuthTokens(
         accessToken = AccessToken(newAccessToken),
@@ -128,7 +128,7 @@ class AuthTokenRefresherImplTests : FunSpec({
     val originalAccessToken = "original-access-token"
     val originalRefreshToken = "original-refresh-token"
 
-    authenticationService.refreshResult = Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
+    authenticationF8eClient.refreshResult = Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
     accountAuthorizer.authResults =
       mutableListOf(Err(AuthSignatureMismatch))
 

@@ -11,7 +11,7 @@ import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.
  *
  * @property firmwareUpdateState: The update state of the firmware
  * @property firmwareDeviceInfo: The device info of the firmware, null when no info has been stored
- * @property checkForNewFirmware: Kicks off a request to [MemfaultService] to fetch the
+ * @property checkForNewFirmware: Kicks off a request to [MemfaultF8eClient] to fetch the
  * [FwupData] for the newest firmware version. If there is a newer version available, it
  * will be returned via [FirmwareUpdateState.PendingUpdate].
  */

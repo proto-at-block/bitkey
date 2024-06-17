@@ -234,7 +234,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         let recovery_cognito_user_exists = bootstrap
             .services
             .userpool_service
-            .is_existing_cognito_user(CognitoUser::Recovery(account_id.clone()))
+            .is_existing_user(&CognitoUser::Recovery(account_id.clone()).into())
             .await
             .unwrap();
         if vector.rotate_recovery_pubkey {
@@ -273,7 +273,7 @@ async fn rotate_authentication_keys_test(vector: RotateAuthenticationKeysTestVec
         let recovery_cognito_user_exists = bootstrap
             .services
             .userpool_service
-            .is_existing_cognito_user(CognitoUser::Recovery(account_id))
+            .is_existing_user(&CognitoUser::Recovery(account_id).into())
             .await
             .unwrap();
         if vector.include_initial_recovery_pubkey {

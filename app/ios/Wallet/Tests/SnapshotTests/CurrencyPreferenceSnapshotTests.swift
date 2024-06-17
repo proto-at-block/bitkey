@@ -11,7 +11,7 @@ final class CurrencyPreferenceSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: CurrencyPreferenceFormModelKt.CurrencyPreferenceFormModel(
                 onBack: {},
-                moneyHomeHero: .init(primaryAmount: "$0", secondaryAmount: "0 sats"),
+                moneyHomeHero: .init(primaryAmount: "$0", secondaryAmount: "0 sats", isHidden: false),
                 fiatCurrencyPreferenceString: "USD",
                 onFiatCurrencyPreferenceClick: {},
                 bitcoinDisplayPreferenceString: "Sats",
@@ -30,7 +30,7 @@ final class CurrencyPreferenceSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: CurrencyPreferenceFormModelKt.CurrencyPreferenceFormModel(
                 onBack: {},
-                moneyHomeHero: .init(primaryAmount: "$0", secondaryAmount: "0 sats"),
+                moneyHomeHero: .init(primaryAmount: "$0", secondaryAmount: "0 sats", isHidden: true),
                 fiatCurrencyPreferenceString: "USD",
                 onFiatCurrencyPreferenceClick: {},
                 bitcoinDisplayPreferenceString: "Sats",

@@ -15,7 +15,7 @@ extension AttributedString {
 
         case let stringWithSubstringModel as LabelModelStringWithStyledSubstringModel:
             return stringWithSubstring(stringWithSubstringModel, font: font)
-        
+
         default:
             fatalError("Unexpected LabelModel type")
         }
@@ -26,15 +26,16 @@ extension AttributedString {
         font: FontTheme
     ) -> AttributedString {
         var attributedString = AttributedString(model.string)
-        model.styledSubstrings.forEach { styledSubstring in
+        for styledSubstring in model.styledSubstrings {
             let substringStart = attributedString.index(to: styledSubstring.range.start)
             let substringEnd = attributedString.index(to: styledSubstring.range.endInclusive)
             switch styledSubstring.style {
             case is LabelModelStringWithStyledSubstringModelSubstringStyleBoldStyle:
-                attributedString[substringStart...substringEnd].font = font.font.bold()
+                attributedString[substringStart ... substringEnd].font = font.font.bold()
 
             case let colorStyle as LabelModelStringWithStyledSubstringModelSubstringStyleColorStyle:
-                attributedString[substringStart...substringEnd].foregroundColor = colorStyle.color.nativeColor
+                attributedString[substringStart ... substringEnd].foregroundColor = colorStyle.color
+                    .nativeColor
 
             default:
                 fatalError("Unexpected substring style")

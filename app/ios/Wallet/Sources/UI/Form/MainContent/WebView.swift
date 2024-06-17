@@ -10,24 +10,24 @@ struct WebView: UIViewRepresentable {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelWebView
+    private let viewModel: FormMainContentModel.WebView
     private let webView: WKWebView
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelWebView) {
+    init(viewModel: FormMainContentModel.WebView) {
         self.viewModel = viewModel
         webView = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
     }
 
     // MARK: - View
-    
-    func makeUIView(context: Context) -> WKWebView {
+
+    func makeUIView(context _: Context) -> WKWebView {
         webView
     }
-    
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        // TODO W-3142 handle nulls
+
+    func updateUIView(_: WKWebView, context _: Context) {
+        // TODO: W-3142 handle nulls
         let url = URL(string: viewModel.url)!
         let request = URLRequest(url: url)
         webView.load(request)

@@ -1,5 +1,7 @@
 package build.wallet.ui.components.video
 
+import android.graphics.drawable.ColorDrawable
+import android.media.MediaPlayer
 import android.net.Uri
 import android.widget.VideoView
 import androidx.compose.runtime.Composable
@@ -9,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -30,6 +34,8 @@ fun Video(
   modifier: Modifier = Modifier,
   resource: Int,
   isLooping: Boolean,
+  backgroundColor: Color = Color.Black,
+  autoStart: Boolean = true,
   startingPosition: VideoStartingPosition = START,
   videoViewCallback: (VideoView) -> Unit = {},
 ) {
@@ -41,7 +47,12 @@ fun Video(
   AndroidView(
     modifier = modifier,
     factory = { context ->
-      VideoView(context)
+      VideoView(context).apply {
+        if (backgroundColor != Color.Black) {
+          setZOrderOnTop(true)
+          background = ColorDrawable(backgroundColor.toArgb())
+        }
+      }
     },
     update = { video ->
       video.apply {
@@ -60,11 +71,22 @@ fun Video(
             END -> mediaPlayer.seekTo(duration)
           }
         }
+        if (backgroundColor != Color.Black) {
+          setOnInfoListener { mp, what, extra ->
+            if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+              setZOrderOnTop(false)
+              background = null
+            }
+            false
+          }
+        }
         setOnErrorListener { _, what, extra ->
           log(LogLevel.Warn) { "Error playing video: $what | $extra" }
           true
         }
-        start()
+        if (autoStart) {
+          start()
+        }
         videoView = this
         videoViewCallback(this)
       }

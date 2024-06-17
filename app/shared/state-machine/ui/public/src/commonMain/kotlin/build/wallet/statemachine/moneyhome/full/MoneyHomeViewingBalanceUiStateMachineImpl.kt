@@ -43,7 +43,8 @@ import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachine
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
-import build.wallet.statemachine.moneyhome.card.replacehardware.ReplaceHardwareCardUiProps
+import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
+import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.AddAdditionalFingerprintUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FixingCloudBackupState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
@@ -306,14 +307,18 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               relationships = props.socRecRelationships,
               onClick = { props.setState(props.state.copy(selectedContact = it)) }
             ),
-          replaceHardwareCardUiProps =
-            ReplaceHardwareCardUiProps(
+          setupHardwareCardUiProps =
+            SetupHardwareCardUiProps(
+              deviceInfo = props.firmwareData.firmwareDeviceInfo,
               onReplaceDevice = {
                 props.setState(
                   ViewHardwareRecoveryStatusUiState(InstructionsStyle.ResumedRecoveryAttempt)
                 )
               }
-            )
+            ),
+          startSweepCardUiProps = StartSweepCardUiProps(
+            onStartSweepClicked = props.onStartSweepFlow
+          )
         )
     )
   }

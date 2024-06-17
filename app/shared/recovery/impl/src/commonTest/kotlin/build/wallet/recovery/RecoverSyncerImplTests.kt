@@ -6,7 +6,7 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment.Development
-import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusServiceMock
+import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClientMock
 import build.wallet.f8e.recovery.LostHardwareServerRecoveryMock
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -19,18 +19,18 @@ import kotlin.time.Duration.Companion.seconds
 class RecoverSyncerImplTests : FunSpec({
 
   val recoveryDao = RecoveryDaoMock(turbines::create)
-  val getRecoveryStatusService = GetDelayNotifyRecoveryStatusServiceMock()
+  val getRecoveryStatusF8eClient = GetDelayNotifyRecoveryStatusF8eClientMock()
   val sessionProvider = AppSessionManagerFake()
   val recoverySyncer =
     RecoverySyncerImpl(
       recoveryDao = recoveryDao,
-      getRecoveryStatusService = getRecoveryStatusService,
+      getRecoveryStatusF8eClient = getRecoveryStatusF8eClient,
       appSessionManager = sessionProvider
     )
 
   beforeTest {
     recoveryDao.reset()
-    getRecoveryStatusService.reset()
+    getRecoveryStatusF8eClient.reset()
     sessionProvider.reset()
   }
 
@@ -47,7 +47,7 @@ class RecoverSyncerImplTests : FunSpec({
         )
       }
 
-      getRecoveryStatusService.activeRecovery = LostHardwareServerRecoveryMock
+      getRecoveryStatusF8eClient.activeRecovery = LostHardwareServerRecoveryMock
       runCurrent()
       recoveryDao.setActiveServerRecoveryCalls.awaitItem().shouldBe(Unit)
       advanceTimeBy(4.seconds)
@@ -60,7 +60,7 @@ class RecoverSyncerImplTests : FunSpec({
     "server unary recovery sync is retrieved (non-null) and cached in dao."
   ) {
     runTest {
-      getRecoveryStatusService.activeRecovery = LostHardwareServerRecoveryMock
+      getRecoveryStatusF8eClient.activeRecovery = LostHardwareServerRecoveryMock
 
       recoverySyncer.performSync(
         fullAccountId = FullAccountId(""),

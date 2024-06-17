@@ -17,6 +17,8 @@ import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Size.Regular
 import build.wallet.ui.model.button.ButtonModel.Treatment.Black
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
+import build.wallet.ui.model.button.ButtonModel.Treatment.PrimaryDanger
+import build.wallet.ui.model.button.ButtonModel.Treatment.PrimaryDestructive
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.button.ButtonModel.Treatment.SecondaryDestructive
 import build.wallet.ui.model.button.ButtonModel.Treatment.Tertiary
@@ -136,7 +138,9 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
   return when (treatment) {
     Black,
     Primary,
+    PrimaryDestructive,
     -> colors.primaryForeground
+    PrimaryDanger -> colors.danger
 
     Secondary -> colors.secondaryForeground
     SecondaryDestructive -> colors.destructive
@@ -161,7 +165,9 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
   return when (treatment) {
     Black,
     Primary,
+    PrimaryDestructive,
     -> colors.primaryIconForeground
+    PrimaryDanger -> colors.danger
 
     Secondary -> colors.secondaryIconForeground
     SecondaryDestructive -> colors.destructive
@@ -186,7 +192,9 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
 private fun ButtonModel.Treatment.normalBackgroundColor() =
   when (this) {
     Primary -> colors.primary
+    PrimaryDanger -> colors.dangerBackground
     Secondary, SecondaryDestructive -> colors.secondary
+    PrimaryDestructive -> colors.destructive
     Translucent -> colors.translucentButton20
     Translucent10 -> colors.translucentButton10
     TertiaryDestructive,
@@ -206,7 +214,9 @@ private fun ButtonModel.Treatment.disabledBackgroundColor() =
   when (this) {
     Primary ->
       colors.primary.copy(alpha = 0.4F)
-    Secondary, SecondaryDestructive ->
+    PrimaryDestructive ->
+      colors.destructive.copy(alpha = 0.4F)
+    PrimaryDanger, Secondary, SecondaryDestructive ->
       colors.secondary
     Translucent ->
       colors.translucentButton20

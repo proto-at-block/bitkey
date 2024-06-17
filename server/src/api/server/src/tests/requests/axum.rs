@@ -6,6 +6,7 @@ use axum::Router;
 use experimentation::routes::{
     GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest, GetFeatureFlagsResponse,
 };
+use http::HeaderMap;
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
 use http_body_util::BodyExt as ExternalBodyExt;
 use recovery::state_machine::pending_recovery::PendingRecoveryResponse;
@@ -57,7 +58,7 @@ use recovery::routes::{
 };
 use recovery::state_machine::RecoveryResponse;
 
-use crate::test_utils::AuthenticatedRequest;
+use crate::test_utils::{AuthenticatedRequest, ExtendRequest};
 use crate::tests::{TestAuthenticationKeys, TestContext};
 
 use super::{AuthenticatedRequestExt, CognitoAuthentication, Response};
@@ -1095,10 +1096,12 @@ impl TestClient {
     pub(crate) async fn get_full_account_feature_flags(
         &self,
         account_id: &str,
+        headers: HeaderMap,
         request: &GetAccountFeatureFlagsRequest,
     ) -> Response<GetFeatureFlagsResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/feature-flags"))
+            .with_headers(headers)
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .post(request)
             .call(&self.router)
@@ -1108,10 +1111,12 @@ impl TestClient {
     pub(crate) async fn get_lite_account_feature_flags(
         &self,
         account_id: &str,
+        headers: HeaderMap,
         request: &GetAccountFeatureFlagsRequest,
     ) -> Response<GetFeatureFlagsResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/feature-flags"))
+            .with_headers(headers)
             .recovery_authenticated(&AccountId::from_str(account_id).unwrap())
             .post(request)
             .call(&self.router)
@@ -1120,10 +1125,12 @@ impl TestClient {
 
     pub(crate) async fn get_app_installation_feature_flags(
         &self,
+        headers: HeaderMap,
         request: &GetAppInstallationFeatureFlagsRequest,
     ) -> Response<GetFeatureFlagsResponse> {
         Request::builder()
             .uri("/api/feature-flags".to_string())
+            .with_headers(headers)
             .post(request)
             .call(&self.router)
             .await

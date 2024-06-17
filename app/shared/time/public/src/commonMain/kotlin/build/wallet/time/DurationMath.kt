@@ -38,11 +38,10 @@ fun durationProgress(
       else -> {
         val startTimeNormalized = maxOf(now - startTime, Duration.ZERO)
         val endTimeNormalized = endTime - startTime
-        Result
-          // run catching to handle division by zero
-          .runCatching {
-            startTimeNormalized.inWholeMilliseconds / endTimeNormalized.inWholeMilliseconds.toFloat()
-          }
+        // run catching to handle division by zero
+        com.github.michaelbull.result.runCatching {
+          startTimeNormalized.inWholeMilliseconds / endTimeNormalized.inWholeMilliseconds.toFloat()
+        }
           .bind()
       }
     }

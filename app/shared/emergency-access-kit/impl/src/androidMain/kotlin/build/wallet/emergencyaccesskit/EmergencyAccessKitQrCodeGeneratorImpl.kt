@@ -2,7 +2,7 @@ package build.wallet.emergencyaccesskit
 
 import android.graphics.Bitmap
 import android.graphics.Color
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
@@ -30,7 +30,7 @@ actual class EmergencyAccessKitQrCodeGeneratorImpl : EmergencyAccessKitQrCodeGen
     height: Float,
     contents: String,
   ): Result<Bitmap, EmergencyAccessKitQrCodeError> =
-    Result.catching {
+    catchingResult {
       withContext(Dispatchers.Default) {
         val widthInt = width.toInt()
         val heightInt = height.toInt()

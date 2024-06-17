@@ -6,7 +6,7 @@ import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 /**
  * A dao for storing and retrieving the AppDeviceID.
@@ -21,7 +21,7 @@ class AppDeviceIdDaoImpl(
 
   override suspend fun getOrCreateAppDeviceIdIfNotExists(): Result<String, Throwable> {
     val secureStore = secureStore()
-    return binding {
+    return coroutineBinding {
       val appDeviceId = secureStore.getStringOrNullWithResult(KEY).bind()
 
       if (appDeviceId != null) {

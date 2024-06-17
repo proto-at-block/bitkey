@@ -1,6 +1,6 @@
 package build.wallet.time
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Clock
@@ -17,8 +17,7 @@ import kotlinx.datetime.toLocalDateTime
  * - on failure to parse returns [InstantParsingError]
  */
 fun String.toInstantResult(): Result<Instant, InstantParsingError> {
-  return Result
-    .catching { toInstant() }
+  return catchingResult { toInstant() }
     .mapError { InstantParsingError(it) }
 }
 

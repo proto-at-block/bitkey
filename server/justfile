@@ -231,7 +231,9 @@ _setup-treasury:
   {{ bitcoincli }} -named createwallet wallet_name=testwallet blank=true >> $logfile 2>&1
   status=$?
   if [[ $status -eq 4 ]]; then
-     echo "✅ Treasury wallet already exists, skipping descriptor import"
+    echo "✅ Treasury wallet already exists, skipping descriptor import"
+    echo "🔍 Loading wallet..."
+    {{ bitcoincli }} loadwallet testwallet
   elif [[ $status -ne 0 ]]; then
     echo "❌ Failed to create wallet"
     cat $logfile

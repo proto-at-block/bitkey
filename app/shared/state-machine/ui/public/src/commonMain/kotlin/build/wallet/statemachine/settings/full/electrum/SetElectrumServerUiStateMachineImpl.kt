@@ -20,8 +20,7 @@ import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.time.Delayer
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.mapBoth
 import kotlin.time.Duration.Companion.seconds
 
 class SetElectrumServerUiStateMachineImpl(
@@ -62,25 +61,22 @@ class SetElectrumServerUiStateMachineImpl(
       is State.SavingElectrumServerUiState -> {
         LaunchedEffect("saving-electrum-server") {
           val electrumServerToSet = Custom(currentState.serverDetails)
-          when (
-            val result =
-              electrumReachability.reachable(electrumServerToSet, props.activeNetwork)
-          ) {
-            is Err -> {
-              state =
-                when (result.error) {
-                  is IncompatibleNetwork ->
-                    State.SaveElectrumServerBadNetworkUiState(currentState.serverDetails)
+          electrumReachability.reachable(electrumServerToSet, props.activeNetwork)
+            .mapBoth(
+              success = {
+                electrumServerSettingProvider.setUserDefinedServer(electrumServerToSet)
+                state = State.ElectrumServerIsSetUiState
+              },
+              failure = { error ->
+                state =
+                  when (error) {
+                    is IncompatibleNetwork ->
+                      State.SaveElectrumServerBadNetworkUiState(currentState.serverDetails)
 
-                  is Unreachable -> State.SaveElectrumServerFailedUiState(currentState.serverDetails)
-                }
-            }
-
-            is Ok -> {
-              electrumServerSettingProvider.setUserDefinedServer(electrumServerToSet)
-              state = State.ElectrumServerIsSetUiState
-            }
-          }
+                    is Unreachable -> State.SaveElectrumServerFailedUiState(currentState.serverDetails)
+                  }
+              }
+            )
         }
         LoadingBodyModel(
           id = CustomElectrumServerEventTrackerScreenId.CUSTOM_ELECTRUM_SERVER_UPDATE_LOADING,

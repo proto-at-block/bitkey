@@ -2,7 +2,7 @@
 
 package build.wallet.fwup
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.fwup.FwupManifestParser.FwupSlot
 import build.wallet.fwup.FwupManifestParser.FwupSlot.A
 import build.wallet.fwup.FwupManifestParser.FwupSlot.B
@@ -44,8 +44,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     activeSlot: FwupSlot,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
-      Result
-        .catching { Json.decodeFromString<FwupManifest>(manifestJson) }
+      catchingResult { Json.decodeFromString<FwupManifest>(manifestJson) }
         .mapError { ParsingError(it) }
         .getOrElse { return Err(it) }
 
@@ -93,8 +92,7 @@ class FwupManifestParserImpl : FwupManifestParser {
     activeSlot: FwupSlot,
   ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
     val manifest =
-      Result
-        .catching { Json.decodeFromString<FwupDeltaManifest>(manifestJson) }
+      catchingResult { Json.decodeFromString<FwupDeltaManifest>(manifestJson) }
         .mapError { ParsingError(it) }
         .getOrElse { return Err(it) }
 

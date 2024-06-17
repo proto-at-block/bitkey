@@ -6,7 +6,7 @@ import XCTest
 @testable import Wallet
 
 final class DeviceSettingsSnapshotTests: XCTestCase {
-    
+
     func test_device_settings_with_update_available() {
         let view = FormView(
             viewModel: DeviceSettingsFormBodyModelKt.DeviceSettingsFormBodyModel(
@@ -32,10 +32,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageFingerprints: {}
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_device_settings_with_no_update() {
         let view = FormView(
             viewModel: DeviceSettingsFormBodyModelKt.DeviceSettingsFormBodyModel(
@@ -61,10 +61,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageFingerprints: {}
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_device_settings_replacement_pending() {
         let view = FormView(
             viewModel: DeviceSettingsFormBodyModelKt.DeviceSettingsFormBodyModel(
@@ -90,10 +90,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageFingerprints: {}
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_device_settings_replacement_pending_and_update() {
         let view = FormView(
             viewModel: DeviceSettingsFormBodyModelKt.DeviceSettingsFormBodyModel(
@@ -119,10 +119,10 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageFingerprints: {}
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_device_settings_when_device_is_not_found() {
         let view = FormView(
             viewModel: DeviceSettingsFormBodyModelKt.DeviceSettingsFormBodyModel(
@@ -148,7 +148,7 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageFingerprints: {}
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
 }

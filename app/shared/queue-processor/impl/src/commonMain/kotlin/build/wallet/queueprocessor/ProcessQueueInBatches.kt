@@ -1,9 +1,7 @@
 package build.wallet.queueprocessor
 
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 /**
  * Utility function for batching [batchSize] items from [queue] and processing via [processor].
@@ -15,19 +13,17 @@ suspend fun <T> processQueueInBatches(
   processor: Processor<T>,
   batchSize: Int,
 ): Result<Unit, Error> {
-  return binding {
+  return coroutineBinding<Unit, Error> {
     var items = queue.take(batchSize).bind()
 
     while (items.isNotEmpty()) {
-      when (val processBatchResult = processor.processBatch(items)) {
-        is Err -> {
-          queue.moveToEnd(batchSize).bind()
-          processBatchResult.bind<Error>()
-        }
-        is Ok -> {
-          queue.removeFirst(batchSize).bind()
-          items = queue.take(batchSize).bind()
-        }
+      val processBatchResult = processor.processBatch(items)
+      if (processBatchResult.isOk) {
+        queue.removeFirst(batchSize).bind()
+        items = queue.take(batchSize).bind()
+      } else {
+        queue.moveToEnd(batchSize).bind()
+        processBatchResult.bind()
       }
     }
   }

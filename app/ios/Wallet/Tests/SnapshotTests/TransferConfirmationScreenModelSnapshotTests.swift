@@ -50,7 +50,7 @@ final class TransferConfirmationBodyModelSnapshotTests: XCTestCase {
 
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_transfer_confirmation_with_cta_warning() {
         let view = FormView(
             viewModel: .transferConfirmationModel(
@@ -74,12 +74,22 @@ private extension FormBodyModel {
         confirmButtonEnabled: Bool,
         isSpeedUp: Bool = false
     ) -> FormBodyModel {
-        let displayVariant: TransferConfirmationUiPropsVariant = if (isSpeedUp) {
-            TransferConfirmationUiPropsVariantSpeedUp(txid: "abc", oldFee: Fee(amount: BitcoinMoney(fractionalUnitAmount: BignumBigInteger(int: 50_000)), feeRate: FeeRate(satsPerVByte: 1)), newFeeRate: FeeRate(satsPerVByte: 2))
+        let displayVariant: TransferConfirmationUiPropsVariant = if isSpeedUp {
+            TransferConfirmationUiPropsVariantSpeedUp(
+                txid: "abc",
+                oldFee: Fee(
+                    amount: BitcoinMoney(fractionalUnitAmount: BignumBigInteger(int: 50000)),
+                    feeRate: FeeRate(satsPerVByte: 1)
+                ),
+                newFeeRate: FeeRate(satsPerVByte: 2)
+            )
         } else {
-            TransferConfirmationUiPropsVariantRegular(selectedPriority: EstimatedTransactionPriority.fastest)
+            TransferConfirmationUiPropsVariantRegular(
+                selectedPriority: EstimatedTransactionPriority
+                    .fastest
+            )
         }
-        
+
         return TransferConfirmationScreenModelKt.TransferConfirmationScreenModel(
             onBack: {},
             onCancel: {},

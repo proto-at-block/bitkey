@@ -104,8 +104,9 @@ pub async fn authenticate_with_recovery(
 
     tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
 
+    let username: CognitoUsername = CognitoUser::Recovery(pubkeys_to_account.id.clone()).into();
     let auth_challenge = user_pool_service
-        .initiate_auth_for_recovery_user(&pubkeys_to_account)
+        .initiate_auth_for_user(&username, &pubkeys_to_account)
         .await
         .map_err(|e| {
             let msg = "Failed to initiate authentication with pubkey";
@@ -157,8 +158,9 @@ pub async fn authenticate_with_hardware(
 
     tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
 
+    let username: CognitoUsername = CognitoUser::Hardware(pubkeys_to_account.id.clone()).into();
     let auth_challenge = user_pool_service
-        .initiate_auth_for_wallet_user(&pubkeys_to_account)
+        .initiate_auth_for_user(&username, &pubkeys_to_account)
         .await
         .map_err(|e| {
             let msg = "Failed to initiate authentication with pubkey";
@@ -215,7 +217,7 @@ pub async fn authenticate(
                 .fetch_account_id_by_hw_pubkey(FetchAccountByAuthKeyInput { pubkey })
                 .await?;
             (
-                CognitoUser::Wallet(pubkeys_to_account.id.clone()),
+                CognitoUser::Hardware(pubkeys_to_account.id.clone()),
                 pubkeys_to_account,
             )
         }
@@ -224,7 +226,7 @@ pub async fn authenticate(
                 .fetch_account_id_by_app_pubkey(FetchAccountByAuthKeyInput { pubkey })
                 .await?;
             (
-                CognitoUser::Wallet(pubkeys_to_account.id.clone()),
+                CognitoUser::App(pubkeys_to_account.id.clone()),
                 pubkeys_to_account,
             )
         }
@@ -241,20 +243,14 @@ pub async fn authenticate(
 
     tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
 
-    let auth_challenge = if let CognitoUser::Recovery(_) = requested_cognito_user {
-        user_pool_service
-            .initiate_auth_for_recovery_user(&pubkeys_to_account)
-            .await
-    } else {
-        user_pool_service
-            .initiate_auth_for_wallet_user(&pubkeys_to_account)
-            .await
-    }
-    .map_err(|e| {
-        let msg = "Failed to initiate authentication with pubkey";
-        error!("{msg}: {e}");
-        ApiError::GenericInternalApplicationError(msg.to_string())
-    })?;
+    let auth_challenge = user_pool_service
+        .initiate_auth_for_user(&requested_cognito_user.into(), &pubkeys_to_account)
+        .await
+        .map_err(|e| {
+            let msg = "Failed to initiate authentication with pubkey";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
 
     Ok(Json(AuthenticationResponse {
         username: auth_challenge.username,

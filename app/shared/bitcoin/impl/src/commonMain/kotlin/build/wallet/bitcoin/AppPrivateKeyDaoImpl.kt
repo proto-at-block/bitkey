@@ -6,7 +6,7 @@ import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.crypto.KeyPurpose
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
@@ -20,7 +20,7 @@ import build.wallet.store.putStringWithResult
 import build.wallet.store.removeWithResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.toErrorIf
@@ -57,15 +57,14 @@ class AppPrivateKeyDaoImpl(
     keyPair: AppSpendingKeypair,
   ): Result<Unit, Throwable> {
     val secureStore = secureStore()
-    return Result
-      .catching {
-        val secretKeyHashKey = PrivateKeyFields.SECRET_KEY.hashKey(keyPair.publicKey.key.dpub)
-        val mnemonicHashKey = PrivateKeyFields.MNEMONIC.hashKey(keyPair.publicKey.key.dpub)
+    return catchingResult {
+      val secretKeyHashKey = PrivateKeyFields.SECRET_KEY.hashKey(keyPair.publicKey.key.dpub)
+      val mnemonicHashKey = PrivateKeyFields.MNEMONIC.hashKey(keyPair.publicKey.key.dpub)
 
-        // store both the secret key and the mnemonic
-        secureStore.putString(key = secretKeyHashKey, value = keyPair.privateKey.key.xprv)
-        secureStore.putString(key = mnemonicHashKey, value = keyPair.privateKey.key.mnemonic)
-      }
+      // store both the secret key and the mnemonic
+      secureStore.putString(key = secretKeyHashKey, value = keyPair.privateKey.key.xprv)
+      secureStore.putString(key = mnemonicHashKey, value = keyPair.privateKey.key.mnemonic)
+    }
       .flatMap {
         // Double check that the value was stored and fatal error otherwise.
         getAppSpendingPrivateKey(keyPair.publicKey)
@@ -129,7 +128,7 @@ class AppPrivateKeyDaoImpl(
   override suspend fun getAppSpendingPrivateKey(
     publicKey: AppSpendingPublicKey,
   ): Result<AppSpendingPrivateKey?, Throwable> {
-    return binding {
+    return coroutineBinding {
       val secretKeyHashKey = PrivateKeyFields.SECRET_KEY.hashKey(publicKey.key.dpub)
       val mnemonicHashKey = PrivateKeyFields.MNEMONIC.hashKey(publicKey.key.dpub)
 
@@ -166,7 +165,7 @@ class AppPrivateKeyDaoImpl(
   }
 
   override suspend fun remove(key: AppSpendingPublicKey): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       val secureStore = secureStore()
       val secretKeyHashKey = PrivateKeyFields.SECRET_KEY.hashKey(key.key.dpub)
       val mnemonicHashKey = PrivateKeyFields.MNEMONIC.hashKey(key.key.dpub)

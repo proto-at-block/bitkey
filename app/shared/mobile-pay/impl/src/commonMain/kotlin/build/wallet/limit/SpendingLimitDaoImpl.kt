@@ -10,12 +10,10 @@ import build.wallet.money.currency.FiatCurrency
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransaction
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
-import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import com.ionspin.kotlin.bignum.integer.toBigInteger
 import kotlinx.coroutines.flow.Flow
@@ -37,18 +35,6 @@ class SpendingLimitDaoImpl(
 
         emit(limit)
       }
-  }
-
-  override suspend fun getActiveSpendingLimit(): Result<SpendingLimit?, DbError> {
-    return mostRecentSpendingLimit().fold(
-      success = { spendingLimit ->
-        when (spendingLimit != null && spendingLimit.active) {
-          true -> Ok(spendingLimit)
-          false -> Ok(null)
-        }
-      },
-      failure = { Err(it) }
-    )
   }
 
   override suspend fun mostRecentSpendingLimit(): Result<SpendingLimit?, DbError> {
@@ -94,12 +80,12 @@ class SpendingLimitDaoImpl(
   }
 
   private suspend fun SpendingLimitEntity.toSpendingLimit(): Result<SpendingLimit?, DbError> =
-    binding {
+    coroutineBinding {
       val fiatCurrencyEntity =
         databaseProvider.database()
           .fiatCurrencyQueries
           .getFiatCurrencyByTextCode(limitAmountCurrencyAlphaCode)
-          .awaitAsOneOrNullResult().bind() ?: return@binding null
+          .awaitAsOneOrNullResult().bind() ?: return@coroutineBinding null
 
       SpendingLimit(
         active = active,

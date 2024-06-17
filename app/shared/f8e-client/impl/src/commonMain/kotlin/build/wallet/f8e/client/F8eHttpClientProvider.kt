@@ -5,7 +5,7 @@ import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.PlatformInfoProvider
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
-import build.wallet.f8e.logging.F8eServiceLogger
+import build.wallet.f8e.logging.F8eHttpClientLogger
 import build.wallet.logging.log
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -77,7 +77,7 @@ class F8eHttpClientProvider(
     config: HttpClientConfig<*>,
     accountId: AccountId?,
   ) {
-    config.install(F8eServiceLogger) {
+    config.install(F8eHttpClientLogger) {
       tag = "F8e"
       debug = appVariant == AppVariant.Development
     }

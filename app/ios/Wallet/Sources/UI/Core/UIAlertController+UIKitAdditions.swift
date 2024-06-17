@@ -3,9 +3,9 @@ import UIKit
 
 // MARK: -
 
-extension UIAlertController {
+public extension UIAlertController {
 
-    public struct ButtonModel {
+    struct ButtonModel {
         public struct Action {
             let title: String
             let action: () -> Void
@@ -52,11 +52,12 @@ extension UIAlertController {
                     title: buttonAlertModel.primaryButtonText,
                     action: buttonAlertModel.onPrimaryButtonClick,
                     style: buttonAlertModel.primaryButtonStyle.asUIAlertActionStyle
-                )
+                ),
             ]
 
             if let secondaryButtonText = buttonAlertModel.secondaryButtonText,
-               let onSecondaryButtonClick = buttonAlertModel.onSecondaryButtonClick {
+               let onSecondaryButtonClick = buttonAlertModel.onSecondaryButtonClick
+            {
                 actions.append(
                     .init(
                         title: secondaryButtonText,
@@ -69,14 +70,14 @@ extension UIAlertController {
             self.actions = actions
         }
     }
-    
-    public struct InputModel {
+
+    struct InputModel {
         let title: String
         let message: String?
         let text: String
         let confirm: (String) -> Void
         let cancel: () -> Void
-        
+
         init(inputAlertModel: InputAlertModel) {
             self.title = inputAlertModel.title
             self.message = inputAlertModel.subline
@@ -84,19 +85,23 @@ extension UIAlertController {
             self.text = inputAlertModel.value
             self.cancel = inputAlertModel.onCancel
         }
-        
+
     }
 
-    public convenience init(model: ButtonModel) {
+    convenience init(model: ButtonModel) {
         self.init(title: model.title, message: model.message, preferredStyle: .alert)
         for action in model.actions {
-            addAction(UIAlertAction(title: action.title, style: action.style, handler: { _ in action.action() }))
+            addAction(UIAlertAction(
+                title: action.title,
+                style: action.style,
+                handler: { _ in action.action() }
+            ))
         }
     }
-    
-    public convenience init(model: InputModel) {
+
+    convenience init(model: InputModel) {
         self.init(title: model.title, message: model.message, preferredStyle: .alert)
-        addTextField { (textField) in
+        addTextField { textField in
             textField.text = model.text
         }
         addAction(
@@ -121,7 +126,7 @@ extension UIAlertController {
         )
     }
 
-    public convenience init(alertModel: AlertModel) {
+    convenience init(alertModel: AlertModel) {
         switch alertModel {
         case is ButtonAlertModel:
             self.init(model: .init(buttonAlertModel: alertModel as! ButtonAlertModel))
@@ -137,12 +142,14 @@ extension UIAlertController {
 // MARK: -
 
 private enum Strings {
-    static let cancel = "Cancel".localized(comment: "Title of the button allowing a user to close an alert.")
-    static let ok = "OK".localized(comment: "Title of the button allowing a user to dismiss an alert.")
+    static let cancel = "Cancel"
+        .localized(comment: "Title of the button allowing a user to close an alert.")
+    static let ok = "OK"
+        .localized(comment: "Title of the button allowing a user to dismiss an alert.")
 }
 
 private extension ButtonAlertModel.ButtonStyle {
-    
+
     var asUIAlertActionStyle: UIAlertAction.Style {
         switch self {
         case .default_: return .default

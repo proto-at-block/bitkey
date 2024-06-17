@@ -1,6 +1,7 @@
 package build.wallet.cloud.store
 
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.Err as ResultErr
 import com.github.michaelbull.result.Ok as ResultOk
 
@@ -32,8 +33,8 @@ sealed class CloudFileStoreResult<out V : Any> {
  * Wraps [Result] into [CloudFileStoreResult].
  */
 fun <V : Any> Result<V, CloudError>.toCloudFileStoreResult(): CloudFileStoreResult<V> {
-  return when (this) {
-    is ResultOk -> CloudFileStoreResult.Ok(value)
-    is ResultErr -> CloudFileStoreResult.Err(error)
-  }
+  return mapBoth(
+    success = { CloudFileStoreResult.Ok(it) },
+    failure = { CloudFileStoreResult.Err(it) }
+  )
 }

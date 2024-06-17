@@ -5,7 +5,7 @@ import XCTest
 
 class NotificationManagerImplTests: XCTestCase {
 
-    let deviceToken = (0..<32).reduce(Data(), {$0 + [$1]})
+    let deviceToken = (0 ..< 32).reduce(Data()) { $0 + [$1] }
     let decodedDeviceToken = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 
     private let application = ApplicationMock()
@@ -14,7 +14,8 @@ class NotificationManagerImplTests: XCTestCase {
     private let deviceTokenProvider = DeviceTokenProviderMock()
     private let eventTracker = EventTrackerMock()
     private let notificationCenter = UserNotificationCenterMock()
-    private let pushNotificationPermissionStatusProvider = PushNotificationPermissionStatusProviderMock()
+    private let pushNotificationPermissionStatusProvider =
+        PushNotificationPermissionStatusProviderMock()
 
     var manager: NotificationManager {
         return NotificationManagerImpl(
@@ -50,91 +51,113 @@ class NotificationManagerImplTests: XCTestCase {
 
     func test_applicationDidEnterForeground_updatePushNotificationStatus_authorized() {
         notificationCenter.notificationAuthorizationStatusResult = .authorized
-        pushNotificationPermissionStatusProvider.updatePushNotificationStatusCallExpectation = expectation(description: "update call")
+        pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCallExpectation = expectation(description: "update call")
 
         manager.applicationDidEnterForeground(application)
 
         waitForExpectations(timeout: 10)
 
-        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider.updatePushNotificationStatusCalls
+        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCalls
         XCTAssertEqual(updatePushNotificationStatusCalls.count, 1)
         XCTAssertEqual(updatePushNotificationStatusCalls.first, .authorized)
     }
 
     func test_applicationDidEnterForeground_updatePushNotificationStatus_denied() {
         notificationCenter.notificationAuthorizationStatusResult = .denied
-        pushNotificationPermissionStatusProvider.updatePushNotificationStatusCallExpectation = expectation(description: "update call")
+        pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCallExpectation = expectation(description: "update call")
 
         manager.applicationDidEnterForeground(application)
 
         waitForExpectations(timeout: 10)
 
-        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider.updatePushNotificationStatusCalls
+        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCalls
         XCTAssertEqual(updatePushNotificationStatusCalls.count, 1)
         XCTAssertEqual(updatePushNotificationStatusCalls.first, .denied)
     }
 
     func test_applicationDidEnterForeground_updatePushNotificationStatus_notDetermined() {
         notificationCenter.notificationAuthorizationStatusResult = .notDetermined
-        pushNotificationPermissionStatusProvider.updatePushNotificationStatusCallExpectation = expectation(description: "update call")
+        pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCallExpectation = expectation(description: "update call")
 
         manager.applicationDidEnterForeground(application)
 
         waitForExpectations(timeout: 10)
 
-        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider.updatePushNotificationStatusCalls
+        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCalls
         XCTAssertEqual(updatePushNotificationStatusCalls.count, 1)
         XCTAssertEqual(updatePushNotificationStatusCalls.first, .notdetermined)
     }
 
     func test_applicationDidEnterForeground_updatePushNotificationStatus_ephemeral() {
         notificationCenter.notificationAuthorizationStatusResult = .ephemeral
-        pushNotificationPermissionStatusProvider.updatePushNotificationStatusCallExpectation = expectation(description: "update call")
+        pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCallExpectation = expectation(description: "update call")
 
         manager.applicationDidEnterForeground(application)
 
         waitForExpectations(timeout: 10)
 
-        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider.updatePushNotificationStatusCalls
+        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCalls
         XCTAssertEqual(updatePushNotificationStatusCalls.count, 1)
         XCTAssertEqual(updatePushNotificationStatusCalls.first, .notdetermined)
     }
 
-    // TODO W-3590: Fix flaky test for updating provisional notification status
+    // TODO: W-3590: Fix flaky test for updating provisional notification status
     func disabled_test_applicationDidEnterForeground_updatePushNotificationStatus_provisional() {
         notificationCenter.notificationAuthorizationStatusResult = .provisional
         manager.applicationDidEnterForeground(application)
 
-        pushNotificationPermissionStatusProvider.updatePushNotificationStatusCallExpectation = expectation(description: "update call")
+        pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCallExpectation = expectation(description: "update call")
         waitForExpectations(timeout: 10)
 
-        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider.updatePushNotificationStatusCalls
+        let updatePushNotificationStatusCalls = pushNotificationPermissionStatusProvider
+            .updatePushNotificationStatusCalls
         XCTAssertEqual(updatePushNotificationStatusCalls.count, 1)
         XCTAssertEqual(updatePushNotificationStatusCalls.first, .notdetermined)
     }
-    
-    // TODO W-6364: The device token provider here flakes on CI
+
+    // TODO: W-6364: The device token provider here flakes on CI
     func disabled_test_didRegisterForRemoteNotificationsWithDeviceToken_deviceTokenProvider() {
         deviceTokenManager.addCallExpectation = expectation(description: "token manager success")
         deviceTokenProvider.addSetExpectation = expectation(description: "token set")
-        manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        manager.application(
+            application,
+            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+        )
         waitForExpectations(timeout: 10)
         XCTAssertEqual(deviceTokenProvider.deviceToken, decodedDeviceToken)
     }
-    
+
     func test_didRegisterForRemoteNotificationsWithDeviceToken_deviceTokenProviderFailsOnError() {
         deviceTokenManager.addCallExpectation = expectation(description: "token manager failed")
-        deviceTokenManager.addDeviceTokenIfActiveAccountResult = DeviceTokenManagerResultErr(error: DeviceTokenManagerError.NoKeybox())
-        manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        deviceTokenManager
+            .addDeviceTokenIfActiveAccountResult =
+            DeviceTokenManagerResultErr(error: DeviceTokenManagerError.NoKeybox())
+        manager.application(
+            application,
+            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+        )
         waitForExpectations(timeout: 10)
         XCTAssertEqual(deviceTokenProvider.deviceToken, nil)
     }
 
-    func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_developmentVariant() {
+    func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_developmentVariant(
+    ) {
         appVariant = .development
         deviceTokenManager.addCallExpectation = expectation(description: "add calls")
 
-        manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        manager.application(
+            application,
+            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+        )
 
         waitForExpectations(timeout: 10)
 
@@ -148,7 +171,10 @@ class NotificationManagerImplTests: XCTestCase {
         appVariant = .team
         deviceTokenManager.addCallExpectation = expectation(description: "add calls")
 
-        manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        manager.application(
+            application,
+            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+        )
 
         waitForExpectations(timeout: 10)
 
@@ -158,11 +184,15 @@ class NotificationManagerImplTests: XCTestCase {
         XCTAssertEqual(addCalls.first?.touchpointPlatform, .apnsteam)
     }
 
-    func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_customerVariant() {
+    func test_didRegisterForRemoteNotificationsWithDeviceToken_addDeviceTokenService_customerVariant(
+    ) {
         appVariant = .customer
         deviceTokenManager.addCallExpectation = expectation(description: "add calls")
 
-        manager.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+        manager.application(
+            application,
+            didRegisterForRemoteNotificationsWithDeviceToken: deviceToken
+        )
 
         waitForExpectations(timeout: 10)
 
@@ -176,18 +206,24 @@ class NotificationManagerImplTests: XCTestCase {
 
 // MARK: -
 
-private class ApplicationMock : NSObject, Application {
+private class ApplicationMock: NSObject, Application {
     var applicationIconBadgeNumber: Int = 0
 }
 
 // MARK: -
 
-private class DeviceTokenManagerMock : DeviceTokenManager {
+private class DeviceTokenManagerMock: DeviceTokenManager {
 
     var addCallExpectation: XCTestExpectation?
 
-    var addDeviceTokenIfActiveAccountResult: DeviceTokenManagerResult<KotlinUnit, DeviceTokenManagerError> = DeviceTokenManagerResultOk(value: KotlinUnit())
-    var addDeviceTokenIfActiveAccountCalls = [(deviceToken: String, touchpointPlatform: TouchpointPlatform)]()
+    var addDeviceTokenIfActiveAccountResult: DeviceTokenManagerResult<
+        KotlinUnit,
+        DeviceTokenManagerError
+    > = DeviceTokenManagerResultOk(value: KotlinUnit())
+    var addDeviceTokenIfActiveAccountCalls = [(
+        deviceToken: String,
+        touchpointPlatform: TouchpointPlatform
+    )]()
     func addDeviceTokenIfActiveOrOnboardingAccount(
         deviceToken: String,
         touchpointPlatform: TouchpointPlatform
@@ -198,9 +234,9 @@ private class DeviceTokenManagerMock : DeviceTokenManager {
     }
 
     func addDeviceTokenIfPresentForAccount(
-        fullAccountId: FullAccountId,
-        f8eEnvironment: F8e_publicF8eEnvironment,
-        authTokenScope: Auth_publicAuthTokenScope
+        fullAccountId _: FullAccountId,
+        f8eEnvironment _: F8e_publicF8eEnvironment,
+        authTokenScope _: Auth_publicAuthTokenScope
     ) async throws -> DeviceTokenManagerResult<KotlinUnit, DeviceTokenManagerError> {
         fatalError("Unimplemented")
     }
@@ -214,7 +250,7 @@ private class DeviceTokenManagerMock : DeviceTokenManager {
 
 // MARK: -
 
-fileprivate class DeviceTokenProviderMock : DeviceTokenProvider {
+private class DeviceTokenProviderMock: DeviceTokenProvider {
 
     var addSetExpectation: XCTestExpectation?
     var deviceToken: String?
@@ -232,17 +268,16 @@ fileprivate class DeviceTokenProviderMock : DeviceTokenProvider {
 
 // MARK: -
 
-fileprivate class EventTrackerMock : EventTracker {
+private class EventTrackerMock: EventTracker {
 
     public var trackCalls = [Action]()
     func track(action: Action) {
         trackCalls.append(action)
     }
 
-    func track(eventTrackerCountInfo: EventTrackerCountInfo) { fatalError() }
+    func track(eventTrackerCountInfo _: EventTrackerCountInfo) { fatalError() }
 
-    
-    func track(eventTrackerScreenInfo: EventTrackerScreenInfo) { fatalError() }
+    func track(eventTrackerScreenInfo _: EventTrackerScreenInfo) { fatalError() }
 
     func reset() {
         trackCalls = []
@@ -251,25 +286,28 @@ fileprivate class EventTrackerMock : EventTracker {
 
 // MARK: -
 
-fileprivate class UserNotificationCenterMock : UserNotificationCenter {
+private class UserNotificationCenterMock: UserNotificationCenter {
 
     class NSCoderMock: NSCoder {
         let authorizationStatus: Int
         init(authorizationStatus: UNAuthorizationStatus) {
             self.authorizationStatus = authorizationStatus.rawValue
         }
-        override func decodeInt64(forKey key: String) -> Int64 { return Int64(authorizationStatus) }
-        override func decodeBool(forKey key: String) -> Bool { return true }
+
+        override func decodeInt64(forKey _: String) -> Int64 { return Int64(authorizationStatus) }
+        override func decodeBool(forKey _: String) -> Bool { return true }
     }
 
     var setBadgeCountCalls = [Int]()
-    func setBadgeCount(_ newBadgeCount: Int, withCompletionHandler completionHandler: ((Error?) -> Void)?) {
+    func setBadgeCount(_ newBadgeCount: Int, withCompletionHandler _: ((Error?) -> Void)?) {
         setBadgeCountCalls.append(newBadgeCount)
     }
 
     var notificationAuthorizationStatusResult = UNAuthorizationStatus.authorized
     func notificationSettings() async -> UNNotificationSettings {
-        return UNNotificationSettings(coder: NSCoderMock(authorizationStatus: notificationAuthorizationStatusResult))!
+        return UNNotificationSettings(
+            coder: NSCoderMock(authorizationStatus: notificationAuthorizationStatusResult)
+        )!
     }
 
     func reset() {
@@ -281,7 +319,7 @@ fileprivate class UserNotificationCenterMock : UserNotificationCenter {
 
 // MARK: -
 
-fileprivate class PushNotificationPermissionStatusProviderMock : PushNotificationPermissionStatusProvider {
+private class PushNotificationPermissionStatusProviderMock: PushNotificationPermissionStatusProvider {
 
     func pushNotificationStatus() -> Kotlinx_coroutines_coreStateFlow { fatalError() }
 

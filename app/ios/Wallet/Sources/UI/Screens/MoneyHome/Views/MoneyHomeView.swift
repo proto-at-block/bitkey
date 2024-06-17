@@ -6,16 +6,16 @@ import SwiftUI
 public struct MoneyHomeView: View {
 
     // MARK: - Private Properties
-    
+
     @SwiftUI.ObservedObject
     public var viewModelHolder: ObservableObjectHolder<MoneyHomeBodyModel>
-    
+
     @SwiftUI.State
     private var viewModel: MoneyHomeBodyModel
 
     @SwiftUI.State
     private var moneyHomeCardsHeight: CGFloat?
-    
+
     // MARK: - Lifecycle
 
     public init(viewModel: MoneyHomeBodyModel) {
@@ -46,7 +46,7 @@ public struct MoneyHomeView: View {
                             hideBalance: viewModel.hideBalance,
                             onHideBalance: { viewModel.onHideBalance() }
                         )
-                            .padding(.top, 40)
+                        .padding(.top, 40)
 
                         // Balance Hero
                         MoneyHomeButtonsView(viewModel: viewModel.buttonsModel)
@@ -62,8 +62,11 @@ public struct MoneyHomeView: View {
 
                         // Cards
                         if viewModel.cardsModel.cards.count > 0, moneyHomeCardsHeight != 0 {
-                            MoneyHomeCardsView(viewModel: viewModel.cardsModel, height: $moneyHomeCardsHeight)
-                                .animation(.none, value: viewModel)
+                            MoneyHomeCardsView(
+                                viewModel: viewModel.cardsModel,
+                                height: $moneyHomeCardsHeight
+                            )
+                            .animation(.none, value: viewModel)
                         }
 
                         // Transactions
@@ -174,7 +177,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     incoming: true,
                                     isPending: false,
                                     onClick: {}
-                                )
+                                ),
                             ],
                             style: .none,
                             headerTreatment: .secondary,
@@ -191,13 +194,12 @@ struct MoneyHomeView_Preview: PreviewProvider {
                                     incoming: false,
                                     isPending: false,
                                     onClick: {}
-                                )
+                                ),
                             ],
                             style: .none,
                             headerTreatment: .secondary,
                             footerButton: nil
-                        )
-                        
+                        ),
                     ]
                 ),
                 seeAllButtonModel: ButtonModel(
@@ -225,12 +227,13 @@ class TestSuspendFunction: KotlinSuspendFunction0 {
 
 // MARK: -
 
-// Don't allow scroll views to clip their subviews or else shadows (like that used in the CardView) will be clipped.
+// Don't allow scroll views to clip their subviews or else shadows (like that used in the CardView)
+// will be clipped.
 extension UIScrollView {
-  open override var clipsToBounds: Bool {
-    get { false }
-    set {}
-  }
+    override open var clipsToBounds: Bool {
+        get { false }
+        set {}
+    }
 }
 
 public func modulate(
@@ -238,7 +241,7 @@ public func modulate(
     watchedViewStart: CGFloat,
     watchedViewEnd: CGFloat,
     appliedViewStart: CGFloat,
-    appliedViewEnd:CGFloat,
+    appliedViewEnd: CGFloat,
     limit: Bool = false
 ) -> CGFloat {
     var result: CGFloat = 0
@@ -259,8 +262,7 @@ public func modulate(
             if result > toHigh {
                 return toHigh
             }
-        }
-        else {
+        } else {
             if result > toLow {
                 return toLow
             }

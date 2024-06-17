@@ -23,6 +23,7 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.shared.analyticsFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.f8eClientFake)

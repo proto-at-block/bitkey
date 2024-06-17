@@ -17,7 +17,7 @@ import build.wallet.encrypt.SignatureVerifier
 import build.wallet.firmware.HardwareAttestationMock
 import build.wallet.firmware.Teltra
 import build.wallet.logging.dev.LogStoreNoop
-import build.wallet.money.exchange.F8eExchangeRateService
+import build.wallet.money.exchange.ExchangeRateF8eClient
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -38,7 +38,7 @@ fun makeAppComponent(
   datadogRumMonitor: DatadogRumMonitor,
   delayer: Delayer,
   deviceTokenConfigProvider: DeviceTokenConfigProvider,
-  f8eExchangeRateService: F8eExchangeRateService,
+  exchangeRateF8eClient: ExchangeRateF8eClient,
   messageSigner: MessageSigner,
   signatureVerifier: SignatureVerifier,
   platformContext: PlatformContext,
@@ -85,6 +85,6 @@ fun makeAppComponent(
     hardwareAttestation = hardwareAttestation,
     teltra = teltra,
     wsmVerifier = wsmVerifier,
-    f8eExchangeRateService = f8eExchangeRateService
+    exchangeRateF8eClient = exchangeRateF8eClient
   )
 }

@@ -33,10 +33,19 @@ struct SwitchCardView: View {
                 Spacer()
                     .frame(height: 16)
 
-                ModeledText(model: .standard(viewModel.title, font: .title2, textAlignment: .center))
+                ModeledText(model: .standard(
+                    viewModel.title,
+                    font: .title2,
+                    textAlignment: .center
+                ))
                 Spacer()
                     .frame(height: 8)
-                ModeledText(model: .standard(viewModel.subline, font: .body3Regular, textAlignment: .center, textColor: .foreground60))
+                ModeledText(model: .standard(
+                    viewModel.subline,
+                    font: .body3Regular,
+                    textAlignment: .center,
+                    textColor: .foreground60
+                ))
             }
             .padding(.vertical, 32)
 

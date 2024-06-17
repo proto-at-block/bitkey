@@ -1,6 +1,5 @@
 package build.wallet.cloud.backup.csek
 
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
@@ -11,7 +10,7 @@ class CsekDaoFake : CsekDao {
   private val cseks = mutableMapOf<SealedCsek, Csek>()
 
   var setResult: Result<Unit, Throwable> = Ok(Unit)
-  var getErrResult: Err<Throwable>? = null
+  var getErrResult: Result<Csek?, Throwable>? = null
 
   override suspend fun get(key: SealedCsek): Result<Csek?, Throwable> {
     return getErrResult ?: Ok(cseks[key])

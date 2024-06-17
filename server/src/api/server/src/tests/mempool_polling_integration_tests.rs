@@ -188,6 +188,31 @@ async fn test_init_mempool_received_pending_payment() {
 }
 
 #[tokio::test]
+async fn test_no_mempool_notification_for_confirmed_tx() {
+    let (mock_server, account, worker, notification_service, indexer_service) =
+        setup_full_accounts_and_server(
+            vec!["tb1q8y7a5e5e4cceqeyf9mhyphp59vrr2jyykx6arnws0hkuu8ya83vsstrry4"],
+            true,
+        )
+        .await;
+
+    // Mempool only has one transaction addressed to customer
+    run_and_test_mempool_polling(MempoolPollingMockData {
+        mock_server: &mock_server,
+        worker: &worker,
+        current_mempool_txids: vec![
+            "ee686a8366d4d686f1ce56d7d8364fcd9b9d2bf18c3479d34b5bfe7db0dc86c4",
+        ],
+        all_txids: vec!["ee686a8366d4d686f1ce56d7d8364fcd9b9d2bf18c3479d34b5bfe7db0dc86c4"],
+        expected_tx_hits: vec!["ee686a8366d4d686f1ce56d7d8364fcd9b9d2bf18c3479d34b5bfe7db0dc86c4"],
+    })
+    .await;
+    // The account should have received 0 pending payment notification and it shouldn't be recorded
+    test_queue_message(&notification_service, &account.id, 0).await;
+    assert_indexer_recorded_ids_includes(&indexer_service, vec![]).await;
+}
+
+#[tokio::test]
 async fn test_duplicates_in_mempool() {
     let (mock_server, account, worker, notification_service, indexer_service) =
         setup_full_accounts_and_server(
@@ -320,74 +345,181 @@ async fn test_update_expiry_for_mempool_tx_record() {
             scriptpubkey_address: Some("tb1q3fd3hf4ccfa0qsne3hcj3k7h6272sg00g4458q".to_string()),
         }],
         fee_rate: 1.01,
-        first_seen: OffsetDateTime::now_utc() - Duration::hours(48) + Duration::minutes(2),
+        first_seen: OffsetDateTime::now_utc() - Duration::hours(48) + Duration::minutes(20),
         network,
         expiring_at: OffsetDateTime::now_utc() + Duration::days(2),
     };
-    let expired_record = TransactionRecord {
-        expiring_at: OffsetDateTime::now_utc() + Duration::minutes(2),
+    let expired_record_in_mempool = TransactionRecord {
+        expiring_at: OffsetDateTime::now_utc() + Duration::minutes(20),
         ..non_expiring_record.clone()
     };
-
-    // Persisting a non-expiring tx and calling mempool should not do anything to that tx
-    indexer_service
-        .repo
-        .persist_batch(&vec![non_expiring_record])
-        .await
-        .expect("Persisted the transaction record successfully");
-    assert_eq!(
-        indexer_service
-            .repo
-            .fetch_expiring_transactions(network)
-            .await
-            .expect("Failed to get expiring transactions")
-            .len(),
-        0
-    );
-
-    indexer_service
-        .repo
-        .persist_batch(&vec![expired_record])
-        .await
-        .expect("Persisted the transaction record successfully");
-    assert_eq!(
-        indexer_service
-            .repo
-            .fetch_expiring_transactions(network)
-            .await
-            .expect("Failed to get expiring transactions")
-            .len(),
-        1
-    );
-
-    // Now this should update the expiry
-    run_and_test_mempool_polling(MempoolPollingMockData {
-        mock_server: &mock_server,
-        worker: &worker,
-        current_mempool_txids: vec![
-            "2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca",
+    let expiring_record_not_in_mempool = TransactionRecord {
+        txid: "e3c84529337016e9fbb580fe75145a0330eb9a7e91e22842cf0581e58def8d71"
+            .parse()
+            .unwrap(),
+        received: vec![
+            TransactionVout {
+                value: 847,
+                scriptpubkey_address: Some(
+                    "tb1qvj30p6djrrxa22p4at7p4n92zwx9a75m4saqsj".to_string(),
+                ),
+            },
+            TransactionVout {
+                value: 10000,
+                scriptpubkey_address: Some(
+                    "tb1qfhltprwh6ftrm39lvdcnan2rxnrwscmara3sad6zz46kk97fr77qcwngpt".to_string(),
+                ),
+            },
         ],
-        all_txids: vec!["2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"],
-        expected_tx_hits: vec![],
-    })
-    .await;
-    // The account should not receive any pending payment notifications
-    test_queue_message(&notification_service, &account.id, 0).await;
-    assert_indexer_recorded_ids_includes(
-        &indexer_service,
-        vec!["2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"],
-    )
-    .await;
-    assert_eq!(
+        fee_rate: 1.01,
+        first_seen: OffsetDateTime::now_utc() - Duration::hours(48) + Duration::minutes(20),
+        network,
+        expiring_at: OffsetDateTime::now_utc() + Duration::seconds(5),
+    };
+
+    // Step 1: Persisting a non-expiring tx and calling mempool should not do anything to that tx
+    {
         indexer_service
             .repo
-            .fetch_expiring_transactions(network)
+            .persist_batch(&vec![non_expiring_record])
             .await
-            .expect("Failed to get expiring transactions")
-            .len(),
-        0
-    );
-    assert_eq!(indexer_service.get_fetched_mempool_txids().await.len(), 1);
+            .expect("Persisted the transaction record successfully");
+        assert_eq!(
+            indexer_service
+                .repo
+                .fetch_expiring_transactions(network, OffsetDateTime::now_utc())
+                .await
+                .expect("Failed to get expiring transactions")
+                .len(),
+            0
+        );
+        assert_eq!(indexer_service.stale_txs_expiring_after().await, None);
+    }
+
+    // Step 2: This should update the expiry when we call the mempool job
+    // This should not update the expiring_at field of the tx
+    // However, it should update stale_txs_expiring_after
+    {
+        indexer_service
+            .repo
+            .persist_batch(&vec![expiring_record_not_in_mempool.clone()])
+            .await
+            .expect("Persisted the transaction record successfully");
+        assert_eq!(
+            indexer_service
+                .repo
+                .fetch_expiring_transactions(network, OffsetDateTime::now_utc())
+                .await
+                .expect("Failed to get expiring transactions")
+                .len(),
+            1
+        );
+        assert_eq!(indexer_service.stale_txs_expiring_after().await, None);
+        run_and_test_mempool_polling(MempoolPollingMockData {
+            mock_server: &mock_server,
+            worker: &worker,
+            current_mempool_txids: vec![],
+            all_txids: vec![],
+            expected_tx_hits: vec![],
+        })
+        .await;
+        test_queue_message(&notification_service, &account.id, 0).await;
+        assert_indexer_recorded_ids_includes(
+            &indexer_service,
+            vec!["e3c84529337016e9fbb580fe75145a0330eb9a7e91e22842cf0581e58def8d71"],
+        )
+        .await;
+        assert_eq!(
+            indexer_service.stale_txs_expiring_after().await,
+            Some(expiring_record_not_in_mempool.expiring_at.replace_millisecond(0).expect(
+                "Valid timestamp with no millisecond accuracy (stored TTL in DDB is in seconds)"
+            ) + Duration::seconds(1))
+        );
+        assert_eq!(
+            indexer_service
+                .repo
+                .fetch_expiring_transactions(network, OffsetDateTime::now_utc())
+                .await
+                .expect("Failed to get expiring transactions")
+                .len(),
+            1
+        );
+        assert_eq!(indexer_service.get_fetched_mempool_txids().await.len(), 0);
+    }
+
+    // Step 3: Now let's add an expiring record that's still in the mempool
+    // This should update the expiring_at field of the tx and stale_txs_expiring_after
+    {
+        indexer_service
+            .repo
+            .persist_batch(&vec![expired_record_in_mempool.clone()])
+            .await
+            .expect("Persisted the transaction record successfully");
+        // This contains `expiring_record_not_in_mempool` and `expired_record_in_mempool`
+        assert_eq!(
+            indexer_service
+                .repo
+                .fetch_expiring_transactions(network, OffsetDateTime::now_utc())
+                .await
+                .expect("Failed to get expiring transactions")
+                .len(),
+            2
+        );
+        run_and_test_mempool_polling(MempoolPollingMockData {
+            mock_server: &mock_server,
+            worker: &worker,
+            current_mempool_txids: vec![
+                "2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca",
+            ],
+            all_txids: vec!["2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"],
+            expected_tx_hits: vec![],
+        })
+        .await;
+        // The account should not receive any pending payment notifications
+        test_queue_message(&notification_service, &account.id, 0).await;
+        assert_indexer_recorded_ids_includes(
+            &indexer_service,
+            vec!["2f72264358de508cc5f0ccd8a1ac82e77279a5470292e9cf219138368610a9ca"],
+        )
+        .await;
+        assert_eq!(
+            indexer_service.stale_txs_expiring_after().await,
+            Some(
+                expired_record_in_mempool.expiring_at.replace_millisecond(0).expect(
+                    "Valid timestamp with no millisecond accuracy (stored TTL in DDB is in seconds)"
+                ) + Duration::seconds(1)
+            )
+        );
+        assert_eq!(
+            indexer_service
+                .repo
+                .fetch_expiring_transactions(network, OffsetDateTime::now_utc())
+                .await
+                .expect("Failed to get expiring transactions")
+                .len(),
+            1
+        );
+        assert_eq!(indexer_service.get_fetched_mempool_txids().await.len(), 1);
+    }
+    // Step 4: Calling mempool indexing job ends up not changing the `stale_txs_expiring_after`
+    {
+        run_and_test_mempool_polling(MempoolPollingMockData {
+            mock_server: &mock_server,
+            worker: &worker,
+            current_mempool_txids: vec![],
+            all_txids: vec![],
+            expected_tx_hits: vec![],
+        })
+        .await;
+        assert_eq!(
+            indexer_service.stale_txs_expiring_after().await,
+            Some(
+                expired_record_in_mempool.expiring_at.replace_millisecond(0).expect(
+                    "Valid timestamp with no millisecond accuracy (stored TTL in DDB is in seconds)"
+                ) + Duration::seconds(1)
+            )
+        );
+    }
 }
 
 async fn setup_full_accounts_and_server(

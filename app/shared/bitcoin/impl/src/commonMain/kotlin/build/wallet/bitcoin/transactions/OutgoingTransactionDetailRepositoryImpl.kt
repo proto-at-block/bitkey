@@ -3,13 +3,13 @@ package build.wallet.bitcoin.transactions
 import build.wallet.db.DbError
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class OutgoingTransactionDetailRepositoryImpl(
   private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
 ) : OutgoingTransactionDetailRepository {
   override suspend fun persistDetails(details: OutgoingTransactionDetail): Result<Unit, DbError> =
-    binding {
+    coroutineBinding {
       outgoingTransactionDetailDao.insert(
         details.broadcastDetail.broadcastTime,
         details.broadcastDetail.transactionId,

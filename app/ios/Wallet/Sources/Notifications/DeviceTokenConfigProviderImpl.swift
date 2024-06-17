@@ -1,7 +1,7 @@
 import Shared
 
 class DeviceTokenConfigProviderImpl: DeviceTokenConfigProvider {
-    
+
     private var deviceTokenProvider: DeviceTokenProvider
     private let appVariant: AppVariant
 
@@ -9,12 +9,12 @@ class DeviceTokenConfigProviderImpl: DeviceTokenConfigProvider {
         self.deviceTokenProvider = deviceTokenProvider
         self.appVariant = appVariant
     }
-    
+
     func config() async throws -> DeviceTokenConfig? {
         guard let deviceToken = deviceTokenProvider.deviceToken else {
             return nil
         }
-        
+
         return DeviceTokenConfig(
             deviceToken: deviceToken,
             touchpointPlatform: .from(appVariant: appVariant)
@@ -22,6 +22,6 @@ class DeviceTokenConfigProviderImpl: DeviceTokenConfigProvider {
     }
 }
 
-enum DeviceTokenError : Error {
+enum DeviceTokenError: Error {
     case devicetokenNotFound
 }

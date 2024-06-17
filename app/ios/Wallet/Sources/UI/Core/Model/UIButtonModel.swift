@@ -82,7 +82,7 @@ public struct UIButtonModel {
     public init(
         backgroundColor: UIColor,
         highlightedBackgroundColor: UIColor,
-        cornerRadius: CGFloat = 0,
+        cornerRadius _: CGFloat = 0,
         foregroundColor: UIColor,
         height: CGFloat? = nil,
         image: UIImage,
@@ -131,7 +131,7 @@ public struct UIButtonModel {
 
         self.updateHandler = { button in
             switch button.state {
-            case [.selected, .highlighted], .selected, .highlighted:
+            case .highlighted, .selected, [.selected, .highlighted]:
                 button.configuration?.background.backgroundColor = highlightedBackgroundColor
             case .disabled:
                 break
@@ -165,11 +165,11 @@ public final class ModeledButton: UIButton {
 
         isEnabled = model.isEnabled
 
-        if let actionIdentifier = actionIdentifier {
+        if let actionIdentifier {
             removeAction(identifiedBy: actionIdentifier, for: .touchUpInside)
         }
         let action = UIAction(handler: { _ in model.action() })
-        addAction(action,for: .touchUpInside)
+        addAction(action, for: .touchUpInside)
         actionIdentifier = action.identifier
     }
 

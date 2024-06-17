@@ -5,7 +5,7 @@ import build.wallet.bitkey.keys.app.AppKey
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
 import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class SocialChallengeVerifierImpl(
@@ -19,7 +19,7 @@ class SocialChallengeVerifierImpl(
     recoveryRelationshipId: String,
     recoveryCode: String,
   ): Result<Unit, SocialChallengeError> =
-    binding {
+    coroutineBinding {
       val (serverPart, pakePart) = socialRecoveryCodeBuilder.parseRecoveryCode(recoveryCode)
         .mapError {
           when (it) {

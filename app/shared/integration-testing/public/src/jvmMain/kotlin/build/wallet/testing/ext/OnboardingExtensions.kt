@@ -99,7 +99,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
 
     if (shouldSetUpNotifications) {
       val addedTouchpoint =
-        notificationTouchpointService.addTouchpoint(
+        notificationTouchpointF8eClient.addTouchpoint(
           f8eEnvironment = fullAccountConfig.f8eEnvironment,
           fullAccountId = account.accountId,
           touchpoint =
@@ -108,13 +108,13 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
               value = Email("integration-test@wallet.build") // This is a fake email
             )
         ).mapError { it.error }.getOrThrow()
-      notificationTouchpointService.verifyTouchpoint(
+      notificationTouchpointF8eClient.verifyTouchpoint(
         f8eEnvironment = fullAccountConfig.f8eEnvironment,
         fullAccountId = account.accountId,
         touchpointId = addedTouchpoint.touchpointId,
         verificationCode = "123456" // This code always works for Test Accounts
       ).mapError { it.error }.getOrThrow()
-      notificationTouchpointService.activateTouchpoint(
+      notificationTouchpointF8eClient.activateTouchpoint(
         f8eEnvironment = fullAccountConfig.f8eEnvironment,
         fullAccountId = account.accountId,
         touchpointId = addedTouchpoint.touchpointId,
@@ -141,7 +141,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
         .getOrThrow()
     }
 
-    onboardingService.completeOnboarding(
+    onboardingF8eClient.completeOnboarding(
       f8eEnvironment = fullAccountConfig.f8eEnvironment,
       fullAccountId = account.accountId
     ).getOrThrow()

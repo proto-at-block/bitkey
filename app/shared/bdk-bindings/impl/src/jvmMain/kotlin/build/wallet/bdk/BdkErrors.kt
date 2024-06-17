@@ -2,10 +2,10 @@ package build.wallet.bdk
 
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkResult
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.mapError
 import org.bitcoindevkit.BdkException
 import org.bitcoindevkit.BdkException.Bip32
@@ -58,18 +58,15 @@ import org.bitcoindevkit.BdkException.UnknownUtxo
  * thrown from the [block] function execution and encapsulating it as a [BdkError] failure.
  */
 internal inline infix fun <T, V : Any> T.runCatchingBdkError(block: T.() -> V): BdkResult<V> =
-  Result
-    .catching { block() }
+  catchingResult { block() }
     .mapError {
       require(it is BdkException)
       it.toBdkError()
     }
-    .let {
-      when (it) {
-        is Ok -> BdkResult.Ok(it.value)
-        is Err -> BdkResult.Err(it.error)
-      }
-    }
+    .mapBoth(
+      success = { value -> BdkResult.Ok(value) },
+      failure = { error -> BdkResult.Err(error) }
+    )
 
 /**
  * Maps [BdkException] from `bdk-android` to KMP [BdkError] type.

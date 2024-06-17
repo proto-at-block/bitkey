@@ -31,9 +31,8 @@ import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
 import build.wallet.statemachine.send.QrCodeScanBodyModel
 import build.wallet.toByteString
 import build.wallet.toUByteList
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.mapBoth
 
 class EmergencyAccessKitRecoveryUiStateMachineImpl(
   private val clipboard: Clipboard,
@@ -165,18 +164,13 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
 
       is State.RestoreCompleting -> {
         LaunchedEffect("restoring-from-backup") {
-          state = when (
-            val result =
-              emergencyAccessPayloadRestorer.restoreFromPayload(currentState.payload)
-                .logFailure { "EAK payload failed to decrypt" }
-          ) {
-            is Ok -> {
-              currentState.onSuccess(result.value)
-            }
-            is Err -> {
-              currentState.onFailure()
-            }
-          }
+          state =
+            emergencyAccessPayloadRestorer.restoreFromPayload(currentState.payload)
+              .logFailure { "EAK payload failed to decrypt" }
+              .mapBoth(
+                success = { currentState.onSuccess(it) },
+                failure = { currentState.onFailure() }
+              )
         }
 
         importingBackupScreen().asRootScreen()
@@ -323,7 +317,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       suspend fun completeRestore(
         keyboxDao: KeyboxDao,
         uuidGenerator: UuidGenerator,
-      ) = binding {
+      ) = coroutineBinding {
         // Only set the active keybox. This will leave the app in a "server offline" state
         // but able to transfer funds.
         val activeKeybox = accountRestoration.asKeybox(
@@ -373,13 +367,12 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       entrySource: EntrySource,
       payloadDecoder: EmergencyAccessKitPayloadDecoder,
     ): State {
-      return when (
-        val result = payloadDecoder.decode(rawInput)
-          .logFailure { "Emergency Access Kit decrypted payload failed to decode" }
-      ) {
-        is Ok -> RestoreWallet(payload = result.value, entrySource = entrySource)
-        is Err -> CodeNotRecognized(entrySource = entrySource)
-      }
+      return payloadDecoder.decode(rawInput)
+        .logFailure { "Emergency Access Kit decrypted payload failed to decode" }
+        .mapBoth(
+          success = { RestoreWallet(payload = it, entrySource = entrySource) },
+          failure = { CodeNotRecognized(entrySource = entrySource) }
+        )
     }
   }
 }

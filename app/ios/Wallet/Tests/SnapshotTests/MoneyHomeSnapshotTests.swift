@@ -14,7 +14,10 @@ final class MoneyHomeSnapshotTests: XCTestCase {
 
     func test_money_home_with_status_banner() {
         let view = MoneyHomeView(viewModel: .snapshotTestFull())
-        assertBitkeySnapshots(view: view, screenModel: .snapshotTest(statusBannerModel: .snapshotTest()))
+        assertBitkeySnapshots(
+            view: view,
+            screenModel: .snapshotTest(statusBannerModel: .snapshotTest())
+        )
     }
 
     func test_money_home_lite() {
@@ -24,16 +27,22 @@ final class MoneyHomeSnapshotTests: XCTestCase {
 
     func test_money_home_lite_with_status_banner() {
         let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice"]))
-        assertBitkeySnapshots(view: view, screenModel: .snapshotTest(statusBannerModel: .snapshotTest()))
+        assertBitkeySnapshots(
+            view: view,
+            screenModel: .snapshotTest(statusBannerModel: .snapshotTest())
+        )
     }
-    
+
     func test_money_home_lite_with_no_protected_customers() {
         let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: []))
         assertBitkeySnapshots(view: view)
     }
 
     func test_money_home_lite_with_two_protected_customers() {
-        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: ["Alice", "Bob"]))
+        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(protectedCustomers: [
+            "Alice",
+            "Bob",
+        ]))
         assertBitkeySnapshots(view: view)
     }
 
@@ -71,35 +80,40 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_money_home_with_pending_invitation() {
         let view = MoneyHomeView(
             viewModel: .snapshotTestFull(cards: [.pendingInvitation])
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_money_home_with_expired_invitation() {
         let view = MoneyHomeView(
             viewModel: .snapshotTestFull(cards: [.expiredInvitation])
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_money_home_with_invitations() {
         let view = MoneyHomeView(
             viewModel: .snapshotTestFull(cards: [.pendingInvitation, .expiredInvitation])
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_money_home_with_device_update_and_getting_started_and_invitations() {
         let view = MoneyHomeView(
-            viewModel: .snapshotTestFull(cards: [.deviceUpdate, .pendingInvitation, .expiredInvitation, .gettingStarted])
+            viewModel: .snapshotTestFull(cards: [
+                .deviceUpdate,
+                .pendingInvitation,
+                .expiredInvitation,
+                .gettingStarted,
+            ])
         )
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_money_home_with_hidden_balance() {
         let view = MoneyHomeView(viewModel: .snapshotTestFull(hideBalance: true))
         assertBitkeySnapshots(view: view)
@@ -107,8 +121,9 @@ final class MoneyHomeSnapshotTests: XCTestCase {
 }
 
 // MARK: -
+
 private extension LiteMoneyHomeBodyModel {
-    
+
     static func snapshotTestLite(
         protectedCustomers: [String] = []
     ) -> LiteMoneyHomeBodyModel {
@@ -120,9 +135,10 @@ private extension LiteMoneyHomeBodyModel {
             protectedCustomers: protectedCustomers.map {
                 ProtectedCustomer(recoveryRelationshipId: "", alias: $0)
             },
-            onProtectedCustomerClick: { ProtectedCustomer in },
+            onProtectedCustomerClick: { _ in },
             onBuyOwnBitkeyClick: {},
-            onAcceptInviteClick: {})
+            onAcceptInviteClick: {}
+        )
     }
 }
 
@@ -162,10 +178,22 @@ private extension CardModel {
     static let gettingStarted = GettingStartedCardModelKt.GettingStartedCardModel(
         animations: nil,
         taskModels: [
-            .init(task: .init(id: .enablespendinglimit, state: .incomplete), isEnabled: false, onClick: {}),
-            .init(task: .init(id: .invitetrustedcontact, state: .incomplete), isEnabled: true, onClick: {}),
+            .init(
+                task: .init(id: .enablespendinglimit, state: .incomplete),
+                isEnabled: false,
+                onClick: {}
+            ),
+            .init(
+                task: .init(id: .invitetrustedcontact, state: .incomplete),
+                isEnabled: true,
+                onClick: {}
+            ),
             .init(task: .init(id: .addbitcoin, state: .incomplete), isEnabled: true, onClick: {}),
-            .init(task: .init(id: .addadditionalfingerprint, state: .incomplete), isEnabled: true, onClick: {})
+            .init(
+                task: .init(id: .addadditionalfingerprint, state: .incomplete),
+                isEnabled: true,
+                onClick: {}
+            ),
         ]
     )
 
@@ -186,7 +214,7 @@ private extension CardModel {
         delayPeriodRemainingSeconds: 0,
         onClick: {}
     )
-    
+
     static let pendingInvitation = RecoveryContactCardModelKt.RecoveryContactCardModel(
         contact: Invitation(
             recoveryRelationshipId: "foo",
@@ -199,8 +227,7 @@ private extension CardModel {
         onClick: {},
         buttonTreatment: .primary
     )
-    
-    
+
     static let expiredInvitation = RecoveryContactCardModelKt.RecoveryContactCardModel(
         contact: Invitation(
             recoveryRelationshipId: "foo",

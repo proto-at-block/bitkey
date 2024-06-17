@@ -10,7 +10,7 @@ import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
 import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.onboarding.OnboardingServiceMock
+import build.wallet.f8e.onboarding.OnboardingF8eClientMock
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.setFlagValue
 import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
@@ -41,7 +41,7 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
   val keyboxDao = KeyboxDaoMock(turbines::create)
   val onboardingKeyboxStepStateDao =
     OnboardingKeyboxStepStateDaoMock(turbines::create)
-  val onboardingService = OnboardingServiceMock(turbines::create)
+  val onboardingF8eClient = OnboardingF8eClientMock(turbines::create)
   val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
   val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
   val multipleFingerprintsEnabledFeatureFlag = MultipleFingerprintsIsEnabledFeatureFlag(
@@ -54,7 +54,7 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
       gettingStartedTaskDao = gettingStartedTaskDao,
       keyboxDao = keyboxDao,
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      onboardingService = onboardingService,
+      onboardingF8eClient = onboardingF8eClient,
       onboardingAppKeyKeystore = onboardingAppKeyKeystore,
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
       multipleFingerprintsIsEnabled = multipleFingerprintsEnabledFeatureFlag
@@ -72,7 +72,7 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
     gettingStartedTaskDao.reset()
     onboardingKeyboxStepStateDao.reset()
     keyboxDao.reset()
-    onboardingService.reset()
+    onboardingF8eClient.reset()
     onboardingAppKeyKeystore.persistAppKeys(
       spendingKey = AppKeyBundleMock.spendingKey,
       globalAuthKey = AppKeyBundleMock.authKey,
@@ -95,7 +95,7 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
       onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
 
       // Activating wallet and adding tasks
-      onboardingService.completeOnboardingCalls.awaitItem()
+      onboardingF8eClient.completeOnboardingCalls.awaitItem()
 
       gettingStartedTaskDao.expectOnboardingTasks()
       eventTracker.expectOnboardingEvents()
@@ -114,7 +114,7 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
       onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
 
       // Activating wallet and adding tasks
-      onboardingService.completeOnboardingCalls.awaitItem()
+      onboardingF8eClient.completeOnboardingCalls.awaitItem()
 
       gettingStartedTaskDao.getTasks().shouldContainExactly(
         GettingStartedTask(
@@ -140,7 +140,7 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
   }
 
   test("complete onboarding error and retry") {
-    onboardingService.completeOnboardingResult = Err(HttpError.NetworkError(Throwable()))
+    onboardingF8eClient.completeOnboardingResult = Err(HttpError.NetworkError(Throwable()))
     dataStateMachine.test(props) {
       awaitItem().let {
         it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
@@ -149,18 +149,18 @@ class ActivateFullAccountDataStateMachineImplTests : FunSpec({
       onboardingAppKeyKeystore.appKeys.shouldBeNull()
       onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
 
-      onboardingService.completeOnboardingCalls.awaitItem()
+      onboardingF8eClient.completeOnboardingCalls.awaitItem()
 
       awaitItem().let {
         it.shouldBeTypeOf<FailedToActivateKeyboxDataFull>()
-        onboardingService.completeOnboardingResult = Ok(Unit)
+        onboardingF8eClient.completeOnboardingResult = Ok(Unit)
         it.retry()
       }
 
       awaitItem().let {
         it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
       }
-      onboardingService.completeOnboardingCalls.awaitItem()
+      onboardingF8eClient.completeOnboardingCalls.awaitItem()
 
       gettingStartedTaskDao.expectOnboardingTasks()
       eventTracker.expectOnboardingEvents()

@@ -1,6 +1,6 @@
 package build.wallet.f8e.auth
 
-import build.wallet.f8e.auth.AuthenticationService.InitiateAuthenticationSuccess
+import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 
 val InitiateAuthenticationSuccessMock = InitiateAuthenticationSuccess(
   username = "",

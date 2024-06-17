@@ -22,7 +22,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
     func test_key_rotation_choice__settings() {
         let view = FormView(
             viewModel: RotateAuthKeyScreens().DeactivateDevicesFromSettingsChoice(
-                onBack: {}, 
+                onBack: {},
                 removeAllOtherDevicesEnabled: false,
                 onRemoveAllOtherDevices: {}
             )
@@ -98,7 +98,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: RotateAuthKeyScreens().AcceptableFailure(
                 context: .proposedRotation,
-                onRetry: {}, 
+                onRetry: {},
                 onAcknowledge: {}
             )
         )
@@ -110,7 +110,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: RotateAuthKeyScreens().AcceptableFailure(
                 context: .settings,
-                onRetry: {}, 
+                onRetry: {},
                 onAcknowledge: {}
             )
         )
@@ -122,7 +122,7 @@ final class RotateAuthKeysSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: RotateAuthKeyScreens().AcceptableFailure(
                 context: .failedAttempt,
-                onRetry: {}, 
+                onRetry: {},
                 onAcknowledge: {}
             )
         )

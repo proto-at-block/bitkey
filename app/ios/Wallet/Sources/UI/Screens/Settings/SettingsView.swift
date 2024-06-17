@@ -25,7 +25,10 @@ public struct SettingsView: View {
             },
             content: {
                 VStack(spacing: 32) {
-                    ForEach(viewModel.sectionModels, id: \.self.sectionHeaderTitle) { sectionModel in
+                    ForEach(
+                        viewModel.sectionModels,
+                        id: \.self.sectionHeaderTitle
+                    ) { sectionModel in
                         SectionView(model: sectionModel)
                     }
                     Spacer()
@@ -47,9 +50,13 @@ private struct SectionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ModeledText(model: .standard(model.sectionHeaderTitle, font: .title3, textColor: .foreground60))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
+            ModeledText(model: .standard(
+                model.sectionHeaderTitle,
+                font: .title3,
+                textColor: .foreground60
+            ))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 8)
 
             ForEach(model.rowModels, id: \.self.title) { rowModel in
                 VStack {
@@ -59,7 +66,8 @@ private struct SectionView: View {
                     Spacer()
                         .layoutPriority(0)
 
-                    // Manually add a separator since it behaves differently in iOS 15.0 (extra divider at top)
+                    // Manually add a separator since it behaves differently in iOS 15.0 (extra
+                    // divider at top)
                     // and 16.0 and doesn't extend to the edges of the cell
                     Rectangle()
                         .fill(Color.foreground10)
@@ -86,8 +94,12 @@ private struct RowView: View {
                     .foregroundColor(model.isDisabled ? Color.foreground30 : Color.foreground)
                     .frame(width: 24, height: 24)
                 Spacer(minLength: 8)
-                ModeledText(model: .standard(model.title, font: .body2Medium, textColor: model.isDisabled ? Color.foreground30 : Color.foreground))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ModeledText(model: .standard(
+                    model.title,
+                    font: .body2Medium,
+                    textColor: model.isDisabled ? Color.foreground30 : Color.foreground
+                ))
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if !model.isDisabled {
                     Spacer(minLength: 8)
                     if let specialTrailingIconModel = model.specialTrailingIconModel {

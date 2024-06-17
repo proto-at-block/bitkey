@@ -7,13 +7,13 @@ struct CardContentView: View {
 
     // MARK: - Private Types
 
-    private struct Metrics {
+    private enum Metrics {
         static let titleToSubtitleSpacing = 2.f
         static let titleSubtitleToIconSpacing = 12.f
         static let trailingButtonHorizontalPadding = 9.f
         static let trailingButtonHeight = 32.f
     }
-    
+
     @SwiftUI.State private var minLabelHeight: CGFloat = 0
 
     // MARK: - Public Properties
@@ -36,12 +36,17 @@ struct CardContentView: View {
             // Title + Content
             VStack {
                 // Title + Subtitle + Leading Image
-                HStack(spacing: overridenTitleToSubtitleSpacing == nil ? Metrics.titleSubtitleToIconSpacing : overridenTitleToSubtitleSpacing) {
+                HStack(
+                    spacing: overridenTitleToSubtitleSpacing == nil ? Metrics
+                        .titleSubtitleToIconSpacing : overridenTitleToSubtitleSpacing
+                ) {
                     viewModel.leadingImage.map {
                         CardImage(viewModel: $0)
                             .overlay {
                                 GeometryReader { imageGeoProxy in
-                                    Color.clear.onAppear { self.minLabelHeight = imageGeoProxy.size.height }
+                                    Color.clear
+                                        .onAppear { self.minLabelHeight = imageGeoProxy.size.height
+                                        }
                                 }
                             }
                     }
@@ -53,9 +58,13 @@ struct CardContentView: View {
                                 font: .title2
                             )
                         )
-                        viewModel.subtitle.map{ ModeledText(model: .standard($0, font: .body3Regular, textColor: .foreground60)) }
+                        viewModel.subtitle.map { ModeledText(model: .standard(
+                            $0,
+                            font: .body3Regular,
+                            textColor: .foreground60
+                        )) }
                     }.frame(minHeight: minLabelHeight)
-                    
+
                     viewModel.trailingButton.map {
                         ButtonView(
                             model: $0,
@@ -97,7 +106,7 @@ struct CardImage: View {
         case let hwRecoveryProgress as CardModelCardImageDynamicImageHardwareReplacementStatusProgress:
             ZStack {
                 CircularProgressView(
-                    progress: hwRecoveryProgress.progress, 
+                    progress: hwRecoveryProgress.progress,
                     direction: .counterclockwise,
                     remainingDuration: TimeInterval(hwRecoveryProgress.remainingSeconds),
                     progressColor: .containerHighlightForeground,

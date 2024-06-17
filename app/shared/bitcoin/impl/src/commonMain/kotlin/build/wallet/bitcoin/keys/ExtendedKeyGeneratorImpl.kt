@@ -9,14 +9,14 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.bdk.bdkNetwork
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class ExtendedKeyGeneratorImpl(
   private val bdkMnemonicGenerator: BdkMnemonicGenerator,
   private val bdkDescriptorSecretKeyGenerator: BdkDescriptorSecretKeyGenerator,
 ) : ExtendedKeyGenerator {
   override suspend fun generate(network: BitcoinNetworkType): Result<DescriptorKeypair, Error> =
-    binding {
+    coroutineBinding {
       val bdkMnemonic = bdkMnemonicGenerator.generateMnemonic(WORDS_24)
       val bdkDescriptorSecretKey =
         bdkDescriptorSecretKeyGenerator.generate(network.bdkNetwork, bdkMnemonic)

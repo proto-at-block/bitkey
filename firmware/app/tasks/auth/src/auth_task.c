@@ -288,6 +288,26 @@ void handle_get_fingerprint_enrollment_status(ipc_ref_t* message) {
 
     rsp->msg.get_fingerprint_enrollment_status_rsp.pass_count = auth_priv.stats.pass_count;
     rsp->msg.get_fingerprint_enrollment_status_rsp.fail_count = auth_priv.stats.fail_count;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.has_diagnostics = true;
+
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.finger_coverage_valid =
+      auth_priv.stats.diagnostics.finger_coverage_valid;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.finger_coverage =
+      auth_priv.stats.diagnostics.finger_coverage;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.common_mode_noise_valid =
+      auth_priv.stats.diagnostics.common_mode_noise_valid;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.common_mode_noise =
+      auth_priv.stats.diagnostics.common_mode_noise;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.image_quality_valid =
+      auth_priv.stats.diagnostics.image_quality_valid;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.image_quality =
+      auth_priv.stats.diagnostics.image_quality;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.sensor_coverage_valid =
+      auth_priv.stats.diagnostics.sensor_coverage_valid;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.sensor_coverage =
+      auth_priv.stats.diagnostics.sensor_coverage;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.template_data_update_valid =
+      auth_priv.stats.diagnostics.template_data_update_valid;
 
     goto out;
   }

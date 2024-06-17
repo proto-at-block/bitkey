@@ -6,9 +6,8 @@ import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.config.TemplateFullAccountConfigDao
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.get
+import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -24,14 +23,16 @@ class ElectrumServerSettingProviderImpl(
     return keyboxDao
       .activeKeybox()
       .map { activeKeyboxResult ->
-        when (activeKeyboxResult) {
-          is Err -> null
-          is Ok ->
-            when (val keybox = activeKeyboxResult.value) {
-              null -> null
-              else -> keybox.config.bitcoinNetworkType
-            }
-        }
+        activeKeyboxResult
+          .mapBoth(
+            success = {
+              when (val keybox = activeKeyboxResult.value) {
+                null -> null
+                else -> keybox.config.bitcoinNetworkType
+              }
+            },
+            failure = { null }
+          )
       }
       .transform { activeNetwork ->
         // In the event the user has not persisted a custom Electrum server at all, we want to be

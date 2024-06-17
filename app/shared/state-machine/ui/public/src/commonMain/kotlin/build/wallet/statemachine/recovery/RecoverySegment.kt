@@ -152,4 +152,15 @@ object RecoverySegment : AppSegment {
       object Completion : AppSegment by LostApp.childSegment("Completion")
     }
   }
+
+  /**
+   * Perform an additional recovery to transfer funds on an old address
+   * after a recovery has already been fully completed.
+   */
+  object AdditionalSweep : AppSegment by RecoverySegment.childSegment("AdditionalSweep") {
+    /**
+     * Sweep funds to active wallet.
+     */
+    object Sweep : AppSegment by AdditionalSweep.childSegment("Sweep")
+  }
 }

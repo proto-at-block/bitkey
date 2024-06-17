@@ -1,7 +1,7 @@
 package build.wallet.queueprocessor
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 /**
  * Minimal Queue interface
@@ -30,7 +30,7 @@ interface Queue<T> {
   suspend fun moveToEnd(num: Int): Result<Unit, Error> {
     require(num >= 0) { "Rotation count $num is less than zero." }
 
-    return binding {
+    return coroutineBinding {
       val items = take(num).bind()
       items.map { append(it) }
       removeFirst(items.size).bind()

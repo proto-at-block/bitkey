@@ -12,7 +12,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError.SpecificClientError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryService
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.AwaitingHardwareProofOfPossessionData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData.CancelingSomeoneElsesRecoveryData
@@ -30,7 +30,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class SomeoneElseIsRecoveringDataStateMachineImpl(
-  private val cancelDelayNotifyRecoveryService: CancelDelayNotifyRecoveryService,
+  private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val recoveryNotificationVerificationDataStateMachine:
     RecoveryNotificationVerificationDataStateMachine,
   private val recoverySyncer: RecoverySyncer,
@@ -70,7 +70,7 @@ class SomeoneElseIsRecoveringDataStateMachineImpl(
 
       is CancelingSomeoneElsesRecoveryDataState -> {
         LaunchedEffect("canceling-recovery") {
-          cancelDelayNotifyRecoveryService.cancel(
+          cancelDelayNotifyRecoveryF8eClient.cancel(
             f8eEnvironment = props.f8eEnvironment,
             fullAccountId = props.fullAccountId,
             hwFactorProofOfPossession = dataState.hwFactorProofOfPossession

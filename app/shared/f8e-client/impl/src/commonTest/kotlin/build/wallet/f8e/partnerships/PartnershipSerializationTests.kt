@@ -2,7 +2,7 @@
 
 package build.wallet.f8e.partnerships
 
-import build.wallet.f8e.partnerships.GetPartnershipTransactionServiceImpl.PartnershipTransactionResponse
+import build.wallet.f8e.partnerships.GetPartnershipTransactionF8eClientImpl.PartnershipTransactionResponse
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.partnerships.PartnershipTransactionStatus

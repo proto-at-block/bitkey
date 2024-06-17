@@ -3,17 +3,18 @@ import OSLog
 // MARK: -
 
 public class LogStore {
-    
+
     // MARK: - Public Types
 
-    fileprivate let subsystemIdentifier = "build.wallet"
+    private let subsystemIdentifier = "build.wallet"
 
     public enum Level: String {
         /// Used for logging informational context.
         case info
 
         /// Used for logging unexpected failures in the code.
-        /// This should not be used for logging expected failures (i.e. network failures, QR parsing, etc.)
+        /// This should not be used for logging expected failures (i.e. network failures, QR
+        /// parsing, etc.)
         case error
 
         case warn
@@ -44,7 +45,9 @@ public class LogStore {
     // MARK: - Public Methods
 
     public func getEntries() -> [Entry] {
-        guard let allEntries = try? logStore.getEntries(at: logStore.position(timeIntervalSinceLatestBoot: 0)) else {
+        guard let allEntries = try? logStore
+            .getEntries(at: logStore.position(timeIntervalSinceLatestBoot: 0))
+        else {
             return []
         }
 

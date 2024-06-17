@@ -11,7 +11,7 @@ public struct FormView: View {
     @SwiftUI.State
     private var safariUrl: URL?
     @SwiftUI.State private var isShowingToast = false
-    
+
     // MARK: - Life Cycle
 
     public init(viewModel: FormBodyModel) {
@@ -33,17 +33,24 @@ public struct FormView: View {
                 }
                 .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
                 .padding(.bottom, DesignSystemMetrics.verticalPadding)
-                .padding(.top, reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0)
+                .padding(
+                    .top,
+                    reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0
+                )
                 .background(Color.background)
-                
+
                 Spacer()
-                
-                // If we have a primary or secondary button defined in the view model, we want to show a FooterView that has a linear gradient background.
-                // On small displays, this is particularly helpful so that the buttons don't appear to chop off the contents of the FormView, and the top color provides a
+
+                // If we have a primary or secondary button defined in the view model, we want to
+                // show a FooterView that has a linear gradient background.
+                // On small displays, this is particularly helpful so that the buttons don't appear
+                // to chop off the contents of the FormView, and the top color provides a
                 // gentle transition to the solid background color.
                 //
-                // We add padding individually to the ScrollView and FormFooterView instead of the VStack so that we can apply them before the linear background to fill up to the screen's edges.
-                if (viewModel.primaryButton != nil || viewModel.secondaryButton != nil) {
+                // We add padding individually to the ScrollView and FormFooterView instead of the
+                // VStack so that we can apply them before the linear background to fill up to the
+                // screen's edges.
+                if viewModel.primaryButton != nil || viewModel.secondaryButton != nil {
                     FormFooterView(viewModel: viewModel)
                         .padding(.top, DesignSystemMetrics.verticalPadding)
                         .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
@@ -52,7 +59,15 @@ public struct FormView: View {
                             LinearGradient(
                                 gradient: .init(
                                     stops: [
-                                        .init(color: Color(hue: 1.0, saturation: 0.0, brightness: 1.0, opacity: 0.0), location: 0),
+                                        .init(
+                                            color: Color(
+                                                hue: 1.0,
+                                                saturation: 0.0,
+                                                brightness: 1.0,
+                                                opacity: 0.0
+                                            ),
+                                            location: 0
+                                        ),
                                         .init(color: Color.background, location: 0.15),
                                     ]
                                 ),
@@ -96,7 +111,7 @@ struct FormView_Previews: PreviewProvider {
                                 incoming: false,
                                 isPending: false,
                                 onClick: {}
-                            )
+                            ),
                         ],
                         style: .none,
                         headerTreatment: .secondary,
@@ -113,12 +128,12 @@ struct FormView_Previews: PreviewProvider {
                                 incoming: false,
                                 isPending: false,
                                 onClick: {}
-                            )
+                            ),
                         ],
                         style: .none,
                         headerTreatment: .secondary,
                         footerButton: nil
-                    )
+                    ),
                 ],
                 id: nil
             )

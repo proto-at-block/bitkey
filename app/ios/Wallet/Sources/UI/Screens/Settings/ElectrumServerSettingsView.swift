@@ -5,12 +5,15 @@ import Shared
 import SwiftUI
 
 // MARK: -
+
 struct ElectrumServerSettingsView: View {
 
     // MARK: - Public Properties
+
     public var viewModel: CustomElectrumServerBodyModel
 
     // MARK: - View
+
     public var body: some View {
         VStack {
             ToolbarView(
@@ -33,11 +36,16 @@ struct ElectrumServerSettingsView: View {
             isPresented: .constant(viewModel.disableAlertModel != nil),
             presenting: viewModel.disableAlertModel,
             actions: { model in
-                Button(model.primaryButtonText, role: .destructive, action: model.onPrimaryButtonClick)
+                Button(
+                    model.primaryButtonText,
+                    role: .destructive,
+                    action: model.onPrimaryButtonClick
+                )
                 if let secondaryText = model.secondaryButtonText,
-                   let secondaryAction = model.onSecondaryButtonClick {
-                Button(secondaryText, role: .cancel, action: secondaryAction)
-            }
+                   let secondaryAction = model.onSecondaryButtonClick
+                {
+                    Button(secondaryText, role: .cancel, action: secondaryAction)
+                }
             },
             message: { model in
                 Text(model.subline ?? "")
@@ -48,18 +56,23 @@ struct ElectrumServerSettingsView: View {
 }
 
 // MARK: -
+
 struct ElectrumServerSettingsView_Previews: PreviewProvider {
     static var previews: some View {
         ElectrumServerSettingsView(
             viewModel: CustomElectrumServerBodyModel(
                 onBack: {},
                 switchIsChecked: true,
-                electrumServerRow: .init(title: "Connected to:", sideText: "ssl://bitkey.mempool.space:50002", onClick: {}),
+                electrumServerRow: .init(
+                    title: "Connected to:",
+                    sideText: "ssl://bitkey.mempool.space:50002",
+                    onClick: {}
+                ),
                 onSwitchCheckedChange: { _ in },
                 disableAlertModel: nil
             )
         )
-        
+
         ElectrumServerSettingsView(
             viewModel: CustomElectrumServerBodyModel(
                 onBack: {},

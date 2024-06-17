@@ -15,7 +15,7 @@ import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class FullAccountCloudBackupCreatorImpl(
@@ -28,7 +28,7 @@ class FullAccountCloudBackupCreatorImpl(
     keybox: Keybox,
     sealedCsek: SealedCsek,
   ): Result<CloudBackup, FullAccountCloudBackupCreatorError> =
-    binding {
+    coroutineBinding {
       val endorsedTrustedContacts = socRecRelationshipsRepository
         .syncAndVerifyRelationships(
           accountId = keybox.fullAccountId,

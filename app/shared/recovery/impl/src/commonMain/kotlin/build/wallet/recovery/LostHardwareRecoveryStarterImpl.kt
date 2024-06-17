@@ -5,17 +5,17 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.f8e.recovery.InitiateAccountDelayNotifyService
+import build.wallet.f8e.recovery.InitiateAccountDelayNotifyF8eClient
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CreatedPendingKeybundles
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError.F8eInitiateDelayNotifyError
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError.FailedToPersistRecoveryStateError
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LostHardwareRecoveryStarterImpl(
-  private val initiateAccountDelayNotifyService: InitiateAccountDelayNotifyService,
+  private val initiateAccountDelayNotifyF8eClient: InitiateAccountDelayNotifyF8eClient,
   private val recoveryDao: RecoveryDao,
 ) : LostHardwareRecoveryStarter {
   override suspend fun initiate(
@@ -24,7 +24,7 @@ class LostHardwareRecoveryStarterImpl(
     destinationHardwareKeyBundle: HwKeyBundle,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, InitiateDelayNotifyHardwareRecoveryError> =
-    binding {
+    coroutineBinding {
       // Persist local pending recovery state
       recoveryDao.setLocalRecoveryProgress(
         CreatedPendingKeybundles(
@@ -38,7 +38,7 @@ class LostHardwareRecoveryStarterImpl(
 
       // Initiate delay period with f8e
       val serviceResponse =
-        initiateAccountDelayNotifyService.initiate(
+        initiateAccountDelayNotifyF8eClient.initiate(
           f8eEnvironment = activeKeybox.config.f8eEnvironment,
           fullAccountId = activeKeybox.fullAccountId,
           lostFactor = Hardware,

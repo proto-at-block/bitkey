@@ -1,6 +1,6 @@
 package build.wallet.ktor.result
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.ktor.result.HttpBodyError.DoubleReceiveError
 import build.wallet.ktor.result.HttpBodyError.SerializationError
 import build.wallet.ktor.result.HttpBodyError.UnhandledError
@@ -27,8 +27,7 @@ import okio.ByteString.Companion.toByteString
  * @return [HttpBodyError.UnhandledError] if caught an exception that we don't handle.
  */
 suspend inline fun <reified T> HttpResponse.bodyResult(): Result<T, HttpBodyError> {
-  return Result
-    .catching { body<T>() }
+  return catchingResult { body<T>() }
     .mapError { exception ->
       when (exception) {
         is NoTransformationFoundException -> SerializationError(exception)

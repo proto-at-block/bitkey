@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.demo.DemoModeService
+import build.wallet.f8e.demo.DemoModeF8eClient
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -20,11 +20,10 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.mapBoth
 
 class DemoModeCodeEntryUiStateMachineImpl(
-  private val demoModeService: DemoModeService,
+  private val demoModeF8eClient: DemoModeF8eClient,
   private val delayer: Delayer,
 ) : DemoModeCodeEntryUiStateMachine {
   @Composable
@@ -61,26 +60,29 @@ class DemoModeCodeEntryUiStateMachineImpl(
               onClick = StandardClick { uiState = DemoModeState.DemoCodeEntrySubmissionState },
               size = ButtonModel.Size.Footer
             ),
-          toolbar = ToolbarModel(leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClick = props.onBack))
+          toolbar = ToolbarModel(
+            leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(
+              onClick = props.onBack
+            )
+          )
         ).asModalScreen()
 
       is DemoModeState.DemoCodeEntrySubmissionState -> {
         LaunchedEffect("submit-demo-code") {
-          val result = delayer.withMinimumDelay {
-            demoModeService.initiateDemoMode(
+          delayer.withMinimumDelay {
+            demoModeF8eClient.initiateDemoMode(
               f8eEnvironment = props.accountData.templateFullAccountConfigData.config.f8eEnvironment,
               code = demoModeCode
             )
-          }
-          when (result) {
-            is Err -> {
+          }.mapBoth(
+            success = {
               uiState = DemoModeState.DemoCodeEntryIdleState
-            }
-            is Ok -> {
+            },
+            failure = {
               uiState = DemoModeState.DemoCodeEntryIdleState
               props.onCodeSuccess()
             }
-          }
+          )
         }
         LoadingBodyModel(
           id = DemoCodeTrackerScreenId.DEMO_MODE_CODE_SUBMISSION,

@@ -10,10 +10,10 @@ import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
-import build.wallet.f8e.notifications.NotificationTouchpointServiceMock
-import build.wallet.f8e.notifications.NotificationTouchpointServiceMock.ActivateTouchpointParams
-import build.wallet.f8e.notifications.NotificationTouchpointServiceMock.AddTouchpointParams
-import build.wallet.f8e.notifications.NotificationTouchpointServiceMock.VerifyTouchpointParams
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.ActivateTouchpointParams
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.AddTouchpointParams
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock.VerifyTouchpointParams
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.HttpError.UnhandledException
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
@@ -62,7 +62,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   val onSkipCalls = turbines.create<Unit>("on skip calls")
 
   val notificationTouchpointDao = NotificationTouchpointDaoMock(turbines::create)
-  val notificationTouchpointService = NotificationTouchpointServiceMock(turbines::create)
+  val notificationTouchpointF8eClient = NotificationTouchpointF8eClientMock(turbines::create)
 
   val stateMachine =
     NotificationTouchpointInputAndVerificationUiStateMachineImpl(
@@ -72,7 +72,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
           "email-input"
         ) {},
       notificationTouchpointDao = notificationTouchpointDao,
-      notificationTouchpointService = notificationTouchpointService,
+      notificationTouchpointF8eClient = notificationTouchpointF8eClient,
       phoneNumberInputUiStateMachine =
         object : PhoneNumberInputUiStateMachine, ScreenStateMachineMock<PhoneNumberInputUiProps>(
           "phone-number-input"
@@ -108,7 +108,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   beforeTest {
     notificationTouchpointDao.reset()
-    notificationTouchpointService.reset()
+    notificationTouchpointF8eClient.reset()
   }
 
   // Helper function to test both email and phone number through sending the verification code
@@ -119,7 +119,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     val phoneNumber = PhoneNumberMock.copy(countryDialingCode = 3)
     val email = EmailFake.copy("abc@123.com")
 
-    notificationTouchpointService.addTouchpointResult =
+    notificationTouchpointF8eClient.addTouchpointResult =
       Ok(
         when (touchpointType) {
           PhoneNumber -> PhoneNumberMock.touchpoint()
@@ -140,7 +140,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     }
 
     // Sending touchpoint to server, the loading is happening in the input screen
-    val addTouchpointCalls = notificationTouchpointService.addTouchpointCalls.awaitItem()
+    val addTouchpointCalls = notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
     with(addTouchpointCalls.shouldBeInstanceOf<AddTouchpointParams>().touchpoint) {
       when (touchpointType) {
         PhoneNumber -> shouldBeInstanceOf<PhoneNumberTouchpoint>().value.shouldBe(phoneNumber)
@@ -157,7 +157,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
     awaitScreenWithBody<LoadingSuccessBodyModel> {
       state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
     }
-    with(notificationTouchpointService.verifyTouchpointCalls.awaitItem()) {
+    with(notificationTouchpointF8eClient.verifyTouchpointCalls.awaitItem()) {
       shouldBeTypeOf<VerifyTouchpointParams>()
       touchpointId.shouldBe(touchpointId)
       verificationCode.shouldBe(code)
@@ -173,7 +173,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         awaitScreenWithBody<LoadingSuccessBodyModel> {
           state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
         }
-        with(notificationTouchpointService.activateTouchpointCalls.awaitItem()) {
+        with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
           shouldBeTypeOf<ActivateTouchpointParams>()
           hwFactorProofOfPossession.shouldBeNull()
         }
@@ -224,7 +224,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         awaitScreenWithBody<LoadingSuccessBodyModel> {
           state.shouldBeTypeOf<LoadingSuccessBodyModel.State.Loading>()
         }
-        with(notificationTouchpointService.activateTouchpointCalls.awaitItem()) {
+        with(notificationTouchpointF8eClient.activateTouchpointCalls.awaitItem()) {
           shouldBeTypeOf<ActivateTouchpointParams>()
           touchpointId.shouldBe(touchpointId)
           hwFactorProofOfPossession.shouldBe(hwProofOfPossession)
@@ -243,7 +243,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("send touchpoint server failure") {
     val onErrorCalls = turbines.create<Unit>("on error server failure calls")
-    notificationTouchpointService.addTouchpointResult =
+    notificationTouchpointF8eClient.addTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
     stateMachine.test(props) {
       // Entering phone number
@@ -254,7 +254,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       // Sending number to server, the loading and error is happening in the input screen
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // The error should have been sent to the phone input screen to show
       onErrorCalls.awaitItem()
@@ -262,7 +262,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   }
 
   test("send verification code server failure - connectivity") {
-    notificationTouchpointService.verifyTouchpointResult =
+    notificationTouchpointF8eClient.verifyTouchpointResult =
       Err(F8eError.ConnectivityError(NetworkError(Throwable())))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
@@ -289,7 +289,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   }
 
   test("send verification code server failure - request error") {
-    notificationTouchpointService.verifyTouchpointResult =
+    notificationTouchpointF8eClient.verifyTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
@@ -326,7 +326,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   }
 
   test("send verification code server failure - code expiration") {
-    notificationTouchpointService.verifyTouchpointResult =
+    notificationTouchpointF8eClient.verifyTouchpointResult =
       Err(SpecificClientErrorMock(VerifyTouchpointClientErrorCode.CODE_EXPIRED))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
@@ -363,7 +363,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   }
 
   test("send verification code server failure - code incorrect") {
-    notificationTouchpointService.verifyTouchpointResult =
+    notificationTouchpointF8eClient.verifyTouchpointResult =
       Err(SpecificClientErrorMock(VerifyTouchpointClientErrorCode.CODE_MISMATCH))
     // Test the flow for both phone and email
     listOf(PhoneNumber, Email).forEach { touchpointType ->
@@ -392,7 +392,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
 
   test("verify code entry goes back to prefilled touchpoint entry") {
     val phoneNumber = PhoneNumberMock
-    notificationTouchpointService.addTouchpointResult = Ok(phoneNumber.touchpoint())
+    notificationTouchpointF8eClient.addTouchpointResult = Ok(phoneNumber.touchpoint())
     stateMachine.test(props) {
       // Entering phone number
       awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
@@ -400,7 +400,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       // Sending number to server, the loading is happening in the input screen
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // Entering verification code
       awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
@@ -415,7 +415,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   }
 
   test("resend code on verify code input screen for sms") {
-    notificationTouchpointService.addTouchpointResult = Ok(PhoneNumberMock.touchpoint())
+    notificationTouchpointF8eClient.addTouchpointResult = Ok(PhoneNumberMock.touchpoint())
     stateMachine.test(props) {
       // Entering phone number
       awaitScreenWithBodyModelMock<PhoneNumberInputUiProps> {
@@ -423,21 +423,21 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       // Sending number to server, the loading is happening in the input screen
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // Entering verification code
       awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
         onResendCode(ResendCodeCallbacks({}, {}))
       }
 
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
       awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
       awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
     }
   }
 
   test("going back from verifying email fills in the email input") {
-    notificationTouchpointService.addTouchpointResult = Ok(EmailFake.touchpoint())
+    notificationTouchpointF8eClient.addTouchpointResult = Ok(EmailFake.touchpoint())
     stateMachine.test(props.copy(touchpointType = Email)) {
       // Entering email
       awaitScreenWithBodyModelMock<EmailInputUiProps> {
@@ -445,7 +445,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       // Loading, sending email to the server
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
         onBack()
@@ -458,7 +458,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
   }
 
   test("properly recover from failure to send email to server") {
-    notificationTouchpointService.addTouchpointResult =
+    notificationTouchpointF8eClient.addTouchpointResult =
       Err(F8eError.UnhandledException(UnhandledException(Throwable())))
     stateMachine.test(props.copy(touchpointType = Email)) {
       // Entering email
@@ -466,12 +466,12 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         onEmailEntered(EmailFake) {}
       }
 
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
     }
   }
 
   test("resend code on verify code input screen for email") {
-    notificationTouchpointService.addTouchpointResult = Ok(EmailFake.touchpoint())
+    notificationTouchpointF8eClient.addTouchpointResult = Ok(EmailFake.touchpoint())
     stateMachine.test(props.copy(touchpointType = Email)) {
       // Entering email
       awaitScreenWithBodyModelMock<EmailInputUiProps> {
@@ -479,21 +479,21 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
       }
 
       // Loading, sending email to the server
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
 
       // Entering verification code
       awaitScreenWithBodyModelMock<VerificationCodeInputProps> {
         onResendCode(ResendCodeCallbacks({}, {}))
       }
 
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
       awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
       awaitScreenWithBodyModelMock<VerificationCodeInputProps>()
     }
   }
 
   test("recover from invalid country code") {
-    notificationTouchpointService.addTouchpointResult =
+    notificationTouchpointF8eClient.addTouchpointResult =
       Err(SpecificClientErrorMock(AddTouchpointClientErrorCode.UNSUPPORTED_COUNTRY_CODE))
     stateMachine.test(props.copy(touchpointType = PhoneNumber)) {
       // Entering phone number
@@ -503,7 +503,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImplTests : FunSpe
         }
       }
 
-      notificationTouchpointService.addTouchpointCalls.awaitItem()
+      notificationTouchpointF8eClient.addTouchpointCalls.awaitItem()
     }
   }
 })

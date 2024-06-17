@@ -2,7 +2,6 @@ fpc_features = [
   '-DSENSOR=fpc_bep_sensor_1523s',
   '-DALGORITHM=fpc_bep_algorithm_pfe_1523s',
   '-DFPC_LOG_LEVEL_DEBUG',
-  '-DENROLL_REQUIRED_SAMPLES=12',
 ]
 
 # Set this to modify normal biometrics library behavior to allow

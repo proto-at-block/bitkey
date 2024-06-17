@@ -2,7 +2,8 @@ package build.wallet.statemachine.settings.full.device.resetdevice.intro
 
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -14,9 +15,9 @@ interface ResettingDeviceIntroUiStateMachine : StateMachine<ResettingDeviceIntro
 data class ResettingDeviceIntroProps(
   val onBack: () -> Unit,
   val onUnwindToMoneyHome: () -> Unit,
-  val onDeviceConfirmed: () -> Unit,
-  val spendingWallet: SpendingWallet,
-  val keybox: Keybox,
-  val balance: BitcoinBalance,
-  val isHardwareFake: Boolean,
+  val onDeviceConfirmed: (pairedDevice: Boolean) -> Unit,
+  val fullAccountConfig: FullAccountConfig,
+  val fullAccount: FullAccount?,
+  val spendingWallet: SpendingWallet?,
+  val balance: BitcoinBalance?,
 )

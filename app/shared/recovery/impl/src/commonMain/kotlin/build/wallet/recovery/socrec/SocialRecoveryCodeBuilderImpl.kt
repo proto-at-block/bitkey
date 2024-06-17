@@ -66,7 +66,10 @@ class SocialRecoveryCodeBuilderImpl(
           base32Encoding
             .encode(it.toFixedSizeByteArray(bufSize).toByteString())
             .mapError { error ->
-              SocialRecoveryCodeEncodingError(message = "Error encoding invite code.", cause = error)
+              SocialRecoveryCodeEncodingError(
+                message = "Error encoding invite code.",
+                cause = error
+              )
             }
             .bind()
             .take(totalLength / Base32Encoding.BITS_PER_CHAR)
@@ -130,7 +133,8 @@ class SocialRecoveryCodeBuilderImpl(
   ): Result<InviteCodeParts, SocialRecoveryCodeBuilderError> =
     binding {
       val inviteCode = inviteCode.toSanitizedCode()
-      val expectedMinBitLength = (InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + InviteSchema.MIN_SERVER_BITS + InviteSchema.CRC_BITS)
+      val expectedMinBitLength =
+        (InviteSchema.VERSION_BITS + InviteSchema.PAKE_BITS + InviteSchema.MIN_SERVER_BITS + InviteSchema.CRC_BITS)
       val expectedMinCharacters = expectedMinBitLength / Base32Encoding.BITS_PER_CHAR
 
       ensure(inviteCode.length >= expectedMinCharacters) {
@@ -138,7 +142,8 @@ class SocialRecoveryCodeBuilderImpl(
           "Invalid code length. Got ${inviteCode.length}, but expected at least $expectedMinCharacters."
         )
       }
-      val serverBits = inviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
+      val serverBits =
+        inviteCode.length * 5 - InviteSchema.VERSION_BITS - InviteSchema.PAKE_BITS - InviteSchema.CRC_BITS
 
       val data = base32Encoding
         .decode(inviteCode.alignBase32Code())
@@ -160,7 +165,8 @@ class SocialRecoveryCodeBuilderImpl(
 
       val crc = data.shr(padding).and(createMask(InviteSchema.CRC_BITS)).byteValue()
       val serverPart = data.shr(padding + InviteSchema.CRC_BITS).and(createMask(serverBits))
-      val pakePart = data.shr(padding + InviteSchema.CRC_BITS + serverBits).and(createMask(InviteSchema.PAKE_BITS))
+      val pakePart =
+        data.shr(padding + InviteSchema.CRC_BITS + serverBits).and(createMask(InviteSchema.PAKE_BITS))
       val calculatedCrc = calculateCrc(
         version = version,
         pakeData = pakePart,
@@ -211,7 +217,8 @@ class SocialRecoveryCodeBuilderImpl(
     }
     val significantBits = (fullData.bitLength() - 1)
     val data = fullData.removePreambleBit()
-    val fixedDataLength = RecoverySchema.VERSION_BITS + RecoverySchema.PAKE_BITS + RecoverySchema.CRC_BITS
+    val fixedDataLength =
+      RecoverySchema.VERSION_BITS + RecoverySchema.PAKE_BITS + RecoverySchema.CRC_BITS
 
     if (significantBits < fixedDataLength) {
       return Err(
@@ -229,7 +236,8 @@ class SocialRecoveryCodeBuilderImpl(
 
     val crc = data.and(createMask(RecoverySchema.CRC_BITS)).byteValue()
     val serverPart = data.shr(RecoverySchema.CRC_BITS).and(createMask(serverPartLength))
-    val pakePart = data.shr(serverPartLength + RecoverySchema.CRC_BITS).and(createMask(RecoverySchema.PAKE_BITS))
+    val pakePart =
+      data.shr(serverPartLength + RecoverySchema.CRC_BITS).and(createMask(RecoverySchema.PAKE_BITS))
     val calculatedCrc = calculateCrc(
       version = version,
       pakeData = pakePart,
@@ -245,7 +253,10 @@ class SocialRecoveryCodeBuilderImpl(
 
     return RecoveryCodeParts(
       serverPart = serverPart.intValue(true),
-      pakePart = PakeCode(pakePart.shl(insignificantPakeBits).toFixedSizeByteArray(RecoverySchema.PAKE_BITS.bitLengthToByteArraySize()).toByteString())
+      pakePart = PakeCode(
+        pakePart.shl(insignificantPakeBits)
+          .toFixedSizeByteArray(RecoverySchema.PAKE_BITS.bitLengthToByteArraySize()).toByteString()
+      )
     ).let(::Ok)
   }
 

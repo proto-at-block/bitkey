@@ -11,7 +11,6 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.transaction.NfcTransaction
 import build.wallet.nfc.transaction.SignChallengeAndCsek.SignedChallengeAndCsek
-import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 import build.wallet.time.durationProgress
 import build.wallet.time.nonNegativeDurationBetween
@@ -208,7 +207,8 @@ sealed interface RecoveryInProgressData {
      * complete.
      */
     data class PerformingSweepData(
-      val sweepData: SweepData,
+      val physicalFactor: PhysicalFactor,
+      val keybox: Keybox,
       val rollback: () -> Unit,
     ) : CompletingRecoveryData
 

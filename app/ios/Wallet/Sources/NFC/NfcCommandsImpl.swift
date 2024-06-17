@@ -1,5 +1,5 @@
-import firmware
 import CoreNFC
+import firmware
 import Shared
 
 public final class NfcCommandsImpl: NfcCommands {
@@ -9,7 +9,7 @@ public final class NfcCommandsImpl: NfcCommands {
         patchSize: KotlinUInt?,
         fwupMode: Shared.FwupMode
     ) async throws -> KotlinBoolean {
-        return .init(bool: try await FwupStart(
+        return try await .init(bool: FwupStart(
             patchSize: patchSize?.uint32Value,
             fwupMode: fwupMode.toCoreFwupMode()
         ).transceive(session: session))
@@ -22,9 +22,9 @@ public final class NfcCommandsImpl: NfcCommands {
         offset: UInt32,
         fwupMode: Shared.FwupMode
     ) async throws -> KotlinBoolean {
-        return .init(bool: try await FwupTransfer(
+        return try await .init(bool: FwupTransfer(
             sequenceId: sequenceId,
-            fwupData: fwupData.map { $0.uint8Value },
+            fwupData: fwupData.map(\.uint8Value),
             offset: offset,
             fwupMode: fwupMode.toCoreFwupMode()
         ).transceive(session: session))
@@ -44,16 +44,21 @@ public final class NfcCommandsImpl: NfcCommands {
     }
 
     public func getAuthenticationKey(session: NfcSession) async throws -> HwAuthPublicKey {
-        return .init(pubKey: .init(value: try await GetAuthenticationKey()
-            .transceive(session: session)))
+        return try await .init(pubKey: .init(
+            value: GetAuthenticationKey()
+                .transceive(session: session)
+        ))
     }
 
     public func getCoredumpCount(session: NfcSession) async throws -> KotlinInt {
-        return .init(int: Int32(try await GetCoredumpCount().transceive(session: session)))
+        return try await .init(int: Int32(GetCoredumpCount().transceive(session: session)))
     }
 
-    public func getCoredumpFragment(session: NfcSession, offset: Int32) async throws -> Shared.CoredumpFragment {
-        let fragment = try await GetCoredumpFragment(offset: UInt32(offset)).transceive(session: session)
+    public func getCoredumpFragment(session: NfcSession, offset: Int32) async throws -> Shared
+        .CoredumpFragment
+    {
+        let fragment = try await GetCoredumpFragment(offset: UInt32(offset))
+            .transceive(session: session)
         return .init(
             data: fragment.data.map { KotlinUByte(value: $0) },
             offset: fragment.offset,
@@ -63,17 +68,29 @@ public final class NfcCommandsImpl: NfcCommands {
     }
 
     public func getDeviceInfo(session: NfcSession) async throws -> Shared.FirmwareDeviceInfo {
-        return .init(coreDeviceInfo: try await GetDeviceInfo()
-            .transceive(session: session))
+        return try await .init(
+            coreDeviceInfo: GetDeviceInfo()
+                .transceive(session: session)
+        )
     }
 
     public func getEvents(session: NfcSession) async throws -> Shared.EventFragment {
         let events = try await GetEvents().transceive(session: session)
-        return .init(fragment: events.fragment.map { KotlinUByte(value: $0) }, remainingSize: events.remainingSize)
+        return .init(
+            fragment: events.fragment.map { KotlinUByte(value: $0) },
+            remainingSize: events.remainingSize
+        )
     }
 
-    public func getFingerprintEnrollmentStatus(session: NfcSession, isEnrollmentContextAware: Bool) async throws -> Shared.FingerprintEnrollmentStatus {
-        let status = try await GetFingerprintEnrollmentStatus(isEnrollmentContextAware:isEnrollmentContextAware).transceive(session: session)
+    public func getFingerprintEnrollmentStatus(
+        session: NfcSession,
+        isEnrollmentContextAware: Bool
+    ) async throws -> Shared.FingerprintEnrollmentStatus {
+        let status =
+            try await GetFingerprintEnrollmentStatus(
+                isEnrollmentContextAware: isEnrollmentContextAware
+            )
+            .transceive(session: session)
         switch status {
         case .statusUnspecified:
             return .unspecified
@@ -85,56 +102,75 @@ public final class NfcCommandsImpl: NfcCommands {
             return .notInProgress
         }
     }
-    
+
     public func deleteFingerprint(session: NfcSession, index: Int32) async throws -> KotlinBoolean {
-        return .init(bool: try await DeleteFingerprint(
+        return try await .init(bool: DeleteFingerprint(
             index: UInt32(index)
         ).transceive(session: session))
     }
-    
-    public func getEnrolledFingerprints(session: NfcSession) async throws -> Shared.EnrolledFingerprints {
-        return try await GetEnrolledFingerprints().transceive(session: session).toSharedEnrolledFingerprints()
+
+    public func getEnrolledFingerprints(session: NfcSession) async throws -> Shared
+        .EnrolledFingerprints
+    {
+        return try await GetEnrolledFingerprints().transceive(session: session)
+            .toSharedEnrolledFingerprints()
     }
-    
+
     public func getUnlockMethod(session: NfcSession) async throws -> Shared.UnlockInfo {
         return try await GetUnlockMethod().transceive(session: session).toSharedUnlockInfo()
     }
-    
-    public func setFingerprintLabel(session: NfcSession, fingerprintHandle: Shared.FingerprintHandle) async throws -> KotlinBoolean {
-        return .init(bool: try await SetFingerprintLabel(
+
+    public func setFingerprintLabel(
+        session: NfcSession,
+        fingerprintHandle: Shared.FingerprintHandle
+    ) async throws -> KotlinBoolean {
+        return try await .init(bool: SetFingerprintLabel(
             index: UInt32(fingerprintHandle.index),
             label: fingerprintHandle.label
-                                                        ).transceive(session: session))
+        ).transceive(session: session))
     }
-    
+
     public func cancelFingerprintEnrollment(session: NfcSession) async throws -> KotlinBoolean {
-        return .init(bool: try await CancelFingerprintEnrollment().transceive(session: session))
+        return try await .init(bool: CancelFingerprintEnrollment().transceive(session: session))
     }
-    
+
     public func getFirmwareMetadata(session: NfcSession) async throws -> Shared.FirmwareMetadata {
-        return .init(coreMetadata: try await GetFirmwareMetadata()
-            .transceive(session: session))
+        return try await .init(
+            coreMetadata: GetFirmwareMetadata()
+                .transceive(session: session)
+        )
     }
 
-    public func getInitialSpendingKey(session: NfcSession, network: BitcoinNetworkType) async throws -> HwSpendingPublicKey {
-        return .init(dpub: try await GetInitialSpendingKey(network: network.btcNetwork)
-            .transceive(session: session))
+    public func getInitialSpendingKey(
+        session: NfcSession,
+        network: BitcoinNetworkType
+    ) async throws -> HwSpendingPublicKey {
+        return try await .init(
+            dpub: GetInitialSpendingKey(network: network.btcNetwork)
+                .transceive(session: session)
+        )
     }
 
-    public func getNextSpendingKey(session: NfcSession, existingDescriptorPublicKeys: [HwSpendingPublicKey], network: BitcoinNetworkType) async throws -> HwSpendingPublicKey {
-        return .init(dpub: try await GetNextSpendingKey(
-            existing: existingDescriptorPublicKeys.map { $0.key.dpub },
+    public func getNextSpendingKey(
+        session: NfcSession,
+        existingDescriptorPublicKeys: [HwSpendingPublicKey],
+        network: BitcoinNetworkType
+    ) async throws -> HwSpendingPublicKey {
+        return try await .init(dpub: GetNextSpendingKey(
+            existing: existingDescriptorPublicKeys.map(\.key.dpub),
             network: network.btcNetwork
         ).transceive(session: session))
     }
 
     public func lockDevice(session: NfcSession) async throws -> KotlinBoolean {
-        return .init(bool: try await LockDevice().transceive(session: session))
+        return try await .init(bool: LockDevice().transceive(session: session))
     }
 
     public func queryAuthentication(session: NfcSession) async throws -> KotlinBoolean {
-        return .init(bool: try await QueryAuthentication()
-            .transceive(session: session))
+        return try await .init(
+            bool: QueryAuthentication()
+                .transceive(session: session)
+        )
     }
 
     public func sealKey(session: NfcSession, unsealedKey: Csek) async throws -> OkioByteString {
@@ -144,15 +180,22 @@ public final class NfcCommandsImpl: NfcCommands {
         return OkioKt.ByteString(data: Data(sealedKey))
     }
 
-    public func signChallenge(session: NfcSession, challenge: OkioByteString) async throws -> String {
+    public func signChallenge(
+        session: NfcSession,
+        challenge: OkioByteString
+    ) async throws -> String {
         return try await SignChallenge(challenge: challenge.toByteArray().asUInt8Array())
             .transceive(session: session)
     }
 
-    public func signTransaction(session: NfcSession, psbt: Psbt, spendingKeyset: SpendingKeyset) async throws -> Psbt {
-        return .init(
+    public func signTransaction(
+        session: NfcSession,
+        psbt: Psbt,
+        spendingKeyset _: SpendingKeyset
+    ) async throws -> Psbt {
+        return try await .init(
             id: psbt.id,
-            base64: try await SignTransaction(serializedPsbt: psbt.base64).transceive(session: session),
+            base64: SignTransaction(serializedPsbt: psbt.base64).transceive(session: session),
             fee: psbt.fee,
             baseSize: psbt.baseSize,
             numOfInputs: psbt.numOfInputs,
@@ -160,41 +203,59 @@ public final class NfcCommandsImpl: NfcCommands {
         )
     }
 
-    public func startFingerprintEnrollment(session: NfcSession, fingerprintHandle: Shared.FingerprintHandle) async throws -> KotlinBoolean {
-        return .init(bool: try await StartFingerprintEnrollment(
+    public func startFingerprintEnrollment(
+        session: NfcSession,
+        fingerprintHandle: Shared.FingerprintHandle
+    ) async throws -> KotlinBoolean {
+        return try await .init(bool: StartFingerprintEnrollment(
             index: UInt32(fingerprintHandle.index), label: fingerprintHandle.label
         ).transceive(session: session))
     }
 
-    public func unsealKey(session: NfcSession, sealedKey: [KotlinUByte]) async throws -> [KotlinUByte] {
-        return try await UnsealKey(sealedKey: sealedKey.map { $0.uint8Value })
+    public func unsealKey(
+        session: NfcSession,
+        sealedKey: [KotlinUByte]
+    ) async throws -> [KotlinUByte] {
+        return try await UnsealKey(sealedKey: sealedKey.map(\.uint8Value))
             .transceive(session: session)
-            .map { KotlinUByte(value: $0)}
+            .map { KotlinUByte(value: $0) }
     }
 
     public func version(session: NfcSession) async throws -> KotlinUShort {
-        return .init(unsignedShort: try await Version().transceive(session: session))
+        return try await .init(unsignedShort: Version().transceive(session: session))
     }
 
     public func wipeDevice(session: NfcSession) async throws -> KotlinBoolean {
-        return .init(bool: try await WipeState().transceive(session: session))
+        return try await .init(bool: WipeState().transceive(session: session))
     }
 
-    public func getFirmwareFeatureFlags(session: NfcSession) async throws -> [Shared.FirmwareFeatureFlagCfg] {
-        return try await GetFirmwareFeatureFlags().transceive(session: session).map { $0.toSharedFirmwareFeatureFlagCfg() }
+    public func getFirmwareFeatureFlags(session: NfcSession) async throws
+        -> [Shared.FirmwareFeatureFlagCfg]
+    {
+        return try await GetFirmwareFeatureFlags().transceive(session: session)
+            .map { $0.toSharedFirmwareFeatureFlagCfg() }
     }
 
-    public func getCert(session: NfcSession, certType: FirmwareCertType) async throws -> [KotlinUByte] {
+    public func getCert(
+        session: NfcSession,
+        certType: FirmwareCertType
+    ) async throws -> [KotlinUByte] {
         return try await GetCert(kind: certType.toCoreCertType()).transceive(session: session)
             .map { KotlinUByte(value: $0) }
     }
 
-
-    public func signVerifyAttestationChallenge(session: NfcSession, deviceIdentityDer: [KotlinUByte], challenge: [KotlinUByte]) async throws -> KotlinBoolean {
-        return .init(bool: try await SignVerifyAttestationChallenge(
-                        deviceIdentityDer: deviceIdentityDer.map { $0.uint8Value },
-                        challenge: challenge.map { $0.uint8Value })
-                .transceive(session: session))
+    public func signVerifyAttestationChallenge(
+        session: NfcSession,
+        deviceIdentityDer: [KotlinUByte],
+        challenge: [KotlinUByte]
+    ) async throws -> KotlinBoolean {
+        return try await .init(
+            bool: SignVerifyAttestationChallenge(
+                deviceIdentityDer: deviceIdentityDer.map(\.uint8Value),
+                challenge: challenge.map(\.uint8Value)
+            )
+            .transceive(session: session)
+        )
     }
 }
 
@@ -227,11 +288,30 @@ private extension FwupFinishRspStatus {
 private extension firmware.FirmwareFeatureFlagCfg {
     func toSharedFirmwareFeatureFlagCfg() -> Shared.FirmwareFeatureFlagCfg {
         switch self.flag {
-        case .deviceInfoFlag: return Shared.FirmwareFeatureFlagCfg(flag: Shared.FirmwareFeatureFlag.deviceInfoFlag, enabled: self.enabled)
-        case .rateLimitTemplateUpdate: return Shared.FirmwareFeatureFlagCfg(flag: Shared.FirmwareFeatureFlag.rateLimitTemplateUpdate, enabled: self.enabled)
-        case .telemetry: return Shared.FirmwareFeatureFlagCfg(flag: Shared.FirmwareFeatureFlag.telemetry, enabled: self.enabled)
-        case .unlock: return Shared.FirmwareFeatureFlagCfg(flag: Shared.FirmwareFeatureFlag.unlock, enabled: self.enabled)
-        case .multipleFingerprints : return Shared.FirmwareFeatureFlagCfg(flag: Shared.FirmwareFeatureFlag.multipleFingerprints, enabled: self.enabled)
+        case .deviceInfoFlag: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.deviceInfoFlag,
+                enabled: self.enabled
+            )
+        case .rateLimitTemplateUpdate: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.rateLimitTemplateUpdate,
+                enabled: self.enabled
+            )
+        case .telemetry: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.telemetry,
+                enabled: self.enabled
+            )
+        case .unlock: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.unlock,
+                enabled: self.enabled
+            )
+        case .multipleFingerprints: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.multipleFingerprints,
+                enabled: self.enabled
+            )
+        case .improvedFingerprintEnrollment: return Shared.FirmwareFeatureFlagCfg(
+                flag: Shared.FirmwareFeatureFlag.improvedFingerprintEnrollment,
+                enabled: self.enabled
+            )
         }
     }
 }
@@ -248,16 +328,20 @@ private extension FirmwareCertType {
 
 private extension firmware.EnrolledFingerprints {
     func toSharedEnrolledFingerprints() -> Shared.EnrolledFingerprints {
-        return Shared.EnrolledFingerprints(maxCount: Int32(self.maxCount),
-                                           fingerprintHandles: self.fingerprints.map({ $0.toSharedFingerprintHandle()})
+        return Shared.EnrolledFingerprints(
+            maxCount: Int32(self.maxCount),
+            fingerprintHandles: self.fingerprints
+                .map { $0.toSharedFingerprintHandle() }
         )
     }
 }
 
 private extension firmware.UnlockInfo {
     func toSharedUnlockInfo() -> Shared.UnlockInfo {
-        return Shared.UnlockInfo(unlockMethod: self.method.toSharedUnlockMethod(),
-                                 fingerprintIdx: self.fingerprintIndex.map({ KotlinInt(int: Int32($0)) })
+        return Shared.UnlockInfo(
+            unlockMethod: self.method.toSharedUnlockMethod(),
+            fingerprintIdx: self.fingerprintIndex
+                .map { KotlinInt(int: Int32($0)) }
         )
     }
 }

@@ -1,9 +1,9 @@
-import Foundation
-import CryptoKit
-import Shared
 import core
+import CryptoKit
+import Foundation
+import Shared
 
-public class SymmetricKeyEncryptorImpl : SymmetricKeyEncryptor {
+public class SymmetricKeyEncryptorImpl: SymmetricKeyEncryptor {
     let cipher = XChaCha20Poly1305Impl()
 
     public init() {}
@@ -18,8 +18,15 @@ public class SymmetricKeyEncryptorImpl : SymmetricKeyEncryptor {
         )
     }
 
-    public func unseal(sealedData: Shared.SealedData, key: Shared.SymmetricKey) throws -> OkioByteString {
-        return try cipher.decryptNoMetadata(key: key, sealedData: sealedData, aad: OkioKt.ByteString(data: Data()))
+    public func unseal(
+        sealedData: Shared.SealedData,
+        key: Shared.SymmetricKey
+    ) throws -> OkioByteString {
+        return try cipher.decryptNoMetadata(
+            key: key,
+            sealedData: sealedData,
+            aad: OkioKt.ByteString(data: Data())
+        )
     }
 
 }

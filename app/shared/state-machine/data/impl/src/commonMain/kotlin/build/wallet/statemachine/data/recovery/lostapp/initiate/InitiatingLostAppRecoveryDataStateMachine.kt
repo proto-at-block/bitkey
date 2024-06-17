@@ -16,16 +16,16 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.recovery.HardwareKeysForRecovery
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.f8e.auth.AuthenticationService
-import build.wallet.f8e.auth.AuthenticationService.InitiateAuthenticationSuccess
+import build.wallet.f8e.auth.AuthF8eClient
+import build.wallet.f8e.auth.AuthF8eClient.InitiateAuthenticationSuccess
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode.COMMS_VERIFICATION_REQUIRED
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode.RECOVERY_ALREADY_EXISTS
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryService
-import build.wallet.f8e.recovery.ListKeysetsService
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
+import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.LostAppRecoveryAuthenticator
@@ -93,9 +93,9 @@ data class InitiatingLostAppRecoveryProps(
 
 class InitiatingLostAppRecoveryDataStateMachineImpl(
   private val appKeysGenerator: AppKeysGenerator,
-  private val authenticationService: AuthenticationService,
-  private val listKeysetsService: ListKeysetsService,
-  private val cancelDelayNotifyRecoveryService: CancelDelayNotifyRecoveryService,
+  private val authF8eClient: AuthF8eClient,
+  private val listKeysetsF8eClient: ListKeysetsF8eClient,
+  private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val lostAppRecoveryInitiator: LostAppRecoveryInitiator,
   private val lostAppRecoveryAuthenticator: LostAppRecoveryAuthenticator,
   private val recoveryNotificationVerificationDataStateMachine:
@@ -198,7 +198,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
               .generateKeyBundle(props.fullAccountConfig.bitcoinNetworkType)
               .andThen { newAppKeys ->
                 // Get existing keysets
-                listKeysetsService
+                listKeysetsF8eClient
                   .listKeysets(
                     f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
                     fullAccountId = FullAccountId(dataState.authChallenge.accountId)
@@ -398,7 +398,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
 
         is CancellingConflictingRecoveryWithF8eState -> {
           LaunchedEffect("cancel-existing-recovery") {
-            cancelDelayNotifyRecoveryService.cancel(
+            cancelDelayNotifyRecoveryF8eClient.cancel(
               f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
               fullAccountId = FullAccountId(dataState.authChallenge.accountId),
               hwFactorProofOfPossession = dataState.hwFactorProofOfPossession
@@ -473,7 +473,7 @@ class InitiatingLostAppRecoveryDataStateMachineImpl(
     props: InitiatingLostAppRecoveryProps,
     state: InitiatingHardwareAuthWithF8eState,
   ): Result<InitiateAuthenticationSuccess, Error> =
-    authenticationService
+    authF8eClient
       .initiateAuthentication(
         f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
         authPublicKey = state.hardwareAuthKey

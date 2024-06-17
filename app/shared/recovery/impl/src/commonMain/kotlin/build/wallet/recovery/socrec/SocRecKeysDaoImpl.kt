@@ -9,7 +9,7 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
@@ -26,7 +26,7 @@ class SocRecKeysDaoImpl(
   override suspend fun <T : SocRecKey> getKeyWithPrivateMaterial(
     keyClass: KClass<T>,
   ): Result<AppKey<T>, SocRecKeyError> =
-    binding {
+    coroutineBinding {
       val publicKey = getPublicKey<T>(SocRecKeyPurpose.fromKeyType(keyClass)).bind()
       val privateKey =
         appPrivateKeyDao.getAsymmetricPrivateKey(publicKey)
@@ -49,7 +49,7 @@ class SocRecKeysDaoImpl(
   private suspend fun <T : SocRecKey> saveKey(
     purpose: SocRecKeyPurpose,
     appKey: AppKey<T>,
-  ) = binding {
+  ) = coroutineBinding {
     val db = databaseProvider.database()
 
     appPrivateKeyDao.storeAsymmetricPrivateKey(

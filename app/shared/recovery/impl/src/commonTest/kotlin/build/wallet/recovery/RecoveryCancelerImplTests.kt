@@ -8,7 +8,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryServiceMock
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.ktor.result.HttpError.ServerError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.testing.shouldBeErrOfType
@@ -19,7 +19,7 @@ import io.ktor.http.HttpStatusCode.Companion.InternalServerError
 
 class RecoveryCancelerImplTests : FunSpec({
 
-  val cancelDelayNotifyRecoveryService = CancelDelayNotifyRecoveryServiceMock(turbines::create)
+  val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
   val recoverySyncer =
     RecoverySyncerMock(
       StillRecoveringInitiatedRecoveryMock,
@@ -27,7 +27,7 @@ class RecoveryCancelerImplTests : FunSpec({
     )
   val canceler =
     RecoveryCancelerImpl(
-      cancelDelayNotifyRecoveryService = cancelDelayNotifyRecoveryService,
+      cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient,
       recoverySyncer = recoverySyncer
     )
 
@@ -40,7 +40,7 @@ class RecoveryCancelerImplTests : FunSpec({
     )
 
   beforeTest {
-    cancelDelayNotifyRecoveryService.reset()
+    cancelDelayNotifyRecoveryF8eClient.reset()
     recoverySyncer.reset()
   }
 
@@ -48,21 +48,21 @@ class RecoveryCancelerImplTests : FunSpec({
     canceler.cancel().shouldBeOkOfType<Unit>()
 
     recoverySyncer.clearCalls.awaitItem()
-    cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+    cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
   test("success - ignore general 400") {
-    cancelDelayNotifyRecoveryService.cancelResult =
+    cancelDelayNotifyRecoveryF8eClient.cancelResult =
       Err(SpecificClientErrorMock(CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXISTS))
 
     canceler.cancel().shouldBeOkOfType<Unit>()
 
     recoverySyncer.clearCalls.awaitItem()
-    cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+    cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
   test("failure - backend") {
-    cancelDelayNotifyRecoveryService.cancelResult =
+    cancelDelayNotifyRecoveryF8eClient.cancelResult =
       Err(
         // Actual code isn't checked, but this simulates what we expect.
         F8eError.ServerError(
@@ -73,7 +73,7 @@ class RecoveryCancelerImplTests : FunSpec({
     canceler.cancel()
       .shouldBeErrOfType<RecoveryCanceler.RecoveryCancelerError.F8eCancelDelayNotifyError>()
 
-    cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+    cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 
   test("failure - dao") {
@@ -83,6 +83,6 @@ class RecoveryCancelerImplTests : FunSpec({
       .shouldBeErrOfType<RecoveryCanceler.RecoveryCancelerError.FailedToClearRecoveryStateError>()
 
     recoverySyncer.clearCalls.awaitItem()
-    cancelDelayNotifyRecoveryService.cancelRecoveryCalls.awaitItem()
+    cancelDelayNotifyRecoveryF8eClient.cancelRecoveryCalls.awaitItem()
   }
 })

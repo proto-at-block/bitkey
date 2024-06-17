@@ -43,7 +43,9 @@ where
         let cognito_user =
             CognitoUser::from_str(username.as_ref()).map_err(|_| StatusCode::UNAUTHORIZED)?;
         let account_id = match cognito_user {
-            CognitoUser::Wallet(account_id) => account_id,
+            CognitoUser::Wallet(account_id)
+            | CognitoUser::App(account_id)
+            | CognitoUser::Hardware(account_id) => account_id,
             CognitoUser::Recovery(account_id) => {
                 return Ok(Self {
                     account_id: account_id.to_string(),
@@ -53,19 +55,21 @@ where
                 });
             }
         };
-        let (app_pubkey, hw_pubkey) =
+        let (app_pubkey, hw_pubkey, _) =
             get_pubkeys_from_cognito(&user_pool, account_id.clone()).await?;
 
         let app_signed = app_sig_header
             .and_then(|value| value.to_str().ok().map(String::from))
-            .map_or(false, |app_sig_header| {
-                verify_signature(&app_sig_header, jwt.clone(), app_pubkey)
+            .map_or(false, |app_sig_header| match app_pubkey {
+                Some(app_pubkey) => verify_signature(&app_sig_header, jwt.clone(), app_pubkey),
+                None => false,
             });
 
         let hw_signed = hw_sig_header
             .and_then(|value| value.to_str().ok().map(String::from))
-            .map_or(false, |hw_sig_header| {
-                verify_signature(&hw_sig_header, jwt, hw_pubkey)
+            .map_or(false, |hw_sig_header| match hw_pubkey {
+                Some(hw_pubkey) => verify_signature(&hw_sig_header, jwt.clone(), hw_pubkey),
+                None => false,
             });
 
         Ok(Self {
@@ -119,9 +123,9 @@ pub fn get_user_name_from_jwt(jwt: &str) -> Option<CognitoUsername> {
 async fn get_pubkeys_from_cognito(
     user_pool_service: &UserPoolService,
     account_id: AccountId,
-) -> Result<(String, String), StatusCode> {
+) -> Result<(Option<String>, Option<String>, Option<String>), StatusCode> {
     user_pool_service
-        .get_pubkeys_for_wallet_user(account_id)
+        .get_pubkeys_for_account(account_id)
         .await
         .map_err(|err| match err {
             UserPoolError::NonExistentUser => StatusCode::NOT_FOUND,
@@ -151,7 +155,7 @@ mod tests {
         assert_eq!(
             username,
             Some(
-                CognitoUsername::from_str("urn:wallet-account:000000000000000000000000000")
+                CognitoUsername::from_str("urn:wallet-account:000000000000000000000000000-app")
                     .expect("Could not parse username")
             )
         );

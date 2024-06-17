@@ -11,7 +11,7 @@ import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.AddTouchpointClientErrorCode
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
-import build.wallet.f8e.notifications.NotificationTouchpointService
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationTouchpoint
@@ -63,7 +63,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
   private val delayer: Delayer,
   private val emailInputUiStateMachine: EmailInputUiStateMachine,
   private val notificationTouchpointDao: NotificationTouchpointDao,
-  private val notificationTouchpointService: NotificationTouchpointService,
+  private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val phoneNumberInputUiStateMachine: PhoneNumberInputUiStateMachine,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val verificationCodeInputStateMachine: VerificationCodeInputStateMachine,
@@ -86,7 +86,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         when (val submission = mutableSubmissionState) {
           is SendingTouchpointToServer -> {
             LaunchedEffect("send-touchpoint") {
-              notificationTouchpointService
+              notificationTouchpointF8eClient
                 .addTouchpoint(
                   f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
                   fullAccountId = props.fullAccountId,
@@ -200,7 +200,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
         // the verification code to be resent to the customer.
         resendCodeCallbacks?.let { callbacks ->
           LaunchedEffect("send-touchpoint") {
-            notificationTouchpointService
+            notificationTouchpointF8eClient
               .addTouchpoint(
                 f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
                 fullAccountId = props.fullAccountId,
@@ -243,7 +243,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       is SendingVerificationCodeToServerUiState -> {
         // Side effect: send code to server
         LaunchedEffect("send-verification-code", key2 = state) {
-          notificationTouchpointService
+          notificationTouchpointF8eClient
             .verifyTouchpoint(
               f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
               fullAccountId = props.fullAccountId,
@@ -420,7 +420,7 @@ class NotificationTouchpointInputAndVerificationUiStateMachineImpl(
       is SendingActivationToServerUiState -> {
         // Side effect: send activation request to server
         LaunchedEffect("send-activation", key2 = state) {
-          notificationTouchpointService
+          notificationTouchpointF8eClient
             .activateTouchpoint(
               f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
               fullAccountId = props.fullAccountId,

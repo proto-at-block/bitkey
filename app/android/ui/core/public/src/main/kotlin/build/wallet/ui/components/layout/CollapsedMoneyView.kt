@@ -13,7 +13,7 @@ import build.wallet.android.ui.core.R
 import build.wallet.ui.components.label.shimmer
 
 @Composable
-internal fun CollapsedMoneyView(
+fun CollapsedMoneyView(
   height: Dp,
   modifier: Modifier = Modifier,
 ) {

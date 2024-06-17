@@ -2,7 +2,8 @@ package build.wallet.statemachine.settings.full.device.resetdevice
 
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.bitkey.keybox.Keybox
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -13,9 +14,9 @@ interface ResettingDeviceUiStateMachine : StateMachine<ResettingDeviceProps, Scr
 
 data class ResettingDeviceProps(
   val onBack: () -> Unit,
-  val onUnwindToMoneyHome: () -> Unit,
-  val spendingWallet: SpendingWallet,
-  val keybox: Keybox,
-  val balance: BitcoinBalance,
-  val isHardwareFake: Boolean,
+  val onSuccess: () -> Unit,
+  val fullAccountConfig: FullAccountConfig,
+  val fullAccount: FullAccount?,
+  val spendingWallet: SpendingWallet?,
+  val balance: BitcoinBalance?,
 )

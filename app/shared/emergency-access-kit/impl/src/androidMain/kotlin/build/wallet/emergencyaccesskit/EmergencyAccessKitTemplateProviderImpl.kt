@@ -1,7 +1,7 @@
 package build.wallet.emergencyaccesskit
 
 import android.content.Context
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.platform.PlatformContext
 import build.wallet.shared.emergency.access.kit.impl.R
 import com.github.michaelbull.result.Ok
@@ -17,7 +17,7 @@ actual class EmergencyAccessKitTemplateProviderImpl actual constructor(
   private val platformContext: PlatformContext,
 ) : EmergencyAccessKitTemplateProvider {
   override suspend fun pdfTemplateBytes(): Result<ByteString, EmergencyAccessKitTemplateUnavailableError> =
-    Result.catching {
+    catchingResult {
       val resourceBytes =
         rawResourceBytes(
           platformContext.appContext,

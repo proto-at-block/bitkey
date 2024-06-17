@@ -1,17 +1,10 @@
 package build.wallet.statemachine.limit.picker
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import build.wallet.configuration.FiatMobilePayConfiguration
-import build.wallet.configuration.FiatMobilePayConfigurationRepository
+import androidx.compose.runtime.*
+import build.wallet.configuration.MobilePayFiatConfigService
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.BTC
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
@@ -31,7 +24,7 @@ import kotlin.math.roundToInt
 
 class SpendingLimitPickerUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
-  private val fiatMobilePayConfigurationRepository: FiatMobilePayConfigurationRepository,
+  private val mobilePayFiatConfigService: MobilePayFiatConfigService,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
 ) : SpendingLimitPickerUiStateMachine {
@@ -41,9 +34,7 @@ class SpendingLimitPickerUiStateMachineImpl(
     var fiatLimitValue by remember {
       mutableStateOf(props.initialLimit)
     }
-    val fiatMobilePayConfiguration =
-      fiatMobilePayConfigurationRepository.fiatMobilePayConfigurations
-        .value[props.initialLimit.currency] ?: props.initialLimit.currency.defaultMobilePayConfiguration()
+    val mobilePayFiatConfig by mobilePayFiatConfigService.config.collectAsState()
 
     val btcLimitValue =
       convertedOrZero(
@@ -71,9 +62,9 @@ class SpendingLimitPickerUiStateMachineImpl(
     }
 
     val sliderValue = fiatLimitValue.value.floatValue(exactRequired = false)
-    val minimumFiatLimitAmount = fiatMobilePayConfiguration.minimumLimit.value.floatValue()
-    val maximumFiatLimitAmount = fiatMobilePayConfiguration.maximumLimit.value.floatValue()
-    val snapToleranceValues = fiatMobilePayConfiguration.snapValues
+    val minimumFiatLimitAmount = mobilePayFiatConfig.minimumLimit.value.floatValue()
+    val maximumFiatLimitAmount = mobilePayFiatConfig.maximumLimit.value.floatValue()
+    val snapToleranceValues = mobilePayFiatConfig.snapValues
 
     // Helper to build amount slider model from state values
     fun amountSliderModel(isEnabled: Boolean) =
@@ -223,12 +214,3 @@ sealed interface SpendingLimitPickerUiState {
     val selectedBtcLimit: BitcoinMoney,
   ) : SpendingLimitPickerUiState
 }
-
-// Use a config with a max limit value of 200 ($200) as a default in the unexpected case we don't
-// have a stored default config or config from the server for the limit fiat currency
-private fun FiatCurrency.defaultMobilePayConfiguration() =
-  FiatMobilePayConfiguration(
-    minimumLimit = FiatMoney(this, 0.toBigDecimal()),
-    maximumLimit = FiatMoney(this, 200.toBigDecimal()),
-    snapValues = emptyMap()
-  )

@@ -57,13 +57,12 @@ data object EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDeco
   override fun decode(encodedString: String): Result<EmergencyAccessKitPayload, DecodeError> {
     return binding {
       val data =
-        Result
-          .runCatching {
-            // The EAK payload in the PDF has line breaks to allow it to wrap appropriately.
-            // Filter for only valid base58 characters to ensure that it can be parsed.
-            val filter = Regex("[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]")
-            filter.replace(encodedString, "").decodeBase58()
-          }
+        com.github.michaelbull.result.runCatching {
+          // The EAK payload in the PDF has line breaks to allow it to wrap appropriately.
+          // Filter for only valid base58 characters to ensure that it can be parsed.
+          val filter = Regex("[^123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]")
+          filter.replace(encodedString, "").decodeBase58()
+        }
           .mapError { InvalidBase58Data(cause = it) }
           .bind()
 

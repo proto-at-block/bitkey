@@ -13,9 +13,11 @@ import build.wallet.platform.pdf.create
 import build.wallet.platform.pdf.serialize
 import build.wallet.time.DateTimeFormatter
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
+import kotlin.coroutines.cancellation.CancellationException
 
 class EmergencyAccessKitPdfGeneratorImpl(
   private val apkParametersProvider: EmergencyAccessKitApkParametersProvider,
@@ -29,7 +31,7 @@ class EmergencyAccessKitPdfGeneratorImpl(
     keybox: Keybox,
     sealedCsek: SealedCsek,
   ): Result<EmergencyAccessKitData, Error> =
-    binding {
+    coroutineBinding {
       val templateBytes = templateProvider.pdfTemplateBytes().bind()
       val pdfAnnotator = pdfAnnotatorFactory.create(templateBytes).result.bind()
 
@@ -52,6 +54,14 @@ class EmergencyAccessKitPdfGeneratorImpl(
           .bind()
       }
     }
+
+  @Throws(Error::class, CancellationException::class)
+  suspend fun generateOrThrow(
+    keybox: Keybox,
+    sealedCsek: SealedCsek,
+  ): EmergencyAccessKitData {
+    return generate(keybox, sealedCsek).getOrThrow()
+  }
 
   private suspend fun populateCreationDate(pdfAnnotator: PdfAnnotator) {
     val backupDate = backupDateProvider.backupDate()

@@ -5,6 +5,7 @@ use std::sync::{Arc, RwLock};
 use async_trait::async_trait;
 use aws_config::BehaviorVersion;
 use aws_sdk_cognitoidentityprovider::error::BuildError;
+use aws_sdk_cognitoidentityprovider::operation::admin_create_user::AdminCreateUserError;
 use aws_sdk_cognitoidentityprovider::operation::admin_get_user::AdminGetUserError;
 use aws_sdk_cognitoidentityprovider::operation::admin_respond_to_auth_challenge::AdminRespondToAuthChallengeError;
 use aws_sdk_cognitoidentityprovider::operation::admin_user_global_sign_out::AdminUserGlobalSignOutError;
@@ -15,6 +16,7 @@ use aws_types::SdkConfig;
 use dyn_clone::DynClone;
 use rand::Rng;
 use secp256k1::ecdsa::Signature;
+
 use secp256k1::hashes::sha256;
 use secp256k1::PublicKey;
 use secp256k1::{Message, Secp256k1};
@@ -31,14 +33,20 @@ use crate::test_utils::get_test_access_token_for_cognito_user;
 use crate::userpool::UserPoolError::InitiateAuthError;
 
 //IMPORTANT: Update terraform files and Lambdas when changing these attributes
+const PUBLIC_KEY_ATTRIBUTE: &str = "custom:publicKey";
+#[deprecated(note = "Remove after W-8550 migration is complete")]
 const APP_KEY_ATTRIBUTE: &str = "custom:appPubKey";
+#[deprecated(note = "Remove after W-8550 migration is complete")]
 const HW_KEY_ATTRIBUTE: &str = "custom:hwPubKey";
+#[deprecated(note = "Remove after W-8550 migration is complete")]
 const RECOVERY_KEY_ATTRIBUTE: &str = "custom:recoveryPubKey";
 
 #[derive(Debug, Error)]
 pub enum UserPoolError {
     #[error("Could not create user in user pool: {0}")]
     BuildCognitoRequest(#[from] BuildError),
+    #[error("Could not create user: {0}")]
+    AdminCreateUserError(#[from] AdminCreateUserError),
     #[error("Could not create user in user pool: {0}")]
     CreateUserError(String),
     #[error("Non-existent user in pool")]
@@ -141,36 +149,47 @@ pub struct AuthTokens {
 
 #[async_trait]
 pub trait CognitoIdpConnection: DynClone + Send + Sync {
+    async fn create_new_user(
+        &self,
+        username: &CognitoUsername,
+        public_key: String,
+    ) -> Result<String, UserPoolError>;
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
     async fn create_new_wallet_user(
         &self,
         username: &CognitoUsername,
         app_key: String,
         hw_key: String,
     ) -> Result<String, UserPoolError>;
-    async fn is_existing_cognito_user(
-        &self,
-        username: &CognitoUsername,
-    ) -> Result<bool, UserPoolError>;
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
     async fn create_new_recovery_user(
         &self,
         username: &CognitoUsername,
         recovery_key: String,
     ) -> Result<String, UserPoolError>;
+    async fn is_existing_user(&self, username: &CognitoUsername) -> Result<bool, UserPoolError>;
     async fn confirm_user(&self, username: &CognitoUsername) -> Result<(), UserPoolError>;
+    async fn replace_user_pubkey(
+        &self,
+        username: &CognitoUsername,
+        public_key: String,
+    ) -> Result<(), UserPoolError>;
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
     async fn replace_wallet_user_pubkeys(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
         app_key: String,
         hw_key: String,
     ) -> Result<(), UserPoolError>;
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
     async fn replace_recovery_pubkey(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
         recovery_key: String,
     ) -> Result<(), UserPoolError>;
-    async fn initiate_auth_for_wallet_user(
+    async fn initiate_auth_for_user(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
     ) -> Result<AuthChallenge, UserPoolError>;
     async fn refresh_auth_token(&self, refresh_token: String) -> Result<AuthTokens, UserPoolError>;
     async fn respond_to_auth_challenge(
@@ -179,14 +198,21 @@ pub trait CognitoIdpConnection: DynClone + Send + Sync {
         session: String,
         challenge_response: String,
     ) -> Result<AuthTokens, UserPoolError>;
+    async fn get_pubkey_for_user(
+        &self,
+        username: &CognitoUsername,
+    ) -> Result<String, UserPoolError>;
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
+    async fn get_pubkey_for_recovery_user(
+        &self,
+        username: &CognitoUsername,
+    ) -> Result<String, UserPoolError>;
+    #[deprecated(note = "Remove after W-8550 migration is complete")]
     async fn get_pubkeys_for_wallet_user(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
     ) -> Result<(String, String), UserPoolError>;
-    async fn perform_sign_out_for_account(
-        &self,
-        username: CognitoUsername,
-    ) -> Result<(), UserPoolError>;
+    async fn sign_out_user(&self, username: &CognitoUsername) -> Result<(), UserPoolError>;
     async fn is_access_token_revoked(&self, access_token: String) -> Result<bool, UserPoolError>;
 }
 
@@ -217,6 +243,34 @@ impl CognitoConnection {
 
 #[async_trait]
 impl CognitoIdpConnection for CognitoConnection {
+    #[instrument(err, skip(self, username, public_key))]
+    async fn create_new_user(
+        &self,
+        username: &CognitoUsername,
+        public_key: String,
+    ) -> Result<String, UserPoolError> {
+        let client = self.gen_cognito_idp_client();
+        let create_call = client
+            .admin_create_user()
+            .user_pool_id(&self.user_pool_id)
+            .username(username.as_ref())
+            .user_attributes(
+                AttributeType::builder()
+                    .name(PUBLIC_KEY_ATTRIBUTE)
+                    .value(public_key)
+                    .build()?,
+            );
+        create_call
+            .send()
+            .await
+            .map_err(|err| err.into_service_error())?
+            .user()
+            .ok_or(UserPoolError::NonExistentUser)?
+            .username()
+            .ok_or(UserPoolError::NonExistentUser)
+            .map(String::from)
+    }
+
     #[instrument(err, skip(self, username, app_key, hw_key))]
     async fn create_new_wallet_user(
         &self,
@@ -244,7 +298,42 @@ impl CognitoIdpConnection for CognitoConnection {
         create_call
             .send()
             .await
-            .map_err(|err| UserPoolError::CreateUserError(err.into_service_error().to_string()))?
+            .map_err(|err| err.into_service_error())?
+            .user()
+            .ok_or(UserPoolError::NonExistentUser)?
+            .username()
+            .ok_or(UserPoolError::NonExistentUser)
+            .map(String::from)
+    }
+
+    #[instrument(err, skip(self, recovery_key))]
+    async fn create_new_recovery_user(
+        &self,
+        username: &CognitoUsername,
+        recovery_key: String,
+    ) -> Result<String, UserPoolError> {
+        let client = self.gen_cognito_idp_client();
+        let create_call = client
+            .admin_create_user()
+            .user_pool_id(&self.user_pool_id)
+            .username(username.as_ref())
+            // Backcompat for W-8550 migration
+            .user_attributes(
+                AttributeType::builder()
+                    .name(RECOVERY_KEY_ATTRIBUTE)
+                    .value(recovery_key.clone())
+                    .build()?,
+            )
+            .user_attributes(
+                AttributeType::builder()
+                    .name(PUBLIC_KEY_ATTRIBUTE)
+                    .value(recovery_key)
+                    .build()?,
+            );
+        create_call
+            .send()
+            .await
+            .map_err(|err| err.into_service_error())?
             .user()
             .ok_or(UserPoolError::NonExistentUser)?
             .username()
@@ -253,10 +342,7 @@ impl CognitoIdpConnection for CognitoConnection {
     }
 
     #[instrument(err, skip(self, username))]
-    async fn is_existing_cognito_user(
-        &self,
-        username: &CognitoUsername,
-    ) -> Result<bool, UserPoolError> {
+    async fn is_existing_user(&self, username: &CognitoUsername) -> Result<bool, UserPoolError> {
         let client = self.gen_cognito_idp_client();
         let result = client
             .admin_get_user()
@@ -276,34 +362,6 @@ impl CognitoIdpConnection for CognitoConnection {
                 }
             }
         }
-    }
-
-    #[instrument(err, skip(self, recovery_key))]
-    async fn create_new_recovery_user(
-        &self,
-        username: &CognitoUsername,
-        recovery_key: String,
-    ) -> Result<String, UserPoolError> {
-        let client = self.gen_cognito_idp_client();
-        let create_call = client
-            .admin_create_user()
-            .user_pool_id(&self.user_pool_id)
-            .username(username.as_ref())
-            .user_attributes(
-                AttributeType::builder()
-                    .name(RECOVERY_KEY_ATTRIBUTE)
-                    .value(recovery_key)
-                    .build()?,
-            );
-        create_call
-            .send()
-            .await
-            .map_err(|err| UserPoolError::CreateUserError(err.into_service_error().to_string()))?
-            .user()
-            .ok_or(UserPoolError::NonExistentUser)?
-            .username()
-            .ok_or(UserPoolError::NonExistentUser)
-            .map(String::from)
     }
 
     #[instrument(err, skip(self, username))]
@@ -336,10 +394,35 @@ impl CognitoIdpConnection for CognitoConnection {
         Ok(())
     }
 
+    #[instrument(err, skip(self, username, public_key))]
+    async fn replace_user_pubkey(
+        &self,
+        username: &CognitoUsername,
+        public_key: String,
+    ) -> Result<(), UserPoolError> {
+        let client = self.gen_cognito_idp_client();
+        let update_user_attributes = client
+            .admin_update_user_attributes()
+            .user_pool_id(self.user_pool_id.clone())
+            .username(username.clone())
+            .user_attributes(
+                AttributeType::builder()
+                    .name(PUBLIC_KEY_ATTRIBUTE)
+                    .value(public_key)
+                    .build()?,
+            );
+
+        update_user_attributes.send().await.map_err(|err| {
+            UserPoolError::ChangeUserAttributes(err.into_service_error().to_string())
+        })?;
+
+        Ok(())
+    }
+
     #[instrument(err, skip(self, username, app_key, hw_key))]
     async fn replace_wallet_user_pubkeys(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
         app_key: String,
         hw_key: String,
     ) -> Result<(), UserPoolError> {
@@ -347,7 +430,7 @@ impl CognitoIdpConnection for CognitoConnection {
         let update_user_attributes = client
             .admin_update_user_attributes()
             .user_pool_id(self.user_pool_id.clone())
-            .username(username)
+            .username(username.clone())
             .user_attributes(
                 AttributeType::builder()
                     .name(APP_KEY_ATTRIBUTE)
@@ -365,25 +448,30 @@ impl CognitoIdpConnection for CognitoConnection {
             UserPoolError::ChangeUserAttributes(err.into_service_error().to_string())
         })?;
 
-        // TODO: revoke client refresh token - W-1146/revoke-cognito-refresh-token-when-auth-keys-are-rotated
-
         Ok(())
     }
 
     #[instrument(err, skip(self, username, recovery_key))]
     async fn replace_recovery_pubkey(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
         recovery_key: String,
     ) -> Result<(), UserPoolError> {
         let client = self.gen_cognito_idp_client();
         let update_user_attributes = client
             .admin_update_user_attributes()
             .user_pool_id(self.user_pool_id.clone())
-            .username(username)
+            .username(username.clone())
+            // Backcompat for W-8550 migration
             .user_attributes(
                 AttributeType::builder()
                     .name(RECOVERY_KEY_ATTRIBUTE)
+                    .value(recovery_key.clone())
+                    .build()?,
+            )
+            .user_attributes(
+                AttributeType::builder()
+                    .name(PUBLIC_KEY_ATTRIBUTE)
                     .value(recovery_key)
                     .build()?,
             );
@@ -392,15 +480,13 @@ impl CognitoIdpConnection for CognitoConnection {
             UserPoolError::ChangeUserAttributes(err.into_service_error().to_string())
         })?;
 
-        // TODO: revoke client refresh token - W-1146/revoke-cognito-refresh-token-when-auth-keys-are-rotated
-
         Ok(())
     }
 
     #[instrument(err, skip(self, username))]
-    async fn initiate_auth_for_wallet_user(
+    async fn initiate_auth_for_user(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
     ) -> Result<AuthChallenge, UserPoolError> {
         let client = self.gen_cognito_idp_client();
         let initiate_auth_response = client
@@ -421,7 +507,7 @@ impl CognitoIdpConnection for CognitoConnection {
             .session()
             .ok_or(InitiateAuthError("Missing auth session".to_string()))?;
         Ok(AuthChallenge {
-            username,
+            username: username.clone(),
             challenge: challenge_str.to_string(),
             session: session.to_string(),
         })
@@ -485,15 +571,70 @@ impl CognitoIdpConnection for CognitoConnection {
     }
 
     #[instrument(err, skip(self, username))]
+    async fn get_pubkey_for_user(
+        &self,
+        username: &CognitoUsername,
+    ) -> Result<String, UserPoolError> {
+        let client = self.gen_cognito_idp_client();
+        let user = client
+            .admin_get_user()
+            .user_pool_id(self.user_pool_id.clone())
+            .username(username.clone())
+            .send()
+            .await
+            .map_err(|err| UserPoolError::AdminGetUserError(err.into_service_error()))?;
+        let user_attributes = user.user_attributes();
+        let mut public_key = "";
+        for attr in user_attributes {
+            if attr.name() == PUBLIC_KEY_ATTRIBUTE {
+                public_key = attr.value().ok_or(UserPoolError::GetUserPubkeyError)?;
+            }
+        }
+        if public_key.is_empty() {
+            return Err(UserPoolError::GetUserPubkeyError);
+        }
+        Ok(public_key.to_string())
+    }
+
+    #[instrument(err, skip(self, username))]
+    async fn get_pubkey_for_recovery_user(
+        &self,
+        username: &CognitoUsername,
+    ) -> Result<String, UserPoolError> {
+        let client = self.gen_cognito_idp_client();
+        let user = client
+            .admin_get_user()
+            .user_pool_id(self.user_pool_id.clone())
+            .username(username.clone())
+            .send()
+            .await
+            .map_err(|err| UserPoolError::AdminGetUserError(err.into_service_error()))?;
+        let user_attributes = user.user_attributes();
+        let mut public_key = "";
+        for attr in user_attributes {
+            if attr.name() == PUBLIC_KEY_ATTRIBUTE {
+                public_key = attr.value().ok_or(UserPoolError::GetUserPubkeyError)?;
+            }
+            if attr.name() == RECOVERY_KEY_ATTRIBUTE {
+                public_key = attr.value().ok_or(UserPoolError::GetUserPubkeyError)?;
+            }
+        }
+        if public_key.is_empty() {
+            return Err(UserPoolError::GetUserPubkeyError);
+        }
+        Ok(public_key.to_string())
+    }
+
+    #[instrument(err, skip(self, username))]
     async fn get_pubkeys_for_wallet_user(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
     ) -> Result<(String, String), UserPoolError> {
         let client = self.gen_cognito_idp_client();
         let user = client
             .admin_get_user()
             .user_pool_id(self.user_pool_id.clone())
-            .username(username)
+            .username(username.clone())
             .send()
             .await
             .map_err(|err| UserPoolError::AdminGetUserError(err.into_service_error()))?;
@@ -514,19 +655,15 @@ impl CognitoIdpConnection for CognitoConnection {
     }
 
     #[instrument(err, skip(self, username))]
-    async fn perform_sign_out_for_account(
-        &self,
-        username: CognitoUsername,
-    ) -> Result<(), UserPoolError> {
+    async fn sign_out_user(&self, username: &CognitoUsername) -> Result<(), UserPoolError> {
         let client = self.gen_cognito_idp_client();
         client
             .admin_user_global_sign_out()
             .user_pool_id(self.user_pool_id.clone())
-            .username(username)
+            .username(username.clone())
             .send()
             .await
-            .map_err(|err| err.into_service_error())
-            .map_err(UserPoolError::from)?;
+            .map_err(|err| err.into_service_error())?;
         Ok(())
     }
 
@@ -569,29 +706,6 @@ impl CognitoIdpConnection for CognitoConnection {
     }
 }
 
-pub struct CreateWalletUserInput {
-    app_key: PublicKey,
-    hw_key: PublicKey,
-}
-
-impl CreateWalletUserInput {
-    #[must_use]
-    pub fn new(app_key: PublicKey, hw_key: PublicKey) -> Self {
-        Self { app_key, hw_key }
-    }
-}
-
-pub struct CreateRecoveryUserInput {
-    recovery_key: PublicKey,
-}
-
-impl CreateRecoveryUserInput {
-    #[must_use]
-    pub fn new(recovery_key: PublicKey) -> Self {
-        Self { recovery_key }
-    }
-}
-
 #[derive(Clone)]
 pub struct UserPoolService {
     cognito_client: Box<dyn CognitoIdpConnection>,
@@ -604,61 +718,116 @@ impl UserPoolService {
         }
     }
 
-    #[instrument(err, skip(self, account_input, recovery_input))]
-    pub async fn create_users(
+    #[instrument(err, skip(self, app_pubkey, hw_pubkey, recovery_pubkey))]
+    pub async fn create_account_users_if_necessary(
         &self,
         account_id: &AccountId,
-        account_input: Option<CreateWalletUserInput>,
-        recovery_input: Option<CreateRecoveryUserInput>,
+        app_pubkey: Option<PublicKey>,
+        hw_pubkey: Option<PublicKey>,
+        recovery_pubkey: Option<PublicKey>,
     ) -> Result<(), UserPoolError> {
-        if let Some(input) = account_input {
-            let username: CognitoUsername = CognitoUser::Wallet(account_id.to_owned()).into();
-            self.cognito_client
-                .create_new_wallet_user(
-                    &username,
-                    input.app_key.to_string(),
-                    input.hw_key.to_string(),
-                )
-                .await?;
-            self.cognito_client.confirm_user(&username).await?;
+        if let Some(app_pubkey) = app_pubkey {
+            let username: CognitoUsername = CognitoUser::App(account_id.to_owned()).into();
+            if !self.cognito_client.is_existing_user(&username).await? {
+                let result = self
+                    .cognito_client
+                    .create_new_user(&username, app_pubkey.to_string())
+                    .await;
+
+                match result {
+                    Ok(_) => {
+                        self.cognito_client.confirm_user(&username).await?;
+                    }
+                    Err(UserPoolError::AdminCreateUserError(
+                        AdminCreateUserError::UsernameExistsException(_),
+                    )) => {}
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
         }
 
-        if let Some(input) = recovery_input {
+        if let Some(hw_pubkey) = hw_pubkey {
+            let username: CognitoUsername = CognitoUser::Hardware(account_id.to_owned()).into();
+            if !self.cognito_client.is_existing_user(&username).await? {
+                let result = self
+                    .cognito_client
+                    .create_new_user(&username, hw_pubkey.to_string())
+                    .await;
+
+                match result {
+                    Ok(_) => {
+                        self.cognito_client.confirm_user(&username).await?;
+                    }
+                    Err(UserPoolError::AdminCreateUserError(
+                        AdminCreateUserError::UsernameExistsException(_),
+                    )) => {}
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
+        if let Some(recovery_pubkey) = recovery_pubkey {
             let username: CognitoUsername = CognitoUser::Recovery(account_id.to_owned()).into();
-            self.cognito_client
-                .create_new_recovery_user(&username, input.recovery_key.to_string())
-                .await?;
-            self.cognito_client.confirm_user(&username).await?;
+            if !self.cognito_client.is_existing_user(&username).await? {
+                let result = self
+                    .cognito_client
+                    .create_new_recovery_user(&username, recovery_pubkey.to_string())
+                    .await;
+
+                match result {
+                    Ok(_) => {
+                        self.cognito_client.confirm_user(&username).await?;
+                    }
+                    Err(UserPoolError::AdminCreateUserError(
+                        AdminCreateUserError::UsernameExistsException(_),
+                    )) => {}
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
         }
+
+        // Backcompat for W-8550 migration
+        if let (Some(app_pubkey), Some(hw_pubkey)) = (app_pubkey, hw_pubkey) {
+            let username: CognitoUsername = CognitoUser::Wallet(account_id.to_owned()).into();
+            if !self.cognito_client.is_existing_user(&username).await? {
+                let result = self
+                    .cognito_client
+                    .create_new_wallet_user(
+                        &username,
+                        app_pubkey.to_string(),
+                        hw_pubkey.to_string(),
+                    )
+                    .await;
+
+                match result {
+                    Ok(_) => {
+                        self.cognito_client.confirm_user(&username).await?;
+                    }
+                    Err(UserPoolError::AdminCreateUserError(
+                        AdminCreateUserError::UsernameExistsException(_),
+                    )) => {}
+                    Err(e) => {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+
         Ok(())
     }
 
-    #[instrument(err, skip(self, user))]
-    pub async fn is_existing_cognito_user(&self, user: CognitoUser) -> Result<bool, UserPoolError> {
-        self.cognito_client
-            .is_existing_cognito_user(&user.into())
-            .await
-    }
-
-    #[instrument(err, skip(self, app_key, hw_key))]
-    pub async fn create_wallet_user_if_necessary(
+    #[instrument(err, skip(self, username))]
+    pub async fn is_existing_user(
         &self,
-        account_id: &AccountId,
-        app_key: PublicKey,
-        hw_key: PublicKey,
-    ) -> Result<(), UserPoolError> {
-        let username: CognitoUsername = CognitoUser::Wallet(account_id.to_owned()).into();
-        if !self
-            .cognito_client
-            .is_existing_cognito_user(&username)
-            .await?
-        {
-            self.cognito_client
-                .create_new_wallet_user(&username, app_key.to_string(), hw_key.to_string())
-                .await?;
-            self.cognito_client.confirm_user(&username).await?;
-        }
-        Ok(())
+        username: &CognitoUsername,
+    ) -> Result<bool, UserPoolError> {
+        self.cognito_client.is_existing_user(username).await
     }
 
     #[instrument(err, skip(self, recovery_key))]
@@ -671,7 +840,7 @@ impl UserPoolService {
             CognitoUser::Recovery(account_id.to_owned()).into();
         if !self
             .cognito_client
-            .is_existing_cognito_user(&recovery_username)
+            .is_existing_user(&recovery_username)
             .await?
         {
             self.cognito_client
@@ -686,72 +855,73 @@ impl UserPoolService {
     pub async fn rotate_account_auth_keys(
         &self,
         account_id: &AccountId,
-        app_key: PublicKey,
-        hw_key: PublicKey,
+        app_key: Option<PublicKey>,
+        hw_key: Option<PublicKey>,
         recovery_key: Option<PublicKey>,
     ) -> Result<(), UserPoolError> {
-        let account_username: CognitoUsername = CognitoUser::Wallet(account_id.clone()).into();
-        self.cognito_client
-            .replace_wallet_user_pubkeys(
-                account_username.clone(),
-                app_key.to_string(),
-                hw_key.to_string(),
-            )
-            .await?;
-        self.cognito_client
-            .perform_sign_out_for_account(account_username)
-            .await?;
-
-        if let Some(k) = recovery_key {
-            let recovery_username: CognitoUsername =
-                CognitoUser::Recovery(account_id.to_owned()).into();
-            self.cognito_client
-                .replace_recovery_pubkey(recovery_username.clone(), k.to_string())
-                .await?;
-            self.cognito_client
-                .perform_sign_out_for_account(recovery_username)
-                .await?;
+        if let Some(app_pubkey) = app_key {
+            let username: CognitoUsername = CognitoUser::App(account_id.clone()).into();
+            if self.cognito_client.is_existing_user(&username).await? {
+                self.cognito_client
+                    .replace_user_pubkey(&username, app_pubkey.to_string())
+                    .await?;
+                self.cognito_client.sign_out_user(&username).await?;
+            }
         }
+
+        if let Some(hw_pubkey) = hw_key {
+            let username: CognitoUsername = CognitoUser::Hardware(account_id.clone()).into();
+            if self.cognito_client.is_existing_user(&username).await? {
+                self.cognito_client
+                    .replace_user_pubkey(&username, hw_pubkey.to_string())
+                    .await?;
+                self.cognito_client.sign_out_user(&username).await?;
+            }
+        }
+
+        if let Some(recovery_pubkey) = recovery_key {
+            let username: CognitoUsername = CognitoUser::Recovery(account_id.clone()).into();
+            if self.cognito_client.is_existing_user(&username).await? {
+                self.cognito_client
+                    .replace_recovery_pubkey(&username, recovery_pubkey.to_string())
+                    .await?;
+                self.cognito_client.sign_out_user(&username).await?;
+            }
+        }
+
+        // Backcompat for W-8550 migration
+        if let (Some(app_pubkey), Some(hw_pubkey)) = (app_key, hw_key) {
+            let username: CognitoUsername = CognitoUser::Wallet(account_id.clone()).into();
+            if self.cognito_client.is_existing_user(&username).await? {
+                self.cognito_client
+                    .replace_wallet_user_pubkeys(
+                        &username,
+                        app_pubkey.to_string(),
+                        hw_pubkey.to_string(),
+                    )
+                    .await?;
+                self.cognito_client.sign_out_user(&username).await?;
+            }
+        }
+
         Ok(())
     }
 
     #[instrument(err, skip(self))]
-    pub async fn initiate_auth_for_wallet_user(
+    pub async fn initiate_auth_for_user(
         &self,
+        username: &CognitoUsername,
         pubkeys_to_account: &PubkeysToAccount,
     ) -> Result<AuthChallenge, UserPoolError> {
-        let username = CognitoUser::Wallet(pubkeys_to_account.id.clone()).into();
-
         // TODO: Safe to remove this block after W-5688 is resolved
-        if let (Some(app_pubkey), Some(hw_pubkey)) = (
+        self.create_account_users_if_necessary(
+            &pubkeys_to_account.id,
             pubkeys_to_account.application_auth_pubkey,
             pubkeys_to_account.hardware_auth_pubkey,
-        ) {
-            self.create_wallet_user_if_necessary(&pubkeys_to_account.id, app_pubkey, hw_pubkey)
-                .await?;
-        }
-
-        self.cognito_client
-            .initiate_auth_for_wallet_user(username)
-            .await
-    }
-
-    #[instrument(err, skip(self))]
-    pub async fn initiate_auth_for_recovery_user(
-        &self,
-        pubkeys_to_account: &PubkeysToAccount,
-    ) -> Result<AuthChallenge, UserPoolError> {
-        let username = CognitoUser::Recovery(pubkeys_to_account.id.clone()).into();
-
-        // TODO: Safe to remove this block after W-5688 is resolved
-        if let Some(recovery_pubkey) = pubkeys_to_account.recovery_auth_pubkey {
-            self.create_recovery_user_if_necessary(&pubkeys_to_account.id, recovery_pubkey)
-                .await?;
-        }
-
-        self.cognito_client
-            .initiate_auth_for_wallet_user(username)
-            .await
+            pubkeys_to_account.recovery_auth_pubkey,
+        )
+        .await?;
+        self.cognito_client.initiate_auth_for_user(username).await
     }
 
     #[instrument(err, skip(self, challenge_response))]
@@ -775,14 +945,77 @@ impl UserPoolService {
     }
 
     #[instrument(err, skip(self))]
-    pub async fn get_pubkeys_for_wallet_user(
+    pub async fn get_pubkeys_for_account(
         &self,
         account_id: AccountId,
-    ) -> Result<(String, String), UserPoolError> {
-        let username: CognitoUsername = CognitoUser::Wallet(account_id).into();
-        self.cognito_client
-            .get_pubkeys_for_wallet_user(username)
-            .await
+    ) -> Result<(Option<String>, Option<String>, Option<String>), UserPoolError> {
+        let app_username: CognitoUsername = CognitoUser::App(account_id.clone()).into();
+        let mut app_pubkey = if self.cognito_client.is_existing_user(&app_username).await? {
+            Some(
+                self.cognito_client
+                    .get_pubkey_for_user(&app_username)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
+        let hw_username: CognitoUsername = CognitoUser::Hardware(account_id.clone()).into();
+        let mut hw_pubkey = if self.cognito_client.is_existing_user(&hw_username).await? {
+            Some(
+                self.cognito_client
+                    .get_pubkey_for_user(&hw_username)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
+        let recovery_username: CognitoUsername = CognitoUser::Recovery(account_id.clone()).into();
+        let recovery_pubkey = if self
+            .cognito_client
+            .is_existing_user(&recovery_username)
+            .await?
+        {
+            Some(
+                self.cognito_client
+                    .get_pubkey_for_recovery_user(&recovery_username)
+                    .await?,
+            )
+        } else {
+            None
+        };
+
+        // Backcompat for W-8550 migration
+        if app_pubkey.is_none() && hw_pubkey.is_none() {
+            let wallet_username: CognitoUsername = CognitoUser::Wallet(account_id.clone()).into();
+            if self
+                .cognito_client
+                .is_existing_user(&wallet_username)
+                .await?
+            {
+                let (app_key, hw_key) = self
+                    .cognito_client
+                    .get_pubkeys_for_wallet_user(&wallet_username)
+                    .await?;
+                app_pubkey = Some(app_key);
+                hw_pubkey = Some(hw_key);
+            }
+        }
+
+        if matches!(
+            (&app_pubkey, &hw_pubkey, &recovery_pubkey),
+            (None, None, None)
+        ) {
+            return Err(UserPoolError::NonExistentUser);
+        }
+
+        Ok((app_pubkey, hw_pubkey, recovery_pubkey))
+    }
+
+    #[instrument(err, skip(self))]
+    pub async fn sign_out_user(&self, username: &CognitoUsername) -> Result<(), UserPoolError> {
+        self.cognito_client.sign_out_user(username).await
     }
 
     #[instrument(err, skip(self))]
@@ -802,9 +1035,7 @@ enum UserKeys {
         app_key: PublicKey,
         hw_key: PublicKey,
     },
-    Recovery {
-        recovery_key: PublicKey,
-    },
+    Generic(PublicKey),
 }
 
 #[derive(Clone)]
@@ -820,30 +1051,44 @@ impl Default for FakeCognitoConnection {
     fn default() -> Self {
         let mut user_keys = HashMap::new();
         // insert test keys from server/src/key_proof/test_utils.rs:12 used in unit tests
+
+        let app_public_key = PublicKey::from_str(
+            "02b98a7fb8cc007048625b6446ad49a1b3a722df8c1ca975b87160023e14d19097",
+        )
+        .expect("could not parse static pubkey");
+
+        let hw_public_key = PublicKey::from_str(
+            "0381aaadc8a5e83f4576df823cf22a5b1969cf704a0d5f6f68bd757410c9917aac",
+        )
+        .expect("could not parse static pubkey");
+
+        let recovery_public_key = PublicKey::from_str(
+            "0381aaadc8a5e83f4576df823cf22a5b1969cf704a0d5f6f68bd757410c9917aac",
+        )
+        .expect("could not parse static pubkey");
+
+        user_keys.insert(
+            "urn:wallet-account:000000000000000000000000000-app".to_string(),
+            UserKeys::Generic(app_public_key),
+        );
+        user_keys.insert(
+            "urn:wallet-account:000000000000000000000000000-hardware".to_string(),
+            UserKeys::Generic(hw_public_key),
+        );
+        user_keys.insert(
+            "urn:wallet-account:000000000000000000000000000-recovery".to_string(),
+            UserKeys::Generic(recovery_public_key),
+        );
+
         let wallet_user_keys = UserKeys::Wallet {
-            app_key: PublicKey::from_str(
-                "02b98a7fb8cc007048625b6446ad49a1b3a722df8c1ca975b87160023e14d19097",
-            )
-            .expect("could not parse static pubkey"),
-            hw_key: PublicKey::from_str(
-                "0381aaadc8a5e83f4576df823cf22a5b1969cf704a0d5f6f68bd757410c9917aac",
-            )
-            .expect("could not parse static pubkey"),
+            app_key: app_public_key,
+            hw_key: hw_public_key,
         };
         user_keys.insert(
             "urn:wallet-account:000000000000000000000000000".to_string(),
             wallet_user_keys,
         );
-        let recovery_user_keys = UserKeys::Recovery {
-            recovery_key: PublicKey::from_str(
-                "0381aaadc8a5e83f4576df823cf22a5b1969cf704a0d5f6f68bd757410c9917aac",
-            )
-            .expect("could not parse static pubkey"),
-        };
-        user_keys.insert(
-            "urn:wallet-account:000000000000000000000000000-recovery".to_string(),
-            recovery_user_keys,
-        );
+
         Self {
             user_keys: Arc::new(RwLock::new(user_keys)),
             session_challenges: Arc::new(RwLock::new(HashMap::new())),
@@ -861,6 +1106,31 @@ impl FakeCognitoConnection {
 
 #[async_trait]
 impl CognitoIdpConnection for FakeCognitoConnection {
+    async fn create_new_user(
+        &self,
+        username: &CognitoUsername,
+        public_key: String,
+    ) -> Result<String, UserPoolError> {
+        let mut user_keys = self.user_keys.write().map_err(|_| {
+            UserPoolError::CreateUserError("Could not get lock on in-mem user database".to_string())
+        })?;
+
+        let username_str = username.to_string();
+        if user_keys.contains_key(&username_str) {
+            return Err(UserPoolError::CreateUserError(
+                "User already exists".to_string(),
+            ));
+        }
+
+        let new_key = UserKeys::Generic(
+            PublicKey::from_str(&public_key)
+                .map_err(|e| UserPoolError::CreateUserError(e.to_string()))?,
+        );
+
+        user_keys.insert(username_str.clone(), new_key);
+        Ok(username_str)
+    }
+
     async fn create_new_wallet_user(
         &self,
         username: &CognitoUsername,
@@ -875,7 +1145,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         if user_keys.contains_key(&username_str) {
             return Err(UserPoolError::CreateUserError(
                 "User already exists".to_string(),
-            )); // todo: is this the right thing to do?
+            ));
         }
         let new_keys = UserKeys::Wallet {
             app_key: PublicKey::from_str(&app_key)
@@ -887,10 +1157,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         Ok(username_str)
     }
 
-    async fn is_existing_cognito_user(
-        &self,
-        username: &CognitoUsername,
-    ) -> Result<bool, UserPoolError> {
+    async fn is_existing_user(&self, username: &CognitoUsername) -> Result<bool, UserPoolError> {
         let cognito_user =
             CognitoUser::from_str(username.as_ref()).expect("Valid Cognito username");
         let cognito_username = Into::<CognitoUsername>::into(cognito_user.clone()).to_string();
@@ -917,10 +1184,10 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         }
         user_keys.insert(
             username_str.clone(),
-            UserKeys::Recovery {
-                recovery_key: PublicKey::from_str(&recovery_key)
+            UserKeys::Generic(
+                PublicKey::from_str(&recovery_key)
                     .map_err(|e| UserPoolError::CreateUserError(e.to_string()))?,
-            },
+            ),
         );
         Ok(username_str)
     }
@@ -929,9 +1196,25 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         Ok(())
     }
 
+    async fn replace_user_pubkey(
+        &self,
+        username: &CognitoUsername,
+        public_key: String,
+    ) -> Result<(), UserPoolError> {
+        let mut user_keys = self.user_keys.write().map_err(|_| {
+            UserPoolError::CreateUserError("Could not get lock on in-mem user database".to_string())
+        })?;
+        let new_key = UserKeys::Generic(
+            PublicKey::from_str(&public_key)
+                .map_err(|e| UserPoolError::CreateUserError(e.to_string()))?,
+        );
+        user_keys.insert(username.to_string(), new_key);
+        Ok(())
+    }
+
     async fn replace_wallet_user_pubkeys(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
         app_key: String,
         hw_key: String,
     ) -> Result<(), UserPoolError> {
@@ -950,7 +1233,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
 
     async fn replace_recovery_pubkey(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
         recovery_key: String,
     ) -> Result<(), UserPoolError> {
         let mut recovery_keys = self.user_keys.write().map_err(|_| {
@@ -958,17 +1241,17 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         })?;
         recovery_keys.insert(
             username.to_string(),
-            UserKeys::Recovery {
-                recovery_key: PublicKey::from_str(&recovery_key)
+            UserKeys::Generic(
+                PublicKey::from_str(&recovery_key)
                     .map_err(|e| UserPoolError::CreateUserError(e.to_string()))?,
-            },
+            ),
         );
         Ok(())
     }
 
-    async fn initiate_auth_for_wallet_user(
+    async fn initiate_auth_for_user(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
     ) -> Result<AuthChallenge, UserPoolError> {
         let challenge = get_64_random_hex_bytes_for_tests();
         let session = get_64_random_hex_bytes_for_tests();
@@ -979,7 +1262,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         session_challenges.insert(session.to_string(), challenge.to_string());
 
         Ok(AuthChallenge {
-            username,
+            username: username.clone(),
             challenge,
             session,
         })
@@ -1052,13 +1335,13 @@ impl CognitoIdpConnection for FakeCognitoConnection {
                     false
                 }
             }
-            CognitoUser::Recovery(_) => {
+            CognitoUser::App(_) | CognitoUser::Hardware(_) | CognitoUser::Recovery(_) => {
                 let keystore = self.user_keys.read().map_err(|_| {
                     UserPoolError::InitiateAuthError(
                         "Poisoned lock on in-memory userpool".to_string(),
                     )
                 })?;
-                let UserKeys::Recovery { recovery_key } = keystore
+                let UserKeys::Generic(public_key) = keystore
                     .get(username.as_ref())
                     .ok_or(UserPoolError::NonExistentUser)?
                 else {
@@ -1071,8 +1354,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
                 let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_bytes());
 
                 if let Ok(signature) = Signature::from_str(&challenge_response) {
-                    secp.verify_ecdsa(&message, &signature, recovery_key)
-                        .is_ok()
+                    secp.verify_ecdsa(&message, &signature, public_key).is_ok()
                 } else {
                     false
                 }
@@ -1089,7 +1371,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
             let mut refresh_token_store = self.refresh_tokens.write().unwrap();
             refresh_token_store.insert(refresh_token.clone(), username_str.clone());
 
-            let access_token = get_test_access_token_for_cognito_user(&CognitoUser::Wallet(
+            let access_token = get_test_access_token_for_cognito_user(&CognitoUser::App(
                 AccountId::from_str(&username_str).map_err(|_| UserPoolError::NonExistentUser)?,
             ));
 
@@ -1112,9 +1394,43 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         }
     }
 
+    async fn get_pubkey_for_user(
+        &self,
+        username: &CognitoUsername,
+    ) -> Result<String, UserPoolError> {
+        let user_keys = self
+            .user_keys
+            .read()
+            .map_err(|_| UserPoolError::GetUserPubkeyError)?;
+        let UserKeys::Generic(public_key) = user_keys
+            .get(username.as_ref())
+            .ok_or(UserPoolError::NonExistentUser)?
+        else {
+            return Err(UserPoolError::WrongUserType);
+        };
+        Ok(public_key.to_string())
+    }
+
+    async fn get_pubkey_for_recovery_user(
+        &self,
+        username: &CognitoUsername,
+    ) -> Result<String, UserPoolError> {
+        let user_keys = self
+            .user_keys
+            .read()
+            .map_err(|_| UserPoolError::GetUserPubkeyError)?;
+        let UserKeys::Generic(public_key) = user_keys
+            .get(username.as_ref())
+            .ok_or(UserPoolError::NonExistentUser)?
+        else {
+            return Err(UserPoolError::WrongUserType);
+        };
+        Ok(public_key.to_string())
+    }
+
     async fn get_pubkeys_for_wallet_user(
         &self,
-        username: CognitoUsername,
+        username: &CognitoUsername,
     ) -> Result<(String, String), UserPoolError> {
         let user_keys = self
             .user_keys
@@ -1129,10 +1445,7 @@ impl CognitoIdpConnection for FakeCognitoConnection {
         Ok((app_key.to_string(), hw_key.to_string()))
     }
 
-    async fn perform_sign_out_for_account(
-        &self,
-        username: CognitoUsername,
-    ) -> Result<(), UserPoolError> {
+    async fn sign_out_user(&self, username: &CognitoUsername) -> Result<(), UserPoolError> {
         let mut access_tokens_store = self.access_tokens.write().unwrap();
         let mut revoked_access_tokens_store = self.revoked_access_tokens.write().unwrap();
         let access_tokens = access_tokens_store

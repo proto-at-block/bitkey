@@ -6,7 +6,7 @@ import build.wallet.analytics.v1.OSType
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.support.CreateTicketDTO
-import build.wallet.f8e.support.SupportTicketService
+import build.wallet.f8e.support.SupportTicketF8eClient
 import build.wallet.f8e.support.TicketDebugDataDTO
 import build.wallet.f8e.support.TicketFormFieldDTO
 import build.wallet.feature.FeatureFlag
@@ -14,14 +14,14 @@ import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.logging.LogLevel
 import build.wallet.logging.dev.LogStore
 import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
+import com.github.michaelbull.result.mapBoth
 import okio.Buffer
 
 class SupportTicketRepositoryImpl(
-  private val supportTicketService: SupportTicketService,
+  private val supportTicketF8eClient: SupportTicketF8eClient,
   private val logStore: LogStore,
   private val appInstallationDao: AppInstallationDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
@@ -78,15 +78,16 @@ class SupportTicketRepositoryImpl(
             },
         attachments =
           attachmentUploadResults.map { (attachment, result) ->
-            when (result) {
-              is Ok -> CreateTicketDTO.AttachmentUploadResultDTO.Success(result.value)
-              is Err ->
+            result.mapBoth(
+              success = { CreateTicketDTO.AttachmentUploadResultDTO.Success(it) },
+              failure = {
                 CreateTicketDTO.AttachmentUploadResultDTO.Failure(
                   filename = attachment.name,
                   mimeType = attachment.mimeType.name,
-                  error = result.error.toString()
+                  error = it.toString()
                 )
-            }
+              }
+            )
           },
         debugData =
           if (data.sendDebugData) {
@@ -96,7 +97,7 @@ class SupportTicketRepositoryImpl(
           }
       )
 
-    return supportTicketService
+    return supportTicketF8eClient
       .createTicket(
         f8eEnvironment = f8eEnvironment,
         accountId = accountId,
@@ -108,7 +109,7 @@ class SupportTicketRepositoryImpl(
     f8eEnvironment: F8eEnvironment,
     accountId: AccountId,
   ): Result<SupportTicketForm, Error> {
-    return supportTicketService.getFormStructure(f8eEnvironment, accountId)
+    return supportTicketF8eClient.getFormStructure(f8eEnvironment, accountId)
       .map { structureDto ->
         val fields =
           structureDto.fields.map { field ->
@@ -212,10 +213,13 @@ class SupportTicketRepositoryImpl(
       this[form, SupportTicketField.KnownFieldType.AppInstallationID] = debugData.appInstallationId
       this[form, SupportTicketField.KnownFieldType.AppVersion] = debugData.appVersion
       this[form, SupportTicketField.KnownFieldType.PhoneMakeAndModel] = debugData.phoneMakeAndModel
-      this[form, SupportTicketField.KnownFieldType.SystemNameAndVersion] = debugData.systemNameAndVersion
+      this[form, SupportTicketField.KnownFieldType.SystemNameAndVersion] =
+        debugData.systemNameAndVersion
 
-      this[form, SupportTicketField.KnownFieldType.HardwareSerialNumber] = debugData.hardwareSerialNumber
-      this[form, SupportTicketField.KnownFieldType.HardwareFirmwareVersion] = debugData.hardwareFirmwareVersion
+      this[form, SupportTicketField.KnownFieldType.HardwareSerialNumber] =
+        debugData.hardwareSerialNumber
+      this[form, SupportTicketField.KnownFieldType.HardwareFirmwareVersion] =
+        debugData.hardwareFirmwareVersion
     }
   }
 
@@ -283,7 +287,7 @@ class SupportTicketRepositoryImpl(
     return attachments.map { attachment ->
       val result =
         attachment.data()?.let { source ->
-          supportTicketService.uploadAttachment(
+          supportTicketF8eClient.uploadAttachment(
             f8eEnvironment = f8eEnvironment,
             accountId = accountId,
             filename = attachment.name,
@@ -324,12 +328,13 @@ class SupportTicketRepositoryImpl(
     )
   }
 
-  private val OSType.systemName: String get() =
-    when (this) {
-      OSType.OS_TYPE_UNSPECIFIED -> "Unspecified"
-      OSType.OS_TYPE_ANDROID -> "Android"
-      OSType.OS_TYPE_IOS -> "iOS"
-      OSType.OS_TYPE_WINDOWS -> "Windows"
-      OSType.OS_TYPE_UNIX -> "Unix"
-    }
+  private val OSType.systemName: String
+    get() =
+      when (this) {
+        OSType.OS_TYPE_UNSPECIFIED -> "Unspecified"
+        OSType.OS_TYPE_ANDROID -> "Android"
+        OSType.OS_TYPE_IOS -> "iOS"
+        OSType.OS_TYPE_WINDOWS -> "Windows"
+        OSType.OS_TYPE_UNIX -> "Unix"
+      }
 }

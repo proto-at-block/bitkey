@@ -12,7 +12,8 @@ public struct AttributedSubstringModel {
         self.range = range
     }
 
-    /// Convenience initializer where the range will be calculated as the first occurrence of the substring in the given text
+    /// Convenience initializer where the range will be calculated as the first occurrence of the
+    /// substring in the given text
     public init?(key: NSAttributedString.Key, value: Any, substring: String, in text: String) {
         guard let range = NSRange(substring, in: text) else { return nil }
 

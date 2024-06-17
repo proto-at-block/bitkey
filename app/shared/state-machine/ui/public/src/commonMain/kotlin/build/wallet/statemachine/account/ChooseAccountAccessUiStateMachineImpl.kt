@@ -7,6 +7,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
+import build.wallet.feature.FeatureFlag
+import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.isEnabled
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenColorMode
@@ -25,6 +28,7 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val demoModeConfigUiStateMachine: DemoModeConfigUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
+  private val resetDeviceIsEnabledFeatureFlag: FeatureFlag<FeatureFlagValue.BooleanFlag>,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
@@ -58,6 +62,18 @@ class ChooseAccountAccessUiStateMachineImpl(
         }
       }
 
+    val onResetExistingDevice: (() -> Unit)? =
+      if (resetDeviceIsEnabledFeatureFlag.isEnabled()) {
+        remember(eakAssociation) {
+          when (eakAssociation) {
+            EmergencyAccessKitAssociation.EakBuild -> null
+            else -> props.chooseAccountAccessData.resetExistingDevice
+          }
+        }
+      } else {
+        null
+      }
+
     return when (uiState) {
       is State.ShowingChooseAccountAccess ->
         ChooseAccountAccessScreen(
@@ -86,6 +102,7 @@ class ChooseAccountAccessUiStateMachineImpl(
               onBack = { uiState = State.ShowingChooseAccountAccess },
               onRestoreYourWalletClick = onRestoreYourWallet,
               onBeTrustedContactClick = onBeTrustedContact,
+              onResetExistingDevice = onResetExistingDevice,
               onRestoreEmergencyAccessKit = onRestoreEmergencyAccessKit
             ),
           presentationStyle = Root,

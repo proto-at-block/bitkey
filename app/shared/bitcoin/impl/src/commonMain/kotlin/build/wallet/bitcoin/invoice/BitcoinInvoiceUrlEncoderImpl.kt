@@ -10,6 +10,7 @@ import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.getOrElse
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.ktor.http.Parameters
 import io.ktor.http.URLBuilder
@@ -33,10 +34,9 @@ class BitcoinInvoiceUrlEncoderImpl(
 
     // Parse the address. Return null if it doesn't parse.
     val addressString = url.pathSegments.firstOrNull() ?: return Err(InvalidUri)
-    val address =
-      when (val result = bitcoinAddressParser.parse(addressString, networkType)) {
-        is Ok -> result.value
-        is Err -> return Err(InvalidAddress(result.error))
+    val address = bitcoinAddressParser.parse(addressString, networkType)
+      .getOrElse { error ->
+        return Err(InvalidAddress(error))
       }
 
     // Check if a lightning parameter exists. Assign to null if doesn't parse.

@@ -1,6 +1,6 @@
 use authn_authz::key_claims::{APP_SIG_HEADER, HW_SIG_HEADER};
 use bdk_utils::bdk::bitcoin::secp256k1::SecretKey;
-use http::{header, request::Builder};
+use http::{header, request::Builder, HeaderMap};
 use types::{account::identifiers::AccountId, authn_authz::cognito::CognitoUser};
 use userpool::test_utils::get_test_access_token_for_cognito_user;
 
@@ -23,7 +23,7 @@ impl AuthenticatedRequest for Builder {
         hw_seckey: Option<SecretKey>,
     ) -> Self {
         let access_token =
-            get_test_access_token_for_cognito_user(&CognitoUser::Wallet(account_id.to_owned()));
+            get_test_access_token_for_cognito_user(&CognitoUser::App(account_id.to_owned()));
         let headers = self.headers_mut().unwrap();
         headers.insert(
             header::AUTHORIZATION,
@@ -65,6 +65,18 @@ impl AuthenticatedRequest for Builder {
             header::AUTHORIZATION,
             format!("Bearer {access_token}").parse().unwrap(),
         );
+        self
+    }
+}
+
+pub trait ExtendRequest {
+    fn with_headers(self, add_headers: HeaderMap) -> Self;
+}
+
+impl ExtendRequest for Builder {
+    fn with_headers(mut self, add_headers: HeaderMap) -> Self {
+        let headers = self.headers_mut().unwrap();
+        headers.extend(add_headers);
         self
     }
 }

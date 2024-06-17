@@ -29,14 +29,14 @@ public protocol ModelRepresentableViewController: ModelRepresentable & UIViewCon
 
 // MARK: -
 
-extension ModelRepresentableView {
+public extension ModelRepresentableView {
 
     /**
      If the given model if nil, hides the view.
      Otherwise, shows the view and applies the model to it.
      */
-    public func applyOrHide(model: Model?) {
-        if let model = model {
+    func applyOrHide(model: Model?) {
+        if let model {
             apply(model: model)
             isHidden = false
         } else {

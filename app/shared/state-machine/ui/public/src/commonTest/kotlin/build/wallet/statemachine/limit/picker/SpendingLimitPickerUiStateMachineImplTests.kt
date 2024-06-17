@@ -1,7 +1,7 @@
 package build.wallet.statemachine.limit.picker
 
 import app.cash.turbine.plusAssign
-import build.wallet.configuration.FiatMobilePayConfigurationRepositoryMock
+import build.wallet.configuration.MobilePayFiatConfigServiceFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.money.FiatMoney
@@ -30,13 +30,11 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
+  val mobilePayFiatConfigService = MobilePayFiatConfigServiceFake()
   val stateMachine: SpendingLimitPickerUiStateMachine =
     SpendingLimitPickerUiStateMachineImpl(
       currencyConverter = CurrencyConverterFake(),
-      fiatMobilePayConfigurationRepository =
-        FiatMobilePayConfigurationRepositoryMock(
-          turbines::create
-        ),
+      mobilePayFiatConfigService = mobilePayFiatConfigService,
       moneyDisplayFormatter = MoneyDisplayFormatterFake,
       proofOfPossessionNfcStateMachine =
         object : ProofOfPossessionNfcStateMachine, ScreenStateMachineMock<ProofOfPossessionNfcProps>(
@@ -55,6 +53,10 @@ class SpendingLimitPickerUiStateMachineImplTests : FunSpec({
       retreat = Retreat(style = Close, onRetreat = { onCloseCalls += Unit }),
       onSaveLimit = { value, _, hwPoP -> onSaveLimitCalls += Pair(value, hwPoP) }
     )
+
+  beforeTest {
+    mobilePayFiatConfigService.reset()
+  }
 
   test("initial state - 0 limit") {
     stateMachine.test(props) {

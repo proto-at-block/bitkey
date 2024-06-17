@@ -27,7 +27,7 @@ class ProcessQueueInBatchesTests : FunSpec({
     senderSpy.processBatchCalls.awaitItem().shouldBe(listOf(1))
   }
 
-  test("doenst remove after failed send") {
+  test("doesn't remove after failed send") {
     val err = Err(NetworkError(Throwable("uh oh!")))
     senderSpy.processBatchReturnValues = listOf(err)
 

@@ -6,13 +6,13 @@ import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.AuthenticationService
+import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
@@ -24,7 +24,7 @@ import com.github.michaelbull.result.toErrorIfNull
 class AppAuthTokenRefresherImpl(
   private val authTokenDao: AuthTokenDao,
   private val accountAuthenticator: AccountAuthenticator,
-  private val authenticationService: AuthenticationService,
+  private val authF8eClient: AuthF8eClient,
   private val appAuthPublicKeyProvider: AppAuthPublicKeyProvider,
   private val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider,
 ) : AppAuthTokenRefresher {
@@ -33,7 +33,7 @@ class AppAuthTokenRefresherImpl(
     accountId: AccountId,
     tokenScope: AuthTokenScope,
   ): Result<AccountAuthTokens, AuthError> =
-    binding {
+    coroutineBinding {
       log {
         "Attempting to refresh access token for active, onboarding or recovering account for $accountId"
       }
@@ -66,7 +66,7 @@ class AppAuthTokenRefresherImpl(
     authTokenScope: AuthTokenScope,
     appAuthKey: PublicKey<out AppAuthKey>?,
   ): Result<AccountAuthTokens, AuthError> =
-    binding {
+    coroutineBinding {
       log(level = LogLevel.Debug) {
         "Attempting to refresh access token using app auth key $appAuthKey for $accountId"
       }
@@ -126,7 +126,7 @@ class AppAuthTokenRefresherImpl(
     f8eEnvironment: F8eEnvironment,
     refreshToken: RefreshToken,
   ): Result<AccountAuthTokens, AuthError> {
-    return authenticationService
+    return authF8eClient
       .refreshToken(f8eEnvironment, refreshToken)
       .mapError { AuthNetworkError(cause = it) }
   }

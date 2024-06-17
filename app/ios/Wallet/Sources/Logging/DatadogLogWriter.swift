@@ -4,10 +4,10 @@ import Foundation
 import Shared
 
 public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
-    
+
     private var logWriterContextStore: LogWriterContextStore
     private var minSeverity: Kermit_coreSeverity
-    
+
     private lazy var logger: DatadogLoggerProtocol = {
         let logWriterContext = self.logWriterContextStore.get()
         Datadog.addUserExtraInfo([
@@ -23,18 +23,28 @@ public class DatadogLogWriter: Shared.Kermit_coreLogWriter {
             )
         )
     }()
-    
+
     public init(logWriterContextStore: LogWriterContextStore, minSeverity: Kermit_coreSeverity) {
         self.logWriterContextStore = logWriterContextStore
         self.minSeverity = minSeverity
     }
-    
-    override public func isLoggable(tag: String, severity: Kermit_coreSeverity) -> Bool {
+
+    override public func isLoggable(tag _: String, severity: Kermit_coreSeverity) -> Bool {
         return severity.compareTo(other: self.minSeverity) >= 0
     }
-    
-    override public func log(severity: Shared.Kermit_coreSeverity, message: String, tag: String, throwable: Shared.KotlinThrowable?) {
-        logger.log(level: severity.asLogLevel(), message: message, error: throwable?.asError(), attributes: ["tag": tag])
+
+    override public func log(
+        severity: Shared.Kermit_coreSeverity,
+        message: String,
+        tag: String,
+        throwable: Shared.KotlinThrowable?
+    ) {
+        logger.log(
+            level: severity.asLogLevel(),
+            message: message,
+            error: throwable?.asError(),
+            attributes: ["tag": tag]
+        )
     }
 }
 

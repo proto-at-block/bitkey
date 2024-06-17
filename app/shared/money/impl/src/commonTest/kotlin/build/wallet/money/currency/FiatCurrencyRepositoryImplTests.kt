@@ -3,7 +3,7 @@ package build.wallet.money.currency
 import app.cash.turbine.test
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.money.FiatCurrencyDefinitionServiceFake
+import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClientFake
 import build.wallet.sqldelight.inMemorySqlDriver
 import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
@@ -15,7 +15,7 @@ class FiatCurrencyRepositoryImplTests : FunSpec({
   coroutineTestScope = true
 
   lateinit var fiatCurrencyDao: FiatCurrencyDao
-  val fiatCurrencyDefinitionService = FiatCurrencyDefinitionServiceFake()
+  val fiatCurrencyDefinitionF8eClient = FiatCurrencyDefinitionF8eClientFake()
 
   fun TestScope.repository(): FiatCurrencyRepositoryImpl {
     val sqlDriver = inMemorySqlDriver()
@@ -26,12 +26,12 @@ class FiatCurrencyRepositoryImplTests : FunSpec({
     return FiatCurrencyRepositoryImpl(
       appScope = backgroundScope,
       fiatCurrencyDao = fiatCurrencyDao,
-      fiatCurrencyDefinitionService = fiatCurrencyDefinitionService
+      fiatCurrencyDefinitionF8eClient = fiatCurrencyDefinitionF8eClient
     )
   }
 
   beforeTest {
-    fiatCurrencyDefinitionService.reset()
+    fiatCurrencyDefinitionF8eClient.reset()
   }
 
   test("allFiatCurrencies defaults to set list then returns value from dao") {
@@ -46,13 +46,13 @@ class FiatCurrencyRepositoryImplTests : FunSpec({
     }
   }
 
-  test("launch sync calls fiatCurrencyDefinitionService") {
+  test("launch sync calls fiatCurrencyDefinitionF8eClient") {
     val repository = repository()
 
     repository.allFiatCurrencies.test {
       awaitItem().shouldBe(listOf(USD)) // default
 
-      fiatCurrencyDefinitionService.setCurrencyDefinitions(listOf(USD, EUR))
+      fiatCurrencyDefinitionF8eClient.setCurrencyDefinitions(listOf(USD, EUR))
       repository.updateFromServer(F8eEnvironment.Development)
 
       awaitItem().shouldBe(listOf(USD, EUR))

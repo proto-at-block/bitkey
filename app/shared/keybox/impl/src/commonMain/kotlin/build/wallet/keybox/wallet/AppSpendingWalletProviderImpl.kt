@@ -10,7 +10,7 @@ import build.wallet.bitkey.app.AppSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.toErrorIfNull
 
 class AppSpendingWalletProviderImpl(
@@ -21,7 +21,7 @@ class AppSpendingWalletProviderImpl(
   override suspend fun getSpendingWallet(
     keyset: SpendingKeyset,
   ): Result<SpendingWallet, Throwable> =
-    binding {
+    coroutineBinding {
       val walletDescriptor =
         walletDescriptor(keyset)
           .logFailure { "Error creating wallet descriptor for keyset." }
@@ -36,7 +36,7 @@ class AppSpendingWalletProviderImpl(
   private suspend fun walletDescriptor(
     keyset: SpendingKeyset,
   ): Result<SpendingWalletDescriptor, Throwable> =
-    binding {
+    coroutineBinding {
       val appPrivateSpendingKey = readAppPrivateSpendingKey(keyset.appKey).bind()
       val receivingDescriptor =
         descriptorBuilder.spendingReceivingDescriptor(

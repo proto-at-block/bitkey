@@ -10,7 +10,7 @@ import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.signResult
-import build.wallet.f8e.socrec.SocialRecoveryServiceFake
+import build.wallet.f8e.socrec.SocRecF8eClientFake
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.getHardwareFactorProofOfPossession
@@ -35,7 +35,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
   lateinit var appTester: AppTester
   lateinit var socRecRepository: SocRecRelationshipsRepository
-  lateinit var socialRecoveryService: SocialRecoveryServiceFake
+  lateinit var socialRecoveryF8eClient: SocRecF8eClientFake
   lateinit var socRecCrypto: SocRecCryptoFake
   lateinit var socRecRelationshipsDao: SocRecRelationshipsDao
   lateinit var socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao
@@ -45,7 +45,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   beforeTest {
     appTester = launchNewApp()
 
-    socialRecoveryService = appTester.app.socialRecoveryServiceFake.apply {
+    socialRecoveryF8eClient = appTester.app.socialRecoveryF8eClientFake.apply {
       acceptInvitationDelay = Duration.ZERO
     }
     socRecRelationshipsDao = appTester.app.socRecRelationshipsDao
@@ -56,7 +56,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
   fun TestScope.trustedContactKeyAuthenticator(): TrustedContactKeyAuthenticatorImpl {
     socRecRepository = SocRecRelationshipsRepositoryImpl(
       appScope = backgroundScope,
-      socialRecoveryServiceProvider = { socialRecoveryService },
+      socRecF8eClientProvider = { socialRecoveryF8eClient },
       socRecRelationshipsDao = socRecRelationshipsDao,
       socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
       socRecCrypto = socRecCrypto,
@@ -69,7 +69,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       socRecRelationshipsDao = socRecRelationshipsDao,
       socRecEnrollmentAuthenticationDao = socRecEnrollmentAuthenticationDao,
       socRecCrypto = socRecCrypto,
-      endorseTrustedContactsServiceProvider = suspend { socialRecoveryService }
+      endorseTrustedContactsF8eClientProvider = suspend { socialRecoveryF8eClient }
     )
   }
 
@@ -86,7 +86,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       )
       .getOrThrow()
     // Delete the invitation since we'll be adding it back as an unendorsed trusted contact.
-    socialRecoveryService.deleteInvitation(invite.invitation.recoveryRelationshipId)
+    socialRecoveryF8eClient.deleteInvitation(invite.invitation.recoveryRelationshipId)
 
     // Get the PAKE code and enrollment public key that should be shared with the TC
     val pakeData = socRecEnrollmentAuthenticationDao
@@ -118,9 +118,9 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     )
 
     // Update unendorsed TC
-    socialRecoveryService.unendorsedTrustedContacts
+    socialRecoveryF8eClient.unendorsedTrustedContacts
       .removeAll { it.recoveryRelationshipId == unendorsedTc.recoveryRelationshipId }
-    socialRecoveryService.unendorsedTrustedContacts.add(unendorsedTc)
+    socialRecoveryF8eClient.unendorsedTrustedContacts.add(unendorsedTc)
 
     socRecRepository.syncAndVerifyRelationships(account).getOrThrow()
     return Pair(unendorsedTc, delegatedDecryptionKey.publicKey)
@@ -136,12 +136,12 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // PC to authenticate and verify unendorsed TCs
     trustedContactKeyAuthenticator.authenticateAndEndorse(
-      socialRecoveryService.unendorsedTrustedContacts,
+      socialRecoveryF8eClient.unendorsedTrustedContacts,
       account
     )
 
     // Verify the key certificate
-    val keyCertificate = socialRecoveryService.keyCertificates.single()
+    val keyCertificate = socialRecoveryF8eClient.keyCertificates.single()
     socRecCrypto.verifyKeyCertificate(account, keyCertificate)
       .shouldBeOk()
       // Verify the TC's identity key
@@ -178,12 +178,12 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     ).getOrThrow()
 
     // Verify test setup
-    socialRecoveryService.endorsedTrustedContacts.shouldBeEmpty()
+    socialRecoveryF8eClient.endorsedTrustedContacts.shouldBeEmpty()
 
     val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
-      contacts = socialRecoveryService.endorsedTrustedContacts,
+      contacts = socialRecoveryF8eClient.endorsedTrustedContacts,
       oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
       oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
       newAppGlobalAuthKey = newAppKey.publicKey,
@@ -203,7 +203,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // Endorse
     trustedContactKeyAuthenticator.authenticateAndEndorse(
-      socialRecoveryService.unendorsedTrustedContacts,
+      socialRecoveryF8eClient.unendorsedTrustedContacts,
       account
     )
 
@@ -216,12 +216,12 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     ).getOrThrow()
 
     // Verify test setup
-    socialRecoveryService.endorsedTrustedContacts.shouldNotBeEmpty()
+    socialRecoveryF8eClient.endorsedTrustedContacts.shouldNotBeEmpty()
 
     val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
-      contacts = socialRecoveryService.endorsedTrustedContacts,
+      contacts = socialRecoveryF8eClient.endorsedTrustedContacts,
       oldAppGlobalAuthKey = account.keybox.activeAppKeyBundle.authKey,
       oldHwAuthKey = account.keybox.activeHwKeyBundle.authKey,
       newAppGlobalAuthKey = newAppKey.publicKey,
@@ -241,7 +241,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // Endorse
     trustedContactKeyAuthenticator.authenticateAndEndorse(
-      socialRecoveryService.unendorsedTrustedContacts,
+      socialRecoveryF8eClient.unendorsedTrustedContacts,
       account
     )
 
@@ -254,13 +254,13 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     ).getOrThrow()
 
     // Verify test setup
-    socialRecoveryService.endorsedTrustedContacts.shouldNotBeEmpty()
+    socialRecoveryF8eClient.endorsedTrustedContacts.shouldNotBeEmpty()
 
     val result = trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
       contacts = listOf(
-        socialRecoveryService.endorsedTrustedContacts.single().copy(
+        socialRecoveryF8eClient.endorsedTrustedContacts.single().copy(
           keyCertificate = TrustedContactKeyCertificateFake2
         )
       ),
@@ -290,7 +290,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // Attempt to authenticate and verify unendorsed TCs
     trustedContactKeyAuthenticator
-      .authenticateAndEndorse(socialRecoveryService.unendorsedTrustedContacts, account)
+      .authenticateAndEndorse(socialRecoveryF8eClient.unendorsedTrustedContacts, account)
 
     // Fetch relationships
     val relationships = socRecRelationshipsDao.socRecRelationships().first().getOrThrow()
@@ -312,7 +312,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     simulateAcceptedInvite(account, overrideConfirmation = "badConfirmation")
 
     trustedContactKeyAuthenticator.authenticateAndEndorse(
-      socialRecoveryService.unendorsedTrustedContacts,
+      socialRecoveryF8eClient.unendorsedTrustedContacts,
       account
     )
 
@@ -330,7 +330,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
     simulateAcceptedInvite(account, overridePakeCode = "F00DBAD")
 
     trustedContactKeyAuthenticator.authenticateAndEndorse(
-      socialRecoveryService.unendorsedTrustedContacts,
+      socialRecoveryF8eClient.unendorsedTrustedContacts,
       account
     )
 
@@ -350,7 +350,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
 
     // PC to authenticate and verify unendorsed TCs
     trustedContactKeyAuthenticator
-      .authenticateAndEndorse(socialRecoveryService.unendorsedTrustedContacts, account)
+      .authenticateAndEndorse(socialRecoveryF8eClient.unendorsedTrustedContacts, account)
 
     // Fetch relationships
     val relationships = socRecRelationshipsDao.socRecRelationships().first().getOrThrow()
@@ -375,7 +375,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       }
 
     // Verify the key certificate
-    socialRecoveryService.keyCertificates
+    socialRecoveryF8eClient.keyCertificates
       .single()
       .run {
         delegatedDecryptionKey.shouldBe(tcGoodIdentityKey)

@@ -8,17 +8,17 @@ import SwiftUI
  https://www.figma.com/file/ZFPzTqbSeZliQBu8T7CUSc/%F0%9F%94%91-Bitkey-Design-System?type=design&node-id=72-21181
  */
 public struct CalloutView: View {
-    
+
     // MARK: - Private Properties
 
     private let model: CalloutModel
-    
+
     init(
         model: CalloutModel
     ) {
         self.model = model
     }
-    
+
     public var body: some View {
         let theme = model.theme
         HStack {
@@ -37,7 +37,7 @@ public struct CalloutView: View {
                         colorOverride: theme.titleColor
                     )
                 }
-                
+
                 VStack {
                     Text(model.title)
                         .font(
@@ -48,16 +48,19 @@ public struct CalloutView: View {
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .foregroundStyle(theme.titleColor)
-                    Text(model.subtitle)
-                        .font(
-                            Font.custom("Inter", size: 16)
-                        )
-                        .opacity(0.60)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(theme.subtitleColor)
+
+                    if let subtitle = model.subtitle {
+                        Text(subtitle)
+                            .font(
+                                Font.custom("Inter", size: 16)
+                            )
+                            .opacity(0.60)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(theme.subtitleColor)
+                    }
                 }
-                
+
                 if let trailingIcon = self.model.trailingIcon {
                     let iconBackgroundColor = switch self.model.treatment {
                     case .default_:
@@ -96,20 +99,20 @@ public struct CalloutView: View {
                     } else {
                         IconView(
                             model: IconModel(
-                            iconImage: .LocalImage(icon: trailingIcon),
-                            iconSize: .accessory,
-                            iconBackgroundType: IconBackgroundTypeSquare(
-                                size: .large,
-                                color: iconBackgroundColor,
-                                cornerRadius: 12
+                                iconImage: .LocalImage(icon: trailingIcon),
+                                iconSize: .accessory,
+                                iconBackgroundType: IconBackgroundTypeSquare(
+                                    size: .large,
+                                    color: iconBackgroundColor,
+                                    cornerRadius: 12
+                                ),
+                                iconTint: nil,
+                                iconOpacity: 1.00,
+                                iconTopSpacing: nil,
+                                text: nil
                             ),
-                            iconTint: nil,
-                            iconOpacity: 1.00,
-                            iconTopSpacing: nil,
-                            text: nil
-                        ),
-                        colorOverride: theme.trailingIconColor
-                    )
+                            colorOverride: theme.trailingIconColor
+                        )
                         .frame(iconSize: IconSize.large)
                     }
                 }
@@ -171,9 +174,9 @@ extension CalloutModel {
             return CalloutTheme(
                 titleColor: .calloutDangerTitle,
                 subtitleColor: .calloutDangerSubtitle,
-                backgroundColor: .calloutDangerBackground,
+                backgroundColor: .dangerBackground,
                 trailingIconColor: .calloutDangerTrailingIcon,
-                trailingIconBackgroundColor: .calloutDangerTrailingIconBackground
+                trailingIconBackgroundColor: .danger
             )
         default:
             fatalError("Unhandled callout treatment")
@@ -189,15 +192,15 @@ struct CalloutViewPreview: PreviewProvider {
             ForEach([CalloutModel.Treatment.default_, .information, .success, .warning, .danger]) {
                 CalloutView(
                     model:
-                        CalloutModel(
-                            title: "Title",
-                            subtitle: "Subtitle",
-                            treatment: $0,
-                            leadingIcon: .largeiconcheckstroked,
-                            trailingIcon: .smalliconarrowright,
-                            onClick: StandardClick(onClick: {})
-                        )
+                    CalloutModel(
+                        title: "Title",
+                        subtitle: "Subtitle",
+                        treatment: $0,
+                        leadingIcon: .largeiconcheckstroked,
+                        trailingIcon: .smalliconarrowright,
+                        onClick: StandardClick(onClick: {})
                     )
+                )
                 .previewDisplayName("CalloutView - \($0)")
             }
         }

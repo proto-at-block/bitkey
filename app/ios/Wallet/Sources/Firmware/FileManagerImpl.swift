@@ -22,10 +22,16 @@ public class FileManagerImpl: Shared.FileManager {
 
     // MARK: - FileManager
 
-    public func writeFile(data kData: KotlinByteArray, fileName: String) async throws -> FileManagerResult<KotlinUnit> {
+    public func writeFile(
+        data kData: KotlinByteArray,
+        fileName: String
+    ) async throws -> FileManagerResult<KotlinUnit> {
         do {
             // First, create a directory at the path given by `FilesDirectoryProvider`
-            try fileManager.createDirectory(at: applicationFilesDirectory, withIntermediateDirectories: true)
+            try fileManager.createDirectory(
+                at: applicationFilesDirectory,
+                withIntermediateDirectories: true
+            )
             // Then, write the data to the path with the given file name
             let filePath = applicationFilesDirectory.appendingPathComponent(fileName)
             try kData.asData().write(to: filePath, options: .atomic)
@@ -35,7 +41,9 @@ public class FileManagerImpl: Shared.FileManager {
         }
     }
 
-    public func readFileAsBytes(fileName: String) async throws -> FileManagerResult<KotlinByteArray> {
+    public func readFileAsBytes(fileName: String) async throws
+        -> FileManagerResult<KotlinByteArray>
+    {
         do {
             let filePath = applicationFilesDirectory.appendingPathComponent(fileName)
             let fileData = try Data(contentsOf: filePath)
@@ -55,7 +63,10 @@ public class FileManagerImpl: Shared.FileManager {
         }
     }
 
-    public func unzipFile(zipPath: String, targetDirectory: String) async throws -> FileManagerResult<KotlinUnit> {
+    public func unzipFile(
+        zipPath: String,
+        targetDirectory: String
+    ) async throws -> FileManagerResult<KotlinUnit> {
         do {
             // Build the file paths
             let zipFile = applicationFilesDirectory.appendingPathComponent(zipPath)
@@ -76,30 +87,30 @@ public class FileManagerImpl: Shared.FileManager {
             return error.toFileManagerResultErr()
         }
     }
-    
+
     public func fileExists(fileName: String) async throws -> KotlinBoolean {
         let file = applicationFilesDirectory.appendingPathComponent(fileName)
         return KotlinBoolean(bool: fileManager.fileExists(atPath: file.path))
     }
-    
+
     public func removeDir(path: String) async throws -> FileManagerResult<KotlinUnit> {
         do {
             let dir = applicationFilesDirectory.appendingPathComponent(path)
-            
-            if (fileManager.fileExists(atPath: dir.path)) {
+
+            if fileManager.fileExists(atPath: dir.path) {
                 try fileManager.removeItem(at: dir)
             }
-        
+
             return FileManagerResultOk(value: KotlinUnit())
         } catch {
             return error.toFileManagerResultErr()
         }
     }
-    
+
     public func mkdirs(path: String) async throws -> FileManagerResult<KotlinBoolean> {
         do {
             try fileManager.createDirectory(atPath: path, withIntermediateDirectories: true)
-            
+
             return FileManagerResultOk(value: KotlinBoolean(bool: true))
         } catch {
             return error.toFileManagerResultErr()
@@ -107,7 +118,6 @@ public class FileManagerImpl: Shared.FileManager {
     }
 
 }
-
 
 // MARK: -
 

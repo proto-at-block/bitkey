@@ -8,7 +8,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryServiceMock
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.recovery.LostHardwareRecoveryStarter.InitiateDelayNotifyHardwareRecoveryError
@@ -42,7 +42,7 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
     ) {}
 
-  val cancelDelayNotifyRecoveryService = CancelDelayNotifyRecoveryServiceMock(turbines::create)
+  val cancelDelayNotifyRecoveryF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
 
   val sealedCsekMock = "sealedCsek".encodeUtf8()
 
@@ -52,13 +52,13 @@ class InitiatingLostHardwareRecoveryDataStateMachineImplTests : FunSpec({
       delayer = ControlledDelayer(),
       lostHardwareRecoveryStarter = lostHardwareRecoveryStarter,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
-      cancelDelayNotifyRecoveryService = cancelDelayNotifyRecoveryService
+      cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyRecoveryF8eClient
     )
 
   beforeTest {
     appKeysGenerator.reset()
     lostHardwareRecoveryStarter.reset()
-    cancelDelayNotifyRecoveryService.reset()
+    cancelDelayNotifyRecoveryF8eClient.reset()
   }
 
   test("initiating lost hardware recovery -- success") {

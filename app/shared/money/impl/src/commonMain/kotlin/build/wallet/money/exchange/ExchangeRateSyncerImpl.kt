@@ -20,7 +20,7 @@ import kotlin.time.Duration
 
 class ExchangeRateSyncerImpl(
   private val exchangeRateDao: ExchangeRateDao,
-  private val f8eExchangeRateService: F8eExchangeRateService,
+  private val exchangeRateF8eClient: ExchangeRateF8eClient,
   private val activeF8eEnvironmentRepository: ActiveF8eEnvironmentRepository,
   private val appSessionManager: AppSessionManager,
 ) : ExchangeRateSyncer {
@@ -65,7 +65,7 @@ class ExchangeRateSyncerImpl(
         f8eEnvironment?.let {
           // Get exchange rates from F8e and store them all
           // Ignore any failures
-          f8eExchangeRateService.getExchangeRates(f8eEnvironment)
+          exchangeRateF8eClient.getExchangeRates(f8eEnvironment)
             .onSuccess { rates ->
               log(Debug) { "Fetched exchange rates: $rates" }
               rates.forEach { exchangeRateDao.storeExchangeRate(it) }

@@ -24,7 +24,7 @@ public final class SheetTransitioningDelegate: NSObject, UIViewControllerTransit
     public func presentationController(
         forPresented presented: UIViewController,
         presenting: UIViewController?,
-        source: UIViewController
+        source _: UIViewController
     ) -> UIPresentationController? {
         SheetPresentationController(
             presentedViewController: presented,
@@ -45,21 +45,21 @@ public class SheetPresentationController: UIPresentationController {
 
     // MARK: - Life Cycle
 
-    public override init(
-      presentedViewController: UIViewController,
-      presenting presentingViewController: UIViewController?
+    override public init(
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?
     ) {
         let blurEffect = UIBlurEffect(style: .systemThinMaterialDark)
         blurEffectView = UIVisualEffectView(effect: blurEffect)
 
         super.init(
-          presentedViewController: presentedViewController,
-          presenting: presentingViewController
+            presentedViewController: presentedViewController,
+            presenting: presentingViewController
         )
 
         tapGestureRecognizer = UITapGestureRecognizer(
-          target: self,
-          action: #selector(dismissController)
+            target: self,
+            action: #selector(dismissController)
         )
         blurEffectView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         blurEffectView.isUserInteractionEnabled = true
@@ -68,7 +68,7 @@ public class SheetPresentationController: UIPresentationController {
 
     // MARK: - UIPresentationController
 
-    public override var frameOfPresentedViewInContainerView: CGRect {
+    override public var frameOfPresentedViewInContainerView: CGRect {
         guard let containerView = presentingViewController.view else { return .zero }
 
         // Use the size that the presented view needs, but max out at 80% of the container.
@@ -76,12 +76,15 @@ public class SheetPresentationController: UIPresentationController {
             // Try to get the computed size from the view controller
             (presentedViewController as? SheetTransitioningViewController)?
                 .sizeThatFits(containerView.frame.size).height
-            ?? .greatestFiniteMagnitude,
+                ?? .greatestFiniteMagnitude,
             containerView.frame.height * 0.8
         )
 
         return CGRect(
-            origin: CGPoint(x: 0, y: containerView.frame.height - height + containerView.safeAreaInsets.bottom),
+            origin: CGPoint(
+                x: 0,
+                y: containerView.frame.height - height + containerView.safeAreaInsets.bottom
+            ),
             size: CGSize(
                 width: containerView.frame.width,
                 height: height
@@ -89,7 +92,7 @@ public class SheetPresentationController: UIPresentationController {
         )
     }
 
-    public override func presentationTransitionWillBegin() {
+    override public func presentationTransitionWillBegin() {
         blurEffectView.alpha = 0
         containerView?.addSubview(blurEffectView)
         presentedViewController.transitionCoordinator?.animate(
@@ -100,7 +103,7 @@ public class SheetPresentationController: UIPresentationController {
         )
     }
 
-    public override func dismissalTransitionWillBegin() {
+    override public func dismissalTransitionWillBegin() {
         presentedViewController.transitionCoordinator?.animate(
             alongsideTransition: { _ in
                 self.blurEffectView.alpha = 0
@@ -111,12 +114,12 @@ public class SheetPresentationController: UIPresentationController {
         )
     }
 
-    public override func containerViewWillLayoutSubviews() {
+    override public func containerViewWillLayoutSubviews() {
         super.containerViewWillLayoutSubviews()
         presentedView!.roundCorners([.topLeft, .topRight], radius: 22)
     }
 
-    public override func containerViewDidLayoutSubviews() {
+    override public func containerViewDidLayoutSubviews() {
         super.containerViewDidLayoutSubviews()
         presentedView?.frame = frameOfPresentedViewInContainerView
         blurEffectView.frame = presentingViewController.view?.bounds ?? .zero
@@ -125,7 +128,7 @@ public class SheetPresentationController: UIPresentationController {
     // MARK: - Private Methods
 
     @objc
-    private func dismissController(){
+    private func dismissController() {
         presentedViewController.dismiss(animated: true, completion: nil)
     }
 
@@ -134,14 +137,14 @@ public class SheetPresentationController: UIPresentationController {
 // MARK: -
 
 extension UIView {
-  func roundCorners(_ corners: UIRectCorner, radius: CGFloat) {
-      let path = UIBezierPath(
-        roundedRect: bounds,
-        byRoundingCorners: corners,
-        cornerRadii: CGSize(width: radius, height: radius)
-      )
-      let mask = CAShapeLayer()
-      mask.path = path.cgPath
-      layer.mask = mask
-  }
+    func roundCorners(_ corners: UIRectCorner, radius: CGFloat) {
+        let path = UIBezierPath(
+            roundedRect: bounds,
+            byRoundingCorners: corners,
+            cornerRadii: CGSize(width: radius, height: radius)
+        )
+        let mask = CAShapeLayer()
+        mask.path = path.cgPath
+        layer.mask = mask
+    }
 }

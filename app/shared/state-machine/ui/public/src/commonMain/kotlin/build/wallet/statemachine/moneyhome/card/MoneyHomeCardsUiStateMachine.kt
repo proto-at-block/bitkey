@@ -4,7 +4,8 @@ import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
-import build.wallet.statemachine.moneyhome.card.replacehardware.ReplaceHardwareCardUiProps
+import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
+import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiProps
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 
@@ -19,5 +20,6 @@ data class MoneyHomeCardsProps(
   val gettingStartedCardUiProps: GettingStartedCardUiProps,
   val hardwareRecoveryStatusCardUiProps: HardwareRecoveryStatusCardUiProps,
   val recoveryContactCardsUiProps: RecoveryContactCardsUiProps,
-  val replaceHardwareCardUiProps: ReplaceHardwareCardUiProps,
+  val setupHardwareCardUiProps: SetupHardwareCardUiProps,
+  val startSweepCardUiProps: StartSweepCardUiProps,
 )

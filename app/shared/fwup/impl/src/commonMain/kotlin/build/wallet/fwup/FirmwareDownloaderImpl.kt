@@ -10,18 +10,18 @@ import build.wallet.fwup.FirmwareDownloadError.WriteError
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import build.wallet.memfault.MemfaultService
+import build.wallet.memfault.MemfaultClient
 import build.wallet.memfault.logMemfaultNetworkFailure
 import build.wallet.platform.data.FileManager
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
 class FirmwareDownloaderImpl(
-  private val memfaultService: MemfaultService,
+  private val memfaultClient: MemfaultClient,
   private val fileManager: FileManager,
 ) : FirmwareDownloader {
   companion object {
@@ -45,10 +45,10 @@ class FirmwareDownloaderImpl(
   override suspend fun download(
     deviceInfo: FirmwareDeviceInfo,
   ): Result<Unit, FirmwareDownloadError> {
-    return binding {
+    return coroutineBinding {
       // Get the latest bundle URL, if there is one
       val fwupBundleUrl =
-        memfaultService.queryForFwupBundle(
+        memfaultClient.queryForFwupBundle(
           deviceSerial = deviceInfo.serial,
           hardwareVersion = deviceInfo.fwupHwVersion(),
           softwareType = FWUP_SOFTWARE_TYPE,
@@ -63,7 +63,7 @@ class FirmwareDownloaderImpl(
 
       // If we got a URL, use it to download the firmware bundle
       val downloadResult =
-        memfaultService.downloadFwupBundle(fwupBundleUrl)
+        memfaultClient.downloadFwupBundle(fwupBundleUrl)
           .logMemfaultNetworkFailure { "Failed to download firmware" }
           .mapError { DownloadError(it) }
           .bind()

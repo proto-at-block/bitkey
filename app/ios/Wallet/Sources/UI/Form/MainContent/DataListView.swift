@@ -8,11 +8,11 @@ struct DataListView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelDataList
+    private let viewModel: FormMainContentModel.DataList
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelDataList) {
+    init(viewModel: FormMainContentModel.DataList) {
         self.viewModel = viewModel
     }
 
@@ -25,7 +25,10 @@ struct DataListView: View {
                 DataHeroView(viewModel: hero)
             }
             VStack {
-                ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id: \.0) { idx, viewModel in
+                ForEach(
+                    Array(zip(viewModel.items.indices, viewModel.items)),
+                    id: \.0
+                ) { idx, viewModel in
                     DataRowView(
                         viewModel: viewModel,
                         titleFont: .body3Regular,
@@ -49,10 +52,13 @@ struct DataListView: View {
                 }
             }
             VStack {
-                ForEach(Array(zip(viewModel.buttons.indices, viewModel.buttons)), id: \.0) { _, button in
+                ForEach(
+                    Array(zip(viewModel.buttons.indices, viewModel.buttons)),
+                    id: \.0
+                ) { _, button in
                     ButtonView(model: button)
                 }
-                if (!viewModel.buttons.isEmpty) {
+                if !viewModel.buttons.isEmpty {
                     Spacer().frame(height: 20)
                 }
             }
@@ -70,7 +76,7 @@ struct DataListView: View {
 // MARK: -
 
 struct DataRowView: View {
-    let viewModel: FormMainContentModelDataList.Data
+    let viewModel: FormMainContentModel.DataListData
 
     let titleFont: FontTheme
     let titleTextColor: Color
@@ -81,10 +87,14 @@ struct DataRowView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 HStack(spacing: 0) {
-                    ModeledText(model: .standard(viewModel.title, font: titleFont, textColor: titleTextColor))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .lineLimit(1)
-                        .fixedSize()
+                    ModeledText(model: .standard(
+                        viewModel.title,
+                        font: titleFont,
+                        textColor: titleTextColor
+                    ))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(1)
+                    .fixedSize()
                     if let icon = viewModel.titleIcon {
                         IconView(model: icon)
                             .padding(.leading, 4)
@@ -96,36 +106,56 @@ struct DataRowView: View {
                         onTitle()
                     }
                 }
-            
+
                 Spacer()
                 VStack {
-                    ModeledText(model: .standard(viewModel.sideText, font: viewModel.sideTextType.font, textAlignment: .trailing, textColor: viewModel.sideTextTreatment.textColor, treatment: viewModel.sideTextTreatment.treatment))
+                    ModeledText(model: .standard(
+                        viewModel.sideText,
+                        font: viewModel.sideTextType.font,
+                        textAlignment: .trailing,
+                        textColor: viewModel.sideTextTreatment.textColor,
+                        treatment: viewModel.sideTextTreatment.treatment
+                    ))
                     viewModel.secondarySideText.map {
-                        ModeledText(model: .standard($0, font: viewModel.secondarySideTextType.font, textAlignment: .trailing, textColor: viewModel.secondarySideTextTreatment.textColor, treatment: viewModel.secondarySideTextTreatment.treatment))
+                        ModeledText(model: .standard(
+                            $0,
+                            font: viewModel.secondarySideTextType.font,
+                            textAlignment: .trailing,
+                            textColor: viewModel.secondarySideTextTreatment.textColor,
+                            treatment: viewModel.secondarySideTextTreatment.treatment
+                        ))
                     }
                 }
-                if (viewModel.onClick != nil) {
+                if viewModel.onClick != nil {
                     Image(uiImage: .smallIconCaretRight)
                         .foregroundColor(.foreground30)
                 }
             }
-            .padding(.top, (isFirst) ? 16 : 8)
+            .padding(.top, isFirst ? 16 : 8)
             .padding(.bottom, 16)
             .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
             .background(Color.white)
-            .ifNonnull(viewModel.onClick) { view, onClick  in
+            .ifNonnull(viewModel.onClick) { view, onClick in
                 view.onTapGesture {
                     onClick()
                 }
             }
-            
+
             if let explainer = viewModel.explainer {
                 HStack {
                     VStack {
-                        ModeledText(model: .standard(explainer.title, font: .body3Bold, textColor: .foreground))
-                            .padding(.bottom, 1)
+                        ModeledText(model: .standard(
+                            explainer.title,
+                            font: .body3Bold,
+                            textColor: .foreground
+                        ))
+                        .padding(.bottom, 1)
 
-                        ModeledText(model: .standard(explainer.subtitle, font: .body3Regular, textColor: .foreground60))
+                        ModeledText(model: .standard(
+                            explainer.subtitle,
+                            font: .body3Regular,
+                            textColor: .foreground60
+                        ))
                     }
 
                     explainer.iconButton.map { iconButtonModel in
@@ -141,8 +171,7 @@ struct DataRowView: View {
                 .background(Color.foreground10)
             }
 
-            
-            if (viewModel.showBottomDivider) {
+            if viewModel.showBottomDivider {
                 Divider()
                     .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
             }
@@ -154,8 +183,8 @@ struct DataRowView: View {
 // MARK: -
 
 struct DataHeroView: View {
-    let viewModel: FormMainContentModelDataList.DataHero
-    
+    let viewModel: FormMainContentModel.DataListDataHero
+
     var body: some View {
         VStack(alignment: .center) {
             if let iconModel = viewModel.image {
@@ -169,7 +198,12 @@ struct DataHeroView: View {
             }
             if let subtitle = viewModel.subtitle {
                 Spacer().frame(height: 4)
-                ModeledText(model: .standard(subtitle, font: .body3Bold, textAlignment: .center, textColor: .foreground60))
+                ModeledText(model: .standard(
+                    subtitle,
+                    font: .body3Bold,
+                    textAlignment: .center,
+                    textColor: .foreground60
+                ))
             }
 
             if let button = viewModel.button {
@@ -184,7 +218,7 @@ struct DataHeroView: View {
 
 // MARK: -
 
-private extension FormMainContentModelDataList {
+private extension FormMainContentModel.DataList {
 
     var hasSingleItem: Bool {
         return items.count == 1 && total == nil
@@ -195,7 +229,7 @@ private extension FormMainContentModelDataList {
 // MARK: -
 
 // Extensions that mirror mapping behavior of LabelStyle.kt
-private extension FormMainContentModelDataList.DataSideTextType {
+private extension FormMainContentModel.DataListDataSideTextType {
     var font: FontTheme {
         switch self {
         case .regular: .body3Regular
@@ -207,7 +241,7 @@ private extension FormMainContentModelDataList.DataSideTextType {
     }
 }
 
-private extension FormMainContentModelDataList.DataSideTextTreatment {
+private extension FormMainContentModel.DataListDataSideTextTreatment {
     var textColor: Color {
         switch self {
         case .primary: .foreground
@@ -216,7 +250,7 @@ private extension FormMainContentModelDataList.DataSideTextTreatment {
         default: .foreground
         }
     }
-    
+
     var treatment: LabelTreatment {
         switch self {
         case .strikethrough: .strikethrough
@@ -224,8 +258,6 @@ private extension FormMainContentModelDataList.DataSideTextTreatment {
         }
     }
 }
-
-
 
 // MARK: -
 
@@ -236,37 +268,81 @@ struct DataListView_Previews: PreviewProvider {
                 viewModel: .init(
                     hero: nil,
                     items: [
-                        .init(withTitle: "Miner Fee", titleIcon: nil, onTitle: nil, sideText: "bc1q...xyB1",  secondarySideText: nil, showBottomDivider: false),
+                        .init(
+                            withTitle: "Miner Fee",
+                            titleIcon: nil,
+                            onTitle: nil,
+                            sideText: "bc1q...xyB1",
+                            secondarySideText: nil,
+                            showBottomDivider: false
+                        ),
                     ],
                     total: nil,
                     buttons: []
                 )
             )
-            
+
             DataListView(
                 viewModel: .init(
                     hero: nil,
                     items: [
-                        .init(withTitle: "Foo", titleIcon: nil, onTitle: nil, sideText: "Bar",  secondarySideText: nil, showBottomDivider: true),
-                        .init(withTitle: "Foo", titleIcon: nil, onTitle: nil, sideText: "Bar",  secondarySideText: nil, showBottomDivider: false),
+                        .init(
+                            withTitle: "Foo",
+                            titleIcon: nil,
+                            onTitle: nil,
+                            sideText: "Bar",
+                            secondarySideText: nil,
+                            showBottomDivider: true
+                        ),
+                        .init(
+                            withTitle: "Foo",
+                            titleIcon: nil,
+                            onTitle: nil,
+                            sideText: "Bar",
+                            secondarySideText: nil,
+                            showBottomDivider: false
+                        ),
                     ],
                     total: nil,
                     buttons: []
                 )
             )
-            
+
             DataListView(
                 viewModel: .init(
                     hero: nil,
                     items: [
-                        .init(withTitle: "Miner Fee", titleIcon: nil, onTitle: nil, sideText: "bc1q...xyB1",  secondarySideText: nil, showBottomDivider: false),
-                        .init(withTitle: "Miner Fee", titleIcon: nil, onTitle: nil, sideText: "bc1q...xyB1", secondarySideText: nil, showBottomDivider: false),
+                        .init(
+                            withTitle: "Miner Fee",
+                            titleIcon: nil,
+                            onTitle: nil,
+                            sideText: "bc1q...xyB1",
+                            secondarySideText: nil,
+                            showBottomDivider: false
+                        ),
+                        .init(
+                            withTitle: "Miner Fee",
+                            titleIcon: nil,
+                            onTitle: nil,
+                            sideText: "bc1q...xyB1",
+                            secondarySideText: nil,
+                            showBottomDivider: false
+                        ),
                     ],
-                    total: .init(withTitle: "Total Cost", titleIcon: nil, onTitle: nil, sideText: "$20.36", sideTextType: .body2bold, sideTextTreatment: .primary, secondarySideText: "(0.00010 BTC)", showBottomDivider: false),
+                    total: .init(
+                        withTitle: "Total Cost",
+                        titleIcon: nil,
+                        onTitle: nil,
+                        sideText: "$20.36",
+                        sideTextType: .body2bold,
+                        sideTextTreatment: .primary,
+                        secondarySideText: "(0.00010 BTC)",
+                        showBottomDivider: false
+                    ),
                     buttons: []
                 )
             )
-            
+
             DataListView(
                 viewModel: .init(
                     hero: nil,
@@ -281,7 +357,7 @@ struct DataListView_Previews: PreviewProvider {
                             secondarySideText: "7m late",
                             secondarySideTextType: .bold,
                             secondarySideTextTreatment: .warning,
-                            explainer: FormMainContentModelDataList.DataExplainer(
+                            explainer: FormMainContentModel.DataListDataExplainer(
                                 title: "Taking longer than usual",
                                 subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
                                 iconButton: IconButtonModel(
@@ -301,7 +377,7 @@ struct DataListView_Previews: PreviewProvider {
                                     enabled: true
                                 )
                             )
-                        )
+                        ),
                     ],
                     total: nil,
                     buttons: []
@@ -315,7 +391,8 @@ struct DataListView_Previews: PreviewProvider {
 
 private extension View {
 
-    /// If the icon is `bitkeydevice3d`, updates the view to be wrapped in `BitkeyDevice3dClickableIconView`
+    /// If the icon is `bitkeydevice3d`, updates the view to be wrapped in
+    /// `BitkeyDevice3dClickableIconView`
     @ViewBuilder
     func updateForBitkeyDevice3dView(iconModel: IconModel) -> some View {
         switch iconModel.iconImage {
@@ -332,5 +409,3 @@ private extension View {
     }
 
 }
-
-

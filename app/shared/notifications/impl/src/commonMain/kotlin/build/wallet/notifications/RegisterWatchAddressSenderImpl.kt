@@ -2,14 +2,14 @@ package build.wallet.notifications
 
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.notifications.AddressAndKeysetId
-import build.wallet.f8e.notifications.RegisterWatchAddressService
+import build.wallet.f8e.notifications.RegisterWatchAddressF8eClient
 import build.wallet.queueprocessor.Processor
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class RegisterWatchAddressSenderImpl(
-  private val registerWatchAddressService: RegisterWatchAddressService,
+  private val registerWatchAddressF8eClient: RegisterWatchAddressF8eClient,
 ) : Processor<RegisterWatchAddressContext> {
   override suspend fun processBatch(batch: List<RegisterWatchAddressContext>): Result<Unit, Error> {
     if (batch.isEmpty()) {
@@ -25,7 +25,7 @@ class RegisterWatchAddressSenderImpl(
     if (batch.any { context -> context.f8eEnvironment != f8eEnvironment }) {
       return Err(Error(IllegalStateException("All f8eEnvironments must match: $batch")))
     }
-    return registerWatchAddressService.register(
+    return registerWatchAddressF8eClient.register(
       addressAndKeysetIds =
         batch.map {
           AddressAndKeysetId(it.address.address, it.f8eSpendingKeyset.keysetId)

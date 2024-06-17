@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-debug",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-debug-1.8.0.jar": "672d545345170a8cab8287b281944be790d67545972bebdd54aa2bf4c86cc53f"
+                        "kotlinx-coroutines-debug-1.8.1.jar": "245530319a17d7c9bc4a11526f42e95750e4ab3fc864c940d9ebe8f548ea1870"
                     }
                 }
             ],

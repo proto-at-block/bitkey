@@ -2,7 +2,7 @@ package bitkey.sample.di
 
 import bitkey.sample.functional.AccountDaoImpl
 import bitkey.sample.functional.AccountRepositoryImpl
-import bitkey.sample.functional.CreateAccountServiceImpl
+import bitkey.sample.functional.CreateAccountF8eClientImpl
 import bitkey.sample.ui.SampleAppUiStateMachine
 import bitkey.sample.ui.SampleAppUiStateMachineImpl
 import bitkey.sample.ui.SampleScreenPresenterRegistry
@@ -21,11 +21,11 @@ interface SampleAppComponent {
 
 internal class SampleAppComponentImpl : SampleAppComponent {
   private val accountDao = AccountDaoImpl()
-  private val createAccountService = CreateAccountServiceImpl()
+  private val createAccountF8eClient = CreateAccountF8eClientImpl()
 
   private val accountRepository = AccountRepositoryImpl(
     accountDao = accountDao,
-    createAccountService = createAccountService
+    createAccountF8eClient = createAccountF8eClient
   )
 
   private val accountSettingsScreenPresenter = AccountSettingsScreenPresenter(accountRepository)

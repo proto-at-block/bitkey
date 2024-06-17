@@ -45,7 +45,7 @@ import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
 import build.wallet.firmware.TeltraMock
 import build.wallet.logging.log
-import build.wallet.money.exchange.F8eExchangeRateServiceMock
+import build.wallet.money.exchange.ExchangeRateF8eClientMock
 import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.FakeHardwareKeyStoreImpl
 import build.wallet.nfc.FakeHardwareSpendingWalletProvider
@@ -267,7 +267,7 @@ private fun createAppComponent(
       ),
     // we pass a mock exchange rate service to avoid calls to 3rd party exchange rate services
     // during tests
-    f8eExchangeRateService = F8eExchangeRateServiceMock(),
+    exchangeRateF8eClient = ExchangeRateF8eClientMock(),
     messageSigner = MessageSignerImpl(),
     signatureVerifier = SignatureVerifierImpl(),
     platformContext = platformContext,

@@ -11,7 +11,8 @@ public class LogsViewController: UIHostingController<LogsView>, ModelRepresentab
         super.init(rootView: LogsView(viewModel: viewModel))
     }
 
-    required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -45,7 +46,13 @@ public struct LogsView: View {
         NavigationView {
             List {
                 Section {
-                    ForEach(Array(zip(viewModel.logsModel.logRows.indices, viewModel.logsModel.logRows)), id: \.0) { _, logRowModel in
+                    ForEach(
+                        Array(zip(
+                            viewModel.logsModel.logRows.indices,
+                            viewModel.logsModel.logRows
+                        )),
+                        id: \.0
+                    ) { _, logRowModel in
                         LogRowView(viewModel: logRowModel)
                     }
                 } header: {
@@ -54,7 +61,9 @@ public struct LogsView: View {
                             "Errors Only",
                             isOn: .init(
                                 get: { viewModel.errorsOnly },
-                                set: { newValue in viewModel.onErrorsOnlyValueChanged(.init(bool: newValue)) }
+                                set: { newValue in
+                                    viewModel.onErrorsOnlyValueChanged(.init(bool: newValue))
+                                }
                             )
                         )
                         .tint(.primary)
@@ -62,11 +71,17 @@ public struct LogsView: View {
                             "Analytics Only",
                             isOn: .init(
                                 get: { viewModel.analyticsEventsOnly },
-                                set: { newValue in viewModel.onAnalyticsEventsOnlyValueChanged(.init(bool: newValue)) }
+                                set: { newValue in
+                                    viewModel
+                                        .onAnalyticsEventsOnlyValueChanged(.init(bool: newValue))
+                                }
                             )
                         )
                         .tint(.primary)
-                        ButtonView(model: .tertiaryDestructive(text: "Clear Logs", onClick: viewModel.onClear))
+                        ButtonView(model: .tertiaryDestructive(
+                            text: "Clear Logs",
+                            onClick: viewModel.onClear
+                        ))
                     }
                 }
             }

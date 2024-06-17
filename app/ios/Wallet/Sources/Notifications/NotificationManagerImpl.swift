@@ -1,7 +1,7 @@
 import Foundation
+import Shared
 import UIKit
 import UserNotifications
-import Shared
 
 // MARK: -
 
@@ -50,10 +50,13 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
         }
     }
 
-    public func application(_ application: Application, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+    public func application(
+        _: Application,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
         log { "Registered for remote notifications" }
 
-        let decodedDeviceToken = deviceToken.map { String(format:"%02.2hhx",$0) }.joined()
+        let decodedDeviceToken = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
         Task { @MainActor in
             let result = try? await deviceTokenManager.addDeviceTokenIfActiveOrOnboardingAccount(
                 deviceToken: decodedDeviceToken,
@@ -67,14 +70,17 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
             })
         }
     }
-    
+
     // MARK: - Private Methods
 
     private func checkNotificationAuthorizationAndRegisterForPushNotifications() async {
         let settings = await notificationCenter.notificationSettings()
         pushNotificationPermissionStatusProvider.updatePushNotificationStatus(
             status: UNAuthorizationStatusExtensions().convertToNotificationPermissionStatus(
-                authorizationStatus: KotlinLong(integerLiteral: settings.authorizationStatus.rawValue)
+                authorizationStatus: KotlinLong(
+                    integerLiteral: settings.authorizationStatus
+                        .rawValue
+                )
             )
         )
 
@@ -91,7 +97,7 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
 
     @MainActor
     public func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
+        _: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
         switch response.actionIdentifier {
@@ -105,8 +111,8 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
     }
 
     public func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
+        _: UNUserNotificationCenter,
+        willPresent _: UNNotification
     ) async -> UNNotificationPresentationOptions {
         return [.banner, .sound]
     }

@@ -14,6 +14,7 @@ static struct {
   arg_str_t* write_key;
   arg_lit_t* security_test;
   arg_int_t* failure_analysis;
+  arg_lit_t* diagnostics;
   arg_end_t* end;
 } fpc_cmd_args;
 
@@ -29,6 +30,7 @@ static void fpc_cmd_register(void) {
   fpc_cmd_args.write_key = ARG_STR_OPT('w', "write-key", "provision a specific hex-encoded key");
   fpc_cmd_args.security_test = ARG_LIT_OPT('s', "security-test", "run security test");
   fpc_cmd_args.failure_analysis = ARG_INT_OPT('f', "failure-analysis", "run FA capture");
+  fpc_cmd_args.diagnostics = ARG_LIT_OPT('d', "diagnostics", "diagnostics dump");
   fpc_cmd_args.end = ARG_END();
 
   static shell_command_t fpc_cmd = {
@@ -87,6 +89,38 @@ NO_OPTIMIZE static void fpc_cmd_handler(int argc, char** argv) {
       LOGI("Image analysis test passed");
     } else {
       LOGE("Image analysis test failed");
+    }
+  } else if (fpc_cmd_args.diagnostics->header.found) {
+    bio_diagnostics_t diagnostics = bio_get_diagnostics();
+
+    if (diagnostics.finger_coverage_valid) {
+      printf("finger_coverage: %d\n", diagnostics.finger_coverage);
+    } else {
+      printf("finger_coverage: invalid\n");
+    }
+
+    if (diagnostics.common_mode_noise_valid) {
+      printf("common_mode_noise: %d\n", diagnostics.common_mode_noise);
+    } else {
+      printf("common_mode_noise: invalid\n");
+    }
+
+    if (diagnostics.image_quality_valid) {
+      printf("image_quality: %d\n", diagnostics.image_quality);
+    } else {
+      printf("image_quality: invalid\n");
+    }
+
+    if (diagnostics.sensor_coverage_valid) {
+      printf("sensor_coverage: %d\n", diagnostics.sensor_coverage);
+    } else {
+      printf("sensor_coverage: invalid\n");
+    }
+
+    if (diagnostics.template_data_update_valid) {
+      printf("template_data_update: %d\n", diagnostics.template_data_update);
+    } else {
+      printf("template_data_update: invalid\n");
     }
   }
 }

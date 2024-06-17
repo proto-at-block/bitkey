@@ -3,7 +3,7 @@ package build.wallet.statemachine.data.notifications
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.email.EmailFake
-import build.wallet.f8e.notifications.NotificationTouchpointServiceMock
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
 import build.wallet.notifications.NotificationTouchpoint.EmailTouchpoint
 import build.wallet.notifications.NotificationTouchpoint.PhoneNumberTouchpoint
 import build.wallet.notifications.NotificationTouchpointDaoMock
@@ -17,11 +17,11 @@ import io.kotest.matchers.shouldBe
 
 class NotificationTouchpointDataStateMachineImplTests : FunSpec({
   val notificationTouchpointDao = NotificationTouchpointDaoMock(turbines::create)
-  val notificationTouchpointService = NotificationTouchpointServiceMock(turbines::create)
+  val notificationTouchpointF8eClient = NotificationTouchpointF8eClientMock(turbines::create)
   val stateMachine =
     NotificationTouchpointDataStateMachineImpl(
       notificationTouchpointDao = notificationTouchpointDao,
-      notificationTouchpointService = notificationTouchpointService
+      notificationTouchpointF8eClient = notificationTouchpointF8eClient
     )
 
   val props =
@@ -31,12 +31,12 @@ class NotificationTouchpointDataStateMachineImplTests : FunSpec({
 
   beforeTest {
     notificationTouchpointDao.reset()
-    notificationTouchpointService.reset()
+    notificationTouchpointF8eClient.reset()
   }
 
   test("initial state") {
     stateMachine.test(props) {
-      notificationTouchpointService.getTouchpointsCalls.awaitItem()
+      notificationTouchpointF8eClient.getTouchpointsCalls.awaitItem()
       notificationTouchpointDao.clearCalls.awaitItem()
 
       with(awaitItem()) {
@@ -48,7 +48,7 @@ class NotificationTouchpointDataStateMachineImplTests : FunSpec({
 
   test("updates when dao updates") {
     stateMachine.test(props) {
-      notificationTouchpointService.getTouchpointsCalls.awaitItem()
+      notificationTouchpointF8eClient.getTouchpointsCalls.awaitItem()
       notificationTouchpointDao.clearCalls.awaitItem()
 
       with(awaitItem()) {
@@ -69,7 +69,7 @@ class NotificationTouchpointDataStateMachineImplTests : FunSpec({
   }
 
   test("refresh from f8e stores in dao") {
-    notificationTouchpointService.getTouchpointsResult =
+    notificationTouchpointF8eClient.getTouchpointsResult =
       Ok(
         listOf(
           EmailTouchpoint("email-id", EmailFake),
@@ -78,7 +78,7 @@ class NotificationTouchpointDataStateMachineImplTests : FunSpec({
       )
 
     stateMachine.test(props) {
-      notificationTouchpointService.getTouchpointsCalls.awaitItem()
+      notificationTouchpointF8eClient.getTouchpointsCalls.awaitItem()
       notificationTouchpointDao.clearCalls.awaitItem()
       notificationTouchpointDao.storeTouchpointCalls.awaitItem()
       notificationTouchpointDao.storeTouchpointCalls.awaitItem()

@@ -11,7 +11,7 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -42,7 +42,7 @@ internal suspend fun Keybox.appRecoveryAuthKeypair(
 internal suspend fun Keybox.appKeys(
   appPrivateKeyDao: AppPrivateKeyDao,
 ): Result<Map<AppSpendingPublicKey, AppSpendingPrivateKey>, Throwable> =
-  binding {
+  coroutineBinding {
     buildMap {
       // Retrieve active app spending key
       appPrivateKeyDao

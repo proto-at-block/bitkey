@@ -13,7 +13,7 @@ struct DebugListGroupView: View {
 
     var body: some View {
         Section {
-            ForEach(viewModel.items, id:\.title) { listItem in
+            ForEach(viewModel.items, id: \.title) { listItem in
                 if let onClick = listItem.onClick {
                     DebugListItemView(viewModel: listItem)
                         .onTapGesture {
@@ -22,7 +22,7 @@ struct DebugListGroupView: View {
                 } else {
                     DebugListItemView(viewModel: listItem)
                 }
-             }
+            }
         } header: {
             if let header = viewModel.header {
                 Text(header)
@@ -76,7 +76,7 @@ struct DebugListItemView: View {
                         Text("Copy \(viewModel.title)")
                         Image(systemName: "doc.on.doc")
                     }
-                 }
+                }
             }
             Spacer()
             viewModel.trailingAccessory.map { trailingAccessory in

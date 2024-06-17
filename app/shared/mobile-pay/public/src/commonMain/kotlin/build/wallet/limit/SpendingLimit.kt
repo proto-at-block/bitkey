@@ -10,7 +10,7 @@ import kotlinx.datetime.TimeZone
  */
 data class SpendingLimit(
   /**
-   * Whether or not this Spending Limit is turned on.
+   * Whether this Spending Limit is turned on.
    */
   val active: Boolean,
   /**

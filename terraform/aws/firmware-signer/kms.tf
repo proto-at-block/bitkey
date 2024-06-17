@@ -55,6 +55,19 @@ resource "aws_kms_key" "bucket_key" {
           ]
         },
         Resource = "*"
+      },
+      {
+        Sid    = "Enable atlantis user to upload"
+        Effect = "Allow"
+        Principal = {
+          AWS = [
+            var.role_arn
+          ]
+        },
+        Action = [
+          "kms:GenerateDataKey"
+        ]
+        Resource = "*"
       }
     ]
   })

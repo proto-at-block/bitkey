@@ -15,9 +15,9 @@ buildLogic {
   app {
     version(
       yyyy = 2024,
-      version = 60,
+      version = 61,
       patch = 0,
-      build = 1
+      build = 3
     )
   }
   compose {
@@ -132,7 +132,6 @@ dependencies {
   implementation(libs.android.compose.ui.activity)
   implementation(libs.android.core.ktx)
   implementation(libs.android.lifecycle.process)
-  implementation(libs.android.lifecycle.viewmodel)
   implementation(libs.kmp.kermit)
   implementation(libs.kmp.molecule.runtime)
   implementation(projects.android.debugImpl)

@@ -17,7 +17,7 @@ import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.inappsecurity.BiometricPreference
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.keybox.keys.OnboardingAppKeyKeystore
-import build.wallet.limit.SpendingLimitDao
+import build.wallet.limit.MobilePayService
 import build.wallet.logging.log
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -31,7 +31,7 @@ import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.SocRecKeysDao
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class AppDataDeleterImpl(
   private val appVariant: AppVariant,
@@ -44,7 +44,7 @@ class AppDataDeleterImpl(
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
-  private val spendingLimitDao: SpendingLimitDao,
+  private val mobilePayService: MobilePayService,
   private val outgoingTransactionDetailDao: OutgoingTransactionDetailDao,
   private val fwupDataDao: FwupDataDao,
   private val firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
@@ -66,7 +66,7 @@ class AppDataDeleterImpl(
   private val biometricPreference: BiometricPreference,
 ) : AppDataDeleter {
   override suspend fun deleteAll() =
-    binding {
+    coroutineBinding {
       check(appVariant != Customer) {
         "Not allowed to delete app data in Customer builds."
       }
@@ -76,8 +76,7 @@ class AppDataDeleterImpl(
       onboardingKeyboxSealedCsekDao.clear()
       onboardingKeyboxStepStateDao.clear()
       onboardingKeyboxHardwareKeysDao.clear()
-      spendingLimitDao.disableSpendingLimit()
-      spendingLimitDao.removeAllLimits()
+      mobilePayService.deleteLocal()
       outgoingTransactionDetailDao.clear()
       fwupDataDao.clear()
       firmwareDeviceInfoDao.clear()

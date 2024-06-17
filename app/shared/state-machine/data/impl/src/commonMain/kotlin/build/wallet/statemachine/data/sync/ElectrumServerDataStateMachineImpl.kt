@@ -17,7 +17,7 @@ import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.f8e.configuration.GetBdkConfigurationService
+import build.wallet.f8e.configuration.GetBdkConfigurationF8eClient
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import build.wallet.statemachine.data.sync.ElectrumServerState.Loaded
@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 class ElectrumServerDataStateMachineImpl(
   val electrumServerRepository: ElectrumServerConfigRepository,
-  val getBdkConfigurationService: GetBdkConfigurationService,
+  val getBdkConfigurationF8eClient: GetBdkConfigurationF8eClient,
 ) : ElectrumServerDataStateMachine {
   @Composable
   override fun model(props: ElectrumServerDataProps): ElectrumServerData {
@@ -71,7 +71,7 @@ class ElectrumServerDataStateMachineImpl(
   private suspend fun syncBdkConfig(
     props: ElectrumServerDataProps,
   ): Result<ElectrumServer.F8eDefined, ElectrumServerLookupError> =
-    getBdkConfigurationService.getConfiguration(
+    getBdkConfigurationF8eClient.getConfiguration(
       f8eEnvironment = props.f8eEnvironment
     )
       .mapError { ElectrumServerLookupError(it.message, it) }

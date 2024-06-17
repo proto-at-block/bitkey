@@ -1,6 +1,6 @@
 package build.wallet.google.signin
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.logging.LogLevel.Error
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
@@ -17,17 +17,16 @@ class GoogleSignOutActionImpl(
 ) : GoogleSignOutAction {
   override suspend fun signOut(): Result<Unit, GoogleSignOutError> {
     log { "Signing out from Google accounts" }
-    return Result
-      .catching {
-        withTimeout(10.seconds) {
-          withContext(Dispatchers.IO) {
-            with(googleSignInClientProvider.clientForGoogleDrive) {
-              // Revoking access disconnects customer's Google account from our app.
-              revokeAccess().continueWith { signOut() }
-            }.await()
-          }
+    return catchingResult {
+      withTimeout(10.seconds) {
+        withContext(Dispatchers.IO) {
+          with(googleSignInClientProvider.clientForGoogleDrive) {
+            // Revoking access disconnects customer's Google account from our app.
+            revokeAccess().continueWith { signOut() }
+          }.await()
         }
       }
+    }
       .map {
         log { "Successfully logged out from Google account and revoked access." }
         // Noop: Sign out action was successful.

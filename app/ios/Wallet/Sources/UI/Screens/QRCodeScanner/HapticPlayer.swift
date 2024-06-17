@@ -69,5 +69,3 @@ enum HapticEffect: Equatable {
     case notification(UINotificationFeedbackGenerator.FeedbackType)
 
 }
-
-

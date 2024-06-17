@@ -4,13 +4,13 @@ import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.db.DbError
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusService
+import build.wallet.f8e.recovery.GetDelayNotifyRecoveryStatusF8eClient
 import build.wallet.logging.log
 import build.wallet.recovery.RecoverySyncer.SyncError
 import build.wallet.recovery.RecoverySyncer.SyncError.CouldNotFetchServerRecovery
 import build.wallet.recovery.RecoverySyncer.SyncError.SyncDbError
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -24,7 +24,7 @@ import kotlin.time.Duration
 
 class RecoverySyncerImpl(
   val recoveryDao: RecoveryDao,
-  val getRecoveryStatusService: GetDelayNotifyRecoveryStatusService,
+  val getRecoveryStatusF8eClient: GetDelayNotifyRecoveryStatusF8eClient,
   val appSessionManager: AppSessionManager,
 ) : RecoverySyncer {
   /**
@@ -58,11 +58,11 @@ class RecoverySyncerImpl(
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
   ): Result<Unit, SyncError> =
-    binding {
+    coroutineBinding {
       syncLock.withLock {
         log { "Syncing recovery status" }
         val serverRecovery =
-          getRecoveryStatusService.getStatus(f8eEnvironment, fullAccountId)
+          getRecoveryStatusF8eClient.getStatus(f8eEnvironment, fullAccountId)
             .mapError { CouldNotFetchServerRecovery(it) }
             .bind()
 

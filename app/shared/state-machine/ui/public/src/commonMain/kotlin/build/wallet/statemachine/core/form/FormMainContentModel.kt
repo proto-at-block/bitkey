@@ -18,14 +18,14 @@ import build.wallet.ui.model.picker.ItemPickerModel
 import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.collections.immutable.ImmutableList
 
-sealed interface FormMainContentModel {
+sealed class FormMainContentModel {
   /**
    * A content object used to add space between elements as needed.
    */
   data class Spacer(
     /** The amount of space, or null if it should try to fill as much space as possible. */
     val height: Float? = null,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * A display list of text items with a title and subtext with a leading icon aligned to the
@@ -33,7 +33,7 @@ sealed interface FormMainContentModel {
    */
   data class Explainer(
     val items: ImmutableList<Statement>,
-  ) : FormMainContentModel {
+  ) : FormMainContentModel() {
     data class Statement(
       val leadingIcon: Icon? = null,
       val title: String?,
@@ -56,6 +56,32 @@ sealed interface FormMainContentModel {
   }
 
   /**
+   * A large image above a title and body message, fully center aligned.
+   */
+  data class Showcase(
+    val content: Content,
+    val title: String,
+    val body: LabelModel,
+  ) : FormMainContentModel() {
+    sealed class Content {
+      data class IconContent(
+        val icon: Icon,
+      ) : Content()
+
+      data class VideoContent(
+        val video: Video,
+      ) : Content() {
+        enum class Video {
+          BITKEY_RESET,
+          ;
+
+          open val looping: Boolean = false
+        }
+      }
+    }
+  }
+
+  /**
    * A display list of data with a left-aligned label and a right-aligned primary and secondary
    * data and an optional "total" row that will be displayed at the bottom.
    */
@@ -65,7 +91,7 @@ sealed interface FormMainContentModel {
     val items: ImmutableList<Data>,
     val total: Data? = null,
     val buttons: ImmutableList<ButtonModel> = emptyImmutableList(),
-  ) : FormMainContentModel {
+  ) : FormMainContentModel() {
     init {
       require(items.isNotEmpty())
     }
@@ -114,7 +140,7 @@ sealed interface FormMainContentModel {
   @Redacted
   data class FeeOptionList(
     val options: ImmutableList<FeeOption>,
-  ) : FormMainContentModel {
+  ) : FormMainContentModel() {
     init {
       require(options.isNotEmpty())
     }
@@ -151,7 +177,7 @@ sealed interface FormMainContentModel {
     val fieldModel: TextFieldModel,
     val resendCodeContent: ResendCodeContent,
     val skipForNowContent: SkipForNowContent,
-  ) : FormMainContentModel {
+  ) : FormMainContentModel() {
     sealed interface ResendCodeContent {
       data class Text(val value: String) : ResendCodeContent
 
@@ -201,7 +227,7 @@ sealed interface FormMainContentModel {
   data class TextInput(
     val title: String? = null,
     val fieldModel: TextFieldModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * A multiline input field.
@@ -212,7 +238,7 @@ sealed interface FormMainContentModel {
   data class TextArea(
     val title: String? = null,
     val fieldModel: TextFieldModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * An input field with an optional trailing button contained inside
@@ -222,7 +248,7 @@ sealed interface FormMainContentModel {
   data class AddressInput(
     val fieldModel: TextFieldModel,
     val trailingButtonModel: ButtonModel?,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * A field allowing user to pick a date
@@ -231,12 +257,12 @@ sealed interface FormMainContentModel {
   data class DatePicker(
     val title: String? = null,
     val fieldModel: DatePickerModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   data class Picker(
     val title: String? = null,
     val fieldModel: ItemPickerModel<*>,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * A circular progress indicator to display a countdown by showing progress
@@ -253,21 +279,21 @@ sealed interface FormMainContentModel {
     val timerProgress: Progress,
     val direction: TimerDirection,
     val timerRemainingSeconds: Long,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * Used to embed a Web View within a form
    */
   data class WebView(
     val url: String,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * Will display a list using the [ListGroupModel]
    */
   data class ListGroup(
     val listGroupModel: ListGroupModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * Allows a [ButtonModel] to be rendered in the [FormMainContentModel] list
@@ -275,7 +301,7 @@ sealed interface FormMainContentModel {
    */
   data class Button(
     val item: ButtonModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * A linear progress indicator with multiple labels, evenly spaced along
@@ -285,9 +311,9 @@ sealed interface FormMainContentModel {
     // TODO(W-8034): use Progress type.
     val progress: Float,
     val labels: ImmutableList<String>,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
-  data object Loader : FormMainContentModel
+  data object Loader : FormMainContentModel()
 
   /**
    * Allows a [CalloutModel] to be rendered in the [FormMainContentModel] list
@@ -295,7 +321,7 @@ sealed interface FormMainContentModel {
    */
   data class Callout(
     val item: CalloutModel,
-  ) : FormMainContentModel
+  ) : FormMainContentModel()
 
   /**
    * Shows a hero of the Money Home screen with the given primary and secondary amount
@@ -304,5 +330,6 @@ sealed interface FormMainContentModel {
   data class MoneyHomeHero(
     val primaryAmount: String,
     val secondaryAmount: String,
-  ) : FormMainContentModel
+    val isHidden: Boolean = false,
+  ) : FormMainContentModel()
 }

@@ -21,23 +21,27 @@ final class OnboardingSnapshotTests: XCTestCase {
 
     func test_accountAccessMoreOptions() {
         let view = FormView(
-            viewModel: AccountAccessMoreOptionsFormBodyModelKt.AccountAccessMoreOptionsFormBodyModel(
-                onBack: {},
-                onRestoreYourWalletClick: {},
-                onBeTrustedContactClick: {}
-            )
+            viewModel: AccountAccessMoreOptionsFormBodyModelKt
+                .AccountAccessMoreOptionsFormBodyModel(
+                    onBack: {},
+                    onRestoreYourWalletClick: {},
+                    onBeTrustedContactClick: {},
+                    onResetExistingDevice: {}
+                )
         )
         assertBitkeySnapshots(view: view)
     }
 
     func test_connectYourBitkey() {
         let view = PairNewHardwareView(
-            viewModel: StartFingerprintEnrollmentInstructionsBodyModelKt.StartFingerprintEnrollmentInstructionsBodyModel(
-                onButtonClick: {},
-                onBack: {},
-                eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery, 
-                isNavigatingBack: false
-            )
+            viewModel: StartFingerprintEnrollmentInstructionsBodyModelKt
+                .StartFingerprintEnrollmentInstructionsBodyModel(
+                    onButtonClick: {},
+                    onBack: {},
+                    eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery,
+
+                    isNavigatingBack: false
+                )
         )
 
         assertBitkeySnapshots(view: view)
@@ -47,7 +51,7 @@ final class OnboardingSnapshotTests: XCTestCase {
         let view = PairNewHardwareView(
             viewModel: ActivationInstructionsBodyModelKt.ActivationInstructionsBodyModel(
                 onContinue: {},
-                onBack: {}, 
+                onBack: {},
                 isNavigatingBack: false,
                 eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery
             )
@@ -58,20 +62,22 @@ final class OnboardingSnapshotTests: XCTestCase {
 
     func test_onboarding_hw_fingerprint_enrollment() {
         let view = PairNewHardwareView(
-            viewModel: HardwareFingerprintEnrollmentScreenModelKt.HardwareFingerprintEnrollmentScreenModel(
-                onSaveFingerprint: {},
-                onBack: {},
-                showingIncompleteEnrollmentError: false,
-                incompleteEnrollmentErrorOnPrimaryButtonClick: {},
-                onErrorOverlayClosed: {},
-                eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery,
-                presentationStyle: .root, 
-                isNavigatingBack: false,
-                headline: "Set up your fingerprint",
-                instructions: "Place your finger on the sensor until you see a blue light." +
-                " Repeat this until the device has a solid green light." +
-                " Once done, press the button below to save your fingerprint."
-            ).body as! PairNewHardwareBodyModel
+            viewModel: HardwareFingerprintEnrollmentScreenModelKt
+                .HardwareFingerprintEnrollmentScreenModel(
+                    onSaveFingerprint: {},
+                    onBack: {},
+                    showingIncompleteEnrollmentError: false,
+                    incompleteEnrollmentErrorOnPrimaryButtonClick: {},
+                    onErrorOverlayClosed: {},
+                    eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery,
+                    presentationStyle: .root,
+
+                    isNavigatingBack: false,
+                    headline: "Set up your fingerprint",
+                    instructions: "Place your finger on the sensor until you see a blue light." +
+                        " Repeat this until the device has a solid green light." +
+                        " Once done, press the button below to save your fingerprint."
+                ).body as! PairNewHardwareBodyModel
         )
 
         assertBitkeySnapshots(view: view)

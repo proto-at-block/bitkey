@@ -13,8 +13,8 @@ import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.f8e.socrec.SocRecF8eClientFake
 import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.f8e.socrec.SocialRecoveryServiceFake
 import build.wallet.f8e.socrec.isEmpty
 import build.wallet.f8e.socrec.shouldBeEmpty
 import build.wallet.f8e.socrec.shouldOnlyHaveEndorsed
@@ -38,10 +38,10 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
   val appKeyDao = AppPrivateKeyDaoFake()
   val authDao = SocRecEnrollmentAuthenticationDaoImpl(appKeyDao, databaseProvider)
 
-  lateinit var socRecFake: SocialRecoveryServiceFake
+  lateinit var socRecFake: SocRecF8eClientFake
 
   fun TestScope.socRecFake() =
-    SocialRecoveryServiceFake(
+    SocRecF8eClientFake(
       uuidGenerator = { "fake-uuid" },
       backgroundScope = backgroundScope
     )
@@ -78,7 +78,7 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
     socRecFake = socRecFake()
     return SocRecRelationshipsRepositoryImpl(
       appScope = backgroundScope,
-      socialRecoveryServiceProvider = suspend { socRecFake },
+      socRecF8eClientProvider = suspend { socRecFake },
       socRecRelationshipsDao = dao,
       socRecEnrollmentAuthenticationDao = authDao,
       socRecCrypto = socRecCrypto,

@@ -1,12 +1,6 @@
 package build.wallet.statemachine.data.app
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import build.wallet.configuration.FiatMobilePayConfigurationRepository
+import androidx.compose.runtime.*
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.feature.FeatureFlagInitializer
 import build.wallet.feature.FeatureFlagSyncer
@@ -35,7 +29,6 @@ class AppDataStateMachineImpl(
   private val electrumServerDataStateMachine: ElectrumServerDataStateMachine,
   private val firmwareDataStateMachine: FirmwareDataStateMachine,
   private val fiatCurrencyRepository: FiatCurrencyRepository,
-  private val fiatMobilePayConfigurationRepository: FiatMobilePayConfigurationRepository,
 ) : AppDataStateMachine {
   enum class AppLoadBlockingEffectState {
     IN_PROGRESS,
@@ -105,11 +98,6 @@ class AppDataStateMachineImpl(
         // TODO(W-6665): migrate to scoped worker
         fiatCurrencyRepository.updateFromServer(f8eEnvironment)
       }
-      // TODO(W-6665): migrate to scoped worker
-      fiatMobilePayConfigurationRepository.launchSyncAndUpdateFromServer(
-        scope = this,
-        f8eEnvironment = f8eEnvironment
-      )
     }
   }
 

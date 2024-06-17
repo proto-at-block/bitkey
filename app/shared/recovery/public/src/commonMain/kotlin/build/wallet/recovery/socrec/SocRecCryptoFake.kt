@@ -42,6 +42,7 @@ import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 import com.ionspin.kotlin.bignum.integer.BigInteger
@@ -52,7 +53,6 @@ import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.encodeUtf8
 import okio.ByteString.Companion.toByteString
 import kotlin.random.Random
-import com.github.michaelbull.result.coroutines.binding.binding as suspendBinding
 
 /**
  * This implementation uses simplified crypto operations to simulate the real
@@ -231,7 +231,7 @@ class SocRecCryptoFake(
     appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<TrustedContactKeyCertificate, SocRecCryptoError> =
-    suspendBinding {
+    coroutineBinding {
       val appAuthPrivateKey = appPrivateKeyDao!!
         .getAsymmetricPrivateKey(appGlobalAuthKey)
         .mapError(::ErrorGettingPrivateKey)

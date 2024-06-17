@@ -39,11 +39,16 @@ public struct DemoModeConfigView: View {
             isPresented: .constant(viewModel.disableAlertModel != nil),
             presenting: viewModel.disableAlertModel,
             actions: { model in
-                Button(model.primaryButtonText, role: .destructive, action: model.onPrimaryButtonClick)
+                Button(
+                    model.primaryButtonText,
+                    role: .destructive,
+                    action: model.onPrimaryButtonClick
+                )
                 if let secondaryText = model.secondaryButtonText,
-                   let secondaryAction = model.onSecondaryButtonClick {
-                Button(secondaryText, role: .cancel, action: secondaryAction)
-            }
+                   let secondaryAction = model.onSecondaryButtonClick
+                {
+                    Button(secondaryText, role: .cancel, action: secondaryAction)
+                }
             },
             message: { model in
                 Text(model.subline ?? "")

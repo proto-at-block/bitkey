@@ -33,7 +33,11 @@ struct SpendingLimitCardView: View {
 
             HStack {
                 ModeledText(
-                    model: .standard(viewModel.spentAmountText, font: .body4Regular, textColor: .foreground60)
+                    model: .standard(
+                        viewModel.spentAmountText,
+                        font: .body4Regular,
+                        textColor: .foreground60
+                    )
                 )
                 Spacer()
                 ModeledText(

@@ -12,7 +12,7 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     private enum QueuedAction: Equatable {
         /// A queued view controller to navigate to after any in progress navigation completes.
         case pushOrPop(vc: UIViewController, stateKey: String, animation: AnimationStyle?)
-        
+
         /// Clears the stack
         case clearStack
     }
@@ -20,7 +20,8 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     // MARK: - Public Types
 
     public enum PresentationStyle {
-        /// Presented modally. If `swipeToDismissCallback` is provided, we will allow swiping to dismiss, otherwise it will be prevented.
+        /// Presented modally. If `swipeToDismissCallback` is provided, we will allow swiping to
+        /// dismiss, otherwise it will be prevented.
         case modal(swipeToDismissCallback: (() -> Void)?)
 
         /// Presented full screen,
@@ -38,14 +39,18 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     // MARK: - Public Properties
 
     // TODO: [W-970] See if there is a better way to track the current Model/ State coming from the State Machine
-    /// The key for the current view controller at the top of the stack (or becoming the top of the stack).
+    /// The key for the current view controller at the top of the stack (or becoming the top of the
+    /// stack).
     /// Corresponds to `currentViewController`.
-    /// Set immediately so that `AppUiStateMachineManager` can apply model updates to it even when it is still being animated in.
+    /// Set immediately so that `AppUiStateMachineManager` can apply model updates to it even when
+    /// it is still being animated in.
     public var currentScreenModelKey: String? = nil
 
-    /// The current view controller either in the process of being pushed onto the stack, or already at the top of the stack.
+    /// The current view controller either in the process of being pushed onto the stack, or already
+    /// at the top of the stack.
     /// Corresponds to `currentScreenModelKey`.
-    /// Set immediately so that `AppUiStateMachineManager` can apply model updates to it even when it is still being animated in.
+    /// Set immediately so that `AppUiStateMachineManager` can apply model updates to it even when
+    /// it is still being animated in.
     public var currentViewController: UIViewController?
 
     /// The navigation view controller outside consumers can use to present and dismiss
@@ -63,7 +68,8 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
         case none
 
         /// We are currently animating a view controller via push or pop.
-        /// If a new view controller asks to be shown via `pushOrPop` while we are in this state, we will assign it to
+        /// If a new view controller asks to be shown via `pushOrPop` while we are in this state, we
+        /// will assign it to
         /// `queuedViewControllerToNavigateTo` and handle once the current animation completes.
         case animating
     }
@@ -77,8 +83,10 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
     private let navController: UINavigationController
 
-    /// Maintains a mapping of model keys to view controllers to determine if we should be popping back to them.
-    /// A state machine's model key should remain stable for views within a flow. So if a state machine emits a model
+    /// Maintains a mapping of model keys to view controllers to determine if we should be popping
+    /// back to them.
+    /// A state machine's model key should remain stable for views within a flow. So if a state
+    /// machine emits a model
     /// such as:
     ///
     /// • "looking-up-cloud-account"
@@ -88,8 +96,10 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     /// Then this represents 2 pushes to the stack followed by a pop back to the first vc pushed.
     private var viewControllersForState = [String: UIViewController]()
 
-    /// The swipe to dismiss callback for the navigation stack managed by this `StateChangeHandler` to call when it detects a swipe to dismiss
-    /// This is needed to keep the internal state in the KMP state machines accurate when the dismissal happens
+    /// The swipe to dismiss callback for the navigation stack managed by this `StateChangeHandler`
+    /// to call when it detects a swipe to dismiss
+    /// This is needed to keep the internal state in the KMP state machines accurate when the
+    /// dismissal happens
     private let swipeToDismissCallback: (() -> Void)?
 
     // MARK: - Life Cycle
@@ -98,7 +108,11 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
         rootViewController: (vc: UIViewController, key: String),
         presentationStyle: PresentationStyle
     ) {
-        self.navController = HiddenBarNavigationController(rootViewController: rootViewController.vc)
+        self
+            .navController = HiddenBarNavigationController(
+                rootViewController: rootViewController
+                    .vc
+            )
         viewControllersForState[rootViewController.key] = rootViewController.vc
         currentScreenModelKey = rootViewController.key
         currentViewController = rootViewController.vc
@@ -141,13 +155,14 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
     // MARK: - UIAdaptivePresentationControllerDelegate
 
-    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    func presentationControllerDidDismiss(_: UIPresentationController) {
         swipeToDismissCallback?()
     }
 
     // MARK: - Public Methods
 
-    /// Attempts to pop to the view controller at the given key, otherwise pushes if that key hasn't been seen yet.
+    /// Attempts to pop to the view controller at the given key, otherwise pushes if that key hasn't
+    /// been seen yet.
     /// If the key is the current key, does nothing
     /// - Parameter stateKey: The state the view controller represents.
     public func pushOrPopTo(
@@ -162,12 +177,20 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
 
         // Queue the view controller if there is currently one be animated to.
         guard currentAnimationState == .none else {
-            queuedActions.append(.pushOrPop(vc: newViewController, stateKey: stateKey, animation: animation))
+            queuedActions.append(.pushOrPop(
+                vc: newViewController,
+                stateKey: stateKey,
+                animation: animation
+            ))
             return
         }
 
         // We're able to handle it, make sure to clear the queue
-        queuedActions.removeAll(where: { $0 == .pushOrPop(vc: newViewController, stateKey: stateKey, animation: animation) })
+        queuedActions.removeAll(where: { $0 == .pushOrPop(
+            vc: newViewController,
+            stateKey: stateKey,
+            animation: animation
+        ) })
 
         currentScreenModelKey = stateKey
         currentViewController = newViewController
@@ -175,17 +198,25 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
         // An animation is in progress if the transition is animated
         currentAnimationState = animation == .none ? .none : .animating
 
-        if !popToState(viewController: newViewController, stateKey: stateKey, animated: animation == .pushPop) {
+        if !popToState(
+            viewController: newViewController,
+            stateKey: stateKey,
+            animated: animation == .pushPop
+        ) {
             let fadeAnimationKey = "fadeAnimationKey"
             if animation == .fade {
-                let transition: CATransition = CATransition()
+                let transition = CATransition()
                 transition.duration = 0.3
                 transition.type = CATransitionType.fade
                 navController.view.layer.add(transition, forKey: fadeAnimationKey)
             } else {
                 navController.view.layer.removeAnimation(forKey: fadeAnimationKey)
             }
-            navController.pushViewController(newViewController, animated: animation == .pushPop, completion: handleNavigationAnimationCompletion)
+            navController.pushViewController(
+                newViewController,
+                animated: animation == .pushPop,
+                completion: handleNavigationAnimationCompletion
+            )
         }
 
         viewControllersForState[stateKey] = newViewController
@@ -200,11 +231,12 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
             return
         }
 
-        guard let currentScreenModelKey = currentScreenModelKey,
-              let currentViewController = currentViewController else {
+        guard let currentScreenModelKey,
+              let currentViewController
+        else {
             return
         }
-        viewControllersForState = [currentScreenModelKey : currentViewController]
+        viewControllersForState = [currentScreenModelKey: currentViewController]
         navController.setViewControllers([currentViewController], animated: false)
         queuedActions.removeAll(where: { $0 == .clearStack })
     }
@@ -230,13 +262,18 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
         }
     }
 
-    /// If a view controller for the given state already exists in the stack, it pops to that view controller.
+    /// If a view controller for the given state already exists in the stack, it pops to that view
+    /// controller.
     /// And replaces if with the given `viewController`.
     /// Returns whether or not it popped.
     /// - Parameter viewController: The current viewController that was provided for that stateKey
     /// - Parameter stateKey: The state you wish to look up a view controller for.
     /// - Returns: Whether or not we found a view controller for the given state and popped to it.
-    private func popToState(viewController: UIViewController, stateKey: String, animated: Bool) -> Bool {
+    private func popToState(
+        viewController: UIViewController,
+        stateKey: String,
+        animated: Bool
+    ) -> Bool {
         guard let oldViewController = viewControllersForState[stateKey] else {
             // no view controller found for `stateKey`
             return false
@@ -252,9 +289,14 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
             return false
         }
 
-        let poppedViewControllers = navController.popToViewController(viewController, animated: animated, completion: handleNavigationAnimationCompletion)
+        let poppedViewControllers = navController.popToViewController(
+            viewController,
+            animated: animated,
+            completion: handleNavigationAnimationCompletion
+        )
         guard let poppedControllers = poppedViewControllers else {
-            // Nothing was popped. This is unexpected given that the view controller existed in `viewControllersForState`.
+            // Nothing was popped. This is unexpected given that the view controller existed in
+            // `viewControllersForState`.
             // Undo the view controller replacement.
             _ = replaceViewControllerOnStack(
                 oldViewController: viewController,
@@ -273,14 +315,15 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     }
 
     /// Replaces the `oldViewController` with the `newViewController` with the same stateKey,
-    /// this is because the model may have changed so although we still want the popping animation we want a
+    /// this is because the model may have changed so although we still want the popping animation
+    /// we want a
     /// different underlying ViewController
     /// - Parameter oldViewController: The state you wish to look up a view controller for.
     /// - Returns: Whether or not we found a view controller for the given state and popped to it.
     private func replaceViewControllerOnStack(
         oldViewController: UIViewController,
         newViewController: UIViewController,
-        stateKey: String
+        stateKey _: String
     ) -> Bool {
         guard let index = navController.viewControllers.lastIndex(of: oldViewController) else {
             return false
@@ -290,4 +333,3 @@ class StateChangeHandler: NSObject, UIAdaptivePresentationControllerDelegate {
     }
 
 }
-

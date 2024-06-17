@@ -32,7 +32,7 @@ import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
 import build.wallet.inappsecurity.HideBalancePreferenceFake
 import build.wallet.keybox.keys.OnboardingAppKeyKeystoreFake
-import build.wallet.limit.SpendingLimitDaoMock
+import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.notifications.NotificationTouchpointDaoMock
@@ -63,7 +63,7 @@ class AppDataDeleterImplTests : FunSpec({
   val accountRepository = AccountRepositoryFake()
   val authTokenDao = AuthTokenDaoMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
-  val spendingLimitDao = SpendingLimitDaoMock(turbines::create)
+  val mobilePayService = MobilePayServiceMock(turbines::create)
   val transactionDetailDao = OutgoingTransactionDetailDaoMock(turbines::create)
   val fwupDataDao = FwupDataDaoMock(turbines::create)
   val firmwareDeviceIdentifiersDao =
@@ -95,7 +95,7 @@ class AppDataDeleterImplTests : FunSpec({
       onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
       onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
       onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
-      spendingLimitDao = spendingLimitDao,
+      mobilePayService = mobilePayService,
       outgoingTransactionDetailDao = transactionDetailDao,
       fwupDataDao = fwupDataDao,
       firmwareDeviceInfoDao = firmwareDeviceIdentifiersDao,
@@ -162,8 +162,7 @@ class AppDataDeleterImplTests : FunSpec({
       authTokenDao.clearCalls.awaitItem()
       gettingStartedTaskDao.clearTasksCalls.awaitItem()
       keyboxDao.clearCalls.awaitItem()
-      spendingLimitDao.clearActiveLimitCalls.awaitItem()
-      spendingLimitDao.removeAllLimitsCalls.awaitItem()
+      mobilePayService.deleteLocalCalls.awaitItem()
       transactionDetailDao.clearCalls.awaitItem()
       notificationTouchpointDao.clearCalls.awaitItem()
       onboardingKeyboxStepStateDao.clearCalls.awaitItem()

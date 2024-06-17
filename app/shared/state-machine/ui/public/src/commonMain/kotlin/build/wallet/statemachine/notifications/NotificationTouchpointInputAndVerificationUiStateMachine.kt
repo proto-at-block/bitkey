@@ -12,7 +12,7 @@ import build.wallet.statemachine.core.StateMachine
  * Flow for gathering and verifying a notification touchpoint, either
  * - an sms (using [PhoneNumberInputStateMachine] for input),
  * - an email (using [EmailInputStateMachine] for input),
- * using [VerificationCodeInputStateMachine] for verification and [NotificationTouchpointService]
+ * using [VerificationCodeInputStateMachine] for verification and [NotificationTouchpointF8eClient]
  * to interact with the server.
  *
  * Emits a [BodyModel] so that callers can determine presentation style of the entire flow.

@@ -9,10 +9,9 @@ import build.wallet.bitcoin.invoice.ParsedPaymentData.Lightning
 import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
 import build.wallet.bitcoin.lightning.LightningInvoiceParserMock
 import build.wallet.testing.shouldBeErrOfType
+import build.wallet.testing.shouldBeOkOfType
 import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.types.shouldBeTypeOf
 
 class PaymentDataParserImplTests : FunSpec({
   val testAddressString = "BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U"
@@ -50,17 +49,17 @@ class PaymentDataParserImplTests : FunSpec({
 
   test("Parse onchain-only address") {
     paymentDataParser.decode(testAddressString, BITCOIN)
-      .shouldBeTypeOf<Ok<Onchain>>()
+      .shouldBeOkOfType<Onchain>()
   }
 
   test("Parse BIP21 URI") {
     paymentDataParser.decode(testBIP21URI, BITCOIN)
-      .shouldBeTypeOf<Ok<BIP21>>()
+      .shouldBeOkOfType<BIP21>()
   }
 
   test("Parse Lightning invoice") {
     paymentDataParser.decode(testLightningInvoiceString, BITCOIN)
-      .shouldBeTypeOf<Ok<Lightning>>()
+      .shouldBeOkOfType<Lightning>()
   }
 
   test("Invalid onchain-only address – invalid network") {

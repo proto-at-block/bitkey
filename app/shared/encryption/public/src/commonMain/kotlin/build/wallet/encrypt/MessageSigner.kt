@@ -1,6 +1,6 @@
 package build.wallet.encrypt
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import okio.ByteString
@@ -26,10 +26,9 @@ fun MessageSigner.signResult(
   message: ByteString,
   key: Secp256k1PrivateKey,
 ): Result<String, SignMessageError> =
-  Result
-    .catching {
-      sign(message, key)
-    }
+  catchingResult {
+    sign(message, key)
+  }
     .mapError { exception -> SignMessageError.UnhandledException(exception) }
 
 sealed class SignMessageError : Error() {

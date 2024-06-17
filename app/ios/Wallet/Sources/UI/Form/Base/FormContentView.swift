@@ -41,8 +41,12 @@ public struct FormContentView: View {
 
         // Main Content
         VStack(spacing: 24) {
-            ForEach(Array(zip(mainContentList.indices, mainContentList)), id: \.0) { _, mainContent in
+            ForEach(
+                Array(zip(mainContentList.indices, mainContentList)),
+                id: \.0
+            ) { _, mainContent in
                 FormMainContentView(viewModel: mainContent)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

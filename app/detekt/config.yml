@@ -198,7 +198,7 @@ coroutines:
   SuspendFunWithCoroutineScopeReceiver:
     active: false
   SuspendFunWithFlowReturnType:
-    active: false # TODO(W-1684): enable
+    active: true
 
 empty-blocks:
   active: true
@@ -780,14 +780,12 @@ style:
   UselessCallOnNotNull:
     active: true
   UtilityClassWithPublicConstructor:
-    active: false # TODO: enable back
+    active: true
   VarCouldBeVal:
     active: true
     ignoreLateinitVar: false
   WildcardImport:
-    active: true
-    excludeImports:
-      - 'java.util.*'
+    active: false
 
 # https://twitter.github.io/compose-rules/detekt/
 TwitterCompose:

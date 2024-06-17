@@ -1,7 +1,7 @@
 import BitcoinDevKit
 import Shared
 
-class BdkTransactionImpl : BdkTransaction {
+class BdkTransactionImpl: BdkTransaction {
 
     let ffiTransaction: FfiTransaction
 

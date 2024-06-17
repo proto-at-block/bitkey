@@ -6,7 +6,7 @@ import XCTest
 @testable import Wallet
 
 final class FeeOptionsSnapshotTests: XCTestCase {
-    
+
     func test_fee_options() {
         let view = FormView(
             viewModel: FeeSelectionScreenModelKt.FeeOptionsScreenModel(
@@ -35,14 +35,14 @@ final class FeeOptionsSnapshotTests: XCTestCase {
                         selected: false,
                         enabled: true,
                         infoText: nil
-                    )
+                    ),
                 ]),
                 primaryButton: .snapshotTest(text: "Continue"),
                 onBack: {}
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
-    
+
 }

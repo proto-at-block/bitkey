@@ -14,7 +14,7 @@ import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.toErrorIfNull
@@ -28,7 +28,7 @@ class BestEffortFullAccountCloudBackupUploaderImpl(
   override suspend fun createAndUploadCloudBackup(
     fullAccount: FullAccount,
   ): Result<Unit, Failure> =
-    binding {
+    coroutineBinding {
       val currentCloudBackup = cloudBackupDao
         .get(accountId = fullAccount.accountId.serverId)
         .toErrorIfNull { IllegalStateException("Error getting cloud backup") }

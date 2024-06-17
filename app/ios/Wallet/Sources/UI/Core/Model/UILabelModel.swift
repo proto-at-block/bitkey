@@ -14,7 +14,10 @@ public struct UILabelModel {
 
     public var text: String {
         get { return attributedText.string }
-        set { attributedText.replaceCharacters(in: NSRange(0..<attributedText.string.count), with: newValue) }
+        set { attributedText.replaceCharacters(
+            in: NSRange(0 ..< attributedText.string.count),
+            with: newValue
+        ) }
     }
 
     // MARK: - Internal Properties
@@ -48,7 +51,7 @@ public struct UILabelModel {
                 .foregroundColor: textColor,
                 .paragraphStyle: paragraphStyle,
                 // Add an offset so that the text is centered vertically based on the line height
-                .baselineOffset: (lineHeight - font.lineHeight) / 4
+                .baselineOffset: (lineHeight - font.lineHeight) / 4,
             ],
             range: NSMakeRange(0, text.count)
         )
@@ -76,4 +79,3 @@ public extension UILabel {
     }
 
 }
-

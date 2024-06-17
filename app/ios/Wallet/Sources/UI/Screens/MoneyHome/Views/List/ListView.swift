@@ -16,7 +16,7 @@ public struct ListView: View {
 
     public var model: ListModel
     public let hideContent: Bool
-    
+
     init(model: ListModel, hideContent: Bool) {
         self.model = model
         self.hideContent = hideContent
@@ -33,7 +33,7 @@ public struct ListView: View {
                     .padding([.bottom], 8)
             }
             VStack(spacing: Metrics.interSectionSpacing) {
-                ForEach(Array(zip(model.sections.indices, model.sections)), id: \.0) { index, section in
+                ForEach(Array(zip(model.sections.indices, model.sections)), id: \.0) { _, section in
                     ListGroupView(viewModel: section, hideContent: hideContent)
                 }
             }

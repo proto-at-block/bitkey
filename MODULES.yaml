@@ -12,6 +12,7 @@ core_reviewers: [bitkey-mobile]
 message: "Someone working on Bitkey Mobile (KMP, Swift) must approve this pull request."
 slack: "#bitkey-mobile"
 minimum_core_approvals: 1
+exclude_author_from_core_reviewers: true
 autounapprove: true
 ---
 name: bitkey-server
@@ -19,21 +20,25 @@ core_reviewers: [bitkey-server-eng]
 message: "Someone working on Bitkey Server (WSM, F8E & Infra) must approve this pull request."
 slack: "#bitkey-server"
 minimum_core_approvals: 1
+exclude_author_from_core_reviewers: true
 autounapprove: true
 ---
 name: bitkey-software
 core_reviewers: [bitkey-software]
 slack: "#proto-w1-software"
 minimum_core_approvals: 1
+exclude_author_from_core_reviewers: true
 ---
 name: bitkey-web
 core_reviewers: [bitkey-web-eng]
 message: "Someone working on Bitkey Web (Web, Shop) must approve this pull request."
 slack: "#bitkey-web"
 minimum_core_approvals: 1
+exclude_author_from_core_reviewers: true
 ---
 name: bitkey-software-require-review
 core_reviewers: [bitkey-software]
 slack: "#proto-w1-software"
 minimum_core_approvals: 1
 autounapprove: true
+exclude_author_from_core_reviewers: true

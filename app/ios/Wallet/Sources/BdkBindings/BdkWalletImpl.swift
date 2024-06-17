@@ -1,13 +1,13 @@
 import BitcoinDevKit
 import Shared
 
-class BdkWalletImpl : BdkWallet {
+class BdkWalletImpl: BdkWallet {
     let wallet: Wallet
-    
+
     init(wallet: Wallet) {
         self.wallet = wallet
     }
-    
+
     func getAddressBlocking(addressIndex: BdkAddressIndex) -> BdkResult<BdkAddressInfo> {
         var ffiAddressIndex: AddressIndex
         switch addressIndex {
@@ -26,7 +26,7 @@ class BdkWalletImpl : BdkWallet {
             )
         }
     }
-    
+
     func getBalanceBlocking() -> BdkResult<BdkBalance> {
         return BdkResult {
             let ffiBalance = try wallet.getBalance()
@@ -40,7 +40,7 @@ class BdkWalletImpl : BdkWallet {
             )
         }
     }
-    
+
     func listTransactionsBlocking(includeRaw: Bool) -> BdkResult<NSArray> {
         return BdkResult {
             return try wallet.listTransactions(includeRaw: includeRaw).map { tx in
@@ -60,14 +60,14 @@ class BdkWalletImpl : BdkWallet {
             } as NSArray
         }
     }
-    
+
     func signBlocking(psbt: BdkPartiallySignedTransaction) -> BdkResult<KotlinBoolean> {
         let realBdkPsbt = psbt as! BdkPartiallySignedTransactionImpl
         return BdkResult {
-            return KotlinBoolean(bool: try wallet.sign(psbt: realBdkPsbt.ffiPsbt, signOptions: nil))
+            return try KotlinBoolean(bool: wallet.sign(psbt: realBdkPsbt.ffiPsbt, signOptions: nil))
         }
     }
-    
+
     func syncBlocking(blockchain: BdkBlockchain, progress: BdkProgress?) -> BdkResult<KotlinUnit> {
         let realBdkBlockchain = blockchain as! BdkBlockchainImpl
         let ffiProgress = progress.map { Progress(progress: $0) }
@@ -80,10 +80,10 @@ class BdkWalletImpl : BdkWallet {
     func isMineBlocking(script: BdkScript) -> BdkResult<KotlinBoolean> {
         let realBdkScript = script as! BdkScriptImpl
         return BdkResult {
-            .init(bool: (try wallet.isMine(script: realBdkScript.ffiScript)))
+            try .init(bool: wallet.isMine(script: realBdkScript.ffiScript))
         }
     }
-    
+
     func listUnspentBlocking() -> BdkResult<NSArray> {
         return BdkResult {
             return try wallet.listUnspent().map { utxo in
@@ -98,13 +98,13 @@ class BdkWalletImpl : BdkWallet {
 }
 
 private class Progress: FfiProgress {
-    
+
     private let progress: BdkProgress
-    
+
     init(progress: BdkProgress) {
         self.progress = progress
     }
-    
+
     func update(progress: Float, message: String?) {
         self.progress.update(progress: progress, message: message)
     }

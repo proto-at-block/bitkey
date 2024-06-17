@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class NetworkReachabilityProviderImpl(
-  private val f8eNetworkReachabilityService: F8eNetworkReachabilityService,
+  private val f8eNetworkReachabilityClient: F8eNetworkReachabilityClient,
   private val internetNetworkReachabilityService: InternetNetworkReachabilityService,
   private val networkReachabilityEventDao: NetworkReachabilityEventDao,
 ) : NetworkReachabilityProvider {
@@ -68,7 +68,7 @@ class NetworkReachabilityProviderImpl(
       // connection check (not endpoint specific) and update the flow based on that.
       f8eEnvironment?.let { environment ->
         if (f8eStatusMutableFlow(environment).value == UNREACHABLE) {
-          f8eNetworkReachabilityService.checkConnection(environment)
+          f8eNetworkReachabilityClient.checkConnection(environment)
             .onSuccess { f8eStatusMutableFlow(environment).emit(REACHABLE) }
         }
       }
@@ -85,7 +85,7 @@ class NetworkReachabilityProviderImpl(
       // First perform a general F8e connection check (not endpoint specific) to double-check that
       // there’s not an isolated incident with the specific endpoint that experienced a failure,
       // and update the reachability based on that check
-      f8eNetworkReachabilityService.checkConnection(connection.environment)
+      f8eNetworkReachabilityClient.checkConnection(connection.environment)
         .onSuccess { f8eStatusMutableFlow(connection.environment).emit(REACHABLE) }
         .onFailure { f8eStatusMutableFlow(connection.environment).emit(UNREACHABLE) }
     }

@@ -23,6 +23,7 @@ pub struct Service {
     recorded_txids: Arc<RwLock<HashSet<Txid>>>,
     last_refreshed_recorded_txids: Arc<RwLock<OffsetDateTime>>,
     current_mempool_txids: Arc<RwLock<HashSet<Txid>>>,
+    stale_txs_expiring_after: Arc<RwLock<Option<OffsetDateTime>>>,
 }
 
 #[derive(Clone, Deserialize)]
@@ -57,6 +58,7 @@ impl Service {
             recorded_txids: Arc::new(RwLock::new(HashSet::new())),
             last_refreshed_recorded_txids: Arc::new(RwLock::new(OffsetDateTime::UNIX_EPOCH)),
             current_mempool_txids: Arc::new(RwLock::new(HashSet::new())),
+            stale_txs_expiring_after: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -67,5 +69,21 @@ impl Service {
 
     pub fn network(&self) -> Network {
         self.settings.network
+    }
+
+    pub async fn get_recorded_tx_ids(&self) -> HashSet<Txid> {
+        self.recorded_txids.read().await.clone()
+    }
+
+    pub async fn get_fetched_mempool_txids(&self) -> HashSet<Txid> {
+        self.current_mempool_txids.read().await.clone()
+    }
+
+    pub async fn get_last_refreshed_recorded_txids(&self) -> OffsetDateTime {
+        *self.last_refreshed_recorded_txids.read().await
+    }
+
+    pub async fn stale_txs_expiring_after(&self) -> Option<OffsetDateTime> {
+        *self.stale_txs_expiring_after.read().await
     }
 }

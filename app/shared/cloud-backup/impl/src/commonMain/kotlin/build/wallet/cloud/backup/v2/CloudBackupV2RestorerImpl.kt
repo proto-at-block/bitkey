@@ -5,7 +5,7 @@ import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.hardware.HwKeyBundle
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.CloudBackupV2Restorer
 import build.wallet.cloud.backup.CloudBackupV2Restorer.CloudBackupV2RestorerError
@@ -24,7 +24,7 @@ import build.wallet.recovery.socrec.saveKey
 import build.wallet.serialization.json.decodeFromStringResult
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.mapError
@@ -48,7 +48,7 @@ class CloudBackupV2RestorerImpl(
         ?: return Err(PkekMissingError)
 
     val keysInfoEncoded =
-      Result.catching {
+      catchingResult {
         symmetricKeyEncryptor.unseal(
           sealedData = fullAccountFields.hwFullAccountKeysCiphertext,
           key = pkek.key
@@ -70,7 +70,7 @@ class CloudBackupV2RestorerImpl(
   override suspend fun restoreWithDecryptedKeys(
     cloudBackupV2: CloudBackupV2,
     keysInfo: FullAccountKeys,
-  ) = binding {
+  ) = coroutineBinding {
     val fullAccountFields = requireNotNull(cloudBackupV2.fullAccountFields)
 
     // Store auth private keys

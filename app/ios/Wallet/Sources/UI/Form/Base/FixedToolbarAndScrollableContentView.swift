@@ -23,7 +23,7 @@ public struct FixedToolbarAndScrollableContentView<Toolbar: View, Content: View>
 
     /// The opacity of the toolbar view shown overlaid the main content with a blurred background
     /// Transitions to 1 as the view scrolls.
-    @SwiftUI.State 
+    @SwiftUI.State
     private var overlayToolbarOpacity = 0.f
 
     // MARK: - View
@@ -42,12 +42,14 @@ public struct FixedToolbarAndScrollableContentView<Toolbar: View, Content: View>
                             .background {
                                 GeometryReader { contentGeometry in
                                     Color.clear.onAppear {
-                                        contentDoesOverflow = contentGeometry.size.height > geometry.size.height
+                                        contentDoesOverflow = contentGeometry.size.height > geometry
+                                            .size.height
                                     }
                                 }
                             }
                             .wrappedInScrollView(when: contentDoesOverflow) { scrollOffset in
-                                // Show the overlay toolbar with a blurred background when the view scrolls
+                                // Show the overlay toolbar with a blurred background when the view
+                                // scrolls
                                 overlayToolbarOpacity = modulate(
                                     watchedViewValue: scrollOffset,
                                     watchedViewStart: 16,
@@ -112,7 +114,7 @@ private extension View {
 
 private struct ViewPreferenceKey: SwiftUI.PreferenceKey {
     static var defaultValue: CGPoint { .zero }
-    static func reduce(value: inout CGPoint, nextValue: () -> CGPoint) {
+    static func reduce(value _: inout CGPoint, nextValue _: () -> CGPoint) {
         // No-op
     }
 }

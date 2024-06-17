@@ -7,7 +7,7 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadCreator.EmergencyAccessPayloadCreatorError
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
@@ -20,7 +20,7 @@ class EmergencyAccessPayloadCreatorImpl(
     keybox: Keybox,
     sealedCsek: SealedCsek,
   ): Result<EmergencyAccessKitPayload, EmergencyAccessPayloadCreatorError> =
-    binding {
+    coroutineBinding {
       val emergencyAccessKitPayloadDecoder = EmergencyAccessKitPayloadDecoderImpl
 
       val xprv =

@@ -10,5 +10,7 @@ interface ResettingDeviceConfirmationUiStateMachine : StateMachine<ResettingDevi
 
 data class ResettingDeviceConfirmationProps(
   val onBack: () -> Unit,
-  val onConfirmResetDevice: () -> Unit,
+  val onResetDevice: () -> Unit,
+  val isDevicePaired: Boolean,
+  val isHardwareFake: Boolean,
 )

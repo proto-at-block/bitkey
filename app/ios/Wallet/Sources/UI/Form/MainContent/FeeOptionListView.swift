@@ -8,11 +8,11 @@ struct FeeOptionListView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelFeeOptionList
+    private let viewModel: FormMainContentModel.FeeOptionList
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelFeeOptionList) {
+    init(viewModel: FormMainContentModel.FeeOptionList) {
         self.viewModel = viewModel
     }
 
@@ -32,14 +32,14 @@ struct FeeOptionListView: View {
 
 private struct FeeOptionCardView: View {
 
-    let viewModel: FormMainContentModelFeeOptionList.FeeOption
+    let viewModel: FormMainContentModel.FeeOptionListFeeOption
 
     var body: some View {
         VStack(spacing: 0) {
             ListItemView(
                 viewModel: .init(
                     title: viewModel.optionName,
-                    titleAlignment: .left, 
+                    titleAlignment: .left,
                     listItemTitleBackgroundTreatment: nil,
                     secondaryText: nil,
                     sideText: viewModel.transactionTime,
@@ -69,8 +69,8 @@ private struct FeeOptionCardView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(
                     viewModel.selected && viewModel.enabled
-                    ? Color.foreground
-                    : .foreground10,
+                        ? Color.foreground
+                        : .foreground10,
                     lineWidth: 2
                 )
         )
@@ -81,17 +81,22 @@ private struct FeeOptionCardView: View {
 // MARK: -
 
 private struct InfoTextView: View {
-    
+
     let text: String
 
     var body: some View {
-        ModeledText(model: .standard(text, font: .body3Regular, textAlignment: .center, textColor: .foreground60))
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(8)
-            .background(Color.foreground10)
-            .cornerRadius(12)
+        ModeledText(model: .standard(
+            text,
+            font: .body3Regular,
+            textAlignment: .center,
+            textColor: .foreground60
+        ))
+        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(8)
+        .background(Color.foreground10)
+        .cornerRadius(12)
     }
-    
+
 }
 
 // MARK: -
@@ -124,7 +129,7 @@ struct FeeOptionListView_Previews: PreviewProvider {
                         selected: false,
                         enabled: true,
                         infoText: ""
-                    )
+                    ),
                 ]
             )
         )

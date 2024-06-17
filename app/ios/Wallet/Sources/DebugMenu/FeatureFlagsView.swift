@@ -3,7 +3,9 @@ import SwiftUI
 
 // MARK: -
 
-public class FeatureFlagsViewController: UIHostingController<FeatureFlagsView>, ModelRepresentableViewController {
+public class FeatureFlagsViewController: UIHostingController<FeatureFlagsView>,
+    ModelRepresentableViewController
+{
 
     // MARK: - Life Cycle
 
@@ -11,7 +13,8 @@ public class FeatureFlagsViewController: UIHostingController<FeatureFlagsView>, 
         super.init(rootView: FeatureFlagsView(viewModel: viewModel))
     }
 
-    required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 

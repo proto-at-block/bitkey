@@ -51,8 +51,8 @@ public struct NfcMaskView: View {
 
 // MARK: -
 
-extension NfcMaskView {
-    public class ViewModel: ObservableObject {
+public extension NfcMaskView {
+    class ViewModel: ObservableObject {
         @Published
         var title: String
 

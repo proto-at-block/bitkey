@@ -7,6 +7,7 @@ enum class FirmwareFeatureFlag {
   RATE_LIMIT_TEMPLATE_UPDATE,
   UNLOCK,
   MULTIPLE_FINGERPRINTS,
+  IMPROVED_FINGERPRINT_ENROLLMENT,
 }
 
 /** Maps to [FirmwareFeatureFlagCfg] in core */

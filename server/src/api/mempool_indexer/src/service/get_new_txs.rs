@@ -54,10 +54,6 @@ impl Service {
                 write_guard.extend(txids);
                 num_txids
             };
-            event!(
-                Level::INFO,
-                "Retrieved {num_txids} mempool transactions from network {network}"
-            );
 
             let unrecorded_tx_ids = {
                 let current_mempool_txids = self.current_mempool_txids.read().await;
@@ -70,7 +66,7 @@ impl Service {
             let num_unrecorded_tx_ids = unrecorded_tx_ids.len();
             event!(
                 Level::INFO,
-                "Found {num_unrecorded_tx_ids} unrecorded mempool transactions from network {network}"
+                "Found {num_txids} mempool transactions with {num_unrecorded_tx_ids} not recorded from network {network}"
             );
 
             // We do these in batches to avoid hitting the DDB write limit
@@ -85,6 +81,10 @@ impl Service {
                 for tx_id in &unrecorded_tx_ids {
                     match self.fetch_transaction_from_mempool(tx_id).await {
                         Ok(transaction_response) => {
+                            // If the tx is already confirmed, no use vending a processing tx for it
+                            if transaction_response.is_confirmed() {
+                                continue;
+                            }
                             let record = TransactionRecord::from_mempool_tx(&transaction_response, network);
                             tx_records.push(record);
                         }
@@ -110,18 +110,6 @@ impl Service {
                 }
         }
         }
-    }
-
-    pub async fn get_recorded_tx_ids(&self) -> HashSet<Txid> {
-        self.recorded_txids.read().await.clone()
-    }
-
-    pub async fn get_fetched_mempool_txids(&self) -> HashSet<Txid> {
-        self.current_mempool_txids.read().await.clone()
-    }
-
-    pub async fn get_last_refreshed_recorded_txids(&self) -> OffsetDateTime {
-        *self.last_refreshed_recorded_txids.read().await
     }
 
     async fn fetch_transaction_from_mempool(

@@ -53,10 +53,6 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.FailedToCancelRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.VerifyingNotificationCommsForCancellationData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
-import build.wallet.statemachine.data.recovery.sweep.SweepData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
-import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationData
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
@@ -77,10 +73,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
   val csekGenerator = CsekGeneratorMock()
   val csekDao = CsekDaoFake()
   val recoveryAuthCompleter = RecoveryAuthCompleterMock(turbines::create)
-  val sweepDataStateMachine =
-    object : SweepDataStateMachine, StateMachineMock<SweepDataProps, SweepData>(
-      GeneratingPsbtsData(App)
-    ) {}
   val f8eSpendingKeyRotator = F8eSpendingKeyRotatorMock()
   val uuid = UuidGeneratorFake()
   val recoverySyncer = RecoverySyncerMock(StillRecoveringInitiatedRecoveryMock, turbines::create)
@@ -98,22 +90,20 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
   val stateMachine =
     RecoveryInProgressDataStateMachineImpl(
-      delayer = ControlledDelayer(),
       recoveryCanceler = lostAppRecoveryCanceler,
       clock = clock,
       csekGenerator = csekGenerator,
       csekDao = csekDao,
       recoveryAuthCompleter = recoveryAuthCompleter,
-      sweepDataStateMachine = sweepDataStateMachine,
       f8eSpendingKeyRotator = f8eSpendingKeyRotator,
       uuidGenerator = uuid,
       recoverySyncer = recoverySyncer,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
       accountAuthenticator = accountAuthorizer,
       recoveryDao = recoveryDao,
+      delayer = ControlledDelayer(),
       deviceTokenManager = deviceTokenManager,
       socRecRelationshipsRepository = socRecRelationshipsRepository,
-      postSocRecTaskRepository = postSocRecTaskRepository,
       trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
     )
 
@@ -522,7 +512,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Sweeping funds
       awaitItem().let {
         it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
       }
     }
   }
@@ -633,7 +622,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Sweeping funds
       awaitItem().let {
         it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
       }
     }
   }
@@ -743,7 +731,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       // Sweeping funds
       awaitItem().let {
         it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
         it.rollback()
       }
 
@@ -754,7 +741,6 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<PerformingSweepData>()
-        it.sweepData.shouldBe(GeneratingPsbtsData(App))
       }
     }
   }

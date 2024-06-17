@@ -1,5 +1,5 @@
-import SwiftUI
 import Shared
+import SwiftUI
 
 // MARK: -
 
@@ -48,7 +48,7 @@ public struct TextModel {
         self.lineSpacing = lineSpacing
         self.textColor = textColor
 
-        if let textAlignment = textAlignment {
+        if let textAlignment {
             width = .fill(textAlignment: textAlignment)
         } else {
             width = .hug
@@ -73,7 +73,7 @@ public struct ModeledText: View {
             switch model.content {
             case let .text(string):
                 Text(string)
-                    .if(model.treatment ==  .strikethrough) { text in
+                    .if(model.treatment == .strikethrough) { text in
                         text.strikethrough()
                     }
             case let .attributedText(string):
@@ -82,7 +82,7 @@ public struct ModeledText: View {
                 Text(LocalizedStringKey(string)).environment(\.openURL, OpenURLAction { url in
                     let urlString = url.absoluteString
                     let startIndex = urlString.index(urlString.startIndex, offsetBy: "ls:".count)
-                    let linkIndexString = urlString[startIndex..<urlString.endIndex]
+                    let linkIndexString = urlString[startIndex ..< urlString.endIndex]
                     links[Int(linkIndexString)!].onClick()
                     return .handled
                 })
@@ -111,10 +111,11 @@ private extension View {
             self
         }
     }
+
     @ViewBuilder
     func width(_ width: TextModel.Width) -> some View {
         switch width {
-        case .fill(let textAlignment):
+        case let .fill(textAlignment):
             self.multilineTextAlignment(textAlignment)
                 .frame(maxWidth: .infinity, alignment: textAlignment.alignment)
         case .hug:
@@ -128,8 +129,8 @@ private extension View {
 extension TextAlignment {
     var alignment: Alignment {
         switch self {
-        case .leading:  return .leading
-        case .center:   return .center
+        case .leading: return .leading
+        case .center: return .center
         case .trailing: return .trailing
         }
     }

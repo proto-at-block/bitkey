@@ -2,8 +2,8 @@ package build.wallet.statemachine.partnerships
 
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
-import build.wallet.f8e.partnerships.GetTransferRedirectServiceMock
+import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
+import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnerRedirectionMethod
@@ -32,8 +32,8 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     turbines.create<PartnerRedirectionMethod>(
       "on partner redirected calls"
     )
-  val getTransferPartnerListService = GetTransferPartnerListServiceMock(turbines::create)
-  val getTransferRedirectService = GetTransferRedirectServiceMock(turbines::create)
+  val getTransferPartnerListF8eClient = GetTransferPartnerListF8eClientMock(turbines::create)
+  val getTransferRedirectF8eClient = GetTransferRedirectF8eClientMock(turbines::create)
   val partnershipRepositoryMock = PartnershipTransactionStatusRepositoryMock(
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
@@ -44,8 +44,8 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
   // state machine
   val stateMachine =
     PartnershipsTransferUiStateMachineImpl(
-      getTransferPartnerListService = getTransferPartnerListService,
-      getTransferRedirectService = getTransferRedirectService,
+      getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
+      getTransferRedirectF8eClient = getTransferRedirectF8eClient,
       partnershipsRepository = partnershipRepositoryMock
     )
 
@@ -71,7 +71,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
 
   test("redirect partner") {
     stateMachine.test(props()) {
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
+      getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
 
       awaitSheetWithBody<FormBodyModel> {
         mainContentList[0].shouldBeTypeOf<Loader>()
@@ -86,7 +86,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
 
           listGroupModel.items[1].onClick.shouldNotBeNull().invoke()
 
-          getTransferRedirectService.getTransferPartnersRedirectCall.awaitItem()
+          getTransferRedirectF8eClient.getTransferPartnersRedirectCall.awaitItem()
           awaitSheetWithBody<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()
           }
@@ -121,7 +121,7 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
 
   test("another exchange or wallet clicked") {
     stateMachine.test(props()) {
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
+      getTransferPartnerListF8eClient.getTransferPartnersCall.awaitItem()
       awaitSheetWithBody<FormBodyModel>()
 
       awaitSheetWithBody<FormBodyModel> {

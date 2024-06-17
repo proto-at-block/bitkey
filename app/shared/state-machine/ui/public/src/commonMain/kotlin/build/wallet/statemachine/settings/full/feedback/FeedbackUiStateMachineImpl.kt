@@ -15,8 +15,8 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.support.SupportTicketData
 import build.wallet.support.SupportTicketForm
 import build.wallet.support.SupportTicketRepository
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 
 class FeedbackUiStateMachineImpl(
   private val supportTicketRepository: SupportTicketRepository,
@@ -73,13 +73,12 @@ class FeedbackUiStateMachineImpl(
     onLoadFailed: () -> Unit,
   ): ScreenModel {
     LaunchedEffect("load-form-structure") {
-      when (val result = supportTicketRepository.loadFormStructure(f8eEnvironment, accountId)) {
-        is Ok -> {
-          val initialData = supportTicketRepository.prefillKnownFields(result.value)
-          onStructureLoaded(result.value, initialData)
+      supportTicketRepository.loadFormStructure(f8eEnvironment, accountId)
+        .onSuccess { value ->
+          val initialData = supportTicketRepository.prefillKnownFields(value)
+          onStructureLoaded(value, initialData)
         }
-        is Err -> onLoadFailed()
-      }
+        .onFailure { onLoadFailed() }
     }
 
     return LoadingBodyModel(

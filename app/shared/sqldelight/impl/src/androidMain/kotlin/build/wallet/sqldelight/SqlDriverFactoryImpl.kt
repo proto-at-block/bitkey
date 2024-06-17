@@ -5,13 +5,12 @@ import app.cash.sqldelight.db.QueryResult
 import app.cash.sqldelight.db.SqlDriver
 import app.cash.sqldelight.db.SqlSchema
 import app.cash.sqldelight.driver.android.AndroidSqliteDriver
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.store.EncryptedKeyValueStoreFactory
-import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
@@ -110,7 +109,7 @@ actual class SqlDriverFactoryImpl actual constructor(
     simpleQuery(encryptedDriver)
 
     val connectAttempt =
-      Result.catching {
+      catchingResult {
         val clearDriver =
           AndroidSqliteDriver(
             schema = dataBaseSchema,

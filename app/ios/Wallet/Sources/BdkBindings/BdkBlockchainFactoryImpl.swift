@@ -1,10 +1,10 @@
 import BitcoinDevKit
 import Shared
 
-public class BdkBlockchainFactoryImpl : BdkBlockchainFactory {
- 
+public class BdkBlockchainFactoryImpl: BdkBlockchainFactory {
+
     public init() {}
-    
+
     public func blockchainBlocking(config: BdkBlockchainConfig) -> BdkResult<BdkBlockchain> {
         var ffiBlockchainConfig: BlockchainConfig {
             switch config {
@@ -24,8 +24,8 @@ public class BdkBlockchainFactoryImpl : BdkBlockchainFactory {
             }
         }
         return BdkResult {
-            BdkBlockchainImpl(ffiBlockchain: try Blockchain(config: ffiBlockchainConfig))
+            try BdkBlockchainImpl(ffiBlockchain: Blockchain(config: ffiBlockchainConfig))
         }
     }
-    
+
 }

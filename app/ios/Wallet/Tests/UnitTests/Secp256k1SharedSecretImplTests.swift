@@ -1,6 +1,6 @@
-import XCTest
-import Shared
 import Foundation
+import Shared
+import XCTest
 
 @testable import Wallet
 
@@ -15,11 +15,20 @@ class Secp256k1SharedSecretImplTests: XCTestCase {
         let bobKeypair = try keyGenerator.generateKeypair()
         let bobPrivateKey = bobKeypair.privateKey
         let bobPublicKey = bobKeypair.publicKey
-        
-        let aliceSharedSecretBytes = sharedSecret.deriveSharedSecret(privateKey: alicePrivateKey, publicKey: bobPublicKey)
-        let bobSharedSecretBytes = sharedSecret.deriveSharedSecret(privateKey: bobPrivateKey, publicKey: alicePublicKey)
-        let oddSharedSecretBytes = sharedSecret.deriveSharedSecret(privateKey: alicePrivateKey, publicKey: alicePublicKey)
-        
+
+        let aliceSharedSecretBytes = sharedSecret.deriveSharedSecret(
+            privateKey: alicePrivateKey,
+            publicKey: bobPublicKey
+        )
+        let bobSharedSecretBytes = sharedSecret.deriveSharedSecret(
+            privateKey: bobPrivateKey,
+            publicKey: alicePublicKey
+        )
+        let oddSharedSecretBytes = sharedSecret.deriveSharedSecret(
+            privateKey: alicePrivateKey,
+            publicKey: alicePublicKey
+        )
+
         XCTAssertEqual(aliceSharedSecretBytes, bobSharedSecretBytes)
         XCTAssertNotEqual(aliceSharedSecretBytes, oddSharedSecretBytes)
     }

@@ -35,7 +35,6 @@ class AppContext {
     let secp256k1KeyGenerator: Secp256k1KeyGenerator
     let biometricsPrompter: BiometricPrompter
 
-
     // MARK: - Life Cycle
 
     init(appVariant: AppVariant) {
@@ -81,7 +80,7 @@ class AppContext {
             fileManagerProvider: { FileManagerImpl(fileDirectoryProvider: $0) },
             logWritersProvider: { [
                 DatadogLogWriter(logWriterContextStore: $0, minSeverity: .info),
-                OSLogWriter()
+                OSLogWriter(),
             ] },
             messageSigner: MessageSignerImpl(),
             signatureVerifier: SignatureVerifierImpl(),
@@ -97,7 +96,8 @@ class AppContext {
             deviceTokenManager: appComponent.deviceTokenManager,
             deviceTokenProvider: deviceTokenProvider,
             eventTracker: appComponent.eventTracker,
-            pushNotificationPermissionStatusProvider: appComponent.pushNotificationPermissionStatusProvider
+            pushNotificationPermissionStatusProvider: appComponent
+                .pushNotificationPermissionStatusProvider
         )
 
         let fakeHardwareKeyStore = FakeHardwareKeyStoreImpl(
@@ -153,7 +153,7 @@ class AppContext {
             xNonceGenerator: XNonceGeneratorImpl(),
             spake2: Spake2Impl(),
             cryptoBox: CryptoBoxImpl(),
-            pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(), 
+            pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
             biometricPrompter: biometricsPrompter
         )
 
@@ -164,7 +164,7 @@ class AppContext {
                 qrCodeScannerViewControllerFactory: QRCodeScannerViewControllerFactoryImpl()
             )
         )
-        
+
         self.biometricPromptUiStateMachineManager = BiometricPromptUiStateMachineManager(
             biometricPromptUiStateMachine: activityComponent.biometricPromptUiStateMachine,
             appViewController: HiddenBarNavigationController()
@@ -172,9 +172,9 @@ class AppContext {
     }
 }
 
-class NfcSessionProviderImpl : NfcSessionProvider {
+class NfcSessionProviderImpl: NfcSessionProvider {
     func get(parameters: NfcSessionParameters) throws -> NfcSession {
-        if (parameters.isHardwareFake) {
+        if parameters.isHardwareFake {
             return NfcSessionFake(parameters: parameters)
         } else {
             return try NfcSessionImpl(parameters: parameters)

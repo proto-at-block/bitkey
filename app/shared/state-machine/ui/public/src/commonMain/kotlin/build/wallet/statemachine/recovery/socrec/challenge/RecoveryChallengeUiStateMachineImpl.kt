@@ -37,7 +37,7 @@ import build.wallet.statemachine.platform.permissions.EnableNotificationsUiState
 import build.wallet.statemachine.platform.permissions.NotificationRationale
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.START_SOCIAL_RECOVERY_MESSAGE
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -231,7 +231,7 @@ class RecoveryChallengeUiStateMachineImpl(
     props: RecoveryChallengeUiProps,
     setState: (State) -> Unit,
   ) {
-    binding {
+    coroutineBinding {
       val currentChallenge = props.actions.getCurrentChallenge().bind()
       val challenge =
         currentChallenge ?: props.actions.startChallenge(

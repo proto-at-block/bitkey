@@ -7,18 +7,19 @@ import SwiftUI
 public struct CircularProgressView: View {
 
     // MARK: - Private Properties
-    
+
     private var progress: CGFloat {
-        (remainingDuration / totalDuration)
+        remainingDuration / totalDuration
     }
 
     private let totalDuration: TimeInterval
     @SwiftUI.State
     private var remainingDuration: TimeInterval = 0
-    // This needs to be < 1 second otherwise there's a noticable delay in the start of the animation when the view appears
+    // This needs to be < 1 second otherwise there's a noticable delay in the start of the animation
+    // when the view appears
     private static let updateInterval = 0.3
     private let timer = Timer.publish(every: updateInterval, on: .main, in: .common).autoconnect()
-    
+
     // Visual
     private let timerDirection: TimerDirection
     private let progressColor: Color
@@ -51,7 +52,11 @@ public struct CircularProgressView: View {
                     lineWidth: strokeWidth
                 )
             Circle()
-                .trim(from: 0, to: timerDirection == TimerDirection.counterclockwise ? progress : (1 - progress))
+                .trim(
+                    from: 0,
+                    to: timerDirection == TimerDirection
+                        .counterclockwise ? progress : (1 - progress)
+                )
                 .stroke(
                     progressColor,
                     style: StrokeStyle(

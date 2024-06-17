@@ -3,8 +3,8 @@ package build.wallet.statemachine.partnerships.expected
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.partnerships.GetTransferPartnerListService.Success
-import build.wallet.f8e.partnerships.GetTransferPartnerListServiceMock
+import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient.Success
+import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
 import build.wallet.ktor.result.HttpBodyError
 import build.wallet.partnerships.FakePartnershipTransaction
 import build.wallet.partnerships.PartnerId
@@ -33,7 +33,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.LocalDateTime
 
 class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
-  val getTransferPartnerListService = GetTransferPartnerListServiceMock(
+  val getTransferPartnerListService = GetTransferPartnerListF8eClientMock(
     turbines::create
   )
   val dateTimeFormatter = DateTimeFormatterMock()
@@ -44,9 +44,10 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     fetchMostRecentCalls = turbines.create("fetch most recent calls")
   )
   val stateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
-    getTransferPartnerListService = getTransferPartnerListService,
+    getTransferPartnerListF8eClient = getTransferPartnerListService,
     dateTimeFormatter = dateTimeFormatter,
-    transactionsStatusRepository = transactionStatusRepository
+    transactionsStatusRepository = transactionStatusRepository,
+    delayer = {}
   )
   val onBack = turbines.create<Unit>("on back calls")
   val onViewCalls = turbines.create<PartnerRedirectionMethod>("view in partner app calls")

@@ -3,7 +3,7 @@ package build.wallet.google.signin
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.google.signin.GoogleSignInError.AndroidAccountMissing
 import build.wallet.google.signin.GoogleSignInError.ConfigurationError
 import build.wallet.google.signin.GoogleSignInError.GoogleSignInAccountMissing
@@ -45,12 +45,11 @@ internal class GoogleSignInActivityResultContract(
     resultCode: Int,
     intent: Intent?,
   ): Result<GoogleSignInAccount, GoogleSignInError> {
-    return Result
-      .catching {
-        GoogleSignIn.getSignedInAccountFromIntent(intent).also {
-          check(it.isComplete) { "Expected google sign in task to be complete" }
-        }
+    return catchingResult {
+      GoogleSignIn.getSignedInAccountFromIntent(intent).also {
+        check(it.isComplete) { "Expected google sign in task to be complete" }
       }
+    }
       .mapError { error ->
         UnhandledError(
           message = "Failed to get GoogleSignInAccount from intent result.",

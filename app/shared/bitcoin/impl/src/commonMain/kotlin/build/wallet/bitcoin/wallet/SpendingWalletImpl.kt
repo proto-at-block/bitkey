@@ -37,14 +37,14 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.BumpFee
 import build.wallet.bitcoin.wallet.SpendingWallet.PsbtConstructionMethod.Regular
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.time.Delayer.Default.delay
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
@@ -89,7 +89,7 @@ class SpendingWalletImpl(
   }
 
   override suspend fun sync(): Result<Unit, Error> =
-    binding {
+    coroutineBinding {
       bdkWalletSyncer.sync(bdkWallet, networkType)
         .logFailure { "Error syncing wallet" }
         .bind()
@@ -166,7 +166,7 @@ class SpendingWalletImpl(
   }
 
   override suspend fun signPsbt(psbt: Psbt): Result<Psbt, Throwable> =
-    binding {
+    coroutineBinding {
       val bdkPsbt =
         withContext(Dispatchers.BdkIO) {
           bdkPsbtBuilder.build(psbt.base64).result.bind().also {
@@ -174,11 +174,11 @@ class SpendingWalletImpl(
           }
         }
 
-      Result.catching { psbt.copy(base64 = bdkPsbt.serialize()) }.bind()
+      catchingResult { psbt.copy(base64 = bdkPsbt.serialize()) }.bind()
     }.logFailure { "Error signing a psbt." }
 
   private suspend fun getTransactions(): Result<List<BitcoinTransaction>, BdkError> =
-    binding {
+    coroutineBinding {
       val bdkTransactions = bdkWallet.listTransactions(includeRaw = true).result.bind()
 
       bdkTransactions
@@ -230,7 +230,7 @@ class SpendingWalletImpl(
   }
 
   override suspend fun isBalanceSpendable(): Result<Boolean, Error> =
-    binding {
+    coroutineBinding {
       val destinationAddress = getLastUnusedAddress().bind()
 
       val feeRate =
@@ -261,7 +261,7 @@ class SpendingWalletImpl(
     amount: BitcoinTransactionSendAmount,
     feePolicy: FeePolicy,
   ): Result<Psbt, BdkError> =
-    binding {
+    coroutineBinding {
       withContext(Dispatchers.BdkIO) {
         val txBuilderResult =
           bdkTxBuilderFactory.txBuilder()
@@ -318,7 +318,7 @@ class SpendingWalletImpl(
     txid: String,
     feeRate: FeeRate,
   ): Result<Psbt, Throwable> =
-    binding {
+    coroutineBinding {
       withContext(Dispatchers.BdkIO) {
         val psbtResult =
           bdkBumpFeeTxBuilderFactory.bumpFeeTxBuilder(txid, feeRate.satsPerVByte)
@@ -335,12 +335,12 @@ class SpendingWalletImpl(
 }
 
 private suspend fun BdkTxBuilderResult.getPsbt(myWallet: BdkWallet): Result<Psbt, BdkError> =
-  binding { psbt.toPsbt(myWallet = myWallet).bind() }
+  coroutineBinding { psbt.toPsbt(myWallet = myWallet).bind() }
 
 private suspend fun BdkPartiallySignedTransaction.toPsbt(
   myWallet: BdkWallet,
 ): Result<Psbt, BdkError> =
-  binding {
+  coroutineBinding {
     when (val feeSats = feeAmount()?.toBigInteger()) {
       null -> {
         val message = "Psbt is missing network fee amount. psbt=${serialize()}"

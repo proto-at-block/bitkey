@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm",
     "components": [
         {
-            "version": "1.8.0",
+            "version": "1.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-coroutines-test-jvm-1.8.0.jar": "1535cc1f43235d8566f8d5bc6d1c11f0704117e4e563f2ece7e6aa3e68695f20"
+                        "kotlinx-coroutines-test-jvm-1.8.1.jar": "c4ef1deb31be3f81ed82ecf237220cc95886868a7ec527a418599dfff159dedb"
                     }
                 }
             ],

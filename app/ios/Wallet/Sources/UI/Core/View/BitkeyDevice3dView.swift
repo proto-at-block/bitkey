@@ -1,6 +1,6 @@
+import SceneKit
 import Shared
 import SwiftUI
-import SceneKit
 
 /**
  * View showing a full screen 3D SceneView of the Bitkey Device that can be interacted with.
@@ -13,14 +13,21 @@ struct BitkeyDevice3dView: View {
     var onClose: () -> Void
     var body: some View {
         ZStack(alignment: .center) {
-            // Bottom of the ZStack: the scene view, hidden for an arbitrary amount of time to let it first load
-            SceneView(scene: SCNScene(named: "bitkey.scn"),
-                options: [ .autoenablesDefaultLighting, .temporalAntialiasingEnabled, .allowsCameraControl ]
+            // Bottom of the ZStack: the scene view, hidden for an arbitrary amount of time to let
+            // it first load
+            SceneView(
+                scene: SCNScene(named: "bitkey.scn"),
+                options: [
+                    .autoenablesDefaultLighting,
+                    .temporalAntialiasingEnabled,
+                    .allowsCameraControl,
+                ]
             )
             .opacity(isSceneLoading ? 0 : 1)
             .transition(.opacity)
 
-            // Middle of ZStack: a loading icon, only shown while we delay showing the SceneView to let it load
+            // Middle of ZStack: a loading icon, only shown while we delay showing the SceneView to
+            // let it load
             if isSceneLoading {
                 RotatingLoadingIcon(size: .avatar, tint: .white)
                     .opacity(0.2)

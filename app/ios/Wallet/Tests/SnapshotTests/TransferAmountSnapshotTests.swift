@@ -6,7 +6,7 @@ import XCTest
 @testable import Wallet
 
 final class TransferAmountSnapshotTests: XCTestCase {
-    
+
     func test_transfer_amount_entry_fiat() {
         let view = TransferAmountView(
             viewModel: .init(
@@ -24,7 +24,7 @@ final class TransferAmountSnapshotTests: XCTestCase {
                 amountDisabled: false,
                 onSendMaxClick: {},
                 onContinueClick: {},
-                onSwapCurrencyClick: {}, 
+                onSwapCurrencyClick: {},
                 onHardwareRequiredClick: {}
             )
         )
@@ -49,7 +49,7 @@ final class TransferAmountSnapshotTests: XCTestCase {
                 amountDisabled: false,
                 onSendMaxClick: {},
                 onContinueClick: {},
-                onSwapCurrencyClick: {}, 
+                onSwapCurrencyClick: {},
                 onHardwareRequiredClick: {}
             )
         )
@@ -74,7 +74,7 @@ final class TransferAmountSnapshotTests: XCTestCase {
                 amountDisabled: false,
                 onSendMaxClick: {},
                 onContinueClick: {},
-                onSwapCurrencyClick: {}, 
+                onSwapCurrencyClick: {},
                 onHardwareRequiredClick: {}
             )
         )

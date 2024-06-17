@@ -29,6 +29,12 @@ data class ButtonModel(
     // Styled with a translucent lighter background and black text
     Secondary,
 
+    // Styled with opaque red background and white text
+    PrimaryDestructive,
+
+    // Styled with a translucent red background and red text
+    PrimaryDanger,
+
     // Styled with a translucent lighter background and red text
     SecondaryDestructive,
 

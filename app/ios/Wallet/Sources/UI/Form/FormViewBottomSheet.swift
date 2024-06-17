@@ -36,8 +36,17 @@ struct FormViewBottomSheet: View {
                 mainContentList: viewModel.mainContentList,
                 renderContext: .sheet
             )
-            Spacer()
-                .frame(height: 24)
+
+            if #available(iOS 16.0, *) {
+                Spacer()
+                    .frame(height: 24)
+            } else {
+                // On iOS 15, sheets will sometimes be forced to full screen due to their content
+                // size.
+                // In that case, we want a full size spacer to push the buttons to the bottom of the
+                // screen.
+                Spacer()
+            }
             FormFooterView(viewModel: viewModel)
         }
         .padding(.horizontal, DesignSystemMetrics.horizontalPadding)

@@ -6,7 +6,7 @@ import XCTest
 @testable import Wallet
 
 final class ActivitySnapshotTests: XCTestCase {
-    
+
     func test_activity() {
         let view = FormView(
             viewModel: ListFormBodyModelKt.ListFormBodyModel(
@@ -16,8 +16,8 @@ final class ActivitySnapshotTests: XCTestCase {
                 id: nil
             )
         )
-        
+
         assertBitkeySnapshots(view: view)
     }
-    
+
 }

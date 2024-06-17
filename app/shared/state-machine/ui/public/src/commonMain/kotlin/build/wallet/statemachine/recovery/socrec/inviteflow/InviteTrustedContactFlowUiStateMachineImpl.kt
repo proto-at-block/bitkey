@@ -7,7 +7,7 @@ import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.add.AddingTrustedContactUiStateMachine
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class InviteTrustedContactFlowUiStateMachineImpl(
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
@@ -21,7 +21,7 @@ class InviteTrustedContactFlowUiStateMachineImpl(
         AddingTrustedContactUiProps(
           account = props.account,
           onAddTc = { trustedContactAlias, hardwareProofOfPossession ->
-            binding {
+            coroutineBinding {
               val invitation =
                 socRecRelationshipsRepository
                   .createInvitation(

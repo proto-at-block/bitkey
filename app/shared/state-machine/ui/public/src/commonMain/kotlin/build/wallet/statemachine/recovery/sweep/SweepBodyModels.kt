@@ -22,7 +22,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 
 fun generatingPsbtsBodyModel(
-  id: EventTrackerScreenId,
+  id: EventTrackerScreenId?,
   onBack: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
@@ -37,7 +37,7 @@ fun generatingPsbtsBodyModel(
 )
 
 fun generatePsbtsFailedScreenModel(
-  id: EventTrackerScreenId,
+  id: EventTrackerScreenId?,
   onPrimaryButtonClick: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
@@ -53,8 +53,8 @@ fun generatePsbtsFailedScreenModel(
 )
 
 fun sweepFundsPrompt(
-  id: EventTrackerScreenId,
-  recoveredFactor: PhysicalFactor,
+  id: EventTrackerScreenId?,
+  recoveredFactor: PhysicalFactor?,
   fee: MoneyAmountModel,
   onSubmit: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
@@ -68,7 +68,10 @@ fun sweepFundsPrompt(
       header =
         FormHeaderModel(
           icon = LargeIconCheckFilled,
-          headline = "Finalize recovery",
+          headline = when (recoveredFactor) {
+            App, Hardware -> "Finalize recovery"
+            null -> "Transfer funds to active wallet"
+          },
           subline =
             """
             You’ll need to approve a transaction, including an estimated network fee of ${fee.primaryAmount} (${fee.secondaryAmount}).
@@ -91,7 +94,7 @@ fun sweepFundsPrompt(
 )
 
 fun zeroBalancePrompt(
-  id: EventTrackerScreenId,
+  id: EventTrackerScreenId?,
   onDone: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
@@ -120,7 +123,7 @@ fun zeroBalancePrompt(
 )
 
 fun broadcastingScreenModel(
-  id: EventTrackerScreenId,
+  id: EventTrackerScreenId?,
   onBack: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
@@ -135,8 +138,8 @@ fun broadcastingScreenModel(
 )
 
 fun sweepSuccessScreenModel(
-  id: EventTrackerScreenId,
-  recoveredFactor: PhysicalFactor,
+  id: EventTrackerScreenId?,
+  recoveredFactor: PhysicalFactor?,
   onDone: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
 ) = ScreenModel(
@@ -156,11 +159,13 @@ fun sweepSuccessScreenModel(
             when (recoveredFactor) {
               App -> "Your mobile key recovery is complete!"
               Hardware -> "Success!"
+              null -> "Your transfer is complete!"
             },
           subline =
             when (recoveredFactor) {
               App -> "You can now safely use this phone to manage your Bitkey."
               Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use"
+              null -> "You can now safely use this phone to manage your Bitkey."
             }
         ),
       primaryButton =
@@ -174,7 +179,7 @@ fun sweepSuccessScreenModel(
 )
 
 fun sweepFailedScreenModel(
-  id: EventTrackerScreenId,
+  id: EventTrackerScreenId?,
   presentationStyle: ScreenPresentationStyle,
   errorData: ErrorData,
   onRetry: () -> Unit,

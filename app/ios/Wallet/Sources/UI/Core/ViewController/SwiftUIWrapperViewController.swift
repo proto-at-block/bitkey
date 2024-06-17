@@ -9,7 +9,7 @@ import SwiftUI
  */
 public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperView<T>> {
 
-    public override var navigationController: UINavigationController? {
+    override public var navigationController: UINavigationController? {
         nil
     }
 
@@ -18,7 +18,8 @@ public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperV
         super.init(rootView: WrapperView(wrappedView: wrappedView, screenModel: screenModel))
     }
 
-    required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -34,9 +35,9 @@ public class SwiftUIWrapperViewController<T: View>: UIHostingController<WrapperV
 
 // MARK: -
 
-public class ObservableObjectHolder<T> : ObservableObject {
+public class ObservableObjectHolder<T>: ObservableObject {
     @Published var value: T
-    
+
     init(value: T) {
         self.value = value
     }
@@ -53,7 +54,7 @@ public struct WrapperView<T: View>: View {
     var wrappedView: T {
         wrappedViewHolder.value
     }
-    
+
     var screenModel: ScreenModel {
         screenModelHolder.value
     }
@@ -70,7 +71,8 @@ public struct WrapperView<T: View>: View {
             wrappedView
             screenModel.tabBar.map { TabBarView(viewModel: $0) }
         }
-        // Check for uniqueness of toast id, otherwise we're trying showing a new toast so reset the state flag
+        // Check for uniqueness of toast id, otherwise we're trying showing a new toast so reset the
+        // state flag
         .onChange(of: screenModel.toastModel?.id) { _ in
             self.isShowingToast = false
         }
@@ -80,7 +82,7 @@ public struct WrapperView<T: View>: View {
             }
         }
         .animation(.easeInOut(duration: 0.4), value: screenModel.statusBannerModel)
-        
+
         // Show a toast if we've got oen
         if let toast = screenModel.toastModel {
             // This entire animation block is very fragile, attempt to improve at your own risk
@@ -89,14 +91,16 @@ public struct WrapperView<T: View>: View {
                     .transition(.move(edge: .bottom))
                     .animation(.smooth.delay(0.25))
                     .onAppear {
-                        // Delay and then set the state flag to trigger the dismiss animation in the else block below
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5.seconds, execute: {
+                        // Delay and then set the state flag to trigger the dismiss animation in the
+                        // else block below
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5.seconds) {
                             self.isShowingToast = true
-                        })
+                        }
                     }
             } else {
                 ToastView(model: toast)
-                    // we don't really fade out here, but need to change a value to trigger the animation
+                    // we don't really fade out here, but need to change a value to trigger the
+                    // animation
                     .opacity(0.0)
                     .transition(.moveOutToBottom.animation(.easeOut))
             }
@@ -118,8 +122,13 @@ private struct StatusBannerView: View {
     var body: some View {
         VStack {
             HStack(alignment: .center, spacing: 0) {
-                ModeledText(model: .standard(viewModel.title, font: .body3Medium, textAlignment: nil, textColor: .warningForeground))
-                    .padding(.bottom, 1) // This makes the icon centered on the actual text
+                ModeledText(model: .standard(
+                    viewModel.title,
+                    font: .body3Medium,
+                    textAlignment: nil,
+                    textColor: .warningForeground
+                ))
+                .padding(.bottom, 1) // This makes the icon centered on the actual text
                 if viewModel.onClick != nil {
                     Image(uiImage: .smallIconInformationFilled)
                         .resizable()
@@ -129,7 +138,12 @@ private struct StatusBannerView: View {
                 }
             }
             viewModel.subtitle.map { subtitle in
-                ModeledText(model: .standard(subtitle, font: .body4Regular, textAlignment: .center, textColor: .warningForeground))
+                ModeledText(model: .standard(
+                    subtitle,
+                    font: .body4Regular,
+                    textAlignment: .center,
+                    textColor: .warningForeground
+                ))
             }
         }
         .frame(maxWidth: .infinity)
@@ -182,7 +196,7 @@ private struct TabBarItemView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .ifNonnull(viewModel.testTag) { view, testTag in
             view.accessibilityIdentifier(testTag)
-         }
+        }
     }
 
 }

@@ -1,10 +1,9 @@
 package build.wallet.platform.data
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
 import build.wallet.platform.data.File.join
-import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -20,15 +19,14 @@ class FileManagerImpl(
     data: ByteArray,
     fileName: String,
   ): FileManagerResult<Unit> {
-    return Result
-      .catching {
-        withContext(Dispatchers.IO) {
-          val filePath = (fileDirectoryProvider.filesDir().join(fileName)).toPath()
-          FileSystem.SYSTEM.write(filePath) {
-            write(data)
-          }
+    return catchingResult {
+      withContext(Dispatchers.IO) {
+        val filePath = (fileDirectoryProvider.filesDir().join(fileName)).toPath()
+        FileSystem.SYSTEM.write(filePath) {
+          write(data)
         }
       }
+    }
       .mapError { FileManagerError(it) }
       .logFailure { "Failed to write to file [$fileName]" }
       .mapUnit()
@@ -36,24 +34,22 @@ class FileManagerImpl(
   }
 
   override suspend fun readFileAsString(fileName: String): FileManagerResult<String> {
-    return Result
-      .catching {
-        withContext(Dispatchers.IO) {
-          File(fileDirectoryProvider.filesDir().join(fileName)).readText()
-        }
+    return catchingResult {
+      withContext(Dispatchers.IO) {
+        File(fileDirectoryProvider.filesDir().join(fileName)).readText()
       }
+    }
       .mapError { FileManagerError(it) }
       .logFailure { "Failed to read file [$fileName] as string" }
       .toFileManagerResult()
   }
 
   override suspend fun readFileAsBytes(fileName: String): FileManagerResult<ByteArray> {
-    return Result
-      .catching {
-        withContext(Dispatchers.IO) {
-          File(fileDirectoryProvider.filesDir().join(fileName)).readBytes()
-        }
+    return catchingResult {
+      withContext(Dispatchers.IO) {
+        File(fileDirectoryProvider.filesDir().join(fileName)).readBytes()
       }
+    }
       .mapError { FileManagerError(it) }
       .logFailure { "Failed to read file [$fileName] as bytes" }
       .toFileManagerResult()
@@ -63,12 +59,11 @@ class FileManagerImpl(
     zipPath: String,
     targetDirectory: String,
   ): FileManagerResult<Unit> {
-    return Result
-      .catching {
-        withContext(Dispatchers.IO) {
-          unzip(zipPath, targetDirectory)
-        }
+    return catchingResult {
+      withContext(Dispatchers.IO) {
+        unzip(zipPath, targetDirectory)
       }
+    }
       .mapError { FileManagerError(it) }
       .logFailure { "Failed to unzip file [$zipPath] into target dir [$targetDirectory]" }
       .toFileManagerResult()
@@ -79,21 +74,20 @@ class FileManagerImpl(
   }
 
   override suspend fun removeDir(path: String): FileManagerResult<Unit> {
-    return Result
-      .catching {
-        withContext(Dispatchers.IO) {
-          if (!File(fileDirectoryProvider.filesDir(), path).deleteRecursively()) {
-            throw FileManagerError(Error("can't delete"))
-          }
+    return catchingResult {
+      withContext(Dispatchers.IO) {
+        if (!File(fileDirectoryProvider.filesDir(), path).deleteRecursively()) {
+          throw FileManagerError(Error("can't delete"))
         }
       }
+    }
       .mapError { FileManagerError(it) }
       .logFailure { "Failed to delete $path" }
       .toFileManagerResult()
   }
 
   override suspend fun mkdirs(path: String): FileManagerResult<Boolean> {
-    return Result.catching {
+    return catchingResult {
       withContext(Dispatchers.IO) {
         val filePath = (fileDirectoryProvider.filesDir().join(path)).toPath()
         File(path).mkdirs()

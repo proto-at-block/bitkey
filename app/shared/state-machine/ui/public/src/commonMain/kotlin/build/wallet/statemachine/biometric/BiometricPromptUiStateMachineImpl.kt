@@ -1,12 +1,6 @@
 package build.wallet.statemachine.biometric
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.AppSessionState
 import build.wallet.inappsecurity.BiometricPreference

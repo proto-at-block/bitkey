@@ -23,7 +23,7 @@ import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherI
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.coroutines.CoroutineScope
@@ -68,13 +68,13 @@ class TrustedContactCloudBackupRefresherImpl(
           .backup(accountId = fullAccount.accountId.serverId)
           .distinctUntilChanged()
       ) { trustedContacts, cloudBackup ->
-        binding {
+        coroutineBinding<Unit, Error> {
           val storedBackupState =
             cloudBackup.getStoredBackupState(trustedContacts)
               .bind()
 
           when (storedBackupState) {
-            UpToDate -> return@binding
+            UpToDate -> return@coroutineBinding
             is NeedsUpdate -> {
               refreshCloudBackup(
                 fullAccount = fullAccount,
@@ -140,6 +140,7 @@ class TrustedContactCloudBackupRefresherImpl(
           )
         }
       }
+
       null -> {
         // If the cloud backup is null we'll want to alert the customer, but for now
         // this is just treated like an error and logged.
@@ -152,7 +153,7 @@ class TrustedContactCloudBackupRefresherImpl(
     fullAccount: FullAccount,
     hwekEncryptedPkek: SealedCsek,
   ): Result<Unit, Error> =
-    binding {
+    coroutineBinding {
       // Get the customer's cloud store account.
       val cloudStoreAccount =
         cloudStoreAccountRepository

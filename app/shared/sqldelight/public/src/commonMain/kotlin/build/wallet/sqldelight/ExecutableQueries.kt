@@ -4,7 +4,7 @@ import app.cash.sqldelight.ExecutableQuery
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOne
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.db.DbQueryError
 import build.wallet.sqldelight.coroutines.BitkeyDatabaseIO
 import com.github.michaelbull.result.Result
@@ -20,8 +20,7 @@ import kotlin.coroutines.CoroutineContext
 suspend fun <T : Any> ExecutableQuery<T>.awaitAsListResult(
   context: CoroutineContext = Dispatchers.BitkeyDatabaseIO,
 ): Result<List<T>, DbQueryError> =
-  Result
-    .catching { withContext(context) { awaitAsList() } }
+  catchingResult { withContext(context) { awaitAsList() } }
     .mapError { DbQueryError(cause = it) }
 
 /**
@@ -31,8 +30,7 @@ suspend fun <T : Any> ExecutableQuery<T>.awaitAsListResult(
 suspend fun <T : Any> ExecutableQuery<T>.awaitAsOneResult(
   context: CoroutineContext = Dispatchers.BitkeyDatabaseIO,
 ): Result<T, DbQueryError> =
-  Result
-    .catching { withContext(context) { awaitAsOne() } }
+  catchingResult { withContext(context) { awaitAsOne() } }
     .mapError { DbQueryError(cause = it) }
 
 /**
@@ -42,6 +40,5 @@ suspend fun <T : Any> ExecutableQuery<T>.awaitAsOneResult(
 suspend fun <T : Any> ExecutableQuery<T>.awaitAsOneOrNullResult(
   context: CoroutineContext = Dispatchers.BitkeyDatabaseIO,
 ): Result<T?, DbQueryError> =
-  Result
-    .catching { withContext(context) { awaitAsOneOrNull() } }
+  catchingResult { withContext(context) { awaitAsOneOrNull() } }
     .mapError { DbQueryError(cause = it) }

@@ -17,8 +17,7 @@ import kotlinx.coroutines.flow.map
  *
  * See [Coroutines cancellation and timeouts](https://kotlinlang.org/docs/cancellation-and-timeouts.html#making-computation-code-cancellable).
  */
-inline fun <V> Result.Companion.catching(block: () -> V): Result<V, Throwable> =
-  runSuspendCatching(block)
+inline fun <V> catchingResult(block: () -> V): Result<V, Throwable> = runSuspendCatching(block)
 
 /**
  * A slightly more readable way to map successful results to [Unit]. Useful when consumer doesn't
@@ -34,7 +33,7 @@ inline fun <V, E, U> Flow<Result<V, E>>.mapResult(
   crossinline transform: suspend (V) -> U,
 ): Flow<Result<U, E>> = map { result -> result.map { transform(it) } }
 
-fun <V, E> Result<V, E>.isOk(): Boolean = this is Ok
+fun <V, E> Result<V, E>.isOk(): Boolean = isOk
 
 /**
  * Map the value of a result only if the value is non-null.

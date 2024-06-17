@@ -1,10 +1,10 @@
 import BitcoinDevKit
 import Shared
 
-public class BdkMnemonicGeneratorImpl : BdkMnemonicGenerator {
-    
+public class BdkMnemonicGeneratorImpl: BdkMnemonicGenerator {
+
     public init() {}
-        
+
     public func generateMnemonicBlocking(wordCount: BdkMnemonicWordCount) -> BdkMnemonic {
         var ffiWordCount: WordCount {
             switch wordCount {
@@ -16,7 +16,7 @@ public class BdkMnemonicGeneratorImpl : BdkMnemonicGenerator {
         }
         return BdkMnemonicImpl(ffiMnemonic: Mnemonic(wordCount: ffiWordCount))
     }
-    
+
     public func fromStringBlocking(mnemonic: String) -> BdkMnemonic {
         return BdkMnemonicImpl(ffiMnemonic: try! Mnemonic.fromString(mnemonic: mnemonic))
     }

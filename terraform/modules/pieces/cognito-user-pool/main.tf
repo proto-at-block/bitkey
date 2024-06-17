@@ -30,6 +30,14 @@ resource "aws_cognito_user_pool" "users" {
       max_length = 256
     }
   }
+  schema {
+    name                = "publicKey"
+    attribute_data_type = "String"
+    mutable             = true
+    string_attribute_constraints {
+      max_length = 256
+    }
+  }
 
   account_recovery_setting {
     recovery_mechanism {

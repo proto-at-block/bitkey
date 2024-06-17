@@ -72,7 +72,8 @@ fun Callout(model: CalloutModel) {
         modifier = Modifier
           .weight(1f)
           .padding(start = 12.dp),
-        horizontalAlignment = Alignment.Start
+        horizontalAlignment = Alignment.Start,
+        verticalArrangement = Arrangement.Center
       ) {
         Label(
           text = model.title,
@@ -84,17 +85,19 @@ fun Callout(model: CalloutModel) {
             color = style.titleColor
           )
         )
-        Label(
-          text = model.subtitle,
-          modifier = Modifier.alpha(0.6f),
-          style = TextStyle(
-            fontSize = 16.sp,
-            lineHeight = 24.sp,
-            fontFamily = FontFamily(Font(R.font.inter_regular)),
-            fontWeight = FontWeight(400),
-            color = style.subtitleColor
+        model.subtitle?.let { subtitle ->
+          Label(
+            text = subtitle,
+            modifier = Modifier.alpha(0.6f),
+            style = TextStyle(
+              fontSize = 16.sp,
+              lineHeight = 24.sp,
+              fontFamily = FontFamily(Font(R.font.inter_regular)),
+              fontWeight = FontWeight(400),
+              color = style.subtitleColor
+            )
           )
-        )
+        }
       }
       model.trailingIcon?.let { trailingIcon ->
         CalloutButton(
@@ -189,9 +192,9 @@ private fun CalloutModel.calloutStyle() =
     CalloutModel.Treatment.Danger -> CalloutStyle(
       titleColor = WalletTheme.colors.calloutDangerTitle,
       subtitleColor = WalletTheme.colors.calloutDangerSubtitle,
-      backgroundColor = WalletTheme.colors.calloutDangerBackground,
+      backgroundColor = WalletTheme.colors.dangerBackground,
       trailingIconColor = WalletTheme.colors.calloutDangerTrailingIcon,
-      trailingIconBackgroundColor = WalletTheme.colors.calloutDangerTrailingIconBackground
+      trailingIconBackgroundColor = WalletTheme.colors.danger
     )
   }
 

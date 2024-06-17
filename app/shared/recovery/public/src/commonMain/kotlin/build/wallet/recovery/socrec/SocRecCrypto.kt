@@ -18,7 +18,7 @@ import build.wallet.crypto.CurveType
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import okio.ByteString
 
 // TODO: remove suppress and V1 variants when V2 replaces V1
@@ -93,7 +93,7 @@ interface SocRecCrypto {
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<TrustedContactKeyCertificate, SocRecCryptoError> =
-    binding {
+    coroutineBinding {
       verifyKeyCertificate(
         keyCertificate = oldCertificate,
         hwAuthKey = oldHwAuthKey,

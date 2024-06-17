@@ -26,7 +26,7 @@ import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.InviteCodeParts.Schema
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.andThen
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.map
@@ -45,7 +45,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class SocRecRelationshipsRepositoryImpl(
   appScope: CoroutineScope,
-  private val socialRecoveryServiceProvider: SocialRecoveryServiceProvider,
+  private val socRecF8eClientProvider: SocRecF8eClientProvider,
   private val socRecRelationshipsDao: SocRecRelationshipsDao,
   private val socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao,
   private val socRecCrypto: SocRecCrypto,
@@ -54,7 +54,7 @@ class SocRecRelationshipsRepositoryImpl(
 ) : SocRecRelationshipsRepository {
   private val f8eSyncSequencer = F8eSyncSequencer()
 
-  private suspend fun socRecService() = socialRecoveryServiceProvider.get()
+  private suspend fun socRecF8eClient() = socRecF8eClientProvider.get()
 
   override val relationships: StateFlow<SocRecRelationships?> =
     socRecRelationshipsDao.socRecRelationships()
@@ -69,7 +69,7 @@ class SocRecRelationshipsRepositoryImpl(
     accountId: AccountId,
     f8eEnvironment: F8eEnvironment,
   ): Result<SocRecRelationships, Error> =
-    socRecService().getRelationships(
+    socRecF8eClient().getRelationships(
       accountId,
       f8eEnvironment
     )
@@ -98,7 +98,7 @@ class SocRecRelationshipsRepositoryImpl(
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error> {
-    return socRecService()
+    return socRecF8eClient()
       .removeRelationship(
         accountId = accountId,
         f8eEnvironment = f8eEnvironment,
@@ -114,7 +114,7 @@ class SocRecRelationshipsRepositoryImpl(
     authTokenScope: AuthTokenScope,
     relationshipId: String,
   ): Result<Unit, Error> {
-    return socRecService()
+    return socRecF8eClient()
       .removeRelationship(
         accountId = account.accountId,
         f8eEnvironment = account.config.f8eEnvironment,
@@ -132,12 +132,12 @@ class SocRecRelationshipsRepositoryImpl(
     trustedContactAlias: TrustedContactAlias,
     hardwareProofOfPossession: HwFactorProofOfPossession,
   ): Result<OutgoingInvitation, Error> =
-    binding {
+    coroutineBinding {
       // TODO: Use SocRecCrypto to generate.
       val enrollmentPakeCode = Schema.maskPakeData(Random.nextBytes(Schema.pakeByteArraySize()))
       val protectedCustomerEnrollmentPakeKey =
         socRecCrypto.generateProtectedCustomerEnrollmentPakeKey(enrollmentPakeCode).bind()
-      socRecService()
+      socRecF8eClient()
         .createInvitation(
           account = account,
           hardwareProofOfPossession = hardwareProofOfPossession,
@@ -170,7 +170,7 @@ class SocRecRelationshipsRepositoryImpl(
     relationshipId: String,
     hardwareProofOfPossession: HwFactorProofOfPossession,
   ): Result<OutgoingInvitation, Error> {
-    return socRecService()
+    return socRecF8eClient()
       .refreshInvitation(account, hardwareProofOfPossession, relationshipId)
       .flatMap { invitation ->
         socRecEnrollmentAuthenticationDao.getByRelationshipId(relationshipId)
@@ -200,11 +200,12 @@ class SocRecRelationshipsRepositoryImpl(
           is SocialRecoveryCodeVersionError -> RetrieveInvitationCodeError.InvitationCodeVersionMismatch(
             error
           )
+
           else -> RetrieveInvitationCodeError.InvalidInvitationCode(error)
         }
       }
       .andThen { (serverPart, _) ->
-        socRecService().retrieveInvitation(
+        socRecF8eClient().retrieveInvitation(
           account,
           serverPart
         )
@@ -233,7 +234,7 @@ class SocRecRelationshipsRepositoryImpl(
           .mapError { AcceptInvitationCodeError.CryptoError(it) }
       }
       .andThen {
-        socRecService()
+        socRecF8eClient()
           .acceptInvitation(
             account = account,
             invitation = invitation,
@@ -253,9 +254,9 @@ class SocRecRelationshipsRepositoryImpl(
     appAuthKey: PublicKey<AppGlobalAuthKey>?,
     hwAuthPublicKey: HwAuthPublicKey?,
   ): Result<SocRecRelationships, Error> =
-    binding {
+    coroutineBinding {
       // Fetch latest relationships from f8e
-      val relationships = socRecService()
+      val relationships = socRecF8eClient()
         .getRelationships(accountId, f8eEnvironment)
         .bind()
 

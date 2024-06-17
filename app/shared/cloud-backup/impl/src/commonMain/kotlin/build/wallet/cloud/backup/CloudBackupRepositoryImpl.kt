@@ -14,7 +14,7 @@ import build.wallet.logging.logFailure
 import build.wallet.serialization.json.decodeFromStringResult
 import build.wallet.serialization.json.encodeToStringResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import kotlinx.serialization.json.Json
 
@@ -29,7 +29,7 @@ class CloudBackupRepositoryImpl(
   override suspend fun readBackup(
     cloudStoreAccount: CloudStoreAccount,
   ): Result<CloudBackup?, CloudBackupError> =
-    binding {
+    coroutineBinding {
       // Read encoded backup in JSON format, if any
       val backupEncoded: String? =
         cloudKeyValueStore
@@ -56,7 +56,7 @@ class CloudBackupRepositoryImpl(
     backup: CloudBackup,
     requireAuthRefresh: Boolean,
   ): Result<Unit, CloudBackupError> =
-    binding {
+    coroutineBinding {
       // Encode backup to JSON
       val backupEncoded: String =
         when (backup) {
@@ -95,7 +95,7 @@ class CloudBackupRepositoryImpl(
     cloudStoreAccount: CloudStoreAccount,
     clearRemoteOnly: Boolean,
   ): Result<Unit, CloudBackupError> =
-    binding {
+    coroutineBinding {
       cloudKeyValueStore
         .removeString(cloudStoreAccount, cloudBackupKey)
         .mapPossibleRectifiableErrors()

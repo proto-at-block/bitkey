@@ -14,7 +14,7 @@ import build.wallet.ui.model.Click
  */
 data class CalloutModel(
   val title: String,
-  val subtitle: String,
+  val subtitle: String? = null,
   val treatment: Treatment = Treatment.Default,
   val leadingIcon: Icon? = null,
   val trailingIcon: Icon? = null,

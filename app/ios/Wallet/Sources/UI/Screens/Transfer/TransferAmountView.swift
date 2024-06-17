@@ -17,6 +17,7 @@ public struct TransferAmountView: View {
     }
 
     // MARK: - View
+
     let springAnimation = Animation.spring(response: 0.1, dampingFraction: 0.8, blendDuration: 0)
 
     public var body: some View {
@@ -31,8 +32,7 @@ public struct TransferAmountView: View {
                 onSwapCurrencyClick: viewModel.onSwapCurrencyClick,
                 disabled: viewModel.amountDisabled
             ).animation(springAnimation, value: viewModel.cardModel)
-            
-            
+
             if let cardModel = viewModel.cardModel {
                 Spacer()
                     .frame(height: 24)
@@ -91,7 +91,7 @@ private struct AmountView: View {
                         )
                         Image(uiImage: .smallIconSwap)
                             .foregroundColor(disabled ? .foreground30 : .foreground60)
-                        }
+                    }
                 }
             }
         }
@@ -99,12 +99,14 @@ private struct AmountView: View {
 
     private var primaryAmountAttributedString: AttributedString {
         var attributedString = AttributedString(viewModel.primaryAmount)
-        guard let primaryAmountGhostedSubstringRange = viewModel.primaryAmountGhostedSubstringRange else {
+        guard let primaryAmountGhostedSubstringRange = viewModel.primaryAmountGhostedSubstringRange
+        else {
             return attributedString
         }
         let substringStart = attributedString.index(to: primaryAmountGhostedSubstringRange.start)
-        let substringEnd = attributedString.index(to: primaryAmountGhostedSubstringRange.endInclusive)
-        attributedString[substringStart...substringEnd].foregroundColor = .foreground30
+        let substringEnd = attributedString
+            .index(to: primaryAmountGhostedSubstringRange.endInclusive)
+        attributedString[substringStart ... substringEnd].foregroundColor = .foreground30
         return attributedString
     }
 }
@@ -131,7 +133,7 @@ private struct BannerView: View {
 
 private struct SmartBarView: View {
     let cardModel: CardModel
-    
+
     var body: some View {
         CardView(
             viewModel: cardModel,
@@ -149,7 +151,12 @@ private struct BannerContentView: View {
     var body: some View {
         HStack(spacing: 4) {
             leadingIcon.map { Image(uiImage: $0.uiImage) }
-            ModeledText(model: .standard(text, font: .body3Medium, textAlignment: nil, textColor: textColor))
+            ModeledText(model: .standard(
+                text,
+                font: .body3Medium,
+                textAlignment: nil,
+                textColor: textColor
+            ))
         }
         .padding(.horizontal, 16)
         .frame(minHeight: 44)

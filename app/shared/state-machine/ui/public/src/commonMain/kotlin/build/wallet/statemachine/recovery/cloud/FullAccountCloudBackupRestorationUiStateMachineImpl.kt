@@ -69,7 +69,7 @@ import build.wallet.statemachine.recovery.socrec.challenge.RecoveryChallengeUiSt
 import build.wallet.toByteString
 import build.wallet.toUByteList
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -360,7 +360,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     setState: (CloudBackupRestorationUiState) -> Unit,
   ) {
     LaunchedEffect("complete-socrec-restore") {
-      binding {
+      coroutineBinding {
         val restoration =
           backupRestorer.restoreFromBackupWithDecryptedKeys(
             cloudBackup = props.backup,
@@ -401,7 +401,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     props: FullAccountCloudBackupRestorationUiProps,
     accountRestoration: AccountRestoration,
   ): Result<FullAccountId, Error> =
-    binding {
+    coroutineBinding {
       eventTracker.track(ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED)
 
       // Authenticate with f8e using recovered app [Global] authentication key.
@@ -464,7 +464,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
     f8eEnvironment: F8eEnvironment,
     tokenScope: AuthTokenScope,
   ): Result<AccountAuthenticator.AuthData, Error> {
-    return binding {
+    return coroutineBinding {
       val authData =
         accountAuthenticator
           .appAuth(

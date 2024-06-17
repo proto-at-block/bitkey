@@ -12,7 +12,7 @@ data class ElectrumServerData(
    *
    * Prior to the initial API call, this value is set to Mempool's servers, depending on the
    * keybox's config data. Else, it will use the values returned by F8e from
-   * `GetBdkConfigurationService`
+   * [GetBdkConfigurationF8eClient]
    *
    */
   val defaultElectrumServer: ElectrumServer,

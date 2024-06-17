@@ -16,7 +16,7 @@ import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.recovery.socrec.SocRecCrypto
 import build.wallet.serialization.json.encodeToStringResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 import kotlinx.serialization.json.Json
@@ -33,7 +33,7 @@ class FullAccountFieldsCreatorImpl(
     sealedCsek: SealedCsek,
     endorsedTrustedContacts: List<EndorsedTrustedContact>,
   ): Result<FullAccountFields, FullAccountFieldsCreationError> =
-    binding {
+    coroutineBinding {
       val appAuthKeypair =
         keybox.appGlobalAuthKeypair(appPrivateKeyDao)
           .mapError {
@@ -88,7 +88,10 @@ class FullAccountFieldsCreatorImpl(
                 it.identityKey,
                 socRecPKMatOutput.privateKeyEncryptionKey
               )
-              .mapError { err -> FullAccountFieldsCreationError.SocRecEncryptionError(err) }
+              .mapError {
+                  err ->
+                FullAccountFieldsCreationError.SocRecEncryptionError(err)
+              }
               .bind()
         }
 

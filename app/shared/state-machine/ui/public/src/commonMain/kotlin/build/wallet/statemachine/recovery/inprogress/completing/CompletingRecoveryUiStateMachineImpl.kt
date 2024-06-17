@@ -11,7 +11,11 @@ import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerSc
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
+import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.getEventId
+import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -43,6 +47,7 @@ import build.wallet.statemachine.recovery.inprogress.DelayAndNotifyNewKeyReady
 import build.wallet.statemachine.recovery.inprogress.waiting.CancelRecoveryAlertModel
 import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachine
+import kotlinx.coroutines.launch
 
 class CompletingRecoveryUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
@@ -50,6 +55,8 @@ class CompletingRecoveryUiStateMachineImpl(
     FullAccountCloudSignInAndBackupUiStateMachine,
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
+  private val postSocRecTaskRepository: PostSocRecTaskRepository,
+  private val recoverySyncer: RecoverySyncer,
 ) : CompletingRecoveryUiStateMachine {
   @Composable
   override fun model(props: CompletingRecoveryUiProps): ScreenModel {
@@ -225,14 +232,29 @@ class CompletingRecoveryUiStateMachineImpl(
         )
       }
 
-      is PerformingSweepData ->
+      is PerformingSweepData -> {
+        val scope = rememberStableCoroutineScope()
         sweepUiStateMachine.model(
           SweepUiProps(
-            sweepData = props.completingRecoveryData.sweepData,
             presentationStyle = props.presentationStyle,
-            onExit = props.completingRecoveryData.rollback
+            onExit = props.completingRecoveryData.rollback,
+            onSuccess = {
+              scope.launch {
+                // Set the flag to no longer show the replace hardware card nudge
+                // this flag is used by the MoneyHomeCardsUiStateMachine
+                // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
+                postSocRecTaskRepository.setHardwareReplacementNeeded(false)
+                recoverySyncer
+                  .setLocalRecoveryProgress(
+                    SweptFunds(props.completingRecoveryData.keybox)
+                  )
+              }
+            },
+            keybox = props.completingRecoveryData.keybox,
+            recoveredFactor = props.completingRecoveryData.physicalFactor
           )
         )
+      }
 
       is ExitedPerformingSweepData ->
         ErrorFormBodyModel(

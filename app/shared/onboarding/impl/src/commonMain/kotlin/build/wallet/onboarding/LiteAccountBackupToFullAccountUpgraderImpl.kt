@@ -12,7 +12,7 @@ import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.onboarding.LiteAccountBackupToFullAccountUpgrader.UpgradeError
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 import com.github.michaelbull.result.toResultOr
@@ -28,7 +28,7 @@ class LiteAccountBackupToFullAccountUpgraderImpl(
     cloudBackup: CloudBackup,
     onboardingKeybox: Keybox,
   ): Result<FullAccount, UpgradeError> =
-    binding {
+    coroutineBinding {
       require(cloudBackup is CloudBackupV2) { "Unsupported cloud backup version" }
 
       val liteAccount =

@@ -13,6 +13,7 @@ public struct MoneyHomeBalanceView: View {
     public let onHideBalance: () -> Void
 
     // MARK: - View
+
     public var body: some View {
         CollapsibleLabelContainer(
             collapsed: hideBalance,

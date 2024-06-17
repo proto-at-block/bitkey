@@ -22,7 +22,7 @@ public class FwupNfcMaskOverlayViewController: UIHostingController<NfcMaskView> 
 
     // MARK: - Private Static Properties
 
-    private static var currentOverlay : FwupNfcMaskOverlayViewController?
+    private static var currentOverlay: FwupNfcMaskOverlayViewController?
 
     // MARK: - Public Static Properties
 
@@ -31,7 +31,7 @@ public class FwupNfcMaskOverlayViewController: UIHostingController<NfcMaskView> 
 
     // MARK: - Private Properties
 
-    private let viewModel : NfcMaskView.ViewModel
+    private let viewModel: NfcMaskView.ViewModel
 
     // MARK: - Life Cycle
 
@@ -40,7 +40,8 @@ public class FwupNfcMaskOverlayViewController: UIHostingController<NfcMaskView> 
         super.init(rootView: NfcMaskView(viewModel: viewModel))
     }
 
-    @MainActor required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    @MainActor dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -66,7 +67,7 @@ public class FwupNfcMaskOverlayViewController: UIHostingController<NfcMaskView> 
     public static func hide() {
         if let viewController = currentOverlay {
             viewController.dismiss(animated: true)
-            currentOverlay =  nil
+            currentOverlay = nil
         }
     }
 

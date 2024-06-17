@@ -68,9 +68,6 @@ public struct FloatingActionButton: View {
             }
             .padding(.horizontal)
         }.padding(.bottom, Metrics.bottomPadding)
-
     }
 
 }
-
-

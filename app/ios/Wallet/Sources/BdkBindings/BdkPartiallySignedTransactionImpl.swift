@@ -1,10 +1,10 @@
 import BitcoinDevKit
 import Shared
 
-public class BdkPartiallySignedTransactionImpl : BdkPartiallySignedTransaction {
+public class BdkPartiallySignedTransactionImpl: BdkPartiallySignedTransaction {
 
     let ffiPsbt: PartiallySignedTransaction
-    
+
     public init(ffiPsbt: PartiallySignedTransaction) {
         self.ffiPsbt = ffiPsbt
     }
@@ -12,11 +12,11 @@ public class BdkPartiallySignedTransactionImpl : BdkPartiallySignedTransaction {
     public func feeAmount() -> KotlinULong? {
         return ffiPsbt.feeAmount().flatMap { KotlinULong(value: $0) }
     }
-    
+
     public func serialize() -> String {
         return ffiPsbt.serialize()
     }
-    
+
     public func txid() -> String {
         return ffiPsbt.txid()
     }

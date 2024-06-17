@@ -1,4 +1,21 @@
 GEM
+  remote: https://gems.vip.global.square/private/
+  specs:
+    beyondclient (1.3.2)
+      http (>= 2.2.2)
+      http-cookie (>= 1.0.3)
+      msgpack (>= 1.2.10)
+      ruby-keychain (>= 0.3.2)
+      slop (>= 4.6.2)
+    sq-githubapp-client (0.17.0)
+      aws-sdk-core (>= 3.117.0)
+      jwt
+      octokit
+      sq-mobuild-curl (~> 0.7.0)
+    sq-mobuild-curl (0.7.1)
+      beyondclient
+
+GEM
   remote: https://rubygems.org/
   specs:
     CFPropertyList (3.0.6)
@@ -24,6 +41,7 @@ GEM
     aws-sigv4 (1.5.2)
       aws-eventstream (~> 1, >= 1.0.2)
     babosa (1.0.4)
+    base64 (0.2.0)
     claide (1.1.0)
     colored (1.2)
     colored2 (3.1.2)
@@ -110,6 +128,12 @@ GEM
       git
       xml-simple
     fastlane-plugin-datadog (0.2.0)
+    ffi (1.17.0)
+    ffi (1.17.0-arm64-darwin)
+    ffi (1.17.0-x86_64-darwin)
+    ffi-compiler (1.3.2)
+      ffi (>= 1.15.5)
+      rake
     gh_inspector (1.1.3)
     git (1.17.2)
       addressable (~> 2.8)
@@ -153,19 +177,36 @@ GEM
       os (>= 0.9, < 2.0)
       signet (>= 0.16, < 2.a)
     highline (2.0.3)
+    http (5.2.0)
+      addressable (~> 2.8)
+      base64 (~> 0.1)
+      http-cookie (~> 1.0)
+      http-form_data (~> 2.2)
+      llhttp-ffi (~> 0.5.0)
     http-cookie (1.0.5)
       domain_name (~> 0.5)
+    http-form_data (2.3.0)
     httpclient (2.8.3)
     jmespath (1.6.2)
     json (2.6.3)
     jwt (2.7.0)
+    llhttp-ffi (0.5.0)
+      ffi-compiler (~> 1.0)
+      rake (~> 13.0)
     memoist (0.16.2)
     mini_magick (4.12.0)
     mini_mime (1.1.2)
+    msgpack (1.7.2)
     multi_json (1.15.0)
     multipart-post (2.0.0)
     nanaimo (0.3.0)
     naturally (2.2.1)
+    octokit (8.1.0)
+      base64
+      faraday (>= 1, < 3)
+      sawyer (~> 0.9)
+    og-corefoundation (0.2.3)
+      ffi
     optparse (0.1.1)
     os (1.1.4)
     plist (3.7.0)
@@ -179,8 +220,14 @@ GEM
     retriable (3.1.2)
     rexml (3.2.5)
     rouge (2.0.7)
+    ruby-keychain (0.4.0)
+      ffi
+      og-corefoundation (~> 0.2.0)
     ruby2_keywords (0.0.5)
     rubyzip (2.3.2)
+    sawyer (0.9.2)
+      addressable (>= 2.3.5)
+      faraday (>= 0.17.3, < 3)
     security (0.1.3)
     signet (0.17.0)
       addressable (~> 2.8)
@@ -190,6 +237,7 @@ GEM
     simctl (1.6.10)
       CFPropertyList
       naturally
+    slop (4.10.1)
     terminal-notifier (2.0.0)
     terminal-table (1.8.0)
       unicode-display_width (~> 1.1, >= 1.1.1)
@@ -229,6 +277,7 @@ DEPENDENCIES
   fastlane
   fastlane-plugin-bugsnag
   fastlane-plugin-datadog
+  sq-githubapp-client (~> 0.15)!
   xcodeproj (~> 1.21)
   xcpretty (~> 0.3.0)
 

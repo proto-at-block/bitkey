@@ -8,11 +8,11 @@ struct ExplainerView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelExplainer
+    private let viewModel: FormMainContentModel.Explainer
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelExplainer) {
+    init(viewModel: FormMainContentModel.Explainer) {
         self.viewModel = viewModel
     }
 
@@ -34,11 +34,11 @@ private struct StatementView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelExplainer.Statement
+    private let viewModel: FormMainContentModel.ExplainerStatement
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelExplainer.Statement) {
+    init(viewModel: FormMainContentModel.ExplainerStatement) {
         self.viewModel = viewModel
     }
 
@@ -88,11 +88,14 @@ private struct LabelView: View {
                     font: .body2Regular
                 )
             )
-            
+
         case let model as LabelModelLinkSubstringModel:
             ModeledText(
                 model: .linkedText(
-                    textContent: .linkedText(string: model.markdownString(), links: model.linkedSubstrings),
+                    textContent: .linkedText(
+                        string: model.markdownString(),
+                        links: model.linkedSubstrings
+                    ),
                     font: FontTheme.body2Regular
                 )
             )

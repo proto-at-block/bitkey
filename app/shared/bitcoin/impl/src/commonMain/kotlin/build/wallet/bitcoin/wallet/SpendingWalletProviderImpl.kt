@@ -11,7 +11,7 @@ import build.wallet.bitcoin.bdk.BdkWalletSyncer
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class SpendingWalletProviderImpl(
   private val bdkWalletProvider: BdkWalletProvider,
@@ -27,7 +27,7 @@ class SpendingWalletProviderImpl(
   override suspend fun getWallet(
     walletDescriptor: SpendingWalletDescriptor,
   ): Result<SpendingWallet, Throwable> =
-    binding {
+    coroutineBinding {
       SpendingWalletImpl(
         identifier = walletDescriptor.identifier,
         networkType = walletDescriptor.networkType,

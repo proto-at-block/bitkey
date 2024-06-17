@@ -8,7 +8,6 @@ import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoMock
 import build.wallet.inappsecurity.InAppSecurityFeatureFlag
-import build.wallet.limit.MobilePayStatusProviderMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.BodyStateMachineMock
@@ -59,8 +58,6 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class SettingsHomeUiStateMachineImplTests : FunSpec({
 
-  val mobilePayStatusProvider = MobilePayStatusProviderMock(turbines::create)
-
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
 
   val props =
@@ -99,10 +96,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       biometricSettingUiStateMachine = object : BiometricSettingUiStateMachine, ScreenStateMachineMock<BiometricSettingUiProps>("debug-menu") {},
       inAppSecurityFeatureFlag = inAppSecurityFeatureFlag
     )
-
-  beforeTest {
-    mobilePayStatusProvider.reset()
-  }
 
   test("onBack calls props onBack") {
     stateMachine().test(props) {

@@ -9,6 +9,7 @@
        enabled: true
        when_modified:
          - '*.tf*'
+         - ./trusted-certs/development/*.crt
      execution_order_group: 1
    - name: firmware-signer-staging
      dir: aws/firmware-signer
@@ -17,6 +18,7 @@
        enabled: true
        when_modified:
          - '*.tf*'
+         - ./trusted-certs/staging/*.crt
      execution_order_group: 2
    - name: firmware-signer-production
      dir: aws/firmware-signer
@@ -25,5 +27,6 @@
        enabled: true
        when_modified:
          - '*.tf*'
+         - ./trusted-certs/production/*.crt
      execution_order_group: 3
 

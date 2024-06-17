@@ -52,7 +52,8 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
     }
 
     public func viewDidAppear() {
-        // Resetting `lastHandledQRCodeString` to nil allows the QR scanner to function again if we navigate
+        // Resetting `lastHandledQRCodeString` to nil allows the QR scanner to function again if we
+        // navigate
         // back to this view by popping a page pushed onto the navigation stack.
         lastHandledQRCodeString = nil
     }
@@ -65,19 +66,22 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
 
     private func handle(_ action: InternalAction) {
         switch action {
-        case .didCancelCameraUnavailableAlert, .didCancelCameraDeniedAlert:
+        case .didCancelCameraDeniedAlert, .didCancelCameraUnavailableAlert:
             onClose()
         case .didConfirmCameraDeniedAlert:
             // Open system settings
             let urlOpener = UIApplication.shared
             if let settingsURL = URL(string: UIApplication.openSettingsURLString),
-               urlOpener.canOpenURL(settingsURL) {
+               urlOpener.canOpenURL(settingsURL)
+            {
                 urlOpener.open(settingsURL) { [weak self] _ in
                     self?.onClose()
                 }
             } else {
                 // If for some reason we can't open settings, log an error and dismiss.
-                log(.error) { "Invalid System settings URL url=\(UIApplication.openSettingsURLString)" }
+                log(.error) {
+                    "Invalid System settings URL url=\(UIApplication.openSettingsURLString)"
+                }
                 onClose()
             }
         }
@@ -87,7 +91,7 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
 
     private func configureCaptureSessionAndStartRunning() {
         captureSessionQueue.async { [weak captureSession] in
-            guard let captureSession = captureSession else { return }
+            guard let captureSession else { return }
 
             let metadataOutput = AVCaptureMetadataOutput()
             metadataOutput.setMetadataObjectsDelegate(self, queue: .main)
@@ -131,7 +135,7 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
 
     private func removeCaptureSessionInputsAndOutputsAndStopRunning() {
         captureSessionQueue.async { [weak captureSession] in
-            guard let captureSession = captureSession else { return }
+            guard let captureSession else { return }
             captureSession.beginConfiguration()
             captureSession.removeAllInputs()
             captureSession.removeAllOutputs()
@@ -152,8 +156,11 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
                 }
             }
 
-        case .restricted, .denied:
-            let alert = UIAlertController(model: QRCodeScannerModelFactory.makeCameraDeniedAlert(actionHandler: handle(_:)))
+        case .denied, .restricted:
+            let alert = UIAlertController(
+                model: QRCodeScannerModelFactory
+                    .makeCameraDeniedAlert(actionHandler: handle(_:))
+            )
             viewController.present(alert, animated: true, completion: .none)
 
         case .authorized:
@@ -176,10 +183,14 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
     // MARK: - Private Methods - Scan Handling
 
     private func handleScannedCode(with stringValue: String) {
-        // Since this method gets called every time a QR code is recognized in a frame from the video feed,
-        // and the video capture keeps running continuously, we only want to process and "handle" a QR code if it's
-        // "new". We do this by storing the `lastHandledQRCodeString` when it gets processed, and returning straight
-        // away if a newly scanned code is the same as the `lastHandledQRCodeString`. This avoids calling the delegate
+        // Since this method gets called every time a QR code is recognized in a frame from the
+        // video feed,
+        // and the video capture keeps running continuously, we only want to process and "handle" a
+        // QR code if it's
+        // "new". We do this by storing the `lastHandledQRCodeString` when it gets processed, and
+        // returning straight
+        // away if a newly scanned code is the same as the `lastHandledQRCodeString`. This avoids
+        // calling the delegate
         // multiple times in a row when scanning a single QR code.
         guard stringValue != lastHandledQRCodeString else {
             return
@@ -198,9 +209,9 @@ public final class QRCodeScannerPresenterImpl: NSObject, QRCodeScannerPresenter 
 extension QRCodeScannerPresenterImpl: AVCaptureMetadataOutputObjectsDelegate {
 
     public func metadataOutput(
-        _ output: AVCaptureMetadataOutput,
+        _: AVCaptureMetadataOutput,
         didOutput avMetadataObjects: [AVMetadataObject],
-        from connection: AVCaptureConnection
+        from _: AVCaptureConnection
     ) {
         /// Verify that the first metadata object is a QR code pointing to a URL.
         guard let object = avMetadataObjects.first as? AVMetadataMachineReadableCodeObject,
@@ -219,13 +230,13 @@ extension QRCodeScannerPresenterImpl: AVCaptureMetadataOutputObjectsDelegate {
 private extension AVCaptureSession {
 
     func removeAllInputs() {
-        inputs.forEach { input in
+        for input in inputs {
             removeInput(input)
         }
     }
 
     func removeAllOutputs() {
-        outputs.forEach { output in
+        for output in outputs {
             removeOutput(output)
         }
     }

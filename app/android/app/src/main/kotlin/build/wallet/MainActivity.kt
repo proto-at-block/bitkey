@@ -17,9 +17,9 @@ import build.wallet.cloud.store.CloudFileStoreImpl
 import build.wallet.cloud.store.CloudKeyValueStoreImpl
 import build.wallet.cloud.store.CloudStoreAccountRepositoryImpl
 import build.wallet.cloud.store.GoogleAccountRepositoryImpl
+import build.wallet.cloud.store.GoogleDriveClientProviderImpl
 import build.wallet.cloud.store.GoogleDriveFileStoreImpl
 import build.wallet.cloud.store.GoogleDriveKeyValueStoreImpl
-import build.wallet.cloud.store.GoogleDriveServiceImpl
 import build.wallet.crypto.Spake2Impl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponent
@@ -183,10 +183,10 @@ class MainActivity : FragmentActivity() {
     val googleAccountRepository = GoogleAccountRepositoryImpl(appComponent.platformContext)
     val cloudStoreAccountRepository =
       CloudStoreAccountRepositoryImpl(googleAccountRepository)
-    val googleDriveService =
-      GoogleDriveServiceImpl(appComponent.appId, appComponent.platformContext)
-    val googleDriveFileStore = GoogleDriveFileStoreImpl(googleDriveService)
-    val googleDriveKeyValueStore = GoogleDriveKeyValueStoreImpl(googleDriveService)
+    val googleDriveClientProvider =
+      GoogleDriveClientProviderImpl(appComponent.appId, appComponent.platformContext)
+    val googleDriveFileStore = GoogleDriveFileStoreImpl(googleDriveClientProvider)
+    val googleDriveKeyValueStore = GoogleDriveKeyValueStoreImpl(googleDriveClientProvider)
     val cloudFileStore = CloudFileStoreImpl(googleDriveFileStore)
     val cloudKeyValueStore = CloudKeyValueStoreImpl(googleDriveKeyValueStore)
     val googleSignInLauncher =

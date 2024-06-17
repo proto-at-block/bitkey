@@ -31,29 +31,41 @@ public struct ListGroupView: View {
         case .cardItem:
             cardItemList
         case .cardGroup, .cardGroupDivider:
-            regularList(showsDivider: viewModel.style == .cardGroupDivider, minItemHeight: 60, addsVerticalPadding: true)
-                .wrapInCard()
+            regularList(
+                showsDivider: viewModel.style == .cardGroupDivider,
+                minItemHeight: 60,
+                addsVerticalPadding: true
+            )
+            .wrapInCard()
         case .threeColumnCardItem:
             fixedColumnCardItemList(columnCount: 3)
         default:
             regularList(showsDivider: true, addsVerticalPadding: false)
         }
     }
-    
-    public func regularList(showsDivider: Bool, minItemHeight: CGFloat? = nil, addsVerticalPadding: Bool) -> some View {
+
+    public func regularList(
+        showsDivider: Bool,
+        minItemHeight: CGFloat? = nil,
+        addsVerticalPadding: Bool
+    ) -> some View {
         VStack(spacing: 0) {
             viewModel.header.map { sectionHeaderText in
                 ModeledText(
                     model: .standard(
                         sectionHeaderText,
                         font: viewModel.headerTreatment.font,
-                        textColor: viewModel.headerTreatment.textColor)
+                        textColor: viewModel.headerTreatment.textColor
+                    )
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, addsVerticalPadding ? 20 : 0)
                 .padding(.bottom, viewModel.items.isEmpty ? 16 : 0)
             }
-            ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id:\.0) { index, listItem in
+            ForEach(
+                Array(zip(viewModel.items.indices, viewModel.items)),
+                id: \.0
+            ) { index, listItem in
                 ListItemView(viewModel: listItem, hideContent: hideContent)
                     .frame(minHeight: minItemHeight)
 
@@ -73,7 +85,10 @@ public struct ListGroupView: View {
 
     public var cardItemList: some View {
         VStack {
-            ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id:\.0) { index, listItem in
+            ForEach(
+                Array(zip(viewModel.items.indices, viewModel.items)),
+                id: \.0
+            ) { index, listItem in
                 ListItemView(viewModel: listItem)
                     .padding(.horizontal, 16)
                     .background {
@@ -81,7 +96,7 @@ public struct ListGroupView: View {
                             .fill(.black.opacity(0.03))
                     }
 
-                if (index != viewModel.items.endIndex - 1) {
+                if index != viewModel.items.endIndex - 1 {
                     Spacer()
                         .frame(minHeight: 8, idealHeight: 16, maxHeight: 16)
                         .fixedSize()
@@ -89,17 +104,27 @@ public struct ListGroupView: View {
             }
         }
     }
+
     public func fixedColumnCardItemList(columnCount: Int) -> some View {
-        let fixedColumnGrid = Array(repeating: GridItem(.fixed(80), spacing: 32), count: columnCount)
+        let fixedColumnGrid = Array(
+            repeating: GridItem(.fixed(80), spacing: 32),
+            count: columnCount
+        )
         return LazyVGrid(columns: fixedColumnGrid, alignment: .center, spacing: 16) {
-            ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id:\.0) { index, listItem in
+            ForEach(Array(zip(viewModel.items.indices, viewModel.items)), id: \.0) { _, listItem in
                 let view = ListItemView(viewModel: listItem)
                     .padding(8)
                     .frame(width: 80, height: 64)
-                    .background(RoundedRectangle(cornerRadius: 16).fill(Color.foreground.opacity(0.03)))
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.foreground.opacity(0.03))
+                    )
                     .if(listItem.selected) { view in
                         view.overlay(
-                            RoundedRectangle(cornerRadius: 16).inset(by: 2).stroke(Color.foreground, lineWidth: 2)
+                            RoundedRectangle(cornerRadius: 16).inset(by: 2).stroke(
+                                Color.foreground,
+                                lineWidth: 2
+                            )
                         )
                     }
                 view
@@ -115,7 +140,7 @@ struct ListGroupView_Preview: PreviewProvider {
             items: [
                 .init(
                     title: "Title",
-                    titleAlignment: .left, 
+                    titleAlignment: .left,
                     listItemTitleBackgroundTreatment: nil,
                     secondaryText: "Secondary Text",
                     sideText: "Side Text",
@@ -172,14 +197,14 @@ struct ListGroupView_Preview: PreviewProvider {
                     pickerMenu: nil,
                     testTag: nil,
                     titleLabel: nil
-                )
+                ),
             ],
             style: style,
             headerTreatment: .secondary,
             footerButton: nil
         )
     }
-    
+
     static var previews: some View {
         ListGroupView(
             viewModel: viewModel(style: .none)
@@ -204,7 +229,6 @@ extension View {
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(Color.foreground10, lineWidth: 2)
             )
-
     }
 
 }

@@ -22,7 +22,12 @@ public struct AmountSliderView: View {
 
             // Secondary amount
             ModeledText(
-                model: .standard(viewModel.secondaryAmount, font: .body1Medium, textAlignment: nil, textColor: .foreground60)
+                model: .standard(
+                    viewModel.secondaryAmount,
+                    font: .body1Medium,
+                    textAlignment: nil,
+                    textColor: .foreground60
+                )
             )
 
             // Slider
@@ -52,7 +57,7 @@ private extension KotlinClosedFloatingPointRange {
     var nativeRange: ClosedRange<Float> {
         let lowerBound = (start as! KotlinFloat).floatValue
         let upperBound = (endInclusive as! KotlinFloat).floatValue
-        return lowerBound...upperBound
+        return lowerBound ... upperBound
     }
 
 }

@@ -24,7 +24,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use time::Duration;
 use tracing::{error, event, instrument, Level};
-use userpool::userpool::{CreateRecoveryUserInput, CreateWalletUserInput, UserPoolService};
+use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
 use account::entities::{
@@ -724,29 +724,6 @@ impl CreateAccountRequest {
             CreateAccountRequest::Lite { auth, .. } => (None, None, Some(auth.recovery)),
         }
     }
-
-    pub fn cognito_wallet_input(&self) -> Option<CreateWalletUserInput> {
-        match self {
-            CreateAccountRequest::Full { auth, .. } => {
-                Some(CreateWalletUserInput::new(auth.app, auth.hardware))
-            }
-            CreateAccountRequest::Lite { .. } => None,
-        }
-    }
-
-    pub fn cognito_recovery_input(&self) -> Option<CreateRecoveryUserInput> {
-        match self {
-            CreateAccountRequest::Full { auth, .. } => {
-                let Some(k) = auth.recovery else {
-                    return None;
-                };
-                Some(CreateRecoveryUserInput::new(k))
-            }
-            CreateAccountRequest::Lite { auth, .. } => {
-                Some(CreateRecoveryUserInput::new(auth.recovery))
-            }
-        }
-    }
 }
 
 impl From<&CreateAccountRequest> for AccountValidationRequest {
@@ -874,10 +851,13 @@ pub async fn create_account(
 
     // Create a Cognito account
     let (app_auth_pubkey, hardware_auth_pubkey, recovery_auth_pubkey) = request.auth_keys();
-    let wallet_input = request.cognito_wallet_input();
-    let recovery_input = request.cognito_recovery_input();
     user_pool_service
-        .create_users(&account_id, wallet_input, recovery_input)
+        .create_account_users_if_necessary(
+            &account_id,
+            app_auth_pubkey,
+            hardware_auth_pubkey,
+            recovery_auth_pubkey,
+        )
         .await
         .map_err(|e| {
             let msg = "Failed to create new accounts in Cognito";
@@ -1074,12 +1054,10 @@ pub async fn upgrade_account(
 
     // Create a wallet Cognito user
     user_pool_service
-        .create_users(
+        .create_account_users_if_necessary(
             &account_id,
-            Some(CreateWalletUserInput::new(
-                request.auth.app,
-                request.auth.hardware,
-            )),
+            Some(request.auth.app),
+            Some(request.auth.hardware),
             None,
         )
         .await

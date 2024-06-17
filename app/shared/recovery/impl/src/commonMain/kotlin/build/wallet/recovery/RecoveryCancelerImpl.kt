@@ -7,17 +7,17 @@ import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode.NO_RECOVERY_EXISTS
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryService
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClient
 import build.wallet.recovery.RecoveryCanceler.RecoveryCancelerError.F8eCancelDelayNotifyError
 import build.wallet.recovery.RecoveryCanceler.RecoveryCancelerError.FailedToClearRecoveryStateError
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 
 /** Cancel recovery on the server and delete from the dao. */
 class RecoveryCancelerImpl(
-  private val cancelDelayNotifyRecoveryService: CancelDelayNotifyRecoveryService,
+  private val cancelDelayNotifyRecoveryF8eClient: CancelDelayNotifyRecoveryF8eClient,
   private val recoverySyncer: RecoverySyncer,
 ) : RecoveryCanceler {
   override suspend fun cancel(
@@ -25,8 +25,8 @@ class RecoveryCancelerImpl(
     fullAccountId: FullAccountId,
     hwFactorProofOfPossession: HwFactorProofOfPossession?,
   ): Result<Unit, RecoveryCanceler.RecoveryCancelerError> =
-    binding {
-      cancelDelayNotifyRecoveryService.cancel(
+    coroutineBinding {
+      cancelDelayNotifyRecoveryF8eClient.cancel(
         f8eEnvironment,
         fullAccountId,
         hwFactorProofOfPossession

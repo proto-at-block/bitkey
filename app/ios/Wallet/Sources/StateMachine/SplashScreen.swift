@@ -3,7 +3,7 @@ import SwiftUI
 
 /// Corresponds to the SplashScreen storyboard to use as a seamless transition.
 struct SplashScreenView: View {
-    
+
     // MARK: - Private Properties
 
     @SwiftUI.State
@@ -35,7 +35,9 @@ struct SplashScreenView: View {
                         .frame(height: 38)
                         .foregroundColor(.white)
 
-                    if viewModel.bitkeyWordMarkAnimationDurationInSeconds == 0 || isBitkeyWordVisible {
+                    if viewModel
+                        .bitkeyWordMarkAnimationDurationInSeconds == 0 || isBitkeyWordVisible
+                    {
                         Image(uiImage: .bitkeyWordMark)
                             .resizable()
                             .aspectRatio(contentMode: .fit)

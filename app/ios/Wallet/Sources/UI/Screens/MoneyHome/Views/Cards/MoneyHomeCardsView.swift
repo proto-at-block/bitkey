@@ -20,8 +20,10 @@ public struct MoneyHomeCardsView: View {
             ForEach(viewModel.cards, id: \.title) { cardModel in
                 CardView(
                     viewModel: cardModel,
-                    // If there's only one card, bind the height of this view to the height of the card so that
-                    // if it changes (and goes to 0), we can notify MoneyHomeView to stop showing this view
+                    // If there's only one card, bind the height of this view to the height of the
+                    // card so that
+                    // if it changes (and goes to 0), we can notify MoneyHomeView to stop showing
+                    // this view
                     withHeight: viewModel.cards.count == 1 ? $height : .constant(nil)
                 )
                 .padding(.bottom, 24)

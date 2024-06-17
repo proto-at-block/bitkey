@@ -11,11 +11,11 @@ struct AddressInputView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelAddressInput
+    private let viewModel: FormMainContentModel.AddressInput
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelAddressInput) {
+    init(viewModel: FormMainContentModel.AddressInput) {
         self.viewModel = viewModel
     }
 
@@ -25,17 +25,20 @@ struct AddressInputView: View {
     // MARK: - View
 
     var body: some View {
-        TextFieldViewRepresentable(viewModel: viewModel.fieldModel, trailingButtonModel: viewModel.trailingButtonModel)
-            .focused($focusedField, equals: .address)
-            .background(
-                RoundedRectangle(cornerRadius: 32)
-                    .fill(Color.foreground10)
-            )
-            .foregroundColor(.foreground)
-            .tint(.foreground)
-            .onAppear {
-                focusedField = .address
-            }
+        TextFieldViewRepresentable(
+            viewModel: viewModel.fieldModel,
+            trailingButtonModel: viewModel.trailingButtonModel
+        )
+        .focused($focusedField, equals: .address)
+        .background(
+            RoundedRectangle(cornerRadius: 32)
+                .fill(Color.foreground10)
+        )
+        .foregroundColor(.foreground)
+        .tint(.foreground)
+        .onAppear {
+            focusedField = .address
+        }
     }
 
 }
@@ -51,7 +54,9 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
     var viewModel: TextFieldModel
     var trailingButtonModel: ButtonModel?
 
-    func makeUIView(context: UIViewRepresentableContext<TextFieldViewRepresentable>) -> ExpandableTextField {
+    func makeUIView(context _: UIViewRepresentableContext<TextFieldViewRepresentable>)
+        -> ExpandableTextField
+    {
         let uiView = ExpandableTextField(frame: .zero)
         // Manually constrain the width here or else the field will expand beyond it's bounds.
         // We constrain it to the bounds minus the horizontal padding on either side
@@ -60,7 +65,10 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
         return uiView
     }
 
-    func updateUIView(_ uiView: ExpandableTextField, context: UIViewRepresentableContext<TextFieldViewRepresentable>) {
+    func updateUIView(
+        _ uiView: ExpandableTextField,
+        context _: UIViewRepresentableContext<TextFieldViewRepresentable>
+    ) {
         uiView.apply(
             model: .standardExpandable(
                 placeholder: viewModel.placeholderText,
@@ -82,7 +90,10 @@ private struct TextFieldViewRepresentable: UIViewRepresentable {
                 }
             ),
             // The range is ignored on iOS side, so pass (0, 0)
-            onEnteredTextChanged: { text, selection in viewModel.onValueChange(text, .init(start: 0, endInclusive: 0)) }
+            onEnteredTextChanged: { text, _ in viewModel.onValueChange(
+                text,
+                .init(start: 0, endInclusive: 0)
+            ) }
         )
     }
 

@@ -7,9 +7,9 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.db.DbError
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.flatMapBoth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -35,14 +35,16 @@ class KeyboxDaoMock(
   override fun onboardingKeybox(): Flow<Result<Keybox?, DbError>> = onboardingKeybox
 
   override suspend fun getActiveOrOnboardingKeybox(): Result<Keybox?, DbError> {
-    return when (val activeKeyboxResult = activeKeybox().first()) {
-      is Err -> activeKeyboxResult
-      is Ok ->
-        when (activeKeyboxResult.value) {
+    val activeKeyboxResult = activeKeybox().first()
+    return activeKeyboxResult.flatMapBoth(
+      success = { activeKeybox ->
+        when (activeKeybox) {
           null -> onboardingKeybox().first()
           else -> activeKeyboxResult
         }
-    }
+      },
+      failure = { activeKeyboxResult }
+    )
   }
 
   override suspend fun activateNewKeyboxAndCompleteOnboarding(
@@ -59,7 +61,7 @@ class KeyboxDaoMock(
   ): Result<Keybox, DbError> {
     rotateAuthKeysCalls += Unit
     return rotateKeyboxResult.also {
-      if (it is Ok) {
+      if (it.isOk) {
         activeKeybox.value = Ok(it.value)
       }
     }

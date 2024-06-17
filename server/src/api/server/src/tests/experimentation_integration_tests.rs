@@ -1,13 +1,11 @@
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
-use analytics::routes::definitions::PlatformInfo;
 use experimentation::routes::{
-    CommonFeatureFlagsAttributes, GetAccountFeatureFlagsRequest,
-    GetAppInstallationFeatureFlagsRequest,
+    GetAccountFeatureFlagsRequest, GetAppInstallationFeatureFlagsRequest,
 };
 use feature_flags::flag::FeatureFlagValue;
-use http::StatusCode;
+use http::{HeaderMap, HeaderValue, StatusCode};
 
 use crate::tests::gen_services_with_overrides;
 use crate::tests::lib::{create_default_account_with_predefined_wallet, create_lite_account};
@@ -21,22 +19,20 @@ struct GetFeatureFlagsTestVector {
     expected_feature_flags: Vec<(String, FeatureFlagValue)>,
 }
 
-static DEFAULT_COMMON_FEATURE_FLAGS_ATTRIBUTES: Lazy<CommonFeatureFlagsAttributes> =
-    Lazy::new(|| CommonFeatureFlagsAttributes {
-        app_installation_id: String::from("test-app-installation-id"),
-        device_region: "AMERICA".to_string(),
-        device_language: "EN".to_string(),
-        platform_info: DEFAULT_PLATFORM_INFO.clone(),
-    });
-static DEFAULT_PLATFORM_INFO: Lazy<PlatformInfo> = Lazy::new(|| PlatformInfo {
-    device_id: String::from("test-app-device-id"),
-    client_type: 1,
-    application_version: String::from("2024.51.0"),
-    os_type: 0,
-    os_version: String::from("1.0"),
-    device_make: String::from("DEVICE_MAKE"),
-    device_model: String::from("DEVICE_MODEL"),
-    app_id: String::from("test_app_id"),
+static DEFAULT_EXPERIMENTATION_HEADERS: Lazy<HeaderMap> = Lazy::new(|| {
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "Bitkey-App-Installation-ID",
+        HeaderValue::from_static("test-app-installation-id"),
+    );
+    headers.insert("Bitkey-App-Version", HeaderValue::from_static("2024.51.0"));
+    headers.insert(
+        "Bitkey-OS-Type",
+        HeaderValue::from_static("OS_TYPE_ANDROID"),
+    );
+    headers.insert("Bitkey-OS-Version", HeaderValue::from_static("1.0"));
+    headers.insert("Bitkey-Device-Region", HeaderValue::from_static("AMERICA"));
+    headers
 });
 
 async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
@@ -54,20 +50,18 @@ async fn get_account_feature_flags(vector: GetFeatureFlagsTestVector) {
     let full_account_response = client
         .get_full_account_feature_flags(
             &full_account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
             &GetAccountFeatureFlagsRequest {
                 flag_keys: vector.flag_keys.clone(),
-                hardware_id: Some("test-hardware-id".to_string()),
-                common: DEFAULT_COMMON_FEATURE_FLAGS_ATTRIBUTES.clone(),
             },
         )
         .await;
     let lite_account_response = client
         .get_lite_account_feature_flags(
             &lite_account.id.to_string(),
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
             &GetAccountFeatureFlagsRequest {
                 flag_keys: vector.flag_keys,
-                hardware_id: None,
-                common: DEFAULT_COMMON_FEATURE_FLAGS_ATTRIBUTES.clone(),
             },
         )
         .await;
@@ -123,10 +117,12 @@ async fn get_app_installation_feature_flags(vector: GetFeatureFlagsTestVector) {
     let (_, bootstrap) = gen_services_with_overrides(overrides).await;
     let client = TestClient::new(bootstrap.router).await;
     let response = client
-        .get_app_installation_feature_flags(&GetAppInstallationFeatureFlagsRequest {
-            flag_keys: vector.flag_keys,
-            common: DEFAULT_COMMON_FEATURE_FLAGS_ATTRIBUTES.clone(),
-        })
+        .get_app_installation_feature_flags(
+            DEFAULT_EXPERIMENTATION_HEADERS.clone(),
+            &GetAppInstallationFeatureFlagsRequest {
+                flag_keys: vector.flag_keys,
+            },
+        )
         .await;
 
     assert_eq!(response.status_code, vector.expected_status);

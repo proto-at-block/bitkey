@@ -1,10 +1,10 @@
 import BitcoinDevKit
 import Shared
 
-class BdkAddressImpl : BdkAddress {
-    
+class BdkAddressImpl: BdkAddress {
+
     private let address: Address
-    
+
     init(address: Address) {
         self.address = address
     }
@@ -12,7 +12,7 @@ class BdkAddressImpl : BdkAddress {
     func asString() -> String {
         return address.asString()
     }
-    
+
     func scriptPubkey() -> BdkScript {
         return BdkScriptImpl(ffiScript: address.scriptPubkey())
     }
@@ -20,7 +20,7 @@ class BdkAddressImpl : BdkAddress {
     func network() -> BdkNetwork {
         return address.network().bdkNetwork
     }
-    
+
     func isValidForNetwork(network: BdkNetwork) -> Bool {
         return address.isValidForNetwork(network: network.ffiNetwork)
     }

@@ -1,7 +1,7 @@
 package build.wallet.auth
 
 import build.wallet.bitkey.f8e.AccountId
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -9,7 +9,7 @@ import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.clearWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class AuthTokenDaoImpl(
   private val encryptedKeyValueStoreFactory: EncryptedKeyValueStoreFactory,
@@ -20,34 +20,33 @@ class AuthTokenDaoImpl(
     accountId: AccountId,
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens?, Throwable> {
-    return Result
-      .catching {
-        // Initialize the secure store
-        val secureStore = secureStore()
+    return catchingResult {
+      // Initialize the secure store
+      val secureStore = secureStore()
 
-        val accessToken =
-          secureStore
-            .getStringOrNull(accessTokenKey(accountId, scope))
-            ?.let { AccessToken(it) }
+      val accessToken =
+        secureStore
+          .getStringOrNull(accessTokenKey(accountId, scope))
+          ?.let { AccessToken(it) }
 
-        val refreshToken =
-          secureStore
-            .getStringOrNull(refreshTokenKey(accountId, scope))
-            ?.let { RefreshToken(it) }
+      val refreshToken =
+        secureStore
+          .getStringOrNull(refreshTokenKey(accountId, scope))
+          ?.let { RefreshToken(it) }
 
-        if (accessToken != null && refreshToken != null) {
-          AccountAuthTokens(accessToken = accessToken, refreshToken = refreshToken)
+      if (accessToken != null && refreshToken != null) {
+        AccountAuthTokens(accessToken = accessToken, refreshToken = refreshToken)
+      } else {
+        // If we couldn't find the tokens for the Global scope, fall back to the legacy keys
+        // for the Global tokens, which didn't include a scope. Since these tokens expire
+        // after 30 days, we should be able to remove this fallback after a similar amount of time.
+        if (scope == AuthTokenScope.Global) {
+          getLegacyGlobalTokens(accountId)
         } else {
-          // If we couldn't find the tokens for the Global scope, fall back to the legacy keys
-          // for the Global tokens, which didn't include a scope. Since these tokens expire
-          // after 30 days, we should be able to remove this fallback after a similar amount of time.
-          if (scope == AuthTokenScope.Global) {
-            getLegacyGlobalTokens(accountId)
-          } else {
-            null
-          }
+          null
         }
       }
+    }
       .logFailure { "Error loading auth tokens for $accountId" }
   }
 
@@ -56,7 +55,7 @@ class AuthTokenDaoImpl(
     tokens: AccountAuthTokens,
     scope: AuthTokenScope,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       // Initialize the secure store
       val secureStore = secureStore()
       // Atomically write both refresh and access tokens

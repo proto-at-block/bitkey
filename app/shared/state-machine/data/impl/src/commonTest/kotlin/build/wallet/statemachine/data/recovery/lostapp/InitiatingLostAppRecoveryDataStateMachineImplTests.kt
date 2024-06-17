@@ -5,15 +5,15 @@ import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.HwKeyBundleMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.auth.AuthenticationServiceMock
+import build.wallet.f8e.auth.AuthF8eClientMock
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.f8e.auth.InitiateAuthenticationSuccessMock
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.CancelDelayNotifyRecoveryErrorCode
 import build.wallet.f8e.error.code.InitiateAccountDelayNotifyErrorCode
-import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryServiceMock
-import build.wallet.f8e.recovery.ListKeysetsServiceMock
+import build.wallet.f8e.recovery.CancelDelayNotifyRecoveryF8eClientMock
+import build.wallet.f8e.recovery.ListKeysetsF8eClientMock
 import build.wallet.keybox.keys.AppKeysGeneratorMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.HttpError.NetworkError
@@ -56,12 +56,12 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   val keyBundleMock = HwKeyBundleMock
   val fullAccountConfig = FullAccountConfigMock
   val appKeysGenerator = AppKeysGeneratorMock()
-  val authenticationService = AuthenticationServiceMock(
+  val authF8eClient = AuthF8eClientMock(
     defaultInitiateAuthenticationResult = Ok(InitiateAuthenticationSuccessMock)
   )
   val lostAppRecoveryInitiator = LostAppRecoveryInitiatorMock(turbines::create)
   val lostAppRecoveryAuthenticator = LostAppRecoveryAuthenticatorMock(turbines::create)
-  val cancelDelayNotifyService = CancelDelayNotifyRecoveryServiceMock(turbines::create)
+  val cancelDelayNotifyF8eClient = CancelDelayNotifyRecoveryF8eClientMock(turbines::create)
   val recoveryNotificationVerificationDataStateMachine =
     object : RecoveryNotificationVerificationDataStateMachine,
       StateMachineMock<RecoveryNotificationVerificationDataProps, RecoveryNotificationVerificationData>(
@@ -72,21 +72,21 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
   val stateMachine =
     InitiatingLostAppRecoveryDataStateMachineImpl(
       appKeysGenerator = appKeysGenerator,
-      authenticationService = authenticationService,
-      listKeysetsService = ListKeysetsServiceMock(),
+      authF8eClient = authF8eClient,
+      listKeysetsF8eClient = ListKeysetsF8eClientMock(),
       lostAppRecoveryInitiator = lostAppRecoveryInitiator,
       lostAppRecoveryAuthenticator = lostAppRecoveryAuthenticator,
       recoveryNotificationVerificationDataStateMachine = recoveryNotificationVerificationDataStateMachine,
-      cancelDelayNotifyRecoveryService = cancelDelayNotifyService,
+      cancelDelayNotifyRecoveryF8eClient = cancelDelayNotifyF8eClient,
       delayer = ControlledDelayer(),
       uuidGenerator = uuid
     )
 
   beforeTest {
     lostAppRecoveryInitiator.reset()
-    authenticationService.reset()
+    authF8eClient.reset()
     lostAppRecoveryAuthenticator.reset()
-    cancelDelayNotifyService.reset()
+    cancelDelayNotifyF8eClient.reset()
   }
 
   test("initiating lost app recovery -- success") {
@@ -117,13 +117,13 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
         )
     ) {
 
-      authenticationService.initiateAuthenticationResult = Err(NetworkError(Error()))
+      authF8eClient.initiateAuthenticationResult = Err(NetworkError(Error()))
 
       getHardwareKeys(keyBundleMock)
 
       awaitItem().let {
         it.shouldBeTypeOf<FailedToInitiateAppAuthWithF8eData>()
-        authenticationService.reset()
+        authF8eClient.reset()
         it.retry()
         awaitItem().shouldBeTypeOf<InitiatingAppAuthWithF8eData>()
         awaitItem().shouldBeTypeOf<AwaitingAppSignedAuthChallengeData>()
@@ -284,7 +284,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
         it.onCancelRecovery()
       }
 
-      cancelDelayNotifyService.cancelRecoveryCalls.awaitItem()
+      cancelDelayNotifyF8eClient.cancelRecoveryCalls.awaitItem()
 
       awaitItem().shouldBeTypeOf<CancellingConflictingRecoveryData>()
       awaitItem().shouldBeTypeOf<InitiatingLostAppRecoveryWithF8eData>()
@@ -309,7 +309,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
           )
         )
 
-      cancelDelayNotifyService.cancelResult =
+      cancelDelayNotifyF8eClient.cancelResult =
         Err(
           SpecificClientErrorMock(CancelDelayNotifyRecoveryErrorCode.COMMS_VERIFICATION_REQUIRED)
         )
@@ -330,7 +330,7 @@ class InitiatingLostAppRecoveryDataStateMachineImplTests : FunSpec({
         it.onCancelRecovery()
       }
 
-      cancelDelayNotifyService.cancelRecoveryCalls.awaitItem()
+      cancelDelayNotifyF8eClient.cancelRecoveryCalls.awaitItem()
       awaitItem().shouldBeTypeOf<CancellingConflictingRecoveryData>()
       awaitItem().shouldBeTypeOf<VerifyingNotificationCommsData>()
     }

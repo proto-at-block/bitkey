@@ -26,7 +26,7 @@ public struct QRCodeScannerViewControllerModel {
     /// The color of the overlay applied to the preview layer everywhere
     /// but the reticle view (to add emphasis to the reticle view)
     public var overlayBackgroundColor: UIColor
-    
+
     public var primaryButtonModel: UIButtonModel?
     public var secondaryButtonModel: UIButtonModel?
 

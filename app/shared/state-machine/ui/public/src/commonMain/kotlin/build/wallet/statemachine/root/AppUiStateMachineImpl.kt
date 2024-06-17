@@ -1,12 +1,6 @@
 package build.wallet.statemachine.root
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
@@ -20,31 +14,16 @@ import build.wallet.statemachine.account.create.full.CreateAccountUiProps
 import build.wallet.statemachine.account.create.full.CreateAccountUiStateMachine
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SplashBodyModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.log
 import build.wallet.statemachine.data.app.AppData.AppLoadedData
 import build.wallet.statemachine.data.app.AppData.LoadingAppData
 import build.wallet.statemachine.data.app.AppDataStateMachine
 import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
+import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingCloudBackupData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingRecoveryOrOnboarding
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CreatingFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CreatingLiteAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringLiteAccountData
+import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.data.sync.ElectrumServerData
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
@@ -52,11 +31,7 @@ import build.wallet.statemachine.home.full.HomeUiProps
 import build.wallet.statemachine.home.full.HomeUiStateMachine
 import build.wallet.statemachine.home.lite.LiteHomeUiProps
 import build.wallet.statemachine.home.lite.LiteHomeUiStateMachine
-import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiProps
-import build.wallet.statemachine.recovery.cloud.LiteAccountCloudBackupRestorationUiStateMachine
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIOrigin
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachine
-import build.wallet.statemachine.recovery.cloud.RotateAuthKeyUIStateMachineProps
+import build.wallet.statemachine.recovery.cloud.*
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiProps
 import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachine
 import build.wallet.statemachine.recovery.conflict.SomeoneElseIsRecoveringUiProps
@@ -65,6 +40,8 @@ import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitR
 import build.wallet.statemachine.recovery.emergencyaccesskit.EmergencyAccessKitRecoveryUiStateMachineProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachine
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceProps
+import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceUiStateMachine
 import build.wallet.statemachine.settings.showDebugMenu
 import build.wallet.statemachine.start.GettingStartedRoutingProps
 import build.wallet.statemachine.start.GettingStartedRoutingStateMachine
@@ -92,6 +69,7 @@ class AppUiStateMachineImpl(
     LiteAccountCloudBackupRestorationUiStateMachine,
   private val emergencyAccessKitRecoveryUiStateMachine: EmergencyAccessKitRecoveryUiStateMachine,
   private val authKeyRotationUiStateMachine: RotateAuthKeyUIStateMachine,
+  private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
   private val appWorkerExecutor: AppWorkerExecutor,
 ) : AppUiStateMachine {
   /**
@@ -288,6 +266,18 @@ class AppUiStateMachineImpl(
             onAccountCreated = accountData.onAccountCreated,
             // If this flow was reached via invite code, show the introduction screen.
             showBeTrustedContactIntroduction = accountData.inviteCode != null
+          )
+        )
+
+      is ResettingExistingDeviceData ->
+        resettingDeviceUiStateMachine.model(
+          props = ResettingDeviceProps(
+            fullAccountConfig = accountData.templateFullAccountConfig,
+            onBack = accountData.onExit,
+            onSuccess = accountData.onSuccess,
+            fullAccount = null,
+            spendingWallet = null,
+            balance = null
           )
         )
     }

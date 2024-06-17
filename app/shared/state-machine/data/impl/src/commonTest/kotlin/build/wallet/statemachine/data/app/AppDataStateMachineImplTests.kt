@@ -1,7 +1,6 @@
 package build.wallet.statemachine.data.app
 
 import build.wallet.bitkey.keybox.FullAccountConfigMock
-import build.wallet.configuration.FiatMobilePayConfigurationRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.feature.FeatureFlagInitializerMock
 import build.wallet.feature.FeatureFlagSyncerMock
@@ -58,8 +57,6 @@ class AppDataStateMachineImplTests : FunSpec({
       FirmwareDataUpToDateMock
     ) {}
   val fiatCurrencyRepository = FiatCurrencyRepositoryMock(turbines::create)
-  val fiatMobilePayConfigurationRepository =
-    FiatMobilePayConfigurationRepositoryMock(turbines::create)
 
   val stateMachine =
     AppDataStateMachineImpl(
@@ -69,8 +66,7 @@ class AppDataStateMachineImplTests : FunSpec({
       templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
       electrumServerDataStateMachine = electrumServerDataStateMachine,
       firmwareDataStateMachine = firmwareDataStateMachine,
-      fiatCurrencyRepository = fiatCurrencyRepository,
-      fiatMobilePayConfigurationRepository = fiatMobilePayConfigurationRepository
+      fiatCurrencyRepository = fiatCurrencyRepository
     )
 
   suspend fun shouldInitializeFeatureFlags() {
@@ -81,7 +77,6 @@ class AppDataStateMachineImplTests : FunSpec({
 
   suspend fun shouldLaunchRepositories() {
     fiatCurrencyRepository.updateFromServerCalls.awaitItem().shouldBe(Unit)
-    fiatMobilePayConfigurationRepository.launchSyncAndUpdateFromServerCalls.awaitItem()
   }
 
   suspend fun shouldRunInitialSideEffects() {

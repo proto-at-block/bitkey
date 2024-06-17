@@ -95,6 +95,23 @@ enum firmware_slot {
   SLOT_B = 2;
 }
 
+message bio_diagnostics {
+  bool finger_coverage_valid = 1;
+  uint32 finger_coverage = 2;
+
+  bool common_mode_noise_valid = 3;
+  uint32 common_mode_noise = 4;
+
+  bool image_quality_valid = 5;
+  uint32 image_quality = 6;
+
+  bool sensor_coverage_valid = 7;
+  uint32 sensor_coverage = 8;
+
+  bool template_data_update_valid = 9;
+  uint32 template_data_update = 10;
+}
+
 message meta_rsp {
   enum meta_rsp_status {
     UNSPECIFIED = 0;
@@ -160,6 +177,7 @@ message get_fingerprint_enrollment_status_rsp {
   fingerprint_enrollment_status fingerprint_status = 2;
   uint32 pass_count = 3;
   uint32 fail_count = 4;
+  bio_diagnostics diagnostics = 5;
 }
 
 message delete_fingerprint_cmd {
@@ -359,6 +377,7 @@ enum feature_flag {
   FEATURE_FLAG_RATE_LIMIT_TEMPLATE_UPDATE = 2;
   FEATURE_FLAG_UNLOCK = 3;
   FEATURE_FLAG_MULTIPLE_FINGERPRINTS = 4;
+  FEATURE_FLAG_IMPROVED_FINGERPRINT_ENROLLMENT = 5;  // This does not control the feature, but flags support to the app.
   // Add new feature flags here; do not remove any!
 }
 

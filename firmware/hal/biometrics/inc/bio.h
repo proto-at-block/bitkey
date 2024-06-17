@@ -1,5 +1,6 @@
 #pragma once
 
+#include "fpc_bep_sensor.h"
 #include "fpc_bep_sensor_security.h"
 #include "fpc_bep_sensor_test.h"
 #include "secutils.h"
@@ -22,6 +23,37 @@ typedef enum {
 
 typedef uint16_t bio_template_id_t;
 
+// This is like fpc_bep_diagnostics_parameters_t, but with the top 'valid' bit removed.
+// and bools to indicate if the value is valid.
+typedef struct {
+  // Sensor finger detect zone coverage, this value only depends on the sensor hardware.
+  // Each zone is represented by one bit.
+  // See fpc_bep_get_finger_detect_zones API for more information.
+  // Range 0:4095
+  bool finger_coverage_valid;
+  uint16_t finger_coverage;
+
+  // Indicates if Common Mode Noise were detected in the extraction process.
+  // Value 0 CMN was not detected, value 100 CMN was detected.
+  bool common_mode_noise_valid;
+  uint8_t common_mode_noise;
+
+  // The estimated image quality during extraction.
+  // Range 0:100 where 0 Is the lowest quality, 100 is the highest quality.
+  bool image_quality_valid;
+  uint8_t image_quality;
+
+  // Estimated sensor coverage from extraction of template.
+  // Range 0:100
+  bool sensor_coverage_valid;
+  uint8_t sensor_coverage;
+
+  // Indicates if template data was updated after extraction.
+  // Value 0 Template was not updated, value 1 Template was updated.
+  bool template_data_update_valid;
+  uint8_t template_data_update;
+} bio_diagnostics_t;
+
 typedef struct {
   bool irq_test;
   bool spi_rw_test;
@@ -35,6 +67,7 @@ typedef struct {
 typedef struct {
   uint32_t pass_count;
   uint32_t fail_count;
+  bio_diagnostics_t diagnostics;
 } bio_enroll_stats_t;
 
 typedef enum {
@@ -65,6 +98,9 @@ bio_err_t bio_storage_delete_template(bio_template_id_t id);
 
 bool bio_storage_label_save(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN]);
 bool bio_storage_label_retrieve(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN]);
+
+bio_diagnostics_t bio_get_diagnostics(void);
+void bio_get_and_update_diagnostics(bio_diagnostics_t* diagnostics);
 
 void bio_selftest(bio_selftest_result_t* result);
 

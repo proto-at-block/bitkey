@@ -5,8 +5,8 @@ import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
-import build.wallet.f8e.featureflags.GetFeatureFlagsService
-import build.wallet.f8e.featureflags.GetFeatureFlagsServiceMock
+import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
+import build.wallet.f8e.featureflags.FeatureFlagsF8eClientMock
 import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
@@ -30,12 +30,12 @@ class FeatureFlagSyncerTests : FunSpec({
     )
 
   fun remoteBooleanFeatureFlag(value: Boolean) =
-    GetFeatureFlagsService.F8eFeatureFlag(
+    FeatureFlagsF8eClient.F8eFeatureFlag(
       key = "silly-mode-enabled",
       value = F8eFeatureFlagValue.BooleanValue(value)
     )
 
-  val getFeatureFlagsService = GetFeatureFlagsServiceMock(
+  val getFeatureFlagsF8eClient = FeatureFlagsF8eClientMock(
     featureFlags = listOf(remoteBooleanFeatureFlag(false)),
     turbine = turbines::create
   )
@@ -52,8 +52,8 @@ class FeatureFlagSyncerTests : FunSpec({
 
   lateinit var featureFlagSyncer: FeatureFlagSyncerImpl
 
-  suspend fun syncFlags(remoteFlags: List<GetFeatureFlagsService.F8eFeatureFlag>) {
-    getFeatureFlagsService.setFlags(remoteFlags)
+  suspend fun syncFlags(remoteFlags: List<FeatureFlagsF8eClient.F8eFeatureFlag>) {
+    getFeatureFlagsF8eClient.setFlags(remoteFlags)
     featureFlagSyncer.sync()
   }
 
@@ -69,7 +69,7 @@ class FeatureFlagSyncerTests : FunSpec({
     featureFlagSyncer = FeatureFlagSyncerImpl(
       accountRepository = AccountRepositoryFake(),
       templateFullAccountConfigDao = TemplateFullAccountConfigDaoFake(),
-      getFeatureFlagsService = getFeatureFlagsService,
+      featureFlagsF8eClient = getFeatureFlagsF8eClient,
       clock = clock,
       remoteFlags = listOf(testFlag),
       appSessionManager = appSessionManager
@@ -77,7 +77,7 @@ class FeatureFlagSyncerTests : FunSpec({
   }
 
   suspend fun assertGetFeatureFlagsCalls() {
-    getFeatureFlagsService.getFeatureFlagsCalls.awaitItem().shouldBe(Unit)
+    getFeatureFlagsF8eClient.getFeatureFlagsCalls.awaitItem().shouldBe(Unit)
   }
 
   test("sync flag from false to true") {
@@ -163,9 +163,9 @@ class FeatureFlagSyncerTests : FunSpec({
 
     // Set flag to false and immediately get an [applicationDidEnterForeground] call.
     // Should not sync as not enough time has passed.
-    getFeatureFlagsService.setFlags(listOf(remoteBooleanFeatureFlag(false)))
+    getFeatureFlagsF8eClient.setFlags(listOf(remoteBooleanFeatureFlag(false)))
     testFlag.flagValue().value.value.shouldBe(true)
-    getFeatureFlagsService.getFeatureFlagsCalls.expectNoEvents()
+    getFeatureFlagsF8eClient.getFeatureFlagsCalls.expectNoEvents()
 
     clock.advanceBy(6.seconds)
 
@@ -174,8 +174,8 @@ class FeatureFlagSyncerTests : FunSpec({
     assertGetFeatureFlagsCalls()
 
     // Attempt a sync again. Not enough time has passed so the sync will not be performed.
-    getFeatureFlagsService.setFlags(listOf(remoteBooleanFeatureFlag(true)))
+    getFeatureFlagsF8eClient.setFlags(listOf(remoteBooleanFeatureFlag(true)))
     testFlag.flagValue().value.value.shouldBe(false)
-    getFeatureFlagsService.getFeatureFlagsCalls.expectNoEvents()
+    getFeatureFlagsF8eClient.getFeatureFlagsCalls.expectNoEvents()
   }
 })

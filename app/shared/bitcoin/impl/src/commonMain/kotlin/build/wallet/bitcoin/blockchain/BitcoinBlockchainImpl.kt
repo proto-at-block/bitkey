@@ -11,7 +11,7 @@ import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.logging.LogLevel.Debug
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.datetime.Clock
 
 class BitcoinBlockchainImpl(
@@ -20,7 +20,7 @@ class BitcoinBlockchainImpl(
   private val clock: Clock,
 ) : BitcoinBlockchain {
   override suspend fun broadcast(psbt: Psbt): Result<BroadcastDetail, BdkError> =
-    binding {
+    coroutineBinding {
       val bdkPsbt =
         bdkPsbtBuilder.build(psbtBase64 = psbt.base64)
           .result
@@ -42,13 +42,13 @@ class BitcoinBlockchainImpl(
     }
 
   override suspend fun getLatestBlockHeight(): Result<Long, BdkError> =
-    binding {
+    coroutineBinding {
       val blockchain = bdkBlockchainProvider.blockchain().result.bind()
       blockchain.getHeight().result.bind()
     }
 
   override suspend fun getLatestBlockHash(): Result<String, BdkError> =
-    binding {
+    coroutineBinding {
       val blockchain = bdkBlockchainProvider.blockchain().result.bind()
       val blockHeight = blockchain.getHeight().result.bind()
       blockchain.getBlockHash(blockHeight).result.bind()

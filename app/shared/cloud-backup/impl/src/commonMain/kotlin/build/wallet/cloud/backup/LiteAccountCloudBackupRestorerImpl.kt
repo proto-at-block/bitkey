@@ -13,7 +13,7 @@ import build.wallet.cloud.backup.RestoreFromBackupError.AccountBackupRestoration
 import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.recovery.socrec.SocRecKeysDao
 import build.wallet.recovery.socrec.saveKey
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LiteAccountCloudBackupRestorerImpl(
@@ -25,7 +25,7 @@ class LiteAccountCloudBackupRestorerImpl(
   private val accountRepository: AccountRepository,
 ) : LiteAccountCloudBackupRestorer {
   override suspend fun restoreFromBackup(liteAccountCloudBackup: CloudBackupV2) =
-    binding {
+    coroutineBinding {
       require(liteAccountCloudBackup.fullAccountFields == null)
 
       // Store auth private keys

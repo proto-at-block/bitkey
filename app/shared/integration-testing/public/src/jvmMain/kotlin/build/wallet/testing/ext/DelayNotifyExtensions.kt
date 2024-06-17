@@ -1,7 +1,7 @@
 package build.wallet.testing.ext
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingServiceImpl
+import build.wallet.f8e.recovery.UpdateDelayNotifyPeriodForTestingApiImpl
 import build.wallet.recovery.Recovery
 import build.wallet.testing.AppTester
 import com.github.michaelbull.result.getOrThrow
@@ -16,7 +16,7 @@ import kotlin.time.Duration.Companion.seconds
 suspend fun AppTester.completeRecoveryDelayPeriodOnF8e() {
   val accountId = getFullAccountId()
   val config = app.appComponent.templateFullAccountConfigDao.config().first().getOrThrow()
-  UpdateDelayNotifyPeriodForTestingServiceImpl(app.appComponent.f8eHttpClient)
+  UpdateDelayNotifyPeriodForTestingApiImpl(app.appComponent.f8eHttpClient)
     .updateDelayNotifyPeriodForTesting(
       config.f8eEnvironment,
       accountId,

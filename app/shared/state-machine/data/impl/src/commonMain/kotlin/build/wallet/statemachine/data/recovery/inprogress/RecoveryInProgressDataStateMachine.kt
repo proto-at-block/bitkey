@@ -41,7 +41,6 @@ import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.ChallengeToCompleteRecovery
 import build.wallet.recovery.LocalRecoveryAttemptProgress
 import build.wallet.recovery.LocalRecoveryAttemptProgress.CompletionAttemptFailedDueToServerCancellation
-import build.wallet.recovery.LocalRecoveryAttemptProgress.SweptFunds
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery.InitiatedRecovery
 import build.wallet.recovery.Recovery.StillRecovering.ServerIndependentRecovery.BackedUpToCloud
@@ -53,7 +52,6 @@ import build.wallet.recovery.RecoveryCanceler
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.SignedChallengeToCompleteRecovery
-import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
 import build.wallet.statemachine.core.StateMachine
@@ -93,15 +91,13 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.RotatingAuthKeysWithF8eState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.VerifyingNotificationCommsForCancellationState
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressDataStateMachineImpl.State.WaitingForDelayPeriodState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataProps
 import build.wallet.statemachine.data.recovery.verification.RecoveryNotificationVerificationDataStateMachine
 import build.wallet.time.Delayer
 import build.wallet.time.nonNegativeDurationBetween
 import build.wallet.time.withMinimumDelay
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.delay
@@ -149,7 +145,6 @@ class RecoveryInProgressDataStateMachineImpl(
   private val csekGenerator: CsekGenerator,
   private val csekDao: CsekDao,
   private val recoveryAuthCompleter: RecoveryAuthCompleter,
-  private val sweepDataStateMachine: SweepDataStateMachine,
   private val f8eSpendingKeyRotator: F8eSpendingKeyRotator,
   private val uuidGenerator: UuidGenerator,
   private val recoverySyncer: RecoverySyncer,
@@ -160,7 +155,6 @@ class RecoveryInProgressDataStateMachineImpl(
   private val delayer: Delayer,
   private val deviceTokenManager: DeviceTokenManager,
   private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
-  private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
 ) : RecoveryInProgressDataStateMachine {
   @Composable
@@ -239,6 +233,7 @@ class RecoveryInProgressDataStateMachineImpl(
                     CompletionAttemptFailedDueToServerCancellation
                   )
                 }
+
                 else -> {
                   state = FailedToRotateAuthState(cause = error)
                 }
@@ -452,26 +447,8 @@ class RecoveryInProgressDataStateMachineImpl(
 
       is PerformingSweepState ->
         PerformingSweepData(
-          sweepData =
-            sweepDataStateMachine.model(
-              props =
-                SweepDataProps(
-                  recoveredFactor = props.recovery.factorToRecover,
-                  keybox = dataState.keybox,
-                  onSuccess = {
-                    scope.launch {
-                      // Set the flag to no longer show the replace hardware card nudge
-                      // this flag is used by the MoneyHomeCardsUiStateMachine
-                      // and toggled on by the FullAccountCloudBackupRestorationUiStateMachine
-                      postSocRecTaskRepository.setHardwareReplacementNeeded(false)
-                      recoverySyncer
-                        .setLocalRecoveryProgress(
-                          SweptFunds(dataState.keybox)
-                        )
-                    }
-                  }
-                )
-            ),
+          physicalFactor = props.recovery.factorToRecover,
+          keybox = dataState.keybox,
           rollback = {
             state =
               ExitedPerformingSweepState(
@@ -500,6 +477,7 @@ class RecoveryInProgressDataStateMachineImpl(
             state = ReadyToCompleteRecoveryState
           }
         )
+
       is RegeneratingTcCertificatesState -> {
         RegenerateTcCertificatesEffect(
           props,
@@ -515,7 +493,7 @@ class RecoveryInProgressDataStateMachineImpl(
    * Verify that can authenticate with new app global and recovery auth key post recovery.
    */
   private suspend fun verifyAppAuth(props: RecoveryInProgressProps): Result<Unit, Error> =
-    binding {
+    coroutineBinding {
       accountAuthenticator
         .appAuth(
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
@@ -565,7 +543,7 @@ class RecoveryInProgressDataStateMachineImpl(
   }
 
   private suspend fun regenerateTcCertificates(props: RecoveryInProgressProps) =
-    binding {
+    coroutineBinding {
       // 1. Get latest trusted contacts from f8e
       val trustedContacts = socRecRelationshipsRepository
         .getRelationshipsWithoutSyncing(
@@ -657,15 +635,18 @@ class RecoveryInProgressDataStateMachineImpl(
               fullAccountId = recovery.fullAccountId
             )
         }
+
       is MaybeNoLongerRecovering ->
         CheckCompletionAttemptForSuccessOrCancellation(
           recovery.sealedCsek
         )
+
       is RotatedAuthKeys -> {
         AwaitingHardwareProofOfPossessionState(
           sealedCsek = recovery.sealedCsek
         )
       }
+
       is CreatedSpendingKeys -> {
         RegeneratingTcCertificatesState(
           sealedCsek = recovery.sealedCsek,
@@ -716,6 +697,7 @@ class RecoveryInProgressDataStateMachineImpl(
         AwaitingCancellationProofOfPossessionState(
           rollback = rollbackFromAwaitingProofOfPossession
         )
+
       Hardware ->
         CancellingState(null)
     }
@@ -726,7 +708,7 @@ class RecoveryInProgressDataStateMachineImpl(
     state: RotatingAuthKeysWithF8eState,
     removeProtectedCustomers: Boolean,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       recoveryAuthCompleter
         .rotateAuthKeys(
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
@@ -747,7 +729,7 @@ class RecoveryInProgressDataStateMachineImpl(
     props: RecoveryInProgressProps,
     state: CreatingSpendingKeysWithF8eState,
   ): Result<Unit, Error> =
-    binding {
+    coroutineBinding {
       val f8eSpendingKeyset =
         f8eSpendingKeyRotator
           .rotateSpendingKey(

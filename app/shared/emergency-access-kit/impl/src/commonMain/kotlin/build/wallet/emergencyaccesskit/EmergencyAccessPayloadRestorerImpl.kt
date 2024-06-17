@@ -3,7 +3,7 @@ package build.wallet.emergencyaccesskit
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.app.AppSpendingKeypair
-import build.wallet.catching
+import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.AccountRestoration
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyAccessPayloadRestorerError
@@ -13,7 +13,7 @@ import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer.EmergencyA
 import build.wallet.encrypt.SymmetricKeyEncryptor
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.toErrorIfNull
 
@@ -25,7 +25,7 @@ class EmergencyAccessPayloadRestorerImpl(
   override suspend fun restoreFromPayload(
     payload: EmergencyAccessKitPayload,
   ): Result<AccountRestoration, EmergencyAccessPayloadRestorerError> =
-    binding {
+    coroutineBinding {
       val decoder = EmergencyAccessKitPayloadDecoderImpl
 
       when (payload) {
@@ -37,7 +37,7 @@ class EmergencyAccessPayloadRestorerImpl(
               .bind()
 
           val encodedBackup =
-            Result.catching {
+            catchingResult {
               symmetricKeyEncryptor.unseal(
                 sealedData = payload.sealedActiveSpendingKeys,
                 key = pkek.key

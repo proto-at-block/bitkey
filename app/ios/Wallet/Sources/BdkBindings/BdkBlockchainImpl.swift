@@ -1,14 +1,14 @@
 import BitcoinDevKit
 import Shared
 
-class BdkBlockchainImpl : BdkBlockchain {
-    
+class BdkBlockchainImpl: BdkBlockchain {
+
     let ffiBlockchain: Blockchain
-    
+
     init(ffiBlockchain: Blockchain) {
         self.ffiBlockchain = ffiBlockchain
     }
-    
+
     func broadcastBlocking(transaction: BdkTransaction) -> BdkResult<KotlinUnit> {
         return BdkResult {
             let realTransaction = transaction as! BdkTransactionImpl
@@ -16,23 +16,23 @@ class BdkBlockchainImpl : BdkBlockchain {
             return KotlinUnit()
         }
     }
-    
+
     func getBlockHashBlocking(height: Int64) -> BdkResult<NSString> {
         return BdkResult {
             try ffiBlockchain.getBlockHash(height: UInt32(height)) as NSString
         }
     }
-    
+
     func getHeightBlocking() -> BdkResult<KotlinLong> {
         return BdkResult {
-            KotlinLong(value: Int64(try ffiBlockchain.getHeight()))
+            try KotlinLong(value: Int64(ffiBlockchain.getHeight()))
         }
     }
-    
+
     func estimateFeeBlocking(targetBlocks: UInt64) -> BdkResult<KotlinFloat> {
         return BdkResult {
-            KotlinFloat(value: try ffiBlockchain.estimateFee(target: targetBlocks).asSatPerVb())
+            try KotlinFloat(value: ffiBlockchain.estimateFee(target: targetBlocks).asSatPerVb())
         }
     }
-    
+
 }

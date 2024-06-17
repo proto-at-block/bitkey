@@ -19,7 +19,7 @@ import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.UpToDate
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.recoverIf
 import kotlinx.coroutines.delay
@@ -111,7 +111,7 @@ class FirmwareDataStateMachineImpl(
 
   private suspend fun checkForNewFirmware(firmwareDeviceInfo: FirmwareDeviceInfo) {
     val result =
-      binding {
+      coroutineBinding {
         // Get and store new FWUP data, if any.
         val fwupData =
           fwupDataFetcher
@@ -120,7 +120,10 @@ class FirmwareDataStateMachineImpl(
             )
             // If no update needed, return null
             .recoverIf(
-              predicate = { error -> error is DownloadError && error.error is NoUpdateNeeded },
+              predicate = {
+                  error ->
+                error is DownloadError && error.error is NoUpdateNeeded
+              },
               transform = { null }
             )
             .bind()

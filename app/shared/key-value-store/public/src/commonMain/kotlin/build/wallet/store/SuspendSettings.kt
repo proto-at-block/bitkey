@@ -1,25 +1,25 @@
 package build.wallet.store
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.russhwolf.settings.coroutines.SuspendSettings
 
 /**
  * Wraps [SuspendSettings.clear] into [Result].
  */
-suspend fun SuspendSettings.clearWithResult(): Result<Unit, Throwable> = Result.catching { clear() }
+suspend fun SuspendSettings.clearWithResult(): Result<Unit, Throwable> = catchingResult { clear() }
 
 /**
  * Wraps [SuspendSettings.remove] into [Result].
  */
 suspend fun SuspendSettings.removeWithResult(key: String): Result<Unit, Throwable> =
-  Result.catching { remove(key) }
+  catchingResult { remove(key) }
 
 /**
  * Wraps [SuspendSettings.getStringOrNull] into [Result].
  */
 suspend fun SuspendSettings.getStringOrNullWithResult(key: String): Result<String?, Throwable> =
-  Result.catching { getStringOrNull(key) }
+  catchingResult { getStringOrNull(key) }
 
 /**
  * Wraps [SuspendSettings.putString] into [Result].
@@ -27,7 +27,7 @@ suspend fun SuspendSettings.getStringOrNullWithResult(key: String): Result<Strin
 suspend fun SuspendSettings.putStringWithResult(
   key: String,
   value: String,
-): Result<Unit, Throwable> = Result.catching { putString(key, value) }
+): Result<Unit, Throwable> = catchingResult { putString(key, value) }
 
 /**
  * Similar to MutableMap.getOrPut. Gets the string value for key. If null, creates a string

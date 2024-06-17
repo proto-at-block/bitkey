@@ -18,7 +18,8 @@ public struct RotatingLoadingIcon: View {
     private let size: IconSize
     private let tint: Tint
     private var animation: LottieAnimation {
-        // Unfortunately, Lottie doesn't easily support changing the color of animations on iOS like it does on Android.
+        // Unfortunately, Lottie doesn't easily support changing the color of animations on iOS like
+        // it does on Android.
         // So we can only support white or black loaders. If additional colors are needed, we need
         // an additional lottie json file for each color.
         switch tint {

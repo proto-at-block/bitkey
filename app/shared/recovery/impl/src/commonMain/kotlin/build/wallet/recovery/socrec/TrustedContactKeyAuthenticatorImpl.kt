@@ -13,12 +13,12 @@ import build.wallet.bitkey.socrec.TrustedContactEndorsement
 import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.socrec.EndorseTrustedContactsServiceProvider
+import build.wallet.f8e.socrec.EndorseTrustedContactsF8eClientProvider
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
+import com.github.michaelbull.result.filterValues
 import com.github.michaelbull.result.get
-import com.github.michaelbull.result.getAll
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onFailure
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +32,7 @@ class TrustedContactKeyAuthenticatorImpl(
   private val socRecRelationshipsDao: SocRecRelationshipsDao,
   private val socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao,
   private val socRecCrypto: SocRecCrypto,
-  private val endorseTrustedContactsServiceProvider: EndorseTrustedContactsServiceProvider,
+  private val endorseTrustedContactsF8eClientProvider: EndorseTrustedContactsF8eClientProvider,
 ) : TrustedContactKeyAuthenticator {
   override fun backgroundAuthenticateAndEndorse(
     scope: CoroutineScope,
@@ -56,7 +56,7 @@ class TrustedContactKeyAuthenticatorImpl(
     newAppGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
     newAppGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
   ): Result<Unit, Error> =
-    binding {
+    coroutineBinding {
       val endorsements = contacts.map { contact ->
         socRecCrypto.verifyAndRegenerateKeyCertificate(
           oldCertificate = contact.keyCertificate,
@@ -82,7 +82,7 @@ class TrustedContactKeyAuthenticatorImpl(
       }.mapNotNull { it.get() }
 
       // Upload the new key certificates to f8e
-      endorseTrustedContactsServiceProvider.get()
+      endorseTrustedContactsF8eClientProvider.get()
         .endorseTrustedContacts(accountId, f8eEnvironment, endorsements)
         .bind()
     }
@@ -95,7 +95,7 @@ class TrustedContactKeyAuthenticatorImpl(
     contacts: List<UnendorsedTrustedContact>,
     fullAccount: FullAccount,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding<Unit, Throwable> {
       val authenticated = contacts
         // Only process contacts that haven't failed authentication
         .filter { it.authenticationState == TrustedContactAuthenticationState.UNAUTHENTICATED }
@@ -106,7 +106,7 @@ class TrustedContactKeyAuthenticatorImpl(
             }
         }
         // Any successful, non-null results are successful authentications
-        .getAll()
+        .filterValues()
         .filterNotNull()
       if (authenticated.any()) {
         endorseAll(fullAccount, authenticated)
@@ -122,7 +122,7 @@ class TrustedContactKeyAuthenticatorImpl(
   private suspend fun authenticate(
     contact: UnendorsedTrustedContact,
   ): Result<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>?, Throwable> =
-    binding {
+    coroutineBinding<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>?, Throwable> {
       // Make sure PAKE data is available
       val pakeData =
         socRecEnrollmentAuthenticationDao.getByRelationshipId(contact.recoveryRelationshipId)
@@ -132,7 +132,7 @@ class TrustedContactKeyAuthenticatorImpl(
           contact.recoveryRelationshipId,
           TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
         ).bind()
-        return@binding null
+        return@coroutineBinding null
       }
 
       // Make sure can authenticate with PAKE
@@ -142,7 +142,7 @@ class TrustedContactKeyAuthenticatorImpl(
           contact.recoveryRelationshipId,
           TrustedContactAuthenticationState.FAILED
         ).bind()
-        return@binding null
+        return@coroutineBinding null
       }
 
       // We do not need to set the authentication state to `ENDORSED` here. Once the certificate is
@@ -177,7 +177,7 @@ class TrustedContactKeyAuthenticatorImpl(
     fullAccount: FullAccount,
     authenticated: List<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>>,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       // Generate a key certificate for each authenticated contact
       val endorsements =
         authenticated.map { (unendorsedTc, tcKey) ->
@@ -197,7 +197,7 @@ class TrustedContactKeyAuthenticatorImpl(
         }
 
       // Upload the key certificates to f8e
-      endorseTrustedContactsServiceProvider.get()
+      endorseTrustedContactsF8eClientProvider.get()
         .endorseTrustedContacts(
           fullAccount.accountId,
           fullAccount.config.f8eEnvironment,

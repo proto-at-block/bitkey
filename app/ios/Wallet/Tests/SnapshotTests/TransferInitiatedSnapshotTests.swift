@@ -14,7 +14,7 @@ final class TransferInitiatedScreenModelSnapshotTests: XCTestCase {
 
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_transfer_initiated_speedup() {
         let view = FormView(
             viewModel: .transferInitiatedModel(isSpeedUp: true)
@@ -30,7 +30,7 @@ private extension FormBodyModel {
     static func transferInitiatedModel(
         isSpeedUp: Bool
     ) -> FormBodyModel {
-        let transactionDetailModel: TransactionDetailModelType = if (isSpeedUp) {
+        let transactionDetailModel: TransactionDetailModelType = if isSpeedUp {
             TransactionDetailModelTypeSpeedUp(
                 transferAmountText: "$20.00",
                 totalAmountPrimaryText: "$22.36",
@@ -46,11 +46,11 @@ private extension FormBodyModel {
                 feeAmountText: "$1.36"
             )
         }
-        
+
         return TransferInitiatedBodyModelKt.TransferInitiatedBodyModel(
             onBack: {},
             recipientAddress: "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh",
-            transactionDetails: TransactionDetailsModel.init(
+            transactionDetails: TransactionDetailsModel(
                 transactionDetailModelType: transactionDetailModel,
                 transactionSpeedText: "~30 minutes"
             ),

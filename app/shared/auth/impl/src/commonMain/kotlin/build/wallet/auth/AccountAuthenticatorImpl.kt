@@ -5,32 +5,32 @@ import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.AuthenticationService
+import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.ktor.result.HttpError
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import io.ktor.http.HttpStatusCode.Companion.NotFound
 import okio.ByteString.Companion.encodeUtf8
 
 class AccountAuthenticatorImpl(
   private val appAuthKeyMessageSigner: AppAuthKeyMessageSigner,
-  private val authenticationService: AuthenticationService,
+  private val authF8eClient: AuthF8eClient,
 ) : AccountAuthenticator {
   override suspend fun appAuth(
     f8eEnvironment: F8eEnvironment,
     appAuthPublicKey: PublicKey<out AppAuthKey>,
     authTokenScope: AuthTokenScope,
   ): Result<AuthData, AuthError> =
-    binding {
+    coroutineBinding {
       log(level = LogLevel.Debug) {
         "Attempting to authenticate with app auth public key $appAuthPublicKey"
       }
 
       val signInResponse =
-        authenticationService
+        authF8eClient
           .initiateAuthentication(f8eEnvironment, appAuthPublicKey, authTokenScope)
           .mapError { error ->
             when (error) {
@@ -75,7 +75,7 @@ class AccountAuthenticatorImpl(
     session: String,
     signature: String,
   ): Result<AccountAuthTokens, AuthError> {
-    return authenticationService
+    return authF8eClient
       .completeAuthentication(f8eEnvironment, username, signature, session)
       .mapError { AuthNetworkError("Cannot complete authentication: ${it.message}") }
   }

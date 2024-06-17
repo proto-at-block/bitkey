@@ -12,11 +12,10 @@ import build.wallet.bitcoin.transactions.OutgoingTransactionDetail
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepository
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.toDuration
-import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.f8e.mobilepay.MobilePaySigningService
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.mapUnit
@@ -44,7 +43,7 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.S
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.SweepSuccessState
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapAll
 import com.github.michaelbull.result.onFailure
@@ -57,7 +56,7 @@ import kotlinx.collections.immutable.toImmutableMap
 class SweepDataStateMachineImpl(
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val sweepGenerator: SweepGenerator,
-  private val mobilePaySigningService: MobilePaySigningService,
+  private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val exchangeRateSyncer: ExchangeRateSyncer,
   private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
@@ -117,9 +116,7 @@ class SweepDataStateMachineImpl(
     /**
      * Successfully braodcasted sweep psbts.
      */
-    data class SweepSuccessState(
-      val factor: PhysicalFactor,
-    ) : State
+    data object SweepSuccessState : State
 
     /**
      * Failed to sign or broadcast sweep psbts.
@@ -148,19 +145,18 @@ class SweepDataStateMachineImpl(
             }
             .onFailure { err -> sweepState = GeneratePsbtsFailedState(err) }
         }
-        GeneratingPsbtsData(props.recoveredFactor)
+        GeneratingPsbtsData
       }
 
       /** Error state: PSBT generation failed */
       is GeneratePsbtsFailedState ->
-        GeneratePsbtsFailedData(props.recoveredFactor, state.error) {
+        GeneratePsbtsFailedData(state.error) {
           sweepState = GeneratingPsbtsState
         }
 
       /** Transactions have been generated, waiting on user confirmation */
       is PsbtsGeneratedState ->
         PsbtsGeneratedData(
-          recoveredFactor = props.recoveredFactor,
           totalFeeAmount = calculateTotalFee(state.allPsbts),
           startSweep = {
             sweepState =
@@ -179,7 +175,6 @@ class SweepDataStateMachineImpl(
 
       is AwaitingHardwareSignedSweepsState ->
         AwaitingHardwareSignedSweepsData(
-          recoveredFactor = props.recoveredFactor,
           fullAccountConfig = props.keybox.config,
           needsHwSign = state.needsHwSign,
           addHwSignedSweeps = { hwSignedPsbts ->
@@ -193,28 +188,25 @@ class SweepDataStateMachineImpl(
         LaunchedEffect("sign-and-broadcast") {
           val exchangeRates = exchangeRateSyncer.exchangeRates.value.toImmutableList()
           signAndBroadcastPsbts(props, state, exchangeRates)
-            .onSuccess { sweepState = SweepSuccessState(props.recoveredFactor) }
+            .onSuccess { sweepState = SweepSuccessState }
             .onFailure { sweepState = SweepFailedState(it) }
         }
-        SigningAndBroadcastingSweepsData(props.recoveredFactor)
+        SigningAndBroadcastingSweepsData
       }
 
       is NoFundsFoundState ->
         NoFundsFoundData(
-          recoveredFactor = props.recoveredFactor,
           proceed = props.onSuccess
         )
 
       /** Terminal state: Sweep succeeded */
       is SweepSuccessState ->
         SweepCompleteData(
-          recoveredFactor = props.recoveredFactor,
           proceed = props.onSuccess
         )
       /** Terminal state: Sweep failed */
       is SweepFailedState ->
         SweepFailedData(
-          recoveredFactor = props.recoveredFactor,
           cause = state.cause,
           retry = {
             sweepState = GeneratingPsbtsState
@@ -256,7 +248,7 @@ class SweepDataStateMachineImpl(
     sweepPsbt: SweepPsbt,
     exchangeRates: ImmutableList<ExchangeRate>,
   ): Result<Unit, Throwable> =
-    binding {
+    coroutineBinding {
       val appSignPsbt = appSignPsbt(sweepPsbt).bind()
       val signedPsbt = serverSignPsbt(props, appSignPsbt).bind()
       bitcoinBlockchain.broadcast(signedPsbt)
@@ -277,7 +269,7 @@ class SweepDataStateMachineImpl(
     }
 
   private suspend fun appSignPsbt(sweep: SweepPsbt): Result<SweepPsbt, Throwable> =
-    binding {
+    coroutineBinding {
       if (sweep.signingFactor == App) {
         val wallet = appSpendingWalletProvider.getSpendingWallet(sweep.keyset).bind()
 
@@ -293,7 +285,7 @@ class SweepDataStateMachineImpl(
     props: SweepDataProps,
     sweep: SweepPsbt,
   ): Result<Psbt, NetworkingError> =
-    mobilePaySigningService.signWithSpecificKeyset(
+    mobilePaySigningF8eClient.signWithSpecificKeyset(
       f8eEnvironment = props.keybox.config.f8eEnvironment,
       fullAccountId = props.keybox.fullAccountId,
       keysetId = sweep.keyset.f8eSpendingKeyset.keysetId,

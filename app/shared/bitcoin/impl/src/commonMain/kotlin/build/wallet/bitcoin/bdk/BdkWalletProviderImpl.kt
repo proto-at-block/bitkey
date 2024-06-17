@@ -8,7 +8,7 @@ import build.wallet.bitcoin.descriptor.BitcoinDescriptor
 import build.wallet.bitcoin.wallet.WalletDescriptor
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import okio.ByteString.Companion.encodeUtf8
@@ -31,7 +31,7 @@ class BdkWalletProviderImpl(
   override suspend fun getBdkWallet(
     walletDescriptor: WalletDescriptor,
   ): Result<BdkWallet, BdkError> =
-    binding {
+    coroutineBinding {
       bdkLock.withLock {
         val key = hashKeyForWallet(walletDescriptor)
         wallets.getOrPut(key) {

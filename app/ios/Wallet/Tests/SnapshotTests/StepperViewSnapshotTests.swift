@@ -13,7 +13,7 @@ final class StepperViewSnapshotTests: XCTestCase {
                 partnerInfo: nil,
                 transactionDate: "Jan 4, 1:00 PM",
                 onViewInPartnerApp: { _ in },
-                onBack: { }
+                onBack: {}
             )
         )
 

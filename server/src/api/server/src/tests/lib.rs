@@ -50,7 +50,6 @@ use recovery::entities::{
     RecoveryRequirements, RecoveryStatus, RecoveryType, WalletRecovery,
 };
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId, TouchpointId};
-use userpool::userpool::{CreateRecoveryUserInput, CreateWalletUserInput};
 
 use crate::Services;
 
@@ -333,13 +332,11 @@ pub(crate) async fn create_account(
         .unwrap();
     services
         .userpool_service
-        .create_users(
+        .create_account_users_if_necessary(
             &account.id,
-            Some(CreateWalletUserInput::new(
-                auth.app_pubkey,
-                auth.hardware_pubkey,
-            )),
-            auth.recovery_pubkey.map(CreateRecoveryUserInput::new),
+            Some(auth.app_pubkey),
+            Some(auth.hardware_pubkey),
+            auth.recovery_pubkey,
         )
         .await
         .unwrap();
@@ -374,10 +371,9 @@ pub(crate) async fn create_lite_account(
         })
         .await
         .unwrap();
-    let recovery_key = Some(CreateRecoveryUserInput::new(auth.recovery_pubkey));
     services
         .userpool_service
-        .create_users(&account.id, None, recovery_key)
+        .create_account_users_if_necessary(&account.id, None, None, Some(auth.recovery_pubkey))
         .await
         .unwrap();
     context.associate_with_account(&account.id, auth.recovery_pubkey);

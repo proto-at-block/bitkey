@@ -3,7 +3,9 @@ import Foundation
 import Shared
 import SwiftUI
 
-class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UISheetPresentationControllerDelegate {
+class BottomSheetViewController: UIHostingController<FormViewBottomSheet>,
+    UISheetPresentationControllerDelegate
+{
 
     // MARK: - Private Properties
 
@@ -18,7 +20,10 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UIShe
 
         // We only support forms as bottom sheets right now
         if let formBottomSheetModel = viewModel.body as? FormBodyModel {
-            super.init(rootView: .init(viewModel: formBottomSheetModel, totalHeightSubject: totalHeightSubject))
+            super.init(rootView: .init(
+                viewModel: formBottomSheetModel,
+                totalHeightSubject: totalHeightSubject
+            ))
         } else {
             fatalError("\(viewModel.body) not supported as a bottom sheet (W-3497)")
         }
@@ -33,7 +38,8 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UIShe
             .store(in: &cancellablesBag)
     }
 
-    @MainActor required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    @MainActor dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -53,7 +59,8 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UIShe
         sheetController.prefersGrabberVisible = viewModel.dragIndicatorVisible
         sheetController.delegate = self
 
-        // Start out with medium detents (unless the size is full) when the view loads and then we'll readjust
+        // Start out with medium detents (unless the size is full) when the view loads and then
+        // we'll readjust
         // when the total height calculation of the view changes
         switch viewModel.size {
         case .default_, .min40:
@@ -67,7 +74,7 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UIShe
 
     // MARK: - UISheetPresentationControllerDelegate
 
-    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    func presentationControllerDidDismiss(_: UIPresentationController) {
         viewModel.onClosed()
     }
 
@@ -77,7 +84,10 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UIShe
         self.viewModel = viewModel
         // We only support forms as bottom sheets right now
         if let formBottomSheetModel = viewModel.body as? FormBodyModel {
-            rootView = .init(viewModel: formBottomSheetModel, totalHeightSubject: totalHeightSubject)
+            rootView = .init(
+                viewModel: formBottomSheetModel,
+                totalHeightSubject: totalHeightSubject
+            )
         } else {
             fatalError("\(viewModel.body) not supported as a bottom sheet (W-3497)")
         }
@@ -90,23 +100,39 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>, UIShe
             return
         }
 
+        func setDetents(_ detents: [UISheetPresentationController.Detent]) {
+            sheetController.animateChanges {
+                sheetController.detents = detents
+            }
+        }
+
         if #available(iOS 16.0, *) {
             switch viewModel.size {
             case .default_:
-                sheetController.detents = [.custom(resolver: { _ in totalHeight })]
+                setDetents([.custom(resolver: { _ in totalHeight })])
             case .min40:
-                sheetController.detents = [.custom(resolver: { _ in
+                setDetents([.custom(resolver: { _ in
                     // Make sure the minimum height of 40% of the screen is respected
                     if let screenHeight = self.view.window?.windowScene?.screen.bounds.height {
                         return max(screenHeight * 0.4, totalHeight)
                     } else {
                         return totalHeight
                     }
-                })]
+                })])
             case .full:
-                sheetController.detents = [.large()]
+                setDetents([.large()])
             default:
                 fatalError("Unexpected bottom sheet size")
+            }
+        } else {
+            guard let windowScene = view.window?.windowScene else {
+                return
+            }
+
+            // iOS 15 doesn't have custom detents, so expand to large if the content is too big
+            // to fit inside the medium detent
+            if totalHeight > windowScene.screen.bounds.height * 0.55 {
+                setDetents([.large()])
             }
         }
     }

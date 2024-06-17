@@ -54,7 +54,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiProps
 import build.wallet.statemachine.recovery.cloud.CloudSignInUiStateMachine
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
@@ -408,7 +408,7 @@ class FullAccountCloudSignInAndBackupUiStateMachineImpl(
     onFailure: (ErrorData) -> Unit,
   ) {
     LaunchedEffect("create-and-save-backup") {
-      binding {
+      coroutineBinding {
         // Create the cloud backup.
         val cloudBackup =
           fullAccountCloudBackupCreator

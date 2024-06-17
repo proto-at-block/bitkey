@@ -21,9 +21,8 @@ import build.wallet.mapResult
 import build.wallet.sqldelight.asFlowOfOneOrNull
 import build.wallet.sqldelight.awaitTransaction
 import build.wallet.sqldelight.awaitTransactionWithResult
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.map
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -51,14 +50,10 @@ class KeyboxDaoImpl(
   }
 
   override suspend fun getActiveOrOnboardingKeybox(): Result<Keybox?, DbError> {
-    return when (val activeKeyboxResult = activeKeybox().first()) {
-      is Err -> activeKeyboxResult
-      is Ok ->
-        when (activeKeyboxResult.value) {
-          null -> onboardingKeybox().first()
-          else -> activeKeyboxResult
-        }
-    }
+    return activeKeybox().first()
+      .map { value ->
+        value ?: onboardingKeybox().first().value
+      }
   }
 
   override suspend fun saveKeyboxAsActive(keybox: Keybox): Result<Unit, DbError> {

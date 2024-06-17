@@ -1,7 +1,7 @@
 package build.wallet.money.currency
 
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.money.FiatCurrencyDefinitionService
+import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClient
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.stateIn
 class FiatCurrencyRepositoryImpl(
   appScope: CoroutineScope,
   private val fiatCurrencyDao: FiatCurrencyDao,
-  private val fiatCurrencyDefinitionService: FiatCurrencyDefinitionService,
+  private val fiatCurrencyDefinitionF8eClient: FiatCurrencyDefinitionF8eClient,
 ) : FiatCurrencyRepository {
   private val defaultFiatCurrencyList = listOf(USD)
 
@@ -25,7 +25,7 @@ class FiatCurrencyRepositoryImpl(
 
   override suspend fun updateFromServer(f8eEnvironment: F8eEnvironment) {
     // Make a server call to update the database values
-    fiatCurrencyDefinitionService
+    fiatCurrencyDefinitionF8eClient
       .getCurrencyDefinitions(f8eEnvironment)
       .onSuccess { serverFiatCurrencies ->
         fiatCurrencyDao.storeFiatCurrencies(serverFiatCurrencies)

@@ -14,11 +14,11 @@ struct VerificationCodeInputView: View {
 
     // MARK: - Private Properties
 
-    private let viewModel: FormMainContentModelVerificationCodeInput
+    private let viewModel: FormMainContentModel.VerificationCodeInput
 
     // MARK: - Life Cycle
 
-    init(viewModel: FormMainContentModelVerificationCodeInput) {
+    init(viewModel: FormMainContentModel.VerificationCodeInput) {
         self.viewModel = viewModel
     }
 
@@ -51,7 +51,11 @@ private struct VerificationCodeInputResendCodeView: View {
         HStack {
             switch viewModel {
             case let text as FormMainContentModelVerificationCodeInputResendCodeContentText:
-                ModeledText(model: .standard(text.value, font: .body3Regular, textColor: .foreground60))
+                ModeledText(model: .standard(
+                    text.value,
+                    font: .body3Regular,
+                    textColor: .foreground60
+                ))
             case let button as FormMainContentModelVerificationCodeInputResendCodeContentButton:
                 ButtonView(model: button.value)
             default:

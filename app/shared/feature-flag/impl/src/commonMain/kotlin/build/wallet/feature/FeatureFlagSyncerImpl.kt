@@ -7,8 +7,8 @@ import build.wallet.analytics.events.AppSessionState
 import build.wallet.bitkey.account.Account
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
-import build.wallet.f8e.featureflags.GetFeatureFlagsService
-import build.wallet.f8e.featureflags.GetFeatureFlagsService.F8eFeatureFlag
+import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
+import build.wallet.f8e.featureflags.FeatureFlagsF8eClient.F8eFeatureFlag
 import build.wallet.isOk
 import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import build.wallet.logging.LogLevel
@@ -31,7 +31,7 @@ import kotlin.time.Duration.Companion.seconds
 class FeatureFlagSyncerImpl(
   private val accountRepository: AccountRepository,
   private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
-  private val getFeatureFlagsService: GetFeatureFlagsService,
+  private val featureFlagsF8eClient: FeatureFlagsF8eClient,
   private val clock: Clock,
   private val remoteFlags: List<FeatureFlag<out FeatureFlagValue>>,
   private val appSessionManager: AppSessionManager,
@@ -89,7 +89,7 @@ class FeatureFlagSyncerImpl(
         return
       }
 
-      getFeatureFlagsService.getF8eFeatureFlags(
+      featureFlagsF8eClient.getF8eFeatureFlags(
         f8eEnvironment = f8eEnvironment,
         accountId = accountId,
         flagKeys = remoteFlags.map { it.identifier }

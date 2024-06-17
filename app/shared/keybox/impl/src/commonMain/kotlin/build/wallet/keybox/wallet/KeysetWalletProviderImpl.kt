@@ -7,7 +7,7 @@ import build.wallet.bitcoin.wallet.WatchingWalletProvider
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 
 class KeysetWalletProviderImpl(
   private val watchingWalletProvider: WatchingWalletProvider,
@@ -16,7 +16,7 @@ class KeysetWalletProviderImpl(
   override suspend fun getWatchingWallet(
     keyset: SpendingKeyset,
   ): Result<WatchingWallet, Throwable> =
-    binding {
+    coroutineBinding {
       val walletDescriptor =
         walletDescriptor(keyset)
           .logFailure { "Error creating watching wallet descriptor for keyset." }
@@ -31,7 +31,7 @@ class KeysetWalletProviderImpl(
   private suspend fun walletDescriptor(
     keyset: SpendingKeyset,
   ): Result<WatchingWalletDescriptor, Throwable> =
-    binding {
+    coroutineBinding {
       val receivingDescriptor =
         descriptorBuilder.watchingReceivingDescriptor(
           appPublicKey = keyset.appKey.key,

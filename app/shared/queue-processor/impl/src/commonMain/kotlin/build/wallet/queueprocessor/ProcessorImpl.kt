@@ -1,7 +1,7 @@
 package build.wallet.queueprocessor
 
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.onFailure
 import kotlin.time.Duration
 
@@ -19,7 +19,7 @@ class ProcessorImpl<T>(
     PeriodicQueueProcessorImpl(queue, processor, retryFrequency, retryBatchSize)
 
   override suspend fun processBatch(batch: List<T>): Result<Unit, Error> {
-    return binding {
+    return coroutineBinding {
       processor.processBatch(batch)
         .onFailure {
           batch.forEach { item ->

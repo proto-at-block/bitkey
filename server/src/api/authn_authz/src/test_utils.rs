@@ -11,7 +11,7 @@ const TEST_HW_AUTH_KEY: &[u8] = &[0xab; 32];
 
 /// Get an access token signed by a static key that can be used for testing
 pub fn get_test_access_token() -> String {
-    get_test_access_token_for_cognito_user(&CognitoUser::Wallet(
+    get_test_access_token_for_cognito_user(&CognitoUser::App(
         AccountId::from_str(TEST_USERNAME)
             .expect("converting TEST_USERNAME to AccountId should never fail"),
     ))
@@ -80,7 +80,7 @@ mod tests {
             decode::<AccessTokenClaims>(&jwt, &key, &jsonwebtoken::Validation::default()).unwrap();
         assert_eq!(
             token.claims.username.as_ref(),
-            "urn:wallet-account:000000000000000000000000000"
+            "urn:wallet-account:000000000000000000000000000-app"
         );
     }
 

@@ -27,7 +27,6 @@ struct FormFooterView: View {
         }
     }
 
-    
     struct CallToActionView: View {
         // MARK: - Private Properties
 
@@ -38,15 +37,14 @@ struct FormFooterView: View {
         init(viewModel: CallToActionModel) {
             self.viewModel = viewModel
         }
-        
+
         var body: some View {
             let textColor: Color = switch viewModel.treatment {
             case .secondary: .foreground60
             case .warning: .warningForeground
             default: .foreground60
             }
-            
-            
+
             ModeledText(
                 model: .standard(
                     viewModel.text,

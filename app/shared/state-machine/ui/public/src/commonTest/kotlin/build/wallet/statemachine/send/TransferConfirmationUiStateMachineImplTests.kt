@@ -19,7 +19,7 @@ import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.mobilepay.MobilePaySigningServiceMock
+import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.limit.SpendingLimitMock
@@ -122,7 +122,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     )
 
   val bitcoinBlockchain = BitcoinBlockchainMock(turbines::create)
-  val serverSigner = MobilePaySigningServiceMock(turbines::create)
+  val serverSigner = MobilePaySigningF8eClientMock(turbines::create)
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val spendingWallet = SpendingWalletMock(turbines::create)
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
@@ -130,7 +130,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val stateMachine =
     TransferConfirmationUiStateMachineImpl(
-      mobilePaySigningService = serverSigner,
+      mobilePaySigningF8eClient = serverSigner,
       bitcoinBlockchain = bitcoinBlockchain,
       transactionDetailsCardUiStateMachine = transactionDetailsCardUiStateMachine,
       nfcSessionUIStateMachine = nfcSessionUIStateMachine,

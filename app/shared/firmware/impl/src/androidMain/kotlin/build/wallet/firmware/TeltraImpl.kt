@@ -1,7 +1,6 @@
 package build.wallet.firmware
 
-import build.wallet.catching
-import com.github.michaelbull.result.Result
+import build.wallet.catchingResult
 import com.github.michaelbull.result.getOrElse
 import build.wallet.rust.firmware.TelemetryIdentifiers as TelemetryIdentifiersCore
 import build.wallet.rust.firmware.Teltra as TeltraCore
@@ -11,7 +10,7 @@ class TeltraImpl : Teltra {
     bitlogs: List<UByte>,
     identifiers: TelemetryIdentifiers,
   ): List<List<UByte>> {
-    return Result.catching {
+    return catchingResult {
       TeltraCore().translateBitlogs(
         bitlogs,
         TelemetryIdentifiersCore(

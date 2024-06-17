@@ -1,10 +1,10 @@
 import Shared
 
 extension AppVariant {
-    
+
     static func current() -> AppVariant {
         #if DEVELOPMENT
-        return AppVariant.development
+            return AppVariant.development
         #elseif INTERNAL
             return AppVariant.team
         #elseif BETA

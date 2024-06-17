@@ -93,6 +93,12 @@ interface StyleDictionaryColors {
   // Warning foreground color
   val warningForeground: Color
 
+  // Danger color
+  val danger: Color
+
+  // Danger background color
+  val dangerBackground: Color
+
   // Device LED green color
   val deviceLEDGreen: Color
 
@@ -183,14 +189,8 @@ interface StyleDictionaryColors {
   // Danger callout subtitle color
   val calloutDangerSubtitle: Color
 
-  // Danger callout background color
-  val calloutDangerBackground: Color
-
   // Danger callout trailing icon color
   val calloutDangerTrailingIcon: Color
-
-  // Danger callout trailing icon background color
-  val calloutDangerTrailingIconBackground: Color
 }
 
 val lightStyleDictionaryColors =
@@ -224,6 +224,8 @@ val lightStyleDictionaryColors =
     override val destructiveForeground: Color = Color(0xffca0000)
     override val warning: Color = Color(0xfffff5f0)
     override val warningForeground: Color = Color(0xfff46e38)
+    override val danger: Color = Color(0xffe14425)
+    override val dangerBackground: Color = Color(0x1ae14425)
     override val deviceLEDGreen: Color = Color(0xff008000)
     override val deviceLEDRed: Color = Color(0xffff0000)
     override val deviceLEDBlue: Color = Color(0xff0059ff)
@@ -254,9 +256,7 @@ val lightStyleDictionaryColors =
     override val calloutWarningTrailingIconBackground: Color = Color(0xfffd8a00)
     override val calloutDangerTitle: Color = Color(0xff74140d)
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
-    override val calloutDangerBackground: Color = Color(0x1ae14425)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
-    override val calloutDangerTrailingIconBackground: Color = Color(0xffe14425)
   }
 
 val darkStyleDictionaryColors =
@@ -290,6 +290,8 @@ val darkStyleDictionaryColors =
     override val destructiveForeground: Color = Color(0xffca0000)
     override val warning: Color = Color(0xfffff5f0)
     override val warningForeground: Color = Color(0xfff46e38)
+    override val danger: Color = Color(0xffe14425)
+    override val dangerBackground: Color = Color(0x1ae14425)
     override val deviceLEDGreen: Color = Color(0xff008000)
     override val deviceLEDRed: Color = Color(0xffff0000)
     override val deviceLEDBlue: Color = Color(0xff0059ff)
@@ -320,7 +322,5 @@ val darkStyleDictionaryColors =
     override val calloutWarningTrailingIconBackground: Color = Color(0xfffd8a00)
     override val calloutDangerTitle: Color = Color(0xff74140d)
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
-    override val calloutDangerBackground: Color = Color(0x1ae14425)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
-    override val calloutDangerTrailingIconBackground: Color = Color(0xffe14425)
   }

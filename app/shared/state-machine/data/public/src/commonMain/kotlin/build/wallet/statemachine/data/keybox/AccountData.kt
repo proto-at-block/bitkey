@@ -52,6 +52,7 @@ sealed interface AccountData {
       val startLiteAccountCreation: () -> Unit,
       val startRecovery: () -> Unit,
       val startEmergencyAccessRecovery: () -> Unit,
+      val resetExistingDevice: () -> Unit,
       val isNavigatingBack: Boolean,
     ) : NoActiveAccountData
 
@@ -75,6 +76,12 @@ sealed interface AccountData {
       val cloudBackup: CloudBackup,
       val onAccountCreated: (Account) -> Unit,
       val onExit: () -> Unit,
+    ) : NoActiveAccountData
+
+    data class ResettingExistingDeviceData(
+      val templateFullAccountConfig: FullAccountConfig,
+      val onExit: () -> Unit,
+      val onSuccess: () -> Unit,
     ) : NoActiveAccountData
 
     /**

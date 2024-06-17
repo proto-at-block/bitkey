@@ -1,12 +1,6 @@
 package build.wallet.statemachine.data.keybox
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.LoadableValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
@@ -22,21 +16,9 @@ import build.wallet.statemachine.data.account.create.CreateFullAccountContext
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingCloudBackupData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingRecoveryOrOnboarding
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CreatingFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CreatingLiteAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringLiteAccountData
+import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.StartIntent
-import build.wallet.statemachine.data.keybox.State.CheckCloudBackupAndRouteState
-import build.wallet.statemachine.data.keybox.State.CreateFullAccountState
-import build.wallet.statemachine.data.keybox.State.CreateLiteAccountState
-import build.wallet.statemachine.data.keybox.State.EmergencyAccessAccountRecoveryState
-import build.wallet.statemachine.data.keybox.State.FullAccountRecoveryState
-import build.wallet.statemachine.data.keybox.State.GettingStartedState
-import build.wallet.statemachine.data.keybox.State.LiteAccountRecoveryState
+import build.wallet.statemachine.data.keybox.State.*
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryProps
 import com.github.michaelbull.result.getOr
@@ -145,6 +127,9 @@ class NoActiveAccountDataStateMachineImpl(
           startEmergencyAccessRecovery = {
             state = EmergencyAccessAccountRecoveryState
           },
+          resetExistingDevice = {
+            state = ResetAnExistingDeviceState
+          },
           isNavigatingBack = dataState.isNavigatingBack
         )
 
@@ -223,6 +208,14 @@ class NoActiveAccountDataStateMachineImpl(
           inviteCode = dataState.inviteCode,
           onAccountCreated = props.onAccountCreated
         )
+
+      is ResetAnExistingDeviceState -> {
+        ResettingExistingDeviceData(
+          templateFullAccountConfig = props.templateFullAccountConfigData.config,
+          onExit = { state = GettingStartedState() },
+          onSuccess = { state = GettingStartedState() }
+        )
+      }
     }
   }
 
@@ -297,6 +290,8 @@ private sealed interface State {
    * Application is in the process of recovering from the emergency access kit backup.
    */
   data object EmergencyAccessAccountRecoveryState : State
+
+  data object ResetAnExistingDeviceState : State
 
   /**
    * Loading a cloud backup to determine how to proceed with recovery or account creation.

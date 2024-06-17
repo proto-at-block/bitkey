@@ -1,7 +1,8 @@
 package build.wallet.worker
 
 /**
- * Represents a worker that executes some code scoped to the application lifecycle.
+ * Represents a worker for executing some code scoped to the application lifecycle.
+ * The worker is executed asynchronously when the application starts by [AppWorkerExecutor].
  */
 fun interface AppWorker {
   /**

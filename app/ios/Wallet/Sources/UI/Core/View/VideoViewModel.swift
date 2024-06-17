@@ -9,12 +9,14 @@ class VideoViewModel: ObservableObject {
     // MARK: - Public Types
 
     /// Represents an update that we want to publish to the `VideoView`.
-    /// We encapsulate the update in one property instead of multiple `Published` properties to avoid multiple updates to the `VideoView`.
+    /// We encapsulate the update in one property instead of multiple `Published` properties to
+    /// avoid multiple updates to the `VideoView`.
     enum VideoConfigurationUpdate {
         /// We want to play a new video with a new `AVPlayer`
         case new(player: AVPlayer, gravity: AVLayerVideoGravity)
 
-        /// We want to play a new video, but the `AVPlayer` should not be updated. This allows more seamless transition.
+        /// We want to play a new video, but the `AVPlayer` should not be updated. This allows more
+        /// seamless transition.
         case seamlessNew(gravity: AVLayerVideoGravity)
 
         /// We are just updating the current video.
@@ -30,7 +32,7 @@ class VideoViewModel: ObservableObject {
     // MARK: - Private Properties
 
     private var videoStartingPosition: VideoStartingPosition
-    private var videoUrl: URL
+    private(set) var videoUrl: URL
 
     // MARK: - Life Cycle
 
@@ -85,8 +87,10 @@ class VideoViewModel: ObservableObject {
         self.videoStartingPosition = videoStartingPosition
 
         if videoIsNew {
-            // If the video is new but starting from the beginning, don't update the AVPlayer for a more seamless experience.
-            // When we want the video to be paused at the end, though, there is more potential for interference if the AVPlayer doesn't
+            // If the video is new but starting from the beginning, don't update the AVPlayer for a
+            // more seamless experience.
+            // When we want the video to be paused at the end, though, there is more potential for
+            // interference if the AVPlayer doesn't
             // fully change, so we want to fully replace it in that case
             if videoStartingPosition == .start {
                 self.videoPlayer.replaceCurrentItem(with: .init(url: videoUrl))
@@ -121,7 +125,11 @@ class VideoViewModel: ObservableObject {
         case .end:
             do {
                 if let videoDuration = try await videoPlayer.currentItem?.asset.load(.duration) {
-                    await videoPlayer.seek(to: videoDuration, toleranceBefore: .zero, toleranceAfter: .zero)
+                    await videoPlayer.seek(
+                        to: videoDuration,
+                        toleranceBefore: .zero,
+                        toleranceAfter: .zero
+                    )
                 }
             } catch {
                 log(.warn) { "Failed to load video duration" }
@@ -171,11 +179,23 @@ class VideoViewModel: ObservableObject {
 
     private func setUpAppLifecycleObservers(videoShouldPauseOnResignActive: Bool) {
         if videoShouldPauseOnResignActive {
-            addObserver(selector: #selector(pauseVideo), name: UIApplication.willResignActiveNotification)
-            addObserver(selector: #selector(playVideo), name: UIApplication.didBecomeActiveNotification)
+            addObserver(
+                selector: #selector(pauseVideo),
+                name: UIApplication.willResignActiveNotification
+            )
+            addObserver(
+                selector: #selector(playVideo),
+                name: UIApplication.didBecomeActiveNotification
+            )
         } else {
-            addObserver(selector: #selector(pauseVideo), name: UIApplication.didEnterBackgroundNotification)
-            addObserver(selector: #selector(playVideo), name: UIApplication.willEnterForegroundNotification)
+            addObserver(
+                selector: #selector(pauseVideo),
+                name: UIApplication.didEnterBackgroundNotification
+            )
+            addObserver(
+                selector: #selector(playVideo),
+                name: UIApplication.willEnterForegroundNotification
+            )
         }
     }
 

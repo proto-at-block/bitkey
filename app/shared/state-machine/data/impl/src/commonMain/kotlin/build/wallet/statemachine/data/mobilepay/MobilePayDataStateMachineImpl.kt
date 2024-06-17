@@ -4,41 +4,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_DISABLED
-import build.wallet.analytics.v1.Action.ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.limit.MobilePayDisabler
-import build.wallet.limit.MobilePayLimitSetter
-import build.wallet.limit.MobilePayLimitSetter.SetMobilePayLimitError
+import build.wallet.limit.MobilePayService
 import build.wallet.limit.MobilePayStatus
 import build.wallet.limit.MobilePayStatus.MobilePayEnabled
-import build.wallet.limit.MobilePayStatusProvider
-import build.wallet.limit.SpendingLimit
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
-import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayDisabledData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
+import build.wallet.statemachine.data.mobilepay.MobilePayData.*
 import build.wallet.statemachine.data.money.convertedOrNull
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.launch
 
 class MobilePayDataStateMachineImpl(
-  private val mobilePayStatusProvider: MobilePayStatusProvider,
-  private val mobilePayLimitSetter: MobilePayLimitSetter,
-  private val mobilePayDisabler: MobilePayDisabler,
-  private val eventTracker: EventTracker,
+  private val mobilePayService: MobilePayService,
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MobilePayDataStateMachine {
   @Composable
   override fun model(props: MobilePayProps): MobilePayData {
     val mobilePayStatus = remember(props.account) {
-      mobilePayStatusProvider.status(props.account)
+      mobilePayService.status(props.account)
     }.collectAsState(null).value
 
     val scope = rememberStableCoroutineScope()
@@ -51,23 +36,19 @@ class MobilePayDataStateMachineImpl(
           balance = mobilePayStatus.balance,
           disableMobilePay = {
             scope.launch {
-              mobilePayDisabler
-                .disable(account = props.account)
-                .onSuccess {
-                  eventTracker.track(ACTION_APP_MOBILE_TRANSACTIONS_DISABLED)
-                }
+              mobilePayService.disable(account = props.account)
             }
           },
           remainingFiatSpendingAmount = getRemainingFiatSpendingAmount(mobilePayStatus),
           changeSpendingLimit = { newSpendingLimit, _, hwFactorProofOfPossession, onResult ->
             scope.launch {
-              setSpendingLimit(props, newSpendingLimit, hwFactorProofOfPossession)
+              mobilePayService.setLimit(props.account, newSpendingLimit, hwFactorProofOfPossession)
                 .apply(onResult)
             }
           },
           refreshBalance = {
             scope.launch {
-              mobilePayStatusProvider.refreshStatus()
+              mobilePayService.refreshStatus()
             }
           }
         )
@@ -78,7 +59,7 @@ class MobilePayDataStateMachineImpl(
           mostRecentSpendingLimit = mobilePayStatus.mostRecentSpendingLimit,
           enableMobilePay = { spendingLimit, _, hwFactorProofOfPossession, onResult ->
             scope.launch {
-              setSpendingLimit(props, spendingLimit, hwFactorProofOfPossession)
+              mobilePayService.setLimit(props.account, spendingLimit, hwFactorProofOfPossession)
                 .apply(onResult)
             }
           }
@@ -99,21 +80,4 @@ class MobilePayDataStateMachineImpl(
         }
     }
   }
-
-  private suspend fun setSpendingLimit(
-    props: MobilePayProps,
-    newSpendingLimit: SpendingLimit,
-    hwFactorProofOfPossession: HwFactorProofOfPossession,
-  ): Result<Unit, SetMobilePayLimitError> =
-    mobilePayLimitSetter
-      .setLimit(
-        account = props.account,
-        spendingLimit = newSpendingLimit,
-        hwFactorProofOfPossession = hwFactorProofOfPossession
-      )
-      .onSuccess {
-        eventTracker.track(
-          ACTION_APP_MOBILE_TRANSACTIONS_ENABLED
-        )
-      }
 }

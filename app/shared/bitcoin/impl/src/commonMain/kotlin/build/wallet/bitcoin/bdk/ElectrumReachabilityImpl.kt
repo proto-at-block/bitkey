@@ -10,7 +10,7 @@ import build.wallet.bitcoin.sync.chainHash
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class ElectrumReachabilityImpl(
@@ -24,7 +24,7 @@ class ElectrumReachabilityImpl(
       // We don't have a hard-coded genesis block to check reachability for Regtest
       return Ok(Unit)
     }
-    return binding {
+    return coroutineBinding {
       val blockchain =
         bdkBlockchainProvider.getBlockchain(electrumServer)
           .result.mapError { ElectrumReachabilityError.Unreachable(it) }.bind()

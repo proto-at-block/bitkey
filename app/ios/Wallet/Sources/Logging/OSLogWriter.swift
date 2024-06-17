@@ -2,14 +2,17 @@ import OSLog
 import Shared
 
 public class OSLogWriter: Kermit_coreLogWriter {
-    
+
     fileprivate let subsystemIdentifier = "build.wallet"
-    
-    private lazy var logger: OSLogger = {
-        OSLogger.init(subsystem: subsystemIdentifier, category: "main")
-    }()
-    
-    override public func log(severity: Kermit_coreSeverity, message: String, tag: String, throwable: KotlinThrowable?) {
+
+    private lazy var logger: OSLogger = .init(subsystem: subsystemIdentifier, category: "main")
+
+    override public func log(
+        severity: Kermit_coreSeverity,
+        message: String,
+        tag: String,
+        throwable: KotlinThrowable?
+    ) {
         logger.log(
             level: severity.asLogLevel(),
             "(\(tag, privacy: .public)) \(message, privacy: .public) \(throwable?.asError().localizedDescription ?? "", privacy: .public)"

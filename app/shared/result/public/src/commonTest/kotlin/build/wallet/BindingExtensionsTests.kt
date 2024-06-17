@@ -3,9 +3,9 @@ package build.wallet
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
-import com.github.michaelbull.result.coroutines.binding.binding as suspendBinding
 
 class BindingExtensionsTests : FunSpec({
 
@@ -13,7 +13,7 @@ class BindingExtensionsTests : FunSpec({
 
   context("suspendBinding") {
     test("ensure - predicate is true, does not bind error") {
-      val result = suspendBinding {
+      val result = coroutineBinding {
         ensure(true) { someError }
       }
 
@@ -22,7 +22,7 @@ class BindingExtensionsTests : FunSpec({
 
     test("ensure - predicate is false, binds error") {
 
-      val result = suspendBinding {
+      val result = coroutineBinding {
         ensure(false) { someError }
       }
 

@@ -1,6 +1,6 @@
 package build.wallet.cloud.store
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
 import kotlinx.datetime.Clock
@@ -47,13 +47,12 @@ class iCloudKeyValueStoreImpl(
     key: String,
     value: String,
   ): Result<Unit, iCloudKeyValueStoreError> {
-    return Result
-      .catching {
-        iCloudKeyValueStore.setString(
-          forKey = key,
-          aString = value
-        )
-      }
+    return catchingResult {
+      iCloudKeyValueStore.setString(
+        forKey = key,
+        aString = value
+      )
+    }
       .mapError { iCloudKeyValueStoreError(message = it.toString()) }
       .also { requestSync() }
   }
@@ -64,8 +63,7 @@ class iCloudKeyValueStoreImpl(
   ): Result<String?, iCloudKeyValueStoreError> {
     requestSync()
 
-    return Result
-      .catching { iCloudKeyValueStore.stringForKey(key) }
+    return catchingResult { iCloudKeyValueStore.stringForKey(key) }
       .mapError { iCloudKeyValueStoreError(message = it.toString()) }
   }
 
@@ -73,12 +71,11 @@ class iCloudKeyValueStoreImpl(
     account: CloudStoreAccount,
     key: String,
   ): Result<Unit, CloudError> {
-    return Result
-      .catching {
-        iCloudKeyValueStore.removeObjectForKey(key)
-        // Remove dummy value that was added in the init
-        iCloudKeyValueStore.removeObjectForKey("fake")
-      }
+    return catchingResult {
+      iCloudKeyValueStore.removeObjectForKey(key)
+      // Remove dummy value that was added in the init
+      iCloudKeyValueStore.removeObjectForKey("fake")
+    }
       .mapError { iCloudKeyValueStoreError(message = it.toString()) }
       .also { requestSync() }
   }

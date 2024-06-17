@@ -1,29 +1,28 @@
 package build.wallet.statemachine.settings.full.device.resetdevice.intro
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.bitcoin.balance.BitcoinBalance
+import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
+import build.wallet.f8e.F8eEnvironment
+import build.wallet.f8e.auth.AuthF8eClient
+import build.wallet.ktor.result.HttpError
+import build.wallet.limit.MobilePayService
+import build.wallet.limit.MobilePayStatus
+import build.wallet.limit.SpendingLimit
+import build.wallet.logging.LogLevel
+import build.wallet.logging.log
 import build.wallet.money.FiatMoney
-import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.SheetSize
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -31,23 +30,16 @@ import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.settings.full.device.resetdevice.ResettingDeviceEventTrackerScreenId
-import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroUiState.IntroState
-import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroUiState.ScanToContinueState
-import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroUiState.ScanningState
-import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroUiState.TransferringFundsState
+import build.wallet.statemachine.settings.full.device.resetdevice.intro.ResettingDeviceIntroUiState.*
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTitleAlignment
-import build.wallet.ui.model.list.ListItemTreatment
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -64,6 +56,8 @@ class ResettingDeviceIntroUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyConverter: CurrencyConverter,
+  private val mobilePayService: MobilePayService,
+  private val authF8eClient: AuthF8eClient,
 ) : ResettingDeviceIntroUiStateMachine {
   @Composable
   override fun model(props: ResettingDeviceIntroProps): ScreenModel {
@@ -84,6 +78,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
           }
         }
         ResettingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onResetDevice = { uiState = ScanToContinueState },
           bottomSheet = null
@@ -99,6 +94,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
         )
 
         ResettingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onResetDevice = { uiState = ScanToContinueState },
           bottomSheet = bottomSheet
@@ -106,32 +102,35 @@ class ResettingDeviceIntroUiStateMachineImpl(
       }
 
       is ScanningState -> {
-        initialDeviceTapModel(
-          pubKey = props.keybox.activeHwKeyBundle.authKey.pubKey,
+        InitialDeviceTapModel(
+          pubKey = props.fullAccount?.keybox?.activeHwKeyBundle?.authKey?.pubKey,
           balance = props.balance,
-          isHardwareFake = props.isHardwareFake,
+          isHardwareFake = props.fullAccountConfig.isHardwareFake,
           onTapPairedDevice = { balance ->
-            if (balance != null) {
+            if (balance.untrustedPending.isPositive) {
+              // Incoming pending transaction, treat as spendable and send to
+              // transfer funds before reset sheet
+              uiState = TransferringFundsState
+            } else if (balance.spendable.isPositive && props.spendingWallet != null) {
+              // Spendable balance, check if it's actually spendable
               scope.launch {
                 props.spendingWallet.isBalanceSpendable()
                   .onSuccess { isSpendable ->
                     if (isSpendable) {
-                      uiState = TransferringFundsState(balance)
+                      uiState = TransferringFundsState
                     } else {
-                      props.onDeviceConfirmed()
+                      props.onDeviceConfirmed(true)
                     }
                   }.onFailure {
-                    // TODO: Show error screen
-                    TODO()
+                    uiState = SpendableBalanceCheckFailedState
                   }
               }
             } else {
-              props.onDeviceConfirmed()
+              props.onDeviceConfirmed(true)
             }
           },
           onTapUnknownDevice = {
-            // TODO: Show error screen
-            uiState = IntroState()
+            uiState = UnpairedDeviceWarningState(it)
           },
           onCancel = {
             uiState = IntroState()
@@ -139,8 +138,54 @@ class ResettingDeviceIntroUiStateMachineImpl(
         )
       }
 
-      is TransferringFundsState -> {
+      is SpendableBalanceCheckFailedState -> {
+        SpendableBalanceCheckErrorModel(
+          onRetry = {
+            uiState = ScanningState(isScanning = true)
+          },
+          onCancel = {
+            uiState = IntroState()
+          }
+        )
+      }
+
+      is UnpairedDeviceWarningState -> {
+        var isActive by remember { mutableStateOf(true) }
+        var isLoading by remember { mutableStateOf(true) }
+
+        val hwAuthPubKey = HwAuthPublicKey(state.publicKey)
+        LaunchedEffect(state.publicKey) {
+          isActive = isDeviceActive(
+            f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+            hwAuthPubKey = hwAuthPubKey
+          )
+          isLoading = false
+        }
+
+        val bottomSheet = if (isLoading) {
+          null
+        } else {
+          UnpairedDeviceWarningSheet(
+            isDeviceActive = isActive,
+            onResetDevice = {
+              props.onDeviceConfirmed(false)
+            },
+            onCancel = { uiState = IntroState() }
+          )
+        }
+
         ResettingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
+          onBack = props.onBack,
+          onResetDevice = { uiState = ScanToContinueState },
+          bottomSheet = bottomSheet
+        )
+      }
+
+      is TransferringFundsState -> {
+        // It's impossible to get here without a balance and a non-null fullAccount
+        ResettingDeviceIntroModel(
+          presentedModally = props.fullAccount != null,
           onBack = props.onBack,
           onResetDevice = { uiState = ScanToContinueState },
           bottomSheet = TransferFundsBeforeResetSheet(
@@ -148,7 +193,8 @@ class ResettingDeviceIntroUiStateMachineImpl(
               uiState = IntroState(shouldUnwindToMoneyHome = true)
             },
             onCancel = { uiState = IntroState() },
-            balance = state.balance!!
+            balance = props.balance!!,
+            account = props.fullAccount!!
           )
         )
       }
@@ -157,6 +203,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
 
   @Composable
   fun ResettingDeviceIntroModel(
+    presentedModally: Boolean,
     onBack: () -> Unit,
     onResetDevice: () -> Unit,
     bottomSheet: SheetModel? = null,
@@ -165,7 +212,11 @@ class ResettingDeviceIntroUiStateMachineImpl(
       id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_INTRO,
       onBack = null,
       toolbar = ToolbarModel(
-        leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)
+        leadingAccessory = if (presentedModally) {
+          ToolbarAccessoryModel.IconAccessory.CloseAccessory(onBack)
+        } else {
+          ToolbarAccessoryModel.IconAccessory.BackAccessory(onBack)
+        }
       ),
       header = FormHeaderModel(
         headline = "Reset your Bitkey device",
@@ -252,12 +303,12 @@ class ResettingDeviceIntroUiStateMachineImpl(
   }
 
   @Composable
-  private fun initialDeviceTapModel(
-    pubKey: Secp256k1PublicKey,
-    balance: BitcoinBalance,
+  private fun InitialDeviceTapModel(
+    pubKey: Secp256k1PublicKey?,
+    balance: BitcoinBalance?,
     isHardwareFake: Boolean,
-    onTapPairedDevice: (spendableBalance: BitcoinBalance?) -> Unit,
-    onTapUnknownDevice: () -> Unit,
+    onTapPairedDevice: (spendableBalance: BitcoinBalance) -> Unit,
+    onTapUnknownDevice: (pubKey: Secp256k1PublicKey) -> Unit,
     onCancel: () -> Unit,
   ): ScreenModel {
     val challengeString = "verify-paired-device".encodeUtf8()
@@ -265,20 +316,21 @@ class ResettingDeviceIntroUiStateMachineImpl(
     return nfcSessionUIStateMachine.model(
       NfcSessionUIStateMachineProps(
         session = { session, commands ->
-          commands.signChallenge(session, challengeString)
+          // if we're not onbaorded, we need to get the pubKey from the hardware
+          val hwPubKey = pubKey ?: commands.getAuthenticationKey(session).pubKey
+          val signature = commands.signChallenge(session, challengeString)
+          Pair(hwPubKey, signature)
         },
-        onSuccess = { signature ->
+        onSuccess = { pair ->
           val verification = signatureVerifier.verifyEcdsaResult(
             message = challengeString,
-            signature = signature,
-            publicKey = pubKey
+            signature = pair.second,
+            publicKey = pair.first
           )
-          if (verification.get() == true) {
-            val isSpendable = balance.spendable.value.isPositive
-            val balance = if (isSpendable) balance else null
+          if (verification.get() == true && balance != null) {
             onTapPairedDevice(balance)
           } else {
-            onTapUnknownDevice()
+            onTapUnknownDevice(pair.first)
           }
         },
         onCancel = onCancel,
@@ -292,15 +344,38 @@ class ResettingDeviceIntroUiStateMachineImpl(
 
   @Composable
   private fun TransferFundsBeforeResetSheet(
+    balance: BitcoinBalance,
+    account: FullAccount,
     onTransferFunds: () -> Unit,
     onCancel: () -> Unit,
-    balance: BitcoinBalance,
   ): SheetModel {
-    var fiatBalance: FiatMoney? by remember { mutableStateOf(null) }
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
+    var fiatBalance: FiatMoney? by remember { mutableStateOf(null) }
+    var spendingLimit: SpendingLimit? by remember { mutableStateOf(null) }
 
-    SyncFiatBalanceEquivalentEffect(balance, fiatCurrency) {
-      fiatBalance = it
+    LaunchedEffect(
+      "sync-fiat-equivalent-balance-and-spending-limit",
+      balance.total,
+      fiatCurrency
+    ) {
+      // Sync fiat balance
+      val convertedFiatBalance = currencyConverter
+        .convert(
+          fromAmount = balance.total,
+          toCurrency = fiatCurrency,
+          atTime = null
+        ).filterNotNull().firstOrNull() as? FiatMoney
+        ?: FiatMoney.zero(fiatCurrency)
+
+      fiatBalance = convertedFiatBalance
+
+      // Get active spending limit
+      when (val mobilePayStatus = mobilePayService.status(account).firstOrNull()) {
+        is MobilePayStatus.MobilePayEnabled -> {
+          spendingLimit = mobilePayStatus.activeSpendingLimit
+        }
+        else -> Unit
+      }
     }
 
     return SheetModel(
@@ -312,8 +387,15 @@ class ResettingDeviceIntroUiStateMachineImpl(
         toolbar = null,
         header = FormHeaderModel(
           headline = "Transfer funds before you reset the device",
-          // TODO: Get mobile limit value
-          subline = "Once reset, you won’t be able to transfer funds above your mobile limit."
+          subline = when (val limit = spendingLimit) {
+            null -> "Once reset, you won’t be able to transfer funds above your mobile limit."
+            else ->
+              "Once reset, you won’t be able to transfer funds above ${
+                moneyDisplayFormatter.format(
+                  limit.amount
+                )
+              } mobile limit."
+          }
         ),
         mainContentList = immutableListOf(
           FormMainContentModel.ListGroup(
@@ -322,9 +404,9 @@ class ResettingDeviceIntroUiStateMachineImpl(
               headerTreatment = ListGroupModel.HeaderTreatment.PRIMARY,
               items = immutableListOf(
                 ListItemModel(
-                  title = when (val fiatBalance = fiatBalance) {
+                  title = when (val fiatBal = fiatBalance) {
                     null -> moneyDisplayFormatter.format(balance.total)
-                    else -> moneyDisplayFormatter.format(fiatBalance)
+                    else -> moneyDisplayFormatter.format(fiatBal)
                   },
                   titleAlignment = ListItemTitleAlignment.CENTER,
                   treatment = ListItemTreatment.SECONDARY_DISPLAY,
@@ -358,28 +440,111 @@ class ResettingDeviceIntroUiStateMachineImpl(
   }
 
   @Composable
-  private fun SyncFiatBalanceEquivalentEffect(
-    balance: BitcoinBalance,
-    fiatCurrency: FiatCurrency,
-    onFiatBalanceSynced: (FiatMoney) -> Unit,
-  ) {
-    // update the fiat balance if balance has changed or the selected fiat currency changes
-    LaunchedEffect(
-      "sync-fiat-equivalent-balance",
-      balance.total,
-      fiatCurrency
-    ) {
-      val convertedFiatBalance =
-        currencyConverter
-          .convert(
-            fromAmount = balance.total,
-            toCurrency = fiatCurrency,
-            atTime = null
-          ).filterNotNull().firstOrNull() as? FiatMoney
-          ?: FiatMoney.zero(fiatCurrency)
+  private fun SpendableBalanceCheckErrorModel(
+    onRetry: () -> Unit,
+    onCancel: () -> Unit,
+  ): ScreenModel {
+    return ScreenModel(
+      body = FormBodyModel(
+        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_BALANCE_CHECK_ERROR,
+        onBack = onCancel,
+        toolbar = ToolbarModel(
+          leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onCancel)
+        ),
+        header = FormHeaderModel(
+          icon = Icon.LargeIconWarningFilled,
+          headline = "We’re having trouble loading your device details",
+          subline = "You can continue to reset your device or try again."
+        ),
+        primaryButton = ButtonModel(
+          text = "Try again",
+          onClick = StandardClick(onRetry),
+          size = ButtonModel.Size.Footer,
+          treatment = ButtonModel.Treatment.Primary
+        ),
+        secondaryButton = ButtonModel(
+          text = "Reset device",
+          onClick = StandardClick(onCancel),
+          size = ButtonModel.Size.Footer,
+          treatment = ButtonModel.Treatment.Secondary
+        )
+      ),
+      presentationStyle = ScreenPresentationStyle.ModalFullScreen
+    )
+  }
 
-      onFiatBalanceSynced(convertedFiatBalance)
+  @Composable
+  private fun UnpairedDeviceWarningSheet(
+    isDeviceActive: Boolean,
+    onResetDevice: () -> Unit,
+    onCancel: () -> Unit,
+  ): SheetModel {
+    val subline = if (isDeviceActive) {
+      "This device might be protecting funds. If you reset the device, the funds may no longer be accessible."
+    } else {
+      "You can still safely reset the device, since there aren’t any funds on it."
     }
+
+    return SheetModel(
+      size = SheetSize.DEFAULT,
+      onClosed = onCancel,
+      body = FormBodyModel(
+        id = ResettingDeviceEventTrackerScreenId.RESET_DEVICE_CONFIRMATION,
+        onBack = onCancel,
+        toolbar = null,
+        header = FormHeaderModel(
+          headline = "This Bitkey device isn’t paired to this app",
+          subline = subline
+        ),
+        primaryButton = ButtonModel(
+          text = "Reset device",
+          requiresBitkeyInteraction = false,
+          onClick = onResetDevice,
+          size = ButtonModel.Size.Footer,
+          treatment = ButtonModel.Treatment.PrimaryDanger
+        ),
+        secondaryButton = ButtonModel(
+          text = "Cancel",
+          treatment = ButtonModel.Treatment.Secondary,
+          size = ButtonModel.Size.Footer,
+          onClick = StandardClick(onCancel)
+        ),
+        renderContext = RenderContext.Sheet
+      )
+    )
+  }
+
+  @Suppress("TooGenericExceptionCaught")
+  private suspend fun isDeviceActive(
+    f8eEnvironment: F8eEnvironment,
+    hwAuthPubKey: HwAuthPublicKey,
+  ): Boolean {
+    val response = authF8eClient.initiateHardwareAuthentication(
+      f8eEnvironment = f8eEnvironment,
+      authPublicKey = hwAuthPubKey
+    )
+
+    // Return true if the response status is 200, false if 404, otherwise true.
+    // This is because in the true case, we inform the user that the device
+    // *might* be protecting funds, and in the false case, we inform the user that the device
+    // is *not* protecting any funds.
+    return response.fold(
+      success = { true },
+      failure = { error ->
+        when (error) {
+          is HttpError.ClientError -> {
+            when (error.response.status.value) {
+              404 -> false
+              else -> true
+            }
+          }
+          else -> {
+            log(LogLevel.Error, throwable = error) { "Error checking if device is active: $error" }
+            true
+          }
+        }
+      }
+    )
   }
 }
 
@@ -402,7 +567,19 @@ private sealed interface ResettingDeviceIntroUiState {
   data class ScanningState(val isScanning: Boolean) : ResettingDeviceIntroUiState
 
   /**
+   * Error checking spendable balance
+   */
+  data object SpendableBalanceCheckFailedState : ResettingDeviceIntroUiState
+
+  /**
+   * Warning state for unpaired device
+   */
+  data class UnpairedDeviceWarningState(
+    val publicKey: Secp256k1PublicKey,
+  ) : ResettingDeviceIntroUiState
+
+  /**
    * Viewing the transfer funds before reset bottom sheet
    */
-  data class TransferringFundsState(val balance: BitcoinBalance) : ResettingDeviceIntroUiState
+  data object TransferringFundsState : ResettingDeviceIntroUiState
 }

@@ -6,7 +6,7 @@ import XCTest
 @testable import Wallet
 
 final class CustomAmountSnapshotTests: XCTestCase {
-    
+
     func test_custom_amount_entry_in_range() {
         let view = CustomAmountView(
             viewModel: .init(
@@ -46,7 +46,7 @@ final class CustomAmountSnapshotTests: XCTestCase {
 
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_custom_amount_entry_in_range_ghosted_substring() {
         let view = CustomAmountView(
             viewModel: .init(

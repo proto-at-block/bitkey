@@ -3,7 +3,7 @@ package build.wallet.notifications
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.onboarding.AddDeviceTokenService
+import build.wallet.f8e.onboarding.AddDeviceTokenF8eClient
 import build.wallet.keybox.KeyboxDao
 import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
@@ -16,7 +16,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
 
 class DeviceTokenManagerImpl(
-  private val addDeviceTokenService: AddDeviceTokenService,
+  private val addDeviceTokenF8eClient: AddDeviceTokenF8eClient,
   private val deviceTokenConfigProvider: DeviceTokenConfigProvider,
   private val keyboxDao: KeyboxDao,
 ) : DeviceTokenManager {
@@ -31,7 +31,7 @@ class DeviceTokenManagerImpl(
 
     log { "Attempting to add device token for active or onboarding keybox" }
 
-    return addDeviceTokenService.add(
+    return addDeviceTokenF8eClient.add(
       f8eEnvironment = keybox.config.f8eEnvironment,
       fullAccountId = keybox.fullAccountId,
       token = deviceToken,
@@ -54,7 +54,7 @@ class DeviceTokenManagerImpl(
 
     log { "Attempting to add device token for account $fullAccountId" }
 
-    return addDeviceTokenService.add(
+    return addDeviceTokenF8eClient.add(
       f8eEnvironment = f8eEnvironment,
       fullAccountId = fullAccountId,
       token = deviceTokenConfig.deviceToken,

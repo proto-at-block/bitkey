@@ -12,7 +12,7 @@ import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
-import build.wallet.f8e.recovery.ListKeysetsService
+import build.wallet.f8e.recovery.ListKeysetsF8eClient
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -26,13 +26,13 @@ import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.ErrorSynci
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToGenerateDestinationAddress
 import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToListKeysets
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.recoverIf
 
 class SweepGeneratorImpl(
-  private val listKeysetsService: ListKeysetsService,
+  private val listKeysetsF8eClient: ListKeysetsF8eClient,
   private val bitcoinFeeRateEstimator: BitcoinFeeRateEstimator,
   private val keysetWalletProvider: KeysetWalletProvider,
   private val appPrivateKeyDao: AppPrivateKeyDao,
@@ -41,11 +41,11 @@ class SweepGeneratorImpl(
   override suspend fun generateSweep(
     keybox: Keybox,
   ): Result<List<SweepPsbt>, SweepGeneratorError> =
-    binding {
+    coroutineBinding {
       log { "Generating sweep..." }
       // Fetch the full list of known spending keysets for this account from f8e
       val serverKeysets =
-        listKeysetsService.listKeysets(
+        listKeysetsF8eClient.listKeysets(
           keybox.config.f8eEnvironment,
           keybox.fullAccountId
         )
@@ -85,13 +85,12 @@ class SweepGeneratorImpl(
           estimatedTransactionPriority = EstimatedTransactionPriority.sweepPriority()
         )
 
-      buildList {
+      buildList<SweepPsbt> {
         signableKeysets.forEach { keyset ->
           log { "Generating psbt for $keyset" }
           // Generate the sweep psbt(s), failing fast on the first non-recoverable error
-          buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox).bind()?.let { psbt ->
-            add(psbt)
-          }
+          buildPsbt(keyset, keybox.activeSpendingKeyset, feeRate, keybox).bind()
+            ?.let { psbt -> add(psbt) }
         }
       }
     }.logFailure { "Error generating sweep psbts" }
@@ -113,7 +112,7 @@ class SweepGeneratorImpl(
     feeRate: FeeRate,
     keybox: Keybox,
   ): Result<SweepPsbt?, SweepGeneratorError> =
-    binding {
+    coroutineBinding {
       val destinationWallet =
         keysetWalletProvider
           .getWatchingWallet(destinationKeyset)

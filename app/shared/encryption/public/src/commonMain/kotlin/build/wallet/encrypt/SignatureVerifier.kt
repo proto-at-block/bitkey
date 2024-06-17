@@ -1,6 +1,6 @@
 package build.wallet.encrypt
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
@@ -40,8 +40,7 @@ fun SignatureVerifier.verifyEcdsaResult(
   signature: String,
   publicKey: Secp256k1PublicKey,
 ): Result<Boolean, SignatureVerifierError> =
-  Result
-    .catching { verifyEcdsa(message, signature, publicKey) }
+  catchingResult { verifyEcdsa(message, signature, publicKey) }
     .map { it.isValid }
     .mapError(::SignatureVerifierError)
 

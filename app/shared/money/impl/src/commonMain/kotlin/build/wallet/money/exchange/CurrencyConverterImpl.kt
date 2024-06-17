@@ -21,7 +21,7 @@ import kotlinx.datetime.Instant
 class CurrencyConverterImpl(
   private val accountRepository: AccountRepository,
   private val exchangeRateDao: ExchangeRateDao,
-  private val f8eExchangeRateService: F8eExchangeRateService,
+  private val exchangeRateF8eClient: ExchangeRateF8eClient,
 ) : CurrencyConverter {
   override fun convert(
     fromAmount: Money,
@@ -64,7 +64,7 @@ class CurrencyConverterImpl(
           // already exists.
           null -> emitAll(convert(fromAmount, toCurrency))
           else -> {
-            f8eExchangeRateService.getHistoricalBtcExchangeRates(
+            exchangeRateF8eClient.getHistoricalBtcExchangeRates(
               f8eEnvironment = account.config.f8eEnvironment,
               accountId = account.accountId,
               currencyCode = toCurrency.textCode.code,

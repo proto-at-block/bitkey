@@ -22,7 +22,11 @@ public struct KeypadView: View {
                 KeypadButtonView(buttonContent: .DigitNine(), onClick: viewModel.onButtonPress)
             }
             HStack {
-                KeypadButtonView(buttonContent: .Decimal(), onClick: viewModel.onButtonPress, visible: viewModel.showDecimal)
+                KeypadButtonView(
+                    buttonContent: .Decimal(),
+                    onClick: viewModel.onButtonPress,
+                    visible: viewModel.showDecimal
+                )
                 KeypadButtonView(buttonContent: .DigitZero(), onClick: viewModel.onButtonPress)
                 KeypadButtonView(buttonContent: .Delete(), onClick: viewModel.onButtonPress)
             }

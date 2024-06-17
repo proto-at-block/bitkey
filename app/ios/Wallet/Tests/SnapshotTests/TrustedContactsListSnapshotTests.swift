@@ -22,9 +22,15 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
                             trustedContactIdentityKeyAppSignature: ""
                         ),
                         authenticationState: .awaitingVerify
-                    )
+                    ),
                 ],
-                invitations: [.init(recoveryRelationshipId: "", trustedContactAlias: "Alice", code: "", codeBitLength: 0, expiresAt: .companion.DISTANT_FUTURE)],
+                invitations: [.init(
+                    recoveryRelationshipId: "",
+                    trustedContactAlias: "Alice",
+                    code: "",
+                    codeBitLength: 0,
+                    expiresAt: .companion.DISTANT_FUTURE
+                )],
                 protectedCustomers: [],
                 now: Int64(Date().timeIntervalSince1970),
                 onAddPressed: {},
@@ -43,10 +49,11 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
             viewModel: LiteTrustedContactsListBodyModelKt.LiteTrustedContactsListBodyModel(
                 id: .tcManagementSettingsListLite,
                 protectedCustomers: [.init(recoveryRelationshipId: "", alias: "Alice")],
-                onProtectedCustomerPressed: { _ in  },
+                onProtectedCustomerPressed: { _ in },
                 onAcceptInvitePressed: {},
                 onBackPressed: {},
-                subline: LiteTrustedContactsListBodyModelKt.LITE_TRUSTED_CONTACTS_LIST_HEADER_SUBLINE
+                subline: LiteTrustedContactsListBodyModelKt
+                    .LITE_TRUSTED_CONTACTS_LIST_HEADER_SUBLINE
             )
         )
 

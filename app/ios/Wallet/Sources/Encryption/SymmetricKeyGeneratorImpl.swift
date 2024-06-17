@@ -1,8 +1,8 @@
-import Foundation
 import CryptoKit
+import Foundation
 import Shared
 
-public class SymmetricKeyGeneratorImpl : SymmetricKeyGenerator {
+public class SymmetricKeyGeneratorImpl: SymmetricKeyGenerator {
 
     public init() {}
 

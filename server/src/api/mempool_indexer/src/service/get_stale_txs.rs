@@ -4,6 +4,7 @@ use async_stream::try_stream;
 use bdk_utils::bdk::bitcoin::Txid;
 use database::ddb::CHUNK_SIZE_MAX;
 use futures::Stream;
+use time::{Duration, OffsetDateTime};
 use tracing::{event, Level};
 
 use super::Service;
@@ -16,12 +17,22 @@ impl Service {
         try_stream! {
             let network = self.settings.network;
 
-            let expiring_txs = self.repo.fetch_expiring_transactions(network).await?;
+            let expiring_txs = {
+                let now = OffsetDateTime::now_utc();
+                let mut write_guard = self.stale_txs_expiring_after.write().await;
+                let expiring_after = write_guard.unwrap_or(now);
+                let txs = self.repo.fetch_expiring_transactions(network, expiring_after).await?;
+                if let Some(max_expiring_at) = txs.iter().map(|tx| tx.expiring_at).max() {
+                    let new_expiring_after = max_expiring_at + Duration::seconds(1);
+                    *write_guard = Some(new_expiring_after);
+                }
+                txs
+            };
             let expiring_tx_ids = expiring_txs.iter().map(|tx| tx.txid).collect::<HashSet<Txid>>();
             let num_expiring_tx_ids = expiring_tx_ids.len();
             event!(
                 Level::INFO,
-                "Retrieved {num_expiring_tx_ids} expiring transactions from network {network}"
+                "Retrieved {num_expiring_tx_ids} expiring transactions from network {network}."
             );
             if num_expiring_tx_ids == 0 {
                 return;

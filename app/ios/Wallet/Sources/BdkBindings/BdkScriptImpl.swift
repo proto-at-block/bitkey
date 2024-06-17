@@ -1,10 +1,10 @@
 import BitcoinDevKit
 import Shared
 
-class BdkScriptImpl : BdkScript {
+class BdkScriptImpl: BdkScript {
 
     let ffiScript: Script
-    
+
     init(ffiScript: Script) {
         self.ffiScript = ffiScript
     }

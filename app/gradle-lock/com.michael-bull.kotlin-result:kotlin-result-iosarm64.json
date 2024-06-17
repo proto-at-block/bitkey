@@ -2,16 +2,16 @@
     "module-identifier": "com.michael-bull.kotlin-result:kotlin-result-iosarm64",
     "components": [
         {
-            "version": "1.1.18",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-result-iosarm64-1.1.18-metadata.jar": "6882bb6d937f72785555ed3b67a5327f0c79e19b5346bfd00399cac98457fe43"
+                        "kotlin-result-iosarm64-2.0.0-metadata.jar": "4f6a819c9a5059e9609fe98fa473c3d8d28d8df2d982a19686da7586d87aef7b"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-result.klib": "032921170038b0d8cbb7f10bb428e9e4d109f53e23bf0b9c2cd795d130c0c920"
+                        "kotlin-result.klib": "853c50165289066581dc9e5de9614ba3d8b3082bfb329868669576912085498c"
                     }
                 }
             ],

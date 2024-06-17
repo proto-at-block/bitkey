@@ -3,6 +3,7 @@ package build.wallet.platform.pdf
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.mapBoth
 import com.github.michaelbull.result.Err as ResultErr
 import com.github.michaelbull.result.Ok as ResultOk
 
@@ -51,8 +52,8 @@ sealed class PdfAnnotationError : Error() {
 }
 
 fun <V : Any> Result<V, PdfAnnotationError>.toPdfAnnotationResult(): PdfAnnotationResult<V> {
-  return when (this) {
-    is Ok -> PdfAnnotationResult.Ok(this.value)
-    is Err -> PdfAnnotationResult.Err(this.error)
-  }
+  return mapBoth(
+    success = { PdfAnnotationResult.Ok(it) },
+    failure = { PdfAnnotationResult.Err(it) }
+  )
 }

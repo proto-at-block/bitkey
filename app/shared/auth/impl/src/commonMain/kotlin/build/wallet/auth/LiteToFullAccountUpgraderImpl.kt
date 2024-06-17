@@ -6,12 +6,12 @@ import build.wallet.bitkey.keybox.KeyCrossDraft
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.emptyImmutableList
-import build.wallet.f8e.onboarding.UpgradeAccountService
+import build.wallet.f8e.onboarding.UpgradeAccountF8eClient
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 
 class LiteToFullAccountUpgraderImpl(
@@ -19,18 +19,18 @@ class LiteToFullAccountUpgraderImpl(
   private val authTokenDao: AuthTokenDao,
   private val deviceTokenManager: DeviceTokenManager,
   private val keyboxDao: KeyboxDao,
-  private val upgradeAccountService: UpgradeAccountService,
+  private val upgradeAccountF8eClient: UpgradeAccountF8eClient,
   private val uuidGenerator: UuidGenerator,
 ) : LiteToFullAccountUpgrader {
   override suspend fun upgradeAccount(
     liteAccount: LiteAccount,
     keyCrossDraft: KeyCrossDraft.WithAppKeysAndHardwareKeys,
   ): Result<FullAccount, AccountCreationError> =
-    binding {
+    coroutineBinding {
       val fullAccountConfig = keyCrossDraft.config
       // Upgrade the account on the server and get a server key back.
       val (f8eSpendingKeyset, accountId) =
-        upgradeAccountService
+        upgradeAccountF8eClient
           .upgradeAccount(liteAccount, keyCrossDraft)
           .mapError { AccountCreationError.AccountCreationF8eError(it) }
           .bind()

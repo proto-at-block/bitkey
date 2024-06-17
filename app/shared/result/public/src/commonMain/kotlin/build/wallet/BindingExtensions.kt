@@ -1,15 +1,15 @@
 package build.wallet
 
+import com.github.michaelbull.result.BindingScope
 import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.ResultBinding
-import com.github.michaelbull.result.coroutines.binding.SuspendableResultBinding
+import com.github.michaelbull.result.coroutines.CoroutineBindingScope
 
 /**
  * Binds [Err] with [error] if [predicate] is false.
  *
  * Suspend version.
  */
-suspend fun <E> SuspendableResultBinding<E>.ensure(
+suspend fun <E> CoroutineBindingScope<E>.ensure(
   predicate: Boolean,
   error: () -> E,
 ) {
@@ -22,7 +22,7 @@ suspend fun <E> SuspendableResultBinding<E>.ensure(
  *
  * Non suspend version.
  */
-fun <E> ResultBinding<E>.ensure(
+fun <E> BindingScope<E>.ensure(
   predicate: Boolean,
   error: () -> E,
 ) {

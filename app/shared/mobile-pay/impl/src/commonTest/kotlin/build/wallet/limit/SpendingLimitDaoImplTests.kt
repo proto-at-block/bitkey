@@ -12,6 +12,7 @@ import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.datetime.TimeZone
 
 class SpendingLimitDaoImplTests : FunSpec({
@@ -46,16 +47,16 @@ class SpendingLimitDaoImplTests : FunSpec({
   }
 
   test("Get, save and clear active spending limit") {
-    dao.getActiveSpendingLimit().shouldBe(Ok(null))
+    dao.activeSpendingLimit().firstOrNull().shouldBeNull()
 
     dao.saveAndSetSpendingLimit(
       limit = limit1
     )
 
-    dao.getActiveSpendingLimit().shouldBe(Ok(limit1))
+    dao.activeSpendingLimit().firstOrNull().shouldBe(limit1)
 
     dao.disableSpendingLimit()
-    dao.getActiveSpendingLimit().shouldBe(Ok(null))
+    dao.activeSpendingLimit().firstOrNull().shouldBeNull()
 
     val limit2 =
       SpendingLimit(
@@ -67,9 +68,7 @@ class SpendingLimitDaoImplTests : FunSpec({
       limit = limit2
     )
 
-    dao.getActiveSpendingLimit().shouldBe(
-      Ok(limit2)
-    )
+    dao.activeSpendingLimit().firstOrNull().shouldBe(limit2)
   }
 
   test("Get most recent spending limit") {

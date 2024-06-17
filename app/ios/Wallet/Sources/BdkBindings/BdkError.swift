@@ -2,7 +2,7 @@ import BitcoinDevKit
 import Shared
 
 extension Shared.BdkError {
-    
+
     /**
      * Maps `BitcoinDevKit.BdkError` type from `bdk-swift` to KMP `Shared.BdkError` type.
      */
@@ -10,93 +10,93 @@ extension Shared.BdkError {
         let bdkError = error as! BitcoinDevKit.BdkError
         // Convert Swift Error to Kotlin Throwable.
         let throwable = NSErrorKt.asThrowable(error)
-        
+
         switch bdkError {
-        case .InvalidU32Bytes(let message):
+        case let .InvalidU32Bytes(message):
             return InvalidU32Bytes(cause: throwable, message: message)
-        case .Generic(let message):
+        case let .Generic(message):
             return Generic(cause: throwable, message: message)
-        case .MissingCachedScripts(let message):
+        case let .MissingCachedScripts(message):
             return MissingCachedScripts(cause: throwable, message: message)
-        case .ScriptDoesntHaveAddressForm(let message):
+        case let .ScriptDoesntHaveAddressForm(message):
             return ScriptDoesntHaveAddressForm(cause: throwable, message: message)
-        case .NoRecipients(let message):
+        case let .NoRecipients(message):
             return NoRecipients(cause: throwable, message: message)
-        case .NoUtxosSelected(let message):
+        case let .NoUtxosSelected(message):
             return NoUtxosSelected(cause: throwable, message: message)
-        case .OutputBelowDustLimit(let message):
+        case let .OutputBelowDustLimit(message):
             return OutputBelowDustLimit(cause: throwable, message: message)
-        case .InsufficientFunds(let message):
+        case let .InsufficientFunds(message):
             return InsufficientFunds(cause: throwable, message: message)
-        case .BnBTotalTriesExceeded(let message):
+        case let .BnBTotalTriesExceeded(message):
             return BnBTotalTriesExceeded(cause: throwable, message: message)
-        case .BnBNoExactMatch(let message):
+        case let .BnBNoExactMatch(message):
             return BnBNoExactMatch(cause: throwable, message: message)
-        case .UnknownUtxo(let message):
+        case let .UnknownUtxo(message):
             return UnknownUtxo(cause: throwable, message: message)
-        case .TransactionNotFound(let message):
+        case let .TransactionNotFound(message):
             return TransactionNotFound(cause: throwable, message: message)
-        case .TransactionConfirmed(let message):
+        case let .TransactionConfirmed(message):
             return TransactionConfirmed(cause: throwable, message: message)
-        case .IrreplaceableTransaction(let message):
+        case let .IrreplaceableTransaction(message):
             return IrreplaceableTransaction(cause: throwable, message: message)
-        case .FeeRateTooLow(let message):
+        case let .FeeRateTooLow(message):
             return FeeRateTooLow(cause: throwable, message: message)
-        case .FeeTooLow(let message):
+        case let .FeeTooLow(message):
             return FeeTooLow(cause: throwable, message: message)
-        case .FeeRateUnavailable(let message):
+        case let .FeeRateUnavailable(message):
             return FeeRateUnavailable(cause: throwable, message: message)
-        case .MissingKeyOrigin(let message):
+        case let .MissingKeyOrigin(message):
             return MissingKeyOrigin(cause: throwable, message: message)
-        case .Key(let message):
+        case let .Key(message):
             return Key(cause: throwable, message: message)
-        case .ChecksumMismatch(let message):
+        case let .ChecksumMismatch(message):
             return ChecksumMismatch(cause: throwable, message: message)
-        case .SpendingPolicyRequired(let message):
+        case let .SpendingPolicyRequired(message):
             return SpendingPolicyRequired(cause: throwable, message: message)
-        case .InvalidPolicyPathError(let message):
+        case let .InvalidPolicyPathError(message):
             return InvalidPolicyPathException(cause: throwable, message: message)
-        case .Signer(let message):
+        case let .Signer(message):
             return Signer(cause: throwable, message: message)
-        case .InvalidNetwork(let message):
+        case let .InvalidNetwork(message):
             return InvalidNetwork(cause: throwable, message: message)
-        case .InvalidProgressValue(let message):
+        case let .InvalidProgressValue(message):
             return InvalidProgressValue(cause: throwable, message: message)
-        case .ProgressUpdateError(let message):
+        case let .ProgressUpdateError(message):
             return ProgressUpdateException(cause: throwable, message: message)
-        case .InvalidOutpoint(let message):
+        case let .InvalidOutpoint(message):
             return InvalidOutpoint(cause: throwable, message: message)
-        case .Descriptor(let message):
+        case let .Descriptor(message):
             return Descriptor(cause: throwable, message: message)
-        case .Encode(let message):
+        case let .Encode(message):
             return Encode(cause: throwable, message: message)
-        case .Miniscript(let message):
+        case let .Miniscript(message):
             return Miniscript(cause: throwable, message: message)
-        case .MiniscriptPsbt(let message):
+        case let .MiniscriptPsbt(message):
             return MiniscriptPsbt(cause: throwable, message: message)
-        case .Bip32(let message):
+        case let .Bip32(message):
             return Bip32(cause: throwable, message: message)
-        case .Secp256k1(let message):
+        case let .Secp256k1(message):
             return Secp256k1(cause: throwable, message: message)
-        case .Json(let message):
+        case let .Json(message):
             return Json(cause: throwable, message: message)
-        case .Hex(let message):
+        case let .Hex(message):
             return Hex(cause: throwable, message: message)
-        case .Psbt(let message):
+        case let .Psbt(message):
             return Psbt(cause: throwable, message: message)
-        case .PsbtParse(let message):
+        case let .PsbtParse(message):
             return PsbtParse(cause: throwable, message: message)
-        case .Electrum(let message):
+        case let .Electrum(message):
             return Electrum(cause: throwable, message: message)
-        case .Esplora(let message):
+        case let .Esplora(message):
             return Esplora(cause: throwable, message: message)
-        case .Sled(let message):
+        case let .Sled(message):
             return Sled(cause: throwable, message: message)
-        case .Rusqlite(let message):
+        case let .Rusqlite(message):
             return Rusqlite(cause: throwable, message: message)
-        case .Rpc(message: let message):
+        case let .Rpc(message: message):
             return Rpc(cause: throwable, message: message)
-        case .HardenedIndex(let message):
+        case let .HardenedIndex(message):
             return HardenedIndex(cause: throwable, message: message)
         }
     }

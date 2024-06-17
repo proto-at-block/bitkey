@@ -26,18 +26,28 @@ locals {
     DB_NAME       = module.lookup_db.database_name
     LOGGING_LEVEL = var.logging_level
     DD_VERSION    = var.image_tag
+    DD_ENV        = var.environment
   }
   secrets = {
     DB_PASSWORD = module.lookup_db.master_password_secret_arn,
   }
 
   commands = {
-    api_server             = "api-server"             # start the api server (default)
-    revenue_reporting_job  = "revenue-reporting-job"  # schedule periodic revenue reporting job
-    order_update_job       = "order-update-job"       # schedule periodic order update job
-    order_payments_job     = "order-payments-job"     # schedule periodic order payments job
-    refund_request_job     = "refund-request-job"     # schedule periodic refund request job
-    tax_refund_request_job = "tax-refund-request-job" # schedule periodic tax refund request job
+    api_server                                    = "api-server"             # start the api server (default)
+    revenue_reporting_job                         = "revenue-reporting-job"  # schedule periodic revenue reporting job
+    order_update_job                              = "order-update-job"       # schedule periodic order update job
+    order_payments_job                            = "order-payments-job"     # schedule periodic order payments job
+    refund_request_job                            = "refund-request-job"     # schedule periodic refund request job
+    tax_refund_request_job                        = "tax-refund-request-job" # schedule periodic tax refund request job    
+    stuck_orders_declined_job                     = "stuck-orders-declined-job"
+    stuck_orders_awaiting_pickup_job              = "stuck-orders-awaiting-pickup-job"
+    stuck_orders_disputed_job                     = "stuck-orders-disputed-job"
+    stuck_orders_awaiting_payment_job             = "stuck-orders-awaiting-payment-job"
+    stuck_orders_partially_shipped_job            = "stuck-orders-partially-shipped-job"
+    stuck_orders_manual_verification_required_job = "stuck-orders-manual-verification-required-job"
+    stuck_orders_awaiting_fulfillment_job         = "stuck-orders-awaiting-fulfillment-job"
+    stuck_orders_awaiting_shipment_job            = "stuck-orders-awaiting-shipment-job"
+    stuck_orders_shipment_job                     = "stuck-orders-shipment-job"
   }
 }
 
@@ -204,6 +214,46 @@ module "web_tax_refund_request" {
   }
 }
 
+module "web_stuck_orders" {
+  source = "../../../models/ecs-service"
+
+  namespace = var.namespace
+  name      = "${var.name}-stuck-orders-job"
+
+  vpc_name             = var.vpc_name
+  security_group_ids   = [module.lookup_db.ingress_security_group_id]
+  cluster_arn          = var.cluster_arn
+  image_name           = var.image_name
+  image_tag            = var.image_tag
+  environment          = var.environment
+  cpu_architecture     = "X86_64"
+  desired_count        = 1
+  create_load_balancer = false
+  command = [
+    local.commands.stuck_orders_declined_job,
+    local.commands.stuck_orders_awaiting_pickup_job,
+    local.commands.stuck_orders_disputed_job,
+    local.commands.stuck_orders_awaiting_payment_job,
+    local.commands.stuck_orders_partially_shipped_job,
+    local.commands.stuck_orders_manual_verification_required_job,
+    local.commands.stuck_orders_awaiting_fulfillment_job,
+    local.commands.stuck_orders_awaiting_shipment_job,
+    local.commands.stuck_orders_shipment_job
+  ]
+
+  environment_variables = merge(local.environment_variables, {
+    DD_SERVICE = "${var.name}-stuck-orders-job"
+  })
+  secrets = local.secrets
+
+  task_policy_arns = merge({
+    secrets = aws_iam_policy.secrets_policy.arn
+  }, var.task_policy_arns)
+  exec_policy_arns = {
+    secrets = aws_iam_policy.secrets_policy.arn
+  }
+}
+
 data "aws_iam_policy_document" "secrets_policy_shop_api_secrets" {
   statement {
     resources = [
@@ -252,6 +302,16 @@ resource "aws_iam_role_policy" "web_tax_refund_request_secrets_policy_exec" {
 
 resource "aws_iam_role_policy" "web_tax_refund_request_secrets_policy" {
   role   = module.web_tax_refund_request.task_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_stuck_orders_secrets_policy_exec" {
+  role   = module.web_stuck_orders.exec_role_name
+  policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
+}
+
+resource "aws_iam_role_policy" "web_stuck_orders_secrets_policy" {
+  role   = module.web_stuck_orders.task_role_name
   policy = data.aws_iam_policy_document.secrets_policy_shop_api_secrets.json
 }
 

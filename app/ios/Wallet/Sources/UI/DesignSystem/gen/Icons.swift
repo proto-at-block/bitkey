@@ -6,114 +6,389 @@ import Shared
 import UIKit
 
 public extension UIImage {
-  static let bitcoin = UIImage(named: "Bitcoin", in: .main, compatibleWith: nil)!
-  static let bitkeyDevice3D = UIImage(named: "BitkeyDevice3D", in: .main, compatibleWith: nil)!
-  static let bitkeyDeviceRaised = UIImage(named: "BitkeyDeviceRaised", in: .main, compatibleWith: nil)!
-  static let bitkeyDeviceRaisedSmall = UIImage(named: "BitkeyDeviceRaisedSmall", in: .main, compatibleWith: nil)!
-  static let buyOwnBitkeyHero = UIImage(named: "BuyOwnBitkeyHero", in: .main, compatibleWith: nil)!
-  static let cloudBackupEmergencyAccessKit = UIImage(named: "CloudBackupEmergencyAccessKit", in: .main, compatibleWith: nil)!
-  static let cloudBackupMobileKey = UIImage(named: "CloudBackupMobileKey", in: .main, compatibleWith: nil)!
-  static let largeIconAdd = UIImage(named: "LargeIconAdd", in: .main, compatibleWith: nil)!
-  static let largeIconCheckFilled = UIImage(named: "LargeIconCheckFilled", in: .main, compatibleWith: nil)!
-  static let largeIconCheckStroked = UIImage(named: "LargeIconCheckStroked", in: .main, compatibleWith: nil)!
-  static let largeIconEllipsisFilled = UIImage(named: "LargeIconEllipsisFilled", in: .main, compatibleWith: nil)!
-  static let largeIconNetworkError = UIImage(named: "LargeIconNetworkError", in: .main, compatibleWith: nil)!
-  static let largeIconReceive = UIImage(named: "LargeIconReceive", in: .main, compatibleWith: nil)!
-  static let largeIconSend = UIImage(named: "LargeIconSend", in: .main, compatibleWith: nil)!
-  static let largeIconShieldPerson = UIImage(named: "LargeIconShieldPerson", in: .main, compatibleWith: nil)!
-  static let largeIconSpeedometer = UIImage(named: "LargeIconSpeedometer", in: .main, compatibleWith: nil)!
-  static let largeIconWarningFilled = UIImage(named: "LargeIconWarningFilled", in: .main, compatibleWith: nil)!
-  static let largeIconWarningStroked = UIImage(named: "LargeIconWarningStroked", in: .main, compatibleWith: nil)!
-  static let mediumIconQrCode = UIImage(named: "MediumIconQrCode", in: .main, compatibleWith: nil)!
-  static let mediumIconTrustedContact = UIImage(named: "MediumIconTrustedContact", in: .main, compatibleWith: nil)!
-  static let moneyHomeHero = UIImage(named: "MoneyHomeHero", in: .main, compatibleWith: nil)!
-  static let smallIconAccount = UIImage(named: "SmallIconAccount", in: .main, compatibleWith: nil)!
-  static let smallIconAnnouncement = UIImage(named: "SmallIconAnnouncement", in: .main, compatibleWith: nil)!
-  static let smallIconArrowDown = UIImage(named: "SmallIconArrowDown", in: .main, compatibleWith: nil)!
-  static let smallIconArrowLeft = UIImage(named: "SmallIconArrowLeft", in: .main, compatibleWith: nil)!
-  static let smallIconArrowRight = UIImage(named: "SmallIconArrowRight", in: .main, compatibleWith: nil)!
-  static let smallIconArrowUp = UIImage(named: "SmallIconArrowUp", in: .main, compatibleWith: nil)!
-  static let smallIconArrowUpRight = UIImage(named: "SmallIconArrowUpRight", in: .main, compatibleWith: nil)!
-  static let smallIconBitcoinStroked = UIImage(named: "SmallIconBitcoinStroked", in: .main, compatibleWith: nil)!
-  static let smallIconBitkey = UIImage(named: "SmallIconBitkey", in: .main, compatibleWith: nil)!
-  static let smallIconBitkeyReceive = UIImage(named: "SmallIconBitkeyReceive", in: .main, compatibleWith: nil)!
-  static let smallIconBitkeySend = UIImage(named: "SmallIconBitkeySend", in: .main, compatibleWith: nil)!
-  static let smallIconCaretDown = UIImage(named: "SmallIconCaretDown", in: .main, compatibleWith: nil)!
-  static let smallIconCaretLeft = UIImage(named: "SmallIconCaretLeft", in: .main, compatibleWith: nil)!
-  static let smallIconCaretRight = UIImage(named: "SmallIconCaretRight", in: .main, compatibleWith: nil)!
-  static let smallIconCaretUp = UIImage(named: "SmallIconCaretUp", in: .main, compatibleWith: nil)!
-  static let smallIconCheck = UIImage(named: "SmallIconCheck", in: .main, compatibleWith: nil)!
-  static let smallIconCheckbox = UIImage(named: "SmallIconCheckbox", in: .main, compatibleWith: nil)!
-  static let smallIconCheckboxSelected = UIImage(named: "SmallIconCheckboxSelected", in: .main, compatibleWith: nil)!
-  static let smallIconCheckFilled = UIImage(named: "SmallIconCheckFilled", in: .main, compatibleWith: nil)!
-  static let smallIconCheckStroked = UIImage(named: "SmallIconCheckStroked", in: .main, compatibleWith: nil)!
-  static let smallIconCircleStroked = UIImage(named: "SmallIconCircleStroked", in: .main, compatibleWith: nil)!
-  static let smallIconClipboard = UIImage(named: "SmallIconClipboard", in: .main, compatibleWith: nil)!
-  static let smallIconClock = UIImage(named: "SmallIconClock", in: .main, compatibleWith: nil)!
-  static let smallIconCloud = UIImage(named: "SmallIconCloud", in: .main, compatibleWith: nil)!
-  static let smallIconCloudError = UIImage(named: "SmallIconCloudError", in: .main, compatibleWith: nil)!
-  static let smallIconCopy = UIImage(named: "SmallIconCopy", in: .main, compatibleWith: nil)!
-  static let smallIconCurrency = UIImage(named: "SmallIconCurrency", in: .main, compatibleWith: nil)!
-  static let smallIconDigitOne = UIImage(named: "SmallIconDigitOne", in: .main, compatibleWith: nil)!
-  static let smallIconDigitThree = UIImage(named: "SmallIconDigitThree", in: .main, compatibleWith: nil)!
-  static let smallIconDigitTwo = UIImage(named: "SmallIconDigitTwo", in: .main, compatibleWith: nil)!
-  static let smallIconElectrum = UIImage(named: "SmallIconElectrum", in: .main, compatibleWith: nil)!
-  static let smallIconEmail = UIImage(named: "SmallIconEmail", in: .main, compatibleWith: nil)!
-  static let smallIconExternal = UIImage(named: "SmallIconExternal", in: .main, compatibleWith: nil)!
-  static let smallIconFingerprint = UIImage(named: "SmallIconFingerprint", in: .main, compatibleWith: nil)!
-  static let smallIconInformation = UIImage(named: "SmallIconInformation", in: .main, compatibleWith: nil)!
-  static let smallIconInformationFilled = UIImage(named: "SmallIconInformationFilled", in: .main, compatibleWith: nil)!
-  static let smallIconKey = UIImage(named: "SmallIconKey", in: .main, compatibleWith: nil)!
-  static let smallIconKeyboard = UIImage(named: "SmallIconKeyboard", in: .main, compatibleWith: nil)!
-  static let smallIconLightning = UIImage(named: "SmallIconLightning", in: .main, compatibleWith: nil)!
-  static let smallIconLock = UIImage(named: "SmallIconLock", in: .main, compatibleWith: nil)!
-  static let smallIconMessage = UIImage(named: "SmallIconMessage", in: .main, compatibleWith: nil)!
-  static let smallIconMinus = UIImage(named: "SmallIconMinus", in: .main, compatibleWith: nil)!
-  static let smallIconMinusFilled = UIImage(named: "SmallIconMinusFilled", in: .main, compatibleWith: nil)!
-  static let smallIconMinusStroked = UIImage(named: "SmallIconMinusStroked", in: .main, compatibleWith: nil)!
-  static let smallIconMobileKey = UIImage(named: "SmallIconMobileKey", in: .main, compatibleWith: nil)!
-  static let smallIconMobileLimit = UIImage(named: "SmallIconMobileLimit", in: .main, compatibleWith: nil)!
-  static let smallIconNotification = UIImage(named: "SmallIconNotification", in: .main, compatibleWith: nil)!
-  static let smallIconPause = UIImage(named: "SmallIconPause", in: .main, compatibleWith: nil)!
-  static let smallIconPauseFilled = UIImage(named: "SmallIconPauseFilled", in: .main, compatibleWith: nil)!
-  static let smallIconPauseStroked = UIImage(named: "SmallIconPauseStroked", in: .main, compatibleWith: nil)!
-  static let smallIconPhone = UIImage(named: "SmallIconPhone", in: .main, compatibleWith: nil)!
-  static let smallIconPlus = UIImage(named: "SmallIconPlus", in: .main, compatibleWith: nil)!
-  static let smallIconPlusFilled = UIImage(named: "SmallIconPlusFilled", in: .main, compatibleWith: nil)!
-  static let smallIconPlusStroked = UIImage(named: "SmallIconPlusStroked", in: .main, compatibleWith: nil)!
-  static let smallIconPushNotification = UIImage(named: "SmallIconPushNotification", in: .main, compatibleWith: nil)!
-  static let smallIconQrCode = UIImage(named: "SmallIconQrCode", in: .main, compatibleWith: nil)!
-  static let smallIconQuestion = UIImage(named: "SmallIconQuestion", in: .main, compatibleWith: nil)!
-  static let smallIconRecovery = UIImage(named: "SmallIconRecovery", in: .main, compatibleWith: nil)!
-  static let smallIconRefresh = UIImage(named: "SmallIconRefresh", in: .main, compatibleWith: nil)!
-  static let smallIconScan = UIImage(named: "SmallIconScan", in: .main, compatibleWith: nil)!
-  static let smallIconSettings = UIImage(named: "SmallIconSettings", in: .main, compatibleWith: nil)!
-  static let smallIconShare = UIImage(named: "SmallIconShare", in: .main, compatibleWith: nil)!
-  static let smallIconShield = UIImage(named: "SmallIconShield", in: .main, compatibleWith: nil)!
-  static let smallIconShieldCheck = UIImage(named: "SmallIconShieldCheck", in: .main, compatibleWith: nil)!
-  static let smallIconShieldPerson = UIImage(named: "SmallIconShieldPerson", in: .main, compatibleWith: nil)!
-  static let smallIconSpeed = UIImage(named: "SmallIconSpeed", in: .main, compatibleWith: nil)!
-  static let smallIconSwap = UIImage(named: "SmallIconSwap", in: .main, compatibleWith: nil)!
-  static let smallIconSync = UIImage(named: "SmallIconSync", in: .main, compatibleWith: nil)!
-  static let smallIconTicket = UIImage(named: "SmallIconTicket", in: .main, compatibleWith: nil)!
-  static let smallIconVideo = UIImage(named: "SmallIconVideo", in: .main, compatibleWith: nil)!
-  static let smallIconWallet = UIImage(named: "SmallIconWallet", in: .main, compatibleWith: nil)!
-  static let smallIconWarning = UIImage(named: "SmallIconWarning", in: .main, compatibleWith: nil)!
-  static let smallIconWarningFilled = UIImage(named: "SmallIconWarningFilled", in: .main, compatibleWith: nil)!
-  static let smallIconX = UIImage(named: "SmallIconX", in: .main, compatibleWith: nil)!
-  static let smallIconXFilled = UIImage(named: "SmallIconXFilled", in: .main, compatibleWith: nil)!
-  static let smallIconXStroked = UIImage(named: "SmallIconXStroked", in: .main, compatibleWith: nil)!
-  static let subtractLeft = UIImage(named: "SubtractLeft", in: .main, compatibleWith: nil)!
-  static let subtractRight = UIImage(named: "SubtractRight", in: .main, compatibleWith: nil)!
-  static let tabIconHome = UIImage(named: "TabIconHome", in: .main, compatibleWith: nil)!
-  static let tabIconProfile = UIImage(named: "TabIconProfile", in: .main, compatibleWith: nil)!
+    static let bitcoin = UIImage(named: "Bitcoin", in: .main, compatibleWith: nil)!
+    static let bitkeyDevice3D = UIImage(named: "BitkeyDevice3D", in: .main, compatibleWith: nil)!
+    static let bitkeyDeviceRaised = UIImage(
+        named: "BitkeyDeviceRaised",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let bitkeyDeviceRaisedSmall = UIImage(
+        named: "BitkeyDeviceRaisedSmall",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let buyOwnBitkeyHero = UIImage(
+        named: "BuyOwnBitkeyHero",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let cloudBackupEmergencyAccessKit = UIImage(
+        named: "CloudBackupEmergencyAccessKit",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let cloudBackupMobileKey = UIImage(
+        named: "CloudBackupMobileKey",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconAdd = UIImage(named: "LargeIconAdd", in: .main, compatibleWith: nil)!
+    static let largeIconCheckFilled = UIImage(
+        named: "LargeIconCheckFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconCheckStroked = UIImage(
+        named: "LargeIconCheckStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconEllipsisFilled = UIImage(
+        named: "LargeIconEllipsisFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconNetworkError = UIImage(
+        named: "LargeIconNetworkError",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconReceive = UIImage(
+        named: "LargeIconReceive",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconSend = UIImage(named: "LargeIconSend", in: .main, compatibleWith: nil)!
+    static let largeIconShieldPerson = UIImage(
+        named: "LargeIconShieldPerson",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconSpeedometer = UIImage(
+        named: "LargeIconSpeedometer",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconWarningFilled = UIImage(
+        named: "LargeIconWarningFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let largeIconWarningStroked = UIImage(
+        named: "LargeIconWarningStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let mediumIconQrCode = UIImage(
+        named: "MediumIconQrCode",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let mediumIconTrustedContact = UIImage(
+        named: "MediumIconTrustedContact",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let moneyHomeHero = UIImage(named: "MoneyHomeHero", in: .main, compatibleWith: nil)!
+    static let smallIconAccount = UIImage(
+        named: "SmallIconAccount",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconAnnouncement = UIImage(
+        named: "SmallIconAnnouncement",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconArrowDown = UIImage(
+        named: "SmallIconArrowDown",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconArrowLeft = UIImage(
+        named: "SmallIconArrowLeft",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconArrowRight = UIImage(
+        named: "SmallIconArrowRight",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconArrowUp = UIImage(
+        named: "SmallIconArrowUp",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconArrowUpRight = UIImage(
+        named: "SmallIconArrowUpRight",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconBitcoinStroked = UIImage(
+        named: "SmallIconBitcoinStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconBitkey = UIImage(named: "SmallIconBitkey", in: .main, compatibleWith: nil)!
+    static let smallIconBitkeyReceive = UIImage(
+        named: "SmallIconBitkeyReceive",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconBitkeySend = UIImage(
+        named: "SmallIconBitkeySend",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCaretDown = UIImage(
+        named: "SmallIconCaretDown",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCaretLeft = UIImage(
+        named: "SmallIconCaretLeft",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCaretRight = UIImage(
+        named: "SmallIconCaretRight",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCaretUp = UIImage(
+        named: "SmallIconCaretUp",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCheck = UIImage(named: "SmallIconCheck", in: .main, compatibleWith: nil)!
+    static let smallIconCheckbox = UIImage(
+        named: "SmallIconCheckbox",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCheckboxSelected = UIImage(
+        named: "SmallIconCheckboxSelected",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCheckFilled = UIImage(
+        named: "SmallIconCheckFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCheckStroked = UIImage(
+        named: "SmallIconCheckStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCircleStroked = UIImage(
+        named: "SmallIconCircleStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconClipboard = UIImage(
+        named: "SmallIconClipboard",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconClock = UIImage(named: "SmallIconClock", in: .main, compatibleWith: nil)!
+    static let smallIconCloud = UIImage(named: "SmallIconCloud", in: .main, compatibleWith: nil)!
+    static let smallIconCloudError = UIImage(
+        named: "SmallIconCloudError",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconCopy = UIImage(named: "SmallIconCopy", in: .main, compatibleWith: nil)!
+    static let smallIconCurrency = UIImage(
+        named: "SmallIconCurrency",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconDigitOne = UIImage(
+        named: "SmallIconDigitOne",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconDigitThree = UIImage(
+        named: "SmallIconDigitThree",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconDigitTwo = UIImage(
+        named: "SmallIconDigitTwo",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconElectrum = UIImage(
+        named: "SmallIconElectrum",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconEmail = UIImage(named: "SmallIconEmail", in: .main, compatibleWith: nil)!
+    static let smallIconExternal = UIImage(
+        named: "SmallIconExternal",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconFingerprint = UIImage(
+        named: "SmallIconFingerprint",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconInformation = UIImage(
+        named: "SmallIconInformation",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconInformationFilled = UIImage(
+        named: "SmallIconInformationFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconKey = UIImage(named: "SmallIconKey", in: .main, compatibleWith: nil)!
+    static let smallIconKeyboard = UIImage(
+        named: "SmallIconKeyboard",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconLightning = UIImage(
+        named: "SmallIconLightning",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconLock = UIImage(named: "SmallIconLock", in: .main, compatibleWith: nil)!
+    static let smallIconMessage = UIImage(
+        named: "SmallIconMessage",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconMinus = UIImage(named: "SmallIconMinus", in: .main, compatibleWith: nil)!
+    static let smallIconMinusFilled = UIImage(
+        named: "SmallIconMinusFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconMinusStroked = UIImage(
+        named: "SmallIconMinusStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconMobileKey = UIImage(
+        named: "SmallIconMobileKey",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconMobileLimit = UIImage(
+        named: "SmallIconMobileLimit",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconNotification = UIImage(
+        named: "SmallIconNotification",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconPause = UIImage(named: "SmallIconPause", in: .main, compatibleWith: nil)!
+    static let smallIconPauseFilled = UIImage(
+        named: "SmallIconPauseFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconPauseStroked = UIImage(
+        named: "SmallIconPauseStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconPhone = UIImage(named: "SmallIconPhone", in: .main, compatibleWith: nil)!
+    static let smallIconPlus = UIImage(named: "SmallIconPlus", in: .main, compatibleWith: nil)!
+    static let smallIconPlusFilled = UIImage(
+        named: "SmallIconPlusFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconPlusStroked = UIImage(
+        named: "SmallIconPlusStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconPushNotification = UIImage(
+        named: "SmallIconPushNotification",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconQrCode = UIImage(named: "SmallIconQrCode", in: .main, compatibleWith: nil)!
+    static let smallIconQuestion = UIImage(
+        named: "SmallIconQuestion",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconRecovery = UIImage(
+        named: "SmallIconRecovery",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconRefresh = UIImage(
+        named: "SmallIconRefresh",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconScan = UIImage(named: "SmallIconScan", in: .main, compatibleWith: nil)!
+    static let smallIconSettings = UIImage(
+        named: "SmallIconSettings",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconShare = UIImage(named: "SmallIconShare", in: .main, compatibleWith: nil)!
+    static let smallIconShield = UIImage(named: "SmallIconShield", in: .main, compatibleWith: nil)!
+    static let smallIconShieldCheck = UIImage(
+        named: "SmallIconShieldCheck",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconShieldPerson = UIImage(
+        named: "SmallIconShieldPerson",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconSpeed = UIImage(named: "SmallIconSpeed", in: .main, compatibleWith: nil)!
+    static let smallIconSwap = UIImage(named: "SmallIconSwap", in: .main, compatibleWith: nil)!
+    static let smallIconSync = UIImage(named: "SmallIconSync", in: .main, compatibleWith: nil)!
+    static let smallIconTicket = UIImage(named: "SmallIconTicket", in: .main, compatibleWith: nil)!
+    static let smallIconVideo = UIImage(named: "SmallIconVideo", in: .main, compatibleWith: nil)!
+    static let smallIconWallet = UIImage(named: "SmallIconWallet", in: .main, compatibleWith: nil)!
+    static let smallIconWarning = UIImage(
+        named: "SmallIconWarning",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconWarningFilled = UIImage(
+        named: "SmallIconWarningFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconX = UIImage(named: "SmallIconX", in: .main, compatibleWith: nil)!
+    static let smallIconXFilled = UIImage(
+        named: "SmallIconXFilled",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let smallIconXStroked = UIImage(
+        named: "SmallIconXStroked",
+        in: .main,
+        compatibleWith: nil
+    )!
+    static let subtractLeft = UIImage(named: "SubtractLeft", in: .main, compatibleWith: nil)!
+    static let subtractRight = UIImage(named: "SubtractRight", in: .main, compatibleWith: nil)!
+    static let tabIconHome = UIImage(named: "TabIconHome", in: .main, compatibleWith: nil)!
+    static let tabIconProfile = UIImage(named: "TabIconProfile", in: .main, compatibleWith: nil)!
 }
-
 
 // MARK: -
 
 public extension Icon {
-  var uiImage: UIImage {
+    var uiImage: UIImage {
         switch self {
         case .bitcoin: return .bitcoin
         case .bitkeydevice3d: return .bitkeyDevice3D
@@ -218,5 +493,5 @@ public extension Icon {
         case .tabiconprofile: return .tabIconProfile
         default: fatalError("Unimplemented shared icon: \(self)")
         }
-  }
+    }
 }

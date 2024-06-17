@@ -18,7 +18,7 @@ import build.wallet.ktor.result.HttpError
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onFailure
 import com.ionspin.kotlin.bignum.integer.toBigInteger
@@ -38,7 +38,7 @@ class BitcoinTransactionFeeEstimatorImpl(
     recipientAddress: BitcoinAddress,
     amount: BitcoinTransactionSendAmount,
   ): Result<Map<EstimatedTransactionPriority, Fee>, FeeEstimationError> {
-    return binding {
+    return coroutineBinding {
       // Fetch the fee rates for transaction priorities and use them to create transactions for each
       // of the priorities passed in the function
       val feeRates =
@@ -80,6 +80,7 @@ class BitcoinTransactionFeeEstimatorImpl(
                   else -> CannotCreatePsbtError(it.message)
                 }
               }
+
               else -> CannotCreatePsbtError(it.message)
             }
           }

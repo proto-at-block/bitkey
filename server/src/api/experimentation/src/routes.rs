@@ -4,11 +4,11 @@ use axum::Router;
 use axum::{extract::State, Json};
 use feature_flags::flag::ContextKey;
 use serde::{Deserialize, Serialize};
+
 use tracing::instrument;
 use utoipa::{OpenApi, ToSchema};
 
 use account::service::Service as AccountService;
-use analytics::routes::definitions::PlatformInfo;
 use errors::ApiError;
 use feature_flags::{
     flag::{evaluate_flags, FeatureFlag},
@@ -17,10 +17,8 @@ use feature_flags::{
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
 
-use crate::attributes::ToLaunchDarklyAttributes;
+use crate::claims::ExperimentationClaims;
 use crate::error::ExperimentationError;
-
-const HARDWARE_ID_ATTRIBUTE_NAME: &str = "hardware_id";
 
 #[derive(Clone, Deserialize)]
 pub struct Config {}
@@ -65,11 +63,9 @@ impl From<RouteState> for SwaggerEndpoint {
     ),
     components(
         schemas(
-            CommonFeatureFlagsAttributes,
             GetAccountFeatureFlagsRequest,
             GetAppInstallationFeatureFlagsRequest,
             GetFeatureFlagsResponse,
-            PlatformInfo,
         ),
     ),
     tags(
@@ -78,21 +74,9 @@ impl From<RouteState> for SwaggerEndpoint {
 )]
 struct ApiDoc;
 
-#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
-pub struct CommonFeatureFlagsAttributes {
-    pub app_installation_id: String,
-    pub device_region: String,
-    pub device_language: String,
-    pub platform_info: PlatformInfo,
-}
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetAccountFeatureFlagsRequest {
     pub flag_keys: Vec<String>,
-    #[serde(default)]
-    pub hardware_id: Option<String>,
-    #[serde(flatten)]
-    pub common: CommonFeatureFlagsAttributes,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -111,28 +95,20 @@ pub struct GetFeatureFlagsResponse {
     ),
 )]
 async fn get_account_feature_flags(
-    Path(account_id): Path<AccountId>,
+    Path(_account_id): Path<AccountId>,
     State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<GetAccountFeatureFlagsRequest>,
 ) -> Result<Json<GetFeatureFlagsResponse>, ApiError> {
-    let mut attrs = request.common.to_attributes();
-    if let Some(hardware_id) = request.hardware_id {
-        attrs.insert(HARDWARE_ID_ATTRIBUTE_NAME, hardware_id);
-    }
-    let flags = evaluate_flags(
-        &feature_flags_service,
-        request.flag_keys,
-        ContextKey::Account(account_id.to_string(), attrs),
-    )
-    .map_err(ExperimentationError::from)?;
+    let context_key = ContextKey::try_from(experimentation_claims)?;
+    let flags = evaluate_flags(&feature_flags_service, request.flag_keys, context_key)
+        .map_err(ExperimentationError::from)?;
     Ok(Json(GetFeatureFlagsResponse { flags }))
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetAppInstallationFeatureFlagsRequest {
     pub flag_keys: Vec<String>,
-    #[serde(flatten)]
-    pub common: CommonFeatureFlagsAttributes,
 }
 
 #[instrument(skip(request, feature_flags_service))]
@@ -147,14 +123,11 @@ pub struct GetAppInstallationFeatureFlagsRequest {
 )]
 async fn get_app_installation_feature_flags(
     State(feature_flags_service): State<FeatureFlagsService>,
+    experimentation_claims: ExperimentationClaims,
     Json(request): Json<GetAppInstallationFeatureFlagsRequest>,
 ) -> Result<Json<GetFeatureFlagsResponse>, ApiError> {
-    let attrs = request.common.to_attributes();
-    let flags = evaluate_flags(
-        &feature_flags_service,
-        request.flag_keys,
-        ContextKey::AppInstallation(request.common.app_installation_id, attrs),
-    )
-    .map_err(ExperimentationError::from)?;
+    let context_key = ContextKey::try_from(experimentation_claims)?;
+    let flags = evaluate_flags(&feature_flags_service, request.flag_keys, context_key)
+        .map_err(ExperimentationError::from)?;
     Ok(Json(GetFeatureFlagsResponse { flags }))
 }

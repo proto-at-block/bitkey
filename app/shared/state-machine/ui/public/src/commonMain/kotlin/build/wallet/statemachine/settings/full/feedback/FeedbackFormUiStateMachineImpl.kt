@@ -44,8 +44,8 @@ import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.ImmutableSet
 import kotlinx.collections.immutable.persistentSetOf
@@ -468,18 +468,17 @@ class FeedbackFormUiStateMachineImpl(
     onError: () -> Unit,
   ): ScreenModel {
     LaunchedEffect(data) {
-      val result =
-        supportTicketRepository.createTicket(
-          f8eEnvironment = f8eEnvironment,
-          accountId = accountId,
-          form = structure,
-          data = data
-        )
-      when (result) {
-        is Ok -> onSuccess()
-        // TODO[W-5853]: Pass in error details
-        is Err -> onError()
-      }
+      supportTicketRepository.createTicket(
+        f8eEnvironment = f8eEnvironment,
+        accountId = accountId,
+        form = structure,
+        data = data
+      )
+        .onSuccess { onSuccess() }
+        .onFailure {
+          // TODO[W-5853]: Pass in error details
+          onError()
+        }
     }
 
     return LoadingBodyModel(

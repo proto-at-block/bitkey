@@ -39,9 +39,14 @@ struct MobileTransactionsView: View {
             isPresented: .constant(viewModel.disableAlertModel != nil),
             presenting: viewModel.disableAlertModel,
             actions: { model in
-                Button(model.primaryButtonText, role: .destructive, action: model.onPrimaryButtonClick)
+                Button(
+                    model.primaryButtonText,
+                    role: .destructive,
+                    action: model.onPrimaryButtonClick
+                )
                 if let secondaryText = model.secondaryButtonText,
-                   let secondaryAction = model.onSecondaryButtonClick {
+                   let secondaryAction = model.onSecondaryButtonClick
+                {
                     Button(secondaryText, role: .cancel, action: secondaryAction)
                 }
             },

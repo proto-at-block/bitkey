@@ -900,8 +900,8 @@ pub async fn rotate_authentication_keys(
     user_pool_service
         .rotate_account_auth_keys(
             &account_id,
-            request.application.key,
-            request.hardware.key,
+            Some(request.application.key),
+            Some(request.hardware.key),
             request.recovery.map(|f| f.key),
         )
         .await
@@ -1371,7 +1371,10 @@ pub async fn update_recovery_relationship(
                 ));
             };
 
-            if CognitoUser::Wallet(account_id.clone()) != cognito_user {
+            if !cognito_user.is_wallet(&account_id)
+                && !cognito_user.is_app(&account_id)
+                && !cognito_user.is_hardware(&account_id)
+            {
                 event!(
                     Level::ERROR,
                     "The provided access token is for the incorrect domain."

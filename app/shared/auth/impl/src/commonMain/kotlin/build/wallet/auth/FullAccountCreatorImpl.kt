@@ -13,36 +13,36 @@ import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.notifications.NotificationTouchpointService
-import build.wallet.f8e.onboarding.CreateFullAccountService
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
+import build.wallet.f8e.onboarding.CreateFullAccountF8eClient
 import build.wallet.keybox.KeyboxDao
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.NotificationTouchpointDao
 import build.wallet.platform.random.UuidGenerator
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.onSuccess
 
 class FullAccountCreatorImpl(
   private val keyboxDao: KeyboxDao,
-  private val createFullAccountService: CreateFullAccountService,
+  private val createFullAccountF8eClient: CreateFullAccountF8eClient,
   private val accountAuthenticator: AccountAuthenticator,
   private val authTokenDao: AuthTokenDao,
   private val deviceTokenManager: DeviceTokenManager,
   private val uuidGenerator: UuidGenerator,
-  private val notificationTouchpointService: NotificationTouchpointService,
+  private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
   private val notificationTouchpointDao: NotificationTouchpointDao,
 ) : FullAccountCreator {
   override suspend fun createAccount(
     keyCrossDraft: WithAppKeysAndHardwareKeys,
   ): Result<FullAccount, AccountCreationError> =
-    binding {
+    coroutineBinding {
       val fullAccountConfig = keyCrossDraft.config
       // Create a new account on the server and get a server key back.
       val accountServerResponse =
-        createFullAccountService
+        createFullAccountF8eClient
           .createAccount(keyCrossDraft)
           .mapError { AccountCreationF8eError(it) }
           .bind()
@@ -98,7 +98,7 @@ class FullAccountCreatorImpl(
       // Get notification touchpoints in the event that this is an existing account
       // In the event of failure, just continue with account creation.
       // Errors will be logged where they occur.
-      notificationTouchpointService
+      notificationTouchpointF8eClient
         .getTouchpoints(
           f8eEnvironment = fullAccountConfig.f8eEnvironment,
           fullAccountId = customerAccountId
@@ -132,7 +132,7 @@ class FullAccountCreatorImpl(
     f8eEnvironment: F8eEnvironment,
     tokenScope: AuthTokenScope,
   ): Result<Unit, AccountCreationError> {
-    return binding {
+    return coroutineBinding {
       val authTokens =
         accountAuthenticator
           .appAuth(

@@ -34,7 +34,11 @@ class CurrencyPreferenceFormSnapshots : FunSpec({
         model =
           CurrencyPreferenceFormModel(
             onBack = {},
-            moneyHomeHero = FormMainContentModel.MoneyHomeHero("$0", "0 sats"),
+            moneyHomeHero = FormMainContentModel.MoneyHomeHero(
+              primaryAmount = "$0",
+              secondaryAmount = "0 sats",
+              isHidden = true
+            ),
             fiatCurrencyPreferenceString = "USD",
             onFiatCurrencyPreferenceClick = {},
             bitcoinDisplayPreferenceString = "Sats",

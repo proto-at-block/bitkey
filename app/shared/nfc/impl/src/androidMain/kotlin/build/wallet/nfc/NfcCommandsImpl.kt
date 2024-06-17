@@ -587,6 +587,7 @@ private fun CoreFirmwareFeatureFlag.toFeatureFlag() =
     CoreFirmwareFeatureFlag.RATE_LIMIT_TEMPLATE_UPDATE -> FirmwareFeatureFlag.RATE_LIMIT_TEMPLATE_UPDATE
     CoreFirmwareFeatureFlag.UNLOCK -> FirmwareFeatureFlag.UNLOCK
     CoreFirmwareFeatureFlag.MULTIPLE_FINGERPRINTS -> FirmwareFeatureFlag.MULTIPLE_FINGERPRINTS
+    CoreFirmwareFeatureFlag.IMPROVED_FINGERPRINT_ENROLLMENT -> FirmwareFeatureFlag.IMPROVED_FINGERPRINT_ENROLLMENT
   }
 
 private fun convertFirmwareFeatureFlags(firmwareFeatureFlags: List<CoreFirmwareFeatureFlagCfg>) =

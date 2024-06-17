@@ -84,13 +84,6 @@ open class ComposeExtension
           debugImplementation(libs.android.compose.ui.tooling)
           // Using main variant so that release builds can compile private `@Preview` functions.
           implementation(libs.android.compose.ui.tooling.preview)
-
-          // Compose Previews fail to compile without these dependencies.
-          // TODO: remove these dependencies once https://issuetracker.google.com/issues/231344512 is
-          //       fixed,
-          debugImplementation(libs.android.custom.view.pooling.container)
-          debugImplementation(libs.android.lifecycle.viewmodel)
-          debugImplementation(libs.android.savedstate)
         }
       }
     }

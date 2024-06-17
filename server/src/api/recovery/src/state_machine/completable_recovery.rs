@@ -87,8 +87,8 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
             user_pool_service
                 .rotate_account_auth_keys(
                     &account.id,
-                    action.destination.app_auth_pubkey,
-                    action.destination.hardware_auth_pubkey,
+                    Some(action.destination.app_auth_pubkey),
+                    Some(action.destination.hardware_auth_pubkey),
                     action.destination.recovery_auth_pubkey,
                 )
                 .await?;

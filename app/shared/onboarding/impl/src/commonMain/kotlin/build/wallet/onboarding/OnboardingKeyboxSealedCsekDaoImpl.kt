@@ -9,7 +9,7 @@ import build.wallet.store.clearWithResult
 import build.wallet.store.getStringOrNullWithResult
 import build.wallet.store.putStringWithResult
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import okio.ByteString
 
 /**
@@ -22,7 +22,7 @@ class OnboardingKeyboxSealedCsekDaoImpl(
     encryptedKeyValueStoreFactory.getOrCreate(storeName = STORE_NAME)
 
   override suspend fun get(): Result<ByteString?, Throwable> =
-    binding {
+    coroutineBinding {
       log { "Fetching sealed CSEK" }
 
       secureStore()

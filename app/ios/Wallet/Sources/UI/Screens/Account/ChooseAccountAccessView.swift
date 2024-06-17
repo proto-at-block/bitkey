@@ -45,12 +45,20 @@ public struct ChooseAccountAccessView: View {
                     // Text and buttons
                     VStack {
                         VStack {
-                            ModeledText(model: .standard(viewModel.title, font: .display3, textColor: .white))
+                            ModeledText(model: .standard(
+                                viewModel.title,
+                                font: .display3,
+                                textColor: .white
+                            ))
 
                             Spacer()
                                 .frame(height: 4)
 
-                            ModeledText(model: .standard(viewModel.subtitle, font: .body2Regular, textColor: .white))
+                            ModeledText(model: .standard(
+                                viewModel.subtitle,
+                                font: .body2Regular,
+                                textColor: .white
+                            ))
 
                             Spacer()
                                 .frame(height: 16)
@@ -62,9 +70,11 @@ public struct ChooseAccountAccessView: View {
                             }
                         }
                         .padding(.horizontal, DesignSystemMetrics.horizontalPadding)
-
                     }
-                    .padding(.bottom, reader.safeAreaInsets.bottom == 0 ? DesignSystemMetrics.verticalPadding : 0)
+                    .padding(
+                        .bottom,
+                        reader.safeAreaInsets.bottom == 0 ? DesignSystemMetrics.verticalPadding : 0
+                    )
                     .background(
                         LinearGradient(
                             gradient: .init(colors: [.clear, .black.opacity(0.8)]),
@@ -73,16 +83,24 @@ public struct ChooseAccountAccessView: View {
                         )
                     )
                 }
-                .padding(.top, reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0)
+                .padding(
+                    .top,
+                    reader.safeAreaInsets.top == 0 ? DesignSystemMetrics.verticalPadding : 0
+                )
             }
         }
     }
 }
 
-private struct BackgroundVideoView : View {
+private struct BackgroundVideoView: View {
     var body: some View {
-        VideoView(viewModel: .init(videoUrl: .welcomeVideoUrl, videoGravity: .resizeAspectFill, videoShouldLoop: true, videoShouldPauseOnResignActive: true))
-           .frame(maxHeight: .infinity)
-           .ignoresSafeArea()
+        VideoView(viewModel: .init(
+            videoUrl: .welcomeVideoUrl,
+            videoGravity: .resizeAspectFill,
+            videoShouldLoop: true,
+            videoShouldPauseOnResignActive: true
+        ))
+        .frame(maxHeight: .infinity)
+        .ignoresSafeArea()
     }
 }

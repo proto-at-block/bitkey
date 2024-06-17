@@ -116,8 +116,6 @@ static const animation_keyframe_t fingerprint_sample_good[] = {
   KEYFRAME_LERP(COLOUR_LIGHT_BLUE, COLOUR_WHITE_DIM, DURATION_SEC(0.1)),
 };
 
-// Currently this is the same as `fingerprint_sample_good` -- but it might change it,
-// so it's broken out.
 static const animation_keyframe_t fingerprint_sample_bad[] = {
   KEYFRAME_LERP(COLOUR_WHITE_DIM, COLOUR_LIGHT_BLUE, DURATION_SEC(0.1)),
   KEYFRAME_SOLID(COLOUR_LIGHT_BLUE, DURATION_SEC(0.5)),

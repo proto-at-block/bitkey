@@ -19,13 +19,17 @@ final class CustomElectrumServerSnapshotTests: XCTestCase {
 
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_custom_electrum_server_enabled() {
         let view = ElectrumServerSettingsView(
             viewModel: CustomElectrumServerBodyModel(
                 onBack: {},
                 switchIsChecked: true,
-                electrumServerRow: .init(title: "Connected to:", sideText: "ssl://bitkey.mempool.space:50002", onClick: {}),
+                electrumServerRow: .init(
+                    title: "Connected to:",
+                    sideText: "ssl://bitkey.mempool.space:50002",
+                    onClick: {}
+                ),
                 onSwitchCheckedChange: { _ in },
                 disableAlertModel: nil
             )

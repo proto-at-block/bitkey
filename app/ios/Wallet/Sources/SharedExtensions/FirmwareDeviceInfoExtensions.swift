@@ -1,6 +1,6 @@
+import firmware
 import Foundation
 import Shared
-import firmware
 
 extension Shared.FirmwareDeviceInfo {
 
@@ -21,7 +21,7 @@ extension Shared.FirmwareDeviceInfo {
             avgCurrentMa: Int64(deviceInfo.avgCurrentMa),
             batteryCycles: Int64(deviceInfo.batteryCycles),
             secureBootConfig: {
-                if (deviceInfo.secureBootConfig == nil) {
+                if deviceInfo.secureBootConfig == nil {
                     return SecureBootConfig.notSet
                 } else {
                     switch deviceInfo.secureBootConfig.unsafelyUnwrapped {

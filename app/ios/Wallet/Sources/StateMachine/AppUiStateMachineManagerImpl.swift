@@ -1,11 +1,11 @@
 import Combine
 import KMPNativeCoroutinesCombine
 import Lottie
+import PhotosUI
+import SafariServices
 import Shared
 import SwiftUI
 import UIKit
-import SafariServices
-import PhotosUI
 
 // MARK: -
 
@@ -25,12 +25,18 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
     // MARK: - Private Types
 
-    /// An action that needs to be taken as a result of a new screen model emission from the KMP state machine
+    /// An action that needs to be taken as a result of a new screen model emission from the KMP
+    /// state machine
     private enum ScreenModelPresentationAction {
-        /// No presentation action needs to be taken. An optional action that runs after bottom sheet is processed can be provided.
+        /// No presentation action needs to be taken. An optional action that runs after bottom
+        /// sheet is processed can be provided.
         case none(doLast: (() -> Void)? = nil)
         /// A new view controller needs to be shown, either via present, push, or pop
-        case showNewView(vc: UIViewController, key: String, animation: StateChangeHandler.AnimationStyle?)
+        case showNewView(
+            vc: UIViewController,
+            key: String,
+            animation: StateChangeHandler.AnimationStyle?
+        )
 
         static var none: Self {
             return .none()
@@ -84,20 +90,20 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
     // MARK: - Private Methods
 
-    private func handleStateMachineCompletion(completion: Subscribers.Completion<Error>){
-            switch completion {
-            case .failure(let error):
-                // This will fire when the state machine encounters an error.
-                fatalError("A KMP state machine sent completion unexpectedly: \(error).")
-            case .finished:
-                // We don't _think_ the state machine will ever complete without an error,
-                // but let's find out if it does!
-                fatalError("A KMP state machine sent a `finished` completion event unexpectedly")
-            }
+    private func handleStateMachineCompletion(completion: Subscribers.Completion<Error>) {
+        switch completion {
+        case let .failure(error):
+            // This will fire when the state machine encounters an error.
+            fatalError("A KMP state machine sent completion unexpectedly: \(error).")
+        case .finished:
+            // We don't _think_ the state machine will ever complete without an error,
+            // but let's find out if it does!
+            fatalError("A KMP state machine sent a `finished` completion event unexpectedly")
+        }
     }
 
     private func handleStateMachineOutput(model: ScreenModel?) {
-        guard let model = model else {
+        guard let model else {
             log(.error) { "Unexpected null ScreenModel" }
             return
         }
@@ -105,72 +111,86 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
         // First, dismiss any presented view controllers as necessary
         // We need to dismiss if the next screen model we get has a `root` presentation, but
         // the current state has a view controller presented on top of root.
-        if (model.presentationStyle == .root || model.presentationStyle == .rootfullscreen),
-            stateChangeHandlerStack.isPresentingFlowOnRoot {
+        if model.presentationStyle == .root || model.presentationStyle == .rootfullscreen,
+           stateChangeHandlerStack.isPresentingFlowOnRoot
+        {
             stateChangeHandlerStack.dismissPresentedStateChangeHandler()
         }
 
         // Then, try to either create a new view controller for the body model or
         // just apply the model to the current view controller
-         let action = apply(screenModel: model)
+        let action = apply(screenModel: model)
 
         if !(model.body is FwupNfcBodyModel) {
             FwupNfcMaskOverlayViewController.hide()
         }
 
         switch action {
-        case .none(let doLast):
+        case let .none(doLast):
             handleSystemUIModelUpdate(model: model.systemUIModel)
-            
-            // TODO (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
-            // No new view to show, just check for bottom sheets to present or dismiss from the updated model
+
+            // TODO: (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
+            // No new view to show, just check for bottom sheets to present or dismiss from the
+            // updated model
             if let bottomSheetModel = model.bottomSheetModel {
-                if let bottomSheet = stateChangeHandlerStack.topViewController?.presentedViewController as? BottomSheetViewController {
+                if let bottomSheet = stateChangeHandlerStack.topViewController?
+                    .presentedViewController as? BottomSheetViewController
+                {
                     bottomSheet.update(viewModel: bottomSheetModel)
                 } else {
                     let bottomSheet = BottomSheetViewController(viewModel: bottomSheetModel)
                     stateChangeHandlerStack.topViewController?.present(bottomSheet, animated: true)
                 }
-            } else if let bottomSheet = stateChangeHandlerStack.topViewController?.presentedViewController as? BottomSheetViewController {
+            } else if let bottomSheet = stateChangeHandlerStack.topViewController?
+                .presentedViewController as? BottomSheetViewController
+            {
                 bottomSheet.dismiss(animated: true)
             }
 
-            // This is a workaround for (W-5874) until we have time to fix it properly. We need an action that runs after bottom sheet has been closed.
+            // This is a workaround for (W-5874) until we have time to fix it properly. We need an
+            // action that runs after bottom sheet has been closed.
             doLast?()
 
         case let .showNewView(viewController, key, viewAnimation):
             // We have a new view controller to show
-            // First check if a bottom sheet is presented on the current view controller and dismiss if so
-            if let bottomSheet = stateChangeHandlerStack.topPresentedViewController as? BottomSheetViewController {
+            // First check if a bottom sheet is presented on the current view controller and dismiss
+            // if so
+            if let bottomSheet = stateChangeHandlerStack
+                .topPresentedViewController as? BottomSheetViewController
+            {
                 bottomSheet.dismiss(animated: true)
             }
-            
+
             dismissSystemUIModelIfNeeded()
 
             // Always animate as a fade from the splash screen
             let animation: StateChangeHandler.AnimationStyle? =
-                stateChangeHandlerStack.topScreenModelKey.contains("ios-splash") ? .fade : viewAnimation
+                stateChangeHandlerStack.topScreenModelKey
+                    .contains("ios-splash") ? .fade : viewAnimation
 
             // Present the new view controller using the style given to us from the state machine
             switch model.presentationStyle {
             case .root, .fullscreen, .rootfullscreen,
-                    .modal where stateChangeHandlerStack.isPresentingFlowOnRoot,
-                    .modalfullscreen where stateChangeHandlerStack.isPresentingFlowOnRoot:
+                 .modal where stateChangeHandlerStack.isPresentingFlowOnRoot,
+                 .modalfullscreen where stateChangeHandlerStack.isPresentingFlowOnRoot:
                 stateChangeHandlerStack.pushOrPopTo(
                     vc: viewController,
                     forStateKey: key,
                     animation: animation
                 )
-                
+
             case .modal:
                 // Only allow swipe to dismiss if the view shows a close button
                 stateChangeHandlerStack.present(
                     stateChangeHandler: .init(
                         rootViewController: (vc: viewController, key: key),
-                        presentationStyle: .modal(swipeToDismissCallback: model.body.swipeToDismissCallback)
+                        presentationStyle: .modal(
+                            swipeToDismissCallback: model.body
+                                .swipeToDismissCallback
+                        )
                     )
                 )
-                
+
             case .modalfullscreen:
                 stateChangeHandlerStack.present(
                     stateChangeHandler: .init(
@@ -178,16 +198,16 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                         presentationStyle: .fullScreen
                     )
                 )
-                
+
             default:
                 fatalError("Presentation Style not defined")
             }
-            
+
             if let systemUIModel = model.systemUIModel {
                 presentSystemUIModel(model: systemUIModel)
             }
-            
-            // TODO (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
+
+            // TODO: (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
             // Check for new bottom sheets to present from the new model
             else if let bottomSheetModel = model.bottomSheetModel {
                 let bottomSheet = BottomSheetViewController(viewModel: bottomSheetModel)
@@ -203,7 +223,8 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             UIApplication.shared.isIdleTimerDisabled = false
         }
 
-        // Get the topmost presented view controller by iterating through the presented view controllers
+        // Get the topmost presented view controller by iterating through the presented view
+        // controllers
         // until we find the last one (which will be the top one)
         func topmostViewController(from viewController: UIViewController?) -> UIViewController? {
             guard let presented = viewController?.presentedViewController else {
@@ -212,12 +233,17 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             return topmostViewController(from: presented)
         }
 
-        // TODO (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
+        // TODO: (W-3706): Do this in SwiftUI when we convert to pure SwiftUI
         // Next, see if there's an alert to present (only if we're not already presenting one)
-        if let theTopmostViewController = topmostViewController(from: stateChangeHandlerStack.topViewController),
+        if let theTopmostViewController = topmostViewController(
+            from: stateChangeHandlerStack
+                .topViewController
+        ),
             !(theTopmostViewController is UIAlertController),
-            let alertModel = model.alertModel {
-            // We've got an alert model, so present it on the topmost view controller (including presented ones),
+            let alertModel = model.alertModel
+        {
+            // We've got an alert model, so present it on the topmost view controller (including
+            // presented ones),
             // assuming that view controller is not an UIAlertController.
             let alert = UIAlertController(alertModel: alertModel)
             theTopmostViewController.present(alert, animated: true)
@@ -226,42 +252,57 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
         // See if we need to clear the back stack
         switch model.body {
         case _ as MoneyHomeBodyModel:
-            // We clear the nav back stack when we reach Money Home so that view controllers from Onboarding
+            // We clear the nav back stack when we reach Money Home so that view controllers from
+            // Onboarding
             // don't get popped back to if we re-use them post Onboarding.
             stateChangeHandlerStack.clearBackStack()
         default:
-            if let generalId = model.body.eventTrackerScreenInfo?.eventTrackerScreenId as? GeneralEventTrackerScreenId {
+            if let generalId = model.body.eventTrackerScreenInfo?
+                .eventTrackerScreenId as? GeneralEventTrackerScreenId
+            {
                 if generalId == .chooseAccountAccess {
-                    // We clear the nav back stack when we reach Choose Account Access (the initial screen without an account)
+                    // We clear the nav back stack when we reach Choose Account Access (the initial
+                    // screen without an account)
                     stateChangeHandlerStack.clearBackStack()
                 }
             }
         }
 
         // Finally, add or update a gesture recognizer to the top view controller if necessary
-        if let onTwoFingerDoubleTap = model.onTwoFingerDoubleTap, let topView = stateChangeHandlerStack.topViewController?.view {
+        if let onTwoFingerDoubleTap = model.onTwoFingerDoubleTap,
+           let topView = stateChangeHandlerStack.topViewController?.view
+        {
             if let gestureRecognizers = topView.gestureRecognizers,
-               let twoFingerDoubleTapGestureRecognizer = gestureRecognizers.compactMap({ $0 as? TwoFingerDoubleTapTapGestureRecognizer }).first {
-                // If the current view already has the gesture recognizer, just update the action with the latest from the model
+               let twoFingerDoubleTapGestureRecognizer = gestureRecognizers
+               .compactMap({ $0 as? TwoFingerDoubleTapTapGestureRecognizer }).first
+            {
+                // If the current view already has the gesture recognizer, just update the action
+                // with the latest from the model
                 twoFingerDoubleTapGestureRecognizer.action = onTwoFingerDoubleTap
             } else {
                 // Otherwise, create a new gesture recognizer and add to the top view
-                let twoFingerDoubleTapGestureRecognizer = TwoFingerDoubleTapTapGestureRecognizer(onTwoFingerDoubleTap)
+                let twoFingerDoubleTapGestureRecognizer =
+                    TwoFingerDoubleTapTapGestureRecognizer(onTwoFingerDoubleTap)
                 topView.addGestureRecognizer(twoFingerDoubleTapGestureRecognizer)
             }
         }
     }
-    
+
     private func handleSystemUIModelUpdate(model: SystemUIModel?) {
         if let model {
             switch model {
             case let mediaPickerModel as SystemUIModelMediaPickerModel:
-                if let existingPicker = stateChangeHandlerStack.topViewController?.presentedViewController as? PHPickerViewController {
+                if let existingPicker = stateChangeHandlerStack.topViewController?
+                    .presentedViewController as? PHPickerViewController
+                {
                     // TODO: On iOS 17 we can update configuration of the picker
                     if existingPicker.delegate !== mediaPickerModel {
                         existingPicker.dismiss(animated: false)
                         let newPicker = PHPickerViewController(model: mediaPickerModel)
-                        stateChangeHandlerStack.topViewController?.present(newPicker, animated: false)
+                        stateChangeHandlerStack.topViewController?.present(
+                            newPicker,
+                            animated: false
+                        )
                     }
                 } else {
                     let newPicker = PHPickerViewController(model: mediaPickerModel)
@@ -274,13 +315,15 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             dismissSystemUIModelIfNeeded()
         }
     }
-    
+
     private func dismissSystemUIModelIfNeeded() {
-        if let existingPicker = stateChangeHandlerStack.topViewController?.presentedViewController as? PHPickerViewController {
+        if let existingPicker = stateChangeHandlerStack.topViewController?
+            .presentedViewController as? PHPickerViewController
+        {
             existingPicker.dismiss(animated: true)
         }
     }
-    
+
     private func presentSystemUIModel(model: SystemUIModel) {
         switch model {
         case let mediaPickerModel as SystemUIModelMediaPickerModel:
@@ -324,13 +367,25 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             }
 
         case let viewModel as FormBodyModel:
-            let shouldBeSameView = bodyModel.shouldBeSameView(currentKey: stateChangeHandlerStack.topScreenModelKey)
-            if let vc = topViewController as? SwiftUIWrapperViewController<FormView>, shouldBeSameView {
+            let shouldBeSameView = bodyModel
+                .shouldBeSameView(currentKey: stateChangeHandlerStack.topScreenModelKey)
+            if let vc = topViewController as? SwiftUIWrapperViewController<FormView>,
+               shouldBeSameView
+            {
                 vc.updateWrappedView(FormView(viewModel: viewModel), screenModel: screenModel)
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(FormView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: bodyModel.key, animation: bodyModel.animatePushOrPop(currentKey: stateChangeHandlerStack.topScreenModelKey) ? .pushPop : .none)
+                let vc = SwiftUIWrapperViewController(
+                    FormView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(
+                    vc: vc,
+                    key: bodyModel.key,
+                    animation: bodyModel
+                        .animatePushOrPop(currentKey: stateChangeHandlerStack.topScreenModelKey) ?
+                        .pushPop : .none
+                )
             }
 
         case let viewModel as PairNewHardwareBodyModel:
@@ -340,26 +395,47 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 }
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(PairNewHardwareView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    PairNewHardwareView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: bodyModel.key, animation: .pushPop)
             }
 
         case let viewModel as AddressQrCodeBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<AddressQrCodeView> {
-                vc.updateWrappedView(AddressQrCodeView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView(
+                    AddressQrCodeView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(AddressQrCodeView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    AddressQrCodeView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-receive", animation: .none)
             }
 
         case let viewModel as AppDelayNotifyInProgressBodyModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<AppDelayNotifyInProgressView> {
-                vc.updateWrappedView(AppDelayNotifyInProgressView(viewModel: viewModel), screenModel: screenModel)
+            if let vc =
+                topViewController as? SwiftUIWrapperViewController<AppDelayNotifyInProgressView>
+            {
+                vc.updateWrappedView(
+                    AppDelayNotifyInProgressView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(AppDelayNotifyInProgressView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: "ios-app-delay-notify-in-progress", animation: .pushPop)
+                let vc = SwiftUIWrapperViewController(
+                    AppDelayNotifyInProgressView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(
+                    vc: vc,
+                    key: "ios-app-delay-notify-in-progress",
+                    animation: .pushPop
+                )
             }
 
         case let viewModel as QrCodeScanBodyModel:
@@ -377,19 +453,33 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
         case let viewModel as FwupInstructionsBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<FwupInstructionsView> {
-                vc.updateWrappedView(FwupInstructionsView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView(
+                    FwupInstructionsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(FwupInstructionsView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    FwupInstructionsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-fwup-instructions", animation: .pushPop)
             }
 
         case let viewModel as ChooseAccountAccessModel:
-            if let vc = rootViewController as? SwiftUIWrapperViewController<ChooseAccountAccessView> {
-                vc.updateWrappedView(ChooseAccountAccessView(viewModel: viewModel), screenModel: screenModel)
+            if let vc =
+                rootViewController as? SwiftUIWrapperViewController<ChooseAccountAccessView>
+            {
+                vc.updateWrappedView(
+                    ChooseAccountAccessView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(ChooseAccountAccessView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    ChooseAccountAccessView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-account-access", animation: .pushPop)
             }
 
@@ -398,10 +488,13 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 vc.updateWrappedView(DebugMenuView(viewModel: viewModel), screenModel: screenModel)
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(DebugMenuView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    DebugMenuView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-debug", animation: .pushPop)
             }
-            
+
         case let viewModel as FeatureFlagsBodyModel:
             if let vc = topViewController as? FeatureFlagsViewController {
                 vc.apply(model: viewModel)
@@ -427,8 +520,15 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 }
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(LoadingSuccessView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: viewModel.id?.name ?? "ios-success-loading", animation: .pushPop)
+                let vc = SwiftUIWrapperViewController(
+                    LoadingSuccessView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(
+                    vc: vc,
+                    key: viewModel.id?.name ?? "ios-success-loading",
+                    animation: .pushPop
+                )
             }
 
         case let viewModel as LogsBodyModel:
@@ -441,11 +541,19 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
             }
 
         case let viewModel as MobilePayStatusModel:
-            if let vc = rootViewController as? SwiftUIWrapperViewController<MobileTransactionsView> {
-                vc.updateWrappedView(MobileTransactionsView(viewModel: viewModel), screenModel: screenModel)
+            if let vc =
+                rootViewController as? SwiftUIWrapperViewController<MobileTransactionsView>
+            {
+                vc.updateWrappedView(
+                    MobileTransactionsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(MobileTransactionsView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    MobileTransactionsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-quick-pay", animation: .pushPop)
             }
 
@@ -458,11 +566,19 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 }
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(MoneyHomeView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    MoneyHomeView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 // Don't animate from onboarding
                 let screensToNotAnimateFrom = ["NEW_ACCOUNT_SERVER_KEYS_LOADING", "ios-success"]
-                let shouldAnimate = !screensToNotAnimateFrom.contains { stateChangeHandlerStack.topScreenModelKey.contains($0) }
-                return .showNewView(vc: vc, key: "ios-money-home", animation: shouldAnimate ? .pushPop : .none)
+                let shouldAnimate = !screensToNotAnimateFrom
+                    .contains { stateChangeHandlerStack.topScreenModelKey.contains($0) }
+                return .showNewView(
+                    vc: vc,
+                    key: "ios-money-home",
+                    animation: shouldAnimate ? .pushPop : .none
+                )
             }
 
         case let viewModel as SettingsBodyModel:
@@ -470,37 +586,62 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 vc.updateWrappedView(SettingsView(viewModel: viewModel), screenModel: screenModel)
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(SettingsView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    SettingsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-settings", animation: .pushPop)
             }
 
         case let viewModel as SpendingLimitPickerModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<SpendingLimitPickerView> {
-                vc.updateWrappedView(SpendingLimitPickerView(viewModel: viewModel), screenModel: screenModel)
+            if let vc =
+                topViewController as? SwiftUIWrapperViewController<SpendingLimitPickerView>
+            {
+                vc.updateWrappedView(
+                    SpendingLimitPickerView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(SpendingLimitPickerView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    SpendingLimitPickerView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-limit-picker", animation: .pushPop)
             }
 
         case let viewModel as TransferAmountBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<TransferAmountView> {
-                vc.updateWrappedView(TransferAmountView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView(
+                    TransferAmountView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(TransferAmountView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    TransferAmountView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-transfer-amount", animation: .pushPop)
             }
-            
+
         case let viewModel as CustomElectrumServerBodyModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<ElectrumServerSettingsView> {
-                vc.updateWrappedView(ElectrumServerSettingsView(viewModel: viewModel), screenModel: screenModel)
+            if let vc =
+                topViewController as? SwiftUIWrapperViewController<ElectrumServerSettingsView>
+            {
+                vc.updateWrappedView(
+                    ElectrumServerSettingsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(ElectrumServerSettingsView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    ElectrumServerSettingsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-electrum-server", animation: .pushPop)
             }
-        
+
         case let viewModel as InAppBrowserModel:
             return .none {
                 viewModel.open()
@@ -511,7 +652,10 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 vc.updateWrappedView(AnalyticsView(viewModel: viewModel), screenModel: screenModel)
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(AnalyticsView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    AnalyticsView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-analytics", animation: .pushPop)
             }
         case let viewModel as EducationBodyModel:
@@ -519,46 +663,84 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 vc.updateWrappedView(EducationView(viewModel: viewModel), screenModel: screenModel)
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(EducationView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    EducationView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-education", animation: .pushPop)
             }
         case let viewModel as CustomAmountBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<CustomAmountView> {
-                vc.updateWrappedView(CustomAmountView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView(
+                    CustomAmountView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(CustomAmountView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    CustomAmountView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-custom-purchase-amount", animation: .pushPop)
             }
-        
+
         case let viewModel as CloudBackupHealthDashboardBodyModel:
-            if let vc = topViewController as? SwiftUIWrapperViewController<CloudBackupHealthDashboardView> {
-                vc.updateWrappedView(CloudBackupHealthDashboardView(viewModel: viewModel), screenModel: screenModel)
+            if let vc =
+                topViewController as? SwiftUIWrapperViewController<CloudBackupHealthDashboardView>
+            {
+                vc.updateWrappedView(
+                    CloudBackupHealthDashboardView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(CloudBackupHealthDashboardView(viewModel: viewModel), screenModel: screenModel)
-                return .showNewView(vc: vc, key: "ios-cloud-backup-health-dashboard", animation: .pushPop)
+                let vc = SwiftUIWrapperViewController(
+                    CloudBackupHealthDashboardView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(
+                    vc: vc,
+                    key: "ios-cloud-backup-health-dashboard",
+                    animation: .pushPop
+                )
             }
-            
+
         case let viewModel as DemoModeConfigBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<DemoModeConfigView> {
-                vc.updateWrappedView(DemoModeConfigView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView(
+                    DemoModeConfigView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(DemoModeConfigView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    DemoModeConfigView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .showNewView(vc: vc, key: "ios-demo-mode-config", animation: .pushPop)
             }
-       
+
         case let viewModel as LiteMoneyHomeBodyModel:
             if let vc = rootViewController as? SwiftUIWrapperViewController<LiteMoneyHomeView> {
-                vc.updateWrappedView(LiteMoneyHomeView(viewModel: viewModel), screenModel: screenModel)
+                vc.updateWrappedView(
+                    LiteMoneyHomeView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 return .none
             } else {
-                let vc = SwiftUIWrapperViewController(LiteMoneyHomeView(viewModel: viewModel), screenModel: screenModel)
+                let vc = SwiftUIWrapperViewController(
+                    LiteMoneyHomeView(viewModel: viewModel),
+                    screenModel: screenModel
+                )
                 // Don't animate from onboarding
                 let screensToNotAnimateFrom = ["NEW_ACCOUNT_SERVER_KEYS_LOADING", "ios-success"]
-                let shouldAnimate = !screensToNotAnimateFrom.contains { stateChangeHandlerStack.topScreenModelKey.contains($0) }
-                return .showNewView(vc: vc, key: "ios-lite-money-home", animation: shouldAnimate ? .pushPop : .none)
+                let shouldAnimate = !screensToNotAnimateFrom
+                    .contains { stateChangeHandlerStack.topScreenModelKey.contains($0) }
+                return .showNewView(
+                    vc: vc,
+                    key: "ios-lite-money-home",
+                    animation: shouldAnimate ? .pushPop : .none
+                )
             }
 
         default:
@@ -569,55 +751,59 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 }
 
 extension SystemUIModelMediaPickerModel: UIAdaptivePresentationControllerDelegate {
-    public func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+    public func presentationControllerDidDismiss(_: UIPresentationController) {
         onMediaPicked([])
     }
 }
 
 extension SystemUIModelMediaPickerModel: PHPickerViewControllerDelegate {
-    public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+    public func picker(_: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         onMediaPicked(results.compactMap { result in
             media(from: result)
         })
     }
-    
+
     private func media(from result: PHPickerResult) -> Media? {
         let itemProvider = result.itemProvider
         let supportedTypes: [UTType] = [
             .image,
             .audiovisualContent,
         ]
-        
+
         guard let mediaType = supportedTypes.first(where: {
             itemProvider.hasItemConformingToTypeIdentifier($0.identifier)
         }) else {
             // TODO: We should inform the user that we'll skip this media and why.
             return nil
         }
-        
+
         let conformingRegisteredContentTypes = if #available(iOS 16.0, *) {
             itemProvider.registeredContentTypes(conformingTo: mediaType)
         } else {
-            itemProvider.registeredTypeIdentifiers.compactMap { UTType($0) }.filter { $0.conforms(to: mediaType) }
+            itemProvider.registeredTypeIdentifiers.compactMap { UTType($0) }
+                .filter { $0.conforms(to: mediaType) }
         }
-        
-        guard let mimeType = conformingRegisteredContentTypes.compactMap({ $0.preferredMIMEType }).first else {
+
+        guard let mimeType = conformingRegisteredContentTypes.compactMap(\.preferredMIMEType).first
+        else {
             // TODO: We should inform the user that we'll skip this media and why.
             return nil
         }
-        let fileExtension = conformingRegisteredContentTypes.compactMap { $0.preferredFilenameExtension }.first.map { ".\($0)" } ?? ""
-        
+        let fileExtension = conformingRegisteredContentTypes
+            .compactMap(\.preferredFilenameExtension).first.map { ".\($0)" } ?? ""
+
         return MediaExtKt.nativeMedia(
             name: (itemProvider.suggestedName ?? "unknown") + fileExtension,
             mimeType: MimeType(name: mimeType),
             loadUrl: { callback in
-                itemProvider.loadFileRepresentation(forTypeIdentifier: mediaType.identifier) { url, error in
-                    if let url {
-                        _ = callback(url, nil)
-                    } else {
-                        _ = callback(nil, error)
+                itemProvider
+                    .loadFileRepresentation(forTypeIdentifier: mediaType.identifier) { url, error in
+                        if let url {
+                            _ = callback(url, nil)
+                        } else {
+                            _ = callback(nil, error)
+                        }
                     }
-                }
             }
         )
     }
@@ -672,7 +858,8 @@ private class TwoFingerDoubleTapTapGestureRecognizer: UITapGestureRecognizer {
 
 private extension BodyModel {
 
-    /// Whether we should use the same instance of the underlying view and just call apply(model:) instead of creating a new view
+    /// Whether we should use the same instance of the underlying view and just call apply(model:)
+    /// instead of creating a new view
     func shouldBeSameView(currentKey: String) -> Bool {
         // Always use the same view for the same key
         if key == currentKey {
@@ -680,8 +867,10 @@ private extension BodyModel {
         }
 
         // Use the same view if we are going from phone number <> email for smoother transitions
-        let isGoingFromPhoneToEmail = currentKey.contains("phone_number_input") && key.contains("email_input")
-        let isGoingFromEmailToPhone = currentKey.contains("email_input") && key.contains("phone_number_input")
+        let isGoingFromPhoneToEmail = currentKey.contains("phone_number_input") && key
+            .contains("email_input")
+        let isGoingFromEmailToPhone = currentKey.contains("email_input") && key
+            .contains("phone_number_input")
 
         return isGoingFromPhoneToEmail || isGoingFromEmailToPhone
     }
@@ -699,13 +888,22 @@ private extension BodyModel {
 
         // Don't animate back to back loading screens
         if currentKey.contains("LoadingScreenModel"),
-           key.contains("LoadingScreenModel") {
+           key.contains("LoadingScreenModel")
+        {
             return false
         }
 
         // Don't animate transitions between address text entry and QR code scanner
-        if (currentKey.contains("BitcoinRecipientAddressScreenModel") && key.contains("ios-qr-scanner"))
-            || (key.contains("BitcoinRecipientAddressScreenModel") && currentKey.contains("ios-qr-scanner")) {
+        if (
+            currentKey.contains("BitcoinRecipientAddressScreenModel") && key
+                .contains("ios-qr-scanner")
+        )
+            ||
+            (
+                key.contains("BitcoinRecipientAddressScreenModel") && currentKey
+                    .contains("ios-qr-scanner")
+            )
+        {
             return false
         }
 
@@ -718,7 +916,8 @@ private extension BodyModel {
     }
 
     /// Decide if we can swipe to dismiss this body in modal presentation based on the contents
-    /// If the callback returned is non-null, the content will be allowed to be swiped to be dismissed
+    /// If the callback returned is non-null, the content will be allowed to be swiped to be
+    /// dismissed
     var swipeToDismissCallback: (() -> Void)? {
         switch self {
         case let model as AddressQrCodeBodyModel:

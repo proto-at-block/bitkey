@@ -3,7 +3,9 @@ import SwiftUI
 
 // MARK: -
 
-public class FirmwareMetadataViewController: UIHostingController<FirmwareMetadataView>, ModelRepresentableViewController {
+public class FirmwareMetadataViewController: UIHostingController<FirmwareMetadataView>,
+    ModelRepresentableViewController
+{
 
     // MARK: - Life Cycle
 
@@ -11,7 +13,8 @@ public class FirmwareMetadataViewController: UIHostingController<FirmwareMetadat
         super.init(rootView: FirmwareMetadataView(viewModel: viewModel))
     }
 
-    required dynamic init?(coder aDecoder: NSCoder) {
+    @available(*, unavailable)
+    dynamic required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
 
@@ -45,7 +48,16 @@ public struct FirmwareMetadataView: View {
         NavigationView {
             List {
                 ButtonView(
-                    model: ButtonModel(text: "Refresh", isEnabled: true, isLoading: false, leadingIcon: nil, treatment: .primary, size: .footer, testTag: nil, onClick: StandardClick(onClick: viewModel.onFirmwareMetadataRefreshClick))
+                    model: ButtonModel(
+                        text: "Refresh",
+                        isEnabled: true,
+                        isLoading: false,
+                        leadingIcon: nil,
+                        treatment: .primary,
+                        size: .footer,
+                        testTag: nil,
+                        onClick: StandardClick(onClick: viewModel.onFirmwareMetadataRefreshClick)
+                    )
                 )
                 viewModel.firmwareMetadataModel.map { FirmwareMetadataDataView(vm: $0) }
             }
@@ -75,7 +87,6 @@ private struct FirmwareMetadataDataView: View {
             TitleDetailView(title: "Timestamp", detail: vm.timestamp)
             TitleDetailView(title: "Hash", detail: vm.hash)
             TitleDetailView(title: "HW Revision", detail: vm.hwRevision)
-
         }
     }
 }

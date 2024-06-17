@@ -3,7 +3,7 @@ package build.wallet.statemachine.notifications
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.notifications.NotificationTouchpointServiceMock
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientMock
 import build.wallet.ktor.result.HttpError
 import build.wallet.notifications.NotificationChannel
 import build.wallet.notifications.NotificationPreferences
@@ -23,10 +23,10 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   val keyValueStoreFactory = KeyValueStoreFactoryFake()
 
-  val notificationTouchpointService = NotificationTouchpointServiceMock(turbine = turbines::create)
+  val notificationTouchpointF8eClient = NotificationTouchpointF8eClientMock(turbine = turbines::create)
 
   val notificationsPreferencesCachedProvider = NotificationsPreferencesCachedProviderImpl(
-    notificationTouchpointService = notificationTouchpointService,
+    notificationTouchpointF8eClient = notificationTouchpointF8eClient,
     keyValueStoreFactory = keyValueStoreFactory
   )
 
@@ -52,7 +52,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   beforeTest {
     keyValueStoreFactory.clear()
-    notificationTouchpointService.reset()
+    notificationTouchpointF8eClient.reset()
   }
 
   test("prefs serialization sanity check") {
@@ -76,7 +76,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   test("getNotificationsPreferences no cache server error") {
     val err = Err(HttpError.NetworkError(Exception("Hello")))
-    notificationTouchpointService.getNotificationsPreferencesResult = err
+    notificationTouchpointF8eClient.getNotificationsPreferencesResult = err
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -85,7 +85,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
   }
 
   test("getNotificationsPreferences no cache server ok") {
-    notificationTouchpointService.getNotificationsPreferencesResult = Ok(makePrefs())
+    notificationTouchpointF8eClient.getNotificationsPreferencesResult = Ok(makePrefs())
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -95,7 +95,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   test("getNotificationsPreferences with cache server ok no change") {
     cacheNotificationPreferences(makePrefs())
-    notificationTouchpointService.getNotificationsPreferencesResult = Ok(makePrefs())
+    notificationTouchpointF8eClient.getNotificationsPreferencesResult = Ok(makePrefs())
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -105,7 +105,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   test("getNotificationsPreferences with cache server ok changed prefs") {
     cacheNotificationPreferences(makePrefs())
-    notificationTouchpointService.getNotificationsPreferencesResult =
+    notificationTouchpointF8eClient.getNotificationsPreferencesResult =
       Ok(makePrefs(setOf(NotificationChannel.Email)))
 
     val resultFlow =
@@ -122,7 +122,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
     val err = Err(HttpError.NetworkError(Exception("Hello")))
     val prefs = makePrefs()
     cacheNotificationPreferences(prefs)
-    notificationTouchpointService.getNotificationsPreferencesResult = err
+    notificationTouchpointF8eClient.getNotificationsPreferencesResult = err
 
     notificationsPreferencesCachedProvider.getNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -133,7 +133,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
   test("updateNotificationsPreferences with cache server err") {
     val err = Err(HttpError.NetworkError(Exception("Hello")))
     cacheNotificationPreferences(makePrefs())
-    notificationTouchpointService.updateNotificationsPreferencesResult = err
+    notificationTouchpointF8eClient.updateNotificationsPreferencesResult = err
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -147,7 +147,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   test("updateNotificationsPreferences with cache server ok") {
     cacheNotificationPreferences(makePrefs())
-    notificationTouchpointService.updateNotificationsPreferencesResult = Ok(Unit)
+    notificationTouchpointF8eClient.updateNotificationsPreferencesResult = Ok(Unit)
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -161,7 +161,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
 
   test("updateNotificationsPreferences no cache server err") {
     val err = Err(HttpError.NetworkError(Exception("Hello")))
-    notificationTouchpointService.updateNotificationsPreferencesResult = err
+    notificationTouchpointF8eClient.updateNotificationsPreferencesResult = err
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,
@@ -174,7 +174,7 @@ class NotificationsPreferencesCachedProviderTests : FunSpec({
   }
 
   test("updateNotificationsPreferences no cache server ok") {
-    notificationTouchpointService.updateNotificationsPreferencesResult = Ok(Unit)
+    notificationTouchpointF8eClient.updateNotificationsPreferencesResult = Ok(Unit)
 
     notificationsPreferencesCachedProvider.updateNotificationsPreferences(
       f8eEnvironment = F8eEnvironment.Development,

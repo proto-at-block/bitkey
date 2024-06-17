@@ -1,6 +1,6 @@
 package build.wallet.platform.pdf
 
-import build.wallet.catching
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.binding
 import com.github.michaelbull.result.mapError
@@ -34,10 +34,9 @@ class PdfAnnotatorImpl(private val document: PDDocument) : PdfAnnotator {
   override fun serializeBlocking(): PdfAnnotationResult<ByteString> {
     return binding {
       val outputBuffer = ByteArrayOutputStream()
-      Result
-        .catching {
-          document.save(outputBuffer)
-        }.mapError { PdfAnnotationError.SerializeFailed }
+      catchingResult {
+        document.save(outputBuffer)
+      }.mapError { PdfAnnotationError.SerializeFailed }
         .bind()
 
       outputBuffer.toByteArray().toByteString()
@@ -102,7 +101,8 @@ class PdfAnnotatorImpl(private val document: PDDocument) : PdfAnnotator {
     var currentLine = ""
 
     for (character in text) {
-      val currentLineNextCharacterWidth = font.getStringWidth(currentLine + character) / 1000 * fontSize
+      val currentLineNextCharacterWidth =
+        font.getStringWidth(currentLine + character) / 1000 * fontSize
       if (currentLineNextCharacterWidth > maxWidth) {
         // If adding the next character exceeds max width, append current line to [textLines].
         textLines += currentLine
@@ -130,7 +130,7 @@ class PdfAnnotatorImpl(private val document: PDDocument) : PdfAnnotator {
       val page = getPage(pageNum).bind()
 
       val pdImage =
-        Result.catching {
+        catchingResult {
           PDImageXObject.createFromByteArray(document, data.toByteArray(), null)
         }.mapError { PdfAnnotationError.InvalidImage }.bind()
 
@@ -145,7 +145,7 @@ class PdfAnnotatorImpl(private val document: PDDocument) : PdfAnnotator {
   }
 
   private fun getPage(pageNum: Int): Result<PDPage, PdfAnnotationError> {
-    return Result.catching {
+    return catchingResult {
       document.getPage(pageNum)
     }.mapError { PdfAnnotationError.InvalidPage }
   }

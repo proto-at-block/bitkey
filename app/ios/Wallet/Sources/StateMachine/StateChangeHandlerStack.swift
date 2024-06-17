@@ -14,9 +14,11 @@ class StateChangeHandlerStack: NSObject, UINavigationControllerDelegate {
     var topScreenModelKey: String {
         return topStateChangeHandler.currentScreenModelKey ?? ""
     }
+
     var topViewController: UIViewController? {
         return topStateChangeHandler.currentViewController
     }
+
     var topPresentedViewController: UIViewController? {
         return topViewController?.presentedViewController
     }
@@ -36,7 +38,7 @@ class StateChangeHandlerStack: NSObject, UINavigationControllerDelegate {
     /// The very top of the stack, what is showing.
     private var topStateChangeHandler: StateChangeHandler {
         return presentedStateChangeHandler
-        ?? rootStateChangeHandler
+            ?? rootStateChangeHandler
     }
 
     /// The flow presented on top of the root, if any
@@ -65,16 +67,24 @@ class StateChangeHandlerStack: NSObject, UINavigationControllerDelegate {
             return
         }
 
-        // Make sure to set the `presentedStateChangeHandler` first so that `AppUiStateMachineManagerImpl` has access
-        // to it (`AppUiStateMachineManagerImpl` accesses the presented view controller through it) if other models are
+        // Make sure to set the `presentedStateChangeHandler` first so that
+        // `AppUiStateMachineManagerImpl` has access
+        // to it (`AppUiStateMachineManagerImpl` accesses the presented view controller through it)
+        // if other models are
         // emitted from the state machine while the presentation animation is happening
         presentedStateChangeHandler = stateChangeHandler
-        rootStateChangeHandler.navViewController.present(stateChangeHandler.navViewController, animated: true, completion: .none)
+        rootStateChangeHandler.navViewController.present(
+            stateChangeHandler.navViewController,
+            animated: true,
+            completion: .none
+        )
     }
 
     func dismissPresentedStateChangeHandler() {
-        // Make sure to clear the `presentedStateChangeHandler` first so that `AppUiStateMachineManagerImpl`
-        // doesn't think something is still being presented if other models are emitted from the state
+        // Make sure to clear the `presentedStateChangeHandler` first so that
+        // `AppUiStateMachineManagerImpl`
+        // doesn't think something is still being presented if other models are emitted from the
+        // state
         // machine while the dismissal animation is happening
         presentedStateChangeHandler = nil
         rootStateChangeHandler.navViewController.dismiss(animated: true, completion: .none)

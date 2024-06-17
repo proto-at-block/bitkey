@@ -14,15 +14,22 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                 isReceive: false,
                 isFeeBumpEnabled: false,
                 content: [
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
-                            .init(withTitle: "Confirmed at", titleIcon: nil, onTitle: {}, sideText: "03-17-1963", secondarySideText: nil, showBottomDivider: false)
+                            .init(
+                                withTitle: "Confirmed at",
+                                titleIcon: nil,
+                                onTitle: {},
+                                sideText: "03-17-1963",
+                                secondarySideText: nil,
+                                showBottomDivider: false
+                            ),
                         ],
                         total: nil,
                         buttons: []
                     ),
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
@@ -40,7 +47,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 sideText: "5,526 sats",
                                 secondarySideText: nil,
                                 showBottomDivider: false
-                            )
+                            ),
                         ],
                         total: .init(
                             withTitle: "Total",
@@ -67,13 +74,20 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                 isReceive: true,
                 isFeeBumpEnabled: false,
                 content: [
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
-                        items: [.init(withTitle: "Confirmed at", titleIcon: nil, onTitle: {}, sideText: "03-17-1963", secondarySideText: nil, showBottomDivider: false)],
+                        items: [.init(
+                            withTitle: "Confirmed at",
+                            titleIcon: nil,
+                            onTitle: {},
+                            sideText: "03-17-1963",
+                            secondarySideText: nil,
+                            showBottomDivider: false
+                        )],
                         total: nil,
                         buttons: []
                     ),
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
@@ -83,7 +97,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 sideText: "35,584 sats",
                                 secondarySideText: nil,
                                 showBottomDivider: false
-                            )
+                            ),
                         ],
                         total: .init(
                             withTitle: "Total",
@@ -102,7 +116,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
 
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_transaction_detail_pending() {
         let view = FormView(
             viewModel: .transactionDetailModel(
@@ -111,7 +125,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                 isReceive: false,
                 isFeeBumpEnabled: false,
                 content: [
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
@@ -119,12 +133,12 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 titleIcon: nil,
                                 onTitle: nil,
                                 sideText: "Feb 1 at 5:44pm"
-                            )
+                            ),
                         ],
                         total: nil,
                         buttons: []
                     ),
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
@@ -142,7 +156,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 sideText: "$1.36",
                                 secondarySideText: nil,
                                 showBottomDivider: false
-                            )
+                            ),
                         ],
                         total: .init(
                             withTitle: "Total",
@@ -161,7 +175,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
 
         assertBitkeySnapshots(view: view)
     }
-    
+
     func test_transaction_detail_pending_late() {
         let view = FormView(
             viewModel: .transactionDetailModel(
@@ -170,7 +184,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                 isReceive: false,
                 isFeeBumpEnabled: true,
                 content: [
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
@@ -183,12 +197,14 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 secondarySideText: "7m late",
                                 secondarySideTextType: .bold,
                                 secondarySideTextTreatment: .warning,
-                                explainer: FormMainContentModelDataList.DataExplainer(
+                                explainer: FormMainContentModel.DataListDataExplainer(
                                     title: "Taking longer than usual",
                                     subtitle: "You can either wait for this transaction to be confirmed or speed it up – you'll need to pay a higher network fee.",
                                     iconButton: IconButtonModel(
                                         iconModel: IconModel(
-                                            iconImage: .LocalImage(icon: .smalliconinformationfilled),
+                                            iconImage: .LocalImage(
+                                                icon: .smalliconinformationfilled
+                                            ),
                                             iconSize: .xsmall,
                                             iconBackgroundType: IconBackgroundTypeCircle(
                                                 circleSize: .xsmall,
@@ -203,12 +219,12 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                         enabled: true
                                     )
                                 )
-                            )
+                            ),
                         ],
                         total: nil,
                         buttons: []
                     ),
-                    FormMainContentModelDataList(
+                    FormMainContentModel.DataList(
                         hero: nil,
                         items: [
                             .init(
@@ -226,7 +242,7 @@ final class TransactionDetailSnapshotTests: XCTestCase {
                                 sideText: "$1.36",
                                 secondarySideText: nil,
                                 showBottomDivider: false
-                            )
+                            ),
                         ],
                         total: .init(
                             withTitle: "Total",
@@ -257,25 +273,24 @@ private extension FormBodyModel {
         isDelayed: Bool = false,
         isReceive: Bool,
         isFeeBumpEnabled: Bool,
-        content: [FormMainContentModelDataList]
+        content: [FormMainContentModel.DataList]
     ) -> FormBodyModel {
         let recipientAddress = "bc1q xy2k gdyg jrsq tzq2 n0yr f249 3p83 kkfj hx0w lh"
-        let txStatusModel: TxStatusModel
-        if (isPending) {
-            txStatusModel = TxStatusModelPending(
+        let txStatusModel: TxStatusModel = if isPending {
+            TxStatusModelPending(
                 isIncoming: isReceive,
                 recipientAddress: recipientAddress,
                 isLate: isDelayed
             )
         } else {
-            txStatusModel = TxStatusModelConfirmed(
+            TxStatusModelConfirmed(
                 isIncoming: isReceive,
                 recipientAddress: recipientAddress
             )
         }
-        
+
         return TransactionDetailModelKt.TransactionDetailModel(
-            feeBumpEnabled: isFeeBumpEnabled, 
+            feeBumpEnabled: isFeeBumpEnabled,
             txStatusModel: txStatusModel,
             isLoading: false,
             onLoaded: { _ in },

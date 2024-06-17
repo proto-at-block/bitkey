@@ -8,6 +8,7 @@ import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.FullAccountConfigMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.immutableListOf
@@ -25,6 +26,7 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
+import build.wallet.statemachine.data.recovery.sweep.SweepData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.AwaitingHardwareSignedSweepsData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratePsbtsFailedData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
@@ -33,6 +35,8 @@ import build.wallet.statemachine.data.recovery.sweep.SweepData.PsbtsGeneratedDat
 import build.wallet.statemachine.data.recovery.sweep.SweepData.SigningAndBroadcastingSweepsData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
 import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepFailedData
+import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
+import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
 import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
@@ -70,19 +74,27 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       ) {}
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val sweepDataStateMachine =
+    object : SweepDataStateMachine, StateMachineMock<SweepDataProps, SweepData>(
+      GeneratingPsbtsData
+    ) {}
   val sweepStateMachine = SweepUiStateMachineImpl(
     nfcSessionUIStateMachine,
     moneyAmountUiStateMachine,
-    fiatCurrencyPreferenceRepository
+    fiatCurrencyPreferenceRepository,
+    sweepDataStateMachine
   )
   val props = SweepUiProps(
-    sweepData = GeneratingPsbtsData(App),
     onExit = onExitCallback,
-    presentationStyle = Root
+    presentationStyle = Root,
+    keybox = KeyboxMock,
+    recoveredFactor = App,
+    onSuccess = {}
   )
 
   beforeTest {
     fiatCurrencyPreferenceRepository.reset()
+    sweepDataStateMachine.reset()
   }
 
   test("no funds found") {
@@ -90,8 +102,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(props.copy(sweepData = NoFundsFoundData(App, {})))
-
+      sweepDataStateMachine.emitModel(NoFundsFoundData(proceed = {}))
       awaitScreenWithBody<FormBodyModel> {
         header.shouldNotBeNull().headline.shouldBe("No funds found")
       }
@@ -103,10 +114,8 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(
-        props.copy(
-          sweepData = GeneratePsbtsFailedData(App, FailedToListKeysets, retry = onRetryCallback)
-        )
+      sweepDataStateMachine.emitModel(
+        GeneratePsbtsFailedData(FailedToListKeysets, retry = onRetryCallback)
       )
       awaitScreenWithBody<FormBodyModel> {
         onBack!!()
@@ -120,14 +129,10 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(
-        props.copy(
-          sweepData =
-            PsbtsGeneratedData(
-              recoveredFactor = App,
-              totalFeeAmount = PsbtMock.fee,
-              startSweep = { startSweepCalls += Unit }
-            )
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount = PsbtMock.fee,
+          startSweep = { startSweepCalls += Unit }
         )
       )
       awaitScreenWithBody<FormBodyModel> {
@@ -136,12 +141,12 @@ class SweepUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
       startSweepCalls.awaitItem()
-      updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(props.copy(sweepData = SweepCompleteData(App, {})))
+      sweepDataStateMachine.emitModel(SweepCompleteData({}))
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         clickPrimaryButton()
@@ -171,16 +176,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         PsbtMock.fee + PsbtMock.fee
       val needsHwSign = mapOf(SpendingKeysetMock2 to sweepPsbts[1].psbt).toImmutableMap()
       val hwSignedPsbts = immutableListOf(sweepPsbts[1].psbt.copy(base64 = "hw-signed"))
-      updateProps(
-        props.copy(
-          sweepData =
-            PsbtsGeneratedData(
-              recoveredFactor = App,
-              totalFeeAmount = totalFeeAmount,
-              startSweep = { startSweepCalls += Unit }
-            )
-        )
-      )
+      sweepDataStateMachine.emitModel(PsbtsGeneratedData(totalFeeAmount, { startSweepCalls += Unit }))
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
         header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain(
@@ -189,15 +185,11 @@ class SweepUiStateMachineImplTests : FunSpec({
         clickPrimaryButton()
       }
       startSweepCalls.awaitItem()
-      updateProps(
-        props.copy(
-          sweepData =
-            AwaitingHardwareSignedSweepsData(
-              recoveredFactor = App,
-              fullAccountConfig = FullAccountConfigMock,
-              needsHwSign = needsHwSign,
-              addHwSignedSweeps = { addHwSignedSweepsCalls += it }
-            )
+      sweepDataStateMachine.emitModel(
+        AwaitingHardwareSignedSweepsData(
+          fullAccountConfig = FullAccountConfigMock,
+          needsHwSign = needsHwSign,
+          addHwSignedSweeps = { addHwSignedSweepsCalls += it }
         )
       )
       awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<ImmutableList<Psbt>>>(
@@ -210,12 +202,12 @@ class SweepUiStateMachineImplTests : FunSpec({
         onSuccess(hwSignedPsbts)
       }
       addHwSignedSweepsCalls.awaitItem().shouldBe(hwSignedPsbts)
-      updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(props.copy(sweepData = SweepCompleteData(App, {})))
+      sweepDataStateMachine.emitModel(SweepCompleteData({}))
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
         primaryButton!!.onClick()
@@ -228,14 +220,10 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(
-        props.copy(
-          sweepData =
-            PsbtsGeneratedData(
-              recoveredFactor = App,
-              totalFeeAmount = PsbtMock.fee,
-              startSweep = { startSweepCalls += Unit }
-            )
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount = PsbtMock.fee,
+          startSweep = { startSweepCalls += Unit }
         )
       )
       awaitScreenWithBody<FormBodyModel> {
@@ -246,14 +234,12 @@ class SweepUiStateMachineImplTests : FunSpec({
         primaryButton!!.onClick()
       }
       startSweepCalls.awaitItem()
-      updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(
-        props.copy(
-          sweepData = SweepFailedData(App, Generic(Exception("Dang."), null), onRetryCallback)
-        )
+      sweepDataStateMachine.emitModel(
+        SweepFailedData(Generic(Exception("Dang."), null), onRetryCallback)
       )
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
@@ -268,14 +254,10 @@ class SweepUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(
-        props.copy(
-          sweepData =
-            PsbtsGeneratedData(
-              recoveredFactor = App,
-              totalFeeAmount = PsbtMock.fee,
-              startSweep = { startSweepCalls += Unit }
-            )
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount = PsbtMock.fee,
+          startSweep = { startSweepCalls += Unit }
         )
       )
       awaitScreenWithBody<FormBodyModel> {
@@ -284,14 +266,12 @@ class SweepUiStateMachineImplTests : FunSpec({
         primaryButton!!.onClick()
       }
       startSweepCalls.awaitItem()
-      updateProps(props.copy(sweepData = SigningAndBroadcastingSweepsData(App)))
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
-      updateProps(
-        props.copy(
-          sweepData = SweepFailedData(App, Generic(Exception("Dang."), null), onRetryCallback)
-        )
+      sweepDataStateMachine.emitModel(
+        SweepFailedData(Generic(Exception("Dang."), null), onRetryCallback)
       )
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
@@ -300,7 +280,7 @@ class SweepUiStateMachineImplTests : FunSpec({
       onRetryCalls.awaitItem()
 
       // Go back to initial state
-      updateProps(props)
+      sweepDataStateMachine.emitModel(GeneratingPsbtsData)
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)

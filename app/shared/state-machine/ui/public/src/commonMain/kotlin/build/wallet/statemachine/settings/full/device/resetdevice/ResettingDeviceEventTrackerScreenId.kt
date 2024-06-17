@@ -9,6 +9,9 @@ enum class ResettingDeviceEventTrackerScreenId : EventTrackerScreenId {
   /** Scan to confirm device sheet */
   RESET_DEVICE_SCAN_SHEET,
 
+  /** Reset device spendable balance check error screen */
+  RESET_DEVICE_BALANCE_CHECK_ERROR,
+
   /** Transfer funds sheet */
   RESET_DEVICE_TRANSFER_FUNDS,
 

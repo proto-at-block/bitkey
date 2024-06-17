@@ -4,6 +4,7 @@ import build.wallet.platform.PlatformContext
 import build.wallet.platform.UNAuthorizationStatusExtensions
 import build.wallet.platform.permissions.PermissionStatus.NotDetermined
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import platform.UserNotifications.UNUserNotificationCenter
 
 actual class PushNotificationPermissionStatusProviderImpl actual constructor(
@@ -29,7 +30,7 @@ actual class PushNotificationPermissionStatusProviderImpl actual constructor(
     }
   }
 
-  override fun pushNotificationStatus() = statusFlow
+  override fun pushNotificationStatus(): StateFlow<PermissionStatus> = statusFlow
 
   override fun updatePushNotificationStatus(status: PermissionStatus) {
     statusFlow.tryEmit(status)

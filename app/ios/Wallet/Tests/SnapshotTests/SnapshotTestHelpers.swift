@@ -7,7 +7,7 @@ import XCTest
 @testable import Wallet
 
 extension XCTestCase {
-    
+
     private var isRecording: Bool {
         UserDefaults.standard.bool(forKey: "is-recording")
     }
@@ -22,17 +22,16 @@ extension XCTestCase {
         fileName: String = #function,
         precision: Float = 0.9992
     ) {
-        let viewController: UIViewController
-        if let screenModel = screenModel {
-            viewController = SwiftUIWrapperViewController(view, screenModel: screenModel)
+        let viewController: UIViewController = if let screenModel {
+            SwiftUIWrapperViewController(view, screenModel: screenModel)
         } else {
-            viewController = UIHostingController(rootView: view)
+            UIHostingController(rootView: view)
         }
 
         let iPhoneSEResult = verifySnapshot(
             matching: viewController,
             as: .image(
-                drawHierarchyInKeyWindow: usesVisualEffect, 
+                drawHierarchyInKeyWindow: usesVisualEffect,
                 precision: precision,
                 perceptualPrecision: precision,
                 size: ViewImageConfig.iPhoneSe.size,
@@ -61,7 +60,7 @@ extension XCTestCase {
 
         XCTAssertNil(iPhone15ProMax)
     }
-    
+
     func assertBitkeySnapshot(
         image: UIImage,
         fileName: String = #function,
@@ -76,14 +75,14 @@ extension XCTestCase {
             record: isRecording,
             testName: fileName
         )
-        
+
         XCTAssertNil(result)
     }
 
     func assertBitkeySnapshot(
         pdf: PDFDocument,
         fileName: String = #function,
-        precision: Float = 0.995
+        precision _: Float = 0.995
     ) {
         let result = verifySnapshot(
             of: pdf,
@@ -91,10 +90,10 @@ extension XCTestCase {
             record: isRecording,
             testName: fileName
         )
-        
+
         XCTAssertNil(result)
     }
-    
+
 }
 
 // MARK: -
@@ -133,7 +132,11 @@ extension ScreenModel {
 
 extension StatusBannerModel {
     static func snapshotTest() -> StatusBannerModel {
-        return StatusBannerModel(title: "Offline", subtitle: "Balance last updated at 9:43pm", onClick: {})
+        return StatusBannerModel(
+            title: "Offline",
+            subtitle: "Balance last updated at 9:43pm",
+            onClick: {}
+        )
     }
 }
 
@@ -156,7 +159,7 @@ extension ButtonModel {
             treatment: treatment,
             size: size,
             testTag: nil,
-            onClick: StandardClick { }
+            onClick: StandardClick {}
         )
     }
 }
@@ -171,17 +174,17 @@ extension ListModel {
             ListGroupModel(
                 header: nil,
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
-                style: .none, 
+                style: .none,
                 headerTreatment: .secondary,
                 footerButton: nil
             ),
             ListGroupModel(
                 header: nil,
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
-                style: .none, 
+                style: .none,
                 headerTreatment: .secondary,
                 footerButton: nil
-            )
+            ),
         ]
     )
 
@@ -215,7 +218,7 @@ extension ListItemModel {
 
 // MARK: -
 
-fileprivate extension Snapshotting where Value == PDFDocument, Format == PDFDocument {
+private extension Snapshotting where Value == PDFDocument, Format == PDFDocument {
     static var pdf: Snapshotting {
         return .init(
             pathExtension: "pdf",
@@ -225,17 +228,17 @@ fileprivate extension Snapshotting where Value == PDFDocument, Format == PDFDocu
                 diff: { old, new in
                     let oldImages = old.pageImages
                     let newImages = new.pageImages
-                    
+
                     if oldImages.count != newImages.count {
                         return ("Different number of pages", [])
                     }
-                    
+
                     for (oldImage, newImage) in zip(oldImages, newImages) {
                         if let imageDiff = Diffing.image.diff(oldImage, newImage) {
                             return imageDiff
                         }
                     }
-                    
+
                     return nil
                 }
             )
@@ -246,10 +249,10 @@ fileprivate extension Snapshotting where Value == PDFDocument, Format == PDFDocu
 extension PDFDocument {
     var pageImages: [UIImage] {
         var images: [UIImage] = []
-        
-        for pageIndex in 0..<pageCount {
+
+        for pageIndex in 0 ..< pageCount {
             guard let page = page(at: pageIndex) else { continue }
-            
+
             let pageRect = page.bounds(for: .mediaBox)
             let renderer = UIGraphicsImageRenderer(size: pageRect.size)
             let pageImage = renderer.image { context in
@@ -259,10 +262,10 @@ extension PDFDocument {
                 context.cgContext.scaleBy(x: 1.0, y: -1.0)
                 context.cgContext.drawPDFPage(page.pageRef!)
             }
-            
+
             images.append(pageImage)
         }
-        
+
         return images
     }
 }

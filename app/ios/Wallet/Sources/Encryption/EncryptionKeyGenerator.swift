@@ -3,7 +3,7 @@ import Foundation
 
 /// Provides tools for generating keys to be used for encrypting data.
 public protocol EncryptionKeyGenerator: AnyObject {
-    
+
     /// Generates and returns a 256-bit encryption key.
     /// - Returns: The encryption key.
     func generateEncryptionKey() -> [UInt8]

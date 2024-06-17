@@ -8,8 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.VerifyTouchpointClientErrorCode
-import build.wallet.f8e.notifications.NotificationTouchpointService
-import build.wallet.f8e.recovery.RecoveryNotificationVerificationService
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
+import build.wallet.f8e.recovery.RecoveryNotificationVerificationF8eClient
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.notifications.NotificationTouchpoint
@@ -33,8 +33,8 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class RecoveryNotificationVerificationDataStateMachineImpl(
-  private val notificationTouchpointService: NotificationTouchpointService,
-  private val recoveryNotificationVerificationService: RecoveryNotificationVerificationService,
+  private val notificationTouchpointF8eClient: NotificationTouchpointF8eClient,
+  private val recoveryNotificationVerificationF8eClient: RecoveryNotificationVerificationF8eClient,
 ) : RecoveryNotificationVerificationDataStateMachine {
   @Composable
   override fun model(
@@ -45,7 +45,7 @@ class RecoveryNotificationVerificationDataStateMachineImpl(
     return when (val state = dataState) {
       is LoadingNotificationTouchpointDataState -> {
         LaunchedEffect("load-notifications") {
-          notificationTouchpointService.getTouchpoints(
+          notificationTouchpointF8eClient.getTouchpoints(
             f8eEnvironment = props.f8eEnvironment,
             fullAccountId = props.fullAccountId
           )
@@ -111,7 +111,7 @@ class RecoveryNotificationVerificationDataStateMachineImpl(
 
       is SendingNotificationTouchpointToServerDataState -> {
         LaunchedEffect("send-touchpoint-to-server") {
-          recoveryNotificationVerificationService.sendVerificationCodeToTouchpoint(
+          recoveryNotificationVerificationF8eClient.sendVerificationCodeToTouchpoint(
             f8eEnvironment = props.f8eEnvironment,
             fullAccountId = props.fullAccountId,
             touchpoint = state.touchpoint,
@@ -162,7 +162,7 @@ class RecoveryNotificationVerificationDataStateMachineImpl(
 
         if (isResendingCode) {
           LaunchedEffect("send-touchpoint-to-server") {
-            recoveryNotificationVerificationService.sendVerificationCodeToTouchpoint(
+            recoveryNotificationVerificationF8eClient.sendVerificationCodeToTouchpoint(
               f8eEnvironment = props.f8eEnvironment,
               fullAccountId = props.fullAccountId,
               touchpoint = state.touchpoint,
@@ -203,7 +203,7 @@ class RecoveryNotificationVerificationDataStateMachineImpl(
 
       is SendingVerificationCodeToServerDataState -> {
         LaunchedEffect("send-verification-code-to-server") {
-          recoveryNotificationVerificationService.verifyCode(
+          recoveryNotificationVerificationF8eClient.verifyCode(
             f8eEnvironment = props.f8eEnvironment,
             fullAccountId = props.fullAccountId,
             verificationCode = state.verificationCode,

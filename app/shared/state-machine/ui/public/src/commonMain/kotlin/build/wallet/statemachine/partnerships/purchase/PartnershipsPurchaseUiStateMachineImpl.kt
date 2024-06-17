@@ -9,9 +9,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.partnerships.GetPurchaseOptionsService
-import build.wallet.f8e.partnerships.GetPurchaseQuoteListService
-import build.wallet.f8e.partnerships.GetPurchaseRedirectService
+import build.wallet.f8e.partnerships.GetPurchaseOptionsF8eClient
+import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClient
+import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClient
 import build.wallet.f8e.partnerships.NoPurchaseOptionsError
 import build.wallet.f8e.partnerships.PurchaseMethodAmounts
 import build.wallet.f8e.partnerships.Quote
@@ -43,7 +43,7 @@ import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.QuotesState
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.RedirectState
 import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.coroutines.binding.binding
+import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -57,9 +57,9 @@ private const val MAX_DISPLAY_OPTIONS = 5
 
 class PartnershipsPurchaseUiStateMachineImpl(
   val moneyDisplayFormatter: MoneyDisplayFormatter,
-  private val getPurchaseOptionsService: GetPurchaseOptionsService,
-  private val getPurchaseQuoteListService: GetPurchaseQuoteListService,
-  private val getPurchaseRedirectService: GetPurchaseRedirectService,
+  private val getPurchaseOptionsF8eClient: GetPurchaseOptionsF8eClient,
+  private val getPurchaseQuoteListF8eClient: GetPurchaseQuoteListF8eClient,
+  private val getPurchaseRedirectF8eClient: GetPurchaseRedirectF8eClient,
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : PartnershipsPurchaseUiStateMachine {
@@ -162,7 +162,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
         )
       is QuotesState.Loading -> {
         LaunchedEffect("load-partnerships-quotes") {
-          getPurchaseQuoteListService
+          getPurchaseQuoteListF8eClient
             .purchaseQuotes(
               fullAccountId = props.keybox.fullAccountId,
               f8eEnvironment = props.keybox.config.f8eEnvironment,
@@ -191,7 +191,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
       }
       is RedirectState.Loading -> {
         LaunchedEffect("load-purchase-partner-redirect-info") {
-          binding {
+          coroutineBinding {
             val localTransaction = partnershipsRepository.create(
               partnerInfo = currentState.quote.partnerInfo,
               type = PartnershipTransactionType.PURCHASE
@@ -237,11 +237,11 @@ class PartnershipsPurchaseUiStateMachineImpl(
     props: PartnershipsPurchaseUiProps,
     redirectLoadingState: RedirectState.Loading,
     localTransactionId: PartnershipTransactionId,
-  ): Result<GetPurchaseRedirectService.Success, Throwable> =
-    binding {
+  ): Result<GetPurchaseRedirectF8eClient.Success, Throwable> =
+    coroutineBinding {
       props.generateAddress()
         .flatMap { address ->
-          getPurchaseRedirectService.purchaseRedirect(
+          getPurchaseRedirectF8eClient.purchaseRedirect(
             fullAccountId = props.keybox.fullAccountId,
             address = address,
             f8eEnvironment = props.keybox.config.f8eEnvironment,
@@ -307,7 +307,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
     props: PartnershipsPurchaseUiProps,
     fiatCurrency: FiatCurrency,
   ): Result<PurchaseMethodAmounts, Error> {
-    return getPurchaseOptionsService
+    return getPurchaseOptionsF8eClient
       .purchaseOptions(
         fullAccountId = props.keybox.fullAccountId,
         f8eEnvironment = props.keybox.config.f8eEnvironment,

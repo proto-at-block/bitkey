@@ -7,15 +7,15 @@ import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.auth.AuthenticationService
-import build.wallet.f8e.auth.AuthenticationServiceMock
-import com.github.michaelbull.result.Err
+import build.wallet.f8e.auth.AuthF8eClient
+import build.wallet.f8e.auth.AuthF8eClientMock
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.mapError
 
 class AccountAuthenticatorMock(
   turbine: (String) -> Turbine<Any>,
-  private val authenticationService: AuthenticationService = AuthenticationServiceMock(),
+  private val authF8eClient: AuthF8eClient = AuthF8eClientMock(),
 ) : AccountAuthenticator {
   val defaultAuthResult: Result<AuthData, AuthError> =
     Ok(
@@ -59,10 +59,10 @@ class AccountAuthenticatorMock(
     f8eEnvironment: F8eEnvironment,
     refreshToken: RefreshToken,
   ): Result<AccountAuthTokens, AuthError> {
-    return when (val result = authenticationService.refreshToken(f8eEnvironment, refreshToken)) {
-      is Err -> Err(AuthProtocolError("Could not refresh tokens"))
-      is Ok -> result
-    }
+    return authF8eClient.refreshToken(f8eEnvironment, refreshToken)
+      .mapError {
+        AuthProtocolError("Could not refresh tokens")
+      }
   }
 
   fun reset() {
