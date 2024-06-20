@@ -77,10 +77,10 @@ class DemoModeCodeEntryUiStateMachineImpl(
           }.mapBoth(
             success = {
               uiState = DemoModeState.DemoCodeEntryIdleState
+              props.onCodeSuccess()
             },
             failure = {
               uiState = DemoModeState.DemoCodeEntryIdleState
-              props.onCodeSuccess()
             }
           )
         }
