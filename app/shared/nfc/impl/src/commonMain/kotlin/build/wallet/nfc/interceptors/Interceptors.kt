@@ -1,5 +1,6 @@
 package build.wallet.nfc.interceptors
 
+import build.wallet.catchingResult
 import build.wallet.logging.LogLevel
 import build.wallet.logging.NFC_TAG
 import build.wallet.logging.log
@@ -7,7 +8,6 @@ import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.nfc.platform.NfcCommands
-import com.github.michaelbull.result.coroutines.runSuspendCatching
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -33,7 +33,7 @@ fun iosMessages() =
 fun sessionLogger() =
   NfcTransactionInterceptor { next ->
     { session, commands ->
-      runSuspendCatching { next(session, commands) }
+      catchingResult { next(session, commands) }
         .onFailure { log(LogLevel.Info, tag = NFC_TAG, throwable = it) { "NFC Session Error" } }
         .getOrThrow()
     }
@@ -47,7 +47,7 @@ fun haptics(nfcHaptics: NfcHaptics) =
   NfcTransactionInterceptor { next ->
     { session, commands ->
       session.parameters.onTagConnectedObservers += { nfcHaptics.vibrateConnection() }
-      runSuspendCatching { next(session, commands) }
+      catchingResult { next(session, commands) }
         .onSuccess { nfcHaptics.vibrateSuccess() }
         .onFailure { nfcHaptics.vibrateFailure() }
         .getOrThrow()
@@ -77,7 +77,7 @@ fun timeoutSession(
 fun lockDevice() =
   NfcTransactionInterceptor { next ->
     { session, commands ->
-      runSuspendCatching { next(session, commands) }
+      catchingResult { next(session, commands) }
         .onFailure {
           // An NfcException indicates the session is almost certainly invalidated
           if (it is NfcException) return@onFailure

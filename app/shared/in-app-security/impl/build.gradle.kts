@@ -19,6 +19,7 @@ kotlin {
         implementation(projects.shared.analyticsFake)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.inAppSecurityFake)
       }
     }
   }

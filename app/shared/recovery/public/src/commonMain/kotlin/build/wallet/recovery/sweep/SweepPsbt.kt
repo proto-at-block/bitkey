@@ -5,16 +5,21 @@ import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.spending.SpendingKeyset
 
 /**
- * A sweep transaction that can be signed by the user.
+ * Represents a [Psbt] that will sweep funds from the source keyset to
+ * a destination preset in the [psbt].
  */
 data class SweepPsbt(
   /**
-   * Partially signed transaction that will sweep all funds for a wallet to the
-   * destination wallet
+   * A psbt will sweep funds from the source keyset to the destination.
    */
   val psbt: Psbt,
-  /** The signing factor that is able to sign the transaction */
+  /**
+   * Customer's physical factor (app or hardware) that is able to sign this psbt.
+   * In the context of recovery, this is the factor that customer still has access to.
+   */
   val signingFactor: PhysicalFactor,
-  /** The keyset for the source wallet */
-  val keyset: SpendingKeyset,
+  /**
+   * Keyset from which funds will be swept.
+   */
+  val sourceKeyset: SpendingKeyset,
 )

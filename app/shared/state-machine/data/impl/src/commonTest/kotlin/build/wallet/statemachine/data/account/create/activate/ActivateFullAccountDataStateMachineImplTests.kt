@@ -12,8 +12,8 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.onboarding.OnboardingF8eClientMock
 import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.feature.setFlagValue
-import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.home.GettingStartedTaskDaoMock

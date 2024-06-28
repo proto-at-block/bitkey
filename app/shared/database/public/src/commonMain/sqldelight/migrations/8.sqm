@@ -1,0 +1,10 @@
+import kotlin.Boolean;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE coachmarkEntity(
+  coachmarkId   TEXT NOT NULL PRIMARY KEY,
+  viewed        INTEGER AS Boolean NOT NULL,
+  expiration    INTEGER AS Instant NOT NULL
+);
+
+PRAGMA foreign_key_check;

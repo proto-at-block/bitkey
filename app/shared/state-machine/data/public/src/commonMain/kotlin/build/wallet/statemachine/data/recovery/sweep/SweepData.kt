@@ -2,11 +2,8 @@ package build.wallet.statemachine.data.recovery.sweep
 
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.money.BitcoinMoney
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.ImmutableMap
+import build.wallet.recovery.sweep.SweepPsbt
 
 sealed interface SweepData {
   /** Initial state */
@@ -14,7 +11,7 @@ sealed interface SweepData {
 
   /** Error state */
   data class GeneratePsbtsFailedData(
-    val error: SweepGeneratorError,
+    val error: Error,
     val retry: () -> Unit,
   ) : SweepData
 
@@ -40,6 +37,7 @@ sealed interface SweepData {
    */
   data class PsbtsGeneratedData(
     val totalFeeAmount: BitcoinMoney,
+    val totalTransferAmount: BitcoinMoney,
     val startSweep: () -> Unit,
   ) : SweepData
 
@@ -52,8 +50,8 @@ sealed interface SweepData {
    */
   data class AwaitingHardwareSignedSweepsData(
     val fullAccountConfig: FullAccountConfig,
-    val needsHwSign: ImmutableMap<SpendingKeyset, Psbt>,
-    val addHwSignedSweeps: (ImmutableList<Psbt>) -> Unit,
+    val needsHwSign: Set<SweepPsbt>,
+    val addHwSignedSweeps: (Set<Psbt>) -> Unit,
   ) : SweepData
 
   /**

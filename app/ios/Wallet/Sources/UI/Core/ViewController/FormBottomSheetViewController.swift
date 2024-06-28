@@ -32,8 +32,8 @@ class BottomSheetViewController: UIHostingController<FormViewBottomSheet>,
         // and use that to send to the presentation detents
         totalHeightSubject
             .receive(on: RunLoop.main)
-            .sink(receiveValue: { newTotalHeight in
-                self.updateSheetDetents(totalHeight: newTotalHeight)
+            .sink(receiveValue: { [weak self] newTotalHeight in
+                self?.updateSheetDetents(totalHeight: newTotalHeight)
             })
             .store(in: &cancellablesBag)
     }

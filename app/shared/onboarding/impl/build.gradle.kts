@@ -21,7 +21,19 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.shared.authFake)
+        implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.f8eClientFake)
+        implementation(projects.shared.f8eFake)
         implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.testingPublic)
+      }
+    }
+
+    val jvmIntegrationTest by getting {
+      dependencies {
+        implementation(projects.shared.integrationTestingPublic)
       }
     }
   }

@@ -40,7 +40,13 @@ public struct CollapsibleLabelContainer<
                 .scaleEffect(collapsed ? 1 : 1.2)
         }
         .transition(.scale(scale: 1))
-        .animation(.snappy, value: collapsed)
+        .animation(.customSpring, value: collapsed)
+    }
+}
+
+private extension Animation {
+    static var customSpring: Animation {
+        return Animation.interpolatingSpring(mass: 0.7, stiffness: 100, damping: 14, initialVelocity: 0).speed(1.8)
     }
 }
 

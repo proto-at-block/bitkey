@@ -1,21 +1,20 @@
 package build.wallet.statemachine.account
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
+import androidx.compose.runtime.*
+import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
-import build.wallet.feature.FeatureFlag
-import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
+import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.platform.config.AppVariant
+import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.statemachine.account.ChooseAccountAccessUiStateMachineImpl.State.*
+import build.wallet.statemachine.account.create.CreateAccountOptionsModel
+import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
+import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.demo.DemoModeConfigUiProps
 import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
@@ -28,178 +27,117 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val demoModeConfigUiStateMachine: DemoModeConfigUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
-  private val resetDeviceIsEnabledFeatureFlag: FeatureFlag<FeatureFlagValue.BooleanFlag>,
+  private val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag,
+  private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
+  private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
 ) : ChooseAccountAccessUiStateMachine {
   @Composable
   override fun model(props: ChooseAccountAccessUiProps): ScreenModel {
-    var uiState: State by remember { mutableStateOf(State.ShowingChooseAccountAccess) }
-    var alert by remember { mutableStateOf<ButtonAlertModel?>(null) }
+    var state: State by remember { mutableStateOf(ShowingChooseAccountAccess) }
 
-    val eakAssociation = remember { emergencyAccessKitDataProvider.getAssociatedEakData() }
+    val isEakBuild = remember { emergencyAccessKitDataProvider.getAssociatedEakData() == EakBuild }
+    val softwareWalletFlag by remember { softwareWalletIsEnabledFeatureFlag.flagValue() }.collectAsState()
 
-    val onBeTrustedContact: (() -> Unit)? =
-      remember(eakAssociation) {
-        when (eakAssociation) {
-          EmergencyAccessKitAssociation.EakBuild -> null
-          else -> ({ uiState = State.ShowingBeTrustedContactIntroduction })
-        }
-      }
-
-    val onRestoreEmergencyAccessKit: (() -> Unit)? =
-      remember(eakAssociation) {
-        when (eakAssociation) {
-          EmergencyAccessKitAssociation.EakBuild ->
-            props.chooseAccountAccessData.startEmergencyAccessRecovery
-          else -> null
-        }
-      }
-
-    val onRestoreYourWallet: (() -> Unit)? =
-      remember(eakAssociation) {
-        when (eakAssociation) {
-          EmergencyAccessKitAssociation.EakBuild -> null
-          else -> props.chooseAccountAccessData.startRecovery
-        }
-      }
-
-    val onResetExistingDevice: (() -> Unit)? =
-      if (resetDeviceIsEnabledFeatureFlag.isEnabled()) {
-        remember(eakAssociation) {
-          when (eakAssociation) {
-            EmergencyAccessKitAssociation.EakBuild -> null
-            else -> props.chooseAccountAccessData.resetExistingDevice
+    return when (state) {
+      is ShowingCreateAccountOptions -> {
+        CreateAccountOptionsModel(
+          onBack = { state = ShowingChooseAccountAccess },
+          onUseHardwareClick = props.chooseAccountAccessData.startFullAccountCreation,
+          onUseThisDeviceClick = {
+            state = CreatingSoftwareWallet
           }
-        }
-      } else {
-        null
+        ).asRootScreen()
       }
-
-    return when (uiState) {
-      is State.ShowingChooseAccountAccess ->
-        ChooseAccountAccessScreen(
+      is ShowingChooseAccountAccess -> {
+        var alert: ButtonAlertModel? by remember { mutableStateOf(null) }
+        ChooseAccountAccessModel(
           onLogoClick = {
-            // Only show the debug menu in non-customer builds
+            // Only enable the debug menu in non-customer builds
             when (appVariant) {
-              AppVariant.Customer ->
-                uiState = State.ShowingDemoMode
-
-              AppVariant.Beta, AppVariant.Emergency ->
-                Unit
-
-              AppVariant.Team, AppVariant.Development ->
-                uiState = State.ShowingDebugMenu
+              Customer -> state = ShowingDemoMode
+              Team, Development -> state = ShowingDebugMenu
+              else -> Unit
             }
           },
-          onCreateWallet = props.chooseAccountAccessData.startFullAccountCreation,
-          onMoreOptionsClick = { uiState = State.ShowingAccountAccessMoreOptions },
-          eakAssociation = eakAssociation
-        )
-
-      is State.ShowingAccountAccessMoreOptions ->
-        ScreenModel(
-          body =
-            AccountAccessMoreOptionsFormBodyModel(
-              onBack = { uiState = State.ShowingChooseAccountAccess },
-              onRestoreYourWalletClick = onRestoreYourWallet,
-              onBeTrustedContactClick = onBeTrustedContact,
-              onResetExistingDevice = onResetExistingDevice,
-              onRestoreEmergencyAccessKit = onRestoreEmergencyAccessKit
-            ),
-          presentationStyle = Root,
+          onSetUpNewWalletClick = {
+            if (isEakBuild) {
+              alert = featureUnavailableForEakAlert(onDismiss = { alert = null })
+            } else {
+              if (softwareWalletFlag.value) {
+                state = ShowingCreateAccountOptions
+              } else {
+                props.chooseAccountAccessData.startFullAccountCreation()
+              }
+            }
+          },
+          onMoreOptionsClick = { state = ShowingAccountAccessMoreOptions }
+        ).asRootFullScreen(
+          colorMode = ScreenColorMode.Dark,
           alertModel = alert
         )
+      }
 
-      is State.ShowingBeTrustedContactIntroduction -> {
+      is ShowingAccountAccessMoreOptions -> {
+        if (isEakBuild) {
+          EmergencyAccountAccessMoreOptionsFormBodyModel(
+            onBack = { state = ShowingChooseAccountAccess },
+            onRestoreEmergencyAccessKit = props.chooseAccountAccessData.startEmergencyAccessRecovery
+          ).asRootScreen()
+        } else {
+          val resetDeviceEnabled = resetDeviceIsEnabledFeatureFlag.isEnabled()
+
+          AccountAccessMoreOptionsFormBodyModel(
+            onBack = { state = ShowingChooseAccountAccess },
+            onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
+            onBeTrustedContactClick = {
+              state = ShowingBeTrustedContactIntroduction
+            },
+            onResetExistingDevice = props.chooseAccountAccessData.resetExistingDevice
+              .takeIf { resetDeviceEnabled }
+          ).asRootScreen()
+        }
+      }
+
+      is ShowingBeTrustedContactIntroduction -> {
         BeTrustedContactIntroductionModel(
-          onBack = { uiState = State.ShowingChooseAccountAccess },
+          onBack = { state = ShowingChooseAccountAccess },
           onContinue = props.chooseAccountAccessData.startLiteAccountCreation,
           devicePlatform = deviceInfoProvider.getDeviceInfo().devicePlatform
         ).asRootScreen()
       }
 
-      is State.ShowingDebugMenu ->
-        DebugMenuScreen(
-          props = props,
-          onClose = { uiState = State.ShowingChooseAccountAccess }
-        )
-
-      is State.ShowingDemoMode ->
-        DemoModeConfigScreen(
-          props = props,
-          onClose = { uiState = State.ShowingChooseAccountAccess }
-        )
-    }
-  }
-
-  @Composable
-  private fun ChooseAccountAccessScreen(
-    onLogoClick: () -> Unit,
-    onCreateWallet: () -> Unit,
-    onMoreOptionsClick: () -> Unit,
-    eakAssociation: EmergencyAccessKitAssociation,
-  ): ScreenModel {
-    var alert by remember { mutableStateOf<ButtonAlertModel?>(null) }
-    val showDisabledAlert = {
-      alert = DisabledForEakAlert(onDismiss = { alert = null })
-    }
-
-    return ScreenModel(
-      body =
-        ChooseAccountAccessModel(
-          onLogoClick = onLogoClick,
-          onSetUpNewWalletClick = onCreateWallet.disableForEak(eakAssociation, showDisabledAlert),
-          onMoreOptionsClick = onMoreOptionsClick
-        ),
-      alertModel = alert,
-      presentationStyle = ScreenPresentationStyle.RootFullScreen,
-      colorMode = ScreenColorMode.Dark
-    )
-  }
-
-  @Composable
-  private fun DebugMenuScreen(
-    props: ChooseAccountAccessUiProps,
-    onClose: () -> Unit,
-  ): ScreenModel =
-    debugMenuStateMachine.model(
-      props =
-        DebugMenuProps(
+      is ShowingDebugMenu -> debugMenuStateMachine.model(
+        props = DebugMenuProps(
           accountData = props.chooseAccountAccessData,
           firmwareData = props.firmwareData,
-          onClose = onClose
+          onClose = { state = ShowingChooseAccountAccess }
         )
-    )
+      )
 
-  @Composable
-  private fun DemoModeConfigScreen(
-    props: ChooseAccountAccessUiProps,
-    onClose: () -> Unit,
-  ): ScreenModel =
-    demoModeConfigUiStateMachine.model(
-      props =
-        DemoModeConfigUiProps(
+      is CreatingSoftwareWallet -> createSoftwareWalletUiStateMachine.model(
+        props = CreateSoftwareWalletProps(
+          onExit = {
+            state = ShowingChooseAccountAccess
+          },
+          onSuccess = {
+            // TODO(W-8718): show Money Home for Software Wallet.
+          }
+        )
+      )
+
+      is ShowingDemoMode -> demoModeConfigUiStateMachine.model(
+        props = DemoModeConfigUiProps(
           accountData = props.chooseAccountAccessData,
-          onBack = onClose
+          onBack = { state = ShowingChooseAccountAccess }
         )
-    )
-
-  /**
-   * Disables a callback if the current app is an emergency access kit build.
-   */
-  private fun (() -> Unit).disableForEak(
-    eakAssociation: EmergencyAccessKitAssociation,
-    alert: () -> Unit,
-  ): () -> Unit {
-    return when (eakAssociation) {
-      EmergencyAccessKitAssociation.EakBuild -> alert
-      else -> this
+      )
     }
   }
 
   /**
    * Alert shown when an action taken is disabled due to the app being in Emergency Access Kit mode.
    */
-  private fun DisabledForEakAlert(onDismiss: () -> Unit) =
+  private fun featureUnavailableForEakAlert(onDismiss: () -> Unit) =
     ButtonAlertModel(
       title = "Feature Unavailable",
       subline = "This feature is disabled in the Emergency Access Kit app.",
@@ -207,34 +145,45 @@ class ChooseAccountAccessUiStateMachineImpl(
       onPrimaryButtonClick = onDismiss,
       onDismiss = onDismiss
     )
-}
 
-private sealed interface State {
-  /**
-   * Showing screen allowing customer to choose an option to access an account with,
-   * either 'Set up a new wallet' or 'More options' which progress to
-   */
-  data object ShowingChooseAccountAccess : State
+  private sealed interface State {
+    /**
+     * Showing screen allowing customer to choose an option to access an account with,
+     * either 'Set up a new wallet' or 'More options' which progress to
+     */
+    data object ShowingChooseAccountAccess : State
 
-  /**
-   * Showing screen allowing customer to choose from additional account access options,
-   * 'Be a Trusted Contact' and 'Restore your wallet'.
-   */
-  data object ShowingAccountAccessMoreOptions : State
+    /**
+     * Showing screen allowing customer to choose what type of account/wallet they
+     * want to create: hardware or software.
+     */
+    data object ShowingCreateAccountOptions : State
 
-  /**
-   * Showing screen explaining the process of becoming a trusted contact, before checking for
-   * cloud backup and routing to the appropriate flow.
-   */
-  data object ShowingBeTrustedContactIntroduction : State
+    /**
+     * Showing screen allowing customer to choose from additional account access options,
+     * 'Be a Trusted Contact' and 'Restore your wallet'.
+     */
+    data object ShowingAccountAccessMoreOptions : State
 
-  /**
-   * Showing debug menu which allows updating initial default [FullAccountConfig].
-   */
-  data object ShowingDebugMenu : State
+    /**
+     * Showing screen explaining the process of becoming a trusted contact, before checking for
+     * cloud backup and routing to the appropriate flow.
+     */
+    data object ShowingBeTrustedContactIntroduction : State
 
-  /**
-   * Showing demo mode configuration screen which allows to use the app without physical hardware
-   */
-  data object ShowingDemoMode : State
+    /**
+     * Showing debug menu which allows updating initial default [FullAccountConfig].
+     */
+    data object ShowingDebugMenu : State
+
+    /**
+     * Showing demo mode configuration screen which allows to use the app without physical hardware
+     */
+    data object ShowingDemoMode : State
+
+    /**
+     * Showing flow to create a new software wallet.
+     */
+    data object CreatingSoftwareWallet : State
+  }
 }

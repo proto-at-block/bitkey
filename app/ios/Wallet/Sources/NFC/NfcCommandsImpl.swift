@@ -85,22 +85,50 @@ public final class NfcCommandsImpl: NfcCommands {
     public func getFingerprintEnrollmentStatus(
         session: NfcSession,
         isEnrollmentContextAware: Bool
-    ) async throws -> Shared.FingerprintEnrollmentStatus {
-        let status =
+    ) async throws -> Shared.FingerprintEnrollmentResult {
+        let result =
             try await GetFingerprintEnrollmentStatus(
                 isEnrollmentContextAware: isEnrollmentContextAware
             )
             .transceive(session: session)
-        switch status {
-        case .statusUnspecified:
-            return .unspecified
-        case .incomplete:
-            return .incomplete
-        case .complete:
-            return .complete
-        case .notInProgress:
-            return .notInProgress
+
+        let status: Shared.FingerprintEnrollmentStatus = {
+            switch result.status {
+            case .statusUnspecified:
+                return .unspecified
+            case .incomplete:
+                return .incomplete
+            case .complete:
+                return .complete
+            case .notInProgress:
+                return .notInProgress
+            }
+        }()
+        
+        let diagnostics: Shared.FingerprintEnrollmentDiagnostics?
+        if let diag = result.diagnostics {
+            diagnostics = Shared.FingerprintEnrollmentDiagnostics(
+                fingerCoverageValid: diag.fingerCoverageValid,
+                fingerCoverage: Int32(diag.fingerCoverage),
+                commonModeNoiseValid: diag.commonModeNoiseValid,
+                commonModeNoise: Int32(diag.commonModeNoise),
+                imageQualityValid: diag.imageQualityValid,
+                imageQuality: Int32(diag.imageQuality),
+                sensorCoverageValid: diag.sensorCoverageValid,
+                sensorCoverage: Int32(diag.sensorCoverage),
+                templateDataUpdateValid: diag.templateDataUpdateValid,
+                templateDataUpdate: Int32(diag.templateDataUpdate)
+            )
+        } else {
+            diagnostics = nil
         }
+        
+        return Shared.FingerprintEnrollmentResult(
+            status: status,
+            passCount: result.passCount.map { KotlinUInt(value: $0) },
+            failCount: result.failCount.map { KotlinUInt(value: $0) },
+            diagnostics: diagnostics
+        )
     }
 
     public func deleteFingerprint(session: NfcSession, index: Int32) async throws -> KotlinBoolean {

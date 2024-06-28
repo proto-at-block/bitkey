@@ -50,15 +50,18 @@ class AuthTokenRefresherImplTests : FunSpec({
     val originalRefreshToken = "original-refresh-token"
     val newAccessToken = "new-access-token"
 
-    authTokenDao.tokensFlow.value =
+    authTokenDao.getTokensResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(originalAccessToken),
         refreshToken = RefreshToken(originalRefreshToken)
       )
-    authenticationF8eClient.refreshResult =
-      Ok(
-        AccountAuthTokens(accessToken = AccessToken(newAccessToken), refreshToken = RefreshToken(originalRefreshToken))
+    )
+    authenticationF8eClient.refreshResult = Ok(
+      AccountAuthTokens(
+        accessToken = AccessToken(newAccessToken),
+        refreshToken = RefreshToken(originalRefreshToken)
       )
+    )
 
     val newTokens =
       AccountAuthTokens(
@@ -77,7 +80,7 @@ class AuthTokenRefresherImplTests : FunSpec({
   }
 
   test("failure to read current auth tokens from storage") {
-    authTokenDao.tokensFlow.value = null
+    authTokenDao.getTokensResult = Ok(null)
 
     refresher.refreshAccessTokenForAccount(
       f8eEnvironment,
@@ -91,12 +94,12 @@ class AuthTokenRefresherImplTests : FunSpec({
     val originalRefreshToken = "original-refresh-token"
     val newAccessToken = "new-access-token"
 
-    authTokenDao.tokensFlow.value =
+    authTokenDao.getTokensResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(originalAccessToken),
         refreshToken = RefreshToken(originalRefreshToken)
       )
-
+    )
     authenticationF8eClient.refreshResult = Err(HttpError.ClientError(HttpResponseMock(HttpStatusCode.Unauthorized)))
     val newTokens =
       AccountAuthTokens(
@@ -132,11 +135,12 @@ class AuthTokenRefresherImplTests : FunSpec({
     accountAuthorizer.authResults =
       mutableListOf(Err(AuthSignatureMismatch))
 
-    authTokenDao.tokensFlow.value =
+    authTokenDao.getTokensResult = Ok(
       AccountAuthTokens(
         accessToken = AccessToken(originalAccessToken),
         refreshToken = RefreshToken(originalRefreshToken)
       )
+    )
 
     refresher.refreshAccessTokenForAccount(
       f8eEnvironment,

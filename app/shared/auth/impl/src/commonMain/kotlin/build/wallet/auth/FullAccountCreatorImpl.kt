@@ -62,7 +62,7 @@ class FullAccountCreatorImpl(
         appAuthPublicKey = keyCrossDraft.appKeyBundle.authKey,
         f8eEnvironment = fullAccountConfig.f8eEnvironment,
         tokenScope = AuthTokenScope.Global
-      )
+      ).bind()
 
       // Store the [Recovery] scope auth tokens
       authenticateWithF8eAndStoreAuthTokens(
@@ -70,7 +70,7 @@ class FullAccountCreatorImpl(
         appAuthPublicKey = requireNotNull(keyCrossDraft.appKeyBundle.recoveryAuthKey),
         f8eEnvironment = fullAccountConfig.f8eEnvironment,
         tokenScope = AuthTokenScope.Recovery
-      )
+      ).bind()
 
       // Don't bind the error so we don't block account creation on the success of adding
       // the device token because it won't yet be available on iOS until push notification

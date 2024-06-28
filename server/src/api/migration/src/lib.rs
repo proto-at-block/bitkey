@@ -29,10 +29,10 @@ pub enum MigrationError {
     DbPersist(DatabaseError),
     #[error("Could not read database: {0}")]
     DbRead(DatabaseError),
-    #[error("Could not rotate recovery auth key")]
-    RotateRecoveryAuthKey,
-    #[error("Could not sign out wallet user")]
-    SignOutWalletUser,
+    #[error("Could not create hardware cognito user")]
+    CreateHardwareCognitoUser,
+    #[error("Could not migrate test account cognito users")]
+    TestAccountCognitoUsers,
 }
 
 #[async_trait]

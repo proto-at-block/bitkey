@@ -13,6 +13,7 @@ import { RecoveryMonitors } from "./monitors/recovery";
 import { MoneyMovementMonitors } from "./monitors/moneyMovement";
 import { NotificationsMonitors } from "./monitors/notifications";
 import { SecurityAlertMonitors } from "./monitors/securityAlerts";
+import { ShopApiStuckOrdersJobMonitors } from "./monitors/web/shop-api-stuck-orders-job";
 
 class MonitorsStack extends TerraformStack {
   constructor(scope: Construct, id: string) {
@@ -49,6 +50,9 @@ class MonitorsStack extends TerraformStack {
 
     new ShopApiRevenueReportingJobMonitors(this, Environment.STAGING)
     new ShopApiRevenueReportingJobMonitors(this, Environment.PRODUCTION)
+
+    new ShopApiStuckOrdersJobMonitors(this, Environment.STAGING)
+    new ShopApiStuckOrdersJobMonitors(this, Environment.PRODUCTION)
 
     new SecurityAlertMonitors(this, Environment.STAGING)
     new SecurityAlertMonitors(this, Environment.PRODUCTION)

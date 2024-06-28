@@ -27,6 +27,7 @@ impl Rule for NoRecoveryWithRecoveryAuthPubkeyRule {
                 }
             }
             AccountValidationRequest::CreateLiteAccount { auth, .. } => auth.recovery,
+            AccountValidationRequest::CreateSoftwareAccount { auth, .. } => auth.recovery,
             AccountValidationRequest::UpgradeAccount { .. } => {
                 return Ok(());
             }

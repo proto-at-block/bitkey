@@ -62,6 +62,9 @@ impl Service {
         match &mut account {
             Account::Full(full_account) => full_account.common_fields.touchpoints = touchpoints,
             Account::Lite(lite_account) => lite_account.common_fields.touchpoints = touchpoints,
+            Account::Software(software_account) => {
+                software_account.common_fields.touchpoints = touchpoints
+            }
         };
         self.account_repo.persist(&account).await?;
 

@@ -8,6 +8,7 @@ import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.F8eSpendingPublicKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.catchingResult
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -15,13 +16,10 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
 import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
-import build.wallet.ktor.result.NetworkingError
-import build.wallet.ktor.result.RedactedRequestBody
-import build.wallet.ktor.result.RedactedResponseBody
-import build.wallet.ktor.result.bodyResult
-import build.wallet.ktor.result.setRedactedBody
+import build.wallet.ktor.result.*
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import io.ktor.client.request.post
 import kotlinx.serialization.SerialName
@@ -60,23 +58,21 @@ class CreateAccountKeysetF8eClientImpl(
         }
       }
       .map { response ->
-        val verified = runCatching {
+        val verified = catchingResult {
           f8eHttpClient.wsmVerifier.verify(
             base58Message = DescriptorPublicKey(response.spendingDpub).xpub,
             signature = response.spendingSig,
             keyVariant = f8eEnvironment.wsmIntegrityKeyVariant
           ).isValid
-        }.getOrElse {
-          false
-        }
+        }.getOrElse { false }
 
         if (!verified) {
           // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
           log {
             "[wsm_integrity_failure] WSM integrity signature verification failed: " +
-              "${response.spendingSig} : " +
-              "${response.spendingDpub} : " +
-              response.keysetId
+                "${response.spendingSig} : " +
+                "${response.spendingDpub} : " +
+                response.keysetId
           }
           // Just log, don't fail the call.
         }

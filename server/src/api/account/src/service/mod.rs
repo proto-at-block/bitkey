@@ -1,6 +1,6 @@
 use crate::entities::{
     CommsVerificationClaim, CommsVerificationScope, FullAccountAuthKeys, LiteAccount,
-    LiteAccountAuthKeys, SpendingKeyset, TouchpointPlatform,
+    LiteAccountAuthKeys, SoftwareAccountAuthKeys, SpendingKeyset, TouchpointPlatform,
 };
 use crate::spend_limit::SpendingLimit;
 use crate::{
@@ -21,6 +21,7 @@ mod create_account_and_keysets;
 mod create_and_rotate_auth_keys;
 mod create_inactive_spending_keyset;
 mod create_lite_account;
+mod create_software_account;
 mod delete_account;
 mod fetch_account;
 mod fetch_and_update_spend_limit;
@@ -94,6 +95,14 @@ pub struct CreateLiteAccountInput<'a> {
     pub account_id: &'a AccountId,
     pub auth_key_id: AuthKeysId,
     pub auth: LiteAccountAuthKeys,
+    pub is_test_account: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateSoftwareAccountInput<'a> {
+    pub account_id: &'a AccountId,
+    pub auth_key_id: AuthKeysId,
+    pub auth: SoftwareAccountAuthKeys,
     pub is_test_account: bool,
 }
 

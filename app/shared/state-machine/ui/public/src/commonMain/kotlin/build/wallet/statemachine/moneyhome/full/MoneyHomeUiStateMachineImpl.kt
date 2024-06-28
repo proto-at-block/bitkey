@@ -24,6 +24,7 @@ import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.cloud.health.RepairMobileKeyBackupProps
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.list.ListFormBodyModel
 import build.wallet.statemachine.data.firmware.FirmwareData
@@ -161,7 +162,7 @@ class MoneyHomeUiStateMachineImpl(
 
       is PerformingSweep -> sweepUiStateMachine.model(
         SweepUiProps(
-          presentationStyle = Modal,
+          presentationStyle = ScreenPresentationStyle.ModalFullScreen,
           onExit = { uiState = ViewingBalanceUiState() },
           onSuccess = { uiState = ViewingBalanceUiState() },
           recoveredFactor = null,

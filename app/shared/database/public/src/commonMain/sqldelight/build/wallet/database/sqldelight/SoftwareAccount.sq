@@ -1,0 +1,71 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
+import build.wallet.bitkey.f8e.SoftwareAccountId;
+import build.wallet.crypto.PublicKey;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+
+-- Table for Software Account data. This can be an active or an onboarding account, if any.
+CREATE TABLE softwareAccountEntity(
+  rowId               INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId           TEXT AS SoftwareAccountId NOT NULL UNIQUE,
+  bitcoinNetworkType  TEXT AS BitcoinNetworkType NOT NULL,
+  f8eEnvironment      TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount       INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes  INTEGER AS Boolean NOT NULL
+);
+
+-- Table for an active Software Account data, if any.
+CREATE TABLE activeSoftwareAccountEntity(
+  rowId              INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId          TEXT AS SoftwareAccountId NOT NULL,
+  softwareKeyboxId   TEXT NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId)
+);
+
+-- Table for an onboarding Software Account data, if any.
+CREATE TABLE onboardingSoftwareAccountEntity(
+  rowId              INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId          TEXT AS SoftwareAccountId NOT NULL,
+  appGlobalAuthKey   TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  appRecoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId)
+);
+
+-- Query to set a Software Account as active to make it ready to use for spending.
+-- Assumes an onboardingSoftwareAccount is already set.
+activateSoftwareAccountAfterOnboarding {
+  INSERT INTO activeSoftwareAccountEntity(rowId, accountId, softwareKeyboxId)
+  VALUES(0, :accountId, :softwareKeyboxId);
+
+  DELETE FROM onboardingSoftwareAccountEntity;
+}
+
+-- Query to get the currently active Software Account, if any.
+getActiveSoftwareAccount:
+SELECT * FROM softwareAccountEntity
+INNER JOIN activeSoftwareAccountEntity
+WHERE softwareAccountEntity.accountId = activeSoftwareAccountEntity.accountId;
+
+-- Query to set an onboarding Software Account.
+setOnboardingSoftwareAccount {
+  INSERT INTO onboardingSoftwareAccountEntity(rowId, accountId, appGlobalAuthKey, appRecoveryAuthKey)
+  VALUES(0, :accountId, :appGlobalAuthKey, :appRecoveryAuthKey);
+
+  INSERT INTO softwareAccountEntity
+  VALUES (0, :accountId, :bitcoinNetworkType, :f8eEnvironment, :isTestAccount, :isUsingSocRecFakes);
+}
+
+-- Query to get the currently onboarding Software Account, if any.
+getOnboardingSoftwareAccount:
+SELECT * FROM softwareAccountEntity
+INNER JOIN onboardingSoftwareAccountEntity
+WHERE softwareAccountEntity.accountId = onboardingSoftwareAccountEntity.accountId;
+
+-- Query to delete all Software Account data.
+clear {
+  DELETE FROM activeSoftwareAccountEntity;
+  DELETE FROM onboardingSoftwareAccountEntity;
+  DELETE FROM softwareAccountEntity;
+}

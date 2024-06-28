@@ -14,9 +14,9 @@ import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
-import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingRecoveryOrOnboarding
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
@@ -78,7 +78,7 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
       ),
       existingRecovery = existingRecovery,
       onAccountCreated = accountCreatedCalls::add,
-      newAccountOnboardConfigData = LoadedOnboardConfigDataMock
+      onboardConfig = OnboardConfig(stepsToSkip = emptySet())
     )
 
   test("no onboarding in progress and no recovery in progress") {

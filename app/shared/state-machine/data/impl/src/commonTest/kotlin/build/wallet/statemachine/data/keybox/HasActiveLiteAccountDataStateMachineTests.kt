@@ -8,9 +8,9 @@ import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
-import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -38,7 +38,7 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
   val props =
     HasActiveLiteAccountDataProps(
       account = LiteAccountMock,
-      accountUpgradeOnboardConfigData = LoadedOnboardConfigDataMock,
+      onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
       accountUpgradeTemplateFullAccountConfigData =
         TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData(
           FullAccountConfigMock

@@ -8,17 +8,17 @@ use wca::attestation::{Attestation, AttestationError};
 use wca::command_interface::{Command, State};
 use wca::commands::{
     BtcNetwork, CancelFingerprintEnrollment, CoredumpFragment, DeleteFingerprint,
-    DescriptorPublicKey, DeviceIdentifiers, DeviceInfo, EnrolledFingerprints, EventFragment,
-    FingerprintEnrollmentStatus, FirmwareFeatureFlag, FirmwareFeatureFlagCfg, FirmwareMetadata,
-    FirmwareSlot, FwupFinish, FwupFinishRspStatus, FwupMode, FwupStart, FwupTransfer,
-    GetAuthenticationKey, GetAuthenticationKeyV2, GetCert, GetCoredumpCount, GetCoredumpFragment,
-    GetDeviceIdentifiers, GetDeviceInfo, GetEnrolledFingerprints, GetEvents,
-    GetFingerprintEnrollmentStatus, GetFirmwareFeatureFlags, GetFirmwareMetadata,
-    GetInitialSpendingKey, GetNextSpendingKey, GetTelemetryIdentifiers, GetUnlockMethod,
-    LockDevice, PartiallySignedTransaction, QueryAuthentication, SecureBootConfig,
-    SetFingerprintLabel, SetFirmwareFeatureFlags, SignChallenge, SignChallengeV2, SignTransaction,
-    SignVerifyAttestationChallenge, Signature, StartFingerprintEnrollment, UnlockInfo, Version,
-    WipeState,
+    DescriptorPublicKey, DeviceIdentifiers, DeviceInfo, EnrolledFingerprints,
+    EnrollmentDiagnostics, EventFragment, FingerprintEnrollmentResult, FingerprintEnrollmentStatus,
+    FirmwareFeatureFlag, FirmwareFeatureFlagCfg, FirmwareMetadata, FirmwareSlot, FwupFinish,
+    FwupFinishRspStatus, FwupMode, FwupStart, FwupTransfer, GetAuthenticationKey,
+    GetAuthenticationKeyV2, GetCert, GetCoredumpCount, GetCoredumpFragment, GetDeviceIdentifiers,
+    GetDeviceInfo, GetEnrolledFingerprints, GetEvents, GetFingerprintEnrollmentStatus,
+    GetFirmwareFeatureFlags, GetFirmwareMetadata, GetInitialSpendingKey, GetNextSpendingKey,
+    GetTelemetryIdentifiers, GetUnlockMethod, LockDevice, PartiallySignedTransaction,
+    QueryAuthentication, SecureBootConfig, SetFingerprintLabel, SetFirmwareFeatureFlags,
+    SignChallenge, SignChallengeV2, SignTransaction, SignVerifyAttestationChallenge, Signature,
+    StartFingerprintEnrollment, UnlockInfo, Version, WipeState,
 };
 use wca::errors::CommandError;
 use wca::fwpb::cert_get_cmd::CertType;
@@ -29,7 +29,7 @@ use wca::{EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, Signat
 type BooleanState = State<bool>;
 type U16State = State<u16>;
 type PartiallySignedTransactionState = State<PartiallySignedTransaction>;
-type FingerprintEnrollmentStatusState = State<FingerprintEnrollmentStatus>;
+type FingerprintEnrollmentResultState = State<FingerprintEnrollmentResult>;
 type FwupFinishRspStatusState = State<FwupFinishRspStatus>;
 type BytesState = State<Vec<u8>>;
 type FirmwareMetadataState = State<FirmwareMetadata>;

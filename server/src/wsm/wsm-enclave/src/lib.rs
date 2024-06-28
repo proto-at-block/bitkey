@@ -1,9 +1,11 @@
 #![forbid(unsafe_code)]
 
+use crate::psbt_verification::verify_inputs_only_have_one_signature;
+use crate::psbt_verification::verify_inputs_pubkey_belongs_to_wallet;
+use crate::psbt_verification::WalletDescriptors;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use std::io::Read;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -18,13 +20,14 @@ use axum::routing::get;
 use axum::{extract::State, routing::post, Json, Router};
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use bdk::bitcoin::bip32::{DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint};
-use bdk::bitcoin::hashes::{sha256, Hash};
+use bdk::bitcoin::hashes::sha256;
 use bdk::bitcoin::psbt::PartiallySignedTransaction;
 use bdk::bitcoin::secp256k1::{ecdsa::Signature, All, Message, Secp256k1, SecretKey};
 use bdk::bitcoin::Network;
 use bdk::database::MemoryDatabase;
 use bdk::descriptor::Segwitv0;
 use bdk::keys::{DerivableKey, DescriptorKey, DescriptorSecretKey, ExtendedKey};
+
 use bdk::signer::{SignerContext, SignerOrdering, SignerWrapper, TransactionSigner};
 use bdk::{KeychainKind, SignOptions, Wallet};
 
@@ -55,6 +58,7 @@ use crate::settings::Settings;
 
 mod aad;
 mod kms_tool;
+mod psbt_verification;
 mod settings;
 
 const GLOBAL_CONTEXT: &[u8] = b"WsmIntegrityV1";
@@ -403,14 +407,40 @@ async fn sign_psbt(
         SignerOrdering(9002),
         internal_signer,
     );
+
     let mut psbt =
         PartiallySignedTransaction::from_str(request.psbt.as_str()).expect("Could not parse PSBT");
-    // Do we want to do any policy enforcement in the enclave? If so, it needs to go right HERE
+
+    // Check inputs have only one signature.
+    try_with_log_and_error!(
+        log_buffer,
+        WsmError::ServerError,
+        verify_inputs_only_have_one_signature(&psbt.inputs)
+    )?;
+
+    // Check inputs already presigned by a key that belongs to the wallet.
+    let extended_descriptors = try_with_log_and_error!(
+        log_buffer,
+        WsmError::ServerError,
+        WalletDescriptors::new(
+            &request.descriptor,
+            &request.change_descriptor,
+            &secp,
+            network,
+        )
+    )?;
+    try_with_log_and_error!(
+        log_buffer,
+        WsmError::ServerError,
+        verify_inputs_pubkey_belongs_to_wallet(&extended_descriptors, &psbt.inputs, &secp)
+    )?;
+
     let _finalized = try_with_log_and_error!(
         log_buffer,
         WsmError::ServerError,
         wallet.sign(&mut psbt, SignOptions::default())
     )?;
+
     Ok(Json(SignedPsbt {
         psbt: psbt.to_string(),
         root_key_id: request.root_key_id.clone(),

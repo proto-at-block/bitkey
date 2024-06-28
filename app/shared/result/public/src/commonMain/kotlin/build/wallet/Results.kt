@@ -11,9 +11,9 @@ import kotlinx.coroutines.flow.map
 
 /**
  * An alias to [Result.runSuspendCatching]. This is the preferred way to safely execute throwing
- * code when using [Result]. Unlike [Result.runCatching] and Kotlin's [runCatching], this function
- * will re-throw [CancellationException] to indicate normal cancellation of a coroutine, which is
- * what we want for coroutines to be able to properly signal cancellations.
+ * code when using [Result]. Unlike [Result.runCatching], [Result.runSuspendCatching] and
+ * Kotlin's [runCatching], this function will re-throw [CancellationException] to indicate normal
+ * cancellation of a coroutine, which is what we want for coroutines to be able to properly signal cancellations.
  *
  * See [Coroutines cancellation and timeouts](https://kotlinlang.org/docs/cancellation-and-timeouts.html#making-computation-code-cancellable).
  */

@@ -61,8 +61,7 @@ impl Service {
                         );
                         return Err(ServiceError::InvalidKeyProof);
                     }
-                    if !input.cognito_user.is_wallet(input.acting_account_id)
-                        && !input.cognito_user.is_app(input.acting_account_id)
+                    if !input.cognito_user.is_app(input.acting_account_id)
                         && !input.cognito_user.is_hardware(input.acting_account_id)
                     {
                         return Err(ServiceError::InvalidOperationForAccessToken);
@@ -96,8 +95,7 @@ impl Service {
                 if customer_account_id != input.acting_account_id {
                     return Err(ServiceError::UnauthorizedRelationshipDeletion);
                 }
-                if !input.cognito_user.is_wallet(input.acting_account_id)
-                    && !input.cognito_user.is_app(input.acting_account_id)
+                if !input.cognito_user.is_app(input.acting_account_id)
                     && !input.cognito_user.is_hardware(input.acting_account_id)
                 {
                     return Err(ServiceError::InvalidOperationForAccessToken);

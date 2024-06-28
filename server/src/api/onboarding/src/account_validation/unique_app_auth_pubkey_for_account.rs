@@ -23,6 +23,7 @@ impl Rule for UniqueAppAuthPubkeyForAccountRule {
         let app_auth_pubkey = match request {
             AccountValidationRequest::CreateFullAccount { auth, .. } => auth.app,
             AccountValidationRequest::UpgradeAccount { auth, .. } => auth.app,
+            AccountValidationRequest::CreateSoftwareAccount { auth, .. } => auth.app,
             AccountValidationRequest::CreateLiteAccount { .. } => {
                 return Ok(());
             }

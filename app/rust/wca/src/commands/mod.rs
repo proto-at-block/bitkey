@@ -43,7 +43,7 @@ pub use feature_flags::GetFirmwareFeatureFlags;
 pub use feature_flags::SetFirmwareFeatureFlags;
 pub use fingerprint::{
     CancelFingerprintEnrollment, DeleteFingerprint, EnrolledFingerprints, GetEnrolledFingerprints,
-    GetFingerprintEnrollmentStatus, SetFingerprintLabel, StartFingerprintEnrollment,
+    GetFingerprintEnrollmentStatus, SetFingerprintLabel, StartFingerprintEnrollment, FingerprintEnrollmentResult, EnrollmentDiagnostics
 };
 pub use fwup::FwupFinish;
 pub use fwup::FwupMode;

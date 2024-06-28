@@ -1,14 +1,13 @@
 package build.wallet.bitkey.keybox
 
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
-import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.account.LiteAccountConfig
+import build.wallet.bitkey.account.*
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
+import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.f8e.LiteAccountId
+import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
 import build.wallet.compose.collections.emptyImmutableList
@@ -71,5 +70,20 @@ val LiteAccountMock =
   LiteAccount(
     accountId = LiteAccountId("server-id"),
     config = LiteAccountConfigMock,
+    recoveryAuthKey = AppRecoveryAuthPublicKeyMock
+  )
+
+val OnboardingSoftwareAccountConfigMock = SoftwareAccountConfig(
+  bitcoinNetworkType = SIGNET,
+  f8eEnvironment = Development,
+  isTestAccount = true,
+  isUsingSocRecFakes = true
+)
+
+val OnboardingSoftwareAccountMock =
+  OnboardingSoftwareAccount(
+    accountId = SoftwareAccountId("account-id"),
+    config = OnboardingSoftwareAccountConfigMock,
+    appGlobalAuthKey = AppGlobalAuthPublicKeyMock,
     recoveryAuthKey = AppRecoveryAuthPublicKeyMock
   )

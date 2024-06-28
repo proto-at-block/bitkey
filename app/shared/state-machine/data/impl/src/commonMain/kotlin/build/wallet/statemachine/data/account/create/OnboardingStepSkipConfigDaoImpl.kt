@@ -32,8 +32,4 @@ class OnboardingStepSkipConfigDaoImpl(
       updateShouldSkipStep(step, shouldSkip)
     }
   }
-
-  override suspend fun clear() {
-    database.onboardingStepSkipConfigQueries.awaitTransaction { clear() }
-  }
 }

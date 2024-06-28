@@ -28,8 +28,8 @@ extension StartFingerprintEnrollment: IOCommand {
 }
 
 extension GetFingerprintEnrollmentStatus: IOCommand {
-    typealias FFIStateType = firmware.FingerprintEnrollmentStatusState
-    typealias ResultType = firmware.FingerprintEnrollmentStatus
+    typealias FFIStateType = firmware.FingerprintEnrollmentResultState
+    typealias ResultType = firmware.FingerprintEnrollmentResult
 }
 
 extension DeleteFingerprint: IOCommand {
@@ -201,8 +201,8 @@ extension IOCommand {
         }
     }
 
-    func next(_ response: [UInt8]) throws -> IOResult<firmware.FingerprintEnrollmentStatus>
-        where FFIStateType == firmware.FingerprintEnrollmentStatusState
+    func next(_ response: [UInt8]) throws -> IOResult<firmware.FingerprintEnrollmentResult>
+        where FFIStateType == firmware.FingerprintEnrollmentResultState
     {
         switch try self.next(response: response) {
         case let .data(response: response): return .data(response: response)

@@ -101,6 +101,22 @@ class MoneyTests : FunSpec({
       // 4.2 dollars as Double
       FiatMoney.usd(dollars = 4.2).shouldBe(Money.money(USD, value = 4.2.toBigDecimal()))
     }
+
+    test("eur") {
+      // 430 cents as Long
+      FiatMoney.eur(cents = 430).shouldBe(Money.money(EUR, value = 4.3.toBigDecimal()))
+      // 430 cents as BigInteger
+      FiatMoney.eur(
+        cents = 430.toBigInteger()
+      ).shouldBe(Money.money(EUR, value = 4.3.toBigDecimal()))
+
+      // 4.2 euros as BigDecimal
+      FiatMoney.eur(
+        euros = 4.2.toBigDecimal()
+      ).shouldBe(Money.money(EUR, value = 4.2.toBigDecimal()))
+      // 4.2 euros as Double
+      FiatMoney.eur(euros = 4.2).shouldBe(Money.money(EUR, value = 4.2.toBigDecimal()))
+    }
   }
 
   test("negate") {

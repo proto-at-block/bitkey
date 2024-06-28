@@ -7,22 +7,12 @@ import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.encrypt.Secp256k1PublicKey
-import build.wallet.firmware.CoredumpFragment
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.EventFragment
+import build.wallet.firmware.*
 import build.wallet.firmware.FingerprintEnrollmentStatus.COMPLETE
 import build.wallet.firmware.FingerprintEnrollmentStatus.INCOMPLETE
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
 import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareDeviceInfo
-import build.wallet.firmware.FirmwareFeatureFlag
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.FirmwareMetadata
 import build.wallet.firmware.FirmwareMetadata.FirmwareSlot
-import build.wallet.firmware.UnlockInfo
-import build.wallet.firmware.UnlockMethod
 import build.wallet.fwup.FwupFinishResponseStatus
 import build.wallet.fwup.FwupMode
 import build.wallet.logging.LogLevel.Warn
@@ -42,7 +32,7 @@ import build.wallet.rust.firmware.DeviceInfo
 import build.wallet.rust.firmware.DeviceInfoState
 import build.wallet.rust.firmware.EnrolledFingerprintsState
 import build.wallet.rust.firmware.EventFragmentState
-import build.wallet.rust.firmware.FingerprintEnrollmentStatusState
+import build.wallet.rust.firmware.FingerprintEnrollmentResultState
 import build.wallet.rust.firmware.FirmwareFeatureFlagsState
 import build.wallet.rust.firmware.FirmwareMetadataState
 import build.wallet.rust.firmware.FirmwareSlot.A
@@ -91,6 +81,7 @@ import build.wallet.rust.firmware.CoredumpFragment as CoreCoredumpFragment
 import build.wallet.rust.firmware.EnrolledFingerprints as CoreEnrolledFingerprints
 import build.wallet.rust.firmware.EventFragment as CoreEventFragment
 import build.wallet.rust.firmware.FingerprintEnrollmentStatus as CoreFingerprintEnrollmentStatus
+import build.wallet.rust.firmware.FingerprintEnrollmentResult as CoreFingerprintEnrollmentResult
 import build.wallet.rust.firmware.FingerprintHandle as CoreFingerprintHandle
 import build.wallet.rust.firmware.FirmwareFeatureFlag as CoreFirmwareFeatureFlag
 import build.wallet.rust.firmware.FirmwareFeatureFlagCfg as CoreFirmwareFeatureFlagCfg
@@ -221,9 +212,9 @@ class NfcCommandsImpl(
       GetFingerprintEnrollmentStatus(isEnrollmentContextAware = isEnrollmentContextAware)
     },
     getNext = { command, data -> command.next(data) },
-    getResponse = { state: FingerprintEnrollmentStatusState.Data -> state.response },
-    generateResult = { state: FingerprintEnrollmentStatusState.Result ->
-      state.value.toFingerprintEnrollmentStatus()
+    getResponse = { state: FingerprintEnrollmentResultState.Data -> state.response },
+    generateResult = { state: FingerprintEnrollmentResultState.Result ->
+      state.value.toFingerprintEnrollmentResult()
     }
   )
 
@@ -505,13 +496,32 @@ private fun BitcoinNetworkType.toBtcNetwork() =
     BitcoinNetworkType.REGTEST -> BtcNetwork.REGTEST
   }
 
-private fun CoreFingerprintEnrollmentStatus.toFingerprintEnrollmentStatus() =
-  when (this) {
-    CoreFingerprintEnrollmentStatus.STATUS_UNSPECIFIED -> UNSPECIFIED
-    CoreFingerprintEnrollmentStatus.INCOMPLETE -> INCOMPLETE
-    CoreFingerprintEnrollmentStatus.COMPLETE -> COMPLETE
-    CoreFingerprintEnrollmentStatus.NOT_IN_PROGRESS -> NOT_IN_PROGRESS
-  }
+private fun CoreFingerprintEnrollmentResult.toFingerprintEnrollmentResult() =
+  FingerprintEnrollmentResult(
+    status =
+      when (status) {
+        CoreFingerprintEnrollmentStatus.STATUS_UNSPECIFIED -> UNSPECIFIED
+        CoreFingerprintEnrollmentStatus.INCOMPLETE -> INCOMPLETE
+        CoreFingerprintEnrollmentStatus.COMPLETE -> COMPLETE
+        CoreFingerprintEnrollmentStatus.NOT_IN_PROGRESS -> NOT_IN_PROGRESS
+      },
+    passCount = passCount,
+    failCount = failCount,
+    diagnostics = diagnostics?.let {
+      FingerprintEnrollmentDiagnostics(
+        fingerCoverageValid = it.fingerCoverageValid,
+        fingerCoverage = it.fingerCoverage.toInt(),
+        commonModeNoiseValid = it.commonModeNoiseValid,
+        commonModeNoise = it.commonModeNoise.toInt(),
+        imageQualityValid = it.imageQualityValid,
+        imageQuality = it.imageQuality.toInt(),
+        sensorCoverageValid = it.sensorCoverageValid,
+        sensorCoverage = it.sensorCoverage.toInt(),
+        templateDataUpdateValid = it.templateDataUpdateValid,
+        templateDataUpdate = it.templateDataUpdate.toInt()
+      )
+    }
+  )
 
 private fun CoreFirmwareMetadata.toFirmwareMetadata() =
   FirmwareMetadata(

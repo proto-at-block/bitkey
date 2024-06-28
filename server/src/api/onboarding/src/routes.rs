@@ -27,18 +27,23 @@ use tracing::{error, event, instrument, Level};
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
 
-use account::entities::{
-    Account, CommsVerificationScope, FullAccountAuthKeys,
-    FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
-    LiteAccountAuthKeys, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest, SpendingKeyset,
-    SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
-};
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput, CompleteOnboardingInput,
     CreateAccountAndKeysetsInput, CreateInactiveSpendingKeysetInput, CreateLiteAccountInput,
     DeleteAccountInput, FetchAccountInput, FetchOrCreateEmailTouchpointInput,
     FetchOrCreatePhoneTouchpointInput, FetchTouchpointByIdInput, RotateToSpendingKeysetInput,
     Service as AccountService, UpgradeLiteAccountToFullAccountInput,
+};
+use account::{
+    entities::{
+        Account, CommsVerificationScope, FullAccountAuthKeys,
+        FullAccountAuthKeysPayload as FullAccountAuthKeysRequest, Keyset, LiteAccount,
+        LiteAccountAuthKeys, LiteAccountAuthKeysPayload as LiteAccountAuthKeysRequest,
+        SoftwareAccountAuthKeys, SoftwareAccountAuthKeysPayload as SoftwareAccountAuthKeysRequest,
+        SpendingKeyset, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
+        UpgradeLiteAccountAuthKeysPayload,
+    },
+    service::CreateSoftwareAccountInput,
 };
 use authn_authz::key_claims::KeyClaims;
 use bdk_utils::{
@@ -221,6 +226,7 @@ impl From<RouteState> for SwaggerEndpoint {
             TouchpointPlatform,
             UpgradeAccountRequest,
             UpgradeLiteAccountAuthKeysPayload,
+            SoftwareAccountAuthKeysRequest
         ),
     ),
     tags(
@@ -706,6 +712,11 @@ pub enum CreateAccountRequest {
         #[serde(default)]
         is_test_account: bool,
     },
+    Software {
+        auth: SoftwareAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
+        #[serde(default)]
+        is_test_account: bool,
+    },
 }
 
 impl CreateAccountRequest {
@@ -713,6 +724,7 @@ impl CreateAccountRequest {
         match self {
             CreateAccountRequest::Full { auth, .. } => auth.recovery,
             CreateAccountRequest::Lite { auth, .. } => Some(auth.recovery),
+            CreateAccountRequest::Software { auth, .. } => Some(auth.recovery),
         }
     }
 
@@ -722,6 +734,9 @@ impl CreateAccountRequest {
                 (Some(auth.app), Some(auth.hardware), auth.recovery)
             }
             CreateAccountRequest::Lite { auth, .. } => (None, None, Some(auth.recovery)),
+            CreateAccountRequest::Software { auth, .. } => {
+                (Some(auth.app), None, Some(auth.recovery))
+            }
         }
     }
 }
@@ -745,6 +760,11 @@ impl From<&CreateAccountRequest> for AccountValidationRequest {
             } => AccountValidationRequest::CreateLiteAccount {
                 auth: auth.to_owned(),
             },
+            CreateAccountRequest::Software { auth, .. } => {
+                AccountValidationRequest::CreateSoftwareAccount {
+                    auth: auth.to_owned(),
+                }
+            }
         }
     }
 }
@@ -776,6 +796,7 @@ impl TryFrom<&Account> for CreateAccountResponse {
                 )
             }
             Account::Lite(lite_account) => (lite_account.id.clone(), None),
+            Account::Software(software_account) => (software_account.id.clone(), None),
         };
 
         Ok(CreateAccountResponse { account_id, keyset })
@@ -835,7 +856,7 @@ pub async fn create_account(
                     keyset.spending_sig = spending_sig;
                 }
             }
-            Account::Lite(_) => {}
+            Account::Lite(_) | Account::Software(_) => {}
         }
         return Ok(Json(create_account_response));
     }
@@ -849,10 +870,10 @@ pub async fn create_account(
     // provide the generated account ID once we have it
     tracing::Span::current().record("account_id", &account_id.to_string());
 
-    // Create a Cognito account
+    // Create Cognito users
     let (app_auth_pubkey, hardware_auth_pubkey, recovery_auth_pubkey) = request.auth_keys();
     user_pool_service
-        .create_account_users_if_necessary(
+        .create_or_update_account_users_if_necessary(
             &account_id,
             app_auth_pubkey,
             hardware_auth_pubkey,
@@ -957,6 +978,27 @@ pub async fn create_account(
                 keyset: None,
             }))
         }
+        CreateAccountRequest::Software {
+            auth,
+            is_test_account,
+        } => {
+            let auth_key_id = AuthKeysId::new(id_generator.gen_spending_keyset_id())
+                .map_err(RouteError::InvalidIdentifier)?;
+            let input = CreateSoftwareAccountInput {
+                account_id: &account_id,
+                auth_key_id,
+                auth: SoftwareAccountAuthKeys {
+                    app_pubkey: auth.app,
+                    recovery_pubkey: auth.recovery,
+                },
+                is_test_account,
+            };
+            let account = account_service.create_software_account(input).await?;
+            Ok(Json(CreateAccountResponse {
+                account_id: account.id,
+                keyset: None,
+            }))
+        }
     }
 }
 
@@ -1041,6 +1083,11 @@ pub async fn upgrade_account(
                 ));
             }
         }
+        Account::Software(_) => {
+            return Err(ApiError::GenericInternalApplicationError(
+                "Unimplemented".to_string(),
+            ));
+        }
     };
 
     AccountValidation::default()
@@ -1052,9 +1099,9 @@ pub async fn upgrade_account(
         )
         .await?;
 
-    // Create a wallet Cognito user
+    // Create Cognito users
     user_pool_service
-        .create_account_users_if_necessary(
+        .create_or_update_account_users_if_necessary(
             &account_id,
             Some(request.auth.app),
             Some(request.auth.hardware),

@@ -4,9 +4,9 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.flags.InAppSecurityFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.HideBalancePreference
-import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.FiatCurrencyRepository

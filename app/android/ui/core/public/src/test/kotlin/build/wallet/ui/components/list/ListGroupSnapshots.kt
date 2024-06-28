@@ -36,4 +36,15 @@ class ListGroupSnapshots : FunSpec({
       ListSectionForPreview(showHeader = false, style = ListGroupStyle.NONE, collapsed = true)
     }
   }
+
+  test("list group with explainer subtext") {
+    paparazzi.snapshot {
+      ListSectionForPreview(
+        showHeader = false,
+        style = ListGroupStyle.CARD_GROUP_DIVIDER,
+        collapsed = false,
+        explainerSubtext = "This is an explainer subtext."
+      )
+    }
+  }
 })

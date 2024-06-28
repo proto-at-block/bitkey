@@ -116,7 +116,7 @@ class NoActiveAccountDataStateMachineImpl(
       is GettingStartedState ->
         GettingStartedData(
           templateFullAccountConfigData = props.templateFullAccountConfigData,
-          newAccountOnboardConfigData = props.newAccountOnboardConfigData,
+          onboardConfig = props.onboardConfig,
           startFullAccountCreation = { state = CreateFullAccountState },
           startLiteAccountCreation = {
             state = CheckCloudBackupAndRouteState(StartIntent.BeTrustedContact)
@@ -136,17 +136,15 @@ class NoActiveAccountDataStateMachineImpl(
       is CreateFullAccountState ->
         CreatingFullAccountData(
           templateFullAccountConfig = props.templateFullAccountConfigData.config,
-          createFullAccountData =
-            createFullAccountDataStateMachine.model(
-              props =
-                CreateFullAccountDataProps(
-                  onboardConfig = props.newAccountOnboardConfigData.config,
-                  templateFullAccountConfig = props.templateFullAccountConfigData.config,
-                  onboardingKeybox = onboardingKeybox,
-                  context = CreateFullAccountContext.NewFullAccount,
-                  rollback = { state = GettingStartedState(isNavigatingBack = true) }
-                )
+          createFullAccountData = createFullAccountDataStateMachine.model(
+            props = CreateFullAccountDataProps(
+              onboardConfig = props.onboardConfig,
+              templateFullAccountConfig = props.templateFullAccountConfigData.config,
+              onboardingKeybox = onboardingKeybox,
+              context = CreateFullAccountContext.NewFullAccount,
+              rollback = { state = GettingStartedState(isNavigatingBack = true) }
             )
+          )
         )
 
       is CheckCloudBackupAndRouteState ->
@@ -291,6 +289,9 @@ private sealed interface State {
    */
   data object EmergencyAccessAccountRecoveryState : State
 
+  /**
+   * Application is in the reset an existing device flow
+   */
   data object ResetAnExistingDeviceState : State
 
   /**

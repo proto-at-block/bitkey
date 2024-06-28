@@ -9,6 +9,7 @@ import build.wallet.auth.AuthTokenScope.Recovery
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.f8e.LiteAccountId
+import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.catchingResult
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
@@ -53,6 +54,7 @@ class FeatureFlagsF8eClientImpl(
         f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
       is LiteAccountId ->
         f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Recovery)
+      is SoftwareAccountId -> TODO("W-8701")
     }
 
     val url =

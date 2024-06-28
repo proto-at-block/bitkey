@@ -1,0 +1,26 @@
+import kotlin.Boolean;
+import kotlinx.datetime.Instant;
+
+CREATE TABLE coachmarkEntity(
+  coachmarkId   TEXT NOT NULL PRIMARY KEY,
+  viewed        INTEGER AS Boolean NOT NULL,
+  expiration    INTEGER AS Instant NOT NULL
+);
+
+createCoachmark:
+INSERT INTO coachmarkEntity(coachmarkId, viewed, expiration)
+VALUES(?, ?, ?);
+
+setViewed:
+REPLACE INTO coachmarkEntity(coachmarkId, viewed, expiration)
+VALUES(?, ?, ?);
+
+getCoachmark:
+SELECT * FROM coachmarkEntity
+WHERE coachmarkId = ?;
+
+getAllCoachmarks:
+SELECT * FROM coachmarkEntity;
+
+reset:
+DELETE FROM coachmarkEntity;

@@ -2,10 +2,10 @@ build:
   maxIssues: 0
   excludeCorrectable: false
   weights:
-    # complexity: 2
-    # LongParameterList: 1
-    # style: 1
-    # comments: 1
+  # complexity: 2
+  # LongParameterList: 1
+  # style: 1
+  # comments: 1
 
 config:
   validation: true
@@ -162,14 +162,14 @@ complexity:
     active: false
   StringLiteralDuplication:
     active: false
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**' ]
     threshold: 3
     ignoreAnnotation: true
     excludeStringsWithLessThan5Characters: true
     ignoreStringsRegex: '$^'
   TooManyFunctions:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
     thresholdInFiles: 11
     thresholdInClasses: 11
     thresholdInInterfaces: 11
@@ -246,7 +246,7 @@ exceptions:
       - 'toString'
   InstanceOfCheckForException:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   NotImplementedDeclaration:
     active: false
   ObjectExtendsThrowable:
@@ -287,7 +287,7 @@ exceptions:
     active: true
   TooGenericExceptionCaught:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**' ]
     exceptionNames:
       - 'ArrayIndexOutOfBoundsException'
       - 'Error'
@@ -333,7 +333,7 @@ naming:
     minimumFunctionNameLength: 3
   FunctionNaming:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/ui/**', '**/*DataStateMachineImpl.kt']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/ui/**', '**/*DataStateMachineImpl.kt' ]
     functionPattern: '[a-z][a-zA-Z0-9]*'
     excludeClassPattern: '$^'
   FunctionParameterNaming:
@@ -391,10 +391,10 @@ performance:
     threshold: 3
   ForEachOnRange:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   SpreadOperator:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
   UnnecessaryPartOfBinaryExpression:
     active: false
   UnnecessaryTemporaryInstantiation:
@@ -463,7 +463,7 @@ potential-bugs:
     active: true
   LateinitUsage:
     active: false
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/jsTest/**', '**/iosTest/**' ]
     ignoreOnClassesPattern: ''
   MapGetWithNotNullAssertionOperator:
     active: true
@@ -490,7 +490,7 @@ potential-bugs:
     active: true
   UnsafeCallOnNullableType:
     active: true
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/iosTest/**']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/iosTest/**' ]
   UnsafeCast:
     active: true
   UnusedUnaryOperator:
@@ -533,10 +533,10 @@ style:
   DoubleNegativeLambda:
     active: true
     negativeFunctions:
-      - reason: 'Use `takeIf` instead.'
-        value: 'takeUnless'
-      - reason: 'Use `all` instead.'
-        value: 'none'
+      - value: 'takeUnless'
+        reason: 'Use `takeIf` instead.'
+      - value: 'none'
+        reason: 'Use `all` instead.'
     negativeFunctionNameParts:
       - 'not'
       - 'non'
@@ -554,30 +554,30 @@ style:
   ForbiddenAnnotation:
     active: true
     annotations:
-      - reason: 'it is a java annotation. Use `Suppress` instead.'
-        value: 'java.lang.SuppressWarnings'
-      - reason: 'it is a java annotation. Use `kotlin.Deprecated` instead.'
-        value: 'java.lang.Deprecated'
-      - reason: 'it is a java annotation. Use `kotlin.annotation.MustBeDocumented` instead.'
-        value: 'java.lang.annotation.Documented'
-      - reason: 'it is a java annotation. Use `kotlin.annotation.Target` instead.'
-        value: 'java.lang.annotation.Target'
-      - reason: 'it is a java annotation. Use `kotlin.annotation.Retention` instead.'
-        value: 'java.lang.annotation.Retention'
-      - reason: 'it is a java annotation. Use `kotlin.annotation.Repeatable` instead.'
-        value: 'java.lang.annotation.Repeatable'
-      - reason: 'Kotlin does not support @Inherited annotation, see https://youtrack.jetbrains.com/issue/KT-22265'
-        value: 'java.lang.annotation.Inherited'
+      - value: 'java.lang.SuppressWarnings'
+        reason: 'it is a java annotation. Use `Suppress` instead.'
+      - value: 'java.lang.Deprecated'
+        reason: 'it is a java annotation. Use `kotlin.Deprecated` instead.'
+      - value: 'java.lang.annotation.Documented'
+        reason: 'it is a java annotation. Use `kotlin.annotation.MustBeDocumented` instead.'
+      - value: 'java.lang.annotation.Target'
+        reason: 'it is a java annotation. Use `kotlin.annotation.Target` instead.'
+      - value: 'java.lang.annotation.Retention'
+        reason: 'it is a java annotation. Use `kotlin.annotation.Retention` instead.'
+      - value: 'java.lang.annotation.Repeatable'
+        reason: 'it is a java annotation. Use `kotlin.annotation.Repeatable` instead.'
+      - value: 'java.lang.annotation.Inherited'
+        reason: 'Kotlin does not support @Inherited annotation, see https://youtrack.jetbrains.com/issue/KT-22265'
   ForbiddenComment:
     active: true
     comments:
-      - reason: 'Forbidden FIXME todo marker in comment, please fix the problem.'
-        value: 'FIXME:'
-      - reason: 'Forbidden STOPSHIP todo marker in comment, please address the problem before shipping the code.'
-        value: 'STOPSHIP:'
-# TODO: enable this back? we had a lot of comments of the form TODO(ldap): that triggered this when we scrubbed ldaps.
-#      - reason: 'Forbidden TODO todo marker in comment, please do the changes.'
-#        value: 'TODO:'
+      - value: 'FIXME:'
+        reason: 'Forbidden FIXME todo marker in comment, please fix the problem.'
+      - value: 'STOPSHIP:'
+        reason: 'Forbidden STOPSHIP todo marker in comment, please address the problem before shipping the code.'
+      # TODO: enable this back? we had a lot of comments of the form TODO(ldap): that triggered this when we scrubbed ldaps.
+      # - value: 'TODO:'
+      #   reason: 'Forbidden TODO todo marker in comment, please do the changes.'
     allowedPatterns: ''
   ForbiddenImport:
     active: true
@@ -586,17 +586,21 @@ style:
   ForbiddenMethodCall:
     active: true
     methods:
-# TODO(W-3998): enable this back but only allow print and println calls in tests.
-#      - reason: 'print does not allow you to configure the output stream. Use a logger instead.'
-#        value: 'kotlin.io.print'
-#      - reason: 'println does not allow you to configure the output stream. Use a logger instead.'
-#        value: 'kotlin.io.println'
-      - reason: 'Avoid using `runBlocking`: https://www.billjings.net/posts/title/foot-marksmanship-with-runblocking/'
-        value: 'kotlinx.coroutines.runBlocking'
-      - reason: "Use Result.catching instead. We use non-official Result type. Kotlin's runCatching doesn't support custom failure types and it is not coroutine friendly - swallows CancellationException"
-        value: 'kotlin.runCatching'
-      - reason: 'Avoid using `rememberCoroutineScope`, use `rememberStableCoroutineScope` instead.'
-        value: 'androidx.compose.runtime.rememberCoroutineScope'
+      # TODO(W-3998): enable this back but only allow print and println calls in tests.
+      # - value: 'kotlin.io.print'
+      #   reason: 'print does not allow you to configure the output stream. Use a logger instead.'
+      # - value: 'kotlin.io.println'
+      #   reason: 'println does not allow you to configure the output stream. Use a logger instead.'
+      - value: 'kotlinx.coroutines.runBlocking'
+        reason: 'Avoid using `runBlocking`: https://www.billjings.net/posts/title/foot-marksmanship-with-runblocking/'
+      - value: 'kotlin.runCatching'
+        reason: "Use catchingResult instead. We use non-official Result type. Kotlin's runCatching doesn't support custom failure types and it is not coroutine friendly - swallows CancellationException"
+      - value: 'com.github.michaelbull.result.runCatching'
+        reason: "Use catchingResult instead. We use non-official Result type. Kotlin's runCatching doesn't support custom failure types and it is not coroutine friendly - swallows CancellationException"
+      - value: 'com.github.michaelbull.result.coroutines.runSuspendCatching'
+        reason: "Use catchingResult instead. There's nothing wrong with using runSuspendCatching per se, but we prefer to use catchingResult for consistency. Especially since both runCatching and runSuspendCatching can actually be used on coroutine calls, which is confusing."
+      - value: 'androidx.compose.runtime.rememberCoroutineScope'
+        reason: 'Avoid using `rememberCoroutineScope`, use `rememberStableCoroutineScope` instead.'
     excludes:
       - '**/*Test/**'
       - '**/*testing/**'
@@ -617,7 +621,7 @@ style:
     maxJumpCount: 1
   MagicNumber:
     active: false # TODO(W-1684): enable
-    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/*.kts']
+    excludes: [ '**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/*.kts' ]
     ignoreNumbers:
       - '-1'
       - '0'

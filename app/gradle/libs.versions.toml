@@ -14,7 +14,7 @@ detekt = "1.23.6"
 kotlin = "1.9.23"
 
 # KMP versions
-kmp-aws = "1.0.55"
+kmp-aws = "1.0.59"
 kmp-crashkios = "0.8.5"
 kmp-compose-runtime = "1.6.1"
 kmp-kermit = "2.0.3"
@@ -104,7 +104,7 @@ kmp-ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref 
 kmp-matthewnelson-encoding = { module = "io.matthewnelson.encoding:base32", version.ref = "kmp-matthewnelson-encoding" }
 kmp-molecule-runtime = { module = "app.cash.molecule:molecule-runtime", version = "1.4.2" }
 kmp-okhttp = { module = "com.squareup.okhttp3:okhttp", version = "4.12.0" }
-kmp-okio = { module = "com.squareup.okio:okio", version = "3.7.0" }
+kmp-okio = { module = "com.squareup.okio:okio", version = "3.8.0" }
 kmp-picnic = { module = "com.jakewharton.picnic:picnic", version = "0.7.0" }
 kmp-redacted-annotations = { module = "dev.zacsweers.redacted:redacted-compiler-plugin-annotations", version.ref = "kmp-redacted" }
 kmp-settings = { module = "com.russhwolf:multiplatform-settings", version.ref = "kmp-settings" }

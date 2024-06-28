@@ -15,7 +15,8 @@ use tracing::instrument;
 
 use crate::error::WorkerError;
 
-const MEMPOOL_ELECTRUM_SERVER_ENDPOINT: &str = "ssl://bitkey.mempool.space:60602";
+const MEMPOOL_ELECTRUM_SERVER_ENDPOINT: &str =
+    "ssl://bitcoin-signet.aed8yee4taeh6tugeiv6.blockstream.info:50002";
 const OUTPUT_AMOUNT: u64 = 11_000;
 
 #[instrument]
@@ -49,10 +50,15 @@ pub async fn handler() -> Result<(), WorkerError> {
     estimation_builder
         .drain_wallet()
         .fee_rate(FeeRate::default_min_relay_fee());
-    let outputs_num: u64 = balance.get_total() / OUTPUT_AMOUNT; // Number of outputs
+    let total_spendable = balance.get_spendable();
+    let outputs_num: u64 = total_spendable / OUTPUT_AMOUNT; // Number of outputs
     for _ in 0..outputs_num {
         estimation_builder.add_recipient(grinded_address.script_pubkey(), OUTPUT_AMOUNT);
     }
+    estimation_builder.add_recipient(
+        grinded_address.script_pubkey(),
+        total_spendable % OUTPUT_AMOUNT,
+    );
     let tx_fee = match estimation_builder.finish() {
         Ok((_, details)) => details.fee.unwrap(),
         Err(bdk_utils::bdk::Error::InsufficientFunds { needed, available }) => needed - available,
@@ -61,13 +67,16 @@ pub async fn handler() -> Result<(), WorkerError> {
     assert!(tx_fee > 0, "Transaction fee must be greater than 0");
 
     let mut builder = wallet.build_tx();
-    builder
-        .drain_wallet()
-        .fee_rate(FeeRate::default_min_relay_fee());
-    let outputs_num: u64 = (balance.get_total() - tx_fee) / OUTPUT_AMOUNT; // Number of outputs
+    builder.drain_wallet().fee_absolute(tx_fee);
+    let total_spendable = balance.get_spendable() - tx_fee;
+    let outputs_num: u64 = total_spendable / OUTPUT_AMOUNT; // Number of outputs
     for _ in 0..outputs_num {
         builder.add_recipient(grinded_address.script_pubkey(), OUTPUT_AMOUNT);
     }
+    builder.add_recipient(
+        grinded_address.script_pubkey(),
+        total_spendable % OUTPUT_AMOUNT,
+    );
     let (mut grinded_psbt, _) = builder.finish().unwrap();
 
     wallet

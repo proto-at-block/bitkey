@@ -9,7 +9,7 @@ import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.OnboardConfigData
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.keybox.address.KeyboxAddressData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
@@ -46,7 +46,7 @@ sealed interface AccountData {
      * recovering Keybox matching that config.
      */
     data class GettingStartedData(
-      val newAccountOnboardConfigData: OnboardConfigData,
+      val onboardConfig: OnboardConfig,
       val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
       val startFullAccountCreation: () -> Unit,
       val startLiteAccountCreation: () -> Unit,
@@ -78,6 +78,9 @@ sealed interface AccountData {
       val onExit: () -> Unit,
     ) : NoActiveAccountData
 
+    /**
+     * This is a non-onboarded state with a template config used for the non-onboarded device reset flow
+     */
     data class ResettingExistingDeviceData(
       val templateFullAccountConfig: FullAccountConfig,
       val onExit: () -> Unit,
@@ -221,7 +224,7 @@ sealed interface AccountData {
    */
   data class HasActiveLiteAccountData(
     val account: LiteAccount,
-    val accountUpgradeOnboardConfigData: OnboardConfigData.LoadedOnboardConfigData,
+    val onboardConfig: OnboardConfig,
     val accountUpgradeTemplateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     val onUpgradeAccount: () -> Unit,
   ) : AccountData

@@ -43,9 +43,7 @@ where
         let cognito_user =
             CognitoUser::from_str(username.as_ref()).map_err(|_| StatusCode::UNAUTHORIZED)?;
         let account_id = match cognito_user {
-            CognitoUser::Wallet(account_id)
-            | CognitoUser::App(account_id)
-            | CognitoUser::Hardware(account_id) => account_id,
+            CognitoUser::App(account_id) | CognitoUser::Hardware(account_id) => account_id,
             CognitoUser::Recovery(account_id) => {
                 return Ok(Self {
                     account_id: account_id.to_string(),

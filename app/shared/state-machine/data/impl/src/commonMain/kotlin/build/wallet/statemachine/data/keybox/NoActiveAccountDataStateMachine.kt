@@ -3,7 +3,7 @@ package build.wallet.statemachine.data.keybox
 import build.wallet.bitkey.account.Account
 import build.wallet.recovery.Recovery.StillRecovering
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.account.OnboardConfigData.LoadedOnboardConfigData
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 
@@ -22,6 +22,6 @@ interface NoActiveAccountDataStateMachine :
 data class NoActiveAccountDataProps(
   val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
   val existingRecovery: StillRecovering?,
-  val newAccountOnboardConfigData: LoadedOnboardConfigData,
+  val onboardConfig: OnboardConfig,
   val onAccountCreated: (Account) -> Unit,
 )

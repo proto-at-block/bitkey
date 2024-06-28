@@ -181,7 +181,8 @@ struct MoneyHomeView_Preview: PreviewProvider {
                             ],
                             style: .none,
                             headerTreatment: .secondary,
-                            footerButton: nil
+                            footerButton: nil, 
+                            explainerSubtext: nil
                         ),
                         ListGroupModel(
                             header: nil,
@@ -198,7 +199,8 @@ struct MoneyHomeView_Preview: PreviewProvider {
                             ],
                             style: .none,
                             headerTreatment: .secondary,
-                            footerButton: nil
+                            footerButton: nil,
+                            explainerSubtext: nil
                         ),
                     ]
                 ),

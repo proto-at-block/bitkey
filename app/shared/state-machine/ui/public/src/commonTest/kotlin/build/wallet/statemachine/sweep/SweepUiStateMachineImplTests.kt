@@ -2,6 +2,7 @@ package build.wallet.statemachine.sweep
 
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError.Generic
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitcoin.transactions.PsbtMock
@@ -11,12 +12,10 @@ import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.FailedToListKeysets
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -25,16 +24,10 @@ import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.sweep.SweepData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.AwaitingHardwareSignedSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratePsbtsFailedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.NoFundsFoundData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.PsbtsGeneratedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SigningAndBroadcastingSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepFailedData
+import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.money.amount.MoneyAmountModel
@@ -46,11 +39,12 @@ import build.wallet.statemachine.recovery.sweep.SweepUiProps
 import build.wallet.statemachine.recovery.sweep.SweepUiStateMachineImpl
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
+import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.toImmutableMap
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 class SweepUiStateMachineImplTests : FunSpec({
   val onExitCalls = turbines.create<Unit>("exit calls")
@@ -59,7 +53,7 @@ class SweepUiStateMachineImplTests : FunSpec({
   val onRetryCallback = { onRetryCalls += Unit }
   val startSweepCalls = turbines.create<Unit>("start sweep calls")
   val addHwSignedSweepsCalls =
-    turbines.create<List<Psbt>>("add hw signed psbts calls")
+    turbines.create<Set<Psbt>>("add hw signed psbts calls")
 
   val nfcSessionUIStateMachine =
     object : NfcSessionUIStateMachine, ScreenStateMachineMock<NfcSessionUIStateMachineProps<*>>(
@@ -115,7 +109,7 @@ class SweepUiStateMachineImplTests : FunSpec({
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
       sweepDataStateMachine.emitModel(
-        GeneratePsbtsFailedData(FailedToListKeysets, retry = onRetryCallback)
+        GeneratePsbtsFailedData(Error("oops"), retry = onRetryCallback)
       )
       awaitScreenWithBody<FormBodyModel> {
         onBack!!()
@@ -132,12 +126,27 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
           startSweep = { startSweepCalls += Unit }
         )
       )
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-        header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain("10,000 sats")
+        toolbar?.trailingAccessory.shouldBeNull()
+        toolbar?.leadingAccessory.shouldBeNull()
+        header.shouldNotBeNull()
+        mainContentList.size.shouldBe(2)
+        mainContentList[1].shouldBeInstanceOf<FormMainContentModel.DataList>().should { dataList ->
+          dataList.items.should { items ->
+            items.size.shouldBe(2)
+            items[0].sideText.shouldContain("$100.00")
+            items[1].sideText.shouldContain("$100.00")
+          }
+          dataList.total.should { totals ->
+            totals?.sideText.shouldContain("$100.00")
+            totals?.secondarySideText.shouldContain("10,000 sats")
+          }
+        }
         clickPrimaryButton()
       }
       startSweepCalls.awaitItem()
@@ -174,14 +183,33 @@ class SweepUiStateMachineImplTests : FunSpec({
         )
       val totalFeeAmount =
         PsbtMock.fee + PsbtMock.fee
-      val needsHwSign = mapOf(SpendingKeysetMock2 to sweepPsbts[1].psbt).toImmutableMap()
-      val hwSignedPsbts = immutableListOf(sweepPsbts[1].psbt.copy(base64 = "hw-signed"))
-      sweepDataStateMachine.emitModel(PsbtsGeneratedData(totalFeeAmount, { startSweepCalls += Unit }))
+      val totalTransferAmount = PsbtMock.amountBtc + PsbtMock.amountBtc
+      val needsHwSign = sweepPsbts.take(1).toSet()
+      val hwSignedPsbts = setOf(sweepPsbts[1].psbt.copy(base64 = "hw-signed"))
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount,
+          totalTransferAmount,
+          { startSweepCalls += Unit }
+        )
+      )
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-        header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain(
-          "10,000 sats ($100.00)"
-        )
+        toolbar?.trailingAccessory.shouldBeNull()
+        toolbar?.leadingAccessory.shouldBeNull()
+        header.shouldNotBeNull()
+        mainContentList.size.shouldBe(2)
+        mainContentList[1].shouldBeInstanceOf<FormMainContentModel.DataList>().should { dataList ->
+          dataList.items.should { items ->
+            items.size.shouldBe(2)
+            items[0].sideText.shouldContain("$100.00")
+            items[1].sideText.shouldContain("$100.00")
+          }
+          dataList.total.should { totals ->
+            totals?.sideText.shouldContain("$100.00")
+            totals?.secondarySideText.shouldContain("10,000 sats")
+          }
+        }
         clickPrimaryButton()
       }
       startSweepCalls.awaitItem()
@@ -192,12 +220,12 @@ class SweepUiStateMachineImplTests : FunSpec({
           addHwSignedSweeps = { addHwSignedSweepsCalls += it }
         )
       )
-      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<ImmutableList<Psbt>>>(
+      awaitScreenWithBodyModelMock<NfcSessionUIStateMachineProps<Set<Psbt>>>(
         id = nfcSessionUIStateMachine.id
       ) {
         val nfcCommandsMock = NfcCommandsMock(turbine = turbines::create)
         session(NfcSessionFake(), nfcCommandsMock)
-        needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.value }
+        needsHwSign.forEach { nfcCommandsMock.signTransactionCalls.awaitItem() shouldBe it.psbt }
         isHardwareFake shouldBe FullAccountConfigMock.isHardwareFake
         onSuccess(hwSignedPsbts)
       }
@@ -223,14 +251,27 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
           startSweep = { startSweepCalls += Unit }
         )
       )
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-        header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain(
-          "10,000 sats ($100.00)"
-        )
+        toolbar?.trailingAccessory.shouldBeNull()
+        toolbar?.leadingAccessory.shouldBeNull()
+        header.shouldNotBeNull()
+        mainContentList.size.shouldBe(2)
+        mainContentList[1].shouldBeInstanceOf<FormMainContentModel.DataList>().should { dataList ->
+          dataList.items.should { items ->
+            items.size.shouldBe(2)
+            items[0].sideText.shouldContain("$100.00")
+            items[1].sideText.shouldContain("$100.00")
+          }
+          dataList.total.should { totals ->
+            totals?.sideText.shouldContain("$100.00")
+            totals?.secondarySideText.shouldContain("10,000 sats")
+          }
+        }
         primaryButton!!.onClick()
       }
       startSweepCalls.awaitItem()
@@ -257,12 +298,27 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(
         PsbtsGeneratedData(
           totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
           startSweep = { startSweepCalls += Unit }
         )
       )
       awaitScreenWithBody<FormBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-        header.shouldNotBeNull().sublineModel.shouldNotBeNull().string.shouldContain("10,000 sats")
+        toolbar?.trailingAccessory.shouldBeNull()
+        toolbar?.leadingAccessory.shouldBeNull()
+        header.shouldNotBeNull()
+        mainContentList.size.shouldBe(2)
+        mainContentList[1].shouldBeInstanceOf<FormMainContentModel.DataList>().should { dataList ->
+          dataList.items.should { items ->
+            items.size.shouldBe(2)
+            items[0].sideText.shouldContain("$100.00")
+            items[1].sideText.shouldContain("$100.00")
+          }
+          dataList.total.should { totals ->
+            totals?.sideText.shouldContain("$100.00")
+            totals?.secondarySideText.shouldContain("10,000 sats")
+          }
+        }
         primaryButton!!.onClick()
       }
       startSweepCalls.awaitItem()
@@ -283,6 +339,65 @@ class SweepUiStateMachineImplTests : FunSpec({
       sweepDataStateMachine.emitModel(GeneratingPsbtsData)
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         id shouldBe DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+    }
+  }
+
+  test("Sweep Funds on Inactive Wallet") {
+    sweepStateMachine.test(
+      props.copy(
+        recoveredFactor = null
+      )
+    ) {
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        PsbtsGeneratedData(
+          totalFeeAmount = PsbtMock.fee,
+          totalTransferAmount = PsbtMock.amountBtc,
+          startSweep = { startSweepCalls += Unit }
+        )
+      )
+      awaitScreenWithBody<FormBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
+        toolbar?.trailingAccessory.shouldNotBeNull()
+        toolbar?.leadingAccessory.shouldNotBeNull()
+        header.shouldNotBeNull()
+        header?.sublineModel.shouldNotBeNull()
+        mainContentList.size.shouldBe(2)
+        mainContentList[1].shouldBeInstanceOf<FormMainContentModel.DataList>().should { dataList ->
+          dataList.items.should { items ->
+            items.size.shouldBe(2)
+            items[0].sideText.shouldContain("$100.00")
+            items[1].sideText.shouldContain("$100.00")
+          }
+          dataList.total.should { totals ->
+            totals?.sideText.shouldContain("$100.00")
+            totals?.secondarySideText.shouldContain("10,000 sats")
+          }
+        }
+        primaryButton!!.onClick()
+      }
+      startSweepCalls.awaitItem()
+      sweepDataStateMachine.emitModel(SigningAndBroadcastingSweepsData)
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+      }
+      sweepDataStateMachine.emitModel(
+        SweepFailedData(Generic(Exception("Dang."), null), onRetryCallback)
+      )
+      awaitScreenWithBody<FormBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_FAILED
+        primaryButton!!.onClick()
+      }
+      onRetryCalls.awaitItem()
+
+      // Go back to initial state
+      sweepDataStateMachine.emitModel(GeneratingPsbtsData)
+      awaitScreenWithBody<LoadingSuccessBodyModel> {
+        id shouldBe InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
     }

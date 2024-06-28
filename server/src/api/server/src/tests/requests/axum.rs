@@ -167,10 +167,10 @@ impl TestClient {
             .await;
         if let Some(r) = response.body.as_ref() {
             let account_id = r.account_id.clone();
-            let pubkey = if let CreateAccountRequest::Full { .. } = request {
-                request.auth_keys().0.unwrap()
-            } else {
-                request.auth_keys().2.unwrap()
+            let pubkey = match request {
+                CreateAccountRequest::Full { auth, .. } => auth.app,
+                CreateAccountRequest::Lite { auth, .. } => auth.recovery,
+                CreateAccountRequest::Software { auth, .. } => auth.app,
             };
             context.associate_with_account(&account_id, pubkey);
         }

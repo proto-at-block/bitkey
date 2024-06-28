@@ -1,61 +1,27 @@
 package build.wallet.statemachine.data.recovery.sweep
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.OutgoingTransactionDetail
-import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepository
-import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.toDuration
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.factor.PhysicalFactor.Hardware
-import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClient
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.mapUnit
-import build.wallet.money.BitcoinMoney
 import build.wallet.money.exchange.ExchangeRate
 import build.wallet.money.exchange.ExchangeRateSyncer
-import build.wallet.recovery.sweep.SweepGenerator
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError
+import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
-import build.wallet.statemachine.data.recovery.sweep.SweepData.AwaitingHardwareSignedSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratePsbtsFailedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.NoFundsFoundData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.PsbtsGeneratedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SigningAndBroadcastingSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepFailedData
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.AwaitingHardwareSignedSweepsState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.GeneratePsbtsFailedState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.GeneratingPsbtsState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.NoFundsFoundState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.PsbtsGeneratedState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.SignAndBroadcastState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.SweepFailedState
-import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.SweepSuccessState
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
+import build.wallet.recovery.sweep.SweepService
+import build.wallet.statemachine.data.recovery.sweep.SweepData.*
+import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.State.*
+import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
-import com.github.michaelbull.result.map
-import com.github.michaelbull.result.mapAll
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
-import kotlinx.collections.immutable.ImmutableList
-import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.toImmutableList
-import kotlinx.collections.immutable.toImmutableMap
 
 class SweepDataStateMachineImpl(
   private val bitcoinBlockchain: BitcoinBlockchain,
-  private val sweepGenerator: SweepGenerator,
+  private val sweepService: SweepService,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val exchangeRateSyncer: ExchangeRateSyncer,
@@ -64,26 +30,9 @@ class SweepDataStateMachineImpl(
   private sealed interface State {
     data object GeneratingPsbtsState : State
 
-    /**
-     * @property allPsbts - all sweep psbts that need to be signed (with app + hardware/f8e) and
-     * broadcasted to move recovered funds.
-     */
     data class PsbtsGeneratedState(
-      val allPsbts: ImmutableList<SweepPsbt>,
-    ) : State {
-      init {
-        require(allPsbts.isNotEmpty())
-      }
-
-      /**
-       * Sweep psbts that need to be signed with hardware, if any.
-       */
-      val needsHwSign: ImmutableMap<SpendingKeyset, Psbt> =
-        allPsbts
-          .filter { it.signingFactor == Hardware }
-          .associate { it.keyset to it.psbt }
-          .toImmutableMap()
-    }
+      val sweep: Sweep,
+    ) : State
 
     /**
      * We didn't find any funds to move, or the amount of funds are lower than the network fees
@@ -95,22 +44,28 @@ class SweepDataStateMachineImpl(
      * Awaiting for hardware to sign sweep psbts that require hardware signing to be broadcasted.
      */
     data class AwaitingHardwareSignedSweepsState(
-      val allPsbts: ImmutableList<SweepPsbt>,
-      val needsHwSign: ImmutableMap<SpendingKeyset, Psbt>,
-    ) : State
+      val sweep: Sweep,
+    ) : State {
+      init {
+        val hasPsbtsRequiringHwSign = sweep.psbtsRequiringHwSign.isNotEmpty()
+        require(hasPsbtsRequiringHwSign) {
+          "needsHwSign must not be empty"
+        }
+      }
+    }
 
     /**
      * Signing sweep psbts with app + f8e/hardware and broadcasting.
      */
     data class SignAndBroadcastState(
-      val allPsbts: ImmutableList<SweepPsbt>,
+      val allPsbts: Set<SweepPsbt>,
     ) : State
 
     /**
      * Failed to generate sweep psbts.
      */
     data class GeneratePsbtsFailedState(
-      val error: SweepGeneratorError,
+      val error: Error,
     ) : State
 
     /**
@@ -134,14 +89,12 @@ class SweepDataStateMachineImpl(
       /** Initial state */
       GeneratingPsbtsState -> {
         LaunchedEffect("generate-psbts") {
-          sweepGenerator.generateSweep(props.keybox)
-            .onSuccess { psbts ->
-              sweepState =
-                if (psbts.isEmpty()) {
-                  NoFundsFoundState
-                } else {
-                  PsbtsGeneratedState(psbts.toImmutableList())
-                }
+          sweepService.prepareSweep(props.keybox)
+            .onSuccess { sweep ->
+              sweepState = when (sweep) {
+                null -> NoFundsFoundState
+                else -> PsbtsGeneratedState(sweep)
+              }
             }
             .onFailure { err -> sweepState = GeneratePsbtsFailedState(err) }
         }
@@ -157,18 +110,16 @@ class SweepDataStateMachineImpl(
       /** Transactions have been generated, waiting on user confirmation */
       is PsbtsGeneratedState ->
         PsbtsGeneratedData(
-          totalFeeAmount = calculateTotalFee(state.allPsbts),
+          totalFeeAmount = state.sweep.totalFeeAmount,
+          totalTransferAmount = state.sweep.totalTransferAmount,
           startSweep = {
             sweepState =
-              if (state.needsHwSign.isEmpty()) {
+              if (state.sweep.psbtsRequiringHwSign.isEmpty()) {
                 // no psbts that need to be signed with hardware, all psbts are signable with app + f8e,
                 // ready to broadcast after signing
-                SignAndBroadcastState(state.allPsbts)
+                SignAndBroadcastState(state.sweep.unsignedPsbts)
               } else {
-                AwaitingHardwareSignedSweepsState(
-                  allPsbts = state.allPsbts,
-                  needsHwSign = state.needsHwSign
-                )
+                AwaitingHardwareSignedSweepsState(sweep = state.sweep)
               }
           }
         )
@@ -176,10 +127,10 @@ class SweepDataStateMachineImpl(
       is AwaitingHardwareSignedSweepsState ->
         AwaitingHardwareSignedSweepsData(
           fullAccountConfig = props.keybox.config,
-          needsHwSign = state.needsHwSign,
+          needsHwSign = state.sweep.psbtsRequiringHwSign,
           addHwSignedSweeps = { hwSignedPsbts ->
-            val mergedPsbts = mergeHwSignedPsbts(state.allPsbts, hwSignedPsbts)
-            sweepState = SignAndBroadcastState(mergedPsbts.toImmutableList())
+            val mergedPsbts = mergeHwSignedPsbts(state.sweep.unsignedPsbts, hwSignedPsbts)
+            sweepState = SignAndBroadcastState(mergedPsbts)
           }
         )
 
@@ -216,28 +167,22 @@ class SweepDataStateMachineImpl(
   }
 
   private fun mergeHwSignedPsbts(
-    allPsbts: List<SweepPsbt>,
-    hwSignedPsbts: List<Psbt>,
-  ): List<SweepPsbt> {
-    val indexedHwSignedPsbts: Map<String, Psbt> =
-      hwSignedPsbts.associateBy { it.id }
-    return allPsbts.map { sweep ->
-      indexedHwSignedPsbts[sweep.psbt.id]?.let {
-        sweep.copy(psbt = it)
-      } ?: sweep
-    }
-  }
-
-  private fun calculateTotalFee(psbts: List<SweepPsbt>): BitcoinMoney {
-    return psbts
-      .map { it.psbt.fee }
-      .reduce { acc, fee -> acc.plus(fee) }
+    allPsbts: Set<SweepPsbt>,
+    hwSignedPsbts: Set<Psbt>,
+  ): Set<SweepPsbt> {
+    val indexedHwSignedPsbts: Map<String, Psbt> = hwSignedPsbts.associateBy { it.id }
+    return allPsbts
+      .map { sweep ->
+        indexedHwSignedPsbts[sweep.psbt.id]
+          ?.let { sweep.copy(psbt = it) } ?: sweep
+      }
+      .toSet()
   }
 
   private suspend fun signAndBroadcastPsbts(
     props: SweepDataProps,
     state: SignAndBroadcastState,
-    exchangeRates: ImmutableList<ExchangeRate>,
+    exchangeRates: List<ExchangeRate>,
   ): Result<Unit, Throwable> =
     Ok(state.allPsbts)
       .mapAll { signAndBroadcastPsbt(props, it, exchangeRates) }
@@ -246,7 +191,7 @@ class SweepDataStateMachineImpl(
   private suspend fun signAndBroadcastPsbt(
     props: SweepDataProps,
     sweepPsbt: SweepPsbt,
-    exchangeRates: ImmutableList<ExchangeRate>,
+    exchangeRates: List<ExchangeRate>,
   ): Result<Unit, Throwable> =
     coroutineBinding {
       val appSignPsbt = appSignPsbt(sweepPsbt).bind()
@@ -271,7 +216,7 @@ class SweepDataStateMachineImpl(
   private suspend fun appSignPsbt(sweep: SweepPsbt): Result<SweepPsbt, Throwable> =
     coroutineBinding {
       if (sweep.signingFactor == App) {
-        val wallet = appSpendingWalletProvider.getSpendingWallet(sweep.keyset).bind()
+        val wallet = appSpendingWalletProvider.getSpendingWallet(sweep.sourceKeyset).bind()
 
         wallet.signPsbt(sweep.psbt)
           .map { appSignedPsbt -> sweep.copy(psbt = appSignedPsbt) }
@@ -288,7 +233,7 @@ class SweepDataStateMachineImpl(
     mobilePaySigningF8eClient.signWithSpecificKeyset(
       f8eEnvironment = props.keybox.config.f8eEnvironment,
       fullAccountId = props.keybox.fullAccountId,
-      keysetId = sweep.keyset.f8eSpendingKeyset.keysetId,
+      keysetId = sweep.sourceKeyset.f8eSpendingKeyset.keysetId,
       psbt = sweep.psbt
     )
 }

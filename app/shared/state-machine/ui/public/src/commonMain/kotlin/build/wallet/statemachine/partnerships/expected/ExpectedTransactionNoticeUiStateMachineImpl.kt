@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.ExpectedTransactionTrackerScreenId.EXPECTED_TRANSACTION_NOTICE_LOADING
-import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
+import build.wallet.f8e.partnerships.GetPartnerF8eClient
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -24,7 +24,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class ExpectedTransactionNoticeUiStateMachineImpl(
-  private val getTransferPartnerListF8eClient: GetTransferPartnerListF8eClient,
+  private val getPartnerF8eClient: GetPartnerF8eClient,
   private val transactionsStatusRepository: PartnershipTransactionsStatusRepository,
   private val dateTimeFormatter: DateTimeFormatter,
   private val delayer: Delayer,
@@ -34,26 +34,29 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
     var state by remember { mutableStateOf<State>(State.LoadingPartnershipDetails) }
 
     when (state) {
-      // W-8015: Update endpoint used for fetching partner info
       is State.LoadingPartnershipDetails -> LaunchedEffect("load partnership details") {
         when (props.event) {
           PartnershipEvent.TransactionCreated ->
-            delayer
-              .withMinimumDelay {
-                getTransferPartnerListF8eClient.getTransferPartners(
-                  fullAccountId = props.fullAccountId,
-                  f8eEnvironment = props.f8eEnvironment
-                )
-              }
-              .onSuccess { response ->
-                state = response.partnerList.find { it.partnerId == props.partner }.let {
-                  State.TransactionDetails(partnerInfo = it)
+            props.partner?.let { partner ->
+              delayer
+                .withMinimumDelay {
+                  getPartnerF8eClient.getPartner(
+                    fullAccountId = props.fullAccountId,
+                    f8eEnvironment = props.f8eEnvironment,
+                    partner = partner
+                  )
                 }
-              }
-              .logFailure { "Unable to fetch partner list for expected transaction screen" }
-              .onFailure {
-                state = State.TransactionDetails(null)
-              }
+                .onSuccess { partnerInfo ->
+                  state = State.TransactionDetails(partnerInfo = partnerInfo)
+                }
+                .logFailure { "Unable to fetch partner info for expected transaction screen" }
+                .onFailure {
+                  state = State.TransactionDetails(null)
+                }
+            } ?: run {
+              state = State.TransactionDetails(null)
+            }
+
           PartnershipEvent.WebFlowCompleted -> state = State.LoadingTransferDetails
           else -> {
             // Event types can be specified by deep link, so there is a possibility

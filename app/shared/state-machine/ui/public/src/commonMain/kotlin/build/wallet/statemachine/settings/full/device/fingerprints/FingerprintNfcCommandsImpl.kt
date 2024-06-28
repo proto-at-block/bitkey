@@ -3,6 +3,7 @@ package build.wallet.statemachine.settings.full.device.fingerprints
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
+import build.wallet.logging.log
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 
@@ -41,13 +42,14 @@ class FingerprintNfcCommandsImpl : FingerprintNfcCommands {
     enrolledFingerprints: EnrolledFingerprints,
     fingerprintToEnroll: FingerprintHandle,
   ): EnrollmentStatusResult {
-    val enrollmentStatus = commands.getFingerprintEnrollmentStatus(
+    val enrollmentResult = commands.getFingerprintEnrollmentStatus(
       session = session,
       isEnrollmentContextAware = true
     )
+
     val latestEnrolledFingerprints = commands.getEnrolledFingerprints(session)
 
-    return when (enrollmentStatus) {
+    return when (enrollmentResult.status) {
       FingerprintEnrollmentStatus.COMPLETE -> EnrollmentStatusResult.Complete(
         enrolledFingerprints = latestEnrolledFingerprints
       )

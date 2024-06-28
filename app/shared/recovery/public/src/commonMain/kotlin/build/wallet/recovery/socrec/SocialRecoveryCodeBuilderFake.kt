@@ -1,10 +1,10 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.catchingResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
-import com.github.michaelbull.result.runCatching
 import okio.ByteString.Companion.toByteString
 
 class SocialRecoveryCodeBuilderFake : SocialRecoveryCodeBuilder {
@@ -17,7 +17,7 @@ class SocialRecoveryCodeBuilderFake : SocialRecoveryCodeBuilder {
   override fun parseInviteCode(
     inviteCode: String,
   ): Result<InviteCodeParts, SocialRecoveryCodeBuilderError> =
-    runCatching {
+    catchingResult {
       InviteCodeParts(
         serverPart = inviteCode.substringAfter(","),
         pakePart = PakeCode(inviteCode.substringBefore(",").hexToByteArray().toByteString())
@@ -32,7 +32,7 @@ class SocialRecoveryCodeBuilderFake : SocialRecoveryCodeBuilder {
   override fun parseRecoveryCode(
     recoveryCode: String,
   ): Result<RecoveryCodeParts, SocialRecoveryCodeBuilderError> =
-    runCatching {
+    catchingResult {
       RecoveryCodeParts(
         serverPart = recoveryCode.substringAfter(",").toInt(),
         pakePart = PakeCode(recoveryCode.substringBefore(",").hexToByteArray().toByteString())

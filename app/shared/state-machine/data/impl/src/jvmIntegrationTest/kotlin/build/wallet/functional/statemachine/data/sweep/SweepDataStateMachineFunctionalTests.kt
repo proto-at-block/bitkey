@@ -14,11 +14,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.NoFundsFoundData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.PsbtsGeneratedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SigningAndBroadcastingSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
+import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
 import build.wallet.testing.AppTester
@@ -64,7 +60,7 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
         app.app.run {
           SweepDataStateMachineImpl(
             bitcoinBlockchain,
-            sweepGenerator,
+            sweepService,
             mobilePaySigningF8eClient,
             appSpendingWalletProvider,
             exchangeRateSyncer,

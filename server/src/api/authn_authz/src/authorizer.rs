@@ -70,10 +70,7 @@ pub async fn authorize_token_for_path(
                 AccountId::from_str(account_id.as_str()).map_err(|_| StatusCode::BAD_REQUEST)?;
             let cognito_user = CognitoUser::from_str(claims.username.as_ref())
                 .map_err(|_| StatusCode::UNAUTHORIZED)?;
-            if !cognito_user.is_wallet(&account_id)
-                && !cognito_user.is_app(&account_id)
-                && !cognito_user.is_hardware(&account_id)
-            {
+            if !cognito_user.is_app(&account_id) && !cognito_user.is_hardware(&account_id) {
                 return Err(StatusCode::UNAUTHORIZED);
             }
             Ok(())

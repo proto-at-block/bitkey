@@ -889,16 +889,8 @@ pub async fn rotate_authentication_keys(
         })
         .await?;
 
-    // If there's no existing recovery key and we're adding a new one, we need a new recovery cognito user
-    if !existing_recovery_key && rotate_to_new_recovery_key {
-        user_pool_service
-            .create_recovery_user_if_necessary(&account_id, request.recovery.as_ref().unwrap().key)
-            .await
-            .map_err(RecoveryError::RotateAuthKeys)?;
-    }
-
     user_pool_service
-        .rotate_account_auth_keys(
+        .create_or_update_account_users_if_necessary(
             &account_id,
             Some(request.application.key),
             Some(request.hardware.key),
@@ -1371,10 +1363,7 @@ pub async fn update_recovery_relationship(
                 ));
             };
 
-            if !cognito_user.is_wallet(&account_id)
-                && !cognito_user.is_app(&account_id)
-                && !cognito_user.is_hardware(&account_id)
-            {
+            if !cognito_user.is_app(&account_id) && !cognito_user.is_hardware(&account_id) {
                 event!(
                     Level::ERROR,
                     "The provided access token is for the incorrect domain."

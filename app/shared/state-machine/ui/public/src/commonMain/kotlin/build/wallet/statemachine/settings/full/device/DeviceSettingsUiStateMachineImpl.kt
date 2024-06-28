@@ -7,8 +7,8 @@ import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates
-import build.wallet.feature.FeatureFlag
-import build.wallet.feature.FeatureFlagValue.BooleanFlag
+import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
@@ -52,8 +52,8 @@ class DeviceSettingsUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val durationFormatter: DurationFormatter,
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
-  private val multipleFingerprintsIsEnabledFeatureFlag: FeatureFlag<BooleanFlag>,
-  private val resetDeviceIsEnabledFeatureFlag: FeatureFlag<BooleanFlag>,
+  private val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag,
+  private val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
 ) : DeviceSettingsUiStateMachine {

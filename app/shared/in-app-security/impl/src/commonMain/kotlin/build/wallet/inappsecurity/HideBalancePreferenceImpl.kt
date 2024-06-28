@@ -13,7 +13,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharingStarted.Companion.Lazily
+import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -32,7 +32,7 @@ class HideBalancePreferenceImpl(
       .getHideBalancePeference()
       .asFlowOfOneOrNull()
       .map { it.get()?.enabled ?: false }
-      .stateIn(appCoroutineScope, Lazily, false)
+      .stateIn(appCoroutineScope, Eagerly, false)
 
   override suspend fun get(): Result<Boolean, DbError> {
     return db.hideBalancePreferenceQueries

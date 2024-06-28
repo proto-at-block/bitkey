@@ -2,6 +2,7 @@ package build.wallet.statemachine.home.full.card
 
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
+import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -122,7 +123,8 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         onActionClick = {}
       ),
       startSweepCardUiProps = StartSweepCardUiProps(
-        onStartSweepClicked = {}
+        onStartSweepClicked = {},
+        keybox = KeyboxMock,
       )
     )
 

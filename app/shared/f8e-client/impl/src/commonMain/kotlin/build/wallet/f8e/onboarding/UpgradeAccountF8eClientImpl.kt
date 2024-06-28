@@ -14,6 +14,7 @@ import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.keybox.KeyCrossDraft
+import build.wallet.catchingResult
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.error.F8eError
@@ -28,6 +29,7 @@ import build.wallet.ktor.result.bodyResult
 import build.wallet.ktor.result.setRedactedBody
 import build.wallet.logging.log
 import com.github.michaelbull.result.Result
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.map
 import com.github.michaelbull.result.mapError
 import io.ktor.client.request.post
@@ -61,7 +63,7 @@ class UpgradeAccountF8eClientImpl(
       }
       .mapError { it.toF8eError<CreateAccountClientErrorCode>() }
       .map { response ->
-        val verified = runCatching {
+        val verified = catchingResult {
           f8eHttpClient.wsmVerifier.verify(
             base58Message = DescriptorPublicKey(response.spending).xpub,
             signature = response.spendingSig,
@@ -75,20 +77,20 @@ class UpgradeAccountF8eClientImpl(
           // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
           log {
             "[wsm_integrity_failure] WSM integrity signature verification failed: " +
-              "${response.spendingSig} : " +
-              "${response.spending} : " +
-              "${response.accountId} : " +
-              response.keysetId
+                "${response.spendingSig} : " +
+                "${response.spending} : " +
+                "${response.accountId} : " +
+                response.keysetId
           }
           // Just log, don't fail the call.
         }
 
         UpgradeAccountF8eClient.Success(
           f8eSpendingKeyset =
-            F8eSpendingKeyset(
-              keysetId = response.keysetId,
-              spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending)
-            ),
+          F8eSpendingKeyset(
+            keysetId = response.keysetId,
+            spendingPublicKey = F8eSpendingPublicKey(dpub = response.spending)
+          ),
           fullAccountId = FullAccountId(response.accountId)
         )
       }
@@ -110,16 +112,16 @@ class UpgradeAccountF8eClientImpl(
       network: BitcoinNetworkType,
     ) : this(
       auth =
-        AuthKeys(
-          app = appKeyBundle.authKey,
-          hardware = hardwareKeyBundle.authKey
-        ),
+      AuthKeys(
+        app = appKeyBundle.authKey,
+        hardware = hardwareKeyBundle.authKey
+      ),
       spending =
-        SpendingKeys(
-          app = appKeyBundle.spendingKey,
-          hardware = hardwareKeyBundle.spendingKey,
-          network = network
-        )
+      SpendingKeys(
+        app = appKeyBundle.spendingKey,
+        hardware = hardwareKeyBundle.spendingKey,
+        network = network
+      )
     )
 
     @Serializable

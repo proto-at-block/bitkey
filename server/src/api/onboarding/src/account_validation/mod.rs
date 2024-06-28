@@ -1,6 +1,6 @@
 use account::entities::{
     Account, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, Network,
-    SpendingKeysetRequest, UpgradeLiteAccountAuthKeysPayload,
+    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, UpgradeLiteAccountAuthKeysPayload,
 };
 use account::service::Service as AccountService;
 use async_trait::async_trait;
@@ -47,6 +47,9 @@ pub(crate) enum AccountValidationRequest {
         auth: UpgradeLiteAccountAuthKeysPayload,
         is_test_account: bool,
         spending_network: Network,
+    },
+    CreateSoftwareAccount {
+        auth: SoftwareAccountAuthKeysPayload,
     },
 }
 
@@ -144,6 +147,18 @@ fn is_repeat_account_creation(
             };
 
             active_auth_keys.recovery_pubkey == auth.recovery
+        }
+        AccountValidationRequest::CreateSoftwareAccount { auth, .. } => {
+            let Account::Software(software_account) = existing_account else {
+                return false;
+            };
+
+            let Some(active_auth_keys) = software_account.active_auth_keys() else {
+                return false;
+            };
+
+            active_auth_keys.app_pubkey == auth.app
+                && active_auth_keys.recovery_pubkey == auth.recovery
         }
         _ => false,
     }

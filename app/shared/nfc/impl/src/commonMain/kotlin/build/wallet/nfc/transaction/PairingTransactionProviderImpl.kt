@@ -5,14 +5,12 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwKeyBundle
+import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.cloud.backup.csek.CsekGenerator
 import build.wallet.crypto.PublicKey
-import build.wallet.firmware.FingerprintEnrollmentStatus.COMPLETE
-import build.wallet.firmware.FingerprintEnrollmentStatus.INCOMPLETE
-import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
-import build.wallet.firmware.FingerprintEnrollmentStatus.UNSPECIFIED
+import build.wallet.firmware.FingerprintEnrollmentStatus.*
 import build.wallet.firmware.FirmwareCertType
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.logging.LogLevel
@@ -20,10 +18,9 @@ import build.wallet.logging.log
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.signChallenge
-import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrolled
-import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintEnrollmentStarted
-import build.wallet.nfc.transaction.PairingTransactionResponse.FingerprintNotEnrolled
+import build.wallet.nfc.transaction.PairingTransactionResponse.*
 import build.wallet.platform.random.UuidGenerator
+import com.github.michaelbull.result.getOrElse
 import com.github.michaelbull.result.getOrThrow
 
 class PairingTransactionProviderImpl(
@@ -49,7 +46,7 @@ class PairingTransactionProviderImpl(
     override suspend fun session(
       session: NfcSession,
       commands: NfcCommands,
-    ) = when (commands.getFingerprintEnrollmentStatus(session)) {
+    ) = when (commands.getFingerprintEnrollmentStatus(session).status) {
       COMPLETE -> {
         unsealedCsek = csekGenerator.generate()
 
@@ -118,26 +115,24 @@ class PairingTransactionProviderImpl(
 
     // NOTE: Do not remove '[hardware_attestation_failure]' from the message. We alert
     // on this string in Datadog.
-    val serial =
-      Result.runCatching {
-        hardwareAttestation.verifyCertChain(
-          identityCert = identityCert,
-          batchCert = batchCert
-        )
-      }.getOrElse {
-        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify cert chain" }
-        return
-      }
+    val serial = catchingResult {
+      hardwareAttestation.verifyCertChain(
+        identityCert = identityCert,
+        batchCert = batchCert
+      )
+    }.getOrElse {
+      log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to verify cert chain" }
+      return
+    }
 
-    val challenge =
-      Result.runCatching {
-        hardwareAttestation.generateChallenge()
-      }.getOrElse {
-        log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to generate challenge for $serial " }
-        return
-      }
+    val challenge = catchingResult {
+      hardwareAttestation.generateChallenge()
+    }.getOrElse {
+      log(LogLevel.Warn) { "[hardware_attestation_failure] Failed to generate challenge for $serial " }
+      return
+    }
 
-    Result.runCatching {
+    catchingResult {
       require(
         commands.signVerifyAttestationChallenge(
           session,

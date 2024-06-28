@@ -75,7 +75,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
       nfcCommandsMock.getEnrolledFingerprintsCalls.awaitItem()
 
       awaitScreenWithBody<PairNewHardwareBodyModel> {
-        header.headline.shouldBe("Set up another fingerprint")
+        header.headline.shouldBe("Add a new fingerprint")
       }
     }
   }
@@ -92,7 +92,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
       // See the fingerprint instructions and tap the "Save fingerprint" button, which prompts to
       // tap again for enrollment status
       awaitScreenWithBody<PairNewHardwareBodyModel> {
-        header.headline.shouldBe("Set up another fingerprint")
+        header.headline.shouldBe("Add a new fingerprint")
         onBack.invoke()
       }
 
@@ -145,7 +145,7 @@ class EnrollingFingerprintUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBody<PairNewHardwareBodyModel> {
-        header.headline.shouldBe("Set up another fingerprint")
+        header.headline.shouldBe("Add a new fingerprint")
       }
     }
   }
@@ -165,7 +165,7 @@ private suspend fun StateMachineTester<EnrollingFingerprintProps, ScreenModel>.s
   // See the fingerprint instructions and tap the "Save fingerprint" button, which prompts to
   // tap again for enrollment status
   awaitScreenWithBody<PairNewHardwareBodyModel> {
-    header.headline.shouldBe("Set up another fingerprint")
+    header.headline.shouldBe("Add a new fingerprint")
     primaryButton.apply {
       text.shouldBe("Save fingerprint")
       onClick.invoke()

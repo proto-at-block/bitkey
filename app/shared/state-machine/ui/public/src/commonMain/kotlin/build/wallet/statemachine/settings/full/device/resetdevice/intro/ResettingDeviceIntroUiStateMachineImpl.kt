@@ -60,6 +60,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
   private val authF8eClient: AuthF8eClient,
 ) : ResettingDeviceIntroUiStateMachine {
   @Composable
+  @Suppress("CyclomaticComplexMethod")
   override fun model(props: ResettingDeviceIntroProps): ScreenModel {
     var uiState: ResettingDeviceIntroUiState by remember {
       mutableStateOf(
@@ -183,7 +184,12 @@ class ResettingDeviceIntroUiStateMachineImpl(
       }
 
       is TransferringFundsState -> {
-        // It's impossible to get here without a balance and a non-null fullAccount
+        if (props.balance == null || props.fullAccount == null) {
+          log(LogLevel.Error) {
+            "ResettingDeviceIntroUiStateMachineImpl.TransferringFundsState reached without a balance or fullAccount! This should never happen"
+          }
+        }
+
         ResettingDeviceIntroModel(
           presentedModally = props.fullAccount != null,
           onBack = props.onBack,
@@ -321,16 +327,16 @@ class ResettingDeviceIntroUiStateMachineImpl(
           val signature = commands.signChallenge(session, challengeString)
           Pair(hwPubKey, signature)
         },
-        onSuccess = { pair ->
+        onSuccess = { (publicKey, signature) ->
           val verification = signatureVerifier.verifyEcdsaResult(
             message = challengeString,
-            signature = pair.second,
-            publicKey = pair.first
+            signature = signature,
+            publicKey = publicKey
           )
           if (verification.get() == true && balance != null) {
             onTapPairedDevice(balance)
           } else {
-            onTapUnknownDevice(pair.first)
+            onTapUnknownDevice(publicKey)
           }
         },
         onCancel = onCancel,

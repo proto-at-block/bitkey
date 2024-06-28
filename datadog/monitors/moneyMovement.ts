@@ -103,7 +103,7 @@ export class MoneyMovementMonitors extends Construct {
             recipients: criticalRecipients,
             type: "query alert",
             monitorThresholds: {
-                critical: "1",
+                critical: "5",
             }
         }
         let securityRiskAlertWindow = "5m"
@@ -116,7 +116,7 @@ export class MoneyMovementMonitors extends Construct {
             ),
             name: `[Money Movement] Attempted to cosign above user daily spending limit on env: ${environment}`,
             message: "Illegal Mobile Pay cosign above user spending limit",
-            runbook: "https://docs.wallet.build/runbooks/server/mobile-pay/cosign-overflow",
+            runbook: "https://docs.wallet.build/runbooks/apps/server/mobile-pay/cosign-overflow",
             tags: tags,
             ...securityRiskAlertConfig
         })

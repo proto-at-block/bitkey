@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.unit.IntOffset
 
 private const val ANIMATE_MOTION_OFFSET = 40
-private const val ANIMATE_MOTION_DURATION = 200
+private const val ANIMATE_MOTION_DURATION = 150
 private const val ANIMATE_VISIBILITY_DURATION = 200
 private const val COLLAPSED_SCALE = 1.3f
 private const val EXPANDED_SCALE = 0.7f
@@ -48,12 +48,17 @@ fun CollapsibleLabelContainer(
   collapsedContent: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
   Box(modifier = modifier, contentAlignment = Alignment.CenterEnd) {
-    val motionTween = remember { tween<Float>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
+    val motionTweenFloat = remember { tween<Float>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
+    val motionTween = remember { tween<IntOffset>(ANIMATE_MOTION_DURATION, easing = LinearEasing) }
     val fadeTween = remember { tween<Float>(ANIMATE_VISIBILITY_DURATION, easing = LinearEasing) }
     AnimatedVisibility(
       visible = collapsed,
-      enter = scaleIn(motionTween, COLLAPSED_SCALE, TransformOrigin.Center) + fadeIn(fadeTween),
-      exit = scaleOut(motionTween, COLLAPSED_SCALE, TransformOrigin.Center) + fadeOut(fadeTween),
+      enter = scaleIn(motionTweenFloat, COLLAPSED_SCALE, TransformOrigin.Center) +
+        fadeIn(fadeTween) +
+        slideInVertically(motionTween) { -ANIMATE_MOTION_OFFSET },
+      exit = scaleOut(motionTweenFloat, COLLAPSED_SCALE, TransformOrigin.Center) +
+        fadeOut(fadeTween) +
+        slideOutVertically(motionTween) { -ANIMATE_MOTION_OFFSET },
       modifier = Modifier.matchParentSize(),
       content = {
         Column(

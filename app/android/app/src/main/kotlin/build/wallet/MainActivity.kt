@@ -13,35 +13,18 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
-import build.wallet.cloud.store.CloudFileStoreImpl
-import build.wallet.cloud.store.CloudKeyValueStoreImpl
-import build.wallet.cloud.store.CloudStoreAccountRepositoryImpl
-import build.wallet.cloud.store.GoogleAccountRepositoryImpl
-import build.wallet.cloud.store.GoogleDriveClientProviderImpl
-import build.wallet.cloud.store.GoogleDriveFileStoreImpl
-import build.wallet.cloud.store.GoogleDriveKeyValueStoreImpl
+import build.wallet.cloud.store.*
 import build.wallet.crypto.Spake2Impl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponent
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponent
-import build.wallet.encrypt.CryptoBoxImpl
-import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
-import build.wallet.encrypt.SymmetricKeyEncryptorImpl
-import build.wallet.encrypt.SymmetricKeyGeneratorImpl
-import build.wallet.encrypt.XChaCha20Poly1305Impl
-import build.wallet.encrypt.XNonceGeneratorImpl
+import build.wallet.encrypt.*
 import build.wallet.google.signin.GoogleSignInClientProviderImpl
 import build.wallet.google.signin.GoogleSignInLauncherImpl
 import build.wallet.google.signin.GoogleSignOutActionImpl
 import build.wallet.logging.log
-import build.wallet.nfc.AndroidNfcAdapterProvider
-import build.wallet.nfc.AndroidNfcTagScanner
-import build.wallet.nfc.FakeHardwareKeyStoreImpl
-import build.wallet.nfc.FakeHardwareSpendingWalletProvider
-import build.wallet.nfc.NfcCommandsFake
-import build.wallet.nfc.NfcCommandsImpl
-import build.wallet.nfc.NfcSessionProviderImpl
+import build.wallet.nfc.*
 import build.wallet.nfc.platform.NfcCommandsProvider
 import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.biometrics.BiometricPrompterImpl
@@ -58,6 +41,9 @@ import build.wallet.statemachine.account.recovery.cloud.google.GoogleSignInState
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachineImpl
 import build.wallet.ui.app.App
 import build.wallet.ui.app.AppUiModelMap
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
 
 class MainActivity : FragmentActivity() {
   private lateinit var appComponent: AppComponent
@@ -77,6 +63,8 @@ class MainActivity : FragmentActivity() {
 
     activityComponent = initializeActivityComponent()
     Router.route = Route.fromUrl(intent.dataString)
+
+    maybeHideAppInLauncher(appComponent)
 
     setContent {
       App(
@@ -262,5 +250,15 @@ class MainActivity : FragmentActivity() {
       cryptoBox = CryptoBoxImpl(),
       biometricPrompter = BiometricPrompterImpl(this)
     )
+  }
+
+  private fun maybeHideAppInLauncher(appComponent: AppComponent) {
+    appComponent.biometricPreference.isEnabled()
+      .onEach { isEnabled ->
+        if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
+          setRecentsScreenshotEnabled(!isEnabled)
+        }
+      }
+      .stateIn(appComponent.appCoroutineScope, SharingStarted.Eagerly, false)
   }
 }

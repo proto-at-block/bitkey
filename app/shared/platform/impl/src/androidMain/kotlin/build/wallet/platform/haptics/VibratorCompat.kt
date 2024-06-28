@@ -6,9 +6,11 @@ import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.VibrationEffect
 import android.os.VibrationEffect.EFFECT_DOUBLE_CLICK
+import android.os.VibrationEffect.EFFECT_TICK
 import android.os.Vibrator
 import build.wallet.platform.haptics.HapticsEffect.DoubleClick
 import build.wallet.platform.haptics.HapticsEffect.DullOneShot
+import build.wallet.platform.haptics.HapticsEffect.MediumClick
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -33,6 +35,8 @@ internal fun Vibrator.maybeVibrate(
           vibrate(VibrationEffect.createPredefined(EFFECT_DOUBLE_CLICK))
         DullOneShot ->
           vibrate(VibrationEffect.createOneShot(800, 125))
+        MediumClick ->
+          vibrate(VibrationEffect.createPredefined(EFFECT_TICK))
       }
     } else {
       @Suppress("DEPRECATION")

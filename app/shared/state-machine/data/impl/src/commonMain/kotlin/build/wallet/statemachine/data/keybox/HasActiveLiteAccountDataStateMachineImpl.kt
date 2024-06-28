@@ -1,11 +1,6 @@
 package build.wallet.statemachine.data.keybox
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.keybox.KeyboxDao
 import build.wallet.statemachine.data.account.create.CreateFullAccountContext
@@ -52,7 +47,7 @@ class HasActiveLiteAccountDataStateMachineImpl(
       is UsingLiteAccount ->
         AccountData.HasActiveLiteAccountData(
           account = props.account,
-          accountUpgradeOnboardConfigData = props.accountUpgradeOnboardConfigData,
+          onboardConfig = props.onboardConfig,
           accountUpgradeTemplateFullAccountConfigData = props.accountUpgradeTemplateFullAccountConfigData,
           onUpgradeAccount = { state = UpgradingLiteAccount }
         )
@@ -60,17 +55,15 @@ class HasActiveLiteAccountDataStateMachineImpl(
       is UpgradingLiteAccount ->
         AccountData.NoActiveAccountData.CreatingFullAccountData(
           templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
-          createFullAccountData =
-            createFullAccountDataStateMachine.model(
-              props =
-                CreateFullAccountDataProps(
-                  templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
-                  onboardConfig = props.accountUpgradeOnboardConfigData.config,
-                  onboardingKeybox = onboardingKeybox,
-                  context = CreateFullAccountContext.LiteToFullAccountUpgrade(props.account),
-                  rollback = { state = UsingLiteAccount }
-                )
+          createFullAccountData = createFullAccountDataStateMachine.model(
+            props = CreateFullAccountDataProps(
+              templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
+              onboardConfig = props.onboardConfig,
+              onboardingKeybox = onboardingKeybox,
+              context = CreateFullAccountContext.LiteToFullAccountUpgrade(props.account),
+              rollback = { state = UsingLiteAccount }
             )
+          )
         )
     }
   }

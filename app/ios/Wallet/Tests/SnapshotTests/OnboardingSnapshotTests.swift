@@ -73,10 +73,10 @@ final class OnboardingSnapshotTests: XCTestCase {
                     presentationStyle: .root,
 
                     isNavigatingBack: false,
-                    headline: "Set up your fingerprint",
-                    instructions: "Place your finger on the sensor until you see a blue light." +
-                        " Repeat this until the device has a solid green light." +
-                        " Once done, press the button below to save your fingerprint."
+                    headline: "Set up your first fingerprint",
+                    instructions: "Place your finger on the sensor until you see a blue light. Lift your finger and" +
+                    " repeat (15-20 times) adjusting your finger position slightly each time, until the light turns" +
+                    " green. Then save your fingerprint."
                 ).body as! PairNewHardwareBodyModel
         )
 

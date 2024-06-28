@@ -35,3 +35,13 @@ data class LiteCreateAccountResponseBody(
   @SerialName("account_id")
   override val accountId: String,
 ) : CreateAccountResponseBody
+
+/**
+ * Response body for the request to create a Software Account.
+ * Does not include spending keys.
+ */
+@Serializable
+data class SoftwareCreateAccountResponseBody(
+  @SerialName("account_id")
+  override val accountId: String,
+) : CreateAccountResponseBody

@@ -1,0 +1,38 @@
+import build.wallet.bitcoin.BitcoinNetworkType;
+import build.wallet.bitkey.app.AppGlobalAuthKey;
+import build.wallet.bitkey.app.AppRecoveryAuthKey;
+import build.wallet.bitkey.f8e.SoftwareAccountId;
+import build.wallet.crypto.PublicKey;
+import build.wallet.f8e.F8eEnvironment;
+import kotlin.Boolean;
+
+-- Creates new software account tables for modeling an account that has a software wallet.
+-- Since these are all new tables, there is no need to worry about migrating existing data.
+-- Only one account is allowed at a time, and there can only be either
+-- an active account or an onboarding account.
+
+CREATE TABLE softwareAccountEntity(
+  rowId               INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId           TEXT AS SoftwareAccountId NOT NULL UNIQUE,
+  bitcoinNetworkType  TEXT AS BitcoinNetworkType NOT NULL,
+  f8eEnvironment      TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount       INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes  INTEGER AS Boolean NOT NULL
+);
+
+CREATE TABLE activeSoftwareAccountEntity(
+  rowId              INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId          TEXT AS SoftwareAccountId NOT NULL,
+  softwareKeyboxId   TEXT NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId)
+);
+
+CREATE TABLE onboardingSoftwareAccountEntity(
+  rowId              INTEGER NOT NULL PRIMARY KEY CHECK (rowId = 0),
+  accountId          TEXT AS SoftwareAccountId NOT NULL,
+  appGlobalAuthKey   TEXT AS PublicKey<AppGlobalAuthKey> NOT NULL,
+  appRecoveryAuthKey TEXT AS PublicKey<AppRecoveryAuthKey> NOT NULL,
+  FOREIGN KEY (accountId) REFERENCES softwareAccountEntity(accountId)
+);
+
+PRAGMA foreign_key_check;

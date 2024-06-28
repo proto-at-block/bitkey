@@ -47,6 +47,7 @@ kotlin {
         api(libs.kmp.kotlin.datetime)
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.firmwarePublic)
+        implementation(projects.shared.serializationPublic)
       }
     }
 

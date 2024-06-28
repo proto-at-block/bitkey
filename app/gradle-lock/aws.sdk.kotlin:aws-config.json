@@ -2,11 +2,11 @@
     "module-identifier": "aws.sdk.kotlin:aws-config",
     "components": [
         {
-            "version": "1.0.55",
+            "version": "1.0.59",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-config-metadata-1.0.55.jar": "bcdb8699ee31daac9ec7ec2eff56f51ee035aafd8945ad1c4897003843046ab3"
+                        "aws-config-metadata-1.0.59.jar": "bcdb8699ee31daac9ec7ec2eff56f51ee035aafd8945ad1c4897003843046ab3"
                     }
                 }
             ],

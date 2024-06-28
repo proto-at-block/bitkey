@@ -1,5 +1,6 @@
 package build.wallet.money
 
+import build.wallet.money.currency.EUR
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.USD
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
@@ -38,25 +39,36 @@ data class FiatMoney(
     return copy(value = this.value - other.value)
   }
 
+  @Suppress("TooManyFunctions")
   companion object {
     fun zero(currency: FiatCurrency) = FiatMoney(currency = currency, value = BigDecimal.ZERO)
 
     fun zeroUsd() = zero(USD)
 
-    /**
-     * Constructor for creating USD Money given dollar amount.
-     */
+    fun zeroEur() = zero(EUR)
+
+    /** Constructors for creating USD Money given dollar amount. */
     fun usd(dollars: BigDecimal) = FiatMoney(currency = USD, value = dollars)
 
     fun usd(dollars: Double) = usd(dollars = dollars.toBigDecimal())
 
-    /**
-     * Constructor for creating USD Money  given cents amount.
-     */
+    /** Constructors for creating USD Money given cents amount. */
     fun usd(cents: BigInteger) = FiatMoney(currency = USD, fractionalUnitAmount = cents)
 
     fun usd(cents: Long) = usd(cents = cents.toBigInteger())
 
     fun usd(cents: Int) = usd(cents = cents.toBigInteger())
+
+    /** Constructors for creating EUR Money given euro amount. */
+    fun eur(euros: BigDecimal) = FiatMoney(currency = EUR, value = euros)
+
+    fun eur(euros: Double) = eur(euros = euros.toBigDecimal())
+
+    /** Constructors for creating EUR Money given cents amount. */
+    fun eur(cents: BigInteger) = FiatMoney(currency = EUR, fractionalUnitAmount = cents)
+
+    fun eur(cents: Long) = eur(cents = cents.toBigInteger())
+
+    fun eur(cents: Int) = eur(cents = cents.toBigInteger())
   }
 }

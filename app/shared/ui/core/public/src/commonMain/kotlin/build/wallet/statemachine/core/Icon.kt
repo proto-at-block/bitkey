@@ -90,6 +90,7 @@ enum class Icon {
   SmallIconPushNotification,
   SmallIconQrCode,
   SmallIconQuestion,
+  SmallIconQuestionNoOutline,
   SmallIconRecovery,
   SmallIconRefresh,
   SmallIconScan,
@@ -111,6 +112,7 @@ enum class Icon {
   SmallIconXStroked,
   SubtractLeft,
   SubtractRight,
+  CalloutArrow,
   TabIconHome,
   TabIconProfile,
 }

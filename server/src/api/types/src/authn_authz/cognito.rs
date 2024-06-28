@@ -1,11 +1,20 @@
 use crate::account::identifiers::AccountId;
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
+use thiserror::Error;
 use utoipa::ToSchema;
 
 const APP_USER_SUFFIX: &str = "-app";
 const HARDWARE_USER_SUFFIX: &str = "-hardware";
 const RECOVERY_USER_SUFFIX: &str = "-recovery";
+
+#[derive(Debug, Error)]
+pub enum CognitoTypesError {
+    #[error("Invalid username")]
+    InvalidUsername,
+    #[error(transparent)]
+    UrnError(#[from] urn::Error),
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, ToSchema)]
 pub struct CognitoUsername(String);
@@ -17,7 +26,7 @@ impl CognitoUsername {
 }
 
 impl FromStr for CognitoUsername {
-    type Err = urn::Error;
+    type Err = CognitoTypesError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let user = CognitoUser::from_str(s)?;
@@ -45,8 +54,6 @@ impl fmt::Display for CognitoUsername {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CognitoUser {
-    #[deprecated(note = "Remove after W-8550 migration is complete")]
-    Wallet(AccountId),
     App(AccountId),
     Hardware(AccountId),
     Recovery(AccountId),
@@ -55,15 +62,10 @@ pub enum CognitoUser {
 impl CognitoUser {
     pub fn get_account_id(&self) -> AccountId {
         match self {
-            CognitoUser::Wallet(id) => id.to_owned(),
             CognitoUser::App(id) => id.to_owned(),
             CognitoUser::Hardware(id) => id.to_owned(),
             CognitoUser::Recovery(id) => id.to_owned(),
         }
-    }
-
-    pub fn is_wallet(&self, account_id: &AccountId) -> bool {
-        matches!(self, CognitoUser::Wallet(id) if id == account_id)
     }
 
     pub fn is_app(&self, account_id: &AccountId) -> bool {
@@ -88,7 +90,6 @@ impl From<CognitoUser> for CognitoUsername {
 impl From<&CognitoUser> for CognitoUsername {
     fn from(u: &CognitoUser) -> Self {
         match u {
-            CognitoUser::Wallet(id) => CognitoUsername::new(format!("{}", id)),
             CognitoUser::App(id) => CognitoUsername::new(format!("{}{}", id, APP_USER_SUFFIX)),
             CognitoUser::Hardware(id) => {
                 CognitoUsername::new(format!("{}{}", id, HARDWARE_USER_SUFFIX))
@@ -101,7 +102,7 @@ impl From<&CognitoUser> for CognitoUsername {
 }
 
 impl FromStr for CognitoUser {
-    type Err = urn::Error;
+    type Err = CognitoTypesError;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         if value.ends_with(APP_USER_SUFFIX) {
@@ -122,8 +123,6 @@ impl FromStr for CognitoUser {
             return Ok(CognitoUser::Recovery(account_id));
         }
 
-        // Backcompat for W-8550 migration
-        let account_id = AccountId::from_str(value)?;
-        Ok(CognitoUser::Wallet(account_id))
+        Err(CognitoTypesError::InvalidUsername)
     }
 }

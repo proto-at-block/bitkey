@@ -1,5 +1,7 @@
 package build.wallet.gradle.logic.extensions
 
+import build.wallet.gradle.logic.gradle.isSnapshot
+import build.wallet.gradle.logic.gradle.snapshotVersion
 import com.android.build.api.dsl.ApplicationExtension
 import org.gradle.api.Action
 import org.gradle.api.Project
@@ -37,8 +39,14 @@ open class AppExtension
 
       android {
         defaultConfig {
-          versionName = appVersion.name
-          versionCode = appVersion.code
+          versionName = when {
+            project.isSnapshot() -> "SNAPSHOT-${project.snapshotVersion()}"
+            else -> appVersion.name
+          }
+          versionCode = when {
+            project.isSnapshot() -> project.snapshotVersion()
+            else -> appVersion.code
+          }
         }
       }
     }

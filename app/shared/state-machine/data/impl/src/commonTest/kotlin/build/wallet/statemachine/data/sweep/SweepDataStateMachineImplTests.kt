@@ -15,7 +15,6 @@ import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.bitkey.spending.SpendingKeysetMock2
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.mobilepay.MobilePaySigningF8eClientMock
 import build.wallet.f8e.mobilepay.isServerSignedWithKeyset
@@ -23,18 +22,11 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.money.exchange.ExchangeRateSyncerMock
-import build.wallet.recovery.sweep.SweepGenerator.SweepGeneratorError.BdkFailedToCreatePsbt
-import build.wallet.recovery.sweep.SweepGeneratorMock
+import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
+import build.wallet.recovery.sweep.SweepServiceMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.sweep.SweepData.AwaitingHardwareSignedSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratePsbtsFailedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.NoFundsFoundData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.PsbtsGeneratedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SigningAndBroadcastingSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepFailedData
+import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl
 import com.github.michaelbull.result.Err
@@ -42,6 +34,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
+import io.kotest.matchers.collections.shouldContainOnly
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -49,7 +42,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class SweepDataStateMachineImplTests : FunSpec({
-  val sweepGenerator = SweepGeneratorMock()
+  val sweepService = SweepServiceMock()
   val serverSigner = MobilePaySigningF8eClientMock(turbines::create)
   val bitcoinBlockchain = BitcoinBlockchainMock(turbines::create)
   val spendingWallets = mutableMapOf<String, SpendingWalletMock>()
@@ -70,7 +63,7 @@ class SweepDataStateMachineImplTests : FunSpec({
   val stateMachine =
     SweepDataStateMachineImpl(
       bitcoinBlockchain,
-      sweepGenerator,
+      sweepService,
       serverSigner,
       appSpendingWalletProvider,
       exchangeRateSyncer,
@@ -78,7 +71,7 @@ class SweepDataStateMachineImplTests : FunSpec({
     )
 
   afterTest {
-    sweepGenerator.reset()
+    sweepService.reset()
     serverSigner.reset()
     bitcoinBlockchain.reset()
 
@@ -95,8 +88,7 @@ class SweepDataStateMachineImplTests : FunSpec({
   fun props() = SweepDataProps(KeyboxMock, {})
 
   test("failed to generate sweep") {
-    sweepGenerator.generateSweepResult =
-      Err(BdkFailedToCreatePsbt(Generic(Exception("Dang."), null), SpendingKeysetMock))
+    sweepService.prepareSweepResult = Err(Error())
 
     stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
@@ -105,6 +97,8 @@ class SweepDataStateMachineImplTests : FunSpec({
   }
 
   test("no funds found") {
+    sweepService.prepareSweepResult = Ok(null)
+
     stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
 
@@ -126,9 +120,10 @@ class SweepDataStateMachineImplTests : FunSpec({
           SpendingKeysetMock2
         )
       )
-    val totalFeeAmount =
-      PsbtMock.fee + PsbtMock.fee
-    sweepGenerator.generateSweepResult = Ok(expectedSweepPsbts)
+    val totalFeeAmount = PsbtMock.fee + PsbtMock.fee
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
 
     stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
@@ -157,18 +152,18 @@ class SweepDataStateMachineImplTests : FunSpec({
 
       val psbt1 = bitcoinBlockchain.broadcastCalls.awaitItem().shouldBeTypeOf<Psbt>()
       psbt1.id.shouldBe(expectedSweepPsbts[0].psbt.id)
-      psbt1.isServerSignedWithKeyset(expectedSweepPsbts[0].keyset.f8eSpendingKeyset.keysetId)
+      psbt1.isServerSignedWithKeyset(expectedSweepPsbts[0].sourceKeyset.f8eSpendingKeyset.keysetId)
         .shouldBeTrue()
-      psbt1.isAppSignedWithKeyset(expectedSweepPsbts[0].keyset).shouldBeTrue()
+      psbt1.isAppSignedWithKeyset(expectedSweepPsbts[0].sourceKeyset).shouldBeTrue()
 
       // We persist this transaction into the database
       transactionRepository.setTransactionCalls.awaitItem()
 
       val psbt2 = bitcoinBlockchain.broadcastCalls.awaitItem().shouldBeTypeOf<Psbt>()
       psbt2.id.shouldBe(expectedSweepPsbts[1].psbt.id)
-      psbt2.isServerSignedWithKeyset(expectedSweepPsbts[1].keyset.f8eSpendingKeyset.keysetId)
+      psbt2.isServerSignedWithKeyset(expectedSweepPsbts[1].sourceKeyset.f8eSpendingKeyset.keysetId)
         .shouldBeTrue()
-      psbt2.isAppSignedWithKeyset(expectedSweepPsbts[1].keyset).shouldBeTrue()
+      psbt2.isAppSignedWithKeyset(expectedSweepPsbts[1].sourceKeyset).shouldBeTrue()
 
       // We persist this transaction into the database
       transactionRepository.setTransactionCalls.awaitItem()
@@ -184,7 +179,9 @@ class SweepDataStateMachineImplTests : FunSpec({
         SweepPsbt(needsAppPsbt, App, SpendingKeysetMock2)
       )
     val totalFeeAmount = needsHwPsbt.fee + needsAppPsbt.fee
-    sweepGenerator.generateSweepResult = Ok(expectedSweepPsbts)
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
 
     stateMachine.test(props()) {
       awaitItem().shouldBeTypeOf<GeneratingPsbtsData>()
@@ -195,17 +192,10 @@ class SweepDataStateMachineImplTests : FunSpec({
 
       awaitItem().let {
         it.shouldBeTypeOf<AwaitingHardwareSignedSweepsData>()
-        it.needsHwSign.shouldBe(
-          mapOf(
-            expectedSweepPsbts[0].keyset to expectedSweepPsbts[0].psbt
-          )
-        )
+        it.needsHwSign.shouldContainOnly(expectedSweepPsbts[0])
 
         // Provide hardware signed PSBTs
-        val hwSignedPsbts =
-          immutableListOf(
-            needsHwPsbt.copyBase64("hw-signed")
-          )
+        val hwSignedPsbts = setOf(needsHwPsbt.copyBase64("hw-signed"))
         it.addHwSignedSweeps(hwSignedPsbts)
       }
 
@@ -242,7 +232,9 @@ class SweepDataStateMachineImplTests : FunSpec({
       listOf(
         SweepPsbt(PsbtMock, App, SpendingKeysetMock)
       )
-    sweepGenerator.generateSweepResult = Ok(expectedSweepPsbts)
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
     val appSignedPsbtMock = PsbtMock.copyBase64("app-signed")
     serverSigner.signWithSpecificKeysetResult = Err(NetworkError(Error("Dang")))
 
@@ -269,7 +261,9 @@ class SweepDataStateMachineImplTests : FunSpec({
       listOf(
         SweepPsbt(PsbtMock, App, SpendingKeysetMock)
       )
-    sweepGenerator.generateSweepResult = Ok(expectedSweepPsbts)
+    sweepService.prepareSweepResult = Ok(
+      Sweep(unsignedPsbts = expectedSweepPsbts.toSet())
+    )
     bitcoinBlockchain.broadcastResult = Err(Generic(Exception("Dang."), null))
 
     stateMachine.test(props()) {

@@ -23,7 +23,7 @@ import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.app.AppData
 import build.wallet.statemachine.data.app.AppData.AppLoadedData
 import build.wallet.statemachine.data.app.AppData.LoadingAppData
@@ -213,14 +213,14 @@ class AppUiStateMachineImplTests : FunSpec({
             startLiteAccountCreation = {},
             startRecovery = {},
             startEmergencyAccessRecovery = {},
-            resetExistingDevice = {},
-            newAccountOnboardConfigData = LoadedOnboardConfigDataMock,
+            onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
             templateFullAccountConfigData =
               LoadedTemplateFullAccountConfigData(
                 config = FullAccountConfigMock,
                 updateConfig = {}
               ),
-            isNavigatingBack = false
+            isNavigatingBack = false,
+            resetExistingDevice = {}
           ),
         electrumServerData = PlaceholderElectrumServerDataMock,
         firmwareData = FirmwareDataUpToDateMock

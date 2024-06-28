@@ -68,24 +68,8 @@ impl TransitioningRecoveryState for CompletableRecoveryState {
                 return Err(RecoveryError::InvalidRecoveryDestination);
             }
 
-            let has_existing_recovery_key = account
-                .active_auth_keys()
-                .ok_or(RecoveryError::NoActiveAuthKeysError)?
-                .recovery_pubkey
-                .is_some();
-
-            // If there's no existing recovery key and we're adding a new one, we need a new recovery cognito user
-            if !has_existing_recovery_key {
-                if let Some(recovery_key) = action.destination.recovery_auth_pubkey {
-                    user_pool_service
-                        .create_recovery_user_if_necessary(&account.id, recovery_key)
-                        .await
-                        .map_err(RecoveryError::RotateAuthKeys)?;
-                }
-            }
-
             user_pool_service
-                .rotate_account_auth_keys(
+                .create_or_update_account_users_if_necessary(
                     &account.id,
                     Some(action.destination.app_auth_pubkey),
                     Some(action.destination.hardware_auth_pubkey),

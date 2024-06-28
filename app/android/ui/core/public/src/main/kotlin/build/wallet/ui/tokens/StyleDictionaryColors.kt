@@ -191,6 +191,9 @@ interface StyleDictionaryColors {
 
   // Danger callout trailing icon color
   val calloutDangerTrailingIcon: Color
+
+  // Coachmark background color
+  val coachmarkBackground: Color
 }
 
 val lightStyleDictionaryColors =
@@ -257,6 +260,7 @@ val lightStyleDictionaryColors =
     override val calloutDangerTitle: Color = Color(0xff74140d)
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
+    override val coachmarkBackground: Color = Color(0xff333442)
   }
 
 val darkStyleDictionaryColors =
@@ -323,4 +327,5 @@ val darkStyleDictionaryColors =
     override val calloutDangerTitle: Color = Color(0xff74140d)
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
+    override val coachmarkBackground: Color = Color(0xff333442)
   }

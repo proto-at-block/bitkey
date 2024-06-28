@@ -1,17 +1,12 @@
 package build.wallet.statemachine.data.account.create.activate
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.f8e.onboarding.OnboardingF8eClient
+import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.keybox.KeyboxDao

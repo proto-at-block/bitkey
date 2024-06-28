@@ -20,23 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
-import build.wallet.statemachine.core.Icon.SubtractLeft
-import build.wallet.statemachine.core.Icon.SubtractRight
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.ui.components.loading.LoadingIndicator
 import build.wallet.ui.compose.thenIf
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconBackgroundType.Circle
-import build.wallet.ui.model.icon.IconBackgroundType.Square
-import build.wallet.ui.model.icon.IconBackgroundType.Transient
-import build.wallet.ui.model.icon.IconImage
+import build.wallet.ui.model.icon.*
+import build.wallet.ui.model.icon.IconBackgroundType.*
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconImage.UrlImage
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconSize.Small
-import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.painter
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -320,7 +311,8 @@ internal fun IconsForPreview(
 
 private fun iconsToPreview(): List<Icon> {
   // Filter shared icon definitions that shouldn't be snapshot tested
-  return Icon.entries.filter {
-    it != BuyOwnBitkeyHero && it != SubtractLeft && it != SubtractRight
-  }.toList()
+  return Icon.entries
+    .filter {
+      it != BuyOwnBitkeyHero && it != SubtractLeft && it != SubtractRight && it != CalloutArrow
+    }.toList()
 }

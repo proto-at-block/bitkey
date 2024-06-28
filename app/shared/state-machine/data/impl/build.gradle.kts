@@ -23,7 +23,6 @@ kotlin {
         api(projects.shared.emailPublic)
         api(projects.shared.f8eClientPublic)
         api(projects.shared.featureFlagPublic)
-        api(projects.shared.fingerprintsPublic)
         api(projects.shared.firmwarePublic)
         api(projects.shared.fwupPublic)
         api(projects.shared.homePublic)

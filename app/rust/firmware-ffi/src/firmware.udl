@@ -21,7 +21,7 @@ interface QueryAuthentication {
 interface GetFingerprintEnrollmentStatus {
   constructor(boolean is_enrollment_context_aware);
   [Throws=CommandError]
-  FingerprintEnrollmentStatusState next(sequence<u8> response);
+  FingerprintEnrollmentResultState next(sequence<u8> response);
 };
 
 interface SignTransaction {
@@ -224,9 +224,9 @@ interface PartiallySignedTransactionState {
 };
 
 [Enum]
-interface FingerprintEnrollmentStatusState {
+interface FingerprintEnrollmentResultState {
   Data(sequence<u8> response);
-  Result(FingerprintEnrollmentStatus value);
+  Result(FingerprintEnrollmentResult value);
 };
 
 [Enum]
@@ -552,6 +552,31 @@ dictionary FingerprintHandle {
 dictionary EnrolledFingerprints {
   u32 max_count;
   sequence<FingerprintHandle> fingerprints;
+};
+
+dictionary EnrollmentDiagnostics {
+  boolean finger_coverage_valid;
+  u32 finger_coverage;
+
+  boolean common_mode_noise_valid;
+  u32 common_mode_noise;
+
+  boolean image_quality_valid;
+  u32 image_quality;
+
+  boolean sensor_coverage_valid;
+  u32 sensor_coverage;
+
+  boolean template_data_update_valid;
+  u32 template_data_update;
+};
+
+dictionary FingerprintEnrollmentResult {
+  FingerprintEnrollmentStatus status;
+
+  u32? pass_count;
+  u32? fail_count;
+  EnrollmentDiagnostics? diagnostics;
 };
 
 [Custom]

@@ -13,20 +13,11 @@ import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.OnboardConfigData
-import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
-import build.wallet.statemachine.data.account.create.OnboardConfigDataStateMachine
-import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
+import build.wallet.statemachine.data.account.create.OnboardingStepSkipConfigDaoFake
+import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachine
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineDataProps
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
-import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
+import build.wallet.statemachine.data.recovery.conflict.*
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -69,6 +60,7 @@ class AccountDataStateMachineImplTests : FunSpec({
       StateMachineMock<SomeoneElseIsRecoveringDataProps, SomeoneElseIsRecoveringData>(
         SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {})
       ) {}
+  val onboardingStepSkipConfigDao = OnboardingStepSkipConfigDaoFake()
 
   val stateMachine =
     AccountDataStateMachineImpl(
@@ -80,11 +72,7 @@ class AccountDataStateMachineImplTests : FunSpec({
       noLongerRecoveringDataStateMachine = noLongerRecoveringDataStateMachine,
       someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
       recoverySyncFrequency = 1.minutes,
-      onboardConfigDataStateMachine =
-        object : OnboardConfigDataStateMachine,
-          StateMachineMock<Unit, OnboardConfigData>(
-            LoadedOnboardConfigDataMock
-          ) {}
+      onboardingStepSkipConfigDao = onboardingStepSkipConfigDao
     )
 
   val props =
@@ -101,6 +89,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     hasActiveFullAccountDataStateMachine.reset()
     hasActiveLiteAccountDataStateMachine.reset()
     noActiveKeyboxDataStateMachine.reset()
+    onboardingStepSkipConfigDao.reset()
   }
 
   test("no active keybox") {

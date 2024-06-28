@@ -48,11 +48,10 @@ import build.wallet.f8e.mobilepay.MobilePayFiatConfigF8eClientImpl
 import build.wallet.f8e.notifications.RegisterWatchAddressF8eClientImpl
 import build.wallet.f8e.onboarding.AddDeviceTokenF8eClientImpl
 import build.wallet.feature.*
-import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.feature.flags.*
 import build.wallet.firmware.*
 import build.wallet.fwup.*
 import build.wallet.inappsecurity.BiometricPreferenceImpl
-import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.KeyboxDaoImpl
 import build.wallet.keybox.config.TemplateFullAccountConfigDaoImpl
@@ -79,7 +78,6 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryImpl
 import build.wallet.money.exchange.ExchangeRateF8eClient
 import build.wallet.money.exchange.ExchangeRateF8eClientImpl
 import build.wallet.nfc.haptics.NfcHapticsImpl
-import build.wallet.nfc.haptics.NfcHapticsOnConnectedIsEnabledFeatureFlag
 import build.wallet.notifications.DeviceTokenManagerImpl
 import build.wallet.notifications.RegisterWatchAddressQueueImpl
 import build.wallet.notifications.RegisterWatchAddressSenderImpl
@@ -107,11 +105,8 @@ import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderImpl
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.RecoveryDaoImpl
-import build.wallet.recovery.sweep.PromptSweepFeatureFlag
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.SqlDriverFactoryImpl
-import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
-import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.EncryptedKeyValueStoreFactoryImpl
 import build.wallet.store.KeyValueStoreFactoryImpl
@@ -211,11 +206,10 @@ class AppComponentImpl(
     ),
   private val f8eNetworkReachabilityClient: F8eNetworkReachabilityClient =
     F8ENetworkReachabilityClientImpl(
-      unauthenticatedF8eHttpClient =
-        UnauthenticatedOnlyF8eHttpClientImpl(
-          f8eHttpClientProvider = f8eHttpClientProvider,
-          networkReachabilityProvider = null
-        )
+      unauthenticatedF8eHttpClient = UnauthenticatedOnlyF8eHttpClientImpl(
+        f8eHttpClientProvider = f8eHttpClientProvider,
+        networkReachabilityProvider = null
+      )
     ),
   private val internetNetworkReachabilityService: InternetNetworkReachabilityService =
     InternetNetworkReachabilityServiceImpl(),
@@ -341,11 +335,15 @@ class AppComponentImpl(
   override val resetDeviceIsEnabledFeatureFlag =
     ResetDeviceIsEnabledFeatureFlag(featureFlagDao)
 
+  override val softwareWalletIsEnabledFeatureFlag =
+    SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
+
   override val inAppSecurityFeatureFlag = InAppSecurityFeatureFlag(
     featureFlagDao = featureFlagDao
   )
 
-  override val promptSweepFeatureFlag: PromptSweepFeatureFlag = PromptSweepFeatureFlag(featureFlagDao)
+  override val promptSweepFeatureFlag: PromptSweepFeatureFlag =
+    PromptSweepFeatureFlag(featureFlagDao)
 
   override val mobileTestFeatureFlag =
     MobileTestFeatureFlag(featureFlagDao)
@@ -361,13 +359,14 @@ class AppComponentImpl(
       promptSweepFeatureFlag
     ).toList()
 
+  private val allLocalFeatureFlags = setOf(
+    feeBumpIsAvailableFeatureFlag,
+    nfcHapticsOnConnectedIsEnabledFeatureFlag,
+    softwareWalletIsEnabledFeatureFlag
+  )
+
   override val allFeatureFlags: List<FeatureFlag<*>> =
-    setOf(
-      nfcHapticsOnConnectedIsEnabledFeatureFlag,
-      feeBumpIsAvailableFeatureFlag
-    )
-      .union(allRemoteFeatureFlags)
-      .toList()
+    (allLocalFeatureFlags + allRemoteFeatureFlags).toList()
   override val featureFlagInitializer = FeatureFlagInitializerImpl(allFeatureFlags)
   private val appDeviceIdDao = AppDeviceIdDaoImpl(secureStoreFactory, uuidGenerator)
   override val deviceInfoProvider = DeviceInfoProviderImpl()
@@ -461,7 +460,7 @@ class AppComponentImpl(
   override val permissionChecker =
     PermissionCheckerImpl(platformContext, pushNotificationPermissionStatusProvider)
   private val hapticsPolicy = HapticsPolicyImpl(permissionChecker)
-  private val haptics = HapticsImpl(platformContext, hapticsPolicy)
+  override val haptics = HapticsImpl(platformContext, hapticsPolicy)
   override val nfcHaptics =
     NfcHapticsImpl(
       haptics,
@@ -577,11 +576,10 @@ class AppComponentImpl(
 
   override val bitcoinFeeRateEstimator =
     BitcoinFeeRateEstimatorImpl(
-      mempoolHttpClient =
-        MempoolHttpClientImpl(
-          logLevelPolicy = ktorLogLevelPolicy,
-          networkReachabilityProvider = networkReachabilityProvider
-        ),
+      mempoolHttpClient = MempoolHttpClientImpl(
+        logLevelPolicy = ktorLogLevelPolicy,
+        networkReachabilityProvider = networkReachabilityProvider
+      ),
       bdkBlockchainProvider = bdkBlockchainProvider
     )
 

@@ -61,10 +61,10 @@ class EnrollingFingerprintUiStateMachineImpl(
           eventTrackerScreenIdContext = NfcEventTrackerScreenIdContext.ENROLLING_NEW_FINGERPRINT,
           isNavigatingBack = state.isNavigatingBack,
           presentationStyle = ScreenPresentationStyle.RootFullScreen,
-          headline = "Set up another fingerprint",
-          instructions = "Place a new finger on the sensor until you see a blue light." +
-            " Repeat this until the device has a solid green light." +
-            " Once done, press the button below to save your fingerprint."
+          headline = "Add a new fingerprint",
+          instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
+              " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
+              " until the light turns green. Then save your fingerprint.",
         )
       ConfirmingEnrollmentStatusUiState -> nfcSessionUIStateMachine.model(
         NfcSessionUIStateMachineProps(

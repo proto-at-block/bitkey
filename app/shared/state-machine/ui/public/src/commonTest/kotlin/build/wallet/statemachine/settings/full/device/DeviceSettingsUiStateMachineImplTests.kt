@@ -7,8 +7,9 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.feature.setFlagValue
-import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcCommandsMock
@@ -17,10 +18,8 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.Button
-import build.wallet.statemachine.core.form.FormMainContentModel.DataList
+import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.UpToDate

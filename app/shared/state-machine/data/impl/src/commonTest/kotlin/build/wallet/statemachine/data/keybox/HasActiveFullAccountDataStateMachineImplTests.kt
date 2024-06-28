@@ -40,6 +40,7 @@ import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecovery
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.shouldBe
@@ -133,7 +134,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
         .shouldBeEqual(FullAccountMock)
       awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
 
-      accountAuthTokenDao.tokensFlow.value = AccountAuthTokensMock
+      accountAuthTokenDao.getTokensResult = Ok(AccountAuthTokensMock)
       fullAccountTransactionsDataStateMachine.emitModel(KeyboxTransactionsDataMock)
 
       awaitItem().shouldBeTypeOf<RotatingAuthKeys>().let {
@@ -153,7 +154,7 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
         .shouldBeEqual(FullAccountMock)
       awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
 
-      accountAuthTokenDao.tokensFlow.value = AccountAuthTokensMock
+      accountAuthTokenDao.getTokensResult = Ok(AccountAuthTokensMock)
       fullAccountTransactionsDataStateMachine.emitModel(KeyboxTransactionsDataMock)
 
       awaitItem()

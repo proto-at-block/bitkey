@@ -14,7 +14,7 @@ onFlowStart:
 - assertVisible: "Pair your Bitkey device"
 - tapOn:
     id: "pair-bitkey-device"
-- assertVisible: "Set up your fingerprint"
+- assertVisible: "Set up your first fingerprint"
 - tapOn: 
     id: "save-fingerprint"
 - waitForAnimationToEnd

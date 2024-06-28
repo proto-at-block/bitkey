@@ -176,14 +176,16 @@ extension ListModel {
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
                 style: .none,
                 headerTreatment: .secondary,
-                footerButton: nil
+                footerButton: nil,
+                explainerSubtext: nil
             ),
             ListGroupModel(
                 header: nil,
                 items: [.snapshotTestOutgoing, .snapshotTestIncoming],
                 style: .none,
                 headerTreatment: .secondary,
-                footerButton: nil
+                footerButton: nil,
+                explainerSubtext: nil
             ),
         ]
     )

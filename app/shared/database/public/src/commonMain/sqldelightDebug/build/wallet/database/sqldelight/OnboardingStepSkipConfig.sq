@@ -13,6 +13,3 @@ WHERE shouldSkip = 1;
 updateShouldSkipStep:
 INSERT OR REPLACE INTO onboardingStepSkipConfigEntity(onboardingStep, shouldSkip)
 VALUES(?, ?);
-
-clear:
-DELETE FROM onboardingStepSkipConfigEntity;

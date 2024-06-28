@@ -2,11 +2,7 @@ package build.wallet.statemachine.transactions
 
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
 import build.wallet.platform.web.BrowserNavigator
-import build.wallet.statemachine.core.Icon.Bitcoin
-import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
-import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
-import build.wallet.statemachine.core.Icon.SmallIconArrowUpRight
-import build.wallet.statemachine.core.Icon.SmallIconLightning
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -86,8 +82,8 @@ sealed interface TxStatusModel {
     override val recipientAddress: String,
     val isLate: Boolean,
   ) : TxStatusModel {
-    override fun toFormHeaderModel(): FormHeaderModel {
-      return when {
+    override fun toFormHeaderModel(): FormHeaderModel =
+      when {
         isLate -> FormHeaderModel(
           icon = LargeIconWarningFilled,
           headline = "Transaction delayed",
@@ -110,15 +106,14 @@ sealed interface TxStatusModel {
           alignment = CENTER
         )
       }
-    }
   }
 
   data class Confirmed(
     override val isIncoming: Boolean,
     override val recipientAddress: String,
   ) : TxStatusModel {
-    override fun toFormHeaderModel(): FormHeaderModel {
-      return FormHeaderModel(
+    override fun toFormHeaderModel(): FormHeaderModel =
+      FormHeaderModel(
         icon = when {
           isIncoming -> Bitcoin
           else -> LargeIconCheckFilled
@@ -131,6 +126,5 @@ sealed interface TxStatusModel {
         sublineTreatment = MONO,
         alignment = CENTER
       )
-    }
   }
 }

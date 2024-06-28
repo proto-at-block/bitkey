@@ -39,8 +39,7 @@ import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagInitializer
 import build.wallet.feature.FeatureFlagSyncer
-import build.wallet.feature.MobileTestFeatureFlag
-import build.wallet.fingerprints.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.feature.flags.*
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
 import build.wallet.firmware.FirmwareTelemetryUploader
@@ -49,7 +48,6 @@ import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
 import build.wallet.fwup.FwupProgressCalculator
 import build.wallet.inappsecurity.BiometricPreference
-import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import build.wallet.keybox.keys.AppKeysGenerator
@@ -74,6 +72,7 @@ import build.wallet.platform.config.DeviceOs
 import build.wallet.platform.data.FileDirectoryProvider
 import build.wallet.platform.data.FileManager
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.haptics.Haptics
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PushNotificationPermissionStatusProvider
 import build.wallet.platform.random.UuidGenerator
@@ -84,9 +83,6 @@ import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
-import build.wallet.recovery.sweep.PromptSweepFeatureFlag
-import build.wallet.statemachine.send.FeeBumpIsAvailableFeatureFlag
-import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.time.Delayer
@@ -168,6 +164,7 @@ interface AppComponent {
   val networkingDebugConfigRepository: NetworkingDebugConfigRepository
   val networkReachabilityEventDao: NetworkReachabilityEventDao
   val networkReachabilityProvider: NetworkReachabilityProvider
+  val haptics: Haptics
   val nfcHaptics: NfcHaptics
   val osVersionInfoProvider: OsVersionInfoProvider
   val periodicEventProcessor: PeriodicProcessor
@@ -194,6 +191,7 @@ interface AppComponent {
   val exchangeRateF8eClient: ExchangeRateF8eClient
   val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag
   val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag
+  val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag
   val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val biometricPreference: BiometricPreference

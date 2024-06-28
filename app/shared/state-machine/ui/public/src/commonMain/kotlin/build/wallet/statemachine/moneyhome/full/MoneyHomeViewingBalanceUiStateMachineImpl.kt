@@ -1,12 +1,6 @@
 package build.wallet.statemachine.moneyhome.full
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityStatus
@@ -14,21 +8,23 @@ import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.socrec.Invitation
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.feature.flags.InAppSecurityFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
-import build.wallet.inappsecurity.HideBalancePreference
-import build.wallet.inappsecurity.InAppSecurityFeatureFlag
+import build.wallet.inappsecurity.MoneyHomeHiddenStatus
+import build.wallet.inappsecurity.MoneyHomeHiddenStatusProvider
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.platform.haptics.Haptics
+import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
-import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.Failed
-import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.None
-import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.Success
+import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
+import build.wallet.recovery.sweep.SweepPromptRequirementCheck
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
@@ -45,22 +41,8 @@ import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiProps
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.AddAdditionalFingerprintUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FixingCloudBackupState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ReceiveFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SelectCustomPartnerPurchaseAmountState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SendFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SetSpendingLimitFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewHardwareRecoveryStatusUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingAllTransactionActivityUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.AddingAdditionalFingerprint
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.MobilePay
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.TrustedContact
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
 import build.wallet.statemachine.partnerships.AddBitcoinUiProps
 import build.wallet.statemachine.partnerships.AddBitcoinUiStateMachine
@@ -82,6 +64,9 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MoneyHomeViewingBalanceUiStateMachineImpl(
@@ -96,8 +81,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val viewingInvitationUiStateMachine: ViewingInvitationUiStateMachine,
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
-  private val hideBalancePreference: HideBalancePreference,
+  private val moneyHomeHiddenStatusProvider: MoneyHomeHiddenStatusProvider,
   private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
+  private val sweepPromptRequirementCheck: SweepPromptRequirementCheck,
+  private val haptics: Haptics,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -106,6 +93,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       LaunchedEffect("refresh-transactions") {
         props.accountData.transactionsData.syncTransactions()
         props.accountData.transactionsData.syncFiatBalance()
+        sweepPromptRequirementCheck.checkForSweeps(props.accountData.account.keybox)
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
@@ -122,7 +110,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
 
     val hideBalance by remember {
       if (inAppSecurityFeatureFlag.isEnabled()) {
-        hideBalancePreference.isEnabled
+        moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest {
+            status ->
+          status == MoneyHomeHiddenStatus.HIDDEN
+        }.stateIn(scope = scope, SharingStarted.Eagerly, moneyHomeHiddenStatusProvider.hiddenStatus.value == MoneyHomeHiddenStatus.HIDDEN)
       } else {
         MutableStateFlow(false)
       }
@@ -137,7 +128,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             hideBalance = hideBalance,
             onHideBalance = {
               if (inAppSecurityFeatureFlag.isEnabled()) {
-                scope.launch { hideBalancePreference.set(!hideBalance) }
+                scope.launch {
+                  moneyHomeHiddenStatusProvider.toggleStatus()
+                  haptics.vibrate(HapticsEffect.MediumClick)
+                }
               }
             },
             onSettings = props.onSettings,
@@ -317,6 +311,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               }
             ),
           startSweepCardUiProps = StartSweepCardUiProps(
+            keybox = props.accountData.account.keybox,
             onStartSweepClicked = props.onStartSweepFlow
           )
         )

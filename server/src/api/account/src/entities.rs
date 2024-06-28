@@ -202,8 +202,17 @@ pub struct FullAccountAuthKeysPayload {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct LiteAccountAuthKeysPayload {
     // TODO: [W-774] Update visibility of struct after migration
+    pub recovery: PublicKey,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct SoftwareAccountAuthKeysPayload {
+    // TODO: [W-774] Update visibility of struct after migration
+    pub app: PublicKey,
     pub recovery: PublicKey,
 }
 
@@ -411,10 +420,77 @@ impl From<LiteAccount> for Account {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct SoftwareAccount {
+    #[serde(rename = "partition_key")]
+    pub id: AccountId,
+    // Spending Keysets
+    pub active_keyset_id: Option<KeysetId>,
+    #[serde(default)]
+    pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
+    pub application_auth_pubkey: PublicKey,
+    #[serde(default)]
+    pub comms_verification_claims: Vec<CommsVerificationClaim>,
+    #[serde(default)]
+    pub auth_keys: HashMap<AuthKeysId, SoftwareAccountAuthKeys>,
+    #[serde(flatten)]
+    pub common_fields: CommonAccountFields,
+}
+
+impl SoftwareAccount {
+    #[must_use]
+    pub fn new(
+        account_id: AccountId,
+        active_auth_keys_id: AuthKeysId,
+        auth: SoftwareAccountAuthKeys,
+        properties: AccountProperties,
+    ) -> Self {
+        let now = OffsetDateTime::now_utc();
+        let application_auth_pubkey = auth.app_pubkey;
+        let recovery_auth_pubkey = Some(auth.recovery_pubkey);
+        Self {
+            id: account_id,
+            active_keyset_id: None,
+            auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
+            spending_keysets: HashMap::new(),
+            application_auth_pubkey,
+            comms_verification_claims: vec![],
+            common_fields: CommonAccountFields {
+                active_auth_keys_id,
+                touchpoints: vec![],
+                created_at: now,
+                updated_at: now,
+                properties,
+                onboarding_complete: false,
+                recovery_auth_pubkey,
+                notifications_preferences_state: Default::default(),
+            },
+        }
+    }
+
+    pub fn active_auth_keys(&self) -> Option<&SoftwareAccountAuthKeys> {
+        self.auth_keys.get(&self.common_fields.active_auth_keys_id)
+    }
+
+    pub fn active_spending_keyset(&self) -> Option<&SpendingKeyset> {
+        match &self.active_keyset_id {
+            Some(keyset_id) => self.spending_keysets.get(keyset_id),
+            None => None,
+        }
+    }
+}
+
+impl From<SoftwareAccount> for Account {
+    fn from(v: SoftwareAccount) -> Self {
+        Self::Software(v)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum Account {
     Full(FullAccount),
     Lite(LiteAccount),
+    Software(SoftwareAccount),
 }
 
 impl Account {
@@ -422,6 +498,7 @@ impl Account {
         match self {
             Account::Full(account) => &account.id,
             Account::Lite(account) => &account.id,
+            Account::Software(account) => &account.id,
         }
     }
 
@@ -429,6 +506,7 @@ impl Account {
         match self {
             Self::Full(full_account) => &full_account.common_fields,
             Self::Lite(lite_account) => &lite_account.common_fields,
+            Self::Software(software_account) => &software_account.common_fields,
         }
     }
 
@@ -445,6 +523,11 @@ impl Account {
             Account::Lite(lite_account) => Ok(LiteAccount {
                 common_fields,
                 ..lite_account.to_owned()
+            }
+            .into()),
+            Account::Software(software_account) => Ok(SoftwareAccount {
+                common_fields,
+                ..software_account.to_owned()
             }
             .into()),
         }
@@ -521,6 +604,7 @@ impl FullAccountAuthKeys {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct LiteAccountAuthKeys {
     pub recovery_pubkey: PublicKey,
 }
@@ -529,6 +613,23 @@ impl LiteAccountAuthKeys {
     #[must_use]
     pub fn new(recovery_pubkey: PublicKey) -> Self {
         Self { recovery_pubkey }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct SoftwareAccountAuthKeys {
+    pub app_pubkey: PublicKey,
+    pub recovery_pubkey: PublicKey,
+}
+
+impl SoftwareAccountAuthKeys {
+    #[must_use]
+    pub fn new(app_pubkey: PublicKey, recovery_pubkey: PublicKey) -> Self {
+        Self {
+            app_pubkey,
+            recovery_pubkey,
+        }
     }
 }
 
@@ -624,6 +725,12 @@ impl From<Account> for PubkeysToAccount {
                 hardware_auth_pubkey: None,
                 recovery_auth_pubkey: lite_account.common_fields.recovery_auth_pubkey,
                 id: lite_account.id,
+            },
+            Account::Software(software_account) => PubkeysToAccount {
+                application_auth_pubkey: Some(software_account.application_auth_pubkey),
+                hardware_auth_pubkey: None,
+                recovery_auth_pubkey: software_account.common_fields.recovery_auth_pubkey,
+                id: software_account.id,
             },
         }
     }

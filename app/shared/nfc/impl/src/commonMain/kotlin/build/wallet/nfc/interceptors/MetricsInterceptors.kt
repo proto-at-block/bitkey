@@ -4,21 +4,18 @@ import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
 import build.wallet.bitkey.spending.SpendingKeyset
+import build.wallet.catchingResult
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
 import build.wallet.datadog.ErrorSource.Network
 import build.wallet.datadog.ResourceType.Other
 import build.wallet.datadog.span
-import build.wallet.firmware.EnrolledFingerprints
-import build.wallet.firmware.FingerprintHandle
-import build.wallet.firmware.FirmwareCertType
-import build.wallet.firmware.FirmwareFeatureFlagCfg
-import build.wallet.firmware.UnlockInfo
+import build.wallet.firmware.*
 import build.wallet.fwup.FwupMode
+import build.wallet.logging.log
 import build.wallet.nfc.NfcSession
 import build.wallet.nfc.platform.NfcCommands
-import com.github.michaelbull.result.coroutines.runSuspendCatching
 import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -61,7 +58,7 @@ private class MetricsNfcCommandsImpl(
     contract { callsInPlace(block, EXACTLY_ONCE) }
     return datadogTracer.span(spanName = SPAN_NAME, resourceName = action) {
       datadogRumMonitor.startResourceLoading(SPAN_NAME, "command", "nfc:$action", emptyMap())
-      runSuspendCatching { block() }
+      catchingResult { block() }
         .onSuccess { datadogRumMonitor.stopResourceLoading(SPAN_NAME, Other, emptyMap()) }
         .onFailure {
           datadogRumMonitor.stopResourceLoadingError(
@@ -135,7 +132,10 @@ private class MetricsNfcCommandsImpl(
     session: NfcSession,
     isEnrollmentContextAware: Boolean,
   ) = measure("getFingerprintEnrollmentStatus") {
-    commands.getFingerprintEnrollmentStatus(session, isEnrollmentContextAware)
+    val result = commands.getFingerprintEnrollmentStatus(session, isEnrollmentContextAware)
+    // Log diagnostics
+    log { "Fingerprint enrollment result: $result" }
+    result
   }
 
   override suspend fun deleteFingerprint(

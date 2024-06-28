@@ -4,17 +4,22 @@ import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProviderFake
-import build.wallet.feature.FeatureFlagDaoMock
+import build.wallet.feature.FeatureFlagDaoFake
 import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
+import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
+import build.wallet.feature.setFlagValue
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.ScreenStateMachineMock
+import build.wallet.statemachine.account.create.CreateSoftwareWalletProps
+import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachine
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.create.LoadedOnboardConfigDataMock
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
@@ -22,7 +27,6 @@ import build.wallet.statemachine.demo.DemoModeConfigUiProps
 import build.wallet.statemachine.demo.DemoModeConfigUiStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
-import build.wallet.statemachine.settings.full.device.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -33,52 +37,56 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
 
   val emergencyAccessKitDataProvider = EmergencyAccessKitDataProviderFake()
-  val resetDeviceFeatureFlag = ResetDeviceIsEnabledFeatureFlag(
-    featureFlagDao = FeatureFlagDaoMock()
+  val featureFlagDao = FeatureFlagDaoFake()
+  val resetDeviceFeatureFlag = ResetDeviceIsEnabledFeatureFlag(featureFlagDao)
+  val softwareWalletIsEnabledFeatureFlag = SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
+  val createSoftwareWalletUiStateMachine = object : CreateSoftwareWalletUiStateMachine,
+    ScreenStateMachineMock<CreateSoftwareWalletProps>(
+      id = "create-software-wallet"
+    ) {}
+
+  fun buildStateMachine(appVariant: AppVariant) = ChooseAccountAccessUiStateMachineImpl(
+    appVariant = appVariant,
+    debugMenuStateMachine = object : DebugMenuStateMachine,
+      ScreenStateMachineMock<DebugMenuProps>(
+        id = "debug-menu"
+      ) {},
+    demoModeConfigUiStateMachine = object : DemoModeConfigUiStateMachine,
+      ScreenStateMachineMock<DemoModeConfigUiProps>(
+        id = "demo-mode"
+      ) {},
+    deviceInfoProvider = DeviceInfoProviderMock(),
+    emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
+    resetDeviceIsEnabledFeatureFlag = resetDeviceFeatureFlag,
+    softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
+    createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
   )
 
-  fun buildStateMachine(appVariant: AppVariant) =
-    ChooseAccountAccessUiStateMachineImpl(
-      appVariant = appVariant,
-      debugMenuStateMachine =
-        object : DebugMenuStateMachine, ScreenStateMachineMock<DebugMenuProps>(
-          id = "debug-menu"
-        ) {},
-      demoModeConfigUiStateMachine =
-        object : DemoModeConfigUiStateMachine, ScreenStateMachineMock<DemoModeConfigUiProps>(
-          id = "demo-mode"
-        ) {},
-      deviceInfoProvider = DeviceInfoProviderMock(),
-      emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
-      resetDeviceIsEnabledFeatureFlag = resetDeviceFeatureFlag
-    )
-
-  val stateMachine =
-    buildStateMachine(appVariant = AppVariant.Development)
+  val stateMachine = buildStateMachine(appVariant = AppVariant.Development)
 
   val startRecoveryCalls = turbines.create<Unit>("startRecovery calls")
   val startFullAccountCreationCalls = turbines.create<Unit>("startFullAccountCreation calls")
   val startLiteAccountCreationCalls = turbines.create<Unit>("startLiteAccountCreation calls")
-  val startEmergencyAccessRecoveryCalls = turbines.create<Unit>("startEmergencyAccessRecovery calls")
+  val startEmergencyAccessRecoveryCalls =
+    turbines.create<Unit>("startEmergencyAccessRecovery calls")
   val resetExistingDeviceCalls = turbines.create<Unit>("resetExistingDevice calls")
 
   val props =
     ChooseAccountAccessUiProps(
       chooseAccountAccessData =
-        GettingStartedData(
-          newAccountOnboardConfigData = LoadedOnboardConfigDataMock,
-          templateFullAccountConfigData =
-            LoadedTemplateFullAccountConfigData(
-              config = FullAccountConfigMock,
-              updateConfig = {}
-            ),
-          startRecovery = { startRecoveryCalls.add(Unit) },
-          startFullAccountCreation = { startFullAccountCreationCalls.add(Unit) },
-          startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
-          startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
-          resetExistingDevice = { resetExistingDeviceCalls.add(Unit) },
-          isNavigatingBack = false
+      GettingStartedData(
+        templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(
+          config = FullAccountConfigMock,
+          updateConfig = {}
         ),
+        onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
+        startRecovery = { startRecoveryCalls.add(Unit) },
+        startFullAccountCreation = { startFullAccountCreationCalls.add(Unit) },
+        startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
+        startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
+        resetExistingDevice = { resetExistingDeviceCalls.add(Unit) },
+        isNavigatingBack = false
+      ),
       firmwareData = FirmwareDataUpToDateMock
     )
 
@@ -149,6 +157,33 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       }
 
       startRecoveryCalls.awaitItem()
+    }
+  }
+
+  context("software wallet flag is on") {
+    softwareWalletIsEnabledFeatureFlag.setFlagValue(true)
+
+    test("create hardware and software wallet options are shown") {
+      stateMachine.test(props) {
+        awaitScreenWithBody<ChooseAccountAccessModel> {
+          buttons[0].shouldNotBeNull().onClick()
+        }
+
+        awaitScreenWithBody<FormBodyModel> {
+          val buttons = mainContentList
+            .first()
+            .shouldBeTypeOf<FormMainContentModel.ListGroup>()
+            .listGroupModel
+
+          buttons.items[0]
+            .title
+            .shouldBe("Use Bitkey hardware")
+
+          buttons.items[1]
+            .title
+            .shouldBe("Use this device")
+        }
+      }
     }
   }
 

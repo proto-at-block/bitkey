@@ -2,7 +2,7 @@ package build.wallet.statemachine.data.keybox
 
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.account.OnboardConfigData
+import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 
 /**
@@ -13,7 +13,7 @@ interface HasActiveLiteAccountDataStateMachine :
 
 data class HasActiveLiteAccountDataProps(
   val account: LiteAccount,
-  val accountUpgradeOnboardConfigData: OnboardConfigData.LoadedOnboardConfigData,
+  val onboardConfig: OnboardConfig,
   val accountUpgradeTemplateFullAccountConfigData:
     TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
 )

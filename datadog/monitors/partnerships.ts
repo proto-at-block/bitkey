@@ -83,7 +83,12 @@ export class PartnershipsMonitors extends Construct {
       status: "4xx",
       group: "Partnerships",
       environment,
-      tags: [{tag: "service:fromagerie-api", rateInclusion: "both"}, {tag: "path:*partnerships*", rateInclusion: "both"}],
+      tags: [
+        {tag: "service:fromagerie-api", rateInclusion: "both"},
+        {tag: "path:*partnerships*", rateInclusion: "both"},
+        {tag: "!status_exact:401", rateInclusion: "numerator"},
+        {tag: "!status_exact:404", rateInclusion: "numerator"},
+      ],
       rateThreshold: "0.5",
       countThreshold: "20",
       dataDogLink: "https://app.datadoghq.com/apm/traces?saved-view-id=1917896",

@@ -1,10 +1,9 @@
 use lambda_runtime::{service_fn, Error, LambdaEvent};
 use secp256k1::ecdsa::Signature;
 use secp256k1::hashes::sha256;
-use secp256k1::{All, Message, PublicKey, Secp256k1};
-use serde_json::{json, Map, Value};
-use std::convert::TryFrom;
-use std::{fmt, str::FromStr};
+use secp256k1::{Message, PublicKey, Secp256k1};
+use serde_json::{json, Value};
+use std::str::FromStr;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -17,12 +16,6 @@ async fn main() -> Result<(), Error> {
 
 //IMPORTANT: Update terraform files and Lambdas when changing these attributes
 const PUBLIC_KEY_ATTRIBUTE: &str = "custom:publicKey";
-#[deprecated(note = "Remove after W-8550 migration is complete")]
-const APP_KEY_ATTRIBUTE: &str = "custom:appPubKey";
-#[deprecated(note = "Remove after W-8550 migration is complete")]
-const HW_KEY_ATTRIBUTE: &str = "custom:hwPubKey";
-#[deprecated(note = "Remove after W-8550 migration is complete")]
-const RECOVERY_KEY_ATTRIBUTE: &str = "custom:recoveryPubKey";
 
 // Lambda request/response parameters
 const LAMBDA_REQUEST_PARAM: &str = "request";
@@ -32,96 +25,6 @@ const LAMBDA_USER_ATTRIBUTES_PARAM: &str = "userAttributes";
 const LAMBDA_CHALLENGE_ANSWER_PARAM: &str = "challengeAnswer";
 const LAMBDA_RESPONSE_PARAM: &str = "response";
 const LAMBDA_ANSWER_CORRECT_PARAM: &str = "answerCorrect";
-
-#[derive(Debug, PartialEq, Eq)]
-struct WalletUserKeys {
-    apk: PublicKey,
-    hpk: PublicKey,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-enum UserType {
-    #[deprecated(note = "Remove after W-8550 migration is complete")]
-    Wallet(WalletUserKeys),
-    #[deprecated(note = "Remove after W-8550 migration is complete")]
-    Recovery(PublicKey),
-    Generic(PublicKey),
-}
-
-impl fmt::Display for UserType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UserType::Wallet(k) => {
-                write!(f, "WalletUser {{ apk: {}, hpk: {} }}", k.apk, k.hpk)
-            }
-            UserType::Recovery(k) => {
-                write!(f, "RecoveryUser {{ rpk: {} }}", k)
-            }
-            UserType::Generic(k) => {
-                write!(f, "GenericUser {{ pk: {} }}", k)
-            }
-        }
-    }
-}
-
-impl UserType {
-    fn validate(&self, secp: &Secp256k1<All>, message: &Message, signature: &Signature) -> bool {
-        match self {
-            UserType::Wallet(k) => {
-                secp.verify_ecdsa(message, signature, &k.apk).is_ok()
-                    || secp.verify_ecdsa(message, signature, &k.hpk).is_ok()
-            }
-            UserType::Recovery(k) => {
-                secp.verify_ecdsa(message, signature, k).is_ok()
-            }
-            UserType::Generic(k) => {
-                secp.verify_ecdsa(message, signature, k).is_ok()
-            }
-        }
-    }
-}
-
-impl TryFrom<&Map<std::string::String, Value>> for UserType {
-    type Error = Error;
-
-    fn try_from(attrs: &Map<std::string::String, Value>) -> Result<Self, Self::Error> {
-        let (app_pub_key, hw_pub_key, recovery_pub_key, pub_key) = (
-            attrs.get(APP_KEY_ATTRIBUTE),
-            attrs.get(HW_KEY_ATTRIBUTE),
-            attrs.get(RECOVERY_KEY_ATTRIBUTE),
-            attrs.get(PUBLIC_KEY_ATTRIBUTE),
-        );
-        if let Some(pub_key) = pub_key {
-            let pub_key = pub_key
-                .as_str()
-                .ok_or(Error::from("Could not deserialize publicKey"))?;
-            let pk = PublicKey::from_str(pub_key)
-                .map_err(|err| Error::from(format!("Could not parse pubkey: {}", err)))?;
-            Ok(UserType::Generic(pk))
-        } else if let (Some(app_pub_key), Some(hw_pub_key)) = (app_pub_key, hw_pub_key) {
-            let app_pub_key = app_pub_key
-                .as_str()
-                .ok_or(Error::from("Could not deserialize appPubKey"))?;
-            let apk = PublicKey::from_str(app_pub_key)
-                .map_err(|err| Error::from(format!("Could not parse app pubkey: {}", err)))?;
-            let hw_pub_key = hw_pub_key
-                .as_str()
-                .ok_or(Error::from("Could not deserialize hwPubKey"))?;
-            let hpk = PublicKey::from_str(hw_pub_key)
-                .map_err(|err| Error::from(format!("Could not parse hw pubkey: {}", err)))?;
-            Ok(UserType::Wallet(WalletUserKeys { apk, hpk }))
-        } else if let Some(recovery_pub_key) = recovery_pub_key {
-            let recovery_pub_key = recovery_pub_key
-                .as_str()
-                .ok_or(Error::from("Could not deserialize recoveryPubKey"))?;
-            let rpk = PublicKey::from_str(recovery_pub_key)
-                .map_err(|err| Error::from(format!("Could not parse recovery pubkey: {}", err)))?;
-            Ok(UserType::Recovery(rpk))
-        } else {
-            Err(Error::from("Could not find the attributes for Wallet user or Recovery user in user attributes"))
-        }
-    }
-}
 
 async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
     // Request and response schema documented here: https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-verify-auth-challenge-response.html
@@ -157,7 +60,15 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
         .ok_or(Error::from("could not deserialize user attributes"))?;
 
     // get pubkeys associated with user
-    let matched_user = UserType::try_from(user_attributes)?;
+    let public_key_str = user_attributes.get(PUBLIC_KEY_ATTRIBUTE).map_or(
+        Err(Error::from("Could not find publicKey attribute")),
+        |pk| {
+            pk.as_str()
+                .ok_or(Error::from("Could not deserialize publicKey"))
+        },
+    )?;
+    let public_key = PublicKey::from_str(public_key_str)
+        .map_err(|err| Error::from(format!("Could not parse publicKey: {}", err)))?;
 
     // get challenge answer provided by the caller
     let challenge_answer = request
@@ -170,12 +81,12 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
     let secp = Secp256k1::new();
     let message = Message::from_hashed_data::<sha256::Hash>(challenge.as_bytes());
     let answer_correct = if let Ok(signature) = Signature::from_str(&challenge_answer) {
-        if matched_user.validate(&secp, &message, &signature) {
+        if secp.verify_ecdsa(&message, &signature, &public_key).is_ok() {
             true
         } else {
             println!(
-                "Bad signature {} for message {} with {}! Returning False",
-                signature, message, matched_user
+                "Bad signature {} for message {}! Returning False",
+                signature, message
             );
             false
         }
@@ -207,13 +118,15 @@ async fn handler(event: LambdaEvent<Value>) -> Result<Value, Error> {
 #[cfg(test)]
 mod test {
     use crate::{
-        UserType, WalletUserKeys, APP_KEY_ATTRIBUTE,
-        HW_KEY_ATTRIBUTE, RECOVERY_KEY_ATTRIBUTE, PUBLIC_KEY_ATTRIBUTE,
+        handler, LAMBDA_ANSWER_CORRECT_PARAM, LAMBDA_CHALLENGE_ANSWER_PARAM,
+        LAMBDA_CHALLENGE_PARAM, LAMBDA_PRIVATE_CHALLENGE_PARAMS_PARAM, LAMBDA_REQUEST_PARAM,
+        LAMBDA_RESPONSE_PARAM, LAMBDA_USER_ATTRIBUTES_PARAM, PUBLIC_KEY_ATTRIBUTE,
     };
     use bitcoin_hashes::{sha256, Hash};
+    use lambda_runtime::{Context, LambdaEvent};
     use secp256k1::ecdsa::Signature;
     use secp256k1::{Message, PublicKey, Secp256k1};
-    use serde_json::{Map, Value};
+    use serde_json::{json, Map, Value};
     use std::str::FromStr;
 
     const TEST_CHALLENGE: &str = "test_challenge";
@@ -227,24 +140,20 @@ mod test {
     }
 
     impl TestData {
-        fn gen_user_attrs(&self) -> ((String, Value), (String, Value), (String, Value), (String, Value)) {
+        fn gen_user_attrs(&self) -> ((String, Value), (String, Value), (String, Value)) {
             let app = (
-                APP_KEY_ATTRIBUTE.to_string(),
-                Value::String(self.app.0.to_string()),
-            );
-            let hw = (
-                HW_KEY_ATTRIBUTE.to_string(),
-                Value::String(self.hw.0.to_string()),
-            );
-            let recovery = (
-                RECOVERY_KEY_ATTRIBUTE.to_string(),
-                Value::String(self.recovery.0.to_string()),
-            );
-            let generic: (String, Value) = (
                 PUBLIC_KEY_ATTRIBUTE.to_string(),
                 Value::String(self.app.0.to_string()),
             );
-            (app, hw, recovery, generic)
+            let hw = (
+                PUBLIC_KEY_ATTRIBUTE.to_string(),
+                Value::String(self.hw.0.to_string()),
+            );
+            let recovery = (
+                PUBLIC_KEY_ATTRIBUTE.to_string(),
+                Value::String(self.recovery.0.to_string()),
+            );
+            (app, hw, recovery)
         }
     }
 
@@ -281,103 +190,102 @@ mod test {
         }
     }
 
-    #[test]
-    fn test_matched_wallet_user_with_recovery_key() {
-        let secp = Secp256k1::new();
-        let input = gen_test_data();
-        let (app, hw, recovery, _) = input.gen_user_attrs();
+    #[tokio::test]
+    async fn test_app_user() {
+        let data = gen_test_data();
+        let attrs = data.gen_user_attrs();
 
-        let all_attrs: Map<String, Value> = vec![app.clone(), hw.clone(), recovery.clone()]
-            .into_iter()
-            .collect();
-        let matched_user = UserType::try_from(&all_attrs).unwrap();
+        let payload = json!({
+            LAMBDA_REQUEST_PARAM: {
+                LAMBDA_PRIVATE_CHALLENGE_PARAMS_PARAM: {
+                    LAMBDA_CHALLENGE_PARAM: TEST_CHALLENGE
+                },
+                LAMBDA_USER_ATTRIBUTES_PARAM: {
+                    attrs.0.0: attrs.0.1
+                },
+                LAMBDA_CHALLENGE_ANSWER_PARAM: data.app.1.to_string()
+            }
+        });
+
+        let event = LambdaEvent {
+            payload,
+            context: Context::default(),
+        };
+
+        let result = handler(event).await.unwrap();
         assert_eq!(
-            matched_user,
-            UserType::Wallet(WalletUserKeys {
-                apk: input.app.0,
-                hpk: input.hw.0
-            })
-        );
-        assert!(matched_user.validate(&secp, &input.msg, &input.app.1));
-        assert!(matched_user.validate(&secp, &input.msg, &input.hw.1));
-        assert_eq!(
-            false,
-            matched_user.validate(&secp, &input.msg, &input.recovery.1)
+            result
+                .get(LAMBDA_RESPONSE_PARAM)
+                .unwrap()
+                .get(LAMBDA_ANSWER_CORRECT_PARAM)
+                .unwrap(),
+            &Value::Bool(true)
         );
     }
 
-    #[test]
-    fn test_matched_wallet_user_with_no_recovery_key() {
-        let secp = Secp256k1::new();
-        let input = gen_test_data();
-        let (app, hw, _, _) = input.gen_user_attrs();
+    #[tokio::test]
+    async fn test_hw_user() {
+        let data = gen_test_data();
+        let attrs = data.gen_user_attrs();
 
-        let no_recovery_key: Map<String, Value> =
-            vec![app.clone(), hw.clone()].into_iter().collect();
-        let matched_user = UserType::try_from(&no_recovery_key).unwrap();
+        let payload = json!({
+            LAMBDA_REQUEST_PARAM: {
+                LAMBDA_PRIVATE_CHALLENGE_PARAMS_PARAM: {
+                    LAMBDA_CHALLENGE_PARAM: TEST_CHALLENGE
+                },
+                LAMBDA_USER_ATTRIBUTES_PARAM: {
+                    attrs.1.0: attrs.1.1
+                },
+                LAMBDA_CHALLENGE_ANSWER_PARAM: data.hw.1.to_string()
+            }
+        });
+
+        let event = LambdaEvent {
+            payload,
+            context: Context::default(),
+        };
+
+        let result = handler(event).await.unwrap();
         assert_eq!(
-            matched_user,
-            UserType::Wallet(WalletUserKeys {
-                apk: input.app.0,
-                hpk: input.hw.0
-            })
-        );
-        assert!(matched_user.validate(&secp, &input.msg, &input.app.1));
-        assert!(matched_user.validate(&secp, &input.msg, &input.hw.1));
-        assert_eq!(
-            false,
-            matched_user.validate(&secp, &input.msg, &input.recovery.1)
+            result
+                .get(LAMBDA_RESPONSE_PARAM)
+                .unwrap()
+                .get(LAMBDA_ANSWER_CORRECT_PARAM)
+                .unwrap(),
+            &Value::Bool(true)
         );
     }
 
-    #[test]
-    fn test_matched_recovery_user() {
-        let secp = Secp256k1::new();
-        let input = gen_test_data();
-        let (_, _, recovery, _) = input.gen_user_attrs();
+    #[tokio::test]
+    async fn test_recovery_user() {
+        let data = gen_test_data();
+        let attrs = data.gen_user_attrs();
 
-        let only_recovery_key: Map<String, Value> = vec![recovery.clone()].into_iter().collect();
-        let matched_user = UserType::try_from(&only_recovery_key).unwrap();
-        assert_eq!(
-            matched_user,
-            UserType::Recovery(input.recovery.0)
-        );
-        assert_eq!(
-            false,
-            matched_user.validate(&secp, &input.msg, &input.app.1)
-        );
-        assert_eq!(
-            false,
-            matched_user.validate(&secp, &input.msg, &input.hw.1)
-        );
-        assert!(matched_user.validate(&secp, &input.msg, &input.recovery.1));
-    }
+        let payload = json!({
+            LAMBDA_REQUEST_PARAM: {
+                LAMBDA_PRIVATE_CHALLENGE_PARAMS_PARAM: {
+                    LAMBDA_CHALLENGE_PARAM: TEST_CHALLENGE
+                },
+                LAMBDA_USER_ATTRIBUTES_PARAM: {
+                    attrs.2.0: attrs.2.1
+                },
+                LAMBDA_CHALLENGE_ANSWER_PARAM: data.recovery.1.to_string()
+            }
+        });
 
-    #[test]
-    fn test_matched_generic_user() {
-        let secp = Secp256k1::new();
-        let input = gen_test_data();
-        let (_, _, _, generic) = input.gen_user_attrs();
+        let event = LambdaEvent {
+            payload,
+            context: Context::default(),
+        };
 
-        let only_generic_key: Map<String, Value> = vec![generic.clone()].into_iter().collect();
-        let matched_user = UserType::try_from(&only_generic_key).unwrap();
+        let result = handler(event).await.unwrap();
         assert_eq!(
-            matched_user,
-            UserType::Generic(input.app.0)
+            result
+                .get(LAMBDA_RESPONSE_PARAM)
+                .unwrap()
+                .get(LAMBDA_ANSWER_CORRECT_PARAM)
+                .unwrap(),
+            &Value::Bool(true)
         );
-        assert!(
-            matched_user.validate(&secp, &input.msg, &input.app.1)
-        );
-        assert_eq!(
-            false,
-            matched_user.validate(&secp, &input.msg, &input.hw.1)
-        );
-        assert_eq!(false, matched_user.validate(&secp, &input.msg, &input.recovery.1));
-    }
-
-    #[test]
-    fn test_no_matched_user() {
-        let nothing: Map<String, Value> = vec![].into_iter().collect();
-        assert!(UserType::try_from(&nothing).is_err());
     }
 }

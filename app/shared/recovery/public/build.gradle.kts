@@ -24,6 +24,13 @@ kotlin {
       }
     }
 
+    val commonTest by getting {
+      dependencies {
+        implementation(projects.shared.bitcoinFake)
+        implementation(projects.shared.bitkeyPrimitivesFake)
+      }
+    }
+
     val commonJvmIntegrationTest by getting {
       dependencies {
         implementation(projects.shared.bitcoinFake)

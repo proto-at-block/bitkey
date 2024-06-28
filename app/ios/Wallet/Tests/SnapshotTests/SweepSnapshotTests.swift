@@ -12,7 +12,13 @@ final class SweepSnapshotTests: XCTestCase {
             viewModel: SweepBodyModelsKt.sweepFundsPrompt(
                 id: GeneralEventTrackerScreenId.debugMenu,
                 recoveredFactor: .app,
-                fee: .init(primaryAmount: "$100", secondaryAmount: "1,234 sats"),
+                transferAmount: .init(primaryAmount: "$1000", secondaryAmount: "1,234 sats"),
+                fee: .init(primaryAmount: "$1", secondaryAmount: "123 sats"),
+                onShowNetworkFeesInfo: {},
+                onCloseNetworkFeesInfo: {},
+                showNetworkFeesInfoSheet: false,
+                onBack: {},
+                onHelpClick: {},
                 onSubmit: {},
                 presentationStyle: .fullscreen
             ).body as! FormBodyModel
@@ -25,7 +31,13 @@ final class SweepSnapshotTests: XCTestCase {
             viewModel: SweepBodyModelsKt.sweepFundsPrompt(
                 id: GeneralEventTrackerScreenId.debugMenu,
                 recoveredFactor: .hardware,
-                fee: .init(primaryAmount: "$100", secondaryAmount: "1,234 sats"),
+                transferAmount: .init(primaryAmount: "$1000", secondaryAmount: "1,234 sats"),
+                fee: .init(primaryAmount: "$1", secondaryAmount: "123 sats"),
+                onShowNetworkFeesInfo: {},
+                onCloseNetworkFeesInfo: {},
+                showNetworkFeesInfoSheet: false,
+                onBack: {},
+                onHelpClick: {},
                 onSubmit: {},
                 presentationStyle: .fullscreen
             ).body as! FormBodyModel

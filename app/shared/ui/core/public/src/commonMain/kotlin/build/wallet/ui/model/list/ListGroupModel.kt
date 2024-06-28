@@ -9,6 +9,7 @@ data class ListGroupModel(
   val style: ListGroupStyle,
   val headerTreatment: HeaderTreatment = HeaderTreatment.SECONDARY,
   val footerButton: ButtonModel? = null,
+  val explainerSubtext: String? = null,
 ) {
   enum class HeaderTreatment {
     PRIMARY,

@@ -403,3 +403,18 @@ async fn partner_transactions() {
 
     assert_eq!(status, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn get_partner() {
+    let (status, body) = call_api(
+        authed_router(HashMap::new()).await,
+        true,
+        http::Method::GET,
+        "/api/partnerships/partners/SignetFaucet",
+        None,
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["name"], "Signet Faucet");
+}

@@ -6,8 +6,8 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
+import build.wallet.feature.flags.InAppSecurityFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoMock
-import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.platform.config.AppVariant
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.BodyStateMachineMock

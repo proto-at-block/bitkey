@@ -11,6 +11,7 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
+import build.wallet.firmware.FingerprintEnrollmentResult
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
@@ -97,7 +98,8 @@ interface NfcCommands {
 
   /**
    * Get the current fingerprint enrollment status for the hardware device, i.e. whether
-   * enrollment is complete or requires additional fingerprints.
+   * enrollment is complete or requires additional fingerprints. The FingerprintEnrollmentResult
+   * includes diagnostics accumulated during the enrollment process, as well as the final status.
    *
    * This command's behavior changed when multiple fingerprints were introduced. Originally, it
    * would always return [FingerprintEnrollmentStatus.COMPLETE] if any fingerprints were enrolled.
@@ -111,7 +113,7 @@ interface NfcCommands {
   suspend fun getFingerprintEnrollmentStatus(
     session: NfcSession,
     isEnrollmentContextAware: Boolean = false,
-  ): FingerprintEnrollmentStatus
+  ): FingerprintEnrollmentResult
 
   /**
    * Removes the fingerprint enrolled for the given [index]. Attempting to remove the

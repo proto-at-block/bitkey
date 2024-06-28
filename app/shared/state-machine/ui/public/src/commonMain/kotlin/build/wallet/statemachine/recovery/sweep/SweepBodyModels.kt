@@ -4,20 +4,36 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ErrorFormBodyModel
+import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.LargeIconCheckFilled
+import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
+import build.wallet.statemachine.core.Icon.SmallIconQuestionNoOutline
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
+import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
+import build.wallet.statemachine.send.NetworkFeesInfoSheetModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
+import build.wallet.ui.model.icon.IconBackgroundType.Circle
+import build.wallet.ui.model.icon.IconButtonModel
+import build.wallet.ui.model.icon.IconModel
+import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconSize.Accessory
+import build.wallet.ui.model.icon.IconSize.Regular
+import build.wallet.ui.model.icon.IconTint
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.CloseAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
 
@@ -52,38 +68,150 @@ fun generatePsbtsFailedScreenModel(
     )
 )
 
-fun sweepFundsPrompt(
+/**
+ * Instructions to show a user to help them avoid sending funds to an inactive wallet.
+ */
+private val walletUpdateExplainers = immutableListOf(
+  FormMainContentModel.Explainer.Statement(
+    leadingIcon = Icon.SmallIconCheckStroked,
+    title = "Don't use saved addresses",
+    body = "Copy a fresh receive address every time you transfer bitcoin to avoid sending funds to an old wallet."
+  ),
+  FormMainContentModel.Explainer.Statement(
+    leadingIcon = Icon.SmallIconMessage,
+    title = "Alert contacts",
+    body = "Make sure your contacts know to ask for a current wallet address every time they send you bitcoin."
+  )
+)
+
+fun sweepInactiveHelpModel(
   id: EventTrackerScreenId?,
-  recoveredFactor: PhysicalFactor?,
-  fee: MoneyAmountModel,
-  onSubmit: () -> Unit,
   presentationStyle: ScreenPresentationStyle,
+  onBack: () -> Unit,
 ) = ScreenModel(
   presentationStyle = presentationStyle,
   body =
     FormBodyModel(
       id = id,
-      onBack = null,
-      toolbar = ToolbarModel(),
+      onBack = onBack,
+      toolbar =
+        ToolbarModel(
+          leadingAccessory = CloseAccessory(onClick = onBack)
+        ),
       header =
         FormHeaderModel(
-          icon = LargeIconCheckFilled,
+          headline = "Why did this happen?",
+          subline = "When you recovered your Bitkey, your wallet address was updated. This deposit was sent to the old address."
+        ),
+      mainContentList = immutableListOf(
+        FormMainContentModel.Explainer(
+          items = walletUpdateExplainers
+        )
+      ),
+      primaryButton = null
+    )
+)
+
+fun sweepFundsPrompt(
+  id: EventTrackerScreenId?,
+  recoveredFactor: PhysicalFactor?,
+  transferAmount: MoneyAmountModel,
+  fee: MoneyAmountModel,
+  onShowNetworkFeesInfo: () -> Unit,
+  onCloseNetworkFeesInfo: () -> Unit,
+  showNetworkFeesInfoSheet: Boolean,
+  onBack: (() -> Unit)?,
+  onHelpClick: () -> Unit,
+  onSubmit: () -> Unit,
+  presentationStyle: ScreenPresentationStyle,
+) = ScreenModel(
+  bottomSheetModel = SheetModel(
+    body = NetworkFeesInfoSheetModel(onBack = onCloseNetworkFeesInfo),
+    onClosed = onCloseNetworkFeesInfo,
+  ).takeIf { showNetworkFeesInfoSheet },
+  presentationStyle = presentationStyle,
+  body =
+    FormBodyModel(
+      id = id,
+      onBack = onBack,
+      toolbar = ToolbarModel(
+        leadingAccessory = when (onBack) {
+          null -> null
+          else -> BackAccessory(onClick = onBack)
+        },
+        trailingAccessory = ToolbarAccessoryModel.IconAccessory(
+          model = IconButtonModel(
+            iconModel = IconModel(
+              icon = SmallIconQuestionNoOutline,
+              iconSize = Accessory,
+              iconBackgroundType = Circle(circleSize = Regular)
+            ),
+            onClick = StandardClick { onHelpClick() }
+          )
+        ).takeIf { recoveredFactor == null }
+      ),
+      header =
+        FormHeaderModel(
+          iconModel = IconModel(
+            icon = when (recoveredFactor) {
+              null -> LargeIconWarningFilled
+              else -> LargeIconCheckFilled
+            },
+            iconSize = IconSize.Avatar,
+            iconTint = when (recoveredFactor) {
+              null -> IconTint.On30
+              else -> IconTint.Primary
+            }
+          ),
           headline = when (recoveredFactor) {
             App, Hardware -> "Finalize recovery"
             null -> "Transfer funds to active wallet"
           },
-          subline =
-            """
-            You’ll need to approve a transaction, including an estimated network fee of ${fee.primaryAmount} (${fee.secondaryAmount}).
-
-            This fee doesn’t go to Bitkey, but is allocated to the Bitcoin miners who validate transactions.
-
-            If this fee appears very high, the network may be very busy. You can try returning later when fees may be lower.
-            """.trimIndent()
+          subline = when (recoveredFactor) {
+            App, Hardware -> null
+            null -> "These funds were deposited in an inactive wallet. Transfer funds to your active wallet and discontinue use of your old address."
+          }
         ),
+      mainContentList = immutableListOf(
+        FormMainContentModel.DataList(
+          items = immutableListOf(
+            FormMainContentModel.DataList.Data(
+              title = "Sent From",
+              sideText = "Old wallet"
+            )
+          )
+        ),
+        FormMainContentModel.DataList(
+          items = immutableListOf(
+            FormMainContentModel.DataList.Data(
+              title = "Amount to Transfer",
+              sideText = transferAmount.secondaryAmount
+            ),
+            FormMainContentModel.DataList.Data(
+              title = "Network Fees",
+              onTitle = onShowNetworkFeesInfo,
+              titleIcon =
+              IconModel(
+                icon = Icon.SmallIconInformationFilled,
+                iconSize = IconSize.XSmall,
+                iconTint = IconTint.On30
+              ),
+              sideText = fee.secondaryAmount
+            )
+          ),
+          total = FormMainContentModel.DataList.Data(
+            title = "Total",
+            sideText = transferAmount.secondaryAmount,
+            secondarySideText = transferAmount.primaryAmount
+          )
+        )
+      ),
       primaryButton =
         ButtonModel(
-          text = "Complete recovery",
+          text = when (recoveredFactor) {
+            App, Hardware -> "Complete Recovery"
+            null -> "Confirm Transfer"
+          },
           requiresBitkeyInteraction = recoveredFactor == App,
           treatment = Primary,
           onClick = onSubmit,
@@ -163,11 +291,15 @@ fun sweepSuccessScreenModel(
             },
           subline =
             when (recoveredFactor) {
-              App -> "You can now safely use this phone to manage your Bitkey."
-              Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use"
-              null -> "You can now safely use this phone to manage your Bitkey."
+              App, null -> "You can now safely use this phone to manage your Bitkey. Take precautions to avoid sending money to your old wallet."
+              Hardware -> "Your recovery is now complete and your new Bitkey device is ready to use. Take precautions to avoid sending money to your old wallet."
             }
         ),
+      mainContentList = immutableListOf(
+        FormMainContentModel.Explainer(
+          items = walletUpdateExplainers,
+        )
+      ),
       primaryButton =
         ButtonModel(
           text = "Got it",

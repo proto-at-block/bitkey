@@ -29,6 +29,7 @@ impl Rule for UniqueRecoveryAuthPubkeyForAccountRule {
                 }
             }
             AccountValidationRequest::CreateLiteAccount { auth, .. } => auth.recovery,
+            AccountValidationRequest::CreateSoftwareAccount { auth, .. } => auth.recovery,
             AccountValidationRequest::UpgradeAccount { .. } => {
                 return Ok(());
             }

@@ -11,6 +11,7 @@ import build.wallet.cloud.backup.csek.Csek
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
+import build.wallet.firmware.FingerprintEnrollmentResult
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintHandle
 import build.wallet.firmware.FirmwareCertType
@@ -36,7 +37,12 @@ class NfcCommandsMock(
   val startFingerprintEnrollmentCalls = turbine.invoke("StartFingerprintEnrollment calls")
   val setFingerprintLabelCalls = turbine.invoke("SetFingerprintLabel calls")
 
-  private val defaultEnrollmentStatus = FingerprintEnrollmentStatus.COMPLETE
+  private val defaultEnrollmentResult = FingerprintEnrollmentResult(
+    status = FingerprintEnrollmentStatus.COMPLETE,
+    passCount = null,
+    failCount = null,
+    diagnostics = null
+  )
   private val defaultEnrolledFingerprints = EnrolledFingerprints(3, emptyList())
   private val defaultFirmwareFeatureFlags = listOf(
     FirmwareFeatureFlagCfg(
@@ -57,7 +63,7 @@ class NfcCommandsMock(
     )
   )
 
-  private var enrollmentStatus = defaultEnrollmentStatus
+  private var enrollmentResult = defaultEnrollmentResult
   private var enrolledFingerprints = defaultEnrolledFingerprints
   private var firmwareFeatureFlags = defaultFirmwareFeatureFlags
 
@@ -103,7 +109,7 @@ class NfcCommandsMock(
   override suspend fun getFingerprintEnrollmentStatus(
     session: NfcSession,
     isEnrollmentContextAware: Boolean,
-  ) = enrollmentStatus
+  ) = enrollmentResult
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
@@ -195,7 +201,7 @@ class NfcCommandsMock(
   ): Boolean = true
 
   fun setEnrollmentStatus(enrollmentStatus: FingerprintEnrollmentStatus) {
-    this.enrollmentStatus = enrollmentStatus
+    this.enrollmentResult.status = enrollmentStatus
   }
 
   fun setEnrolledFingerprints(enrolledFingerprints: EnrolledFingerprints) {
@@ -207,7 +213,7 @@ class NfcCommandsMock(
   }
 
   fun reset() {
-    enrollmentStatus = defaultEnrollmentStatus
+    enrollmentResult = defaultEnrollmentResult
     enrolledFingerprints = defaultEnrolledFingerprints
     firmwareFeatureFlags = defaultFirmwareFeatureFlags
   }

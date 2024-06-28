@@ -86,7 +86,8 @@ pub trait NFCTransactions {
 
 impl<T: Transactor + ?Sized> NFCTransactions for T {
     fn is_enrollment_finished(&self) -> Result<bool, PairingError> {
-        match self.perform(GetFingerprintEnrollmentStatus::new(false))? {
+        let result = self.perform(GetFingerprintEnrollmentStatus::new(false))?;
+        match result.status {
             s @ FingerprintEnrollmentStatus::StatusUnspecified => {
                 Err(PairingError::Authentication(s))
             }

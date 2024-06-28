@@ -332,7 +332,7 @@ pub(crate) async fn create_account(
         .unwrap();
     services
         .userpool_service
-        .create_account_users_if_necessary(
+        .create_or_update_account_users_if_necessary(
             &account.id,
             Some(auth.app_pubkey),
             Some(auth.hardware_pubkey),
@@ -373,7 +373,12 @@ pub(crate) async fn create_lite_account(
         .unwrap();
     services
         .userpool_service
-        .create_account_users_if_necessary(&account.id, None, None, Some(auth.recovery_pubkey))
+        .create_or_update_account_users_if_necessary(
+            &account.id,
+            None,
+            None,
+            Some(auth.recovery_pubkey),
+        )
         .await
         .unwrap();
     context.associate_with_account(&account.id, auth.recovery_pubkey);

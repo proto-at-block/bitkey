@@ -5,7 +5,6 @@ import app.cash.turbine.plusAssign
 import build.wallet.bitkey.f8e.AccountId
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.MutableStateFlow
 
 class AuthTokenDaoMock(
   turbine: (String) -> Turbine<Any>,
@@ -13,13 +12,17 @@ class AuthTokenDaoMock(
   val clearCalls = turbine("clear auth token calls")
   val setTokensCalls = turbine("set auth tokens calls")
 
-  var tokensFlow = MutableStateFlow<AccountAuthTokens?>(null)
+  private val defaultSetTokensResult: Result<Unit, Throwable> = Ok(Unit)
+  var setTokensResult = defaultSetTokensResult
+
+  private val defaultGetTokensResult: Result<AccountAuthTokens?, Throwable> = Ok(null)
+  var getTokensResult = defaultGetTokensResult
 
   override suspend fun getTokensOfScope(
     accountId: AccountId,
     scope: AuthTokenScope,
   ): Result<AccountAuthTokens?, Throwable> {
-    return Ok(tokensFlow.value)
+    return getTokensResult
   }
 
   data class SetTokensParams(
@@ -33,18 +36,19 @@ class AuthTokenDaoMock(
     tokens: AccountAuthTokens,
     scope: AuthTokenScope,
   ): Result<Unit, Throwable> {
-    tokensFlow.value = tokens
+    getTokensResult = Ok(tokens)
     setTokensCalls += SetTokensParams(accountId, tokens, scope)
-    return Ok(Unit)
+    return setTokensResult
   }
 
   override suspend fun clear(): Result<Unit, Throwable> {
-    tokensFlow.value = null
+    getTokensResult = Ok(null)
     clearCalls += Unit
     return Ok(Unit)
   }
 
   fun reset() {
-    tokensFlow.value = null
+    getTokensResult = defaultGetTokensResult
+    setTokensResult = defaultSetTokensResult
   }
 }

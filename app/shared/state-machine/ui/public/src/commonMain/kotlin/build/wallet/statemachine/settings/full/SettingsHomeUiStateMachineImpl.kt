@@ -1,13 +1,8 @@
 package build.wallet.statemachine.settings.full
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import build.wallet.feature.flags.InAppSecurityFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.inappsecurity.InAppSecurityFeatureFlag
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.biometric.BiometricSettingUiProps
 import build.wallet.statemachine.biometric.BiometricSettingUiStateMachine
@@ -28,19 +23,7 @@ import build.wallet.statemachine.recovery.socrec.TrustedContactManagementProps
 import build.wallet.statemachine.recovery.socrec.TrustedContactManagementUiStateMachine
 import build.wallet.statemachine.settings.SettingsListUiProps
 import build.wallet.statemachine.settings.SettingsListUiStateMachine
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingAllSettingsUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingBitkeyDeviceSettingsUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCloudBackupHealthUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCurrencyPreferenceUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingCustomElectrumServerSettingsUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingDebugMenuUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingHelpCenterUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingMobilePaySettingsUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingNotificationPreferencesUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingRecoveryChannelsUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingRotateAuthKeyUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingSendFeedbackUiState
-import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.ShowingTrustedContactsUiState
+import build.wallet.statemachine.settings.full.SettingsHomeUiStateMachineImpl.State.*
 import build.wallet.statemachine.settings.full.device.DeviceSettingsProps
 import build.wallet.statemachine.settings.full.device.DeviceSettingsUiStateMachine
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerProps

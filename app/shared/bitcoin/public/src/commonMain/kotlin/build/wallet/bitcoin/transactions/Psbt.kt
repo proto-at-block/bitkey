@@ -20,4 +20,7 @@ data class Psbt(
   val numOfInputs: Int,
   /** Amount of sats to send in transaction */
   val amountSats: ULong,
-)
+) {
+  /** Amount of bitcoin to send in transaction */
+  val amountBtc: BitcoinMoney get() = BitcoinMoney.sats(amountSats.toLong())
+}

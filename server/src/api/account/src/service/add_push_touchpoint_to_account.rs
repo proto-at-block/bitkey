@@ -71,6 +71,10 @@ impl Service {
                 .common_fields
                 .touchpoints
                 .push(new_touchpoint.clone()),
+            Account::Software(software_account) => software_account
+                .common_fields
+                .touchpoints
+                .push(new_touchpoint.clone()),
         };
 
         self.account_repo.persist(&account).await?;

@@ -247,6 +247,10 @@
       "calloutDangerTrailingIcon": {
         "light": { "value": "#FFFFFFFF", "comment": "Danger callout trailing icon color" },
         "dark": { "value": "#FFFFFFFF" }
+      },
+      "coachmarkBackground": {
+        "light": { "value": "#333442FF", "comment": "Coachmark background color" },
+        "dark": { "value": "#333442FF" }
       }
   }
 }

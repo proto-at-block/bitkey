@@ -29,7 +29,8 @@ impl Rule for TestAccountsWithMainnetKeysetsRule {
                 spending_network,
                 ..
             } => (is_test_account, spending_network),
-            AccountValidationRequest::CreateLiteAccount { .. } => {
+            AccountValidationRequest::CreateLiteAccount { .. }
+            | AccountValidationRequest::CreateSoftwareAccount { .. } => {
                 return Ok(());
             }
         };

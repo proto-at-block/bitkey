@@ -6,7 +6,7 @@ import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import io.kotest.core.spec.style.FunSpec
 
-class FwupNfcSnapshots : FunSpec({
+class SplashLockSnapshots : FunSpec({
   val paparazzi = paparazziExtension()
 
   test("Splash Lock Screen") {

@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::routing::post;
 use axum::Router;
 use axum::{extract::State, Json};
@@ -104,9 +106,9 @@ pub async fn authenticate_with_recovery(
 
     tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
 
-    let username: CognitoUsername = CognitoUser::Recovery(pubkeys_to_account.id.clone()).into();
+    let user = CognitoUser::Recovery(pubkeys_to_account.id.clone());
     let auth_challenge = user_pool_service
-        .initiate_auth_for_user(&username, &pubkeys_to_account)
+        .initiate_auth_for_user(user, &pubkeys_to_account)
         .await
         .map_err(|e| {
             let msg = "Failed to initiate authentication with pubkey";
@@ -158,9 +160,9 @@ pub async fn authenticate_with_hardware(
 
     tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
 
-    let username: CognitoUsername = CognitoUser::Hardware(pubkeys_to_account.id.clone()).into();
+    let user = CognitoUser::Hardware(pubkeys_to_account.id.clone());
     let auth_challenge = user_pool_service
-        .initiate_auth_for_user(&username, &pubkeys_to_account)
+        .initiate_auth_for_user(user, &pubkeys_to_account)
         .await
         .map_err(|e| {
             let msg = "Failed to initiate authentication with pubkey";
@@ -244,7 +246,7 @@ pub async fn authenticate(
     tracing::Span::current().record("account_id", &pubkeys_to_account.id.to_string());
 
     let auth_challenge = user_pool_service
-        .initiate_auth_for_user(&requested_cognito_user.into(), &pubkeys_to_account)
+        .initiate_auth_for_user(requested_cognito_user, &pubkeys_to_account)
         .await
         .map_err(|e| {
             let msg = "Failed to initiate authentication with pubkey";
@@ -316,8 +318,19 @@ pub async fn get_tokens(
                 ApiError::from(e)
             })?
     } else if let Some(params) = request.challenge {
+        // There's an app bug in which the hw auth path always passes the account ID as the username here instead of
+        // the username that's returned from the authenticate call. Other than this bug, usernames should never be
+        // raw account IDs anymore (and will error when parsed). So in this case, use the hardware username.
+        let username = match (
+            CognitoUser::from_str(params.username.as_ref()),
+            CognitoUser::from_str(&format!("{}-hardware", params.username.as_ref())),
+        ) {
+            (Err(_), Ok(hardware_user)) => hardware_user.into(),
+            (_, _) => params.username,
+        };
+
         user_pool_service
-            .respond_to_auth_challenge(&params.username, params.session, params.challenge_response)
+            .respond_to_auth_challenge(&username, params.session, params.challenge_response)
             .await
             .map_err(|e: UserPoolError| {
                 let msg = "failed to complete auth challenge";

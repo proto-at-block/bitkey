@@ -2,8 +2,8 @@ package build.wallet.database
 
 import app.cash.sqldelight.EnumColumnAdapter
 import build.wallet.analytics.v1.Event
-import build.wallet.database.adapters.BitcoinAddressColumnAdapter
-import build.wallet.database.adapters.DelegatedColumnAdapter
+import build.wallet.database.adapters.*
+import build.wallet.database.adapters.bitkey.*
 import build.wallet.database.adapters.DurationColumnAdapter
 import build.wallet.database.adapters.EmailColumnAdapter
 import build.wallet.database.adapters.FullAccountColumnAdapter
@@ -23,50 +23,8 @@ import build.wallet.database.adapters.bitkey.FullAccountIdColumnAdapter
 import build.wallet.database.adapters.bitkey.HwAuthPublicKeyColumnAdapter
 import build.wallet.database.adapters.bitkey.HwSpendingPublicKeyColumnAdapter
 import build.wallet.database.adapters.bitkey.LiteAccountIdColumnAdapter
-import build.wallet.database.sqldelight.ActiveFullAccountEntity
-import build.wallet.database.sqldelight.ActiveLiteAccountEntity
-import build.wallet.database.sqldelight.ActiveServerRecoveryEntity
-import build.wallet.database.sqldelight.AppKeyBundleEntity
-import build.wallet.database.sqldelight.AuthKeyRotationAttemptEntity
-import build.wallet.database.sqldelight.BitcoinDisplayPreferenceEntity
-import build.wallet.database.sqldelight.BitkeyDatabase
-import build.wallet.database.sqldelight.BitkeyDebugDatabase
-import build.wallet.database.sqldelight.EmailTouchpointEntity
-import build.wallet.database.sqldelight.EventEntity
-import build.wallet.database.sqldelight.ExchangeRateEntity
-import build.wallet.database.sqldelight.FiatCurrencyEntity
-import build.wallet.database.sqldelight.FiatCurrencyMobilePayConfigurationEntity
-import build.wallet.database.sqldelight.FiatCurrencyPreferenceEntity
-import build.wallet.database.sqldelight.FirmwareDeviceInfoEntity
-import build.wallet.database.sqldelight.FullAccountEntity
-import build.wallet.database.sqldelight.FwupDataEntity
-import build.wallet.database.sqldelight.GettingStartedTaskEntity
-import build.wallet.database.sqldelight.HistoricalExchangeRateEntity
-import build.wallet.database.sqldelight.HomeUiBottomSheetEntity
-import build.wallet.database.sqldelight.HwKeyBundleEntity
-import build.wallet.database.sqldelight.KeyboxEntity
-import build.wallet.database.sqldelight.LiteAccountEntity
-import build.wallet.database.sqldelight.LocalRecoveryAttemptEntity
-import build.wallet.database.sqldelight.NetworkReachabilityEventEntity
-import build.wallet.database.sqldelight.OnboardingFullAccountEntity
-import build.wallet.database.sqldelight.OnboardingKeyboxHwAuthPublicKey
-import build.wallet.database.sqldelight.OnboardingLiteAccountEntity
-import build.wallet.database.sqldelight.OnboardingStepSkipConfigEntity
-import build.wallet.database.sqldelight.OnboardingStepStateEntity
-import build.wallet.database.sqldelight.PartnershipTransactionEntity
-import build.wallet.database.sqldelight.PriorityPreferenceEntity
-import build.wallet.database.sqldelight.RegisterWatchAddressEntity
-import build.wallet.database.sqldelight.SocRecEnrollmentAuthentication
-import build.wallet.database.sqldelight.SocRecKeys
-import build.wallet.database.sqldelight.SocRecProtectedCustomerEntity
-import build.wallet.database.sqldelight.SocRecStartedChallengeAuthentication
-import build.wallet.database.sqldelight.SocRecTrustedContactEntity
-import build.wallet.database.sqldelight.SocRecTrustedContactInvitationEntity
-import build.wallet.database.sqldelight.SocRecUnendorsedTrustedContactEntity
-import build.wallet.database.sqldelight.SpendingKeysetEntity
-import build.wallet.database.sqldelight.SpendingLimitEntity
-import build.wallet.database.sqldelight.TemplateFullAccountConfigEntity
-import build.wallet.database.sqldelight.TransactionDetailEntity
+import build.wallet.database.adapters.bitkey.SoftwareAccountIdColumnAdapter
+import build.wallet.database.sqldelight.*
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.sqldelight.SqlDriverFactory
@@ -123,6 +81,22 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
       onboardingFullAccountEntityAdapter =
         OnboardingFullAccountEntity.Adapter(
           accountIdAdapter = FullAccountIdColumnAdapter
+        ),
+      softwareAccountEntityAdapter =
+        SoftwareAccountEntity.Adapter(
+          accountIdAdapter = SoftwareAccountIdColumnAdapter,
+          bitcoinNetworkTypeAdapter = EnumColumnAdapter(),
+          f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter
+        ),
+      activeSoftwareAccountEntityAdapter =
+        ActiveSoftwareAccountEntity.Adapter(
+          accountIdAdapter = SoftwareAccountIdColumnAdapter
+        ),
+      onboardingSoftwareAccountEntityAdapter =
+        OnboardingSoftwareAccountEntity.Adapter(
+          accountIdAdapter = SoftwareAccountIdColumnAdapter,
+          appGlobalAuthKeyAdapter = PublicKeyColumnAdapter(),
+          appRecoveryAuthKeyAdapter = PublicKeyColumnAdapter()
         ),
       keyboxEntityAdapter =
         KeyboxEntity.Adapter(
@@ -321,6 +295,9 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         statusAdapter = EnumColumnAdapter(),
         createdAdapter = InstantColumnAdapter,
         updatedAdapter = InstantColumnAdapter
+      ),
+      coachmarkEntityAdapter = CoachmarkEntity.Adapter(
+        expirationAdapter = InstantColumnAdapter
       )
     )
   }

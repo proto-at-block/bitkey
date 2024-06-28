@@ -19,6 +19,7 @@ use partnerships_lib::{
     models::{partners::PartnerInfo, PaymentMethod, Quote, RedirectInfo},
     Partnerships,
 };
+use partnerships_lib::models::partners::Partner;
 
 use types::currencies::CurrencyCode;
 use userpool::userpool::UserPoolService;
@@ -80,6 +81,7 @@ impl From<RouteState> for Router {
                 "/api/partnerships/partners/:partner/transactions/:id",
                 get(get_partner_transaction),
             )
+            .route("/api/partnerships/partners/:partner", get(get_partner))
             .with_state(value)
     }
 }
@@ -357,4 +359,26 @@ async fn get_partner_transaction(
     Ok(Json(GetPartnerTransactionResponse {
         transaction: partner_transaction,
     }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetPartnerRequest {
+    partner: Partner,
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/partnerships/partners/:partner",
+    params(("partner" = String, Path, description = "Partner name")),
+    responses(
+        (status = 200, description = "Partner info was successfully retrieved", body=PartnerInfo),
+        (status = 404, description = "Partner not found"),
+    ),
+)]
+async fn get_partner(
+    State(partnerships): State<Partnerships>,
+    request: Path<GetPartnerRequest>,
+) -> Result<Json<PartnerInfo>, ApiError> {
+    let partner_info = partnerships.get_partner(request.partner).await?;
+    Ok(Json(partner_info))
 }

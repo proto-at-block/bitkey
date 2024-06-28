@@ -1,71 +1,42 @@
 package build.wallet.statemachine.transactions
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.explorer.BitcoinExplorer
 import build.wallet.bitcoin.explorer.BitcoinExplorerType.Mempool
-import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator
-import build.wallet.bitcoin.fees.Fee
+import build.wallet.bitcoin.fees.BitcoinFeeRateEstimator
 import build.wallet.bitcoin.fees.FeeRate
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Confirmed
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
-import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityChecker
-import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
-import build.wallet.bitcoin.transactions.toSpeedUpTransactionDetails
+import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.feature.FeatureFlag
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.logging.LogLevel.Error
-import build.wallet.logging.log
+import build.wallet.feature.flags.FeeBumpIsAvailableFeatureFlag
+import build.wallet.keybox.wallet.AppSpendingWalletProvider
+import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
-import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.platform.web.BrowserNavigator
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.SheetSize
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.data.money.convertedOrZero
-import build.wallet.statemachine.send.SendEntryPoint
-import build.wallet.statemachine.send.SendUiProps
-import build.wallet.statemachine.send.SendUiStateMachine
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId
-import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.FeeLoadingErrorUiState
-import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.InsufficientFundsUiState
-import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.ShowingTransactionDetailUiState
-import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.SpeedingUpTransactionUiState
+import build.wallet.statemachine.transactions.TransactionDetailsUiStateMachineImpl.UiState.*
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
-import build.wallet.ui.model.icon.IconBackgroundType
-import build.wallet.ui.model.icon.IconButtonModel
-import build.wallet.ui.model.icon.IconModel
-import build.wallet.ui.model.icon.IconSize
-import build.wallet.ui.model.icon.IconTint
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
-import kotlinx.collections.immutable.ImmutableMap
-import kotlinx.collections.immutable.toImmutableMap
+import build.wallet.ui.model.icon.*
+import com.github.michaelbull.result.getOrElse
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
@@ -76,14 +47,15 @@ class TransactionDetailsUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val currencyConverter: CurrencyConverter,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
-  private val sendUiStateMachine: SendUiStateMachine,
-  private val bitcoinTransactionFeeEstimator: BitcoinTransactionFeeEstimator,
   private val clock: Clock,
   private val durationFormatter: DurationFormatter,
   private val eventTracker: EventTracker,
   private val bitcoinTransactionBumpabilityChecker: BitcoinTransactionBumpabilityChecker,
-  private val feeBumpEnabled: FeatureFlag<FeatureFlagValue.BooleanFlag>,
+  private val feeBumpEnabled: FeeBumpIsAvailableFeatureFlag,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val feeBumpConfirmationUiStateMachine: FeeBumpConfirmationUiStateMachine,
+  private val feeRateEstimator: BitcoinFeeRateEstimator,
+  private val appSpendingWalletProvider: AppSpendingWalletProvider,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -118,35 +90,24 @@ class TransactionDetailsUiStateMachineImpl(
 
     return when (val state = uiState) {
       is SpeedingUpTransactionUiState ->
-        sendUiStateMachine.model(
-          SendUiProps(
-            entryPoint =
-              SendEntryPoint.SpeedUp(
-                speedUpTransactionDetails = state.speedUpTransactionDetails,
-                fiatMoney = FiatMoney(currency = fiatCurrency, value = fiatAmount.value),
-                spendingLimit = props.accountData.mobilePayData.spendingLimit,
-                newFeeRate = state.chosenFeeRate,
-                fees = state.fees
-              ),
-            accountData = props.accountData,
-            onExit = {
-              uiState = ShowingTransactionDetailUiState()
-            },
-            onDone = {
-              props.onClose()
-            },
-            validInvoiceInClipboard = null
+        feeBumpConfirmationUiStateMachine.model(
+          FeeBumpConfirmationProps(
+            account = props.accountData.account,
+            speedUpTransactionDetails = state.speedUpTransactionDetails,
+            onExit = { props.onClose() },
+            syncTransactions = { props.accountData.transactionsData.syncTransactions() },
+            psbt = state.psbt,
+            newFeeRate = state.newFeeRate
           )
         )
 
       is ShowingTransactionDetailUiState ->
         TransactionDetailModel(
           props = props,
-          sendAmount = props.transaction.subtotal,
           totalAmount = totalAmount,
           fiatString = fiatString,
           feeBumpEnabled = feeBumpEnabled,
-          isLoadingRates = state.isLoadingRates,
+          isLoading = state.isLoading,
           isShowingEducationSheet = state.isShowingEducationSheet,
           onLoaded = { browserNavigator ->
             uiState = state.copy(browserNavigator = browserNavigator)
@@ -168,31 +129,25 @@ class TransactionDetailsUiStateMachineImpl(
           },
           onSpeedUpTransaction = {
             eventTracker.track(ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION)
-            uiState = state.copy(isLoadingRates = true)
-          },
-          onFeesLoadFailure = { error ->
-            log(Error) { "Error loading fees: ${error.message}" }
-            uiState = when (error) {
-              is FeeLoadingError.FeeEstimationError -> {
-                when (error.feeEstimationError) {
-                  is BitcoinTransactionFeeEstimator.FeeEstimationError.InsufficientFundsError -> InsufficientFundsUiState
-                  else -> FeeLoadingErrorUiState(error)
-                }
-              }
-              else -> FeeLoadingErrorUiState(error)
-            }
-          },
-          onFeesLoaded = { fastestFeeRate, feeMap ->
-            when (val speedUpTransactionDetails = props.transaction.toSpeedUpTransactionDetails()) {
-              // Should be unexpected, but we show an error message here instead of failing silently.
+            when (val details = props.transaction.toSpeedUpTransactionDetails()) {
               null -> FeeLoadingErrorUiState(FeeLoadingError.TransactionMissingRecipientAddress)
               else -> {
-                uiState =
-                  SpeedingUpTransactionUiState(
-                    speedUpTransactionDetails = speedUpTransactionDetails,
-                    chosenFeeRate = fastestFeeRate,
-                    fees = feeMap
-                  )
+                uiState = ShowingTransactionDetailUiState(isLoading = true)
+              }
+            }
+          },
+          onFailedToPrepareData = {
+            uiState = FeeLoadingErrorUiState(FeeLoadingError.TransactionMissingRecipientAddress)
+          },
+          onSuccessBumpingFee = { psbt, newFeeRate ->
+            when (val details = props.transaction.toSpeedUpTransactionDetails()) {
+              null -> FeeLoadingErrorUiState(FeeLoadingError.TransactionMissingRecipientAddress)
+              else -> {
+                uiState = SpeedingUpTransactionUiState(
+                  psbt = psbt,
+                  newFeeRate = newFeeRate,
+                  speedUpTransactionDetails = details
+                )
               }
             }
           }
@@ -227,40 +182,58 @@ class TransactionDetailsUiStateMachineImpl(
   @Composable
   private fun TransactionDetailModel(
     props: TransactionDetailsUiProps,
-    sendAmount: BitcoinMoney,
     totalAmount: BitcoinMoney,
     fiatString: String,
     feeBumpEnabled: Boolean,
-    isLoadingRates: Boolean,
+    isLoading: Boolean,
     isShowingEducationSheet: Boolean,
     onLoaded: (BrowserNavigator) -> Unit,
     onViewSpeedUpEducation: () -> Unit,
     onCloseSpeedUpEducation: () -> Unit,
     onViewTransaction: () -> Unit,
     onSpeedUpTransaction: () -> Unit,
-    onFeesLoadFailure: (FeeLoadingError) -> Unit,
-    onFeesLoaded: (FeeRate, ImmutableMap<EstimatedTransactionPriority, Fee>) -> Unit,
+    onFailedToPrepareData: () -> Unit,
+    onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit
   ): ScreenModel {
-    if (isLoadingRates) {
-      LaunchedEffect("fetch-transaction-fees") {
-        when (val recipientAddress = props.transaction.recipientAddress) {
-          null -> onFeesLoadFailure(FeeLoadingError.TransactionMissingRecipientAddress)
-          else ->
-            bitcoinTransactionFeeEstimator.getFeesForTransaction(
-              priorities = EstimatedTransactionPriority.entries,
-              account = props.accountData.account,
-              recipientAddress = recipientAddress,
-              amount = BitcoinTransactionSendAmount.ExactAmount(sendAmount)
+    if (isLoading) {
+      LaunchedEffect("loading-rates-and-getting-wallet") {
+        feeRateEstimator
+          .getEstimatedFeeRates(networkType = props.accountData.account.config.bitcoinNetworkType)
+          .getOrElse {
+            onFailedToPrepareData()
+            return@LaunchedEffect
+          }.getOrElse(EstimatedTransactionPriority.FASTEST) {
+            onFailedToPrepareData()
+            return@LaunchedEffect
+          }.also { feeRate ->
+            // For test accounts on Signet, we manually choose a fee rate that is twice the previous
+            // one. This is particularly useful for QA when testing.
+            val newFeeRate = if (props.accountData.account.config.isTestAccount &&
+              props.accountData.account.config.bitcoinNetworkType == BitcoinNetworkType.SIGNET
+            ) {
+              FeeRate(satsPerVByte = feeRate.satsPerVByte * 2)
+            } else {
+              feeRate
+            }
+            val constructionMethod = SpendingWallet.PsbtConstructionMethod.BumpFee(
+              txid = props.transaction.id,
+              feeRate = newFeeRate
             )
-              .onFailure { onFeesLoadFailure(FeeLoadingError.FeeEstimationError(it)) }
-              .onSuccess { feeMap ->
-                // We always attempt to pick the fastest fee rate for speed-ups.
-                when (val fee = feeMap[EstimatedTransactionPriority.FASTEST]) {
-                  null -> onFeesLoadFailure(FeeLoadingError.MissingFeeRate)
-                  else -> onFeesLoaded(fee.feeRate, feeMap.toImmutableMap())
-                }
+
+            val psbt = appSpendingWalletProvider
+              .getSpendingWallet(props.accountData.account)
+              .getOrElse {
+                onFailedToPrepareData()
+                return@LaunchedEffect
+              }.createSignedPsbt(constructionType = constructionMethod)
+              .logFailure { "Unable to build fee bump psbt" }
+              .getOrElse {
+                onFailedToPrepareData()
+                return@LaunchedEffect
               }
-        }
+
+            onSuccessBumpingFee(psbt, newFeeRate)
+          }
       }
     }
 
@@ -281,7 +254,7 @@ class TransactionDetailsUiStateMachineImpl(
           recipientAddress = props.transaction.chunkedRecipientAddress()
         )
       },
-      isLoading = isLoadingRates,
+      isLoading = false,
       onLoaded = onLoaded,
       onViewTransaction = onViewTransaction,
       onClose = props.onClose,
@@ -381,8 +354,8 @@ class TransactionDetailsUiStateMachineImpl(
   private fun TransactionSpeedUpEducationModel(
     onSpeedUpTransaction: () -> Unit,
     onClose: () -> Unit,
-  ): SheetModel {
-    return SheetModel(
+  ): SheetModel =
+    SheetModel(
       size = SheetSize.MIN40,
       onClosed = onClose,
       body = FormBodyModel(
@@ -418,7 +391,6 @@ class TransactionDetailsUiStateMachineImpl(
         renderContext = RenderContext.Sheet
       )
     )
-  }
 
   private fun pendingDataListItem(
     estimatedConfirmationTime: Instant?,
@@ -441,7 +413,9 @@ class TransactionDetailsUiStateMachineImpl(
               ),
             sideTextTreatment = Data.SideTextTreatment.STRIKETHROUGH,
             sideTextType = Data.SideTextType.REGULAR,
-            secondarySideText = "${durationFormatter.formatWithAlphabet(currentTime - confirmationTime)} late",
+            secondarySideText = "${durationFormatter.formatWithAlphabet(
+              currentTime - confirmationTime
+            )} late",
             secondarySideTextType = Data.SideTextType.BOLD,
             secondarySideTextTreatment = Data.SideTextTreatment.WARNING,
             explainer =
@@ -483,7 +457,7 @@ class TransactionDetailsUiStateMachineImpl(
      */
     data class ShowingTransactionDetailUiState(
       val browserNavigator: BrowserNavigator? = null,
-      val isLoadingRates: Boolean = false,
+      val isLoading: Boolean = false,
       val isShowingEducationSheet: Boolean = false,
     ) : UiState
 
@@ -491,9 +465,9 @@ class TransactionDetailsUiStateMachineImpl(
      * Customer is showing speed up confirmation flow.
      */
     data class SpeedingUpTransactionUiState(
+      val psbt: Psbt,
+      val newFeeRate: FeeRate,
       val speedUpTransactionDetails: SpeedUpTransactionDetails,
-      val chosenFeeRate: FeeRate,
-      val fees: ImmutableMap<EstimatedTransactionPriority, Fee>,
     ) : UiState
 
     /**
@@ -513,21 +487,6 @@ class TransactionDetailsUiStateMachineImpl(
    * Describes different ways loading fees can fail when speeding up a transaction.
    */
   sealed class FeeLoadingError : kotlin.Error() {
-    /**
-     * Represents an error we encounter when assembling an estimate using
-     * [BitcoinTransactionFeeEstimator].
-     */
-    data class FeeEstimationError(
-      val feeEstimationError: BitcoinTransactionFeeEstimator.FeeEstimationError,
-    ) : FeeLoadingError()
-
-    /**
-     * When attempting to speed up our transaction, we were returned a response without the
-     * desired fee rate.
-     *
-     * In the current implementation, that always is the fastest fee rate, by default.
-     */
-    data object MissingFeeRate : FeeLoadingError()
 
     /**
      * The transaction that was loaded to props was missing a recipient address.

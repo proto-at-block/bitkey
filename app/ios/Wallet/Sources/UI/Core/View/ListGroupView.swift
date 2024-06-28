@@ -25,60 +25,75 @@ public struct ListGroupView: View {
     public var body: some View {
         switch viewModel.style {
         case .none:
-            regularList(showsDivider: false, addsVerticalPadding: false)
+            regularList(showsDivider: false, addsVerticalPadding: false, wrapInCard: false)
         case .divider:
-            regularList(showsDivider: true, addsVerticalPadding: false)
+            regularList(showsDivider: true, addsVerticalPadding: false, wrapInCard: false)
         case .cardItem:
             cardItemList
         case .cardGroup, .cardGroupDivider:
             regularList(
                 showsDivider: viewModel.style == .cardGroupDivider,
                 minItemHeight: 60,
-                addsVerticalPadding: true
+                addsVerticalPadding: true,
+                wrapInCard: true
             )
-            .wrapInCard()
         case .threeColumnCardItem:
             fixedColumnCardItemList(columnCount: 3)
         default:
-            regularList(showsDivider: true, addsVerticalPadding: false)
+            regularList(showsDivider: true, addsVerticalPadding: false, wrapInCard: false)
         }
     }
 
     public func regularList(
         showsDivider: Bool,
         minItemHeight: CGFloat? = nil,
-        addsVerticalPadding: Bool
+        addsVerticalPadding: Bool,
+        wrapInCard: Bool
     ) -> some View {
         VStack(spacing: 0) {
-            viewModel.header.map { sectionHeaderText in
+            VStack(spacing: 0) {
+                viewModel.header.map { sectionHeaderText in
+                    ModeledText(
+                        model: .standard(
+                            sectionHeaderText,
+                            font: viewModel.headerTreatment.font,
+                            textColor: viewModel.headerTreatment.textColor
+                        )
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, addsVerticalPadding ? 20 : 0)
+                    .padding(.bottom, viewModel.items.isEmpty ? 16 : 0)
+                }
+                ForEach(
+                    Array(zip(viewModel.items.indices, viewModel.items)),
+                    id: \.0
+                ) { index, listItem in
+                    ListItemView(viewModel: listItem, hideContent: hideContent)
+                        .frame(minHeight: minItemHeight)
+                    
+                    if showsDivider, index != viewModel.items.endIndex - 1 {
+                        Divider()
+                            .frame(height: 1)
+                            .overlay(Color.foreground10)
+                    }
+                }
+                viewModel.footerButton.map { footerButtonModel in
+                    ButtonView(model: footerButtonModel, cornerRadius: 12)
+                        .padding(.top, 8)
+                        .padding(.bottom, addsVerticalPadding ? 20 : 0)
+                }
+            }.if(wrapInCard, transform: {
+                $0.wrapInCard()
+            })
+            if let explainerSubtext = viewModel.explainerSubtext {
                 ModeledText(
                     model: .standard(
-                        sectionHeaderText,
-                        font: viewModel.headerTreatment.font,
-                        textColor: viewModel.headerTreatment.textColor
+                        explainerSubtext,
+                        font: .body4Regular,
+                        textColor: .secondaryForeground
                     )
                 )
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, addsVerticalPadding ? 20 : 0)
-                .padding(.bottom, viewModel.items.isEmpty ? 16 : 0)
-            }
-            ForEach(
-                Array(zip(viewModel.items.indices, viewModel.items)),
-                id: \.0
-            ) { index, listItem in
-                ListItemView(viewModel: listItem, hideContent: hideContent)
-                    .frame(minHeight: minItemHeight)
-
-                if showsDivider, index != viewModel.items.endIndex - 1 {
-                    Divider()
-                        .frame(height: 1)
-                        .overlay(Color.foreground10)
-                }
-            }
-            viewModel.footerButton.map { footerButtonModel in
-                ButtonView(model: footerButtonModel, cornerRadius: 12)
-                    .padding(.top, 8)
-                    .padding(.bottom, addsVerticalPadding ? 20 : 0)
+                .padding(EdgeInsets(top: 8, leading: 16, bottom: 0, trailing: 16))
             }
         }
     }
@@ -201,7 +216,8 @@ struct ListGroupView_Preview: PreviewProvider {
             ],
             style: style,
             headerTreatment: .secondary,
-            footerButton: nil
+            footerButton: nil, 
+            explainerSubtext: nil
         )
     }
 

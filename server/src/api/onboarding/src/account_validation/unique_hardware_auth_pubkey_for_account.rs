@@ -23,7 +23,8 @@ impl Rule for UniqueHardwareAuthPubkeyForAccountRule {
         let hw_auth_pubkey = match request {
             AccountValidationRequest::CreateFullAccount { auth, .. } => auth.hardware,
             AccountValidationRequest::UpgradeAccount { auth, .. } => auth.hardware,
-            AccountValidationRequest::CreateLiteAccount { .. } => {
+            AccountValidationRequest::CreateLiteAccount { .. }
+            | AccountValidationRequest::CreateSoftwareAccount { .. } => {
                 return Ok(());
             }
         };

@@ -3,8 +3,7 @@ package build.wallet.statemachine.partnerships.expected
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient.Success
-import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
+import build.wallet.f8e.partnerships.GetPartnerF8eClientMock
 import build.wallet.ktor.result.HttpBodyError
 import build.wallet.partnerships.FakePartnershipTransaction
 import build.wallet.partnerships.PartnerId
@@ -33,7 +32,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import kotlinx.datetime.LocalDateTime
 
 class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
-  val getTransferPartnerListService = GetTransferPartnerListF8eClientMock(
+  val getPartnerService = GetPartnerF8eClientMock(
     turbines::create
   )
   val dateTimeFormatter = DateTimeFormatterMock()
@@ -44,7 +43,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     fetchMostRecentCalls = turbines.create("fetch most recent calls")
   )
   val stateMachine = ExpectedTransactionNoticeUiStateMachineImpl(
-    getTransferPartnerListF8eClient = getTransferPartnerListService,
+    getPartnerF8eClient = getPartnerService,
     dateTimeFormatter = dateTimeFormatter,
     transactionsStatusRepository = transactionStatusRepository,
     delayer = {}
@@ -63,18 +62,14 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   )
 
   val successPartnershipsCall = Ok(
-    Success(
-      listOf(
-        PartnerInfo("test-logo", "Test Partner", PartnerId("test-partner-id"))
-      )
-    )
+    PartnerInfo("test-logo", "Test Partner", PartnerId("test-partner-id"))
   )
 
   test("Load Partner Details") {
-    getTransferPartnerListService.partnersResult = successPartnershipsCall
+    getPartnerService.response = successPartnershipsCall
     stateMachine.test(props) {
       awaitScreenWithBody<LoadingSuccessBodyModel>()
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
+      getPartnerService.getPartnerCalls.awaitItem()
       awaitScreenWithBody<FormBodyModel> {
         header?.iconModel?.iconImage.shouldBeTypeOf<IconImage.UrlImage>().url.shouldBe("test-logo")
         header?.headline.shouldContain("Test Partner")
@@ -86,20 +81,17 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   }
 
   test("Known Partner Deeplink") {
-    getTransferPartnerListService.partnersResult = Ok(
-      Success(
-        listOf(
-          PartnerInfo("test-logo", "Test Partner", PartnerId("CashApp"))
-        )
-      )
+    getPartnerService.response = Ok(
+      PartnerInfo("test-logo", "Test Partner", PartnerId("CashApp"))
     )
+
     stateMachine.test(
       props.copy(
         partner = PartnerId("CashApp")
       )
     ) {
       awaitScreenWithBody<LoadingSuccessBodyModel>()
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
+      getPartnerService.getPartnerCalls.awaitItem()
       awaitScreenWithBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull().text.shouldContain("Test Partner")
         secondaryButton.shouldNotBeNull().onClick()
@@ -112,12 +104,8 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
   }
 
   test("Known Partner Weblink") {
-    getTransferPartnerListService.partnersResult = Ok(
-      Success(
-        listOf(
-          PartnerInfo("test-logo", "Test Partner", PartnerId("Coinbase"))
-        )
-      )
+    getPartnerService.response = Ok(
+      PartnerInfo("test-logo", "Test Partner", PartnerId("Coinbase"))
     )
     stateMachine.test(
       props.copy(
@@ -125,7 +113,7 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
       )
     ) {
       awaitScreenWithBody<LoadingSuccessBodyModel>()
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
+      getPartnerService.getPartnerCalls.awaitItem()
       awaitScreenWithBody<FormBodyModel> {
         secondaryButton.shouldNotBeNull().text.shouldContain("Test Partner")
         secondaryButton.shouldNotBeNull().onClick()
@@ -192,26 +180,11 @@ class ExpectedTransactionNoticeUiStateMachineTests : FunSpec({
     }
   }
 
-  test("Unknown Partner Info") {
-    getTransferPartnerListService.partnersResult = successPartnershipsCall
-    stateMachine.test(
-      props = props.copy(partner = PartnerId("unknown-partner-id"))
-    ) {
-      awaitScreenWithBody<LoadingSuccessBodyModel>()
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
-      awaitScreenWithBody<FormBodyModel> {
-        header?.iconModel?.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon.shouldBe(Icon.Bitcoin)
-        header?.headline.shouldNotContain("Test Partner")
-        secondaryButton.shouldBeNull()
-      }
-    }
-  }
-
-  test("Fail Partner list call") {
-    getTransferPartnerListService.partnersResult = Err(HttpBodyError.UnhandledError(RuntimeException("test-error")))
+  test("Fail Partner call") {
+    getPartnerService.response = Err(HttpBodyError.UnhandledError(RuntimeException("test-error")))
     stateMachine.test(props) {
       awaitScreenWithBody<LoadingSuccessBodyModel>()
-      getTransferPartnerListService.getTransferPartnersCall.awaitItem()
+      getPartnerService.getPartnerCalls.awaitItem()
       awaitScreenWithBody<FormBodyModel> {
         header?.iconModel?.iconImage.shouldBeTypeOf<IconImage.LocalImage>().icon.shouldBe(Icon.Bitcoin)
         header?.headline.shouldNotContain("Test Partner")

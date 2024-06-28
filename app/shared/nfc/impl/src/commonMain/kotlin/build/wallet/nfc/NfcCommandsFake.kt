@@ -12,6 +12,7 @@ import build.wallet.encrypt.signResult
 import build.wallet.firmware.CoredumpFragment
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.EventFragment
+import build.wallet.firmware.FingerprintEnrollmentResult
 import build.wallet.firmware.FingerprintEnrollmentStatus
 import build.wallet.firmware.FingerprintEnrollmentStatus.NOT_IN_PROGRESS
 import build.wallet.firmware.FingerprintHandle
@@ -41,13 +42,18 @@ class NfcCommandsFake(
   val fakeHardwareKeyStore: FakeHardwareKeyStore,
   private val fakeHardwareSpendingWalletProvider: FakeHardwareSpendingWalletProvider,
 ) : NfcCommands {
-  private var fingerprintEnrollmentStatus: FingerprintEnrollmentStatus = NOT_IN_PROGRESS
+  private var fingerprintEnrollmentResult = FingerprintEnrollmentResult(
+    status = NOT_IN_PROGRESS,
+    passCount = null,
+    failCount = null,
+    diagnostics = null
+  )
   private var enrolledFingerprints =
     EnrolledFingerprints(3, listOf(FingerprintHandle(index = 0, label = "")))
 
   suspend fun clearHardwareKeysAndFingerprintEnrollment() {
     fakeHardwareKeyStore.clear()
-    fingerprintEnrollmentStatus = NOT_IN_PROGRESS
+    fingerprintEnrollmentResult.status = NOT_IN_PROGRESS
   }
 
   override suspend fun fwupStart(
@@ -122,7 +128,7 @@ class NfcCommandsFake(
   override suspend fun getFingerprintEnrollmentStatus(
     session: NfcSession,
     isEnrollmentContextAware: Boolean,
-  ) = fingerprintEnrollmentStatus
+  ) = fingerprintEnrollmentResult
 
   override suspend fun deleteFingerprint(
     session: NfcSession,
@@ -249,7 +255,7 @@ class NfcCommandsFake(
   ): Boolean {
     enrolledFingerprints = enrolledFingerprints.insertOrUpdateFingerprintHandle(fingerprintHandle)
     // Skip straight to complete state.
-    fingerprintEnrollmentStatus = FingerprintEnrollmentStatus.COMPLETE
+    fingerprintEnrollmentResult.status = FingerprintEnrollmentStatus.COMPLETE
     return true
   }
 

@@ -7,12 +7,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemPickerMenu
-import build.wallet.ui.model.list.ListItemSideTextTint
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -83,7 +78,8 @@ fun CurrencyPreferenceFormModel(
                   )
                 )
               ),
-            style = ListGroupStyle.CARD_GROUP_DIVIDER
+            style = ListGroupStyle.CARD_GROUP_DIVIDER,
+            explainerSubtext = "You can always tap your Home balance to quickly switch between hide and reveal."
           )
       ).apply {
         if (shouldShowHideBalance) {

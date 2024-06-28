@@ -1,7 +1,10 @@
+use std::str::FromStr;
+
 use account::entities::{
     FullAccountAuthKeys, FullAccountAuthKeysPayload, Network, SpendingKeyset, SpendingKeysetRequest,
 };
 use account::service::FetchAccountInput;
+use bdk_utils::bdk::keys::DescriptorPublicKey;
 use http::StatusCode;
 use http_server::middlewares::wsm;
 use onboarding::routes::{
@@ -342,8 +345,9 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
         .get_authentication_keys_for_account_id(&account_id)
         .expect("Keys not found for account");
 
-    let (_, spend_app) = create_descriptor_keys(network);
-    let (_, spend_hw) = create_descriptor_keys(network);
+    // Use hardcoded values since our PSBT down below applies a partial signature from `spend_app`'s associated tprv ([71f40633/84'/1'/0']tprv8gED5H3xs3dJB3jUzE8LHSJVHD4m9oN4RNM137FrnPycWEhNr3qnbipEzJFJrUaHMgneaqhoUT8av6F49PFV5kp1sH77yqVztLWpFDdXuKP/*).
+    let spend_app = DescriptorPublicKey::from_str("[71f40633/84'/1'/0']tpubDCvFDh6D1RJy4WmGssnvgqxbrEahK8YxzfwnKdJACfn1Lix9USfNnDS7ASsN5r1XHsrksBa7Kyz7Si6H9KfJTVKgKyv34HXCKrkcRf5K1Cy/*").unwrap();
+    let spend_hw = DescriptorPublicKey::from_str("[6181b35f/84'/1'/0']tpubDDcPeFd2AK4RKwtC4SzT5zfCCVPAgNHz2xUUk1wrg9Lgo97scFNiRyUfG5Ebdx89TQhHfXaSiSRae7C1M1FKaHm5JBfDJUPsAHGHS4b1L66/*").unwrap();
 
     let response = client
         .create_keyset(
@@ -351,8 +355,8 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
             &CreateKeysetRequest {
                 spending: SpendingKeysetRequest {
                     network: network.into(),
-                    app: spend_app,
-                    hardware: spend_hw,
+                    app: spend_app.clone(),
+                    hardware: spend_hw.clone(),
                 },
             },
             &keys,
@@ -373,13 +377,26 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
         .to_client()
         .unwrap();
 
+    let wallet_ext_descriptor = format!(
+        "wsh(sortedmulti(2,{},{},{}))",
+        spend_app.clone().to_string(),
+        spend_hw.clone().to_string(),
+        format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/0/*").to_string()
+    );
+    let wallet_change_descriptor = format!(
+        "wsh(sortedmulti(2,{},{},{}))",
+        spend_app.to_string(),
+        spend_hw.to_string(),
+        format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/1/*").to_string()
+    );
+
     let _ = wsm_service
         .client
         .sign_psbt(
             &inactive_keyset_id.to_string(),
-            &format!("wpkh({TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/0/*)").to_string(),
-            &format!("wpkh({TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/1/*)").to_string(),
-            "cHNidP8BAIkBAAAAARba0uJxgoOu4Qb4Hl2O4iC/zZhhEJZ7+5HuZDe8gkB5AQAAAAD/////AugDAAAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcbugQEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAAAAAAABAOoCAAAAAAEB97UeXCkIkrURS0D1VEse6bslADCfk6muDzWMawqsSkoAAAAAAP7///8CTW7uAwAAAAAWABT3EVvw7PVw4dEmLqWe/v9ETcBTtKCGAQAAAAAAIgAgF5/lDEQhJZCBD9n6jaI46jvtUEg38/2j1s1PTw0lkcYCRzBEAiBswJbFVv3ixdepzHonCMI1BujKEjxMHQ2qKmhVjVkiMAIgdcn1gzW+S4utbYQlfMHdVlpmK4T6onLbN+QCda1UVsYBIQJQtXaqHMYW0tBOmIEwjeBpTORXNrsO4FMWhqCf8feXXClTIgABASughgEAAAAAACIAIBef5QxEISWQgQ/Z+o2iOOo77VBIN/P9o9bNT08NJZHGAQVpUiECF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYhA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYIQPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbI1OuIgYCF0P0bwdqX4NvwdYkr9Vxkao2/0yB1rcqgHW1tXkVvlYEIgnl9CIGA4j/DyKUDUrb8kg9K4UAclJV/1Vgs/De/yOcz9L6e1AYBJhPJu0iBgPSBYIG9nN3JQbL65BnavWnmjgjoYn/Z6rmvHogngpbIwR2AHgNACICAhdD9G8Hal+Db8HWJK/VcZGqNv9Mgda3KoB1tbV5Fb5WBCIJ5fQiAgOI/w8ilA1K2/JIPSuFAHJSVf9VYLPw3v8jnM/S+ntQGASYTybtIgID0gWCBvZzdyUGy+uQZ2r1p5o4I6GJ/2eq5rx6IJ4KWyMEdgB4DQAiAgIXQ/RvB2pfg2/B1iSv1XGRqjb/TIHWtyqAdbW1eRW+VgQiCeX0IgIDiP8PIpQNStvySD0rhQByUlX/VWCz8N7/I5zP0vp7UBgEmE8m7SICA9IFggb2c3clBsvrkGdq9aeaOCOhif9nqua8eiCeClsjBHYAeA0A"
+            &wallet_ext_descriptor,
+            &wallet_change_descriptor,
+            "cHNidP8BAF4BAAAAAaVEkD7VReyQhBpLX4NSc2RLxj7AHxxS8ojs5LgtNGvjAAAAAAD9////AWYpAQAAAAAAIgAgl2DoPF1XYOKlj+2LirbckFbZSevxA5AfQGxMxHZ0wFVDCgAAAAEAtQIAAAAAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8EAt8JAP////8CBSoBAAAAAAAiACB2m1S3qeqjdbJ0Q8LdNshcLKlNlVSkMDEf5wkFKxLQwQAAAAAAAAAAJmokqiGp7eL2HD9x0d79P6mZ36NpU3VcaQaJeZlitIvr2DaXToz5ASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABASsFKgEAAAAAACIAIHabVLep6qN1snRDwt02yFwsqU2VVKQwMR/nCQUrEtDBIgICumvp3iByH+T9N4zXjK+dB3G5ftHaTVyx9GppwF11++tHMEQCIFATLNWFad4y+tiC6CImRKrSbA3SvnkWmX5DRTDC6oZ7AiBQMPARIt5ZJ+F70CI6g8fIgQnRdtf7fTTKJpKbmuPmYAEBBWlSIQIptfHA8EI7pOcS7Vb5ZNvEF8kYF1OQGOqlyfy0kRslEiECumvp3iByH+T9N4zXjK+dB3G5ftHaTVyx9GppwF11++shAzHYYKakLd2sSDyDsHoAZa3h1G8g48Uu/Dz3oCZY2CO/U64iBgIptfHA8EI7pOcS7Vb5ZNvEF8kYF1OQGOqlyfy0kRslEhjDReHpVAAAgAEAAIAAAACAAAAAAAAAAAAiBgK6a+neIHIf5P03jNeMr50Hcbl+0dpNXLH0amnAXXX76xRx9AYzVAAAgAEAAIAAAACAAAAAACIGAzHYYKakLd2sSDyDsHoAZa3h1G8g48Uu/Dz3oCZY2CO/FGGBs19UAACAAQAAgAAAAIAAAAAAAAEBaVIhAjYlKeJQOtIdnbdOGZINq9NkciT7udaaae74sbPQ0dnaIQJPGXZ6Kvh8V4H/C8Cs1/tI64gNpFHklsSgbry9qWe57iEDWBRBaLTG5ObDosCh24HYLlIYKWHj4D+SINM7kgUavz5TriICAjYlKeJQOtIdnbdOGZINq9NkciT7udaaae74sbPQ0dnaFHH0BjNUAACAAQAAgAAAAIABAAAAIgICTxl2eir4fFeB/wvArNf7SOuIDaRR5JbEoG68valnue4UYYGzX1QAAIABAACAAAAAgAEAAAAiAgNYFEFotMbk5sOiwKHbgdguUhgpYePgP5Ig0zuSBRq/PhjDReHpVAAAgAEAAIAAAACAAAAAAAEAAAAA"
         )
         .await
         .expect("Successful signing");

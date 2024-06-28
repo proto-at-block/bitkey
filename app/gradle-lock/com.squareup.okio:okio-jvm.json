@@ -24,8 +24,20 @@
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
                 "gradle-plugins[bitkey]"
+            ]
+        },
+        {
+            "version": "3.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "okio-jvm-3.8.0.jar": "88fb79f6fe1a462acf0a3bd2576ba1525c29f29825efeceec70a747ac1c6fc90"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
             ]
         }
     ]

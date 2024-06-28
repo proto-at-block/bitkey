@@ -7,7 +7,7 @@ use authn_authz::routes::{
 use axum::response::IntoResponse;
 use bdk_utils::bdk::bitcoin::hashes::sha256;
 use bdk_utils::bdk::bitcoin::key::Secp256k1;
-use bdk_utils::bdk::bitcoin::secp256k1::{Message, PublicKey};
+use bdk_utils::bdk::bitcoin::secp256k1::Message;
 use errors::ApiError;
 use http::StatusCode;
 use http_body_util::BodyExt;
@@ -22,7 +22,8 @@ use ulid::Ulid;
 
 use account::entities::{
     Factor, FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, Network as AccountNetwork,
-    SpendingKeysetRequest, Touchpoint, TouchpointPlatform, UpgradeLiteAccountAuthKeysPayload,
+    SoftwareAccountAuthKeysPayload, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
+    UpgradeLiteAccountAuthKeysPayload,
 };
 use account::service::FetchAccountInput;
 use bdk_utils::bdk::bitcoin::Network;
@@ -1133,7 +1134,7 @@ tests! {
 }
 
 struct IdempotentCreateLiteAccountTestVector {
-    override_recovery_pubkey: Option<PublicKey>,
+    override_recovery_pubkey: bool,
     expected_create_status: StatusCode,
     expected_same_response: bool,
 }
@@ -1152,9 +1153,8 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
     let actual_response = client.create_account(&mut context, &first_request).await;
     assert_eq!(actual_response.status_code, StatusCode::OK);
     let first_create_response = actual_response.body.unwrap();
-    // If we ever override the recovery pubkey, we should rewrite this suite to create it and add it to the context
-    let recovery_pubkey = if let Some(pubkey) = vector.override_recovery_pubkey {
-        pubkey
+    let recovery_pubkey = if vector.override_recovery_pubkey {
+        create_new_authkeys(&mut context).recovery.public_key
     } else {
         keys.recovery.public_key
     };
@@ -1180,9 +1180,14 @@ async fn idempotent_create_lite_account_test(vector: IdempotentCreateLiteAccount
 tests! {
     runner = idempotent_create_lite_account_test,
     test_idempotent_create_lite_account_with_same_recovery_pubkey: IdempotentCreateLiteAccountTestVector {
-        override_recovery_pubkey: None,
+        override_recovery_pubkey: false,
         expected_create_status: StatusCode::OK,
         expected_same_response: true,
+    },
+    test_idempotent_create_lite_account_with_different_recovery_pubkey: IdempotentCreateLiteAccountTestVector {
+        override_recovery_pubkey: true,
+        expected_create_status: StatusCode::OK,
+        expected_same_response: false,
     },
 }
 
@@ -1600,7 +1605,7 @@ async fn test_revoked_access_token_add_push_touchpoint() {
     bootstrap
         .services
         .userpool_service
-        .rotate_account_auth_keys(
+        .create_or_update_account_users_if_necessary(
             &account_id,
             Some(create_pubkey()),
             Some(create_pubkey()),
@@ -1634,4 +1639,86 @@ async fn test_revoked_access_token_add_push_touchpoint() {
         )
         .await;
     assert_eq!(StatusCode::OK, response.status_code);
+}
+
+struct IdempotentCreateSoftwareAccountTestVector {
+    override_app_pubkey: bool,
+    override_recovery_pubkey: bool,
+    expected_create_status: StatusCode,
+    expected_same_response: bool,
+}
+
+async fn idempotent_create_software_account_test(
+    vector: IdempotentCreateSoftwareAccountTestVector,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let keys = create_new_authkeys(&mut context);
+    let first_request = CreateAccountRequest::Software {
+        auth: SoftwareAccountAuthKeysPayload {
+            app: keys.app.public_key,
+            recovery: keys.recovery.public_key,
+        },
+        is_test_account: true,
+    };
+    let actual_response = client.create_account(&mut context, &first_request).await;
+    assert_eq!(actual_response.status_code, StatusCode::OK);
+    let first_create_response = actual_response.body.unwrap();
+    let app_pubkey = if vector.override_app_pubkey {
+        create_new_authkeys(&mut context).app.public_key
+    } else {
+        keys.app.public_key
+    };
+    let recovery_pubkey = if vector.override_recovery_pubkey {
+        create_new_authkeys(&mut context).recovery.public_key
+    } else {
+        keys.recovery.public_key
+    };
+
+    let second_request = CreateAccountRequest::Software {
+        auth: SoftwareAccountAuthKeysPayload {
+            app: app_pubkey,
+            recovery: recovery_pubkey,
+        },
+        is_test_account: true,
+    };
+    let actual_response = client.create_account(&mut context, &second_request).await;
+    assert_eq!(actual_response.status_code, vector.expected_create_status);
+    if actual_response.status_code == StatusCode::OK {
+        let second_create_response = actual_response.body.unwrap();
+        if vector.expected_same_response {
+            assert_eq!(first_create_response, second_create_response);
+        } else {
+            assert_ne!(first_create_response, second_create_response);
+        }
+    }
+}
+
+tests! {
+    runner = idempotent_create_software_account_test,
+    test_idempotent_create_software_account_with_same_keys: IdempotentCreateSoftwareAccountTestVector {
+        override_app_pubkey: false,
+        override_recovery_pubkey: false,
+        expected_create_status: StatusCode::OK,
+        expected_same_response: true,
+    },
+    test_idempotent_create_software_account_with_different_app_pubkey: IdempotentCreateSoftwareAccountTestVector {
+        override_app_pubkey: true,
+        override_recovery_pubkey: false,
+        expected_create_status: StatusCode::BAD_REQUEST,
+        expected_same_response: false,
+    },
+    test_idempotent_create_software_account_with_different_recovery_pubkey: IdempotentCreateSoftwareAccountTestVector {
+        override_app_pubkey: false,
+        override_recovery_pubkey: true,
+        expected_create_status: StatusCode::BAD_REQUEST,
+        expected_same_response: false,
+    },
+    test_idempotent_create_software_account_with_different_both_pubkeys: IdempotentCreateSoftwareAccountTestVector {
+        override_app_pubkey: true,
+        override_recovery_pubkey: true,
+        expected_create_status: StatusCode::OK,
+        expected_same_response: false,
+    },
 }

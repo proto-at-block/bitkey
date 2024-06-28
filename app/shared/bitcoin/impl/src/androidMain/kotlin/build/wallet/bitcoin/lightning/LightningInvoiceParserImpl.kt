@@ -1,14 +1,14 @@
 package build.wallet.bitcoin.lightning
 
+import build.wallet.catchingResult
 import build.wallet.logging.log
-import com.github.michaelbull.result.coroutines.runSuspendCatching
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapError
 import build.wallet.rust.core.Invoice as FFILightningInvoice
 
 class LightningInvoiceParserImpl : LightningInvoiceParser {
   override fun parse(invoiceString: String): LightningInvoice? {
-    return runSuspendCatching {
+    return catchingResult {
       FFILightningInvoice(invoiceString).lightningInvoice
     }.mapError {
       log { "Error parsing invoice: $invoiceString" }

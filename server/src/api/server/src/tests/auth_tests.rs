@@ -13,6 +13,8 @@ use bdk_utils::bdk::bitcoin::Network;
 use bdk_utils::bdk::miniscript::DescriptorPublicKey;
 use onboarding::routes::CreateAccountRequest;
 
+use types::account::identifiers::AccountId;
+
 use crate::tests;
 use crate::tests::requests::axum::TestClient;
 use crate::tests::{gen_services, lib::create_new_authkeys};
@@ -25,6 +27,7 @@ struct AuthWithHwAuthKeyTestVector {
     expected_auth_status: StatusCode,
     expected_contains_auth_challenge: bool,
     should_refresh_auth: bool,
+    should_use_account_id_as_username: bool,
 }
 
 async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
@@ -52,6 +55,11 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
         "{}",
         actual_response.body_string
     );
+    let account_id = if vector.expected_create_status == StatusCode::OK {
+        actual_response.body.unwrap().account_id
+    } else {
+        AccountId::gen().unwrap()
+    };
 
     // now try to initiate auth with the hw key
     let request = AuthenticateWithHardwareRequest {
@@ -91,7 +99,11 @@ async fn auth_with_hw_test(vector: AuthWithHwAuthKeyTestVector) {
         let signature = secp.sign_ecdsa(&message, &keys.hw.secret_key);
         let request = GetTokensRequest {
             challenge: Some(ChallengeResponseParameters {
-                username: auth_resp.username,
+                username: if vector.should_use_account_id_as_username {
+                    serde_json::from_str(&format!("\"{}\"", account_id)).unwrap()
+                } else {
+                    auth_resp.username
+                },
                 challenge_response: signature.to_string(),
                 session: auth_resp.session,
             }),
@@ -130,6 +142,17 @@ tests! {
         expected_auth_status: StatusCode::OK,
         expected_contains_auth_challenge: true,
         should_refresh_auth: false,
+        should_use_account_id_as_username: false,
+    },
+    test_authenticating_with_hw_key_with_account_id_username: AuthWithHwAuthKeyTestVector {
+        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+        network: Network::Signet,
+        expected_create_status: StatusCode::OK,
+        expected_auth_status: StatusCode::OK,
+        expected_contains_auth_challenge: true,
+        should_refresh_auth: false,
+        should_use_account_id_as_username: true,
     },
     test_authenticating_with_hw_key_and_refresh_token: AuthWithHwAuthKeyTestVector {
         spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
@@ -139,6 +162,7 @@ tests! {
         expected_auth_status: StatusCode::OK,
         expected_contains_auth_challenge: true,
         should_refresh_auth: true,
+        should_use_account_id_as_username: false,
     },
 }
 

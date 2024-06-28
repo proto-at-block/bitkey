@@ -1,6 +1,9 @@
 package build.wallet.platform.haptics
 
 import build.wallet.platform.PlatformContext
+import kotlinx.coroutines.delay
+import platform.UIKit.UIImpactFeedbackGenerator
+import platform.UIKit.UIImpactFeedbackStyle.*
 
 actual class HapticsImpl actual constructor(
   platformContext: PlatformContext,
@@ -8,7 +11,18 @@ actual class HapticsImpl actual constructor(
   private val hapticsPolicy: HapticsPolicy,
 ) : Haptics {
   override suspend fun vibrate(effect: HapticsEffect) {
-    // No-op, let the system handle vibrations for now since they
-    // are used for NFC which is all handled by the OS on iOS.
+    val style = when (effect) {
+      HapticsEffect.DoubleClick -> {
+        with(UIImpactFeedbackGenerator(UIImpactFeedbackStyleSoft)) {
+          impactOccurred()
+          delay(100)
+          impactOccurred()
+        }
+        return
+      }
+      HapticsEffect.DullOneShot -> UIImpactFeedbackStyleRigid
+      HapticsEffect.MediumClick -> UIImpactFeedbackStyleMedium
+    }
+    UIImpactFeedbackGenerator(style).impactOccurred()
   }
 }

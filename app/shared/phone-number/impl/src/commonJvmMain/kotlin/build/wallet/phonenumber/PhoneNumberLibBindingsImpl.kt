@@ -1,16 +1,19 @@
 package build.wallet.phonenumber
 
+import build.wallet.catchingResult
 import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat.E164
 import build.wallet.phonenumber.lib.PhoneNumberLibFormat.INTERNATIONAL
 import build.wallet.phonenumber.lib.PhoneNumberLibPhoneNumber
+import com.github.michaelbull.result.getOrElse
 import com.google.i18n.phonenumbers.CountryCodeToRegionCodeMap
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberFormat
 
 class PhoneNumberLibBindingsImpl : PhoneNumberLibBindings {
-  private val countryCodeToRegionCodeMap = CountryCodeToRegionCodeMap.getCountryCodeToRegionCodeMap()
+  private val countryCodeToRegionCodeMap =
+    CountryCodeToRegionCodeMap.getCountryCodeToRegionCodeMap()
   private val phoneUtil = PhoneNumberUtil.getInstance()
 
   override val supportedCountryDialingCodes: MutableSet<Int> = phoneUtil.supportedCallingCodes
@@ -43,12 +46,9 @@ class PhoneNumberLibBindingsImpl : PhoneNumberLibBindings {
     numberToParse: String,
     defaultRegion: String,
   ): PhoneNumberLibPhoneNumber? {
-    val phoneNumber =
-      Result.runCatching {
-        phoneUtil.parse(numberToParse, defaultRegion)
-      }.getOrElse {
-        return null
-      }
+    val phoneNumber = catchingResult {
+      phoneUtil.parse(numberToParse, defaultRegion)
+    }.getOrElse { return null }
 
     return PhoneNumberLibPhoneNumberImpl(phoneNumber)
   }

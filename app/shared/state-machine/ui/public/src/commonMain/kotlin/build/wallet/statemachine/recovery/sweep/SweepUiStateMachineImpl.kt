@@ -3,23 +3,20 @@ package build.wallet.statemachine.recovery.sweep
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.InactiveWalletSweepEventTrackerScreenId
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.recovery.getEventId
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.data.recovery.sweep.SweepData.AwaitingHardwareSignedSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratePsbtsFailedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.GeneratingPsbtsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.NoFundsFoundData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.PsbtsGeneratedData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SigningAndBroadcastingSweepsData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepCompleteData
-import build.wallet.statemachine.data.recovery.sweep.SweepData.SweepFailedData
+import build.wallet.statemachine.data.recovery.sweep.SweepData
+import build.wallet.statemachine.data.recovery.sweep.SweepData.*
 import build.wallet.statemachine.data.recovery.sweep.SweepDataProps
 import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachine
 import build.wallet.statemachine.money.amount.MoneyAmountUiProps
@@ -27,7 +24,6 @@ import build.wallet.statemachine.money.amount.MoneyAmountUiStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
-import kotlinx.collections.immutable.toImmutableList
 
 class SweepUiStateMachineImpl(
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
@@ -37,23 +33,41 @@ class SweepUiStateMachineImpl(
 ) : SweepUiStateMachine {
   @Composable
   override fun model(props: SweepUiProps): ScreenModel {
+    var screenState: ScreenState by remember { mutableStateOf(ScreenState.ShowingSweepState) }
     val sweepData = sweepDataStateMachine.model(
       SweepDataProps(
         keybox = props.keybox,
         onSuccess = props.onSuccess
       )
     )
+
+    return when (screenState) {
+      ScreenState.ShowingSweepState -> getSweepScreen(props, sweepData, setState = { screenState = it })
+      ScreenState.ShowingHelpText -> sweepInactiveHelpModel(
+        id = InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_HELP,
+        presentationStyle = props.presentationStyle,
+        onBack = { screenState = ScreenState.ShowingSweepState }
+      )
+    }
+  }
+
+  @Composable
+  private fun getSweepScreen(
+    props: SweepUiProps,
+    sweepData: SweepData,
+    setState: (ScreenState) -> Unit,
+  ): ScreenModel {
     // TODO: Add Hardware Proof of Possession state machine if GetAccountKeysets
     //   endpoint ends up requiring it.
     return when (sweepData) {
       /** Show spinner while we wait for PSBTs to be generated */
       is GeneratingPsbtsData ->
         generatingPsbtsBodyModel(
-          id =
-            props.recoveredFactor?.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-            ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATING_PSBTS
+          },
           onBack = props.onExit,
           presentationStyle = props.presentationStyle
         )
@@ -61,34 +75,36 @@ class SweepUiStateMachineImpl(
       /** Terminal error state: PSBT generation failed */
       is GeneratePsbtsFailedData ->
         generatePsbtsFailedScreenModel(
-          id =
-            props.recoveredFactor?.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
-            ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATE_PSBTS_ERROR
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_GENERATE_PSBTS_ERROR
+          },
           onPrimaryButtonClick = props.onExit,
           presentationStyle = props.presentationStyle
         )
 
       is NoFundsFoundData ->
         zeroBalancePrompt(
-          id =
-            props.recoveredFactor?.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-            ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_ZERO_BALANCE
+          },
           onDone = sweepData.proceed,
           presentationStyle = props.presentationStyle
         )
 
       /** PSBTs have been generated. Prompt to continue to sign + broadcast. */
       is PsbtsGeneratedData -> {
+        var showingNetworkFeesInfo by remember { mutableStateOf(false) }
         val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
         sweepFundsPrompt(
-          id = props.recoveredFactor?.getEventId(
-            DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT,
-            HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-          ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SIGN_PSBTS_PROMPT
+          },
           recoveredFactor = props.recoveredFactor,
           fee = moneyAmountUiStateMachine.model(
             MoneyAmountUiProps(
@@ -96,6 +112,22 @@ class SweepUiStateMachineImpl(
               secondaryAmountCurrency = fiatCurrency
             )
           ),
+          transferAmount = moneyAmountUiStateMachine.model(
+            MoneyAmountUiProps(
+              primaryMoney = sweepData.totalTransferAmount,
+              secondaryAmountCurrency = fiatCurrency
+            )
+          ),
+          onBack = when (props.recoveredFactor) {
+            null -> props.onExit
+            else -> null
+          },
+          onHelpClick = {
+            setState(ScreenState.ShowingHelpText)
+          },
+          onShowNetworkFeesInfo = { showingNetworkFeesInfo = true },
+          onCloseNetworkFeesInfo = { showingNetworkFeesInfo = false },
+          showNetworkFeesInfoSheet = showingNetworkFeesInfo,
           onSubmit = sweepData.startSweep,
           presentationStyle = props.presentationStyle
         )
@@ -106,8 +138,8 @@ class SweepUiStateMachineImpl(
           NfcSessionUIStateMachineProps(
             session = { session, commands ->
               sweepData.needsHwSign
-                .map { commands.signTransaction(session, it.value, it.key) }
-                .toImmutableList()
+                .map { commands.signTransaction(session, it.psbt, it.sourceKeyset) }
+                .toSet()
             },
             onSuccess = sweepData.addHwSignedSweeps,
             onCancel = props.onExit,
@@ -120,11 +152,11 @@ class SweepUiStateMachineImpl(
       /** Server+App signing and broadcasting the transactions */
       is SigningAndBroadcastingSweepsData ->
         broadcastingScreenModel(
-          id =
-            props.recoveredFactor?.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING
-            ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_BROADCASTING
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_BROADCASTING
+          },
           onBack = props.onExit,
           presentationStyle = props.presentationStyle
         )
@@ -132,11 +164,11 @@ class SweepUiStateMachineImpl(
       /** Terminal state: Broadcast completed */
       is SweepCompleteData ->
         sweepSuccessScreenModel(
-          id =
-            props.recoveredFactor?.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
-            ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_SUCCESS
+          },
           recoveredFactor = props.recoveredFactor,
           onDone = sweepData.proceed,
           presentationStyle = props.presentationStyle
@@ -145,11 +177,11 @@ class SweepUiStateMachineImpl(
       /** Terminal error state: Sweep failed */
       is SweepFailedData ->
         sweepFailedScreenModel(
-          id =
-            props.recoveredFactor?.getEventId(
-              DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED,
-              HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_FAILED
-            ),
+          id = when (props.recoveredFactor) {
+            App -> DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_FAILED
+            Hardware -> HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_FAILED
+            null -> InactiveWalletSweepEventTrackerScreenId.INACTIVE_WALLET_SWEEP_FAILED
+          },
           onRetry = sweepData.retry,
           onExit = props.onExit,
           presentationStyle = props.presentationStyle,
@@ -164,5 +196,17 @@ class SweepUiStateMachineImpl(
           )
         )
     }
+  }
+
+  private sealed interface ScreenState {
+    /**
+     * Currently displaying a screen based on the [SweepData]
+     */
+    data object ShowingSweepState : ScreenState
+
+    /**
+     * Displaying help text to explain why a sweep is required
+     */
+    data object ShowingHelpText : ScreenState
   }
 }

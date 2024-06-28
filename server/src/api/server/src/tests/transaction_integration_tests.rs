@@ -5,10 +5,13 @@ use std::sync::Arc;
 use account::entities::Network;
 use account::service::FetchAccountInput;
 use account::spend_limit::{Money, SpendingLimit};
+use bdk_utils::bdk::bitcoin::bip32::{ExtendedPrivKey, ExtendedPubKey};
+use bdk_utils::bdk::bitcoin::key::Secp256k1;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction as Psbt;
 use bdk_utils::bdk::bitcoin::psbt::PartiallySignedTransaction;
-use bdk_utils::bdk::bitcoin::Address;
-use bdk_utils::bdk::bitcoin::{OutPoint, Txid};
+use bdk_utils::bdk::bitcoin::secp256k1::Message;
+use bdk_utils::bdk::bitcoin::{ecdsa, Address};
+use bdk_utils::bdk::bitcoin::{Network as BdkNetwork, OutPoint, Txid};
 use bdk_utils::bdk::database::AnyDatabase;
 use bdk_utils::bdk::electrum_client::Error as ElectrumClientError;
 use bdk_utils::bdk::wallet::{AddressIndex, AddressInfo};
@@ -744,4 +747,115 @@ async fn test_fail_to_send_if_kill_switch_is_on() {
         )
         .await;
     assert_eq!(actual_response.status_code, StatusCode::FORBIDDEN,);
+}
+
+#[tokio::test]
+async fn test_fail_if_signed_with_different_wallet() {
+    let (mut context, bootstrap) = gen_services().await;
+
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, bdk_wallet) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    // Set some spendig limit for this account
+    let spend_limit = SpendingLimit {
+        active: true,
+        amount: Money {
+            amount: 109_798,
+            currency_code: BTC,
+        },
+        ..Default::default()
+    };
+    let request = build_mobile_pay_request(spend_limit.clone());
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    assert_eq!(
+        response.status_code,
+        StatusCode::OK,
+        "{}",
+        response.body_string
+    );
+
+    let secp = Secp256k1::new();
+    let master_xprv = ExtendedPrivKey::new_master(BdkNetwork::Bitcoin, &[0; 32]).unwrap();
+    let xpub = ExtendedPubKey::from_priv(&secp, &master_xprv);
+
+    // Test PSBT without signatures
+    {
+        let mut psbt_without_signatures =
+            build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 2_000, &[]);
+        for input in &mut psbt_without_signatures.inputs {
+            input.partial_sigs.clear();
+        }
+
+        let response = client
+            .sign_transaction_with_keyset(
+                &account.id,
+                &account.active_keyset_id,
+                &SignTransactionData {
+                    psbt: psbt_without_signatures.to_string(),
+                },
+            )
+            .await;
+        assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
+        assert!(response.body_string.contains("WSM could not sign PSBT"));
+    }
+
+    // Test PSBT with >1 signatures
+    {
+        let mut psbt_with_two_signatures =
+            build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 1_000, &[]);
+        for input in &mut psbt_with_two_signatures.inputs {
+            let sig = ecdsa::Signature::sighash_all(secp.sign_ecdsa(
+                &Message::from_slice(&[0; 32]).unwrap(),
+                &master_xprv.private_key,
+            ));
+
+            input.partial_sigs.insert(xpub.to_pub(), sig);
+        }
+
+        let response = client
+            .sign_transaction_with_keyset(
+                &account.id,
+                &account.active_keyset_id,
+                &SignTransactionData {
+                    psbt: psbt_with_two_signatures.to_string(),
+                },
+            )
+            .await;
+        assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
+        assert!(response.body_string.contains("WSM could not sign PSBT"));
+    }
+
+    // Test PSBT with signature that does not belong to wallet
+    {
+        let mut psbt_with_attacker_signature =
+            build_transaction_with_amount(&bdk_wallet, gen_external_wallet_address(), 1_000, &[]);
+        for input in &mut psbt_with_attacker_signature.inputs {
+            // Clear out all partial signatures, and insert a signature that does not belong to the wallet
+            input.partial_sigs.clear();
+
+            let sig = ecdsa::Signature::sighash_all(secp.sign_ecdsa(
+                &Message::from_slice(&[0; 32]).unwrap(),
+                &master_xprv.private_key,
+            ));
+
+            input.partial_sigs.insert(xpub.to_pub(), sig);
+        }
+
+        let response = client
+            .sign_transaction_with_keyset(
+                &account.id,
+                &account.active_keyset_id,
+                &SignTransactionData {
+                    psbt: psbt_with_attacker_signature.to_string(),
+                },
+            )
+            .await;
+        assert_eq!(response.status_code, StatusCode::INTERNAL_SERVER_ERROR,);
+        assert!(response.body_string.contains("WSM could not sign PSBT"));
+    }
 }
