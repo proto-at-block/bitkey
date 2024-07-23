@@ -78,43 +78,16 @@ struct ListItemContentView: View {
     }
 
     var body: some View {
-        HStack(alignment: viewModel.accessoryAlignment) {
-            // Leading accessory
-            viewModel.leadingAccessory.map { leadingAccessory in
-                ListItemAccessoryView(viewModel: leadingAccessory)
-            }
+        VStack(spacing: 0) {
+            HStack(alignment: viewModel.accessoryAlignment) {
+                // Leading accessory
+                viewModel.leadingAccessory.map { leadingAccessory in
+                    ListItemAccessoryView(viewModel: leadingAccessory)
+                }
 
-            HStack {
-                if viewModel.titleLabel == nil {
-                    if !viewModel.title.isEmpty {
-                        let titleAlignment = switch viewModel.titleAlignment {
-                        case .left: TextAlignment.leading
-                        case .center: TextAlignment.center
-                        default: TextAlignment.leading
-                        }
-                        TitleSubtitleView(
-                            alignment: titleAlignment,
-                            title: viewModel.title,
-                            titleColor: viewModel.titleColor,
-                            titleFont: viewModel.titleFont,
-                            subtitle: viewModel.secondaryText,
-                            subtitleColor: viewModel.subtitleColor,
-                            subtitleFont: viewModel.subtitleFont,
-                            enabled: viewModel.enabled
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .if(viewModel.listItemTitleBackgroundTreatment != nil) { title in
-                            title
-                                .padding(16)
-                                .frame(maxWidth: .infinity)
-                                .background(Color.foreground10)
-                                .cornerRadius(12)
-                        }
-                    }
-                } else {
-                    switch viewModel.titleLabel {
-                    case let model as LabelModelStringModel:
-                        if !model.string.isEmpty {
+                HStack {
+                    if viewModel.titleLabel == nil {
+                        if !viewModel.title.isEmpty {
                             let titleAlignment = switch viewModel.titleAlignment {
                             case .left: TextAlignment.leading
                             case .center: TextAlignment.center
@@ -122,13 +95,14 @@ struct ListItemContentView: View {
                             }
                             TitleSubtitleView(
                                 alignment: titleAlignment,
-                                title: model.string,
+                                title: viewModel.title,
                                 titleColor: viewModel.titleColor,
                                 titleFont: viewModel.titleFont,
                                 subtitle: viewModel.secondaryText,
                                 subtitleColor: viewModel.subtitleColor,
+                                subtitleFont: viewModel.subtitleFont,
                                 enabled: viewModel.enabled,
-                                hideContent: hideContent
+                                showNewCoachmark: viewModel.showNewCoachmark
                             )
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .if(viewModel.listItemTitleBackgroundTreatment != nil) { title in
@@ -139,57 +113,91 @@ struct ListItemContentView: View {
                                     .cornerRadius(12)
                             }
                         }
+                    } else {
+                        switch viewModel.titleLabel {
+                        case let model as LabelModelStringModel:
+                            if !model.string.isEmpty {
+                                let titleAlignment = switch viewModel.titleAlignment {
+                                case .left: TextAlignment.leading
+                                case .center: TextAlignment.center
+                                default: TextAlignment.leading
+                                }
+                                TitleSubtitleView(
+                                    alignment: titleAlignment,
+                                    title: model.string,
+                                    titleColor: viewModel.titleColor,
+                                    titleFont: viewModel.titleFont,
+                                    subtitle: viewModel.secondaryText,
+                                    subtitleColor: viewModel.subtitleColor,
+                                    enabled: viewModel.enabled,
+                                    showNewCoachmark: viewModel.showNewCoachmark,
+                                    hideContent: hideContent
+                                )
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .if(viewModel.listItemTitleBackgroundTreatment != nil) { title in
+                                    title
+                                        .padding(16)
+                                        .frame(maxWidth: .infinity)
+                                        .background(Color.foreground10)
+                                        .cornerRadius(12)
+                                }
+                            }
 
-                    case let model as LabelModelStringWithStyledSubstringModel:
-                        ModeledText(
-                            model: .standard(
-                                .stringWithSubstring(model, font: .body2Regular),
-                                font: .body2Regular
+                        case let model as LabelModelStringWithStyledSubstringModel:
+                            ModeledText(
+                                model: .standard(
+                                    .stringWithSubstring(model, font: .body2Regular),
+                                    font: .body2Regular
+                                )
                             )
-                        )
 
-                    case let model as LabelModelLinkSubstringModel:
-                        ModeledText(
-                            model: .linkedText(
-                                textContent: .linkedText(
-                                    string: model.markdownString(),
-                                    links: model.linkedSubstrings
-                                ),
-                                font: FontTheme.body2Regular
+                        case let model as LabelModelLinkSubstringModel:
+                            ModeledText(
+                                model: .linkedText(
+                                    textContent: .linkedText(
+                                        string: model.markdownString(),
+                                        links: model.linkedSubstrings
+                                    ),
+                                    font: FontTheme.body2Regular
+                                )
                             )
-                        )
 
-                    default:
-                        fatalError("Unexpected Kotlin LabelModel")
+                        default:
+                            fatalError("Unexpected Kotlin LabelModel")
+                        }
+                    }
+
+                    if viewModel.sideText != nil || viewModel.secondarySideText != nil {
+                        Spacer()
+                        TitleSubtitleView(
+                            alignment: .trailing,
+                            title: viewModel.sideText,
+                            titleColor: viewModel.sideTextTint.color(enabled: viewModel.enabled),
+                            subtitle: viewModel.secondarySideText,
+                            subtitleColor: viewModel.subtitleColor,
+                            enabled: viewModel.enabled,
+                            hideContent: hideContent
+                        )
+                    }
+
+                    // Special Trailing accessory
+                    viewModel.specialTrailingAccessory.map { specialTrailingAccessory in
+                        ListItemAccessoryView(viewModel: specialTrailingAccessory)
+                    }
+
+                    // Trailing accessory
+                    viewModel.trailingAccessory.map { trailingAccessory in
+                        ListItemAccessoryView(viewModel: trailingAccessory)
                     }
                 }
+            }
+            .padding(.vertical, verticalPadding)
+            .padding(.trailing, 4)
 
-                if viewModel.sideText != nil || viewModel.secondarySideText != nil {
-                    Spacer()
-                    TitleSubtitleView(
-                        alignment: .trailing,
-                        title: viewModel.sideText,
-                        titleColor: viewModel.sideTextTint.color(enabled: viewModel.enabled),
-                        subtitle: viewModel.secondarySideText,
-                        subtitleColor: viewModel.subtitleColor,
-                        enabled: viewModel.enabled,
-                        hideContent: hideContent
-                    )
-                }
-
-                // Special Trailing accessory
-                viewModel.specialTrailingAccessory.map { specialTrailingAccessory in
-                    ListItemAccessoryView(viewModel: specialTrailingAccessory)
-                }
-
-                // Trailing accessory
-                viewModel.trailingAccessory.map { trailingAccessory in
-                    ListItemAccessoryView(viewModel: trailingAccessory)
-                }
+            if let coachmark = viewModel.coachmark {
+                CoachmarkView(model: coachmark)
             }
         }
-        .padding(.vertical, verticalPadding)
-        .padding(.trailing, 4)
     }
 }
 
@@ -204,20 +212,28 @@ private struct TitleSubtitleView: View {
     var subtitleColor: Color = .foreground60
     var subtitleFont: FontTheme = .body3Regular
     var enabled: Bool
+    var showNewCoachmark: Bool = false
     var hideContent: Bool = false
 
     var body: some View {
         CollapsibleLabelContainer(
             collapsed: hideContent,
             topContent: title.map { title in
-                ModeledText(
-                    model: .standard(
-                        title,
-                        font: titleFont,
-                        textAlignment: alignment,
-                        textColor: titleColor
+                HStack {
+                    ModeledText(
+                        model: .standard(
+                            title,
+                            font: titleFont,
+                            textAlignment: alignment,
+                            width: showNewCoachmark ? .hug : nil,
+                            textColor: titleColor
+                        )
                     )
-                )
+                    if showNewCoachmark {
+                        NewCoachmark(treatment: .light)
+                        Spacer()
+                    }
+                }
             },
             bottomContent: subtitle.map { subtitle in
                 ModeledText(
@@ -349,10 +365,12 @@ struct ListItemView_Preview: PreviewProvider {
                 sideTextTint: .primary,
                 enabled: true,
                 selected: false,
+                showNewCoachmark: false,
                 onClick: {},
                 pickerMenu: nil,
                 testTag: nil,
-                titleLabel: nil
+                titleLabel: nil,
+                coachmark: nil
             )
         )
         ListItemView(
@@ -372,10 +390,12 @@ struct ListItemView_Preview: PreviewProvider {
                 sideTextTint: .primary,
                 enabled: false,
                 selected: false,
+                showNewCoachmark: false,
                 onClick: {},
                 pickerMenu: nil,
                 testTag: nil,
-                titleLabel: nil
+                titleLabel: nil,
+                coachmark: nil
             )
         )
         ListItemView(
@@ -395,10 +415,12 @@ struct ListItemView_Preview: PreviewProvider {
                 sideTextTint: .primary,
                 enabled: true,
                 selected: false,
+                showNewCoachmark: false,
                 onClick: {},
                 pickerMenu: nil,
                 testTag: nil,
-                titleLabel: nil
+                titleLabel: nil,
+                coachmark: nil
             )
         )
         ListItemView(
@@ -418,10 +440,12 @@ struct ListItemView_Preview: PreviewProvider {
                 sideTextTint: .primary,
                 enabled: false,
                 selected: false,
+                showNewCoachmark: false,
                 onClick: {},
                 pickerMenu: nil,
                 testTag: nil,
-                titleLabel: nil
+                titleLabel: nil,
+                coachmark: nil
             )
         )
 
@@ -442,10 +466,12 @@ struct ListItemView_Preview: PreviewProvider {
                 sideTextTint: .primary,
                 enabled: true,
                 selected: false,
+                showNewCoachmark: false,
                 onClick: {},
                 pickerMenu: nil,
                 testTag: nil,
-                titleLabel: nil
+                titleLabel: nil,
+                coachmark: nil
             )
         )
     }

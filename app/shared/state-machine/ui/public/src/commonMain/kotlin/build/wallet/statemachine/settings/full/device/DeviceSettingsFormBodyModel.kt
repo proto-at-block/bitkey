@@ -6,28 +6,19 @@ import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.SmallIconSync
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.Button
-import build.wallet.statemachine.core.form.FormMainContentModel.DataList
+import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.DataHero
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.form.FormMainContentModel.Spacer
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
-import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
-import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryDestructive
-import build.wallet.ui.model.button.ButtonModel.Treatment.TertiaryPrimaryNoUnderline
+import build.wallet.ui.model.button.ButtonModel.Treatment.*
+import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconImage.LocalImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.XLarge
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTreatment
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -63,9 +54,9 @@ fun DeviceSettingsFormBodyModel(
   onManageReplacement: (() -> Unit)?,
   onResetDevice: (() -> Unit)?,
   onBack: () -> Unit,
-  multipleFingerprintsEnabled: Boolean,
   resetDeviceEnabled: Boolean,
   onManageFingerprints: () -> Unit,
+  coachmark: CoachmarkModel?,
 ) = FormBodyModel(
   id = trackerScreenId,
   onBack = onBack,
@@ -184,8 +175,9 @@ fun DeviceSettingsFormBodyModel(
               title = "Fingerprints",
               treatment = ListItemTreatment.SECONDARY,
               trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
+              showNewCoachmark = coachmark != null,
               onClick = onManageFingerprints
-            ).takeIf { multipleFingerprintsEnabled },
+            ),
             ListItemModel(
               title = "Reset device",
               treatment = ListItemTreatment.SECONDARY,
@@ -195,7 +187,7 @@ fun DeviceSettingsFormBodyModel(
           ),
           style = ListGroupStyle.CARD_GROUP_DIVIDER
         )
-      ).takeIf { multipleFingerprintsEnabled || resetDeviceEnabled },
+      ),
       if (replacementPending == null) {
         Button(
           item =

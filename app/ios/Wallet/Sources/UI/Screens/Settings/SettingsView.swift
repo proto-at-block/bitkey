@@ -88,18 +88,24 @@ private struct RowView: View {
 
     var body: some View {
         Button(action: model.onClick) {
-            HStack {
+            HStack(spacing: 8) {
                 Image(uiImage: model.icon.uiImage)
+                    .renderingMode(.template)
                     .resizable()
                     .foregroundColor(model.isDisabled ? Color.foreground30 : Color.foreground)
                     .frame(width: 24, height: 24)
-                Spacer(minLength: 8)
-                ModeledText(model: .standard(
-                    model.title,
-                    font: .body2Medium,
-                    textColor: model.isDisabled ? Color.foreground30 : Color.foreground
-                ))
-                .frame(maxWidth: .infinity, alignment: .leading)
+                ModeledText(
+                    model:
+                    .standard(
+                        model.title,
+                        font: .body2Medium,
+                        width: .hug,
+                        textColor: model.isDisabled ? Color.foreground30 : Color.foreground
+                    )
+                )
+                if model.showNewCoachmark {
+                    NewCoachmark(treatment: model.isDisabled ? .disabled : .light)
+                }
                 if !model.isDisabled {
                     Spacer(minLength: 8)
                     if let specialTrailingIconModel = model.specialTrailingIconModel {
@@ -116,5 +122,66 @@ private struct RowView: View {
             }
         }
     }
+}
 
+struct RowView_Preview: PreviewProvider {
+    static var previews: some View {
+        RowView(model: SettingsBodyModel.RowModel(
+            icon: Icon.smalliconlock,
+            title: "App Security",
+            isDisabled: false,
+            specialTrailingIconModel: nil,
+            showNewCoachmark: false,
+            onClick: {}
+        ))
+        .previewDisplayName("standard")
+
+        RowView(model: SettingsBodyModel.RowModel(
+            icon: Icon.smalliconlock,
+            title: "App Security",
+            isDisabled: false,
+            specialTrailingIconModel: Shared.IconModel(
+                iconImage: IconImage.LocalImage(icon: .smalliconinformationfilled),
+                iconSize: .accessory,
+                iconBackgroundType: IconBackgroundTypeTransient(),
+                iconTint: IconTint.warning,
+                iconOpacity: nil,
+                iconTopSpacing: nil,
+                text: nil
+            ),
+            showNewCoachmark: false,
+            onClick: {}
+        ))
+        .previewDisplayName("trailing")
+
+        RowView(model: SettingsBodyModel.RowModel(
+            icon: Icon.smalliconlock,
+            title: "App Security",
+            isDisabled: true,
+            specialTrailingIconModel: nil,
+            showNewCoachmark: false,
+            onClick: {}
+        ))
+        .previewDisplayName("disabled")
+
+        RowView(model: SettingsBodyModel.RowModel(
+            icon: Icon.smalliconlock,
+            title: "App Security",
+            isDisabled: false,
+            specialTrailingIconModel: nil,
+            showNewCoachmark: true,
+            onClick: {}
+        ))
+        .previewDisplayName("coachmark")
+
+        RowView(model: SettingsBodyModel.RowModel(
+            icon: Icon.smalliconlock,
+            title: "App Security",
+            isDisabled: true,
+            specialTrailingIconModel: nil,
+            showNewCoachmark: true,
+            onClick: {}
+        ))
+        .previewDisplayName("coachmark disabled")
+    }
 }

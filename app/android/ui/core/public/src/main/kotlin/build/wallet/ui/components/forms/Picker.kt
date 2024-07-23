@@ -120,7 +120,7 @@ private fun <Option : Any> ItemPickerDialog(
             onClick = { onOptionSelected(option) },
             colors =
               RadioButtonDefaults.colors(
-                selectedColor = WalletTheme.colors.primary
+                selectedColor = WalletTheme.colors.bitkeyPrimary
               )
           )
           Label(

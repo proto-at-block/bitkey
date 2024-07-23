@@ -8,6 +8,7 @@
 #include "feature_flags.h"
 #include "filesystem.h"
 #include "ipc.h"
+#include "kv.h"
 #include "log.h"
 #include "mcu_reset.h"
 #include "mcu_wdog.h"
@@ -40,13 +41,23 @@ static struct {
   uint32_t wdog_timer_refresh_ms;
   platform_hwrev_t hwrev;
   rtos_timer_t cap_touch_cal_timer;
+  rtos_mutex_t kv_mutex;
 } sysinfo_task_priv SHARED_TASK_DATA = {
   .queue = NULL,
   .wdog_timer = {0},
   .wdog_timer_refresh_ms = WDOG_REFRESH_MS,
   .hwrev = 0,
   .cap_touch_cal_timer = {0},
+  .kv_mutex = {0},
 };
+
+static bool kv_mutex_lock(void) {
+  return rtos_mutex_lock(&sysinfo_task_priv.kv_mutex);
+}
+
+static bool kv_mutex_unlock(void) {
+  return rtos_mutex_unlock(&sysinfo_task_priv.kv_mutex);
+}
 
 static void power_system_down_callback(rtos_timer_handle_t UNUSED(timer)) {
   power_set_retain(false);
@@ -566,6 +577,34 @@ void handle_device_info(ipc_ref_t* message) {
 
   se_get_secure_boot_config((secure_boot_config_t*)&rsp->msg.device_info_rsp.secure_boot_config);
 
+  // Fingerprint matching stats
+  rsp->msg.device_info_rsp.has_bio_match_stats = true;
+  bio_match_stats_t* match_stats = bio_match_stats_get();
+  rsp->msg.device_info_rsp.bio_match_stats.fail_count = match_stats->fail_count;
+
+  // Intead of reading from the file system to determine the true template count, just use the max.
+  // If a template isn't enrolled, it won't count towards a pass anyway.
+  rsp->msg.device_info_rsp.bio_match_stats.pass_counts_count = TEMPLATE_MAX_COUNT;
+
+  for (bio_template_id_t id = 0; id < TEMPLATE_MAX_COUNT; id++) {
+    rsp->msg.device_info_rsp.bio_match_stats.pass_counts[id].pass_count =
+      match_stats->pass_counts[id].tally;
+
+    uint32_t version = 0;
+    kv_result_t kv_result = bio_template_enrolled_by_version_get(id, &version);
+    if (kv_result == KV_ERR_NONE) {
+      uint32_t major = version >> 16;
+      uint32_t minor = (version >> 8) & 0xFF;
+      uint32_t patch = version & 0xFF;
+      rsp->msg.device_info_rsp.bio_match_stats.pass_counts[id].firmware_version.major = major;
+      rsp->msg.device_info_rsp.bio_match_stats.pass_counts[id].firmware_version.minor = minor;
+      rsp->msg.device_info_rsp.bio_match_stats.pass_counts[id].firmware_version.patch = patch;
+      rsp->msg.device_info_rsp.bio_match_stats.pass_counts[id].has_firmware_version = true;
+    }
+  }
+
+  bio_match_stats_clear();  // Clear to avoid duplicate reporting
+
   rsp->msg.device_info_rsp.rsp_status = fwpb_device_info_rsp_device_info_rsp_status_SUCCESS;
 
 out:
@@ -600,6 +639,11 @@ void sysinfo_thread(void* UNUSED(args)) {
   }
 
   feature_flags_init();
+
+  if (kv_init((kv_api_t){.lock = &kv_mutex_lock, .unlock = &kv_mutex_unlock}) != KV_ERR_NONE) {
+    LOGE("Failed to initialize key-value store");
+    BITLOG_EVENT(kv_init, 0);
+  }
 
   for (;;) {
     ipc_ref_t message = {0};

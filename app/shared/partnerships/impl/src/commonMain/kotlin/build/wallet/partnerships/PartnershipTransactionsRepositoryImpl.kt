@@ -20,6 +20,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
+import kotlin.time.Duration
 
 class PartnershipTransactionsRepositoryImpl(
   private val dao: PartnershipTransactionsDao,
@@ -31,6 +32,12 @@ class PartnershipTransactionsRepositoryImpl(
     it.logFailure { "Failed to get partnership transactions" }
       .getOr(emptyList())
   }
+
+  override val previouslyUsedPartnerIds: Flow<List<PartnerId>> = dao.getPreviouslyUsedPartnerIds()
+    .map {
+      it.logFailure { "Failed to get partner IDs" }
+        .getOr(emptyList())
+    }
 
   override suspend fun sync() {
     TODO("W-6471")
@@ -63,6 +70,22 @@ class PartnershipTransactionsRepositoryImpl(
     )
 
     return dao.save(transaction).map { transaction }
+  }
+
+  override suspend fun updateRecentTransactionStatusIfExists(
+    partnerId: PartnerId,
+    status: PartnershipTransactionStatus,
+    recency: Duration,
+  ): Result<PartnershipTransaction?, Error> {
+    return coroutineBinding {
+      dao.getMostRecentByPartner(partnerId)
+        .bind()
+        ?.takeIf { it.created > clock.now().minus(recency) }
+        ?.copy(status = status)
+        ?.also {
+          dao.save(it).bind()
+        }
+    }
   }
 
   override suspend fun syncTransaction(

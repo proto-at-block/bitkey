@@ -50,11 +50,11 @@ WHERE softwareAccountEntity.accountId = activeSoftwareAccountEntity.accountId;
 
 -- Query to set an onboarding Software Account.
 setOnboardingSoftwareAccount {
-  INSERT INTO onboardingSoftwareAccountEntity(rowId, accountId, appGlobalAuthKey, appRecoveryAuthKey)
-  VALUES(0, :accountId, :appGlobalAuthKey, :appRecoveryAuthKey);
-
   INSERT INTO softwareAccountEntity
   VALUES (0, :accountId, :bitcoinNetworkType, :f8eEnvironment, :isTestAccount, :isUsingSocRecFakes);
+
+  INSERT INTO onboardingSoftwareAccountEntity(rowId, accountId, appGlobalAuthKey, appRecoveryAuthKey)
+  VALUES(0, :accountId, :appGlobalAuthKey, :appRecoveryAuthKey);
 }
 
 -- Query to get the currently onboarding Software Account, if any.

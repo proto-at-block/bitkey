@@ -12,8 +12,8 @@ import build.wallet.crypto.PublicKey
  * An [OnboardingSoftwareAccount] does not any associated spending wallets.
  */
 data class OnboardingSoftwareAccount(
-  val accountId: SoftwareAccountId,
-  val config: SoftwareAccountConfig,
+  override val accountId: SoftwareAccountId,
+  override val config: SoftwareAccountConfig,
   val appGlobalAuthKey: PublicKey<AppGlobalAuthKey>,
   val recoveryAuthKey: PublicKey<AppRecoveryAuthKey>,
-)
+) : Account

@@ -99,7 +99,8 @@ class NfcCommandsFake(
       avgCurrentMa = 1234,
       batteryCycles = 1234,
       secureBootConfig = SecureBootConfig.PROD,
-      timeRetrieved = 1691787589
+      timeRetrieved = 1691787589,
+      bioMatchStats = null
     )
 
   override suspend fun getEvents(session: NfcSession) = EventFragment(emptyList(), 0)

@@ -37,6 +37,7 @@ extension SettingsBodyModel {
                             title: "Mobile Pay",
                             isDisabled: true,
                             specialTrailingIconModel: nil,
+                            showNewCoachmark: false,
                             onClick: {}
                         ),
                         .init(
@@ -44,6 +45,7 @@ extension SettingsBodyModel {
                             title: "Currency",
                             isDisabled: false,
                             specialTrailingIconModel: nil,
+                            showNewCoachmark: false,
                             onClick: {}
                         ),
                         .init(
@@ -51,6 +53,7 @@ extension SettingsBodyModel {
                             title: "Notifications",
                             isDisabled: true,
                             specialTrailingIconModel: nil,
+                            showNewCoachmark: false,
                             onClick: {}
                         ),
                     ]
@@ -63,6 +66,7 @@ extension SettingsBodyModel {
                             title: "Trusted Contacts",
                             isDisabled: true,
                             specialTrailingIconModel: nil,
+                            showNewCoachmark: false,
                             onClick: {}
                         ),
                         .init(
@@ -77,7 +81,22 @@ extension SettingsBodyModel {
                                 iconOpacity: nil,
                                 iconTopSpacing: nil,
                                 text: nil
-                            ),
+                            ), showNewCoachmark: false,
+                            onClick: {}
+                        ),
+                        .init(
+                            icon: .smalliconcloud,
+                            title: "App Security",
+                            isDisabled: false,
+                            specialTrailingIconModel: .init(
+                                iconImage: .LocalImage(icon: .smalliconlock),
+                                iconSize: .accessory,
+                                iconBackgroundType: IconBackgroundTypeTransient(),
+                                iconTint: nil,
+                                iconOpacity: nil,
+                                iconTopSpacing: nil,
+                                text: nil
+                            ), showNewCoachmark: true,
                             onClick: {}
                         ),
                     ]

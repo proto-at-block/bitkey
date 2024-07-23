@@ -3,13 +3,10 @@ package build.wallet.ui.model.list
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconTint.On30
-import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
-import build.wallet.ui.model.list.ListItemAccessory.CircularCharacterAccessory
-import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.list.ListItemAccessory.SwitchAccessory
-import build.wallet.ui.model.list.ListItemAccessory.TextAccessory
+import build.wallet.ui.model.list.ListItemAccessory.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.switch.SwitchModel
 
@@ -28,10 +25,12 @@ data class ListItemModel(
   val sideTextTint: ListItemSideTextTint = ListItemSideTextTint.PRIMARY,
   val enabled: Boolean = true,
   val selected: Boolean = false,
+  val showNewCoachmark: Boolean = false,
   val onClick: (() -> Unit)? = null,
   val pickerMenu: ListItemPickerMenu<*>? = null,
   val testTag: String? = null,
   val titleLabel: LabelModel? = null,
+  val coachmark: CoachmarkModel? = null,
 )
 
 enum class ListItemTitleAlignment {

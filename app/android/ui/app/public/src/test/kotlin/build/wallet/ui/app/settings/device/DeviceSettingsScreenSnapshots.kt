@@ -31,10 +31,10 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
-            multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
             onManageFingerprints = {},
-            onResetDevice = {}
+            onResetDevice = {},
+            coachmark = null
           )
       )
     }
@@ -61,10 +61,10 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
-            multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
             onManageFingerprints = {},
-            onResetDevice = {}
+            onResetDevice = {},
+            coachmark = null
           )
       )
     }
@@ -91,10 +91,10 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
-            multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
             onManageFingerprints = {},
-            onResetDevice = {}
+            onResetDevice = {},
+            coachmark = null
           )
       )
     }
@@ -121,10 +121,10 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
-            multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
             onManageFingerprints = {},
-            onResetDevice = {}
+            onResetDevice = {},
+            coachmark = null
           )
       )
     }
@@ -151,10 +151,10 @@ class DeviceSettingsScreenSnapshots : FunSpec({
             onUpdateVersion = {},
             onSyncDeviceInfo = {},
             onManageReplacement = {},
-            multipleFingerprintsEnabled = false,
             resetDeviceEnabled = false,
             onManageFingerprints = {},
-            onResetDevice = {}
+            onResetDevice = {},
+            coachmark = null
           )
       )
     }

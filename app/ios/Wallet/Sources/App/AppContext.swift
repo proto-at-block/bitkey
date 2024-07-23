@@ -80,7 +80,6 @@ class AppContext {
             fileManagerProvider: { FileManagerImpl(fileDirectoryProvider: $0) },
             logWritersProvider: { [
                 DatadogLogWriter(logWriterContextStore: $0, minSeverity: .info),
-                OSLogWriter(),
             ] },
             messageSigner: MessageSignerImpl(),
             signatureVerifier: SignatureVerifierImpl(),

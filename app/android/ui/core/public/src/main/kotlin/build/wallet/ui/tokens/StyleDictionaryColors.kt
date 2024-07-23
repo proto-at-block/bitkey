@@ -34,7 +34,7 @@ interface StyleDictionaryColors {
   val foreground10: Color
 
   // The primary color for buttons, switches, etc
-  val primary: Color
+  val bitkeyPrimary: Color
 
   // The foreground color for things on top of the primary color like text and icons
   val primaryForeground: Color
@@ -207,7 +207,7 @@ val lightStyleDictionaryColors =
     override val foreground60: Color = Color(0xff666666)
     override val foreground30: Color = Color(0xffc6c6c6)
     override val foreground10: Color = Color(0xfff6f6f6)
-    override val primary: Color = Color(0xff008096)
+    override val bitkeyPrimary: Color = Color(0xff008096)
     override val primaryForeground: Color = Color(0xffffffff)
     override val primaryForeground30: Color = Color(0xffc6c6c6)
     override val secondary: Color = Color(0x0a000000)
@@ -274,7 +274,7 @@ val darkStyleDictionaryColors =
     override val foreground60: Color = Color(0xff666666)
     override val foreground30: Color = Color(0xffc6c6c6)
     override val foreground10: Color = Color(0xfff6f6f6)
-    override val primary: Color = Color(0xff008096)
+    override val bitkeyPrimary: Color = Color(0xff008096)
     override val primaryForeground: Color = Color(0xffffffff)
     override val primaryForeground30: Color = Color(0xffc6c6c6)
     override val secondary: Color = Color(0x0a000000)

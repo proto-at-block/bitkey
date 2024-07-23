@@ -1,23 +1,25 @@
 import kotlin.Boolean;
 import kotlinx.datetime.Instant;
+import build.wallet.coachmark.CoachmarkIdentifier;
 
 CREATE TABLE coachmarkEntity(
-  coachmarkId   TEXT NOT NULL PRIMARY KEY,
+  id            TEXT AS CoachmarkIdentifier NOT NULL PRIMARY KEY,
   viewed        INTEGER AS Boolean NOT NULL,
   expiration    INTEGER AS Instant NOT NULL
 );
 
 createCoachmark:
-INSERT INTO coachmarkEntity(coachmarkId, viewed, expiration)
+INSERT INTO coachmarkEntity(id, viewed, expiration)
 VALUES(?, ?, ?);
 
 setViewed:
-REPLACE INTO coachmarkEntity(coachmarkId, viewed, expiration)
-VALUES(?, ?, ?);
+UPDATE coachmarkEntity
+SET viewed = ?
+WHERE id = ?;
 
 getCoachmark:
 SELECT * FROM coachmarkEntity
-WHERE coachmarkId = ?;
+WHERE id = ?;
 
 getAllCoachmarks:
 SELECT * FROM coachmarkEntity;

@@ -16,12 +16,18 @@
 #include "fpc_bep_types.h"
 #include "fpc_timebase.h"
 #include "ipc.h"
+#include "kv.h"
 #include "log.h"
+#include "metadata.h"
 #include "perf.h"
 #include "rtos.h"
+#include "sysinfo.h"
 
 #define BIO_IMAGE_CAPTURE_MAX_TRIES (4)
 #define BLOCKING_WAIT               (RTOS_EVENT_GROUP_TIMEOUT_MAX)
+
+#define TEMPLATE_TO_FW_VERSION_KEY_LEN (4)
+#define TEMPLATE_TO_FW_VERSION_KEY_FMT "fp%d"
 
 // See note in fpc_hal.c about why this is bad.
 uint32_t number_required_samples = 0;
@@ -34,6 +40,7 @@ static struct {
   fpc_bep_template_t* template;
   bool cancel_triggered;
   bio_template_id_t template_id;
+  bio_match_stats_t match_stats;
 } bio_priv = {
   .sensor_hw_detect_poll_period_ms = 4,  // Was 20, not sure if this helps.
   .finger_detect_timeout_ms = 10000,
@@ -42,6 +49,7 @@ static struct {
   .template = NULL,
   .template_id = TEMPLATE_MAX_COUNT + 1,  // Only valid if template != NULL
   .cancel_triggered = false,
+  .match_stats = {.pass_counts = {[0 ... TEMPLATE_MAX_COUNT - 1] = {0}}, .fail_count = 0},
 };
 
 static struct {
@@ -52,6 +60,14 @@ static struct {
   perf_counter_t* enroll_pass;
   perf_counter_t* enroll_fail;
 } perf;
+
+static void bio_update_match_stats(bio_template_id_t template, bool matched) {
+  if (matched) {
+    bio_priv.match_stats.pass_counts[template].tally++;
+  } else {
+    bio_priv.match_stats.fail_count++;
+  }
+}
 
 static fpc_bep_result_t wait_for_finger_status(fpc_bep_finger_status_t status,
                                                uint32_t timeout_ms) {
@@ -351,6 +367,7 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
     goto hard_fail;
   }
 
+  // Save the template
   result = bio_storage_template_save(id, enroll_template);
   if (!result) {
     LOGE("Failed to save template");
@@ -360,8 +377,16 @@ bool bio_enroll_finger(bio_template_id_t id, char label[BIO_LABEL_MAX_LEN],
   fpc_bep_image_delete(&image);  // Noop if image is null
   fpc_bep_template_delete(&enroll_template);
 
+  // Save the label
   if (!bio_storage_label_save(id, label)) {
     LOGE("Failed to save label");
+    goto fail;
+  }
+
+  // Save which firmware version this template was enrolled with
+  kv_result_t kv_result = bio_template_enrolled_by_version_store(id);
+  if (kv_result != KV_ERR_NONE) {
+    LOGE("Failed to save firmware version for template (%d)", kv_result);
     goto fail;
   }
 
@@ -445,12 +470,24 @@ NO_OPTIMIZE secure_bool_t bio_authenticate_finger(secure_bool_t* is_match,
   perf_end(perf.auth);
 
 out:
+  bio_update_match_stats(*match_template_id, identify_result.match);
   fpc_bep_template_delete(&bio_priv.template);
   if (image != NULL) {
     LOGD("Deleting image");
     fpc_bep_image_delete(&image);
   }
   return ret;
+}
+
+bio_match_stats_t* bio_match_stats_get(void) {
+  return &bio_priv.match_stats;
+}
+
+void bio_match_stats_clear(void) {
+  bio_priv.match_stats.fail_count = 0;
+  for (uint32_t i = 0; i < TEMPLATE_MAX_COUNT; i++) {
+    bio_priv.match_stats.pass_counts[i].tally = 0;
+  }
 }
 
 bio_diagnostics_t bio_get_diagnostics(void) {
@@ -507,4 +544,24 @@ void bio_get_and_update_diagnostics(bio_diagnostics_t* diagnostics) {
   UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, image_quality);
   UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, sensor_coverage);
   UPDATE_DIAGNOSTIC_FIELD(diagnostics, new, template_data_update);
+}
+
+kv_result_t bio_template_enrolled_by_version_get(bio_template_id_t id, uint32_t* version_out) {
+  char template_id[TEMPLATE_TO_FW_VERSION_KEY_LEN] = {0};
+  snprintf(template_id, sizeof(template_id), TEMPLATE_TO_FW_VERSION_KEY_FMT, id);
+  uint8_t length = sizeof(*version_out);
+  return kv_get(template_id, version_out, &length);
+}
+
+kv_result_t bio_template_enrolled_by_version_store(bio_template_id_t id) {
+  uint32_t fw_version = 0;
+  if (metadata_get_firmware_version(&fw_version) != METADATA_VALID) {
+    LOGE("Failed to get firmware version");
+    return false;
+  }
+
+  char template_id[TEMPLATE_TO_FW_VERSION_KEY_LEN] = {0};
+  snprintf(template_id, sizeof(template_id), TEMPLATE_TO_FW_VERSION_KEY_FMT, id);
+
+  return kv_set(template_id, &fw_version, sizeof(fw_version));
 }

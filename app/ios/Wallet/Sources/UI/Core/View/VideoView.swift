@@ -8,7 +8,7 @@ struct VideoView: View {
 
     @ObservedObject
     private var viewModel: VideoViewModel
-    
+
     private var backgroundColor: Color?
 
     // MARK: - Life Cycle
@@ -32,7 +32,7 @@ struct VideoViewUIViewRepresentable: UIViewControllerRepresentable {
 
     @ObservedObject
     var viewModel: VideoViewModel
-    
+
     let backgroundColor: Color?
 
     func makeUIViewController(context _: Context) -> AVPlayerViewController {
@@ -46,7 +46,7 @@ struct VideoViewUIViewRepresentable: UIViewControllerRepresentable {
         }
 
         viewController.player = viewModel.videoPlayer
-        
+
         if let color = backgroundColor {
             viewController.view.backgroundColor = UIColor(color)
         }

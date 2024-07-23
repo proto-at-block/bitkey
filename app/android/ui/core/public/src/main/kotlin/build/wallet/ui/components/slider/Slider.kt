@@ -100,7 +100,7 @@ private fun Track(
   modifier: Modifier = Modifier,
 ) {
   val inactiveTrackColor = WalletTheme.colors.foreground10
-  val activeTrackColor = WalletTheme.colors.primary
+  val activeTrackColor = WalletTheme.colors.bitkeyPrimary
   Canvas(
     modifier
       .fillMaxWidth()
@@ -173,7 +173,7 @@ private fun SliderThumb(
     }
   val shape = CircleShape
 
-  val color = WalletTheme.colors.primary
+  val color = WalletTheme.colors.bitkeyPrimary
   val strokeColor = WalletTheme.colors.primaryForeground
 
   Canvas(

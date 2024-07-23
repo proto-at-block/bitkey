@@ -1,6 +1,6 @@
 package build.wallet.statemachine.core
 
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.Icon.LargeIconWarningFilled
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -25,7 +25,7 @@ fun ErrorFormBodyModel(
   secondaryButton: ButtonDataModel? = null,
   renderContext: RenderContext = Screen,
   eventTrackerScreenId: EventTrackerScreenId?,
-  eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+  eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
   onLoaded: () -> Unit = {},
   errorData: ErrorData,
@@ -39,7 +39,7 @@ fun ErrorFormBodyModel(
   secondaryButton = secondaryButton,
   renderContext = renderContext,
   eventTrackerScreenId = eventTrackerScreenId,
-  eventTrackerScreenIdContext = eventTrackerScreenIdContext,
+  eventTrackerContext = eventTrackerContext,
   eventTrackerShouldTrack = eventTrackerShouldTrack,
   onLoaded = onLoaded,
   errorData = errorData,
@@ -56,7 +56,7 @@ fun ErrorFormBodyModel(
   secondaryButton: ButtonDataModel? = null,
   renderContext: RenderContext = Screen,
   eventTrackerScreenId: EventTrackerScreenId?,
-  eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+  eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
   onLoaded: () -> Unit = {},
   secondaryButtonIcon: Icon? = null,
@@ -69,7 +69,7 @@ fun ErrorFormBodyModel(
   secondaryButton = secondaryButton,
   renderContext = renderContext,
   eventTrackerScreenId = eventTrackerScreenId,
-  eventTrackerScreenIdContext = eventTrackerScreenIdContext,
+  eventTrackerContext = eventTrackerContext,
   eventTrackerShouldTrack = eventTrackerShouldTrack,
   onLoaded = onLoaded,
   errorData = null,
@@ -86,7 +86,7 @@ fun ErrorFormBodyModelWithOptionalErrorData(
   secondaryButton: ButtonDataModel? = null,
   renderContext: RenderContext = Screen,
   eventTrackerScreenId: EventTrackerScreenId?,
-  eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+  eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
   onLoaded: () -> Unit = {},
   errorData: ErrorData?,
@@ -95,7 +95,7 @@ fun ErrorFormBodyModelWithOptionalErrorData(
   return FormBodyModel(
     onLoaded = { onLoaded() },
     id = eventTrackerScreenId,
-    eventTrackerScreenIdContext = eventTrackerScreenIdContext,
+    eventTrackerContext = eventTrackerContext,
     onBack = onBack,
     toolbar = toolbar,
     header =

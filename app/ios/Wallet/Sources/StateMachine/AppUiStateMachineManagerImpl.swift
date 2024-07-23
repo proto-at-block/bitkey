@@ -658,6 +658,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 )
                 return .showNewView(vc: vc, key: "ios-analytics", animation: .pushPop)
             }
+
         case let viewModel as EducationBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<EducationView> {
                 vc.updateWrappedView(EducationView(viewModel: viewModel), screenModel: screenModel)
@@ -669,6 +670,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 )
                 return .showNewView(vc: vc, key: "ios-education", animation: .pushPop)
             }
+
         case let viewModel as CustomAmountBodyModel:
             if let vc = topViewController as? SwiftUIWrapperViewController<CustomAmountView> {
                 vc.updateWrappedView(

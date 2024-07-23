@@ -27,6 +27,18 @@ pub enum SecureBootConfig {
     Prod,
 }
 
+#[derive(Debug)]
+pub struct TemplateMatchStats {
+    pub pass_count: u32,
+    pub firmware_version: String,
+}
+
+#[derive(Debug)]
+pub struct BioMatchStats {
+    pub pass_counts: Vec<TemplateMatchStats>,
+    pub fail_count: u32,
+}
+
 pub struct DeviceInfo {
     pub version: String,
     pub serial: String,
@@ -38,6 +50,7 @@ pub struct DeviceInfo {
     pub avg_current_ma: i32,
     pub battery_cycles: u32,
     pub secure_boot_config: Option<SecureBootConfig>,
+    pub bio_match_stats: Option<BioMatchStats>,
 }
 
 #[generator(yield(Vec<u8>), resume(Vec<u8>))]
@@ -137,6 +150,7 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
         avg_current_ma,
         battery_cycles,
         secure_boot_config,
+        bio_match_stats,
     }) = message
     {
         match DeviceInfoRspStatus::from_i32(rsp_status) {
@@ -176,6 +190,30 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
 
         let battery_percent = (battery_charge / 1000) as f32;
 
+        let bio_match_stats = match bio_match_stats {
+            Some(stats) => {
+                let mut pass_counts = Vec::new();
+                for pass_count in stats.pass_counts {
+                    if let Some(firmware_version) = pass_count.firmware_version {
+                        let version_string = format!(
+                            "{}.{}.{}",
+                            firmware_version.major, firmware_version.minor, firmware_version.patch
+                        );
+                        pass_counts.push(TemplateMatchStats {
+                            pass_count: pass_count.pass_count,
+                            firmware_version: version_string,
+                        });
+                    }
+                }
+                let fail_count = stats.fail_count;
+                Some(BioMatchStats {
+                    pass_counts,
+                    fail_count,
+                })
+            }
+            None => None,
+        };
+
         Ok(DeviceInfo {
             version,
             serial,
@@ -187,6 +225,7 @@ fn device_info() -> Result<DeviceInfo, CommandError> {
             avg_current_ma,
             battery_cycles,
             secure_boot_config,
+            bio_match_stats,
         })
     } else {
         Err(CommandError::MissingMessage)

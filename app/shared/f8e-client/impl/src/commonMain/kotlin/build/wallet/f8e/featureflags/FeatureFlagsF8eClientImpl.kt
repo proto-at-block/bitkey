@@ -54,7 +54,8 @@ class FeatureFlagsF8eClientImpl(
         f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
       is LiteAccountId ->
         f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Recovery)
-      is SoftwareAccountId -> TODO("W-8701")
+      is SoftwareAccountId ->
+        f8eHttpClient.authenticated(f8eEnvironment, accountId, authTokenScope = Global)
     }
 
     val url =

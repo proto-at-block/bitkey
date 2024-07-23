@@ -47,8 +47,8 @@ public extension UIColor {
 
     var highlightedColor: UIColor {
         switch self {
-        case .primary:
-            return .primary.withAlphaComponent(0.85)
+        case .bitkeyPrimary:
+            return .bitkeyPrimary.withAlphaComponent(0.85)
 
         case .secondary:
             return .secondary.withAlphaComponent(0.1)

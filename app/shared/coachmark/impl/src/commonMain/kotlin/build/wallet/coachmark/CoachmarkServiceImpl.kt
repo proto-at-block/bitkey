@@ -2,7 +2,10 @@ package build.wallet.coachmark
 
 import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus
+import build.wallet.analytics.events.EventTracker
 import build.wallet.bitkey.account.FullAccount
+import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
+import build.wallet.feature.isEnabled
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.map
@@ -13,13 +16,20 @@ import kotlin.time.Duration.Companion.days
 class CoachmarkServiceImpl(
   private val coachmarkDao: CoachmarkDao,
   private val accountRepository: AccountRepository,
-  private val coachmarkFeatureFlagVisibilityDecider: CoachmarkFeatureFlagVisibilityDecider,
+  private val coachmarkVisibilityDecider: CoachmarkVisibilityDecider,
+  private val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag,
+  private val eventTracker: EventTracker,
   private val clock: Clock,
 ) : CoachmarkService {
   override suspend fun coachmarksToDisplay(
     coachmarkIds: Set<CoachmarkIdentifier>,
   ): Result<List<CoachmarkIdentifier>, Error> =
     coroutineBinding {
+      // If the global coachmark kill switch feature flag is enabled, short circuit and return an empty list
+      if (coachmarksGlobalFeatureFlag.isEnabled()) {
+        return@coroutineBinding emptyList<CoachmarkIdentifier>()
+      }
+
       val accountStatus = accountRepository
         .accountStatus()
         .first()
@@ -39,7 +49,7 @@ class CoachmarkServiceImpl(
 
       // If we've never seen a coachmark identifier before, create it.
       coachmarkIds
-        .filter { id -> existingCoachmarks.none { it.coachmarkId == id.string } }
+        .filter { id -> existingCoachmarks.none { it.id == id } }
         .forEach { createCoachmark(it) }
 
       // Get all coachmarks from the DB again now that we've created the new ones
@@ -48,21 +58,23 @@ class CoachmarkServiceImpl(
         .map { coachmarks ->
           coachmarks
             .filter { coachmark ->
-              val featureFlagged = coachmarkFeatureFlagVisibilityDecider
-                .shouldShow(coachmark.coachmarkId)
-              coachmark.expiration > clock.now() && !coachmark.viewed && featureFlagged
+              // filter out all but the coachmarks we want to show based on the logic in the decider
+              coachmarkVisibilityDecider.shouldShow(coachmark)
             }.map { coachmark ->
-              coachmarkIds.first { it.string == coachmark.coachmarkId }
+              coachmark.id
             }
         }.bind()
     }
 
   override suspend fun markCoachmarkAsDisplayed(
     coachmarkId: CoachmarkIdentifier,
-  ): Result<Unit, Error> =
-    coroutineBinding {
+  ): Result<Unit, Error> {
+    // track that the coachmark was viewed
+    eventTracker.track(coachmarkId.action, null)
+    return coroutineBinding {
       coachmarkDao.setViewed(coachmarkId)
     }
+  }
 
   override suspend fun resetCoachmarks(): Result<Unit, Error> =
     coroutineBinding {

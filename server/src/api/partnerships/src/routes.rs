@@ -13,13 +13,13 @@ use aws_utils::secrets_manager::{FetchSecret, SecretsManager};
 use feature_flags::flag::ContextKey;
 use feature_flags::service::Service as FeatureFlagsService;
 use http_server::swagger::{SwaggerEndpoint, Url};
+use partnerships_lib::models::partners::Partner;
 use partnerships_lib::models::{PartnerTransaction, PurchaseOptions};
 use partnerships_lib::{
     errors::ApiError,
     models::{partners::PartnerInfo, PaymentMethod, Quote, RedirectInfo},
     Partnerships,
 };
-use partnerships_lib::models::partners::Partner;
 
 use types::currencies::CurrencyCode;
 use userpool::userpool::UserPoolService;

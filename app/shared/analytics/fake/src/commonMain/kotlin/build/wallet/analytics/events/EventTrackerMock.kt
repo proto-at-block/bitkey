@@ -3,8 +3,8 @@ package build.wallet.analytics.events
 import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
+import build.wallet.analytics.events.screen.EventTrackerFingerprintScanStatsInfo
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerCounterId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.v1.Action
@@ -15,8 +15,11 @@ class EventTrackerMock(
 ) : EventTracker {
   val eventCalls = turbine("analytics event calls")
 
-  override fun track(action: Action) {
-    eventCalls += TrackedAction(action)
+  override fun track(
+    action: Action,
+    context: EventTrackerContext?,
+  ) {
+    eventCalls += TrackedAction(action = action, screenId = null, context = context)
   }
 
   override fun track(eventTrackerCountInfo: EventTrackerCountInfo) {
@@ -32,7 +35,14 @@ class EventTrackerMock(
       TrackedAction(
         ACTION_APP_SCREEN_IMPRESSION,
         eventTrackerScreenInfo.eventTrackerScreenId,
-        eventTrackerScreenInfo.eventTrackerScreenIdContext
+        eventTrackerScreenInfo.eventTrackerContext
+      )
+  }
+
+  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {
+    eventCalls +=
+      TrackedAction(
+        Action.ACTION_HW_FINGERPRINT_SCAN_STATS
       )
   }
 }
@@ -40,7 +50,7 @@ class EventTrackerMock(
 data class TrackedAction(
   val action: Action,
   val screenId: EventTrackerScreenId? = null,
-  val screenIdContext: EventTrackerScreenIdContext? = null,
+  val context: EventTrackerContext? = null,
   val counterId: EventTrackerCounterId? = null,
   val count: Int? = null,
 )

@@ -1,10 +1,12 @@
 package build.wallet.analytics.events.screen.context
 
+import build.wallet.analytics.events.EventTrackerContext
+
 /**
  * Context for cloud storage related screens in the app.
  * Cloud storage is used both during new account creation as well as app recovery.
  */
-enum class CloudEventTrackerScreenIdContext : EventTrackerScreenIdContext {
+enum class CloudEventTrackerScreenIdContext : EventTrackerContext {
   /** Cloud events during new account creation */
   ACCOUNT_CREATION,
 

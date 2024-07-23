@@ -95,6 +95,7 @@ enum class Icon {
   SmallIconRefresh,
   SmallIconScan,
   SmallIconSettings,
+  SmallIconSettingsBadged,
   SmallIconShare,
   SmallIconShield,
   SmallIconShieldCheck,

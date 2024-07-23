@@ -28,7 +28,7 @@ public final class Secp256k1KeyGeneratorImpl: Secp256k1KeyGenerator {
                 .asError()
         }
         // Check whether the private key is valid by passing it to the Core constructor
-        try core.SecretKey(secretBytes: bytes)
+        _ = try core.SecretKey(secretBytes: bytes)
         return Shared.Secp256k1PrivateKey(bytes: OkioKt.ByteString(data: Data(bytes)))
     }
 

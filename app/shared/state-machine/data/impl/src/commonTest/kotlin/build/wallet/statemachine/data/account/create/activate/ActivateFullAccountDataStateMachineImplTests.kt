@@ -11,9 +11,6 @@ import build.wallet.bitkey.keybox.AppKeyBundleMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.onboarding.OnboardingF8eClientMock
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.home.GettingStartedTaskDaoMock
@@ -34,140 +31,100 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
-class ActivateFullAccountDataStateMachineImplTests : FunSpec({
+class ActivateFullAccountDataStateMachineImplTests :
+  FunSpec({
 
-  val eventTracker = EventTrackerMock(turbines::create)
-  val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
-  val keyboxDao = KeyboxDaoMock(turbines::create)
-  val onboardingKeyboxStepStateDao =
-    OnboardingKeyboxStepStateDaoMock(turbines::create)
-  val onboardingF8eClient = OnboardingF8eClientMock(turbines::create)
-  val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
-  val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
-  val multipleFingerprintsEnabledFeatureFlag = MultipleFingerprintsIsEnabledFeatureFlag(
-    featureFlagDao = FeatureFlagDaoMock()
-  )
+    val eventTracker = EventTrackerMock(turbines::create)
+    val gettingStartedTaskDao = GettingStartedTaskDaoMock(turbines::create)
+    val keyboxDao = KeyboxDaoMock(turbines::create)
+    val onboardingKeyboxStepStateDao =
+      OnboardingKeyboxStepStateDaoMock(turbines::create)
+    val onboardingF8eClient = OnboardingF8eClientMock(turbines::create)
+    val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
+    val onboardingKeyboxHwAuthPublicKeyDao = OnboardingKeyboxHardwareKeysDaoFake()
 
-  val dataStateMachine =
-    ActivateFullAccountDataStateMachineImpl(
-      eventTracker = eventTracker,
-      gettingStartedTaskDao = gettingStartedTaskDao,
-      keyboxDao = keyboxDao,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
-      onboardingF8eClient = onboardingF8eClient,
-      onboardingAppKeyKeystore = onboardingAppKeyKeystore,
-      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
-      multipleFingerprintsIsEnabled = multipleFingerprintsEnabledFeatureFlag
-    )
-
-  val exitOnboardingCalls = turbines.create<Unit>("exitOnboarding calls")
-
-  val props =
-    ActivateFullAccountDataProps(
-      keybox = KeyboxMock,
-      onDeleteKeyboxAndExitOnboarding = { exitOnboardingCalls.add(Unit) }
-    )
-
-  beforeTest {
-    gettingStartedTaskDao.reset()
-    onboardingKeyboxStepStateDao.reset()
-    keyboxDao.reset()
-    onboardingF8eClient.reset()
-    onboardingAppKeyKeystore.persistAppKeys(
-      spendingKey = AppKeyBundleMock.spendingKey,
-      globalAuthKey = AppKeyBundleMock.authKey,
-      recoveryAuthKey = AppKeyBundleMock.recoveryAuthKey,
-      bitcoinNetworkType = SIGNET
-    )
-    onboardingKeyboxHwAuthPublicKeyDao.set(
-      OnboardingKeyboxHardwareKeys(HwAuthSecp256k1PublicKeyMock, AppGlobalAuthKeyHwSignatureMock)
-    )
-    multipleFingerprintsEnabledFeatureFlag.reset()
-  }
-
-  test("activate new keybox successfully") {
-    dataStateMachine.test(props) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
-      }
-
-      onboardingAppKeyKeystore.appKeys.shouldBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
-
-      // Activating wallet and adding tasks
-      onboardingF8eClient.completeOnboardingCalls.awaitItem()
-
-      gettingStartedTaskDao.expectOnboardingTasks()
-      eventTracker.expectOnboardingEvents()
-      onboardingKeyboxStepStateDao.clearCalls.awaitItem()
-    }
-  }
-
-  test("activate new keybox successfully with multiple fingerprints enabled") {
-    multipleFingerprintsEnabledFeatureFlag.setFlagValue(true)
-    dataStateMachine.test(props) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
-      }
-
-      onboardingAppKeyKeystore.appKeys.shouldBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
-
-      // Activating wallet and adding tasks
-      onboardingF8eClient.completeOnboardingCalls.awaitItem()
-
-      gettingStartedTaskDao.getTasks().shouldContainExactly(
-        GettingStartedTask(
-          GettingStartedTask.TaskId.AddBitcoin,
-          GettingStartedTask.TaskState.Incomplete
-        ),
-        GettingStartedTask(
-          GettingStartedTask.TaskId.InviteTrustedContact,
-          GettingStartedTask.TaskState.Incomplete
-        ),
-        GettingStartedTask(
-          GettingStartedTask.TaskId.EnableSpendingLimit,
-          GettingStartedTask.TaskState.Incomplete
-        ),
-        GettingStartedTask(
-          GettingStartedTask.TaskId.AddAdditionalFingerprint,
-          GettingStartedTask.TaskState.Incomplete
-        )
+    val dataStateMachine =
+      ActivateFullAccountDataStateMachineImpl(
+        eventTracker = eventTracker,
+        gettingStartedTaskDao = gettingStartedTaskDao,
+        keyboxDao = keyboxDao,
+        onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
+        onboardingF8eClient = onboardingF8eClient,
+        onboardingAppKeyKeystore = onboardingAppKeyKeystore,
+        onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao
       )
-      eventTracker.expectOnboardingEvents()
-      onboardingKeyboxStepStateDao.clearCalls.awaitItem()
+
+    val exitOnboardingCalls = turbines.create<Unit>("exitOnboarding calls")
+
+    val props =
+      ActivateFullAccountDataProps(
+        keybox = KeyboxMock,
+        onDeleteKeyboxAndExitOnboarding = { exitOnboardingCalls.add(Unit) }
+      )
+
+    beforeTest {
+      gettingStartedTaskDao.reset()
+      onboardingKeyboxStepStateDao.reset()
+      keyboxDao.reset()
+      onboardingF8eClient.reset()
+      onboardingAppKeyKeystore.persistAppKeys(
+        spendingKey = AppKeyBundleMock.spendingKey,
+        globalAuthKey = AppKeyBundleMock.authKey,
+        recoveryAuthKey = AppKeyBundleMock.recoveryAuthKey,
+        bitcoinNetworkType = SIGNET
+      )
+      onboardingKeyboxHwAuthPublicKeyDao.set(
+        OnboardingKeyboxHardwareKeys(HwAuthSecp256k1PublicKeyMock, AppGlobalAuthKeyHwSignatureMock)
+      )
     }
-  }
 
-  test("complete onboarding error and retry") {
-    onboardingF8eClient.completeOnboardingResult = Err(HttpError.NetworkError(Throwable()))
-    dataStateMachine.test(props) {
-      awaitItem().let {
-        it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
+    test("activate new keybox successfully") {
+      dataStateMachine.test(props) {
+        awaitItem().let {
+          it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
+        }
+
+        onboardingAppKeyKeystore.appKeys.shouldBeNull()
+        onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
+
+        // Activating wallet and adding tasks
+        onboardingF8eClient.completeOnboardingCalls.awaitItem()
+
+        gettingStartedTaskDao.expectOnboardingTasks()
+        eventTracker.expectOnboardingEvents()
+        onboardingKeyboxStepStateDao.clearCalls.awaitItem()
       }
-
-      onboardingAppKeyKeystore.appKeys.shouldBeNull()
-      onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
-
-      onboardingF8eClient.completeOnboardingCalls.awaitItem()
-
-      awaitItem().let {
-        it.shouldBeTypeOf<FailedToActivateKeyboxDataFull>()
-        onboardingF8eClient.completeOnboardingResult = Ok(Unit)
-        it.retry()
-      }
-
-      awaitItem().let {
-        it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
-      }
-      onboardingF8eClient.completeOnboardingCalls.awaitItem()
-
-      gettingStartedTaskDao.expectOnboardingTasks()
-      eventTracker.expectOnboardingEvents()
-      onboardingKeyboxStepStateDao.clearCalls.awaitItem()
     }
-  }
-})
+
+    test("complete onboarding error and retry") {
+      onboardingF8eClient.completeOnboardingResult = Err(HttpError.NetworkError(Throwable()))
+      dataStateMachine.test(props) {
+        awaitItem().let {
+          it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
+        }
+
+        onboardingAppKeyKeystore.appKeys.shouldBeNull()
+        onboardingKeyboxHwAuthPublicKeyDao.keys.shouldBeNull()
+
+        onboardingF8eClient.completeOnboardingCalls.awaitItem()
+
+        awaitItem().let {
+          it.shouldBeTypeOf<FailedToActivateKeyboxDataFull>()
+          onboardingF8eClient.completeOnboardingResult = Ok(Unit)
+          it.retry()
+        }
+
+        awaitItem().let {
+          it.shouldBeTypeOf<ActivatingKeyboxDataFull>()
+        }
+        onboardingF8eClient.completeOnboardingCalls.awaitItem()
+
+        gettingStartedTaskDao.expectOnboardingTasks()
+        eventTracker.expectOnboardingEvents()
+        onboardingKeyboxStepStateDao.clearCalls.awaitItem()
+      }
+    }
+  })
 
 private suspend fun GettingStartedTaskDao.expectOnboardingTasks() {
   getTasks().shouldContainExactly(
@@ -181,6 +138,10 @@ private suspend fun GettingStartedTaskDao.expectOnboardingTasks() {
     ),
     GettingStartedTask(
       GettingStartedTask.TaskId.EnableSpendingLimit,
+      GettingStartedTask.TaskState.Incomplete
+    ),
+    GettingStartedTask(
+      GettingStartedTask.TaskId.AddAdditionalFingerprint,
       GettingStartedTask.TaskState.Incomplete
     )
   )

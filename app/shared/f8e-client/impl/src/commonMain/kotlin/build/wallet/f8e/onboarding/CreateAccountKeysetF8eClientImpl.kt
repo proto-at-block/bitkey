@@ -70,9 +70,9 @@ class CreateAccountKeysetF8eClientImpl(
           // Note: do not remove the '[wsm_integrity_failure]' from the message. We alert on this string in Datadog.
           log {
             "[wsm_integrity_failure] WSM integrity signature verification failed: " +
-                "${response.spendingSig} : " +
-                "${response.spendingDpub} : " +
-                response.keysetId
+              "${response.spendingSig} : " +
+              "${response.spendingDpub} : " +
+              response.keysetId
           }
           // Just log, don't fail the call.
         }

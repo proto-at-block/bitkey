@@ -33,6 +33,26 @@ class PartnershipTransactionsDaoImpl(
       }
   }
 
+  override fun getPreviouslyUsedPartnerIds(): Flow<Result<List<PartnerId>, DbTransactionError>> {
+    return queries.getPreviouslyUsedPartnerIds()
+      .asFlow()
+      .map { query ->
+        database.awaitTransactionWithResult {
+          query.executeAsList()
+        }
+      }
+  }
+
+  override suspend fun getMostRecentByPartner(
+    partnerId: PartnerId,
+  ): Result<PartnershipTransaction?, DbTransactionError> {
+    return database.awaitTransactionWithResult {
+      queries.getByPartnerId(partnerId)
+        .executeAsOneOrNull()
+        ?.toModel()
+    }
+  }
+
   override suspend fun getById(
     id: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, DbTransactionError> {

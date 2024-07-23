@@ -79,10 +79,12 @@ public struct AnalyticsView: View {
                                 sideTextTint: .primary,
                                 enabled: true,
                                 selected: false,
+                                showNewCoachmark: false,
                                 onClick: nil,
                                 pickerMenu: nil,
                                 testTag: nil,
-                                titleLabel: nil
+                                titleLabel: nil,
+                                coachmark: nil
                             )
                         )
                         ButtonView(model: .tertiaryDestructive(

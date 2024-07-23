@@ -2,25 +2,22 @@ package build.wallet.ui.app.moneyhome
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.bitkey.socrec.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.list.ListModel
@@ -35,6 +32,7 @@ import build.wallet.ui.components.amount.HeroAmount
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.button.ButtonContentsList
 import build.wallet.ui.components.button.RowOfButtons
+import build.wallet.ui.components.coachmark.CoachmarkPresenter
 import build.wallet.ui.components.header.Header
 import build.wallet.ui.components.icon.IconButton
 import build.wallet.ui.components.layout.Divider
@@ -52,95 +50,124 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 @Composable
 fun MoneyHomeScreen(model: MoneyHomeBodyModel) {
   val listState = rememberLazyListState()
-  Column {
-    Box(
-      modifier =
-        Modifier
-          .pullRefresh(
-            refreshing = model.isRefreshing,
-            onRefresh = model.onRefresh
-          )
-    ) {
-      LazyColumn(
+  var coachmarkOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+
+  Box {
+    // Display a coachmark if needed
+    model.coachmark?.let { coachmarkModel ->
+      CoachmarkPresenter(
+        yOffset = coachmarkOffset.y,
+        model = coachmarkModel
+      )
+    }
+    Column {
+      Box(
         modifier =
           Modifier
-            .fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        state = listState
+            .pullRefresh(
+              refreshing = model.isRefreshing,
+              onRefresh = model.onRefresh
+            )
       ) {
-        // Header
-        item {
-          Row(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Header(
-              headline = "Home",
-              headlineTopSpacing = 8.dp,
-              fillsMaxWidth = false
-            )
-            Spacer(Modifier.weight(1F))
-            ToolbarAccessory(model.trailingToolbarAccessoryModel)
-          }
-          Spacer(Modifier.height(48.dp))
-        }
-
-        // Balance + buttons
-        item {
-          with(model.balanceModel) {
-            HeroAmount(
-              modifier = Modifier.clickable(
-                interactionSource = MutableInteractionSource(),
-                indication = null,
-                onClick = { model.onHideBalance() }
-              ),
-              primaryAmount = AnnotatedString(primaryAmount),
-              secondaryAmountWithCurrency = secondaryAmount,
-              hideBalance = model.hideBalance
-            )
-          }
-          Spacer(Modifier.height(4.dp))
-          MoneyHomeButtons(model = model.buttonsModel)
-          Spacer(Modifier.height(40.dp))
-        }
-
-        // No UI between the action buttons and the tx list so show a divider
-        if (model.cardsModel.cards.isEmpty() && model.transactionsModel != null) {
+        LazyColumn(
+          modifier =
+            Modifier
+              .fillMaxSize(),
+          horizontalAlignment = Alignment.CenterHorizontally,
+          state = listState
+        ) {
+          // Header
           item {
-            Divider(
-              modifier =
-                Modifier
-                  .padding(horizontal = 20.dp)
-                  .padding(top = 16.dp)
-            )
+            Row(
+              modifier = Modifier.padding(horizontal = 20.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Header(
+                headline = "Home",
+                headlineTopSpacing = 8.dp,
+                fillsMaxWidth = false
+              )
+              Spacer(Modifier.weight(1F))
+              ToolbarAccessory(model.trailingToolbarAccessoryModel)
+            }
+            Spacer(Modifier.height(48.dp))
           }
-        }
 
-        // Cards
-        items(model.cardsModel.cards) { cardModel ->
-          MoneyHomeCard(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            model = cardModel
-          )
-          Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        model.transactionsModel?.let { transactionsModel ->
+          // Balance + buttons
           item {
-            Transactions(
-              model = transactionsModel,
-              seeAllButtonModel = model.seeAllButtonModel,
-              hideValue = model.hideBalance
+            with(model.balanceModel) {
+              HeroAmount(
+                modifier = Modifier
+                  .clickable(
+                    interactionSource = MutableInteractionSource(),
+                    indication = null,
+                    onClick = {
+                      model.onHideBalance()
+                      // dismiss the HiddenBalanceCoachmark coachmark if it's showing since you've interacted with the feature
+                      if (model.coachmark?.identifier ==
+                        CoachmarkIdentifier.HiddenBalanceCoachmark
+                      ) {
+                        model.coachmark?.dismiss?.invoke()
+                      }
+                    }
+                  ).onGloballyPositioned { layoutCoordinates ->
+                    if (model.coachmark?.identifier == CoachmarkIdentifier.HiddenBalanceCoachmark) {
+                      val positionInParent = layoutCoordinates.positionInParent()
+                      val size = layoutCoordinates.size
+                      coachmarkOffset = Offset(
+                        0f,
+                        positionInParent.y + size.height
+                      )
+                    }
+                  },
+                primaryAmount = AnnotatedString(primaryAmount),
+                secondaryAmountWithCurrency = secondaryAmount,
+                hideBalance = model.hideBalance
+              )
+            }
+            Spacer(Modifier.height(4.dp))
+            MoneyHomeButtons(model = model.buttonsModel)
+            Spacer(Modifier.height(40.dp))
+          }
+
+          // No UI between the action buttons and the tx list so show a divider
+          if (model.cardsModel.cards.isEmpty() && model.transactionsModel != null) {
+            item {
+              Divider(
+                modifier =
+                  Modifier
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 16.dp)
+              )
+            }
+          }
+
+          // Cards
+          items(model.cardsModel.cards) { cardModel ->
+            MoneyHomeCard(
+              modifier = Modifier.padding(horizontal = 20.dp),
+              model = cardModel
             )
+            Spacer(modifier = Modifier.height(24.dp))
+          }
+
+          model.transactionsModel?.let { transactionsModel ->
+            item {
+              Transactions(
+                model = transactionsModel,
+                seeAllButtonModel = model.seeAllButtonModel,
+                hideValue = model.hideBalance
+              )
+            }
           }
         }
+
+        PullRefreshIndicator(
+          modifier = Modifier.align(Alignment.TopCenter),
+          refreshing = model.isRefreshing,
+          onRefresh = model.onRefresh
+        )
       }
-
-      PullRefreshIndicator(
-        modifier = Modifier.align(Alignment.TopCenter),
-        refreshing = model.isRefreshing,
-        onRefresh = model.onRefresh
-      )
     }
   }
 }
@@ -314,6 +341,7 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
               size = Size.Footer,
               onClick = StandardClick {}
             ),
+          coachmark = null,
           buttonsModel =
             MoneyHomeButtonsModel.MoneyMovementButtonsModel(
               sendButton =
@@ -334,7 +362,8 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
             ),
           refresh = {},
           onRefresh = {},
-          isRefreshing = false
+          isRefreshing = false,
+          badgedSettingsIcon = true
         )
     )
   }
@@ -352,6 +381,7 @@ internal fun MoneyHomeScreenLite() {
           protectedCustomers = immutableListOf(
             ProtectedCustomer("", ProtectedCustomerAlias("Alice"))
           ),
+          badgedSettingsIcon = false,
           onProtectedCustomerClick = {},
           onBuyOwnBitkeyClick = {},
           onAcceptInviteClick = {}
@@ -370,6 +400,7 @@ internal fun MoneyHomeScreenLiteWithoutProtectedCustomers() {
           onSettings = {},
           buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
           protectedCustomers = immutableListOf(),
+          badgedSettingsIcon = true,
           onProtectedCustomerClick = {},
           onBuyOwnBitkeyClick = {},
           onAcceptInviteClick = {}

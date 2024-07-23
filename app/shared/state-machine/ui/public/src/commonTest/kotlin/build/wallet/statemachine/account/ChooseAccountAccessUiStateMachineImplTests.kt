@@ -45,22 +45,23 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
       id = "create-software-wallet"
     ) {}
 
-  fun buildStateMachine(appVariant: AppVariant) = ChooseAccountAccessUiStateMachineImpl(
-    appVariant = appVariant,
-    debugMenuStateMachine = object : DebugMenuStateMachine,
-      ScreenStateMachineMock<DebugMenuProps>(
-        id = "debug-menu"
-      ) {},
-    demoModeConfigUiStateMachine = object : DemoModeConfigUiStateMachine,
-      ScreenStateMachineMock<DemoModeConfigUiProps>(
-        id = "demo-mode"
-      ) {},
-    deviceInfoProvider = DeviceInfoProviderMock(),
-    emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
-    resetDeviceIsEnabledFeatureFlag = resetDeviceFeatureFlag,
-    softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
-    createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
-  )
+  fun buildStateMachine(appVariant: AppVariant) =
+    ChooseAccountAccessUiStateMachineImpl(
+      appVariant = appVariant,
+      debugMenuStateMachine = object : DebugMenuStateMachine,
+        ScreenStateMachineMock<DebugMenuProps>(
+          id = "debug-menu"
+        ) {},
+      demoModeConfigUiStateMachine = object : DemoModeConfigUiStateMachine,
+        ScreenStateMachineMock<DemoModeConfigUiProps>(
+          id = "demo-mode"
+        ) {},
+      deviceInfoProvider = DeviceInfoProviderMock(),
+      emergencyAccessKitDataProvider = emergencyAccessKitDataProvider,
+      resetDeviceIsEnabledFeatureFlag = resetDeviceFeatureFlag,
+      softwareWalletIsEnabledFeatureFlag = softwareWalletIsEnabledFeatureFlag,
+      createSoftwareWalletUiStateMachine = createSoftwareWalletUiStateMachine
+    )
 
   val stateMachine = buildStateMachine(appVariant = AppVariant.Development)
 
@@ -74,19 +75,19 @@ class ChooseAccountAccessUiStateMachineImplTests : FunSpec({
   val props =
     ChooseAccountAccessUiProps(
       chooseAccountAccessData =
-      GettingStartedData(
-        templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(
-          config = FullAccountConfigMock,
-          updateConfig = {}
+        GettingStartedData(
+          templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(
+            config = FullAccountConfigMock,
+            updateConfig = {}
+          ),
+          onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
+          startRecovery = { startRecoveryCalls.add(Unit) },
+          startFullAccountCreation = { startFullAccountCreationCalls.add(Unit) },
+          startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
+          startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
+          resetExistingDevice = { resetExistingDeviceCalls.add(Unit) },
+          isNavigatingBack = false
         ),
-        onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
-        startRecovery = { startRecoveryCalls.add(Unit) },
-        startFullAccountCreation = { startFullAccountCreationCalls.add(Unit) },
-        startLiteAccountCreation = { startLiteAccountCreationCalls.add(Unit) },
-        startEmergencyAccessRecovery = { startEmergencyAccessRecoveryCalls.add(Unit) },
-        resetExistingDevice = { resetExistingDeviceCalls.add(Unit) },
-        isNavigatingBack = false
-      ),
       firmwareData = FirmwareDataUpToDateMock
     )
 

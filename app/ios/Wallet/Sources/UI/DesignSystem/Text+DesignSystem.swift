@@ -34,6 +34,7 @@ public extension TextModel {
         _ text: String,
         font: FontTheme,
         textAlignment: TextAlignment? = .leading,
+        width: Width? = nil,
         textColor: Color = .foreground,
         treatment: LabelTreatment = .unspecified
     ) -> TextModel {
@@ -44,6 +45,7 @@ public extension TextModel {
             baselineOffset: font.baselineOffset,
             lineSpacing: font.lineSpacing,
             textAlignment: textAlignment,
+            width: width,
             textColor: textColor,
             treatment: treatment
         )

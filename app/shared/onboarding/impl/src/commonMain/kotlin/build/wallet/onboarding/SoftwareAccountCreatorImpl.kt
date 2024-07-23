@@ -57,15 +57,12 @@ class SoftwareAccountCreatorImpl(
       // TODO: Add device token using the device token manager.
       // TODO: use notificationTouchpointF8eClient to get touchpoints.
 
-      val account = OnboardingSoftwareAccount(
+      OnboardingSoftwareAccount(
         accountId = customerAccountId,
         config = config,
         appGlobalAuthKey = authKey,
         recoveryAuthKey = recoveryAuthKey
       )
-
-      // TODO: Save account to repository
-      account
     }
 
   /**
@@ -77,16 +74,15 @@ class SoftwareAccountCreatorImpl(
     appAuthPublicKey: PublicKey<out AppAuthKey>,
     f8eEnvironment: F8eEnvironment,
     tokenScope: AuthTokenScope,
-  ): Result<Unit, SoftwareAccountCreationError> {
-    return coroutineBinding {
+  ): Result<Unit, SoftwareAccountCreationError> =
+    coroutineBinding {
       val authTokens =
         accountAuthenticator
           .appAuth(
             f8eEnvironment = f8eEnvironment,
             appAuthPublicKey = appAuthPublicKey,
             authTokenScope = tokenScope
-          )
-          .mapError { SoftwareAccountCreationAuthError(it) }
+          ).mapError { SoftwareAccountCreationAuthError(it) }
           .bind()
           .authTokens
 
@@ -95,5 +91,4 @@ class SoftwareAccountCreatorImpl(
         .mapError { FailedToSaveAuthTokens(it) }
         .bind()
     }
-  }
 }

@@ -41,8 +41,8 @@ public extension ButtonModel {
         case .secondarydestructive: return .destructive
         case .tertiary: return .foreground
         case .tertiarynounderline: return .foreground
-        case .tertiaryprimary: return .primary
-        case .tertiaryprimarynounderline: return .primary
+        case .tertiaryprimary: return .bitkeyPrimary
+        case .tertiaryprimarynounderline: return .bitkeyPrimary
         case .tertiarydestructive: return .destructiveForeground
         case .translucent: return .translucentForeground
         case .translucent10: return .translucentForeground
@@ -77,7 +77,7 @@ public extension ButtonModel {
     private var normalBackgroundColor: Color {
         switch treatment {
         case .black: return .black
-        case .primary: return .primary
+        case .primary: return .bitkeyPrimary
         case .primarydanger: return .dangerBackground
         case .primarydestructive: return .destructive
         case .secondary: return .secondary
@@ -99,7 +99,7 @@ public extension ButtonModel {
     private var disabledBackgroundColor: Color {
         switch treatment {
         case .black: return .black.opacity(0.4)
-        case .primary: return .primary.opacity(0.4)
+        case .primary: return .bitkeyPrimary.opacity(0.4)
         case .primarydanger: return .secondary
         case .primarydestructive: return .destructive.opacity(0.4)
         case .secondary: return .secondary

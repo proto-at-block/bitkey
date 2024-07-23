@@ -17,7 +17,7 @@ class ActivationInstructionsFormScreenSnapshots : FunSpec({
             onBack = {},
             onContinue = {},
             isNavigatingBack = false,
-            eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+            eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
           )
       )
     }

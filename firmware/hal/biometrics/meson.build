@@ -43,6 +43,9 @@ bio_deps = [
   auth_dep,
   memfault_dep,
   feature_flags_dep,
+  sysinfo_dep,
+  kv_dep,
+  metadata_dep,
 ]
 
 bio_lib = library('bio',

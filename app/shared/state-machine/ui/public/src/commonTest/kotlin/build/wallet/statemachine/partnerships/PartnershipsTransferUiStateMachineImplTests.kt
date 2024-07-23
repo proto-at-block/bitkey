@@ -1,14 +1,12 @@
 package build.wallet.statemachine.partnerships
 
+import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
-import build.wallet.partnerships.PartnerId
-import build.wallet.partnerships.PartnerInfo
-import build.wallet.partnerships.PartnerRedirectionMethod
-import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
-import build.wallet.partnerships.PartnershipTransactionType
+import build.wallet.partnerships.*
 import build.wallet.statemachine.core.awaitSheetWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -38,15 +36,18 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
-    fetchMostRecentCalls = turbines.create("fetch most recent calls")
+    fetchMostRecentCalls = turbines.create("fetch most recent calls"),
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
   )
+  val eventTracker = EventTrackerMock(turbines::create)
 
   // state machine
   val stateMachine =
     PartnershipsTransferUiStateMachineImpl(
       getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
       getTransferRedirectF8eClient = getTransferRedirectF8eClient,
-      partnershipsRepository = partnershipRepositoryMock
+      partnershipsRepository = partnershipRepositoryMock,
+      eventTracker = eventTracker
     )
 
   fun props() =
@@ -91,28 +92,43 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
             mainContentList[0].shouldBeTypeOf<Loader>()
           }
 
+          val partner1 = PartnerInfo(
+            logoUrl = null,
+            name = "Partner 1",
+            partnerId = PartnerId("Partner1")
+          )
+          val partner2 = PartnerInfo(
+            logoUrl = null,
+            name = "Partner 2",
+            partnerId = PartnerId("Partner2")
+          )
           awaitSheetWithBody<FormBodyModel> {
             mainContentList[0].shouldBeTypeOf<Loader>()
             partnershipRepositoryMock.createCalls.awaitItem().should { (partnerInfo, type) ->
               type.shouldBe(PartnershipTransactionType.TRANSFER)
-              partnerInfo.shouldBe(
-                PartnerInfo(
-                  logoUrl = null,
-                  name = "Partner 2",
-                  partnerId = PartnerId("Partner2")
-                )
-              )
+              partnerInfo.shouldBe(partner2)
             }
             onPartnerRedirectedCalls.awaitItem().shouldBe(
               PartnerRedirectionMethod.Web(
                 "http://example.com/redirect_url",
-                partnerInfo = PartnerInfo(
-                  logoUrl = null,
-                  name = "Partner 2",
-                  partnerId = PartnerId("Partner2")
-                )
+                partnerInfo = partner2
               )
             )
+          }
+
+          eventTracker.eventCalls.awaitItem().should {
+            it.action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_TRANSFER_PARTNER)
+            it.context.should { context ->
+              context.shouldBeTypeOf<PartnerEventTrackerScreenIdContext>()
+              context.name.shouldBe(partner1.partnerId.value)
+            }
+          }
+          eventTracker.eventCalls.awaitItem().should {
+            it.action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_TRANSFER_PARTNER)
+            it.context.should { context ->
+              context.shouldBeTypeOf<PartnerEventTrackerScreenIdContext>()
+              context.name.shouldBe(partner2.partnerId.value)
+            }
           }
         }
       }
@@ -131,6 +147,9 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
 
           onAnotherWalletOrExchange.awaitItem()
         }
+      }
+      repeat(2) {
+        eventTracker.eventCalls.awaitItem().action.shouldBe(Action.ACTION_APP_PARTNERSHIPS_VIEWED_TRANSFER_PARTNER)
       }
     }
   }

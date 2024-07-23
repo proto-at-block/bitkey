@@ -44,6 +44,7 @@ kotlin {
         api(projects.shared.phoneNumberPublic)
         api(projects.shared.fwupPublic)
         api(projects.shared.recoveryPublic)
+        api(projects.shared.coachmarkPublic)
         api(libs.kmp.kotlin.datetime)
         implementation(projects.shared.loggingPublic)
         implementation(projects.shared.firmwarePublic)

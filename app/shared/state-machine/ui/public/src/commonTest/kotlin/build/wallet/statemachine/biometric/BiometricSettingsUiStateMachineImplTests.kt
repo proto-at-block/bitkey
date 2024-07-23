@@ -1,6 +1,8 @@
 package build.wallet.statemachine.biometric
 
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.coachmark.CoachmarkIdentifier
+import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.SignatureVerifierMock
 import build.wallet.inappsecurity.BiometricPreferenceFake
@@ -17,6 +19,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
+import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
@@ -40,6 +43,7 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
   val biometricPreference = BiometricPreferenceFake()
   val signatureVerifier = SignatureVerifierMock()
   val biometricPrompter = BiometricPrompterMock()
+  val coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
 
   val biometricSettingsUiStateMachine = BiometricSettingUiStateMachineImpl(
     biometricPreference = biometricPreference,
@@ -47,7 +51,8 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
     nfcSessionUIStateMachine = nfcSessionUIStateMachine,
     biometricPrompter = biometricPrompter,
     signatureVerifier = signatureVerifier,
-    settingsLauncher = SystemSettingsLauncherMock()
+    settingsLauncher = SystemSettingsLauncherMock(),
+    coachmarkService = coachmarkService
   )
 
   val props = BiometricSettingUiProps(
@@ -59,6 +64,7 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
     signatureVerifier.reset()
     biometricPreference.reset()
     biometricPrompter.reset()
+    coachmarkService.resetCoachmarks()
   }
 
   test("enable biometric security authentication") {
@@ -252,9 +258,36 @@ class BiometricSettingsUiStateMachineImplTests : FunSpec({
       }
     }
   }
+
+  test("coachmark is hidden when switch is checked") {
+    coachmarkService.defaultCoachmarks = listOf(
+      CoachmarkIdentifier.BiometricUnlockCoachmark
+    )
+
+    biometricSettingsUiStateMachine.test(props) {
+      // initial render, not checked
+      awaitScreenWithBody<FormBodyModel> {
+        enableAuthSwitch().checked.shouldBeFalse()
+      }
+
+      // showing coachmark after fetch, enabling the preference
+      awaitScreenWithBody<FormBodyModel> {
+        enableAuthCoachmark().shouldNotBeNull()
+        enableAuthSwitch().onCheckedChange(true)
+      }
+
+      // coachmark is being hidden
+      awaitScreenWithBody<FormBodyModel> {
+        coachmarkService.turbine.awaitItem().shouldBe(CoachmarkIdentifier.BiometricUnlockCoachmark)
+      }
+
+      // coachmark is now hidden and marked
+      awaitScreenWithBody<FormBodyModel>()
+    }
+  }
 })
 
-fun FormBodyModel.enableAuthSwitch(): SwitchModel {
+private fun FormBodyModel.enableAuthSwitch(): SwitchModel {
   return mainContentList[0]
     .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
     .listGroupModel
@@ -264,4 +297,13 @@ fun FormBodyModel.enableAuthSwitch(): SwitchModel {
     .shouldBeInstanceOf<ListItemAccessory.SwitchAccessory>()
     .model
     .shouldBeInstanceOf<SwitchModel>()
+}
+
+fun FormBodyModel.enableAuthCoachmark(): CoachmarkModel? {
+  return mainContentList[0]
+    .shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+    .listGroupModel
+    .items[0]
+    .shouldBeInstanceOf<ListItemModel>()
+    .coachmark
 }

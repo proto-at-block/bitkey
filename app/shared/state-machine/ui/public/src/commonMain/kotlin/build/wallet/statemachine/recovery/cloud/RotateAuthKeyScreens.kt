@@ -18,7 +18,7 @@ object RotateAuthKeyScreens {
     onSelected: () -> Unit,
   ) = FormBodyModel(
     id = InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH,
-    eventTrackerScreenIdContext = context,
+    eventTrackerContext = context,
     onBack = null,
     toolbar = ToolbarModel(),
     header =
@@ -42,7 +42,7 @@ object RotateAuthKeyScreens {
     onAcknowledge: () -> Unit,
   ) = FormBodyModel(
     id = InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE,
-    eventTrackerScreenIdContext = context,
+    eventTrackerContext = context,
     onBack = null,
     toolbar = ToolbarModel(),
     header =
@@ -97,7 +97,7 @@ object RotateAuthKeyScreens {
     onContactSupport: () -> Unit,
   ) = FormBodyModel(
     id = id,
-    eventTrackerScreenIdContext = context,
+    eventTrackerContext = context,
     onBack = null,
     toolbar = ToolbarModel(),
     header =
@@ -135,14 +135,14 @@ object RotateAuthKeyScreens {
     LoadingBodyModel(
       message = "Removing all other devices...",
       id = InactiveAppEventTrackerScreenId.ROTATING_AUTH,
-      eventTrackerScreenIdContext = context
+      eventTrackerContext = context
     )
 
   fun DismissingProposal(context: AuthKeyRotationEventTrackerScreenIdContext) =
     LoadingBodyModel(
       message = "",
       id = InactiveAppEventTrackerScreenId.DISMISS_ROTATION_PROPOSAL,
-      eventTrackerScreenIdContext = context
+      eventTrackerContext = context
     )
 
   fun DeactivateDevicesAfterRestoreChoice(
@@ -151,7 +151,7 @@ object RotateAuthKeyScreens {
     onRemoveAllOtherDevices: () -> Unit,
   ) = FormBodyModel(
     id = InactiveAppEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH,
-    eventTrackerScreenIdContext = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION,
+    eventTrackerContext = AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION,
     onBack = null,
     toolbar = ToolbarModel(),
     header =
@@ -182,7 +182,7 @@ object RotateAuthKeyScreens {
     onRemoveAllOtherDevices: () -> Unit,
   ) = FormBodyModel(
     id = InactiveAppEventTrackerScreenId.DECIDE_IF_SHOULD_ROTATE_AUTH,
-    eventTrackerScreenIdContext = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS,
+    eventTrackerContext = AuthKeyRotationEventTrackerScreenIdContext.SETTINGS,
     onBack = onBack,
     toolbar = ToolbarModel(
       leadingAccessory = ToolbarAccessoryModel.IconAccessory.BackAccessory(onClick = onBack)

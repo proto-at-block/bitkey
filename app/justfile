@@ -101,6 +101,7 @@ android-snapshots-verify:
 # Record and update baseline UI snapshots for iOS
 ios-snapshots-record:
   #!/bin/bash
+  set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=true
   xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.2'
@@ -108,6 +109,7 @@ ios-snapshots-record:
 # Verify UI snapshots for iOS
 ios-snapshots-verify:
   #!/bin/bash
+  set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
   xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.2'
@@ -116,10 +118,18 @@ ios-snapshots-verify:
 ios-snapshot-prework:
   #!/bin/bash
   just install-xcode-clt
-  sim=$(xcrun simctl list | grep 'com.apple.CoreSimulator.SimRuntime.iOS-17-2' && echo true || echo false)
-  if [ "$sim" == "false" ]; then
+  # Check for the specific iOS simulator runtime
+  runtime=$(xcrun simctl list runtimes | grep -w 'com.apple.CoreSimulator.SimRuntime.iOS-17-2' && echo true || echo false)
+  if [ "$runtime" == "false" ]; then
     echo "You must install the iOS 17.2 simulator runtime to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
-    exit 1;
+    exit 1
+  fi
+  # Check for the specific simulator device
+  devices=$(xcrun simctl list devices | awk '/-- iOS 17.2 --/{flag=1;next}/--/{flag=0}flag')
+  device=$(echo "$devices" | grep -E 'iPhone 15 Pro Max \(.*\)' && echo true || echo false)
+  if [ "$device" == "false" ]; then
+    echo "You must install the iPhone 15 Pro Max simulator to record and verify snapshot tests. See the docs https://docs.wallet.build/guides/mobile/ui/framework/#updating-the-snapshots"
+    exit 1
   fi
   just xcodegen
 

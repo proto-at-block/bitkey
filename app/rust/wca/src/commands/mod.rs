@@ -37,13 +37,15 @@ pub use device_id::GetDeviceIdentifiers;
 pub use device_id::GetDeviceInfo;
 pub use device_id::GetTelemetryIdentifiers;
 pub use device_id::SecureBootConfig;
+pub use device_id::{BioMatchStats, TemplateMatchStats};
 pub use feature_flags::FirmwareFeatureFlag;
 pub use feature_flags::FirmwareFeatureFlagCfg;
 pub use feature_flags::GetFirmwareFeatureFlags;
 pub use feature_flags::SetFirmwareFeatureFlags;
 pub use fingerprint::{
-    CancelFingerprintEnrollment, DeleteFingerprint, EnrolledFingerprints, GetEnrolledFingerprints,
-    GetFingerprintEnrollmentStatus, SetFingerprintLabel, StartFingerprintEnrollment, FingerprintEnrollmentResult, EnrollmentDiagnostics
+    CancelFingerprintEnrollment, DeleteFingerprint, EnrolledFingerprints, EnrollmentDiagnostics,
+    FingerprintEnrollmentResult, GetEnrolledFingerprints, GetFingerprintEnrollmentStatus,
+    SetFingerprintLabel, StartFingerprintEnrollment,
 };
 pub use fwup::FwupFinish;
 pub use fwup::FwupMode;

@@ -409,6 +409,16 @@ enum SecureBootConfig {
   "Prod",
 };
 
+dictionary TemplateMatchStats {
+  u32 pass_count;
+  string firmware_version;
+};
+
+dictionary BioMatchStats {
+  sequence<TemplateMatchStats> pass_counts;
+  u32 fail_count;
+};
+
 dictionary FirmwareMetadata {
   FirmwareSlot active_slot;
   string git_id;
@@ -453,6 +463,7 @@ dictionary DeviceInfo {
   i32 avg_current_ma;
   u32 battery_cycles;
   SecureBootConfig? secure_boot_config;
+  BioMatchStats? bio_match_stats;
 };
 
 dictionary CoredumpFragment {

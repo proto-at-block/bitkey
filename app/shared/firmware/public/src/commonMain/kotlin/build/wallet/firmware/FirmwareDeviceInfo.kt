@@ -11,6 +11,26 @@ enum class HwKeyConfig {
   UNKNOWN,
 }
 
+data class TemplateMatchStats(
+  val passCount: Long,
+  val firmwareVersion: String,
+) {
+  override fun toString(): String {
+    return "passCount: $passCount, firmwareVersion: $firmwareVersion"
+  }
+}
+
+data class BioMatchStats(
+  val passCounts: List<TemplateMatchStats>,
+  val failCount: Long,
+) {
+  override fun toString(): String {
+    return passCounts.mapIndexed { index, templateMatchStats ->
+      "passCounts[$index]: $templateMatchStats"
+    }.joinToString(", ") + ", failCount: $failCount"
+  }
+}
+
 /**
  * @version Firmware version number.
  * @serial Hardware's top-level (assembly) serial number.
@@ -23,6 +43,7 @@ enum class HwKeyConfig {
  * @batteryCycles Number of battery cycles.
  * @secureBootConfig Secure boot configuration.
  * @timeRetrieved Time this information was retrieved in Unix epoch seconds.
+ * @bioMatchStats Fingerprint match statistics. This field SHOULD NOT be persisted. It should only be used for telemetry.
  */
 data class FirmwareDeviceInfo(
   val version: String,
@@ -36,6 +57,7 @@ data class FirmwareDeviceInfo(
   val batteryCycles: Long,
   val secureBootConfig: SecureBootConfig,
   val timeRetrieved: Long,
+  val bioMatchStats: BioMatchStats?,
 ) {
   // Transform a hwRevision like 'w1a-dvt' to 'dvt'.
   // Memfault prefers the latter.
@@ -71,21 +93,6 @@ data class FirmwareDeviceInfo(
       PROD -> hwRevisionWithoutProduct() + "-prod"
       DEV, UNKNOWN -> hwRevisionWithoutProduct()
     }
-
-  fun toMap(): Map<String, String> {
-    return mapOf(
-      "version" to version,
-      "serial" to serial,
-      "swType" to swType,
-      "hwRevision" to hwRevision,
-      "activeSlot" to activeSlot.name,
-      "batteryCharge" to batteryCharge.toString(),
-      "vCell" to vCell.toString(),
-      "avgCurrentMa" to avgCurrentMa.toString(),
-      "batteryCycles" to batteryCycles.toString(),
-      "timeRetrieved" to timeRetrieved.toString()
-    )
-  }
 
   fun batteryChargeForUninitializedModelGauge(): Int {
     // The reported battery percent from firmware 1.0.65 and below is wrong.

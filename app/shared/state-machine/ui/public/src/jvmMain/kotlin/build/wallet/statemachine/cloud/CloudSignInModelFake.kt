@@ -18,7 +18,7 @@ data class CloudSignInModelFake(
   override val eventTrackerScreenInfo: EventTrackerScreenInfo =
     EventTrackerScreenInfo(
       eventTrackerScreenId = CLOUD_SIGN_IN_LOADING,
-      eventTrackerScreenIdContext = null,
+      eventTrackerContext = null,
       eventTrackerShouldTrack = false
     ),
 ) : BodyModel()

@@ -62,7 +62,7 @@ public struct ListItemAccessoryView: View {
                 set: { newValue in model.onCheckedChange(.init(bool: newValue)) }
             )
         )
-        .tint(.primary)
+        .tint(.bitkeyPrimary)
         .labelsHidden()
         .disabled(!model.enabled)
         .ifNonnull(model.testTag) { view, testTag in

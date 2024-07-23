@@ -21,8 +21,10 @@ kotlin {
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.accountFake)
         implementation(projects.shared.featureFlagFake)
-        implementation(projects.shared.coachmarkFake)
         implementation(projects.shared.timeFake)
+        implementation(projects.shared.analyticsFake)
+        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.coachmarkFake)
       }
     }
   }

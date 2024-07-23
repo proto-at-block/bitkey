@@ -12,6 +12,7 @@ kotlin {
       dependencies {
         api(libs.kmp.kotlin.datetime)
         api(projects.shared.resultPublic)
+        api(projects.shared.analyticsPublic)
       }
     }
   }

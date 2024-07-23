@@ -54,7 +54,8 @@ class FirmwareDeviceInfoDaoImpl(
                 avgCurrentMa = deviceInfo.avgCurrentMa,
                 batteryCycles = deviceInfo.batteryCycles,
                 secureBootConfig = deviceInfo.secureBootConfig,
-                timeRetrieved = deviceInfo.timeRetrieved
+                timeRetrieved = deviceInfo.timeRetrieved,
+                bioMatchStats = null // Intentionally not persisted; no need.
               )
             }
           }
@@ -80,7 +81,8 @@ class FirmwareDeviceInfoDaoImpl(
             avgCurrentMa = deviceInfo.avgCurrentMa,
             batteryCycles = deviceInfo.batteryCycles,
             secureBootConfig = deviceInfo.secureBootConfig,
-            timeRetrieved = deviceInfo.timeRetrieved
+            timeRetrieved = deviceInfo.timeRetrieved,
+            bioMatchStats = null
           )
         }
       }

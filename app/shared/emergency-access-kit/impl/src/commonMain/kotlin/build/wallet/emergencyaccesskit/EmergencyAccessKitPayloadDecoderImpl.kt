@@ -79,10 +79,10 @@ data object EmergencyAccessKitPayloadDecoderImpl : EmergencyAccessKitPayloadDeco
 private fun EmergencyAccessKitPayloadV1.toProto() =
   Payload(
     backup_v1 =
-    BackupV1(
-      hw_encryption_key_ciphertext = this.sealedHwEncryptionKey,
-      sealed_active_spending_keyset = this.sealedActiveSpendingKeys.toProto()
-    )
+      BackupV1(
+        hw_encryption_key_ciphertext = this.sealedHwEncryptionKey,
+        sealed_active_spending_keyset = this.sealedActiveSpendingKeys.toProto()
+      )
   )
 
 private fun SealedData.toProto(): build.wallet.emergencyaccesskit.v1.SealedData =
@@ -110,20 +110,20 @@ fun BackupV1.toEmergencyAccessKitPayload(): Result<EmergencyAccessKitPayload, De
   return binding {
     EmergencyAccessKitPayloadV1(
       sealedHwEncryptionKey =
-      proto.hw_encryption_key_ciphertext
-        .toResultOr { InvalidProtoData() }
-        .bind(),
+        proto.hw_encryption_key_ciphertext
+          .toResultOr { InvalidProtoData() }
+          .bind(),
       sealedActiveSpendingKeys =
-      proto.sealed_active_spending_keyset
-        .toResultOr { InvalidProtoData() }
-        .flatMap { it.toSealedData() }
-        .bind()
+        proto.sealed_active_spending_keyset
+          .toResultOr { InvalidProtoData() }
+          .flatMap { it.toSealedData() }
+          .bind()
     )
   }
 }
 
 private fun build.wallet.emergencyaccesskit.v1.SealedData.toSealedData():
-    Result<SealedData, DecodeError> {
+  Result<SealedData, DecodeError> {
   val proto = this
   return binding {
     SealedData(
@@ -135,7 +135,7 @@ private fun build.wallet.emergencyaccesskit.v1.SealedData.toSealedData():
 }
 
 private fun build.wallet.emergencyaccesskit.v1.BitcoinNetworkType.toBitcoinNetworkType():
-    Result<BitcoinNetworkType, DecodeError> {
+  Result<BitcoinNetworkType, DecodeError> {
   return when (this) {
     BITCOIN_NETWORK_TYPE_UNSPECIFIED -> Err(InvalidProtoData())
     BITCOIN_NETWORK_TYPE_BITCOIN -> Ok(BitcoinNetworkType.BITCOIN)
@@ -151,10 +151,10 @@ private fun EmergencyAccessKitBackupV1.toProto() =
     local_id = this.spendingKeyset.localId,
     bitcoin_network_type = this.spendingKeyset.networkType.toProto(),
     app_key =
-    AppSpendingKey(
-      key = this.spendingKeyset.appKey.toProto(),
-      xprv = this.appSpendingKeyXprv.key.xprv
-    ),
+      AppSpendingKey(
+        key = this.spendingKeyset.appKey.toProto(),
+        xprv = this.appSpendingKeyXprv.key.xprv
+      ),
     hardware_key = this.spendingKeyset.hardwareKey.toProto(),
     f8e_key = this.spendingKeyset.f8eSpendingKeyset.spendingPublicKey.toProto()
   )
@@ -163,18 +163,18 @@ private fun EmergencyAccessKitBackupV1.toProto() =
 private fun build.wallet.bitkey.spending.SpendingPublicKey.toProto() =
   SpendingPublicKey(
     origin =
-    Origin(
-      fingerprint = this.key.origin.fingerprint,
-      derivation_path = this.key.origin.derivationPath
-    ),
+      Origin(
+        fingerprint = this.key.origin.fingerprint,
+        derivation_path = this.key.origin.derivationPath
+      ),
     xpub = this.key.xpub,
     derivation_path = this.key.derivationPath,
     wildcard =
-    when (this.key.wildcard) {
-      DescriptorPublicKey.Wildcard.None -> WILDCARD_NONE
-      DescriptorPublicKey.Wildcard.Unhardened -> WILDCARD_UNHARDENED
-      DescriptorPublicKey.Wildcard.Hardened -> WILDCARD_HARDENED
-    }
+      when (this.key.wildcard) {
+        DescriptorPublicKey.Wildcard.None -> WILDCARD_NONE
+        DescriptorPublicKey.Wildcard.Unhardened -> WILDCARD_UNHARDENED
+        DescriptorPublicKey.Wildcard.Hardened -> WILDCARD_HARDENED
+      }
   )
 
 /**
@@ -182,49 +182,49 @@ private fun build.wallet.bitkey.spending.SpendingPublicKey.toProto() =
  * @return a [DecodeError.InvalidProtoData] if any fields are missing
  */
 fun ActiveSpendingKeysetV1.toEmergencyAccessKitBackupV1():
-    Result<EmergencyAccessKitBackupV1, DecodeError> {
+  Result<EmergencyAccessKitBackupV1, DecodeError> {
   val proto = this
   return binding {
     val appSpendingKey = proto.app_key.toResultOr { InvalidProtoData() }.bind()
 
     EmergencyAccessKitBackupV1(
       spendingKeyset =
-      SpendingKeyset(
-        localId = proto.local_id.toResultOr { InvalidProtoData() }.bind(),
-        networkType =
-        proto.bitcoin_network_type
-          .toResultOr { InvalidProtoData() }
-          .flatMap { it.toBitcoinNetworkType() }
-          .bind(),
-        appKey =
-        AppSpendingPublicKey(
-          key =
-          appSpendingKey.key
-            .toResultOr { InvalidProtoData() }
-            .flatMap { it.toDescriptorPublicKey() }
-            .bind()
-        ),
-        hardwareKey =
-        HwSpendingPublicKey(
-          key =
-          proto.hardware_key
-            .toResultOr { InvalidProtoData() }
-            .flatMap { it.toDescriptorPublicKey() }
-            .bind()
-        ),
-        f8eSpendingKeyset =
-        F8eSpendingKeyset(
-          keysetId = "FAKE_KEYSET_ID",
-          spendingPublicKey =
-          F8eSpendingPublicKey(
-            key =
-            proto.f8e_key
+        SpendingKeyset(
+          localId = proto.local_id.toResultOr { InvalidProtoData() }.bind(),
+          networkType =
+            proto.bitcoin_network_type
               .toResultOr { InvalidProtoData() }
-              .flatMap { it.toDescriptorPublicKey() }
-              .bind()
-          )
-        )
-      ),
+              .flatMap { it.toBitcoinNetworkType() }
+              .bind(),
+          appKey =
+            AppSpendingPublicKey(
+              key =
+                appSpendingKey.key
+                  .toResultOr { InvalidProtoData() }
+                  .flatMap { it.toDescriptorPublicKey() }
+                  .bind()
+            ),
+          hardwareKey =
+            HwSpendingPublicKey(
+              key =
+                proto.hardware_key
+                  .toResultOr { InvalidProtoData() }
+                  .flatMap { it.toDescriptorPublicKey() }
+                  .bind()
+            ),
+          f8eSpendingKeyset =
+            F8eSpendingKeyset(
+              keysetId = "FAKE_KEYSET_ID",
+              spendingPublicKey =
+                F8eSpendingPublicKey(
+                  key =
+                    proto.f8e_key
+                      .toResultOr { InvalidProtoData() }
+                      .flatMap { it.toDescriptorPublicKey() }
+                      .bind()
+                )
+            )
+        ),
       appSpendingKeyXprv = AppSpendingPrivateKey(
         key = ExtendedPrivateKey(
           xprv = appSpendingKey.xprv.toResultOr { InvalidProtoData() }.bind(),
@@ -241,19 +241,19 @@ private fun SpendingPublicKey.toDescriptorPublicKey(): Result<DescriptorPublicKe
     val origin = proto.origin.toResultOr { InvalidProtoData() }.bind()
     DescriptorPublicKey(
       origin =
-      DescriptorPublicKey.Origin(
-        fingerprint = origin.fingerprint.toResultOr { InvalidProtoData() }.bind(),
-        derivationPath = origin.derivation_path.toResultOr { InvalidProtoData() }.bind()
-      ),
+        DescriptorPublicKey.Origin(
+          fingerprint = origin.fingerprint.toResultOr { InvalidProtoData() }.bind(),
+          derivationPath = origin.derivation_path.toResultOr { InvalidProtoData() }.bind()
+        ),
       xpub = proto.xpub.toResultOr { InvalidProtoData() }.bind(),
       derivationPath = proto.derivation_path.toResultOr { InvalidProtoData() }.bind(),
       wildcard =
-      when (proto.wildcard.toResultOr { InvalidProtoData() }.bind()) {
-        WILDCARD_UNSPECIFIED -> Err(InvalidProtoData())
-        WILDCARD_NONE -> Ok(DescriptorPublicKey.Wildcard.None)
-        WILDCARD_UNHARDENED -> Ok(DescriptorPublicKey.Wildcard.Unhardened)
-        WILDCARD_HARDENED -> Ok(DescriptorPublicKey.Wildcard.Hardened)
-      }.bind()
+        when (proto.wildcard.toResultOr { InvalidProtoData() }.bind()) {
+          WILDCARD_UNSPECIFIED -> Err(InvalidProtoData())
+          WILDCARD_NONE -> Ok(DescriptorPublicKey.Wildcard.None)
+          WILDCARD_UNHARDENED -> Ok(DescriptorPublicKey.Wildcard.Unhardened)
+          WILDCARD_HARDENED -> Ok(DescriptorPublicKey.Wildcard.Hardened)
+        }.bind()
     )
   }
 }

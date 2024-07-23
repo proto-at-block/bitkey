@@ -31,6 +31,7 @@ locals {
     social_recovery_table_name       = "${module.this.id_dot}.social_recovery"
     consent_table_name               = "${module.this.id_dot}.consent"
     recovery_table_name              = "${module.this.id_dot}.account_recovery"
+    privileged_action_table_name     = "${module.this.id_dot}.privileged_action"
   }
   table_name_list = [for k, name in local.tables : name]
 
@@ -87,6 +88,7 @@ locals {
     SIGNED_PSBT_CACHE_TABLE     = local.tables.signed_psbt_cache_table_name
     SOCIAL_RECOVERY_TABLE       = local.tables.social_recovery_table_name
     CONSENT_TABLE               = local.tables.consent_table_name
+    PRIVILEGED_ACTION_TABLE     = local.tables.privileged_action_table_name
   }
 
   ###############################################
@@ -163,6 +165,7 @@ module "dynamodb_tables" {
   migration_record_table_name      = local.tables.migration_record_table_name
   social_recovery_table_name       = local.tables.social_recovery_table_name
   consent_table_name               = local.tables.consent_table_name
+  privileged_action_table_name     = local.tables.privileged_action_table_name
 }
 
 module "ecs_api" {

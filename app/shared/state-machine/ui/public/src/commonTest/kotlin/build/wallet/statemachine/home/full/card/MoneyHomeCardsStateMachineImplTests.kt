@@ -124,7 +124,7 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       ),
       startSweepCardUiProps = StartSweepCardUiProps(
         onStartSweepClicked = {},
-        keybox = KeyboxMock,
+        keybox = KeyboxMock
       )
     )
 

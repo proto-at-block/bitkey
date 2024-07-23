@@ -1,0 +1,6 @@
+CREATE TABLE tmp_coachmarkEntity (id TEXT NOT NULL PRIMARY KEY, viewed INTEGER NOT NULL, expiration INTEGER NOT NULL);
+INSERT INTO tmp_coachmarkEntity (id, viewed, expiration) SELECT coachmarkId, viewed, expiration FROM coachmarkEntity;
+DROP TABLE coachmarkEntity;
+ALTER TABLE tmp_coachmarkEntity RENAME TO coachmarkEntity;
+
+PRAGMA foreign_key_check;

@@ -4012,6 +4012,7 @@ dependencies = [
  "recovery",
  "regex",
  "serde",
+ "serde_json",
  "strum",
  "thiserror",
  "time",

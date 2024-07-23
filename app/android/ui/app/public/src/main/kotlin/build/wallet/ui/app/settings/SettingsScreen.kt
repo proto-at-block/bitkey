@@ -72,7 +72,8 @@ private fun SettingsSection(model: SettingsBodyModel.SectionModel) {
         specialTrailingAccessory = rowModel.specialTrailingIconModel?.let { model ->
           ListItemAccessory.IconAccessory(model = model)
         },
-        onClick = rowModel.onClick
+        onClick = rowModel.onClick,
+        showNewCoachmark = rowModel.showNewCoachmark
       )
       Divider()
     }
@@ -116,6 +117,12 @@ internal fun SettingsScreenPreview() {
                       iconSize = Small,
                       iconTint = IconTint.Warning
                     )
+                  ) {},
+                  SettingsBodyModel.RowModel(
+                    icon = Icon.SmallIconLock,
+                    title = "App Security",
+                    isDisabled = false,
+                    showNewCoachmark = true
                   ) {}
                 )
             )

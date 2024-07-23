@@ -2,23 +2,14 @@ package build.wallet.account
 
 import app.cash.sqldelight.async.coroutines.awaitAsOne
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.FullAccountConfig
-import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.account.LiteAccountConfig
+import build.wallet.bitkey.account.*
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.hardware.HwKeyBundle
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.bitkey.spending.SpendingKeyset
 import build.wallet.database.BitkeyDatabaseProvider
-import build.wallet.database.sqldelight.BitkeyDatabase
-import build.wallet.database.sqldelight.FullAccountView
-import build.wallet.database.sqldelight.GetActiveLiteAccount
-import build.wallet.database.sqldelight.GetOnboardingLiteAccount
-import build.wallet.database.sqldelight.LiteAccountQueries
-import build.wallet.database.sqldelight.SpendingKeysetEntity
+import build.wallet.database.sqldelight.*
 import build.wallet.db.DbError
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -52,12 +43,14 @@ class AccountDaoImpl(
   override fun onboardingAccount(): Flow<Result<Account?, DbError>> {
     return combine(
       onboardingFullAccount(),
-      onboardingLiteAccount()
-    ) { onboardingFullAccountResult, onboardingLiteAccountResult ->
+      onboardingLiteAccount(),
+      onboardingSoftwareAccount()
+    ) { onboardingFullAccountResult, onboardingLiteAccountResult, onboardingSoftwareAccountResult ->
       coroutineBinding {
         val onboardingFullAccount = onboardingFullAccountResult.bind()
         val onboardingLiteAccount = onboardingLiteAccountResult.bind()
-        onboardingFullAccount ?: onboardingLiteAccount
+        val onboardingSoftwareAccount = onboardingSoftwareAccountResult.bind()
+        onboardingFullAccount ?: onboardingSoftwareAccount ?: onboardingLiteAccount
       }
     }
   }
@@ -71,6 +64,10 @@ class AccountDaoImpl(
           liteAccountQueries.setActiveLiteAccountId(accountId = account.accountId)
           liteAccountQueries.clearOnboardingLiteAccount()
         }
+        // TODO (W-8720): An OnboardingSoftwareAccount should never be set as active.
+        // This is a downside to our current separation of Onboarding and (soon)
+        // ActiveSoftwareAccount. We'll need to reconsider our interfaces for these two account states.
+        is OnboardingSoftwareAccount -> error("Can't set an onboarding account as active")
       }
     }.logFailure { "Error setting active account : $account" }
   }
@@ -81,10 +78,20 @@ class AccountDaoImpl(
       when (account) {
         // TODO(BKR-488): manage active Full Accounts using Account entity.
         is FullAccount -> error("not implemented")
-
         is LiteAccount -> {
           liteAccountQueries.insertLiteAccount(liteAccount = account)
           liteAccountQueries.setOnboardingLiteAccountId(accountId = account.accountId)
+        }
+        is OnboardingSoftwareAccount -> {
+          softwareAccountQueries.setOnboardingSoftwareAccount(
+            accountId = account.accountId,
+            appGlobalAuthKey = account.appGlobalAuthKey,
+            appRecoveryAuthKey = account.recoveryAuthKey,
+            bitcoinNetworkType = account.config.bitcoinNetworkType,
+            f8eEnvironment = account.config.f8eEnvironment,
+            isTestAccount = account.config.isTestAccount,
+            isUsingSocRecFakes = account.config.isUsingSocRecFakes
+          )
         }
       }
     }.logFailure { "Failed to save account" }
@@ -94,6 +101,7 @@ class AccountDaoImpl(
     return database.awaitTransaction {
       liteAccountQueries.clear()
       fullAccountQueries.clear()
+      softwareAccountQueries.clear()
     }.logFailure { "Error clearing account database state." }
   }
 
@@ -124,7 +132,27 @@ class AccountDaoImpl(
       .asFlowOfOneOrNull()
       .mapResult { it?.toFullAccount(database) }
   }
+
+  private fun onboardingSoftwareAccount(): Flow<Result<OnboardingSoftwareAccount?, DbError>> {
+    return database.softwareAccountQueries
+      .getOnboardingSoftwareAccount()
+      .asFlowOfOneOrNull()
+      .mapResult { it?.toOnboardingSoftwareAccount() }
+  }
 }
+
+private fun GetOnboardingSoftwareAccount.toOnboardingSoftwareAccount() =
+  OnboardingSoftwareAccount(
+    accountId = accountId,
+    config = SoftwareAccountConfig(
+      bitcoinNetworkType = bitcoinNetworkType,
+      f8eEnvironment = f8eEnvironment,
+      isTestAccount = isTestAccount,
+      isUsingSocRecFakes = isUsingSocRecFakes
+    ),
+    appGlobalAuthKey = appGlobalAuthKey,
+    recoveryAuthKey = appRecoveryAuthKey
+  )
 
 private fun GetActiveLiteAccount.toLiteAccount() =
   LiteAccount(

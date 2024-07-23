@@ -29,6 +29,7 @@ data class SettingsBodyModel(
     val title: String,
     val isDisabled: Boolean,
     val specialTrailingIconModel: IconModel? = null,
+    val showNewCoachmark: Boolean = false,
     val onClick: () -> Unit,
   )
 

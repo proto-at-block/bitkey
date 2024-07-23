@@ -12,13 +12,13 @@ class CoachmarkDaoFake : CoachmarkDao {
     id: CoachmarkIdentifier,
     expiration: Instant,
   ): Result<Unit, DbError> {
-    coachmarks = coachmarks + Coachmark(id.string, false, expiration)
+    coachmarks = coachmarks + Coachmark(id, false, expiration)
     return Ok(Unit)
   }
 
   override suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, DbError> {
     coachmarks = coachmarks.map {
-      if (it.coachmarkId == id.string) {
+      if (it.id == id) {
         it.copy(viewed = true)
       } else {
         it
@@ -28,7 +28,7 @@ class CoachmarkDaoFake : CoachmarkDao {
   }
 
   override suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, DbError> =
-    Ok(coachmarks.find { it.coachmarkId == id.string })
+    Ok(coachmarks.find { it.id == id })
 
   override suspend fun getAllCoachmarks(): Result<List<Coachmark>, DbError> = Ok(coachmarks)
 

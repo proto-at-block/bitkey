@@ -44,6 +44,7 @@ typedef enum {
 metadata_result_t metadata_get(metadata_target_t target, metadata_t* meta);
 metadata_result_t metadata_validity(metadata_target_t target);
 metadata_result_t metadata_get_active_slot(metadata_t* meta, fwpb_firmware_slot* slot);
+metadata_result_t metadata_get_firmware_version(uint32_t* version);
 void metadata_print(metadata_target_t target);
 
 #ifndef EMBEDDED_BUILD

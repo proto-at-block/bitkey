@@ -3,6 +3,7 @@
 #include "fpc_bep_sensor.h"
 #include "fpc_bep_sensor_security.h"
 #include "fpc_bep_sensor_test.h"
+#include "kv.h"
 #include "secutils.h"
 
 #include <stdbool.h>
@@ -70,6 +71,15 @@ typedef struct {
   bio_diagnostics_t diagnostics;
 } bio_enroll_stats_t;
 
+typedef struct {
+  uint8_t tally;
+} bio_match_tally_t;
+
+typedef struct {
+  bio_match_tally_t pass_counts[TEMPLATE_MAX_COUNT];
+  uint8_t fail_count;
+} bio_match_stats_t;
+
 typedef enum {
   BIO_FINGER_DOWN = 0,
   BIO_FINGER_UP = 1,
@@ -110,6 +120,9 @@ secure_bool_t bio_authenticate_finger(secure_bool_t* is_match, bio_template_id_t
                                       uint32_t comms_timestamp);
 void bio_enroll_cancel(void);
 
+bio_match_stats_t* bio_match_stats_get(void);
+void bio_match_stats_clear(void);
+
 bool bio_provision_cryptographic_keys(bool dry_run, bool i_realize_this_is_irreversible);
 bool bio_security_test(fpc_bep_security_test_result_t* test_result);
 bool bio_storage_calibration_data_retrieve(uint8_t** calibration_data, uint16_t* size_out);
@@ -118,5 +131,10 @@ bool bio_image_analysis_test(fpc_bep_capture_test_mode_t mode,
 bool bio_sensor_is_secured(bool* secured);
 bool bio_sensor_is_otp_locked(bool* locked);
 bool bio_image_capture_test(uint8_t** image_out, uint32_t* image_size_out);
+
+// Get the firmware version that enrolled a given template.
+kv_result_t bio_template_enrolled_by_version_get(bio_template_id_t id, uint32_t* version_out);
+// Record the firmware version that enrolled a given template.
+kv_result_t bio_template_enrolled_by_version_store(bio_template_id_t id);
 
 void bio_wipe_state(void);

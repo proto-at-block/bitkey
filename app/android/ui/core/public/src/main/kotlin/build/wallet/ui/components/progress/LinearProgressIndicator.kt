@@ -16,7 +16,7 @@ fun LinearProgressIndicator(
   modifier: Modifier = Modifier,
   // TODO(W-8034): use Progress type.
   progress: Float,
-  indicatorColor: Color = WalletTheme.colors.primary,
+  indicatorColor: Color = WalletTheme.colors.bitkeyPrimary,
   backgroundColor: Color = WalletTheme.colors.foreground10,
   height: Dp = 8.dp,
 ) {

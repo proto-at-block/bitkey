@@ -242,12 +242,7 @@ mod tests {
     ) {
         let client = WsmClient::new(&get_wsm_endpoint()).unwrap();
         let response = client
-            .sign_psbt(
-                root_key_id,
-                descriptor,
-                change_descriptor,
-                &psbt.to_string(),
-            )
+            .sign_psbt(root_key_id, descriptor, change_descriptor, psbt)
             .await
             .unwrap();
         let signed_psbt = PartiallySignedTransaction::from_str(&response.psbt).unwrap();
@@ -265,8 +260,8 @@ mod tests {
         // We use a PSBT that already has a signature applied by one of the private keys derived using the tprv of the external descriptor
         signing_from_descriptor_is_finalized(
             TEST_KEY_ID,
-            &ext_descriptor,
-            &change_descriptor,
+            ext_descriptor,
+            change_descriptor,
             "cHNidP8BAF4BAAAAAdgl/LBUglWZt7TvnCaDVGxyPazBZTXiQggzCQf+BmLEAAAAAAD9////AWxTAgAAAAAAIgAghHtLiFoUYv2/2NG2J5eCpZoOcJp/mda2wpfjnkmQ6s15CQAAAAEAtQIAAAAAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8EAhUJAP////8CC1QCAAAAAAAiACCoM4xY2wT9qGq6YCkU4rT3a7Q9jHS36QoAy/+1k4GMOQAAAAAAAAAAJmokqiGp7eL2HD9x0d79P6mZ36NpU3VcaQaJeZlitIvr2DaXToz5ASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABASsLVAIAAAAAACIAIKgzjFjbBP2oarpgKRTitPdrtD2MdLfpCgDL/7WTgYw5IgIDlqJO9MX8tDEeaa5UeNAapvtv+l6uJtf1JLhml2HJYotHMEQCIF1nnhlNC+KsiQgXMD4pVOmON3je+DVl9DtLCaQTdCedAiBnerFIbtKCyMmoCdnecllUfmZ5Fa51+Tp+JnmPVNtvxAEBBWlSIQIptfHA8EI7pOcS7Vb5ZNvEF8kYF1OQGOqlyfy0kRslEiECnVSxvHEzWr/gpDwVMstQqyngd6CkVplxvsDFw9nxBUwhA5aiTvTF/LQxHmmuVHjQGqb7b/peribX9SS4ZpdhyWKLU64iBgIptfHA8EI7pOcS7Vb5ZNvEF8kYF1OQGOqlyfy0kRslEhjDReHpVAAAgAEAAIAAAACAAAAAAAAAAAAiBgKdVLG8cTNav+CkPBUyy1CrKeB3oKRWmXG+wMXD2fEFTBiikU5YVAAAgAEAAIAAAACAAAAAAAAAAAAiBgOWok70xfy0MR5prlR40Bqm+2/6Xq4m1/UkuGaXYcliixipFK/YVAAAgAEAAIAAAACAAAAAAAAAAAAAAQFpUiECHloUcPenabwXIeVDsTUOkSeWPQaFercS5ebmjPvc+ishAw+m1iXFCvZG1m6Ob/H3TkVz+IaCGnEQ0Gd2i5q3qCwfIQNYFEFotMbk5sOiwKHbgdguUhgpYePgP5Ig0zuSBRq/PlOuIgICHloUcPenabwXIeVDsTUOkSeWPQaFercS5ebmjPvc+isYqRSv2FQAAIABAACAAAAAgAAAAAABAAAAIgIDD6bWJcUK9kbWbo5v8fdORXP4hoIacRDQZ3aLmreoLB8YopFOWFQAAIABAACAAAAAgAAAAAABAAAAIgIDWBRBaLTG5ObDosCh24HYLlIYKWHj4D+SINM7kgUavz4Yw0Xh6VQAAIABAACAAAAAgAAAAAABAAAAAA=="
         )
         .await;
@@ -281,8 +276,8 @@ mod tests {
 
         signing_from_descriptor_is_finalized(
             TEST_KEY_ID,
-            &bad_ext_descriptor,
-            &bad_change_descriptor,
+            bad_ext_descriptor,
+            bad_change_descriptor,
             "cHNidP8BAF4BAAAAAe+V9DNE5pn2sVr06JWZtHrXzX1vXFqTvR4sTquaEDM4AAAAAAD9////AXinBAAAAAAAIgAgBhkIc237PNE4FqG2aaLKod//lkUN7gtXxBtLnoDlQIIUCQAAAAEAtQIAAAAAAQEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP////8EArAIAP////8CF6gEAAAAAAAiACAlz8chzTZ/VoCaoSX1HuVkecXXazl0KRF/JvCoekZjmgAAAAAAAAAAJmokqiGp7eL2HD9x0d79P6mZ36NpU3VcaQaJeZlitIvr2DaXToz5ASAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABASsXqAQAAAAAACIAICXPxyHNNn9WgJqhJfUe5WR5xddrOXQpEX8m8Kh6RmOaIgID18lx1/P8JpWem+fwDoyTbh3qvJWHpJy6XmC8XJkLK1RHMEQCIDPEpXsF2xfXDwsoBCXk4aN3HDw8f+UMuCQYS3Dp6QxoAiBG+GBVaiC+45Y3hcAXYob0soK+0NvEri7n1O256ERykwEBBWlSIQI6Sqko0C7Zf1xGOR1rf/zW7Xt55nHJgsAdhznUwWUvbyECukUTuN8rDSao26u3WfKEg2iZCvaEw7FDTQB7uFY5GxwhA9fJcdfz/CaVnpvn8A6Mk24d6ryVh6Scul5gvFyZCytUU64iBgI6Sqko0C7Zf1xGOR1rf/zW7Xt55nHJgsAdhznUwWUvbxjjH0TLVAAAgAEAAIAAAACAAAAAAAAAAAAiBgK6RRO43ysNJqjbq7dZ8oSDaJkK9oTDsUNNAHu4VjkbHBiMrZuGVAAAgAEAAIAAAACAAAAAAAAAAAAiBgPXyXHX8/wmlZ6b5/AOjJNuHeq8lYeknLpeYLxcmQsrVBgGh56dVAAAgAEAAIAAAACAAAAAAAAAAAAAAQFpUiECnY1cvvifQ4H1AttcYYNVrP0ogisb+3BOttitgFy2lvAhAwLHuYt/Ib2C8c/GlCHl7pTJgB2zh0kDu3FObxffKGg9IQOpX4RYQkCDbZEW72QRPqWjNWfMEw9EvOlb4VH6DB+qRFOuIgICnY1cvvifQ4H1AttcYYNVrP0ogisb+3BOttitgFy2lvAY4x9Ey1QAAIABAACAAAAAgAAAAAABAAAAIgIDAse5i38hvYLxz8aUIeXulMmAHbOHSQO7cU5vF98oaD0YjK2bhlQAAIABAACAAAAAgAAAAAABAAAAIgIDqV+EWEJAg22RFu9kET6lozVnzBMPRLzpW+FR+gwfqkQYBoeenVQAAIABAACAAAAAgAAAAAABAAAAAA=="
         )
         .await;

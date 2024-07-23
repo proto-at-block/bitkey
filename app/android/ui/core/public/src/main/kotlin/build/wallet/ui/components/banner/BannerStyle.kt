@@ -21,7 +21,7 @@ internal fun WalletTheme.bannerStyle(treatment: BannerTreatment): BannerStyle {
       when (treatment) {
         Default -> colors.foreground
         Warning -> colors.warningForeground
-        Ready -> colors.primary
+        Ready -> colors.bitkeyPrimary
       },
     backgroundColor =
       when (treatment) {

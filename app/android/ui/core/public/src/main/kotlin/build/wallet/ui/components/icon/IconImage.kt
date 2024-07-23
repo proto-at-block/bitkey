@@ -125,7 +125,7 @@ fun IconImage(
       modifier
         .background(
           foreground10 = WalletTheme.colors.foreground10,
-          primary = WalletTheme.colors.primary,
+          primary = WalletTheme.colors.bitkeyPrimary,
           type = model.iconBackgroundType
         ).thenIf(model.iconBackgroundType is Circle || model.iconBackgroundType is Square) {
           Modifier.size(model.totalSize.dp)

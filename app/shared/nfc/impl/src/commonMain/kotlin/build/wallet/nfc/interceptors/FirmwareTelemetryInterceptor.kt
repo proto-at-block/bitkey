@@ -29,7 +29,7 @@ fun collectFirmwareTelemetry(
       // it looks like the FWUP failed but it didn't.
 
       // Only attempt to collect telemetry if the hardware is unlocked, because
-      // the telemetry endpoints require authentication themselves.
+      // the telemetry endpoints require authentication itself.
       if (!session.parameters.skipFirmwareTelemetry && commands.queryAuthentication(session)) {
         val deviceInfo = commands.getDeviceInfo(session)
         interceptor.persistDeviceInfo(deviceInfo)

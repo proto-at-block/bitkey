@@ -1,6 +1,6 @@
 package build.wallet.statemachine.core
 
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 
 /**
@@ -18,7 +18,7 @@ fun LoadingBodyModel(
   id: EventTrackerScreenId?,
   onBack: (() -> Unit)? = null,
   message: String? = null,
-  eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+  eventTrackerContext: EventTrackerContext? = null,
   eventTrackerShouldTrack: Boolean = true,
 ): LoadingSuccessBodyModel {
   return LoadingSuccessBodyModel(
@@ -26,7 +26,7 @@ fun LoadingBodyModel(
     id = id,
     message = message,
     state = LoadingSuccessBodyModel.State.Loading,
-    eventTrackerScreenIdContext = eventTrackerScreenIdContext,
+    eventTrackerContext = eventTrackerContext,
     eventTrackerShouldTrack = eventTrackerShouldTrack
   )
 }

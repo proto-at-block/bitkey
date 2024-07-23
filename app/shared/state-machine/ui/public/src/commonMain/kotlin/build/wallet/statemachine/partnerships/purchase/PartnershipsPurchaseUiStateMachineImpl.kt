@@ -1,35 +1,21 @@
 package build.wallet.statemachine.partnerships.purchase
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
+import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.partnerships.GetPurchaseOptionsF8eClient
-import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClient
-import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClient
-import build.wallet.f8e.partnerships.NoPurchaseOptionsError
-import build.wallet.f8e.partnerships.PurchaseMethodAmounts
-import build.wallet.f8e.partnerships.Quote
-import build.wallet.f8e.partnerships.RedirectInfo
-import build.wallet.f8e.partnerships.RedirectUrlType
-import build.wallet.f8e.partnerships.toPurchaseMethodAmounts
+import build.wallet.f8e.partnerships.*
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.CurrencyConverter
+import build.wallet.money.exchange.ExchangeRate
+import build.wallet.money.exchange.ExchangeRateSyncer
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.partnerships.PartnerInfo
-import build.wallet.partnerships.PartnerRedirectionMethod
-import build.wallet.partnerships.PartnershipTransaction
-import build.wallet.partnerships.PartnershipTransactionId
-import build.wallet.partnerships.PartnershipTransactionType
-import build.wallet.partnerships.PartnershipTransactionsStatusRepository
+import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
@@ -39,9 +25,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.form.RenderContext.Sheet
 import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.PurchaseAmountsState
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.QuotesState
-import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.RedirectState
+import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseState.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
@@ -49,6 +33,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.coroutines.flow.first
 import kotlin.contracts.contract
 
 // TODO: W-5675 - defaulting to card for now, but will eventually support other payment methods
@@ -62,6 +47,9 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val getPurchaseRedirectF8eClient: GetPurchaseRedirectF8eClient,
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val eventTracker: EventTracker,
+  private val exchangeRateSyncer: ExchangeRateSyncer,
+  private val currencyConverter: CurrencyConverter,
 ) : PartnershipsPurchaseUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseUiProps): SheetModel {
@@ -70,7 +58,9 @@ class PartnershipsPurchaseUiStateMachineImpl(
       mutableStateOf(PurchaseAmountsState.Loading(preSelectedAmount = props.selectedAmount))
     }
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-
+    val exchangeRates: ImmutableList<ExchangeRate> by remember {
+      mutableStateOf(exchangeRateSyncer.exchangeRates.value.toImmutableList())
+    }
     return when (val currentState = state) {
       is PurchaseAmountsState.Loaded -> {
         return selectPurchaseAmountModel(
@@ -136,11 +126,18 @@ class PartnershipsPurchaseUiStateMachineImpl(
       }
 
       is QuotesState.Loaded -> {
+        currentState.quotes.forEach { quote ->
+          eventTracker.track(
+            action = Action.ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE,
+            context = PartnerEventTrackerScreenIdContext(quote.partnerInfo)
+          )
+        }
         return selectPartnerQuoteModel(
-          title = "Select a partner",
-          subTitle = "Quotes include price and fees",
-          moneyDisplayFormatter = moneyDisplayFormatter,
-          quotes = currentState.quotes,
+          title = "Purchase ${moneyDisplayFormatter.format(currentState.amount)}",
+          subTitle = "Offers show amount you'll receive after exchange fees. Bitkey does not charge a fee.",
+          quotes = currentState.quotes.map {
+            it.toQuoteDisplay(moneyDisplayFormatter, exchangeRates, currencyConverter)
+          }.toImmutableList(),
           onSelectPartnerQuote = {
             state =
               RedirectState.Loading(
@@ -149,7 +146,8 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 paymentMethod = SUPPORTED_PAYMENT_METHOD
               )
           },
-          onClosed = props.onExit
+          onClosed = props.onExit,
+          previousPartnerIds = currentState.previousPartnerIds
         )
       }
       is QuotesState.LoadingFailure ->
@@ -175,7 +173,8 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 QuotesState.Loaded(
                   amount = currentState.amount,
                   paymentMethod = SUPPORTED_PAYMENT_METHOD,
-                  quotes = it.quoteList.toImmutableList()
+                  quotes = it.quoteList.toImmutableList(),
+                  previousPartnerIds = partnershipsRepository.previouslyUsedPartnerIds.first()
                 )
             }
         }
@@ -334,7 +333,7 @@ private fun failureModel(
     body =
       ErrorFormBodyModel(
         eventTrackerScreenId = id,
-        eventTrackerScreenIdContext = context,
+        eventTrackerContext = context,
         title = title,
         subline = errorMessage,
         primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = onBack),
@@ -356,7 +355,7 @@ private fun loadingModel(
   body =
     FormBodyModel(
       id = id,
-      eventTrackerScreenIdContext = context,
+      eventTrackerContext = context,
       onBack = {},
       toolbar = null,
       header = null,
@@ -415,6 +414,7 @@ private sealed interface PartnershipsPurchaseState {
       val amount: FiatMoney,
       val paymentMethod: String,
       val quotes: ImmutableList<Quote>,
+      val previousPartnerIds: List<PartnerId>,
     ) : QuotesState
 
     /**

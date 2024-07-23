@@ -77,6 +77,7 @@ module "wsm_asg" {
   dns_hosted_zone = local.hosted_zone_name
   vpc_name        = local.vpc_name
   environment     = local.environment
+  enable_ssm      = true
 }
 
 module "wsm_deploy" {

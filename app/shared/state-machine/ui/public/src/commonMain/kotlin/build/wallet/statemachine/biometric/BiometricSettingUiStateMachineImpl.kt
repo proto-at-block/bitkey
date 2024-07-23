@@ -1,14 +1,12 @@
 package build.wallet.statemachine.biometric
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
+import build.wallet.coachmark.CoachmarkIdentifier
+import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.encrypt.SignatureVerifier
 import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.inappsecurity.BiometricPreference
@@ -29,6 +27,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.ui.model.SheetClosingClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
@@ -39,6 +38,7 @@ import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.launch
 import okio.ByteString.Companion.encodeUtf8
 
 const val BIOMETRIC_AUTH_CHALLENGE = "biometric-auth-challenge"
@@ -50,6 +50,7 @@ class BiometricSettingUiStateMachineImpl(
   private val biometricPrompter: BiometricPrompter,
   private val signatureVerifier: SignatureVerifier,
   private val settingsLauncher: SystemSettingsLauncher,
+  private val coachmarkService: CoachmarkService,
 ) : BiometricSettingUiStateMachine {
   @Composable
   override fun model(props: BiometricSettingUiProps): ScreenModel {
@@ -65,15 +66,56 @@ class BiometricSettingUiStateMachineImpl(
       biometricPreference.isEnabled()
     }.collectAsState(false)
 
-    var sheetModel: SheetModel? by remember { mutableStateOf(null) }
+    val scope = rememberStableCoroutineScope()
 
+    var coachmarkDisplayed by remember { mutableStateOf(false) }
+    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
+    LaunchedEffect("coachmarks", coachmarkDisplayed) {
+      coachmarkService
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.BiometricUnlockCoachmark))
+        .onSuccess { coachmarksToDisplay = it }
+    }
+
+    var sheetModel: SheetModel? by remember { mutableStateOf(null) }
+    val biometricTitle = biometricTextProvider.getSettingsTitleText()
     return when (uiState) {
       is State.EnablingBiometricSetting -> biometricSettingScreen(
         props = props,
         isEnabled = isEnabled,
-        biometricSettingTitleText = biometricTextProvider.getSettingsTitleText(),
+        biometricSettingTitleText = biometricTitle,
         biometricSettingSecondaryText = biometricTextProvider.getSettingsSecondaryText(),
+        coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)) {
+          CoachmarkModel(
+            identifier = CoachmarkIdentifier.BiometricUnlockCoachmark,
+            title = "Set up $biometricTitle",
+            description = "We recommend you secure your app by setting up $biometricTitle to enhance app security.",
+            arrowPosition = CoachmarkModel.ArrowPosition(
+              vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
+              horizontal = CoachmarkModel.ArrowPosition.Horizontal.Trailing
+            ),
+            button = null,
+            image = null,
+            dismiss = {
+              if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)) {
+                scope.launch {
+                  coachmarkService
+                    .markCoachmarkAsDisplayed(CoachmarkIdentifier.BiometricUnlockCoachmark)
+                  coachmarkDisplayed = true
+                }
+              }
+            }
+          )
+        } else {
+          null
+        },
         onEnableCheckedChange = {
+          if (coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)) {
+            scope.launch {
+              coachmarkService
+                .markCoachmarkAsDisplayed(CoachmarkIdentifier.BiometricUnlockCoachmark)
+              coachmarkDisplayed = true
+            }
+          }
           if (!isEnabled) {
             val biometricsAvailability = biometricPrompter.biometricsAvailability().result
             biometricsAvailability
@@ -220,6 +262,7 @@ private fun biometricSettingScreen(
   props: BiometricSettingUiProps,
   biometricSettingTitleText: String,
   biometricSettingSecondaryText: String,
+  coachmark: CoachmarkModel?,
   isEnabled: Boolean,
   onEnableCheckedChange: (Boolean) -> Unit,
   sheetModel: SheetModel?,
@@ -245,7 +288,8 @@ private fun biometricSettingScreen(
                     checked = isEnabled,
                     onCheckedChange = onEnableCheckedChange
                   )
-                )
+                ),
+                coachmark = coachmark
               )
             ),
             style = ListGroupStyle.DIVIDER

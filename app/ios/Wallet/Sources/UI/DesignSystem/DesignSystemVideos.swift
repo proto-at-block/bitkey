@@ -15,5 +15,8 @@ public extension URL {
     )!
     static let bitkeyPairVideoUrl = Bundle.main.url(forResource: "pair", withExtension: "mov")!
     static let welcomeVideoUrl = Bundle.main.url(forResource: "welcome", withExtension: "mov")!
-    static let bitkeyResetVideoUrl = Bundle.main.url(forResource: "bitkey_reset", withExtension: "mov")!
+    static let bitkeyResetVideoUrl = Bundle.main.url(
+        forResource: "bitkey_reset",
+        withExtension: "mov"
+    )!
 }

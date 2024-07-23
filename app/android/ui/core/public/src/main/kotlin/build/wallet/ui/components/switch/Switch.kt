@@ -49,7 +49,7 @@ fun Switch(
       MaterialSwitchDefaults.colors(
         checkedThumbColor = WalletTheme.colors.primaryForeground,
         uncheckedThumbColor = WalletTheme.colors.primaryForeground,
-        checkedTrackColor = WalletTheme.colors.primary,
+        checkedTrackColor = WalletTheme.colors.bitkeyPrimary,
         uncheckedTrackColor = WalletTheme.colors.foreground10,
         checkedBorderColor = Color.Unspecified,
         uncheckedBorderColor = Color.Unspecified

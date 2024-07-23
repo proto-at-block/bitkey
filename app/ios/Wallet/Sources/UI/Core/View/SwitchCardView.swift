@@ -28,7 +28,7 @@ struct SwitchCardView: View {
                     )
                 )
                 .labelsHidden()
-                .tint(.primary)
+                .tint(.bitkeyPrimary)
 
                 Spacer()
                     .frame(height: 16)

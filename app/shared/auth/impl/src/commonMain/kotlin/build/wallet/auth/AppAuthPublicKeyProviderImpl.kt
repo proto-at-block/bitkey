@@ -2,10 +2,7 @@ package build.wallet.auth
 
 import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus
-import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.account.appRecoveryAuthKey
+import build.wallet.bitkey.account.*
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.crypto.PublicKey
@@ -120,6 +117,12 @@ private fun Account.appAuthPublicKey(
     is LiteAccount ->
       when (tokenScope) {
         AuthTokenScope.Global -> Err(RequestGlobalScopeForLiteAccount)
+        AuthTokenScope.Recovery -> Ok(recoveryAuthKey)
+      }
+
+    is OnboardingSoftwareAccount ->
+      when (tokenScope) {
+        AuthTokenScope.Global -> Ok(appGlobalAuthKey)
         AuthTokenScope.Recovery -> Ok(recoveryAuthKey)
       }
   }

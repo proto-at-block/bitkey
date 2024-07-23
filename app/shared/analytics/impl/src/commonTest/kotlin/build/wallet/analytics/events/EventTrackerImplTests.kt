@@ -184,7 +184,7 @@ class EventTrackerImplTests : FunSpec({
     eventTracker.track(
       EventTrackerScreenInfo(
         eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS,
-        eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
       )
     )
     appScope.runCurrent()
@@ -201,7 +201,7 @@ class EventTrackerImplTests : FunSpec({
     eventTracker.track(
       EventTrackerScreenInfo(
         eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS,
-        eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
       )
     )
     appScope.runCurrent()
@@ -216,7 +216,7 @@ class EventTrackerImplTests : FunSpec({
     eventTracker.track(
       EventTrackerScreenInfo(
         eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS,
-        eventTrackerScreenIdContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
+        eventTrackerContext = PairHardwareEventTrackerScreenIdContext.ACCOUNT_CREATION
       )
     )
     appScope.runCurrent()

@@ -3,6 +3,7 @@ package build.wallet.statemachine.transactions
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.explorer.BitcoinExplorer
 import build.wallet.bitcoin.explorer.BitcoinExplorerType.Mempool
@@ -136,6 +137,9 @@ class TransactionDetailsUiStateMachineImpl(
               }
             }
           },
+          onInsufficientFunds = {
+            uiState = InsufficientFundsUiState
+          },
           onFailedToPrepareData = {
             uiState = FeeLoadingErrorUiState(FeeLoadingError.TransactionMissingRecipientAddress)
           },
@@ -192,8 +196,9 @@ class TransactionDetailsUiStateMachineImpl(
     onCloseSpeedUpEducation: () -> Unit,
     onViewTransaction: () -> Unit,
     onSpeedUpTransaction: () -> Unit,
+    onInsufficientFunds: () -> Unit,
     onFailedToPrepareData: () -> Unit,
-    onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit
+    onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit,
   ): ScreenModel {
     if (isLoading) {
       LaunchedEffect("loading-rates-and-getting-wallet") {
@@ -228,7 +233,10 @@ class TransactionDetailsUiStateMachineImpl(
               }.createSignedPsbt(constructionType = constructionMethod)
               .logFailure { "Unable to build fee bump psbt" }
               .getOrElse {
-                onFailedToPrepareData()
+                when (it) {
+                  is BdkError.InsufficientFunds -> onInsufficientFunds()
+                  else -> onFailedToPrepareData()
+                }
                 return@LaunchedEffect
               }
 
@@ -487,7 +495,6 @@ class TransactionDetailsUiStateMachineImpl(
    * Describes different ways loading fees can fail when speeding up a transaction.
    */
   sealed class FeeLoadingError : kotlin.Error() {
-
     /**
      * The transaction that was loaded to props was missing a recipient address.
      *

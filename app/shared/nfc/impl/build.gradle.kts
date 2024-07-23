@@ -15,6 +15,7 @@ kotlin {
         api(projects.shared.cloudBackupPublic)
         api(projects.shared.datadogPublic)
         api(projects.shared.keyValueStorePublic)
+        api(projects.shared.analyticsPublic)
         implementation(libs.kmp.okio)
         implementation(projects.shared.stdlibPublic)
         implementation(libs.kmp.settings)

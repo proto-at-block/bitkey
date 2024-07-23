@@ -7,7 +7,7 @@ use teltra::{TelemetryIdentifiers, Teltra, TeltraError};
 use wca::attestation::{Attestation, AttestationError};
 use wca::command_interface::{Command, State};
 use wca::commands::{
-    BtcNetwork, CancelFingerprintEnrollment, CoredumpFragment, DeleteFingerprint,
+    BioMatchStats, BtcNetwork, CancelFingerprintEnrollment, CoredumpFragment, DeleteFingerprint,
     DescriptorPublicKey, DeviceIdentifiers, DeviceInfo, EnrolledFingerprints,
     EnrollmentDiagnostics, EventFragment, FingerprintEnrollmentResult, FingerprintEnrollmentStatus,
     FirmwareFeatureFlag, FirmwareFeatureFlagCfg, FirmwareMetadata, FirmwareSlot, FwupFinish,
@@ -18,7 +18,7 @@ use wca::commands::{
     GetTelemetryIdentifiers, GetUnlockMethod, LockDevice, PartiallySignedTransaction,
     QueryAuthentication, SecureBootConfig, SetFingerprintLabel, SetFirmwareFeatureFlags,
     SignChallenge, SignChallengeV2, SignTransaction, SignVerifyAttestationChallenge, Signature,
-    StartFingerprintEnrollment, UnlockInfo, Version, WipeState,
+    StartFingerprintEnrollment, TemplateMatchStats, UnlockInfo, Version, WipeState,
 };
 use wca::errors::CommandError;
 use wca::fwpb::cert_get_cmd::CertType;

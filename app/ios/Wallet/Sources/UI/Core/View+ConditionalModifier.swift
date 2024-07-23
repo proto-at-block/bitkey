@@ -7,9 +7,9 @@ public extension View {
     ///   - condition: The condition to evaluate.
     ///   - transform: The transform to apply to the source `View`.
     /// - Returns: Either the original `View` or the modified `View` if the condition is `true`.
-    @ViewBuilder func `if`<Content: View>(
+    @ViewBuilder func `if`(
         _ condition: Bool,
-        transform: (Self) -> Content
+        transform: (Self) -> some View
     ) -> some View {
         if condition {
             transform(self)
@@ -19,9 +19,9 @@ public extension View {
     }
 
     @ViewBuilder
-    func ifNonnull<Content: View, T: Any>(
+    func ifNonnull<T: Any>(
         _ nullableItem: T?,
-        transform: (Self, T) -> Content
+        transform: (Self, T) -> some View
     ) -> some View {
         if let item = nullableItem {
             transform(self, item)

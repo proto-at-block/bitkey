@@ -271,13 +271,17 @@ private class DeviceTokenProviderMock: DeviceTokenProvider {
 private class EventTrackerMock: EventTracker {
 
     public var trackCalls = [Action]()
-    func track(action: Action) {
+    func track(action: Action, context _: EventTrackerContext?) {
         trackCalls.append(action)
     }
 
     func track(eventTrackerCountInfo _: EventTrackerCountInfo) { fatalError() }
 
     func track(eventTrackerScreenInfo _: EventTrackerScreenInfo) { fatalError() }
+
+    func track(eventTrackerFingerprintScanStatsInfo _: EventTrackerFingerprintScanStatsInfo) {
+        fatalError()
+    }
 
     func reset() {
         trackCalls = []

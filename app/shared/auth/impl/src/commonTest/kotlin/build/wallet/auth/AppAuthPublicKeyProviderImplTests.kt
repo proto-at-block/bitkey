@@ -2,13 +2,16 @@ package build.wallet.auth
 
 import build.wallet.account.AccountRepositoryFake
 import build.wallet.account.AccountStatus
+import build.wallet.account.AccountStatus.OnboardingAccount
 import build.wallet.auth.AuthTokenScope.Global
 import build.wallet.auth.AuthTokenScope.Recovery
+import build.wallet.bitkey.account.appRecoveryAuthKey
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
+import build.wallet.bitkey.keybox.OnboardingSoftwareAccountMock
 import build.wallet.db.DbQueryError
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProviderError
@@ -33,7 +36,8 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
   context("Active Full Account") {
     val account = FullAccountMock
     accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(account))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
 
     test("Returns AppGlobalAuthPublicKey from active Full account for Global scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Global)
@@ -48,8 +52,9 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
 
   context("Onboarding Full Account") {
     val account = FullAccountMock
-    accountRepository.accountState.value = Ok(AccountStatus.OnboardingAccount(account))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    accountRepository.accountState.value = Ok(OnboardingAccount(account))
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
 
     test("Returns AppGlobalAuthPublicKey from onboarding Full account for Global scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Global)
@@ -62,10 +67,26 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
     }
   }
 
+  context("Onboarding Software Account") {
+    val account = OnboardingSoftwareAccountMock
+    accountRepository.accountState.value = Ok(OnboardingAccount(account))
+
+    test("Returns AppGlobalAuthPublicKey from onboarding Software account for Global scope") {
+      val appAuthPublicKey = provider.getKey(account.accountId, Global)
+      appAuthPublicKey.get().shouldBe(account.appGlobalAuthKey)
+    }
+
+    test("Returns AppRecoveryAuthPublicKey from onboarding Software account for RecoveryApp scope") {
+      val appAuthPublicKey = provider.getKey(account.accountId, Recovery)
+      appAuthPublicKey.get().shouldBe(account.appRecoveryAuthKey)
+    }
+  }
+
   context("Active Lite Account") {
     val account = LiteAccountMock
     accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(account))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
 
     test("Returns Err from active Lite account for Global scope") {
       val appAuthPublicKey = provider.getKey(account.accountId, Global)
@@ -80,8 +101,10 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
 
   context("Upgrading Lite Account") {
     val fullAccount = FullAccountMock
-    accountRepository.accountState.value = Ok(AccountStatus.LiteAccountUpgradingToFullAccount(fullAccount))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    accountRepository.accountState.value =
+      Ok(AccountStatus.LiteAccountUpgradingToFullAccount(fullAccount))
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
 
     test("Returns AppRecoveryAuthPublicKey from onboarding Full account for Recovery scope") {
       val appAuthPublicKey = provider.getKey(fullAccount.accountId, Recovery)
@@ -122,7 +145,8 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
         config = FullAccountMock.config.copy(f8eEnvironment = F8eEnvironment.Development)
       )
     accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(account))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
     val appAuthPublicKey = provider.getKey(account.accountId, Global, F8eEnvironment.Production)
     appAuthPublicKey.shouldBeErrOfType<UnhandledError>()
   }
@@ -130,14 +154,16 @@ class AppAuthPublicKeyProviderImplTests : FunSpec({
   test("Returns error for account ID mismatch") {
     val account = FullAccountMock
     accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(account))
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
     val appAuthPublicKey = provider.getKey(FullAccountId("some other ID"), Global)
     appAuthPublicKey.shouldBeErrOfType<UnhandledError>()
   }
 
   test("Returns error if there is no account that is active, onboarding, or recovering") {
     accountRepository.accountState.value = Ok(AccountStatus.NoAccount)
-    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult = Err(NoRecoveryInProgress)
+    recoveryAppAuthPublicKeyProvider.getAppPublicKeyForInProgressRecoveryResult =
+      Err(NoRecoveryInProgress)
     val appAuthPublicKey = provider.getKey(FullAccountId("someId"), Global)
     appAuthPublicKey.shouldBeErrOfType<AccountMissing>()
   }

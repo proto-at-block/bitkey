@@ -102,7 +102,7 @@ internal fun FwupInstructionsScreenPreview() {
           buttonText = "Click me",
           onButtonClick = {},
           eventTrackerScreenId = null,
-          eventTrackerScreenIdContext = null
+          eventTrackerContext = null
         )
     )
   }

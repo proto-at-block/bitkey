@@ -151,7 +151,7 @@ class NfcSessionUIStateMachineImpl(
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NFC_INITIATE,
-                  eventTrackerScreenIdContext = props.eventTrackerContext
+                  eventTrackerContext = props.eventTrackerContext
                 )
             ).asFullScreen()
           }
@@ -163,7 +163,7 @@ class NfcSessionUIStateMachineImpl(
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_DETECTED,
-                  eventTrackerScreenIdContext = props.eventTrackerContext
+                  eventTrackerContext = props.eventTrackerContext
                 )
             ).asFullScreen()
           }
@@ -175,7 +175,7 @@ class NfcSessionUIStateMachineImpl(
               eventTrackerScreenInfo =
                 EventTrackerScreenInfo(
                   eventTrackerScreenId = NfcEventTrackerScreenId.NFC_SUCCESS,
-                  eventTrackerScreenIdContext = props.eventTrackerContext
+                  eventTrackerContext = props.eventTrackerContext
                 )
             ).asFullScreen()
           }

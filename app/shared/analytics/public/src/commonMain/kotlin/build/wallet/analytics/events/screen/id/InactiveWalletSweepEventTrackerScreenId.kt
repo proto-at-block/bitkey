@@ -23,5 +23,5 @@ enum class InactiveWalletSweepEventTrackerScreenId : EventTrackerScreenId {
   INACTIVE_WALLET_SWEEP_FAILED,
 
   /** Help screen explaining why the wallet requires a sweep */
-  INACTIVE_WALLET_HELP
+  INACTIVE_WALLET_HELP,
 }

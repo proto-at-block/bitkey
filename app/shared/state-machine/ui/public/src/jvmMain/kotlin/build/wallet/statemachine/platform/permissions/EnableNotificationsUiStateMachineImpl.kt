@@ -20,7 +20,7 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
   override fun model(props: EnableNotificationsUiProps): BodyModel {
     return FormBodyModel(
       id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
-      eventTrackerScreenIdContext = props.eventTrackerContext,
+      eventTrackerContext = props.eventTrackerContext,
       onBack = props.retreat.onRetreat,
       toolbar = null,
       header =

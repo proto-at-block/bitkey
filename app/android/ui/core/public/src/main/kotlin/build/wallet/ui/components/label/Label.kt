@@ -99,7 +99,7 @@ fun Label(
           append(model.string)
           model.linkedSubstrings.forEach { linkedSubstring ->
             addStyle(
-              style = SpanStyle(color = WalletTheme.colors.primary),
+              style = SpanStyle(color = WalletTheme.colors.bitkeyPrimary),
               start = linkedSubstring.range.first,
               end = linkedSubstring.range.last + 1
             )

@@ -1,14 +1,10 @@
 package build.wallet.statemachine.dev
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.cloudServiceProvider
+import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.keybox.AppDataDeleter
@@ -21,9 +17,7 @@ import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveLiteAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CreatingFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
+import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
@@ -52,11 +46,13 @@ class DebugMenuListStateMachineImpl(
   private val onboardingAppKeyDeletionUiStateMachine: OnboardingAppKeyDeletionUiStateMachine,
   private val onboardingConfigStateMachine: OnboardingConfigStateMachine,
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
+  private val coachmarkService: CoachmarkService,
 ) : DebugMenuListStateMachine {
   @Composable
   override fun model(props: DebugMenuListProps): BodyModel {
     var actionConfirmation: ActionConfirmationRequest? by remember { mutableStateOf(null) }
     var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
+    var resetCoachmarks by remember { mutableStateOf(false) }
 
     val templateFullAccountConfigData =
       when (val accountData = props.accountData) {
@@ -72,6 +68,12 @@ class DebugMenuListStateMachineImpl(
       }
       if (interstitial != null) {
         return interstitial
+      }
+    }
+
+    if (resetCoachmarks) {
+      LaunchedEffect("reset-coachmarks") {
+        coachmarkService.resetCoachmarks()
       }
     }
 
@@ -92,7 +94,14 @@ class DebugMenuListStateMachineImpl(
           LogsListGroupModel(props.onSetState),
           AnalyticsOptionsListGroupModel(props.onSetState),
           FeatureFlagsOptionsListGroupModel(props.onSetState),
-          NetworkingDebugOptionsListGroupModel(props.onSetState),
+          NetworkingDebugOptionsListGroupModel(
+            onActionConfirmationRequest = { actionConfirmation = it },
+            props.onSetState,
+            resetCoachmarks = {
+              resetCoachmarks = true
+              actionConfirmation = null
+            }
+          ),
           KeyboxDeleterOptionsListGroupModel(
             onActionConfirmationRequest = { actionConfirmation = it },
             onDeleteKeybox = { deleteAppDataRequest = it }
@@ -316,9 +325,11 @@ class DebugMenuListStateMachineImpl(
 
   @Composable
   private fun NetworkingDebugOptionsListGroupModel(
+    onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
     onSetState: (DebugMenuState) -> Unit,
-  ): ListGroupModel? {
-    return when (appVariant) {
+    resetCoachmarks: () -> Unit,
+  ): ListGroupModel? =
+    when (appVariant) {
       AppVariant.Customer -> null
       else ->
         ListGroupModel(
@@ -334,12 +345,22 @@ class DebugMenuListStateMachineImpl(
                 title = "Networking",
                 trailingAccessory = ListItemAccessory.drillIcon(),
                 onClick = { onSetState(DebugMenuState.ShowingNetworkingDebugOptions) }
+              ),
+              ListItemModel(
+                title = "Reset Coachmarks",
+                onClick = {
+                  onActionConfirmationRequest(
+                    ActionConfirmationRequest(
+                      gatedActionTitle = "Reset all coachmarks?",
+                      gatedAction = { resetCoachmarks() }
+                    )
+                  )
+                }
               )
             ),
           style = ListGroupStyle.DIVIDER
         )
     }
-  }
 
   @Composable
   private fun F8eEnvironmentPickerListGroupModel(props: DebugMenuListProps): ListGroupModel? {

@@ -36,7 +36,9 @@ class ChooseAccountAccessUiStateMachineImpl(
     var state: State by remember { mutableStateOf(ShowingChooseAccountAccess) }
 
     val isEakBuild = remember { emergencyAccessKitDataProvider.getAssociatedEakData() == EakBuild }
-    val softwareWalletFlag by remember { softwareWalletIsEnabledFeatureFlag.flagValue() }.collectAsState()
+    val softwareWalletFlag by remember {
+      softwareWalletIsEnabledFeatureFlag.flagValue()
+    }.collectAsState()
 
     return when (state) {
       is ShowingCreateAccountOptions -> {

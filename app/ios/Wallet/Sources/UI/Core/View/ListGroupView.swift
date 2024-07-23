@@ -70,7 +70,7 @@ public struct ListGroupView: View {
                 ) { index, listItem in
                     ListItemView(viewModel: listItem, hideContent: hideContent)
                         .frame(minHeight: minItemHeight)
-                    
+
                     if showsDivider, index != viewModel.items.endIndex - 1 {
                         Divider()
                             .frame(height: 1)
@@ -168,10 +168,12 @@ struct ListGroupView_Preview: PreviewProvider {
                     sideTextTint: .primary,
                     enabled: true,
                     selected: false,
+                    showNewCoachmark: false,
                     onClick: {},
                     pickerMenu: nil,
                     testTag: nil,
-                    titleLabel: nil
+                    titleLabel: nil,
+                    coachmark: nil
                 ),
                 .init(
                     title: "Title",
@@ -188,10 +190,12 @@ struct ListGroupView_Preview: PreviewProvider {
                     sideTextTint: .primary,
                     enabled: true,
                     selected: false,
+                    showNewCoachmark: false,
                     onClick: {},
                     pickerMenu: nil,
                     testTag: nil,
-                    titleLabel: nil
+                    titleLabel: nil,
+                    coachmark: nil
                 ),
                 .init(
                     title: "Title",
@@ -208,15 +212,17 @@ struct ListGroupView_Preview: PreviewProvider {
                     sideTextTint: .green,
                     enabled: false,
                     selected: false,
+                    showNewCoachmark: false,
                     onClick: {},
                     pickerMenu: nil,
                     testTag: nil,
-                    titleLabel: nil
+                    titleLabel: nil,
+                    coachmark: nil
                 ),
             ],
             style: style,
             headerTreatment: .secondary,
-            footerButton: nil, 
+            footerButton: nil,
             explainerSubtext: nil
         )
     }

@@ -7,6 +7,8 @@ import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.bitkey.socrec.Invitation
+import build.wallet.coachmark.CoachmarkIdentifier
+import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.feature.flags.InAppSecurityFeatureFlag
 import build.wallet.feature.isEnabled
@@ -82,6 +84,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val viewingRecoveryContactUiStateMachine: ViewingRecoveryContactUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val moneyHomeHiddenStatusProvider: MoneyHomeHiddenStatusProvider,
+  private val coachmarkService: CoachmarkService,
   private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
   private val sweepPromptRequirementCheck: SweepPromptRequirementCheck,
   private val haptics: Haptics,
@@ -118,6 +121,18 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         MutableStateFlow(false)
       }
     }.collectAsState()
+
+    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
+    var coachmarkDisplayed by remember { mutableStateOf(false) }
+    LaunchedEffect("coachmarks", coachmarkDisplayed) {
+      coachmarkService
+        .coachmarksToDisplay(
+          setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark, CoachmarkIdentifier.BiometricUnlockCoachmark)
+        ).onSuccess {
+          coachmarksToDisplay = it
+        }
+    }
+
     var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
 
     val viewingBalanceModel =
@@ -185,11 +200,17 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                     }
                 )
               },
+            coachmark = null, // TODO W-8910 Show coachmark once render issues are resolved
             refresh = props.accountData.transactionsData.syncTransactions,
             onRefresh = {
               props.setState(props.state.copy(isRefreshing = true))
             },
-            isRefreshing = props.state.isRefreshing
+            isRefreshing = props.state.isRefreshing,
+            badgedSettingsIcon =
+              coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark) ||
+                coachmarksToDisplay.contains(
+                  CoachmarkIdentifier.MultipleFingerprintsCoachmark
+                )
           ),
         bottomSheetModel =
           MoneyHomeBottomSheetModel(

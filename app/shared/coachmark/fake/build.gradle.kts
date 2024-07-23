@@ -10,8 +10,8 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.coachmarkImpl)
-        implementation(projects.shared.dbResultPublic)
       }
     }
   }

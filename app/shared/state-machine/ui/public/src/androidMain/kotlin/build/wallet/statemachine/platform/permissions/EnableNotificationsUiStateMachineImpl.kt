@@ -56,7 +56,7 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
 
     return FormBodyModel(
       id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
-      eventTrackerScreenIdContext = props.eventTrackerContext,
+      eventTrackerContext = props.eventTrackerContext,
       onBack = props.retreat.onRetreat,
       toolbar = ToolbarModel(leadingAccessory = props.retreat.leadingToolbarAccessory),
       header =

@@ -2,6 +2,7 @@ package build.wallet.onboarding
 
 import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus.NoAccount
+import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.SoftwareAccountConfig
 import build.wallet.ensure
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
@@ -20,8 +21,8 @@ class CreateSoftwareWalletWorkflowImpl(
   private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
 ) : CreateSoftwareWalletWorkflow {
-  override suspend fun createAccount(): Result<Unit, Throwable> =
-    coroutineBinding<Unit, Throwable> {
+  override suspend fun createAccount(): Result<Account, Throwable> =
+    coroutineBinding {
       val softwareWalletFeatureEnabled = softwareWalletIsEnabledFeatureFlag.isEnabled()
       ensure(softwareWalletFeatureEnabled) {
         Error("Software wallet feature flag is not enabled.")
@@ -36,15 +37,18 @@ class CreateSoftwareWalletWorkflowImpl(
       val config = templateAccountConfig()
       val newAppKeys = appKeysGenerator.generateKeyBundle(config.bitcoinNetworkType).bind()
 
-      softwareAccountCreator
+      val account = softwareAccountCreator
         .createAccount(
           authKey = newAppKeys.authKey,
           recoveryAuthKey = newAppKeys.recoveryAuthKey,
           config = config
-        )
+        ).bind()
+
+      accountRepository
+        .saveAccountAndBeginOnboarding(account)
         .bind()
 
-      // TODO(W-8717): save account into database as active.
+      account
     }.logFailure { "Error creating software wallet account with fake hw keys." }
 
   /**

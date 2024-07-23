@@ -9,6 +9,7 @@ import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.coachmark.CoachmarkModel
 import build.wallet.ui.model.icon.IconButtonModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
@@ -40,15 +41,18 @@ data class MoneyHomeBodyModel(
   @Redacted
   val transactionsModel: ListModel?,
   val seeAllButtonModel: ButtonModel?,
+  val coachmark: CoachmarkModel?,
   val refresh: suspend () -> Unit,
   val onRefresh: () -> Unit,
   val onHideBalance: () -> Unit,
   val isRefreshing: Boolean,
+  val badgedSettingsIcon: Boolean = false,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
     EventTrackerScreenInfo(
       eventTrackerScreenId = MoneyHomeEventTrackerScreenId.MONEY_HOME
     ),
-) : BodyModel(), BaseMoneyHomeBodyModel {
+) : BodyModel(),
+  BaseMoneyHomeBodyModel {
   constructor(
     hideBalance: Boolean,
     onSettings: () -> Unit,
@@ -57,10 +61,12 @@ data class MoneyHomeBodyModel(
     cardsModel: MoneyHomeCardsModel,
     transactionsModel: ListModel?,
     seeAllButtonModel: ButtonModel?,
+    coachmark: CoachmarkModel?,
     refresh: suspend () -> Unit,
     onRefresh: () -> Unit,
     onHideBalance: () -> Unit,
     isRefreshing: Boolean,
+    badgedSettingsIcon: Boolean,
   ) : this(
     hideBalance = hideBalance,
     onHideBalance = onHideBalance,
@@ -68,7 +74,11 @@ data class MoneyHomeBodyModel(
       ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconSettings,
+            icon = if (badgedSettingsIcon) {
+              Icon.SmallIconSettingsBadged
+            } else {
+              Icon.SmallIconSettings
+            },
             iconSize = IconSize.HeaderToolbar
           ),
           onClick = StandardClick(onSettings)
@@ -79,6 +89,7 @@ data class MoneyHomeBodyModel(
     cardsModel = cardsModel,
     transactionsModel = transactionsModel,
     seeAllButtonModel = seeAllButtonModel,
+    coachmark = coachmark,
     refresh = refresh,
     onRefresh = onRefresh,
     isRefreshing = isRefreshing

@@ -30,7 +30,7 @@ fun StepperIndicator(model: FormMainContentModel.StepperIndicator) {
     MaterialLinearProgressIndicator(
       modifier = Modifier.height(12.dp).fillMaxWidth(),
       progress = model.progress,
-      color = WalletTheme.colors.primary,
+      color = WalletTheme.colors.bitkeyPrimary,
       backgroundColor = WalletTheme.colors.foreground10,
       strokeCap = StrokeCap.Round
     )

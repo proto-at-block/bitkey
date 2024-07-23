@@ -33,7 +33,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
     }
 
@@ -41,7 +41,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     secondAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
     }
   }
@@ -54,7 +54,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
 
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
@@ -84,16 +84,16 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     app.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
       awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
@@ -122,16 +122,16 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     )
     app.app.rotateAuthUIStateMachine.test(props, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
       }
 
       awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
@@ -151,16 +151,16 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
       awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
@@ -188,27 +188,27 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
       // Retry
       awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
       }
 
       // Dismiss
       awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.FAILED_TO_ROTATE_AUTH_ACCEPTABLE) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.PROPOSED_ROTATION
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
@@ -245,16 +245,16 @@ class RotateAuthKeyFunctionalTests : FunSpec({
       }
 
       screenDecideIfShouldRotate {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(InactiveAppEventTrackerScreenId.ROTATING_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
       }
 
       awaitUntilScreenWithBody<FormBodyModel>(InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH) {
-        eventTrackerScreenIdContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
+        eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
       }
 

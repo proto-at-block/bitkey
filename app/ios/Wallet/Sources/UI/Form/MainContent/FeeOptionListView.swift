@@ -51,10 +51,12 @@ private struct FeeOptionCardView: View {
                     sideTextTint: .primary,
                     enabled: viewModel.enabled,
                     selected: false,
+                    showNewCoachmark: false,
                     onClick: viewModel.onClick,
                     pickerMenu: nil,
                     testTag: nil,
-                    titleLabel: nil
+                    titleLabel: nil,
+                    coachmark: nil
                 )
             )
 

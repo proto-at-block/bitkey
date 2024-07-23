@@ -1,10 +1,12 @@
 package build.wallet.analytics.events.screen.context
 
+import build.wallet.analytics.events.EventTrackerContext
+
 /**
  * Context for push notification related screens in the app.
  * Push notifications are used both during new account creation as well as app recovery.
  */
-enum class PushNotificationEventTrackerScreenIdContext : EventTrackerScreenIdContext {
+enum class PushNotificationEventTrackerScreenIdContext : EventTrackerContext {
   /** Events for setting up push notification permissions during new account creation */
   ACCOUNT_CREATION,
 

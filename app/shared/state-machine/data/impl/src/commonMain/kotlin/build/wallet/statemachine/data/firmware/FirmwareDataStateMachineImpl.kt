@@ -157,7 +157,8 @@ class FirmwareDataStateMachineImpl(
           avgCurrentMa = 1234,
           batteryCycles = 1234,
           secureBootConfig = SecureBootConfig.PROD,
-          timeRetrieved = Clock.System.now().epochSeconds
+          timeRetrieved = Clock.System.now().epochSeconds,
+          bioMatchStats = null
         ),
       checkForNewFirmware = {}
     )

@@ -142,6 +142,18 @@ impl RouteState {
                 "/api/accounts/:account_id/complete-onboarding",
                 post(complete_onboarding),
             )
+            .route(
+                "/api/accounts/:account_id/distributed-keygen",
+                post(initiate_distributed_keygen),
+            )
+            .route(
+                "/api/accounts/:account_id/distributed-keygen/:keyset_id",
+                put(continue_distributed_keygen),
+            )
+            .route(
+                "/api/accounts/:account_id/spending-descriptor",
+                put(activate_spending_descriptor),
+            )
             .route_layer(metrics::FACTORY.route_layer("onboarding".to_owned()))
             .with_state(self.to_owned())
     }
@@ -191,6 +203,9 @@ impl From<RouteState> for SwaggerEndpoint {
         rotate_spending_keyset,
         upgrade_account,
         verify_touchpoint_for_account,
+        initiate_distributed_keygen,
+        continue_distributed_keygen,
+        activate_spending_descriptor,
     ),
     components(
         schemas(
@@ -226,7 +241,12 @@ impl From<RouteState> for SwaggerEndpoint {
             TouchpointPlatform,
             UpgradeAccountRequest,
             UpgradeLiteAccountAuthKeysPayload,
-            SoftwareAccountAuthKeysRequest
+            SoftwareAccountAuthKeysRequest,
+            InititateDistributedKeygenResponse,
+            ContinueDistributedKeygenRequest,
+            ContinueDistributedKeygenResponse,
+            ActivateSpendingDescriptorRequest,
+            ActivateSpendingDescriptorResponse,
         ),
     ),
     tags(
@@ -682,17 +702,31 @@ async fn account_status(
 ) -> Result<Json<GetAccountStatusResponse>, ApiError> {
     //TODO: Update this when we introduce Trusted Contacts
     let account = account_service
-        .fetch_full_account(FetchAccountInput {
+        .fetch_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
-    Ok(Json(GetAccountStatusResponse {
-        keyset_id: account.clone().active_keyset_id,
-        spending: account
-            .active_spending_keyset()
-            .ok_or(RouteError::NoActiveSpendKeyset)?
-            .to_owned(),
-    }))
+
+    let (active_keyset_id, active_spending_keyset) = match account {
+        Account::Full(full_account) => (
+            Some(full_account.active_keyset_id.clone()),
+            full_account.active_spending_keyset().cloned(),
+        ),
+        Account::Software(software_account) => (
+            software_account.active_keyset_id.clone(),
+            software_account.active_spending_keyset().cloned(),
+        ),
+        _ => (None, None),
+    };
+
+    if let (Some(keyset_id), Some(spending)) = (active_keyset_id, active_spending_keyset) {
+        return Ok(Json(GetAccountStatusResponse {
+            keyset_id,
+            spending,
+        }));
+    }
+
+    Err(RouteError::NoActiveSpendKeyset)?
 }
 
 pub const MAINNET_DERIVATION_PATH: &str = "m/84'/0'/0'";
@@ -707,13 +741,13 @@ pub enum CreateAccountRequest {
         #[serde(default)]
         is_test_account: bool,
     },
-    Lite {
-        auth: LiteAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
+    Software {
+        auth: SoftwareAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
         #[serde(default)]
         is_test_account: bool,
     },
-    Software {
-        auth: SoftwareAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
+    Lite {
+        auth: LiteAccountAuthKeysRequest, // TODO: [W-774] Update visibility of struct after migration
         #[serde(default)]
         is_test_account: bool,
     },
@@ -1397,6 +1431,188 @@ pub async fn rotate_spending_keyset(
     Ok(Json(RotateSpendingKeysetResponse {}))
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct InititateDistributedKeygenResponse {
+    pub keyset_id: KeysetId,
+}
+
+#[instrument(skip(account_service))]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/distributed-keygen",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = SpendingKeysetRequest,
+    responses(
+        (status = 200, description = "Initiated distributed keygen", body=InititateDistributedKeygenResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn initiate_distributed_keygen(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<SpendingKeysetRequest>,
+) -> Result<Json<InititateDistributedKeygenResponse>, ApiError> {
+    // TODO: Are there ever sweeps? Or should this only ever be called once in the lifetime of a software account?
+    // If there are sweeps, does this need to be time-delayed, or does activation?
+
+    let account = account_service
+        .fetch_software_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    if let Some((keyset_id, _)) = account
+        .spending_keysets
+        .iter()
+        .find(|(_, spending_keyset)| spending_keyset.app_dpub == request.app)
+    {
+        return Ok(Json(InititateDistributedKeygenResponse {
+            keyset_id: keyset_id.to_owned(),
+        }));
+    }
+
+    // Don't allow account to hop networks
+    if account
+        .spending_keysets
+        .iter()
+        .any(|(_, keyset)| keyset.network != request.network.into())
+    {
+        return Err(RouteError::InvalidNetworkForNewKeyset)?;
+    }
+
+    let keyset_id = KeysetId::gen().map_err(RouteError::InvalidIdentifier)?;
+    let key = wsm_client
+        .create_root_key(&keyset_id.to_string(), request.network)
+        .await
+        .map_err(|e| {
+            let msg = "Failed to create new key in WSM";
+            error!("{msg}: {e}");
+            ApiError::GenericInternalApplicationError(msg.to_string())
+        })?;
+
+    let spending_server_dpub = DescriptorPublicKey::from_str(&key.xpub).map_err(|e| {
+        let msg = "Failed to parse spending dpub from WSM";
+        error!("{msg}: {e}");
+        ApiError::GenericInternalApplicationError(msg.to_string())
+    })?;
+
+    account_service
+        .create_inactive_spending_keyset(CreateInactiveSpendingKeysetInput {
+            account_id,
+            spending_keyset_id: keyset_id.clone(),
+            spending: SpendingKeyset {
+                network: request.network.into(),
+                app_dpub: request.app,
+                hardware_dpub: request.hardware,
+                server_dpub: spending_server_dpub,
+            },
+        })
+        .await?;
+
+    Ok(Json(InititateDistributedKeygenResponse { keyset_id }))
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ContinueDistributedKeygenRequest {}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ContinueDistributedKeygenResponse {
+    #[serde(with = "bdk_utils::serde::descriptor_key")]
+    pub spending: DescriptorPublicKey,
+    #[serde(default)]
+    pub spending_sig: Option<String>,
+}
+
+#[instrument(skip(account_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/distributed-keygen/{keyset_id}",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("keyset_id" = KeysetId, Path, description = "KeysetId"),
+    ),
+    request_body = ContinueDistributedKeygenRequest,
+    responses(
+        (status = 200, description = "Continued distributed keygen", body=ContinueDistributedKeygenResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn continue_distributed_keygen(
+    Path((account_id, keyset_id)): Path<(AccountId, KeysetId)>,
+    State(account_service): State<AccountService>,
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<ContinueDistributedKeygenRequest>,
+) -> Result<Json<ContinueDistributedKeygenResponse>, ApiError> {
+    let account = account_service
+        .fetch_software_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    if let Some(keyset) = account.spending_keysets.get(&keyset_id) {
+        let spending_sig = maybe_get_wsm_integrity_sig(&wsm_client, &keyset_id.to_string()).await;
+
+        return Ok(Json(ContinueDistributedKeygenResponse {
+            spending: keyset.server_dpub.clone(),
+            spending_sig,
+        }));
+    }
+
+    Err(ApiError::GenericNotFound("Keyset not found".to_string()))
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ActivateSpendingDescriptorRequest {
+    pub keyset_id: KeysetId,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ActivateSpendingDescriptorResponse {}
+
+#[instrument(skip(account_service))]
+#[utoipa::path(
+    put,
+    path = "/api/accounts/{account_id}/spending-descriptor",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = ActivateSpendingDescriptorRequest,
+    responses(
+        (status = 200, description = "Activated spending descriptor", body=ActivateSpendingDescriptorResponse),
+        (status = 404, description = "Account not found")
+    ),
+)]
+pub async fn activate_spending_descriptor(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(wsm_client): State<WsmClient>,
+    Json(request): Json<ActivateSpendingDescriptorRequest>,
+) -> Result<Json<ActivateSpendingDescriptorResponse>, ApiError> {
+    // Ensure endpoint only called by software accounts
+    account_service
+        .fetch_software_account(FetchAccountInput {
+            account_id: &account_id,
+        })
+        .await?;
+
+    account_service
+        .rotate_to_spending_keyset(RotateToSpendingKeysetInput {
+            account_id: &account_id,
+            keyset_id: &request.keyset_id,
+        })
+        .await?;
+
+    return Ok(Json(ActivateSpendingDescriptorResponse {}));
+}
+
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct CompleteOnboardingRequest {}
@@ -1583,4 +1799,69 @@ async fn maybe_get_wsm_integrity_sig(wsm_client: &WsmClient, keyset_id: &String)
             },
             |response| Some(response.signature),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use account::entities::{
+        FullAccountAuthKeysPayload, LiteAccountAuthKeysPayload, SoftwareAccountAuthKeysPayload,
+        SpendingKeysetRequest,
+    };
+    use bdk_utils::bdk::{
+        bitcoin::{key::Secp256k1, secp256k1::rand::thread_rng, Network},
+        keys::DescriptorPublicKey,
+    };
+
+    use super::CreateAccountRequest;
+
+    #[test]
+    // This may seem trivial, but because the CreateAccountRequest enum is untagged, and because the payloads
+    // are essentially telescoping (Full contains all the fields and more of Software, which
+    // in turn contains all the fields and more of Lite), and because we don't deny unknown fields
+    // during serde deserialization, this test failed when the variants are defined in their original order
+    // (Full, Lite, Software). This means that you could create a Software request, serialize it, and it
+    // would deserialize as a Lite request.
+    fn test_untagged_create_account_request_deserialization() {
+        let secp = Secp256k1::new();
+        let public_key = secp.generate_keypair(&mut thread_rng()).1;
+
+        let descriptor_public_key = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
+
+        let requests = [
+            CreateAccountRequest::Full {
+                auth: FullAccountAuthKeysPayload {
+                    app: public_key,
+                    hardware: public_key,
+                    recovery: Some(public_key),
+                },
+                spending: SpendingKeysetRequest {
+                    network: Network::Bitcoin,
+                    app: descriptor_public_key.clone(),
+                    hardware: descriptor_public_key,
+                },
+                is_test_account: true,
+            },
+            CreateAccountRequest::Software {
+                auth: SoftwareAccountAuthKeysPayload {
+                    app: public_key,
+                    recovery: public_key,
+                },
+                is_test_account: true,
+            },
+            CreateAccountRequest::Lite {
+                auth: LiteAccountAuthKeysPayload {
+                    recovery: public_key,
+                },
+                is_test_account: true,
+            },
+        ];
+
+        for request in requests.iter() {
+            let serialized = serde_json::to_string(request).unwrap();
+            let deserialized: CreateAccountRequest = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(request, &deserialized);
+        }
+    }
 }

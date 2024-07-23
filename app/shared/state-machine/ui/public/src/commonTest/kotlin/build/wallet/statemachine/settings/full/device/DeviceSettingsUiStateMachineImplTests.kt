@@ -4,12 +4,11 @@ import app.cash.turbine.plusAssign
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
+import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
 import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
 import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
-import build.wallet.feature.setFlagValue
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
 import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcCommandsMock
@@ -57,9 +56,6 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
-  val multipleFingerprintsEnabledFeatureFlag = MultipleFingerprintsIsEnabledFeatureFlag(
-    featureFlagDao = FeatureFlagDaoMock()
-  )
   val resetDeviceIsEnabledFeatureFlag = ResetDeviceIsEnabledFeatureFlag(
     featureFlagDao = FeatureFlagDaoMock()
   )
@@ -83,7 +79,6 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       durationFormatter = DurationFormatterFake(),
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
-      multipleFingerprintsIsEnabledFeatureFlag = multipleFingerprintsEnabledFeatureFlag,
       resetDeviceIsEnabledFeatureFlag = resetDeviceIsEnabledFeatureFlag,
       managingFingerprintsUiStateMachine = object : ManagingFingerprintsUiStateMachine,
         ScreenStateMachineMock<ManagingFingerprintsProps>(
@@ -92,7 +87,8 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       resettingDeviceUiStateMachine =
         object : ResettingDeviceUiStateMachine, ScreenStateMachineMock<ResettingDeviceProps>(
           "resetting device"
-        ) {}
+        ) {},
+      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
@@ -183,7 +179,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   test("lost or stolen device") {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        mainContentList[1].apply {
+        mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
           item.text.shouldBe("Replace device")
           item.onClick()
@@ -247,7 +243,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   test("Replace device button should be disabled given limited functionality") {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        mainContentList[1].apply {
+        mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
           item.text.shouldBe("Replace device")
           item.isEnabled.shouldBeTrue()
@@ -261,7 +257,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       )
 
       awaitScreenWithBody<FormBodyModel> {
-        mainContentList[1].apply {
+        mainContentList[2].apply {
           shouldBeInstanceOf<Button>()
           item.text.shouldBe("Replace device")
           item.isEnabled.shouldBeFalse()
@@ -271,8 +267,6 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on manage fingerprints") {
-    multipleFingerprintsEnabledFeatureFlag.setFlagValue(true)
-
     stateMachine.test(props) {
       // Tap the Fingerprint button
       awaitScreenWithBody<FormBodyModel> {
@@ -293,7 +287,6 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on manage fingerprints but need fwup") {
-    multipleFingerprintsEnabledFeatureFlag.setFlagValue(true)
     stateMachine.test(
       props.copy(firmwareData = FirmwareDataPendingUpdateMock)
     ) {

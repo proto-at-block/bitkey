@@ -284,7 +284,7 @@ private fun Explainer(statements: ImmutableList<Statement>) {
                 append(body.string)
                 body.linkedSubstrings.forEach { linkedSubstring ->
                   addStyle(
-                    style = SpanStyle(color = WalletTheme.colors.primary),
+                    style = SpanStyle(color = WalletTheme.colors.bitkeyPrimary),
                     start = linkedSubstring.range.first,
                     end = linkedSubstring.range.last + 1
                   )

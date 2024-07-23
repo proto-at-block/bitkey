@@ -5,7 +5,6 @@
 !/.idea/dictionaries/
 !/.idea/externalDependencies.xml
 !/.idea/detekt.xml
-!/.idea/vcs.xml
 # ktlint code style
 !/.idea/codeStyles/codeStyleConfig.xml
 !/.idea/codeStyles/Project.xml

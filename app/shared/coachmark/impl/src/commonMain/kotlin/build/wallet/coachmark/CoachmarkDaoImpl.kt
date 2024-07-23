@@ -8,12 +8,10 @@ import build.wallet.sqldelight.awaitAsOneOrNullResult
 import build.wallet.sqldelight.awaitTransactionWithResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
 class CoachmarkDaoImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
-  private val clock: Clock,
 ) : CoachmarkDao {
   private val database by lazy {
     databaseProvider.database()
@@ -26,7 +24,7 @@ class CoachmarkDaoImpl(
     database.coachmarksQueries
       .awaitTransactionWithResult {
         createCoachmark(
-          coachmarkId = id.string,
+          id = id,
           viewed = false,
           expiration = expiration
         )
@@ -35,18 +33,18 @@ class CoachmarkDaoImpl(
   override suspend fun setViewed(id: CoachmarkIdentifier): Result<Unit, DbError> =
     database.coachmarksQueries
       .awaitTransactionWithResult {
-        setViewed(id.string, true, expiration = clock.now())
+        setViewed(true, id)
       }
 
   override suspend fun getCoachmark(id: CoachmarkIdentifier): Result<Coachmark?, DbError> =
     database
       .coachmarksQueries
-      .getCoachmark(id.string)
+      .getCoachmark(id)
       .awaitAsOneOrNullResult()
       .map { entity ->
         entity?.let {
           Coachmark(
-            coachmarkId = it.coachmarkId,
+            id = id,
             viewed = it.viewed,
             expiration = it.expiration
           )
@@ -61,7 +59,7 @@ class CoachmarkDaoImpl(
       .map { entities ->
         entities.map {
           Coachmark(
-            coachmarkId = it.coachmarkId,
+            id = it.id,
             viewed = it.viewed,
             expiration = it.expiration
           )

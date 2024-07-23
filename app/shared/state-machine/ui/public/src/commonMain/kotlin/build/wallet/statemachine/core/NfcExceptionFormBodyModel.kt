@@ -46,7 +46,7 @@ fun NfcErrorFormBodyModel(
       null
     },
     eventTrackerScreenId = eventTrackerScreenId,
-    eventTrackerScreenIdContext = eventTrackerScreenIdContext,
+    eventTrackerContext = eventTrackerScreenIdContext,
     secondaryButtonIcon = Icon.SmallIconArrowUpRight
   )
 }

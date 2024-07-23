@@ -28,7 +28,7 @@ final class ErrorSnapshotTests: XCTestCase {
                 ),
                 renderContext: RenderContext.screen,
                 eventTrackerScreenId: nil,
-                eventTrackerScreenIdContext: nil,
+                eventTrackerContext: nil,
                 eventTrackerShouldTrack: false,
                 onLoaded: {},
                 secondaryButtonIcon: Icon.smalliconarrowupright
@@ -54,7 +54,7 @@ final class ErrorSnapshotTests: XCTestCase {
                 secondaryButton: nil,
                 renderContext: RenderContext.screen,
                 eventTrackerScreenId: nil,
-                eventTrackerScreenIdContext: nil,
+                eventTrackerContext: nil,
                 eventTrackerShouldTrack: false,
                 onLoaded: {},
                 secondaryButtonIcon: Icon.smalliconarrowupright
@@ -80,7 +80,7 @@ final class ErrorSnapshotTests: XCTestCase {
                 secondaryButton: nil,
                 renderContext: RenderContext.screen,
                 eventTrackerScreenId: nil,
-                eventTrackerScreenIdContext: nil,
+                eventTrackerContext: nil,
                 eventTrackerShouldTrack: false,
                 onLoaded: {},
                 secondaryButtonIcon: Icon.smalliconarrowupright

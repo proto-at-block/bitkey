@@ -1,7 +1,7 @@
 package build.wallet.statemachine.nfc
 
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
@@ -34,7 +34,7 @@ data class FwupInstructionsBodyModel(
     buttonText: String,
     onButtonClick: () -> Unit,
     eventTrackerScreenId: EventTrackerScreenId?,
-    eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+    eventTrackerContext: EventTrackerContext? = null,
   ) : this(
     onBack = onClose,
     toolbarModel =
@@ -69,7 +69,7 @@ data class FwupInstructionsBodyModel(
       eventTrackerScreenId?.let {
         EventTrackerScreenInfo(
           eventTrackerScreenId = it,
-          eventTrackerScreenIdContext = eventTrackerScreenIdContext
+          eventTrackerContext = eventTrackerContext
         )
       }
   )

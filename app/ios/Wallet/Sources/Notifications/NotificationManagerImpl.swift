@@ -102,9 +102,9 @@ public class NotificationManagerImpl: NSObject, NotificationManager {
     ) async {
         switch response.actionIdentifier {
         case UNNotificationDefaultActionIdentifier:
-            eventTracker.track(action: .actionAppPushNotificationOpen)
+            eventTracker.track(action: .actionAppPushNotificationOpen, context: nil)
         case UNNotificationDismissActionIdentifier:
-            eventTracker.track(action: .actionAppPushNotificationDismiss)
+            eventTracker.track(action: .actionAppPushNotificationDismiss, context: nil)
         default:
             break
         }

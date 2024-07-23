@@ -1,7 +1,7 @@
 package build.wallet.statemachine.core
 
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.platform.random.uuid
 
@@ -16,7 +16,7 @@ data class LoadingSuccessBodyModel(
   val state: State,
   val id: EventTrackerScreenId?,
   val message: String? = null,
-  val eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+  val eventTrackerContext: EventTrackerContext? = null,
   val eventTrackerShouldTrack: Boolean = true,
 ) : BodyModel() {
   sealed interface State {
@@ -30,7 +30,7 @@ data class LoadingSuccessBodyModel(
       id?.let {
         EventTrackerScreenInfo(
           eventTrackerScreenId = it,
-          eventTrackerScreenIdContext = null,
+          eventTrackerContext = null,
           eventTrackerShouldTrack = true
         )
       }

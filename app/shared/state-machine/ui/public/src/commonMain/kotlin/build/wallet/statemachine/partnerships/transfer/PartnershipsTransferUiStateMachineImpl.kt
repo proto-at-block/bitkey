@@ -6,14 +6,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.LOADING_TRANSFER_PARTNERS
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.LOADING_TRANSFER_PARTNER_REDIRECT
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNERS_LIST
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNERS_NOT_AVAILABLE
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNERS_NOT_FOUND_ERROR
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNER_REDIRECTING
-import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.TRANSFER_PARTNER_REDIRECT_ERROR
+import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.*
+import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClient
@@ -63,6 +59,7 @@ class PartnershipsTransferUiStateMachineImpl(
   private val getTransferPartnerListF8eClient: GetTransferPartnerListF8eClient,
   private val getTransferRedirectF8eClient: GetTransferRedirectF8eClient,
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
+  private val eventTracker: EventTracker,
 ) : PartnershipsTransferUiStateMachine {
   @Composable
   override fun model(props: PartnershipsTransferUiProps): SheetModel {
@@ -78,6 +75,12 @@ class PartnershipsTransferUiStateMachineImpl(
             )
             .onSuccess {
               val transferPartners = it.partnerList.toImmutableList()
+              transferPartners.forEach { partner ->
+                eventTracker.track(
+                  action = Action.ACTION_APP_PARTNERSHIPS_VIEWED_TRANSFER_PARTNER,
+                  context = PartnerEventTrackerScreenIdContext(partner)
+                )
+              }
               state =
                 State.ChoosingPartnershipsTransfer(
                   transferPartners = transferPartners,
@@ -233,7 +236,7 @@ class PartnershipsTransferUiStateMachineImpl(
       body =
         ErrorFormBodyModel(
           eventTrackerScreenId = id,
-          eventTrackerScreenIdContext = context,
+          eventTrackerContext = context,
           title = title,
           subline = errorMessage,
           primaryButton = ButtonDataModel("Got it", isLoading = false, onClick = onBack),
@@ -342,7 +345,7 @@ class PartnershipsTransferUiStateMachineImpl(
       body =
         FormBodyModel(
           id = id,
-          eventTrackerScreenIdContext = context,
+          eventTrackerContext = context,
           onBack = {},
           toolbar = null,
           header = null,

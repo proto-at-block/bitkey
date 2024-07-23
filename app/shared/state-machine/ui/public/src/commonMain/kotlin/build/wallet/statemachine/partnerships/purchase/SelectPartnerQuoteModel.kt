@@ -3,23 +3,23 @@ package build.wallet.statemachine.partnerships.purchase
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.Quote
-import build.wallet.f8e.partnerships.bitcoinAmount
-import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.partnerships.PartnerId
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.SheetSize.FULL
 import build.wallet.statemachine.core.form.FormBodyModel
+import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.RenderContext.Screen
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle.CARD_ITEM
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import build.wallet.ui.model.toolbar.ToolbarMiddleAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -36,48 +36,57 @@ import kotlinx.collections.immutable.toImmutableList
 fun selectPartnerQuoteModel(
   title: String,
   subTitle: String,
-  moneyDisplayFormatter: MoneyDisplayFormatter,
-  quotes: ImmutableList<Quote>,
+  previousPartnerIds: List<PartnerId>,
+  quotes: ImmutableList<QuoteDisplay>,
   onSelectPartnerQuote: (Quote) -> Unit,
   onClosed: () -> Unit,
 ): SheetModel {
   val listGroupModel =
     ListGroupModel(
       items =
-        quotes.map {
-          ListItemModel(
-            title = it.partnerInfo.name,
-            sideText = moneyDisplayFormatter.format(it.bitcoinAmount()),
-            onClick = { onSelectPartnerQuote(it) },
-            leadingAccessory =
-              ListItemAccessory.IconAccessory(
-                model =
-                  IconModel(
-                    iconImage =
-                      when (val url = it.partnerInfo.logoUrl) {
-                        null -> IconImage.LocalImage(Icon.Bitcoin)
-                        else ->
-                          IconImage.UrlImage(
-                            url = url,
-                            fallbackIcon = Icon.Bitcoin
-                          )
-                      },
-                    iconSize = IconSize.Regular
-                  )
-              )
+        quotes
+          .sortedWith(
+            compareByDescending<QuoteDisplay> { it.quote.partnerInfo.partnerId in previousPartnerIds }
+              .thenByDescending { it.quote.cryptoAmount }
           )
-        }.toImmutableList(),
+          .map { quoteDisplay ->
+            ListItemModel(
+              title = quoteDisplay.quote.partnerInfo.name,
+              secondaryText = "Previously Used".takeIf {
+                quoteDisplay.quote.partnerInfo.partnerId in previousPartnerIds
+              },
+              sideText = quoteDisplay.fiatDisplayAmount ?: quoteDisplay.bitcoinDisplayAmount,
+              secondarySideText = quoteDisplay.fiatDisplayAmount?.let { quoteDisplay.bitcoinDisplayAmount },
+              onClick = { onSelectPartnerQuote(quoteDisplay.quote) },
+              leadingAccessory =
+                ListItemAccessory.IconAccessory(
+                  model =
+                    IconModel(
+                      iconImage =
+                        when (val url = quoteDisplay.quote.partnerInfo.logoUrl) {
+                          null -> IconImage.LocalImage(Icon.Bitcoin)
+                          else ->
+                            IconImage.UrlImage(
+                              url = url,
+                              fallbackIcon = Icon.Bitcoin
+                            )
+                        },
+                      iconSize = IconSize.Regular
+                    )
+                ),
+              trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30)
+            )
+          }.toImmutableList(),
       style = CARD_ITEM
     )
   return SheetModel(
     body =
       FormBodyModel(
         onBack = {},
-        header = null,
+        header = FormHeaderModel(headline = title, subline = subTitle),
         toolbar =
           ToolbarModel(
-            middleAccessory = ToolbarMiddleAccessoryModel(title = title, subtitle = subTitle),
-            trailingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory(onClosed)
+            leadingAccessory = ToolbarAccessoryModel.IconAccessory.CloseAccessory { onClosed() }
           ),
         mainContentList = immutableListOf(ListGroup(listGroupModel)),
         primaryButton = null,

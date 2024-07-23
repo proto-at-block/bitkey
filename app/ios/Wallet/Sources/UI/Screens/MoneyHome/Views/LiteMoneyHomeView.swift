@@ -69,11 +69,12 @@ struct LiteMoneyHomeView_Preview: PreviewProvider {
                 protectedCustomers: [
                     ProtectedCustomer(recoveryRelationshipId: "", alias: "bob"),
                 ],
+                badgedSettingsIcon: false,
                 onProtectedCustomerClick: { _ in },
                 onBuyOwnBitkeyClick: {},
                 onAcceptInviteClick: {}
             )
-        )
+        ).previewDisplayName("protected customer")
         LiteMoneyHomeView(
             viewModel: LiteMoneyHomeBodyModel(
                 onSettings: {},
@@ -81,10 +82,26 @@ struct LiteMoneyHomeView_Preview: PreviewProvider {
                     onSetUpBitkeyDevice: {}
                 ),
                 protectedCustomers: [],
+                badgedSettingsIcon: false,
                 onProtectedCustomerClick: { _ in },
                 onBuyOwnBitkeyClick: {},
                 onAcceptInviteClick: {}
             )
-        )
+        ).previewDisplayName("accept invite")
+        LiteMoneyHomeView(
+            viewModel: LiteMoneyHomeBodyModel(
+                onSettings: {},
+                buttonModel: MoneyHomeButtonsModelSingleButtonModel(
+                    onSetUpBitkeyDevice: {}
+                ),
+                protectedCustomers: [
+                    ProtectedCustomer(recoveryRelationshipId: "", alias: "bob"),
+                ],
+                badgedSettingsIcon: true,
+                onProtectedCustomerClick: { _ in },
+                onBuyOwnBitkeyClick: {},
+                onAcceptInviteClick: {}
+            )
+        ).previewDisplayName("coachmark badged")
     }
 }

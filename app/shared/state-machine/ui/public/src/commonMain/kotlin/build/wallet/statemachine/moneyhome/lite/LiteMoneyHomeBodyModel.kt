@@ -31,6 +31,7 @@ data class LiteMoneyHomeBodyModel(
     onSettings: () -> Unit,
     buttonModel: MoneyHomeButtonsModel,
     protectedCustomers: ImmutableList<ProtectedCustomer>,
+    badgedSettingsIcon: Boolean,
     onProtectedCustomerClick: (ProtectedCustomer) -> Unit,
     onBuyOwnBitkeyClick: () -> Unit,
     onAcceptInviteClick: () -> Unit,
@@ -53,10 +54,14 @@ data class LiteMoneyHomeBodyModel(
       ToolbarAccessoryModel.IconAccessory(
         model = IconButtonModel(
           iconModel = IconModel(
-            icon = Icon.SmallIconSettings,
+            icon = if (badgedSettingsIcon) {
+              Icon.SmallIconSettingsBadged
+            } else {
+              Icon.SmallIconSettings
+            },
             iconSize = IconSize.HeaderToolbar
           ),
-          onClick = StandardClick { onSettings() }
+          onClick = StandardClick(onSettings)
         )
       )
   )

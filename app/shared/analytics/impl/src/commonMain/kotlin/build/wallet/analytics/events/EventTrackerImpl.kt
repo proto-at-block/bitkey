@@ -5,11 +5,12 @@ import build.wallet.account.AccountStatus
 import build.wallet.account.analytics.AppInstallation
 import build.wallet.account.analytics.AppInstallationDao
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
+import build.wallet.analytics.events.screen.EventTrackerFingerprintScanStatsInfo
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.v1.Action
-import build.wallet.analytics.v1.Action.ACTION_APP_COUNT
-import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
+import build.wallet.analytics.v1.Action.*
 import build.wallet.analytics.v1.Event
+import build.wallet.analytics.v1.FingerprintScanStats
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.F8eEnvironment.Production
@@ -57,11 +58,18 @@ class EventTrackerImpl(
     data class ScreenView(val screenInfo: EventTrackerScreenInfo) : ActionType
 
     data class Count(val countInfo: EventTrackerCountInfo) : ActionType
+
+    data class FingerprintScanStats(
+      val fingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo,
+    ) : ActionType
   }
 
-  override fun track(action: Action) {
+  override fun track(
+    action: Action,
+    context: EventTrackerContext?,
+  ) {
     track(
-      ActionType.Generic(action, null)
+      ActionType.Generic(action, context?.name)
     )
   }
 
@@ -82,32 +90,47 @@ class EventTrackerImpl(
     track(ActionType.ScreenView(eventTrackerScreenInfo))
   }
 
+  override fun track(eventTrackerFingerprintScanStatsInfo: EventTrackerFingerprintScanStatsInfo) {
+    track(ActionType.FingerprintScanStats(eventTrackerFingerprintScanStatsInfo))
+  }
+
   private fun track(actionType: ActionType) {
     val action = when (actionType) {
       is ActionType.Generic -> actionType.action
       is ActionType.ScreenView -> ACTION_APP_SCREEN_IMPRESSION
       is ActionType.Count -> ACTION_APP_COUNT
+      is ActionType.FingerprintScanStats -> ACTION_HW_FINGERPRINT_SCAN_STATS
     }
 
     val screenId = when (actionType) {
       is ActionType.Generic -> actionType.screenId
       is ActionType.ScreenView -> actionType.screenInfo.screenId
       is ActionType.Count -> null
+      is ActionType.FingerprintScanStats -> null
     }
 
     val countId = when (actionType) {
       is ActionType.Generic -> null
       is ActionType.ScreenView -> null
       is ActionType.Count -> actionType.countInfo.counterId
+      is ActionType.FingerprintScanStats -> null
     }
 
     val count = when (actionType) {
       is ActionType.Generic -> 0
       is ActionType.ScreenView -> 0
       is ActionType.Count -> actionType.countInfo.count
+      is ActionType.FingerprintScanStats -> 0
     }
 
-    createAndLogEvent(action, screenId, countId, count)
+    val fingerprintScanStats = when (actionType) {
+      is ActionType.Generic -> null
+      is ActionType.ScreenView -> null
+      is ActionType.Count -> null
+      is ActionType.FingerprintScanStats -> actionType.fingerprintScanStatsInfo.stats
+    }
+
+    createAndLogEvent(action, screenId, countId, count, fingerprintScanStats)
   }
 
   private fun createAndLogEvent(
@@ -115,6 +138,7 @@ class EventTrackerImpl(
     screenId: String?,
     countId: String?,
     count: Int,
+    fingerprintScanStats: FingerprintScanStats?,
   ) {
     appCoroutineScope.launch {
       val account = getCurrentAccount()
@@ -162,12 +186,13 @@ class EventTrackerImpl(
           hw_info = hardwareInfoProvider.getHardwareInfo(),
           screen_id = screenId ?: "",
           counter_id = countId ?: "",
-          counter_count = count ?: 0,
+          counter_count = count,
           app_device_id = appDeviceId,
           keyset_id = activeSpendingKeysetId,
           app_installation_id = appInstallationId,
           fiat_currency_preference = fiatCurrencyPreference.textCode.code,
-          bitcoin_display_preference = bitcoinDisplayUnit.name
+          bitcoin_display_preference = bitcoinDisplayUnit.name,
+          fingerprint_scan_stats = fingerprintScanStats
         )
 
       // Always add the event to the local store

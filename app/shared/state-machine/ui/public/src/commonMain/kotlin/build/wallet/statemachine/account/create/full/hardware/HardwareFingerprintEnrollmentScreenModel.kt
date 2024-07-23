@@ -1,7 +1,7 @@
 package build.wallet.statemachine.account.create.full.hardware
 
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.FINGERPRINT_ENROLLMENT_ERROR_SHEET
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel.BackgroundVideo.VideoContent.BitkeyFingerprint
@@ -26,7 +26,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
   showingIncompleteEnrollmentError: Boolean,
   incompleteEnrollmentErrorOnPrimaryButtonClick: () -> Unit,
   onErrorOverlayClosed: () -> Unit,
-  eventTrackerScreenIdContext: EventTrackerScreenIdContext,
+  eventTrackerContext: EventTrackerContext,
   presentationStyle: ScreenPresentationStyle,
   isNavigatingBack: Boolean,
   headline: String,
@@ -58,7 +58,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
       eventTrackerScreenInfo =
         EventTrackerScreenInfo(
           eventTrackerScreenId = HW_SAVE_FINGERPRINT_INSTRUCTIONS,
-          eventTrackerScreenIdContext = eventTrackerScreenIdContext
+          eventTrackerContext = eventTrackerContext
         )
     ),
   presentationStyle = presentationStyle,
@@ -77,7 +77,7 @@ fun HardwareFingerprintEnrollmentScreenModel(
               ),
             renderContext = Sheet,
             eventTrackerScreenId = FINGERPRINT_ENROLLMENT_ERROR_SHEET,
-            eventTrackerScreenIdContext = eventTrackerScreenIdContext
+            eventTrackerContext = eventTrackerContext
           )
       )
     } else {

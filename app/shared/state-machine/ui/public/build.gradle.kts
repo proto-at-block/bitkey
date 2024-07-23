@@ -116,6 +116,7 @@ kotlin {
         implementation(libs.kmp.okio)
         implementation(projects.shared.inAppSecurityFake)
         implementation(projects.shared.platformFake)
+        implementation(projects.shared.coachmarkFake)
       }
     }
 

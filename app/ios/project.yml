@@ -20,13 +20,14 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.62.0
-        PROJECT_BUNDLE_VERSION: 2
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.63.0
+        PROJECT_BUNDLE_VERSION: 4
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         OTHER_CFLAGS: -DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=3 -DSQLCIPHER_CRYPTO_CC -DNDEBUG
         REPRODUCIBLE_BUILD_VARIABLES_PATH: ${REPRODUCIBLE_BUILD}
+        ENABLE_USER_SCRIPT_SANDBOXING: YES
       configs:
         Release:
           APP_ICON: AppIconRelease
@@ -75,6 +76,8 @@ targets:
         Debug:
           APP_ICON: AppIconDebug
           ASSETCATALOG_COMPILER_APPICON_NAME: AppIconDebug
+          CODE_SIGN_STYLE: Automatic
+          DEVELOPMENT_TEAM: EYF346PHUG
           PRODUCT_BUNDLE_IDENTIFIER: world.bitkey.dev
           PROJECT_BUNDLE_NAME: "Bitkey Debug"
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG DEBUGMENU DEVELOPMENT
@@ -192,6 +195,7 @@ targets:
         shell: /usr/bin/env bash
         script: |
           "$SRCROOT/../bin/just" fast-verify-ios-lockfile
+        inputFiles: [ '$(SRCROOT)/Package.lock', '$(SRCROOT)/Wallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved' ]
       - name: Compile and embed Kotlin framework
         basedOnDependencyAnalysis: false
         shell: /usr/bin/env bash

@@ -36,7 +36,7 @@ fun WalletTheme.iconStyle(
           when {
             icon.icon.canApplyTint() ->
               when (tint) {
-                IconTint.Primary -> colors.primary
+                IconTint.Primary -> colors.bitkeyPrimary
                 IconTint.Foreground -> colors.foreground
                 IconTint.On60 -> colors.foreground60
                 IconTint.On30 -> colors.foreground30
@@ -72,6 +72,7 @@ private fun Icon.canApplyTint(): Boolean {
     Icon.BitkeyDeviceRaisedSmall,
     Icon.BitkeyDevice3D,
     Icon.SmallIconCheckboxSelected,
+    Icon.SmallIconSettingsBadged,
     -> false
 
     else -> true

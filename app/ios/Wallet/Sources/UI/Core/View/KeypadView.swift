@@ -65,6 +65,7 @@ private struct KeypadButtonContentView: View {
 
         case let digit as KeypadButton.Digit:
             ModeledText(model: .standard("\(digit.value)", font: .keypad, textAlignment: nil))
+
         default:
             fatalError("Unexpected keypad button")
         }

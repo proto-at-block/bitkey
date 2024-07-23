@@ -49,7 +49,7 @@ internal fun <Option : Any> ListItemPickerMenu(model: ListItemPickerMenu<Option>
             onClick = { model.onOptionSelected(option) },
             colors =
               RadioButtonDefaults.colors(
-                selectedColor = WalletTheme.colors.primary
+                selectedColor = WalletTheme.colors.bitkeyPrimary
               )
           )
           Label(

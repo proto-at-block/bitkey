@@ -6,7 +6,6 @@ import build.wallet.feature.isEnabled
 import build.wallet.logging.logFailure
 import com.github.michaelbull.result.getOr
 import com.github.michaelbull.result.map
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 

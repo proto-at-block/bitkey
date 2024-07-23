@@ -25,7 +25,7 @@ struct StepperView: View {
                 .frame(height: 8.0)
                 .scaleEffect(x: 1, y: 2, anchor: .center)
                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                .tint(.primary)
+                .tint(.bitkeyPrimary)
             HStack {
                 ForEach(Array(viewModel.labels.enumerated()), id: \.element) { index, label in
                     Text(label)

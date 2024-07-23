@@ -1,7 +1,7 @@
 package build.wallet.statemachine.core.form
 
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.platform.random.uuid
@@ -51,7 +51,7 @@ data class FormBodyModel(
   val keepScreenOn: Boolean = false,
   val renderContext: RenderContext = Screen,
   val onLoaded: ((BrowserNavigator) -> Unit) = {},
-  val eventTrackerScreenIdContext: EventTrackerScreenIdContext? = null,
+  val eventTrackerContext: EventTrackerContext? = null,
   val eventTrackerShouldTrack: Boolean = true,
   val errorData: ErrorData? = null,
 ) : BodyModel() {
@@ -60,7 +60,7 @@ data class FormBodyModel(
       id?.let {
         EventTrackerScreenInfo(
           eventTrackerScreenId = it,
-          eventTrackerScreenIdContext = eventTrackerScreenIdContext,
+          eventTrackerContext = eventTrackerContext,
           eventTrackerShouldTrack = eventTrackerShouldTrack
         )
       }

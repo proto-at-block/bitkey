@@ -202,14 +202,12 @@ pub struct FullAccountAuthKeysPayload {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-#[serde(deny_unknown_fields)]
 pub struct LiteAccountAuthKeysPayload {
     // TODO: [W-774] Update visibility of struct after migration
     pub recovery: PublicKey,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug, ToSchema, Clone)]
-#[serde(deny_unknown_fields)]
 pub struct SoftwareAccountAuthKeysPayload {
     // TODO: [W-774] Update visibility of struct after migration
     pub app: PublicKey,
@@ -489,8 +487,8 @@ impl From<SoftwareAccount> for Account {
 #[serde(untagged)]
 pub enum Account {
     Full(FullAccount),
-    Lite(LiteAccount),
     Software(SoftwareAccount),
+    Lite(LiteAccount),
 }
 
 impl Account {
@@ -604,7 +602,6 @@ impl FullAccountAuthKeys {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(deny_unknown_fields)]
 pub struct LiteAccountAuthKeys {
     pub recovery_pubkey: PublicKey,
 }
@@ -617,7 +614,6 @@ impl LiteAccountAuthKeys {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(deny_unknown_fields)]
 pub struct SoftwareAccountAuthKeys {
     pub app_pubkey: PublicKey,
     pub recovery_pubkey: PublicKey,
@@ -739,11 +735,21 @@ impl From<Account> for PubkeysToAccount {
 #[cfg(test)]
 mod tests {
 
+    use std::str::FromStr;
+
     use crate::entities::{CommonAccountFields, FullAccount, TouchpointPlatform};
     use crate::spend_limit::SpendingLimit;
+    use bdk_utils::bdk::bitcoin::key::Secp256k1;
+    use bdk_utils::bdk::bitcoin::secp256k1::rand::thread_rng;
     use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
+    use bdk_utils::bdk::keys::DescriptorPublicKey;
     use time::OffsetDateTime;
     use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
+
+    use super::{
+        Account, AccountProperties, FullAccountAuthKeys, LiteAccount, LiteAccountAuthKeys,
+        SoftwareAccount, SoftwareAccountAuthKeys, SpendingKeyset,
+    };
 
     #[test]
     fn test_is_spending_limit_active() {
@@ -813,5 +819,74 @@ mod tests {
             serde_json::from_str(gcm_internal).unwrap(),
             TouchpointPlatform::FcmTeam
         ));
+    }
+
+    #[test]
+    // This may seem trivial, but because the Account enum is untagged, and because the account types
+    // are essentially telescoping (FullAccount contains all the fields and more of SoftwareAccount, which
+    // in turn contains all the fields and more of LiteAccount), and because we don't deny unknown fields
+    // during serde deserialization, this test failed when the variants are defined in their original order
+    // (Full, Lite, Software). This means that you could create a SoftwareAccount, save it to the db, and it
+    // would deserialize as a LiteAccount.
+    fn test_untagged_account_type_deserialization() {
+        let account_id = AccountId::gen().unwrap();
+        let active_auth_keys_id = AuthKeysId::gen().unwrap();
+
+        let secp = Secp256k1::new();
+        let public_key = secp.generate_keypair(&mut thread_rng()).1;
+
+        let descriptor_public_key = DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap();
+        let properties = AccountProperties {
+            is_test_account: false,
+        };
+
+        let full_account = FullAccount::new(
+            account_id.clone(),
+            KeysetId::gen().unwrap(),
+            active_auth_keys_id.clone(),
+            FullAccountAuthKeys {
+                app_pubkey: public_key,
+                hardware_pubkey: public_key,
+                recovery_pubkey: Some(public_key),
+            },
+            SpendingKeyset {
+                network: Default::default(),
+                app_dpub: descriptor_public_key.clone(),
+                hardware_dpub: descriptor_public_key.clone(),
+                server_dpub: descriptor_public_key,
+            },
+            properties.clone(),
+        );
+
+        let lite_account = LiteAccount::new(
+            account_id.clone(),
+            active_auth_keys_id.clone(),
+            LiteAccountAuthKeys {
+                recovery_pubkey: public_key,
+            },
+            properties.clone(),
+        );
+
+        let software_account = SoftwareAccount::new(
+            account_id,
+            active_auth_keys_id,
+            SoftwareAccountAuthKeys {
+                app_pubkey: public_key,
+                recovery_pubkey: public_key,
+            },
+            properties,
+        );
+
+        let accounts = [
+            Account::Full(full_account),
+            Account::Lite(lite_account),
+            Account::Software(software_account),
+        ];
+
+        for account in accounts.iter() {
+            let serialized = serde_json::to_string(account).unwrap();
+            let deserialized: Account = serde_json::from_str(&serialized).unwrap();
+            assert_eq!(account, &deserialized);
+        }
     }
 }

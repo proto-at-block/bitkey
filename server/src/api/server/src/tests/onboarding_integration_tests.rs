@@ -32,8 +32,8 @@ use comms_verification::TEST_CODE;
 use external_identifier::ExternalIdentifier;
 use onboarding::routes::{
     AccountActivateTouchpointRequest, AccountAddDeviceTokenRequest, AccountAddTouchpointRequest,
-    AccountVerifyTouchpointRequest, CompleteOnboardingRequest, CreateAccountRequest,
-    UpgradeAccountRequest,
+    AccountVerifyTouchpointRequest, ActivateSpendingDescriptorRequest, CompleteOnboardingRequest,
+    ContinueDistributedKeygenRequest, CreateAccountRequest, UpgradeAccountRequest,
 };
 use types::account::identifiers::TouchpointId;
 
@@ -1720,5 +1720,140 @@ tests! {
         override_recovery_pubkey: true,
         expected_create_status: StatusCode::OK,
         expected_same_response: false,
+    },
+}
+
+struct SoftwareOnboardingKeygenActivationTestVector {
+    spending_app_xpub: DescriptorPublicKey,
+    spending_hw_xpub: DescriptorPublicKey,
+    network: Network,
+    expected_derivation_path: &'static str,
+    expected_status: StatusCode,
+}
+
+async fn software_onboarding_keygen_activation_test(
+    vector: SoftwareOnboardingKeygenActivationTestVector,
+) {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let keys = create_new_authkeys(&mut context);
+    let request = CreateAccountRequest::Software {
+        auth: SoftwareAccountAuthKeysPayload {
+            app: keys.app.public_key,
+            recovery: keys.recovery.public_key,
+        },
+        is_test_account: true,
+    };
+    let actual_response = client.create_account(&mut context, &request).await;
+    assert_eq!(
+        actual_response.status_code, vector.expected_status,
+        "{}",
+        actual_response.body_string
+    );
+
+    if vector.expected_status != StatusCode::OK {
+        return;
+    }
+
+    let account_id = actual_response.body.unwrap().account_id;
+
+    let request = SpendingKeysetRequest {
+        network: vector.network,
+        app: vector.spending_app_xpub.clone(),
+        hardware: vector.spending_hw_xpub.clone(),
+    };
+    let actual_response = client
+        .initiate_distributed_keygen(&account_id.to_string(), &request)
+        .await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+
+    let keyset_id = actual_response.body.unwrap().keyset_id;
+
+    let request = ContinueDistributedKeygenRequest {};
+    let actual_response = client
+        .continue_distributed_keygen(&account_id.to_string(), &keyset_id.to_string(), &request)
+        .await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+
+    let spending = actual_response.body.unwrap().spending;
+    assert!(
+        spending
+            .to_string()
+            .contains(vector.expected_derivation_path),
+        "{}",
+        spending.to_string()
+    );
+    assert!(spending.to_string().ends_with("/*"));
+
+    // TODO: Figure out what to do with get_account_status: we need to figure out how to deal with null keyset without breaking
+    // existing consumers of this endpoint
+    let actual_response = client.get_account_status(&account_id.to_string()).await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "{}",
+        actual_response.body_string
+    );
+
+    let request = ActivateSpendingDescriptorRequest { keyset_id };
+    let actual_response = client
+        .activate_spending_descriptor(&account_id.to_string(), &request)
+        .await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+
+    let actual_response = client.get_account_status(&account_id.to_string()).await;
+    assert_eq!(
+        actual_response.status_code,
+        StatusCode::OK,
+        "{}",
+        actual_response.body_string
+    );
+
+    let spending_keyset = actual_response.body.unwrap().spending;
+    assert_eq!(
+        spending_keyset.app_dpub, vector.spending_app_xpub,
+        "{}",
+        spending_keyset.app_dpub
+    );
+    assert_eq!(
+        spending_keyset.hardware_dpub, vector.spending_hw_xpub,
+        "{}",
+        spending_keyset.hardware_dpub
+    );
+    assert!(
+        spending_keyset
+            .server_dpub
+            .to_string()
+            .contains(vector.expected_derivation_path),
+        "{}",
+        spending_keyset.server_dpub.to_string()
+    );
+    assert!(spending_keyset.server_dpub.to_string().ends_with("/*"));
+}
+
+tests! {
+    runner = software_onboarding_keygen_activation_test,
+    test_software_keygen_activation: SoftwareOnboardingKeygenActivationTestVector {
+        spending_app_xpub: DescriptorPublicKey::from_str("[74ce1142/84'/1'/0']tpubD6NzVbkrYhZ4XFo7hggmFF9qDqwrR9aqZv6j2Sgp1N5aVyxyMXxQG14grtRa3ob8ddZqxbd2hbPU7dEXvPRDRuQJ3NsMaGDaZXkLEewdthy/0/*").unwrap(),
+        spending_hw_xpub: DescriptorPublicKey::from_str("[9e61ede9/84'/1'/0']tpubD6NzVbkrYhZ4Xwyrc51ZUDmxHYdTBpmTqTwSB6vr93T3Rt72nPzx2kjTV8VeWJW741HvVGvRyPSHZBgA5AEGD8Eib3sMwazMEuaQf1ioGBo/0/*").unwrap(),
+        network: Network::Testnet,
+        expected_derivation_path: "/84'/1'/0'",
+        expected_status: StatusCode::OK,
     },
 }

@@ -386,7 +386,6 @@ class Efr32ElfSigner:
         # Compute the hash
         digest = SHA256.new(signing_input)
         logger.debug(f"sha256: {digest.hexdigest()}")
-        print(f"sha256: {digest.hexdigest()}")
         return digest
 
     def stitch_and_finalize(self, key_manager: KeyManager, asset_info: AssetInfo, signature: bytes, digest: SHA256.SHA256Hash):

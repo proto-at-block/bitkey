@@ -1,9 +1,11 @@
 package build.wallet.analytics.events.screen.context
 
+import build.wallet.analytics.events.EventTrackerContext
+
 /**
  * Context for NFC related screens in the app.
  */
-enum class NfcEventTrackerScreenIdContext : EventTrackerScreenIdContext {
+enum class NfcEventTrackerScreenIdContext : EventTrackerContext {
   /** NFC flow to start fingerprint enrollment */
   PAIR_NEW_HW_FINGERPRINT,
 

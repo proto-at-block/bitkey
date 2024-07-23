@@ -44,7 +44,14 @@ public struct MoneyHomeView: View {
                         MoneyHomeBalanceView(
                             model: viewModel.balanceModel,
                             hideBalance: viewModel.hideBalance,
-                            onHideBalance: { viewModel.onHideBalance() }
+                            onHideBalance: {
+                                viewModel.onHideBalance()
+                                // dismiss the HiddenBalanceCoachmark coachmark if it's showing
+                                // since you've interacted with the feature
+                                if viewModel.coachmark?.identifier == .hiddenbalancecoachmark {
+                                    viewModel.coachmark?.dismiss()
+                                }
+                            }
                         )
                         .padding(.top, 40)
 
@@ -77,6 +84,11 @@ public struct MoneyHomeView: View {
                                 ButtonView(model: seeAllButtonModel)
                             }
                         }
+                    }
+
+                    if let coachmark = viewModel.coachmark {
+                        CoachmarkView(model: coachmark)
+                            .offset(x: 0, y: -110)
                     }
                 }
             }
@@ -181,7 +193,7 @@ struct MoneyHomeView_Preview: PreviewProvider {
                             ],
                             style: .none,
                             headerTreatment: .secondary,
-                            footerButton: nil, 
+                            footerButton: nil,
                             explainerSubtext: nil
                         ),
                         ListGroupModel(
@@ -214,12 +226,97 @@ struct MoneyHomeView_Preview: PreviewProvider {
                     testTag: nil,
                     onClick: StandardClick {}
                 ),
+                coachmark: nil,
                 refresh: TestSuspendFunction(),
                 onRefresh: {},
                 onHideBalance: {},
-                isRefreshing: false
+                isRefreshing: false,
+                badgedSettingsIcon: false
             )
         )
+
+        MoneyHomeView(
+            viewModel: MoneyHomeBodyModel(
+                hideBalance: false,
+                onSettings: {},
+                balanceModel: MoneyAmountModel(
+                    primaryAmount: "$123.75",
+                    secondaryAmount: "435,228 sats"
+                ),
+                buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                    sendButton: .init(enabled: true, onClick: {}),
+                    receiveButton: .init(enabled: true, onClick: {}),
+                    addButton: .init(enabled: false, onClick: {})
+                ),
+                cardsModel: .init(cards: []),
+                transactionsModel: ListModel(
+                    headerText: "Recent Activity",
+                    sections: [
+                        ListGroupModel(
+                            header: nil,
+                            items: [
+                                TransactionItemModelKt.TransactionItemModel(
+                                    truncatedRecipientAddress: "1AH7...CkGJ",
+                                    date: "Pending",
+                                    amount: "$23.50",
+                                    amountEquivalent: "45,075 sats",
+                                    incoming: true,
+                                    isPending: false,
+                                    onClick: {}
+                                ),
+                                TransactionItemModelKt.TransactionItemModel(
+                                    truncatedRecipientAddress: "1AH7...CkGJ",
+                                    date: "Pending",
+                                    amount: "$34.21",
+                                    amountEquivalent: "49,000 sats",
+                                    incoming: true,
+                                    isPending: false,
+                                    onClick: {}
+                                ),
+                            ],
+                            style: .none,
+                            headerTreatment: .secondary,
+                            footerButton: nil,
+                            explainerSubtext: nil
+                        ),
+                        ListGroupModel(
+                            header: nil,
+                            items: [
+                                TransactionItemModelKt.TransactionItemModel(
+                                    truncatedRecipientAddress: "2AH7...CkGJ",
+                                    date: "Apr 6 at 12:20 pm",
+                                    amount: "$90.50",
+                                    amountEquivalent: "121,075 sats",
+                                    incoming: false,
+                                    isPending: false,
+                                    onClick: {}
+                                ),
+                            ],
+                            style: .none,
+                            headerTreatment: .secondary,
+                            footerButton: nil,
+                            explainerSubtext: nil
+                        ),
+                    ]
+                ),
+                seeAllButtonModel: ButtonModel(
+                    text: "See All",
+                    isEnabled: true,
+                    isLoading: false,
+                    leadingIcon: nil,
+                    treatment: .secondary,
+                    size: .footer,
+                    testTag: nil,
+                    onClick: StandardClick {}
+                ),
+                coachmark: nil,
+                refresh: TestSuspendFunction(),
+                onRefresh: {},
+                onHideBalance: {},
+                isRefreshing: false,
+                badgedSettingsIcon: true
+            )
+        ).previewDisplayName("settings badged")
     }
 }
 

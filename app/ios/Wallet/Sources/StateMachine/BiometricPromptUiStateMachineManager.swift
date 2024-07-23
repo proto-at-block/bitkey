@@ -146,7 +146,7 @@ class BiometricPromptUiStateMachineManager {
             default:
                 fatalError("Presentation Style not defined")
             }
-        case let .none(doLast: doLast):
+        case .none:
             // no-op
             break
         }

@@ -66,7 +66,7 @@ public struct LogsView: View {
                                 }
                             )
                         )
-                        .tint(.primary)
+                        .tint(.bitkeyPrimary)
                         Toggle(
                             "Analytics Only",
                             isOn: .init(
@@ -77,7 +77,7 @@ public struct LogsView: View {
                                 }
                             )
                         )
-                        .tint(.primary)
+                        .tint(.bitkeyPrimary)
                         ButtonView(model: .tertiaryDestructive(
                             text: "Clear Logs",
                             onClick: viewModel.onClear

@@ -36,7 +36,7 @@
         "light": { "value": "#F6F6F6", "comment": "used for borders and dividers" },
         "dark": { "value": "#F6F6F6" }
       },
-      "primary": {
+      "bitkeyPrimary": {
         "light": { "value": "#008096", "comment": "The primary color for buttons, switches, etc" },
         "dark": { "value": "#008096" }
       },

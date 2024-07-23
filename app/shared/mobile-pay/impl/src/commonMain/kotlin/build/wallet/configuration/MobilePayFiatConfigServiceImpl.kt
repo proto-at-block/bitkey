@@ -45,7 +45,6 @@ class MobilePayFiatConfigServiceImpl(
           mobilePayFiatConfigRepository.configs,
           fiatCurrencyPreferenceRepository.fiatCurrencyPreference
         ) { configs, fiatCurrency ->
-          println("fiatCurrency: $fiatCurrency")
           configs[fiatCurrency]
             // If we don't have a config for the selected fiat currency,
             // use the one with hardcoded defaults

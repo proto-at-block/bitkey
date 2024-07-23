@@ -30,7 +30,18 @@ extension Shared.FirmwareDeviceInfo {
                     }
                 }
             }(),
-            timeRetrieved: Int64(NSDate().timeIntervalSince1970)
+            timeRetrieved: Int64(NSDate().timeIntervalSince1970),
+            bioMatchStats: deviceInfo.bioMatchStats.map { bioMatchStats in
+                Shared.BioMatchStats(
+                    passCounts: bioMatchStats.passCounts.map { matchStat in
+                        Shared.TemplateMatchStats_(
+                            passCount: Int64(matchStat.passCount),
+                            firmwareVersion: matchStat.firmwareVersion
+                        )
+                    },
+                    failCount: Int64(bioMatchStats.failCount)
+                )
+            }
         )
     }
 

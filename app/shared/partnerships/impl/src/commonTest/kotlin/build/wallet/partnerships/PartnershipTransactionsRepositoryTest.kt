@@ -1,5 +1,6 @@
 package build.wallet.partnerships
 
+import app.cash.turbine.test
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbTransactionError
@@ -15,6 +16,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.getError
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.should
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -23,6 +25,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.HttpStatusCode.Companion.NotFound
 import kotlinx.datetime.Instant
+import kotlin.time.Duration.Companion.minutes
 
 class PartnershipTransactionsRepositoryTest : FunSpec({
   val clock = ClockFake(Instant.fromEpochMilliseconds(123))
@@ -31,9 +34,11 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
   val daoMock = PartnershipTransactionsDaoMock(
     saveCalls = turbines.create("Save Calls"),
     getTransactionsSubscriptions = turbines.create("Get Transactions Calls"),
+    getPreviouslyUsedPartnerIdsSubscriptions = turbines.create("Get Previously Used Partner Ids Calls"),
     getByIdCalls = turbines.create("Get Most Recent Calls"),
     deleteTransactionCalls = turbines.create("Delete Transaction Calls"),
-    clearCalls = turbines.create("Clear Calls")
+    clearCalls = turbines.create("Clear Calls"),
+    getMostRecentByPartnerCalls = turbines.create("Get Most Recent By Partner Calls")
   )
   val getPartnershipsF8eClient = GetPartnershipTransactionF8eClientMock(
     turbine = turbines::create
@@ -233,5 +238,126 @@ class PartnershipTransactionsRepositoryTest : FunSpec({
     getPartnershipsF8eClient.getTransactionCalls.awaitItem()
 
     result.getError().shouldBeInstanceOf<HttpError.ServerError>()
+  }
+
+  test("Update Recent Transaction Status") {
+    val repository = PartnershipTransactionsRepositoryImpl(
+      dao = daoMock,
+      uuidGenerator = { TODO() },
+      clock = clock,
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
+    )
+    daoMock.mostRecentByPartnerResult = Ok(
+      FakePartnershipTransaction.copy(
+        id = PartnershipTransactionId("test-transaction-id"),
+        created = clock.now().minus(1.minutes)
+      )
+    )
+    val result = repository.updateRecentTransactionStatusIfExists(
+      partnerId = PartnerId("test-partner"),
+      status = PartnershipTransactionStatus.PENDING,
+      recency = 2.minutes
+    )
+
+    daoMock.getMostRecentByPartnerCalls.awaitItem().value.shouldBe("test-partner")
+    daoMock.saveCalls.awaitItem().run {
+      id.value.shouldBe("test-transaction-id")
+      status.shouldBe(PartnershipTransactionStatus.PENDING)
+    }
+    result.value.shouldNotBeNull()
+  }
+
+  test("Update Recent Transaction Status -- Stale Transaction") {
+    val repository = PartnershipTransactionsRepositoryImpl(
+      dao = daoMock,
+      uuidGenerator = { TODO() },
+      clock = clock,
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
+    )
+    daoMock.mostRecentByPartnerResult = Ok(
+      FakePartnershipTransaction.copy(
+        id = PartnershipTransactionId("test-transaction-id"),
+        created = clock.now().minus(10.minutes)
+      )
+    )
+    val result = repository.updateRecentTransactionStatusIfExists(
+      partnerId = PartnerId("test-partner"),
+      status = PartnershipTransactionStatus.PENDING,
+      recency = 2.minutes
+    )
+
+    daoMock.getMostRecentByPartnerCalls.awaitItem()
+    result.value.shouldBeNull()
+  }
+
+  test("Update Recent Transaction Status -- No Transaction found") {
+    val repository = PartnershipTransactionsRepositoryImpl(
+      dao = daoMock,
+      uuidGenerator = { TODO() },
+      clock = clock,
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
+    )
+    daoMock.mostRecentByPartnerResult = Ok(null)
+    val result = repository.updateRecentTransactionStatusIfExists(
+      partnerId = PartnerId("test-partner"),
+      status = PartnershipTransactionStatus.PENDING,
+      recency = 2.minutes
+    )
+
+    daoMock.getMostRecentByPartnerCalls.awaitItem()
+    result.value.shouldBeNull()
+  }
+
+  test("Update Recent Transaction Status -- Error") {
+    val repository = PartnershipTransactionsRepositoryImpl(
+      dao = daoMock,
+      uuidGenerator = { TODO() },
+      clock = clock,
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
+    )
+    daoMock.mostRecentByPartnerResult = Err(DbTransactionError(RuntimeException("Oops")))
+    val result = repository.updateRecentTransactionStatusIfExists(
+      partnerId = PartnerId("test-partner"),
+      status = PartnershipTransactionStatus.PENDING,
+      recency = 2.minutes
+    )
+
+    daoMock.getMostRecentByPartnerCalls.awaitItem()
+    result.getError().shouldNotBeNull()
+  }
+
+  test("Get previously used partner IDs") {
+    val repository = PartnershipTransactionsRepositoryImpl(
+      dao = daoMock,
+      uuidGenerator = { TODO() },
+      clock = clock,
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
+    )
+    daoMock.getPreviouslyUsedPartnerIds.value = Ok(
+      listOf(
+        PartnerId("test-partner-1"),
+        PartnerId("test-partner-2")
+      )
+    )
+
+    repository.previouslyUsedPartnerIds.test {
+      daoMock.getPreviouslyUsedPartnerIdsSubscriptions.awaitItem()
+      awaitItem().shouldBe(listOf(PartnerId("test-partner-1"), PartnerId("test-partner-2")))
+    }
+  }
+
+  test("Get previously used partner IDs - DAO Failure") {
+    val repository = PartnershipTransactionsRepositoryImpl(
+      dao = daoMock,
+      uuidGenerator = { TODO() },
+      clock = clock,
+      getPartnershipTransactionF8eClient = getPartnershipsF8eClient
+    )
+    daoMock.getPreviouslyUsedPartnerIds.value = Err(DbTransactionError(RuntimeException("Oops")))
+
+    repository.previouslyUsedPartnerIds.test {
+      daoMock.getPreviouslyUsedPartnerIdsSubscriptions.awaitItem()
+      awaitItem().shouldBe(emptyList())
+    }
   }
 })

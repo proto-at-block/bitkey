@@ -7,7 +7,7 @@ extension IconTint {
     var color: Color {
         switch self {
         case .primary:
-            return .primary
+            return .bitkeyPrimary
         case .on30:
             return .foreground30
         case .on60:

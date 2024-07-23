@@ -7,7 +7,9 @@ import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates
-import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
+import build.wallet.coachmark.CoachmarkIdentifier
+import build.wallet.coachmark.CoachmarkService
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
@@ -38,7 +40,12 @@ import build.wallet.time.DateTimeFormatter
 import build.wallet.time.DurationFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.time.nonNegativeDurationBetween
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
+import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.coachmark.CoachmarkModel
+import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.toLocalDateTime
@@ -52,10 +59,10 @@ class DeviceSettingsUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val durationFormatter: DurationFormatter,
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
-  private val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag,
   private val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
+  private val coachmarkService: CoachmarkService,
 ) : DeviceSettingsUiStateMachine {
   @Composable
   override fun model(props: DeviceSettingsProps): ScreenModel {
@@ -77,12 +84,18 @@ class DeviceSettingsUiStateMachineImpl(
       }
     }
 
-    val multipleFingerprintsEnabled = remember {
-      multipleFingerprintsIsEnabledFeatureFlag.flagValue().value.value
-    }
-
     val resetDeviceEnabled = remember {
       resetDeviceIsEnabledFeatureFlag.flagValue().value.value
+    }
+
+    val scope = rememberStableCoroutineScope()
+
+    var coachmarkDisplayed by remember { mutableStateOf(false) }
+    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
+    LaunchedEffect("coachmarks", coachmarkDisplayed) {
+      coachmarkService
+        .coachmarksToDisplay(setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark))
+        .onSuccess { coachmarksToDisplay = it }
     }
 
     return when (val state = uiState) {
@@ -92,6 +105,31 @@ class DeviceSettingsUiStateMachineImpl(
         } ?: FirmwareDeviceAvailability.None
         ViewingDeviceScreenModel(
           props = props,
+          coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)) {
+            CoachmarkModel(
+              identifier = CoachmarkIdentifier.MultipleFingerprintsCoachmark,
+              title = "Multiple fingerprints",
+              description = "Now you can add more fingerprints to your Bitkey device.",
+              arrowPosition = CoachmarkModel.ArrowPosition(
+                vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
+                horizontal = CoachmarkModel.ArrowPosition.Horizontal.Leading
+              ),
+              button = ButtonModel(
+                text = "Add fingerprints",
+                size = ButtonModel.Size.Footer,
+                onClick = StandardClick {
+                  uiState = ManagingFingerprintsUiState
+                  coachmarkDisplayed = true
+                }
+              ),
+              image = null,
+              dismiss = {
+                coachmarkDisplayed = true
+              }
+            )
+          } else {
+            null
+          },
           firmwareDeviceAvailability = availability,
           goToFwup = { uiState = UpdatingFirmwareUiState(it) },
           goToNfcMetadata = { uiState = TappingForFirmwareMetadataUiState },
@@ -112,9 +150,16 @@ class DeviceSettingsUiStateMachineImpl(
           timeZoneProvider = timeZoneProvider,
           durationFormatter = durationFormatter,
           replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available,
-          multipleFingerprintsEnabled = multipleFingerprintsEnabled,
           resetDeviceEnabled = resetDeviceEnabled,
-          onManageFingerprints = { uiState = ManagingFingerprintsUiState }
+          onManageFingerprints = {
+            if (coachmarksToDisplay.contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)) {
+              scope.launch {
+                coachmarkService.markCoachmarkAsDisplayed(CoachmarkIdentifier.MultipleFingerprintsCoachmark)
+                coachmarkDisplayed = true
+              }
+            }
+            uiState = ManagingFingerprintsUiState
+          }
         ).copy(
           alertModel = alertModel,
           bottomSheetModel = PromptingForFingerprintFwUpSheetModel(
@@ -212,6 +257,7 @@ class DeviceSettingsUiStateMachineImpl(
 @Composable
 private fun ViewingDeviceScreenModel(
   props: DeviceSettingsProps,
+  coachmark: CoachmarkModel?,
   firmwareDeviceAvailability: FirmwareDeviceAvailability,
   goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
   goToNfcMetadata: () -> Unit,
@@ -222,7 +268,6 @@ private fun ViewingDeviceScreenModel(
   timeZoneProvider: TimeZoneProvider,
   durationFormatter: DurationFormatter,
   replaceDeviceEnabled: Boolean,
-  multipleFingerprintsEnabled: Boolean,
   resetDeviceEnabled: Boolean,
   onManageFingerprints: () -> Unit,
 ): ScreenModel {
@@ -306,9 +351,9 @@ private fun ViewingDeviceScreenModel(
         onManageReplacement = { onManageReplacement() },
         onResetDevice = { onResetDevice() },
         onBack = props.onBack,
-        multipleFingerprintsEnabled = multipleFingerprintsEnabled,
         resetDeviceEnabled = resetDeviceEnabled,
-        onManageFingerprints = onManageFingerprints
+        onManageFingerprints = onManageFingerprints,
+        coachmark = coachmark
       )
     },
     presentationStyle = Root

@@ -1,7 +1,7 @@
 package build.wallet.statemachine.account.create.full.hardware
 
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel.BackgroundVideo.VideoContent.BitkeyActivate
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -14,7 +14,7 @@ fun ActivationInstructionsBodyModel(
   onContinue: (() -> Unit)?,
   onBack: () -> Unit,
   isNavigatingBack: Boolean,
-  eventTrackerScreenIdContext: EventTrackerScreenIdContext,
+  eventTrackerContext: EventTrackerContext,
 ) = PairNewHardwareBodyModel(
   onBack = onBack,
   header =
@@ -40,6 +40,6 @@ fun ActivationInstructionsBodyModel(
   eventTrackerScreenInfo =
     EventTrackerScreenInfo(
       eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS,
-      eventTrackerScreenIdContext = eventTrackerScreenIdContext
+      eventTrackerContext = eventTrackerContext
     )
 )

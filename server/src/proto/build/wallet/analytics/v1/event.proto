@@ -19,7 +19,7 @@ message Event {
     /** Device locale settings */
     string          country             	= 8;
     string          locale_currency             = 12;
-    
+
     /** Optional information for the ACTION_APP_SCREEN_IMPRESSION event */
     string          screen_id           	= 11;
 
@@ -31,6 +31,8 @@ message Event {
     string          counter_id                 = 15;
     int32           counter_count              = 16;
 
+    /** Optional information for the ACTION_HW_FINGERPRINT_SCAN_STATS event */
+    FingerprintScanStats fingerprint_scan_stats = 17;
 }
 
 enum Action {
@@ -110,16 +112,16 @@ enum Action {
 
     /** [App] A generic event for a screen appearing on the mobile app. Use `screen_id` in the `Event` parameters to distinguish the screen that loaded. */
     ACTION_APP_SCREEN_IMPRESSION                                        = 22;
-   
+
     /** [App] Customer taps and successfully skips inputting a phone number during the onboarding the onboarding experience */
     ACTION_APP_PHONE_NUMBER_INPUT_SKIP                                  = 23;
-    
+
     /** [App] Customer taps and successfully skips inputting an email during the onboarding the onboarding experience */
     ACTION_APP_EMAIL_INPUT_SKIP                                         = 24;
-    
+
     /** [App] Customer taps and successfully resends a verification code while verifying their phone number */
     ACTION_APP_PHONE_NUMBER_RESEND                                      = 25;
-    
+
     /** [App] Customer taps "Skip for now" when verifying a phone number. "Skip for now" only appears after resending the code at least once. */
     ACTION_APP_PHONE_NUMBER_RESEND_SKIP_FOR_NOW                         = 26;
 
@@ -216,7 +218,28 @@ enum Action {
     /** [App] Customer disables the hide balance by default preference to hide balance in Money Home */
     ACTION_APP_HIDE_BALANCE_BY_DEFAULT_DISABLED = 57;
 
-    // Next tag is 58
+    /** [App] Customer has seen the hide balance coachmark */
+    ACTION_APP_COACHMARK_VIEWED_HIDE_BALANCE = 58;
+
+    /** [App] Customer has seen the multiple fingerprints coachmark */
+    ACTION_APP_COACHMARK_VIEWED_MULTIPLE_FINGERPRINTS = 59;
+
+    /** [App] Customer has seen the biometric unlock coachmark */
+    ACTION_APP_COACHMARK_VIEWIED_BIOMETRIC_UNLOCK = 60;
+
+    /** [App] Customer has seen the cash app purchase coachmark */
+    ACTION_APP_COACHMARK_VIEWED_CASH_APP_PURCHASE = 61;
+
+    /** [App] Customer has seen partnerships transfer partner */
+    ACTION_APP_PARTNERSHIPS_VIEWED_TRANSFER_PARTNER = 62;
+
+    /** [App] Customer has seen partnerships purchase quote */
+    ACTION_APP_PARTNERSHIPS_VIEWED_PURCHASE_QUOTE = 63;
+
+    /** [Hw] Collection of statistics for fingerprint scan attempts */
+    ACTION_HW_FINGERPRINT_SCAN_STATS = 64;
+
+    // Next tag is 65
 }
 
 message PlatformInfo {
@@ -251,4 +274,14 @@ enum OSType {
     OS_TYPE_IOS         = 2;
     OS_TYPE_WINDOWS     = 3;
     OS_TYPE_UNIX        = 4;
+}
+
+message TemplateMatchStats {
+    uint32 pass_count = 1;
+    string firmware_version = 2;  // The firmware version this template was enrolled on
+  }
+
+message FingerprintScanStats {
+    repeated TemplateMatchStats pass_counts = 1;
+    uint32 fail_count = 2;
 }

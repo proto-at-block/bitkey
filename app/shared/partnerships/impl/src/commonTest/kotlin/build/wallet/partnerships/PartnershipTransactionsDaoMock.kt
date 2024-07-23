@@ -11,15 +11,19 @@ import kotlinx.coroutines.flow.onSubscription
 internal class PartnershipTransactionsDaoMock(
   val saveCalls: Turbine<PartnershipTransaction>,
   val getTransactionsSubscriptions: Turbine<Unit>,
+  val getMostRecentByPartnerCalls: Turbine<PartnerId>,
   val getByIdCalls: Turbine<PartnershipTransactionId>,
+  val getPreviouslyUsedPartnerIdsSubscriptions: Turbine<Unit>,
   val deleteTransactionCalls: Turbine<PartnershipTransactionId>,
   val clearCalls: Turbine<Unit>,
   var saveResult: Result<Unit, DbTransactionError> = Ok(Unit),
   var getByIdResult: Result<PartnershipTransaction?, DbTransactionError> = Ok(null),
   var deleteTransactionResult: Result<Unit, DbTransactionError> = Ok(Unit),
+  var mostRecentByPartnerResult: Result<PartnershipTransaction?, DbTransactionError> = Ok(null),
   var clearResult: Result<Unit, DbTransactionError> = Ok(Unit),
 ) : PartnershipTransactionsDao {
   val getTransactionsResults = MutableStateFlow<Result<List<PartnershipTransaction>, DbTransactionError>>(Ok(emptyList()))
+  val getPreviouslyUsedPartnerIds = MutableStateFlow<Result<List<PartnerId>, DbTransactionError>>(Ok(emptyList()))
 
   override suspend fun save(transaction: PartnershipTransaction): Result<Unit, DbTransactionError> {
     saveCalls.add(transaction)
@@ -32,11 +36,24 @@ internal class PartnershipTransactionsDaoMock(
     }
   }
 
+  override suspend fun getMostRecentByPartner(
+    partnerId: PartnerId,
+  ): Result<PartnershipTransaction?, DbTransactionError> {
+    getMostRecentByPartnerCalls.add(partnerId)
+    return mostRecentByPartnerResult
+  }
+
   override suspend fun getById(
     id: PartnershipTransactionId,
   ): Result<PartnershipTransaction?, DbTransactionError> {
     getByIdCalls.add(id)
     return getByIdResult
+  }
+
+  override fun getPreviouslyUsedPartnerIds(): Flow<Result<List<PartnerId>, DbTransactionError>> {
+    return getPreviouslyUsedPartnerIds.onSubscription {
+      getPreviouslyUsedPartnerIdsSubscriptions.add(Unit)
+    }
   }
 
   override suspend fun deleteTransaction(
@@ -56,5 +73,6 @@ internal class PartnershipTransactionsDaoMock(
     getByIdResult = Ok(null)
     deleteTransactionResult = Ok(Unit)
     clearResult = Ok(Unit)
+    mostRecentByPartnerResult = Ok(null)
   }
 }

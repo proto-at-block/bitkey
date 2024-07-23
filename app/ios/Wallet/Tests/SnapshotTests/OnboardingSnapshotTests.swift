@@ -53,7 +53,7 @@ final class OnboardingSnapshotTests: XCTestCase {
                 onContinue: {},
                 onBack: {},
                 isNavigatingBack: false,
-                eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery
+                eventTrackerContext: PairHardwareEventTrackerScreenIdContext.hwRecovery
             )
         )
 
@@ -69,14 +69,14 @@ final class OnboardingSnapshotTests: XCTestCase {
                     showingIncompleteEnrollmentError: false,
                     incompleteEnrollmentErrorOnPrimaryButtonClick: {},
                     onErrorOverlayClosed: {},
-                    eventTrackerScreenIdContext: PairHardwareEventTrackerScreenIdContext.hwRecovery,
+                    eventTrackerContext: PairHardwareEventTrackerScreenIdContext.hwRecovery,
                     presentationStyle: .root,
 
                     isNavigatingBack: false,
                     headline: "Set up your first fingerprint",
                     instructions: "Place your finger on the sensor until you see a blue light. Lift your finger and" +
-                    " repeat (15-20 times) adjusting your finger position slightly each time, until the light turns" +
-                    " green. Then save your fingerprint."
+                        " repeat (15-20 times) adjusting your finger position slightly each time, until the light turns" +
+                        " green. Then save your fingerprint."
                 ).body as! PairNewHardwareBodyModel
         )
 

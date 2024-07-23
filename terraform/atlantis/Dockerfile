@@ -11,8 +11,8 @@ RUN <<EOF
 set -ex
 curl -sSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip
 unzip terraform.zip
-chmod +x terraform
-mv terraform /usr/local/bin/terraform
+mv terraform out/terraform
+chmod +x out/terraform
 EOF
 
 RUN <<EOF
@@ -29,7 +29,12 @@ mv terragrunt-atlantis-config_${TERRAGRUNT_ATLANTIS_CONFIG_VERSION}_linux_amd64 
 chmod +x out/terragrunt-atlantis-config
 EOF
 
-# version: 0.27.3
-FROM ghcr.io/runatlantis/atlantis@sha256:5ad2e3fe752104a614374490d111ed1230f8ebf5409552d0ad3b716de356dc45
+# version: 0.28.3
+FROM ghcr.io/runatlantis/atlantis@sha256:3361201124e497fe7a17061326ec998c73065a56b2ebc28222bd8d57f667d36d
 COPY ./policies /policies
 COPY --from=builder /binaries/out/* /usr/local/bin
+
+# terragrunt prefers tofu to terraform if both are installed, and atlantis installs both; delete tofu
+USER root
+RUN rm -f /usr/local/bin/tofu
+USER atlantis

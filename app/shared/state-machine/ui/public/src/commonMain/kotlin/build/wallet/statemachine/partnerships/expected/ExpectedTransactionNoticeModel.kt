@@ -9,6 +9,7 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel
+import build.wallet.statemachine.partnerships.PartnerEventTrackerScreenIdContext
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.icon.IconModel
@@ -23,6 +24,7 @@ fun ExpectedTransactionNoticeModel(
   onBack: () -> Unit,
 ) = FormBodyModel(
   id = ExpectedTransactionTrackerScreenId.EXPECTED_TRANSACTION_NOTICE_DETAILS,
+  eventTrackerContext = partnerInfo?.let { PartnerEventTrackerScreenIdContext(it) },
   header = FormHeaderModel(
     iconModel = partnerInfo?.logoUrl?.let { logo ->
       IconModel(

@@ -1,6 +1,6 @@
 package build.wallet.analytics.events.screen
 
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.EventTrackerCounterId
 
 /**
@@ -8,8 +8,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerCounterId
  */
 data class EventTrackerCountInfo(
   val eventTrackerCounterId: EventTrackerCounterId,
-  // TODO(BKR-1041): Rename EventTrackerScreenIdContext to EventTrackerContext
-  val eventTrackerContext: EventTrackerScreenIdContext?,
+  val eventTrackerContext: EventTrackerContext?,
   val count: Int,
 ) {
   constructor(

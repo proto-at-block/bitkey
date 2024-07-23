@@ -2,6 +2,7 @@ package build.wallet.f8e.partnerships
 
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.currency.BTC
+import build.wallet.money.currency.Currency
 import build.wallet.partnerships.PartnerInfo
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.serialization.SerialName
@@ -40,4 +41,13 @@ data class Quote(
 
 fun Quote.bitcoinAmount(): BitcoinMoney {
   return BitcoinMoney(BTC.fractionalUnitValueFromUnitValue(cryptoAmount.toBigDecimal()))
+}
+
+fun Quote.fiatCurrency(): Currency? {
+  return when (fiatCurrency) {
+    "USD" -> build.wallet.money.currency.USD
+    "EUR" -> build.wallet.money.currency.EUR
+    "GBP" -> build.wallet.money.currency.GBP
+    else -> null
+  }
 }

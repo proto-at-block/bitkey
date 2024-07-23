@@ -152,7 +152,7 @@ private fun textColor(treatment: ButtonModel.Treatment): Color {
     Translucent, Translucent10 -> colors.translucentForeground
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
-    -> colors.primary
+    -> colors.bitkeyPrimary
 
     White -> Color.Black
     Warning -> colors.warning
@@ -179,7 +179,7 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
     Translucent, Translucent10 -> colors.translucentForeground
     TertiaryPrimary,
     TertiaryPrimaryNoUnderline,
-    -> colors.primary
+    -> colors.bitkeyPrimary
 
     White -> Color.Black
 
@@ -191,7 +191,7 @@ private fun iconColor(treatment: ButtonModel.Treatment): Color {
 @ReadOnlyComposable
 private fun ButtonModel.Treatment.normalBackgroundColor() =
   when (this) {
-    Primary -> colors.primary
+    Primary -> colors.bitkeyPrimary
     PrimaryDanger -> colors.dangerBackground
     Secondary, SecondaryDestructive -> colors.secondary
     PrimaryDestructive -> colors.destructive
@@ -213,7 +213,7 @@ private fun ButtonModel.Treatment.normalBackgroundColor() =
 private fun ButtonModel.Treatment.disabledBackgroundColor() =
   when (this) {
     Primary ->
-      colors.primary.copy(alpha = 0.4F)
+      colors.bitkeyPrimary.copy(alpha = 0.4F)
     PrimaryDestructive ->
       colors.destructive.copy(alpha = 0.4F)
     PrimaryDanger, Secondary, SecondaryDestructive ->

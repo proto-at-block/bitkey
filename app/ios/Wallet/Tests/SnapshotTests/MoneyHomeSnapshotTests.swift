@@ -118,6 +118,22 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         let view = MoneyHomeView(viewModel: .snapshotTestFull(hideBalance: true))
         assertBitkeySnapshots(view: view)
     }
+
+    func test_money_home_with_coachmark_settings() {
+        let view = MoneyHomeView(viewModel: .snapshotTestFull(
+            hideBalance: true,
+            badgedSettingsIcon: true
+        ))
+        assertBitkeySnapshots(view: view)
+    }
+
+    func test_lite_money_home_with_coachmark_settings() {
+        let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(
+            protectedCustomers: ["Alice"],
+            badgedSettingsIcon: true
+        ))
+        assertBitkeySnapshots(view: view)
+    }
 }
 
 // MARK: -
@@ -125,7 +141,8 @@ final class MoneyHomeSnapshotTests: XCTestCase {
 private extension LiteMoneyHomeBodyModel {
 
     static func snapshotTestLite(
-        protectedCustomers: [String] = []
+        protectedCustomers: [String] = [],
+        badgedSettingsIcon: Bool = false
     ) -> LiteMoneyHomeBodyModel {
         return LiteMoneyHomeBodyModel(
             onSettings: {},
@@ -135,6 +152,7 @@ private extension LiteMoneyHomeBodyModel {
             protectedCustomers: protectedCustomers.map {
                 ProtectedCustomer(recoveryRelationshipId: "", alias: $0)
             },
+            badgedSettingsIcon: badgedSettingsIcon,
             onProtectedCustomerClick: { _ in },
             onBuyOwnBitkeyClick: {},
             onAcceptInviteClick: {}
@@ -146,7 +164,8 @@ private extension MoneyHomeBodyModel {
 
     static func snapshotTestFull(
         cards: [CardModel] = [],
-        hideBalance: Bool = false
+        hideBalance: Bool = false,
+        badgedSettingsIcon: Bool = false
     ) -> MoneyHomeBodyModel {
         return MoneyHomeBodyModel(
             hideBalance: hideBalance,
@@ -163,10 +182,12 @@ private extension MoneyHomeBodyModel {
             cardsModel: .init(cards: cards),
             transactionsModel: ListModel.transactionsSnapshotTest,
             seeAllButtonModel: .snapshotTest(text: "See All", treatment: .secondary),
+            coachmark: nil,
             refresh: TestSuspendFunction(),
             onRefresh: {},
             onHideBalance: {},
-            isRefreshing: false
+            isRefreshing: false,
+            badgedSettingsIcon: badgedSettingsIcon
         )
     }
 }

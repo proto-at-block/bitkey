@@ -59,7 +59,7 @@ static struct {
   rtos_timer_t unlock_timer;
   rtos_mutex_t auth_lock;
   enrollment_ctx_t current_enrollment_ctx;
-  bio_enroll_stats_t stats;
+  bio_enroll_stats_t enroll_stats;
   uint32_t timestamp;
 } auth_priv SHARED_TASK_DATA = {
   .main_thread_handle = NULL,
@@ -74,7 +74,7 @@ static struct {
       .index = BIO_TEMPLATE_ID_INVALID,
       .label = {0},
     },
-  .stats = {0},
+  .enroll_stats = {0},
   .timestamp = 0,
 };
 
@@ -286,28 +286,28 @@ void handle_get_fingerprint_enrollment_status(ipc_ref_t* message) {
     rsp->msg.get_fingerprint_enrollment_status_rsp.fingerprint_status =
       fwpb_get_fingerprint_enrollment_status_rsp_fingerprint_enrollment_status_COMPLETE;
 
-    rsp->msg.get_fingerprint_enrollment_status_rsp.pass_count = auth_priv.stats.pass_count;
-    rsp->msg.get_fingerprint_enrollment_status_rsp.fail_count = auth_priv.stats.fail_count;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.pass_count = auth_priv.enroll_stats.pass_count;
+    rsp->msg.get_fingerprint_enrollment_status_rsp.fail_count = auth_priv.enroll_stats.fail_count;
     rsp->msg.get_fingerprint_enrollment_status_rsp.has_diagnostics = true;
 
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.finger_coverage_valid =
-      auth_priv.stats.diagnostics.finger_coverage_valid;
+      auth_priv.enroll_stats.diagnostics.finger_coverage_valid;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.finger_coverage =
-      auth_priv.stats.diagnostics.finger_coverage;
+      auth_priv.enroll_stats.diagnostics.finger_coverage;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.common_mode_noise_valid =
-      auth_priv.stats.diagnostics.common_mode_noise_valid;
+      auth_priv.enroll_stats.diagnostics.common_mode_noise_valid;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.common_mode_noise =
-      auth_priv.stats.diagnostics.common_mode_noise;
+      auth_priv.enroll_stats.diagnostics.common_mode_noise;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.image_quality_valid =
-      auth_priv.stats.diagnostics.image_quality_valid;
+      auth_priv.enroll_stats.diagnostics.image_quality_valid;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.image_quality =
-      auth_priv.stats.diagnostics.image_quality;
+      auth_priv.enroll_stats.diagnostics.image_quality;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.sensor_coverage_valid =
-      auth_priv.stats.diagnostics.sensor_coverage_valid;
+      auth_priv.enroll_stats.diagnostics.sensor_coverage_valid;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.sensor_coverage =
-      auth_priv.stats.diagnostics.sensor_coverage;
+      auth_priv.enroll_stats.diagnostics.sensor_coverage;
     rsp->msg.get_fingerprint_enrollment_status_rsp.diagnostics.template_data_update_valid =
-      auth_priv.stats.diagnostics.template_data_update_valid;
+      auth_priv.enroll_stats.diagnostics.template_data_update_valid;
 
     goto out;
   }
@@ -702,8 +702,9 @@ NO_OPTIMIZE void auth_matching_thread(void* UNUSED(args)) {
         auth_priv.current_enrollment_ctx.index !=
           BIO_TEMPLATE_ID_INVALID) {  // Fingerprint enrollment
       SECURE_DO_ONCE({
-        bool res = bio_enroll_finger(auth_priv.current_enrollment_ctx.index,
-                                     auth_priv.current_enrollment_ctx.label, &auth_priv.stats);
+        bool res =
+          bio_enroll_finger(auth_priv.current_enrollment_ctx.index,
+                            auth_priv.current_enrollment_ctx.label, &auth_priv.enroll_stats);
         SECURE_IF_FAILOUT(res == true) { auth_priv.current_enrollment_ctx.enroll_ok = SECURE_TRUE; }
         else {
           auth_priv.current_enrollment_ctx.enroll_ok = SECURE_FALSE;

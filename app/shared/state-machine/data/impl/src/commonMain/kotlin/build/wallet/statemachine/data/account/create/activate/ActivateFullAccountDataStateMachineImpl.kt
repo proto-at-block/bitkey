@@ -5,8 +5,6 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.f8e.onboarding.OnboardingF8eClient
-import build.wallet.feature.flags.MultipleFingerprintsIsEnabledFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.keybox.KeyboxDao
@@ -32,7 +30,6 @@ class ActivateFullAccountDataStateMachineImpl(
   private val onboardingF8eClient: OnboardingF8eClient,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val onboardingKeyboxHardwareKeysDao: OnboardingKeyboxHardwareKeysDao,
-  private val multipleFingerprintsIsEnabled: MultipleFingerprintsIsEnabledFeatureFlag,
 ) : ActivateFullAccountDataStateMachine {
   @Composable
   override fun model(
@@ -77,14 +74,13 @@ class ActivateFullAccountDataStateMachineImpl(
       onboardingKeyboxHardwareKeysDao.clear()
 
       // Tell the server that onboarding has been completed.
-      onboardingF8eClient.completeOnboarding(
-        f8eEnvironment = props.keybox.config.f8eEnvironment,
-        fullAccountId = props.keybox.fullAccountId
-      )
-        .onFailure { error ->
+      onboardingF8eClient
+        .completeOnboarding(
+          f8eEnvironment = props.keybox.config.f8eEnvironment,
+          fullAccountId = props.keybox.fullAccountId
+        ).onFailure { error ->
           onFailure(error is HttpError.NetworkError)
-        }
-        .onSuccess {
+        }.onSuccess {
           // Add getting started tasks for the new keybox
           val gettingStartedTasks =
             buildImmutableList {
@@ -109,33 +105,31 @@ class ActivateFullAccountDataStateMachineImpl(
                 )
               )
 
-              if (multipleFingerprintsIsEnabled.isEnabled()) {
-                add(
-                  GettingStartedTask(
-                    GettingStartedTask.TaskId.AddAdditionalFingerprint,
-                    GettingStartedTask.TaskState.Incomplete
-                  )
+              add(
+                GettingStartedTask(
+                  GettingStartedTask.TaskId.AddAdditionalFingerprint,
+                  GettingStartedTask.TaskState.Incomplete
                 )
-              }
+              )
             }
 
-          gettingStartedTaskDao.addTasks(gettingStartedTasks)
+          gettingStartedTaskDao
+            .addTasks(gettingStartedTasks)
             .onSuccess {
               eventTracker.track(Action.ACTION_APP_GETTINGSTARTED_INITIATED)
               log { "Added getting started tasks $gettingStartedTasks" }
-            }
-            .logFailure { "Failed to add getting started tasks $gettingStartedTasks" }
+            }.logFailure { "Failed to add getting started tasks $gettingStartedTasks" }
 
           // Log that the account has been created
           eventTracker.track(action = Action.ACTION_APP_ACCOUNT_CREATED)
 
           // Set as active. This will transition the UI.
-          keyboxDao.activateNewKeyboxAndCompleteOnboarding(props.keybox)
+          keyboxDao
+            .activateNewKeyboxAndCompleteOnboarding(props.keybox)
             .onSuccess {
               // Now that we have an active keybox we can clear the temporary onboarding dao
               onboardingKeyboxStepStateDao.clear()
-            }
-            .onFailure {
+            }.onFailure {
               onFailure(false)
             }
         }

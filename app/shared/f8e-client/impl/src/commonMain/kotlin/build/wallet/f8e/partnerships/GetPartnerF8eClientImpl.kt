@@ -43,7 +43,7 @@ class GetPartnerF8eClientImpl(
     @SerialName("logo_url")
     val logoUrl: String?,
     val name: String,
-    val partner: PartnerId
+    val partner: PartnerId,
   ) : RedactedResponseBody {
     fun toPartnerInfo(): PartnerInfo {
       return PartnerInfo(logoUrl, name, partner)

@@ -1,6 +1,6 @@
 import { Construct } from "constructs";
 import { Monitor } from "../common/monitor";
-import { trace_analytics_count_query } from "../common/queries";
+import { metric_avg_query, metric_sum_query, trace_analytics_count_query } from "../common/queries";
 import { PercentileLatencyHighMonitor, AverageLatencyHighMonitor } from "../common/http";
 import { Environment } from "../common/environments";
 import { ContainerCpuUtilizationHighMonitor, ContainerMemoryUtilizationHighMonitor } from "../common/system";
@@ -82,30 +82,61 @@ class ShopApiMonitor extends Construct {
   }
 }
 
+
+interface ShopApiMetricConfig {
+  title: string;
+  service: string;
+  metricName: string;
+  environment: Environment;
+  tags: string[];
+  monitorThresholds?: {
+    critical: string;
+    warning: string;
+  };
+  alertWindow?: string;
+  message: string
+}
+
+class ShopApiMetricMonitor extends Construct {
+  constructor(scope: Construct, config: ShopApiMetricConfig) {
+    const { title, service, metricName, environment, tags, monitorThresholds, alertWindow, message } = config;
+    super(scope, title);
+    const recipients = getErrorRecipients(environment);
+
+    const defaultMonitorThresholds = {
+      critical: "5",
+      warning: "2"
+    };
+
+    const metricsAlertConfig = {
+      recipients: recipients,
+      type: "metric alert",
+      monitorThresholds: monitorThresholds ?? defaultMonitorThresholds,
+    };
+
+    const metricAlertWindow = alertWindow ?? '15m';
+    const metricServiceName = 'web_shop_api';
+
+    new Monitor(this, `${metricServiceName}_metric_${service}_${metricName}_error`, {
+      query: metric_avg_query(
+        `avg:${metricServiceName}.${service}.${metricName}.error{*}`,
+        metricAlertWindow,
+        metricsAlertConfig.monitorThresholds.critical
+      ),
+      message,
+      name: `[${metricServiceName}][metric]: ${service}.${metricName} error rate high`,
+      tags: tags,
+      ...metricsAlertConfig,
+    });
+  }
+}
+
+
 export class ShopApiMonitors extends Construct {
   constructor(scope: Construct, environment: Environment) {
     super(scope, `web-shop-api_${environment}`);
     const serviceName = `web-shop-api`;
     const tags = [serviceName, `env:${environment}`];
-
-    new ShopApiMonitor(this, {
-      title: "too_many_5xx_errors",
-      name: "Too many http 5xx errors",
-      message: "Elevated rate of 5xx errors from the web-shop-api APIs",
-      status: '5??',
-      type: 'error',
-      environment
-    })
-
-    new ShopApiMonitor(this, {
-      title: "too_many_4xx_errors",
-      name: "Too many http 4xx errors",
-      message: "Elevated rate of 4xx errors from the web-shop-api APIs",
-      status: '4??',
-      type: 'error',
-      environment
-    })
-
 
     new ShopApiMonitor(this, {
       title: "hbs_update_too_many_4xx_errors",
@@ -160,13 +191,6 @@ export class ShopApiMonitors extends Construct {
       name: "callback] Aftership Returns, too many http 406 (body schema invalid) errors",
       status: '406',
       resource: 'POST /v1/callback/aftership/returns',
-      environment
-    })
-
-    new ShopApiMonitor(this, {
-      title: "service_error_rate_high",
-      name: "Error rate too high",
-      type: 'error',
       environment
     })
 
@@ -258,7 +282,6 @@ export class ShopApiMonitors extends Construct {
       environment
     })
 
-    
     // Customer checkout screen error and latency monitors
     new ShopApiMonitor(this, {
       title: "customer_screen_error_rate_high",
@@ -267,7 +290,7 @@ export class ShopApiMonitors extends Construct {
       type: 'error',
       monitorThresholds: {
         critical: "1"
-      },      
+      },
       environment
     });
 
@@ -316,5 +339,51 @@ export class ShopApiMonitors extends Construct {
       tags: tags,
       recipients: getErrorRecipients(environment),
     });
+
+    // Metric monitors
+    const createShipmentMonitorConfig: ShopApiMetricConfig = {
+      title: `[${serviceName}][metric]: bc.createShipment error high`,
+      service: 'bc',
+      message: 'createShipment error metric high',
+      metricName: 'createShipment',
+      environment,
+      tags,
+      monitorThresholds: {
+        critical: "50",
+        warning: "10"
+      }
+    };
+
+    const processPaymentMonitorConfig: ShopApiMetricConfig = {
+      title: `[${serviceName}][metric]: bc.processPayment error high`,
+      service: 'bc',
+      message: 'processPayment error metric high',
+      metricName: 'processPayment',
+      environment,
+      tags,
+    };
+
+    const updateOrderStatusMonitorConfig: ShopApiMetricConfig = {
+      title: `[${serviceName}][metric]: bc.updateOrderStatus error high`,
+      service: 'bc',
+      message: 'updateOrderStatus error metric high',
+      metricName: 'updateOrderStatus',
+      environment,
+      tags,
+    };
+
+    const updateOrderStatusAndPaymentIntentMonitorConfig: ShopApiMetricConfig = {
+      title: `[${serviceName}][metric]: bc.updateOrderStatusAndPaymentIntent error high`,
+      service: 'bc',
+      message: 'updateOrderStatusAndPaymentIntent error metric high',
+      metricName: 'updateOrderStatusAndPaymentIntent',
+      environment,
+      tags,
+    };
+
+    new ShopApiMetricMonitor(this, createShipmentMonitorConfig);
+    new ShopApiMetricMonitor(this, processPaymentMonitorConfig);
+    new ShopApiMetricMonitor(this, updateOrderStatusMonitorConfig);
+    new ShopApiMetricMonitor(this, updateOrderStatusAndPaymentIntentMonitorConfig);
   }
 }

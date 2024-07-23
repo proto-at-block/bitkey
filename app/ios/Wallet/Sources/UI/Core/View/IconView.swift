@@ -100,7 +100,7 @@ private extension IconBackgroundTypeCircle {
     var fillColor: Color {
         switch color {
         case .foreground10: return .foreground10
-        case .primarybackground20: return .primary.opacity(0.2)
+        case .primarybackground20: return .bitkeyPrimary.opacity(0.2)
         case .translucentblack: return .black.opacity(0.1)
         case .translucentwhite: return .white.opacity(0.2)
         default: return .foreground10

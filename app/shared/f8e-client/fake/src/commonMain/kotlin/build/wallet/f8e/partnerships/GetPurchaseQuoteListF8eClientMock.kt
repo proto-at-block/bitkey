@@ -38,7 +38,7 @@ class GetPurchaseQuoteListF8eClientMock(
       )
     )
 
-  private var quotesListResult: Result<GetPurchaseQuoteListF8eClient.Success, NetworkingError> = successResult
+  var quotesListResult: Result<GetPurchaseQuoteListF8eClient.Success, NetworkingError> = successResult
 
   override suspend fun purchaseQuotes(
     fullAccountId: FullAccountId,

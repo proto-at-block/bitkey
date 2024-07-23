@@ -38,7 +38,7 @@ public struct AmountSliderView: View {
                 ),
                 in: viewModel.valueRange.nativeRange
             )
-            .tint(.primary)
+            .tint(.bitkeyPrimary)
             .frame(maxWidth: .infinity)
             .disabled(!viewModel.isEnabled)
         }

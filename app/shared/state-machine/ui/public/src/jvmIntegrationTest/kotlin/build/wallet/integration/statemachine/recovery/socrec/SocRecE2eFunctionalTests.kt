@@ -4,6 +4,7 @@ import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId.SUCCESSFULLY_ROTATED_AUTH
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
+import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.socrec.RecoveryRelationshipId
 import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
@@ -624,6 +625,7 @@ suspend fun shouldSucceedSocialRestore(
         protectedCustomerAlias,
         challengeCode
       )
+      is OnboardingSoftwareAccount -> fail("unexpected account type")
     }
     cancelAndIgnoreRemainingEvents()
   }

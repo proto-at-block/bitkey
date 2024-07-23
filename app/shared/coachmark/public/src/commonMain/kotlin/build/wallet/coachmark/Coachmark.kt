@@ -10,7 +10,7 @@ import kotlinx.datetime.Instant
  * @param expiration The expiration date of the coachmark.
  */
 data class Coachmark(
-  val coachmarkId: String,
+  val id: CoachmarkIdentifier,
   val viewed: Boolean,
   val expiration: Instant,
 )

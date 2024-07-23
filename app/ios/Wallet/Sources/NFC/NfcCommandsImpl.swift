@@ -104,10 +104,11 @@ public final class NfcCommandsImpl: NfcCommands {
                 return .notInProgress
             }
         }()
-        
-        let diagnostics: Shared.FingerprintEnrollmentDiagnostics?
-        if let diag = result.diagnostics {
-            diagnostics = Shared.FingerprintEnrollmentDiagnostics(
+
+        let diagnostics: Shared.FingerprintEnrollmentDiagnostics? = if let diag = result
+            .diagnostics
+        {
+            Shared.FingerprintEnrollmentDiagnostics(
                 fingerCoverageValid: diag.fingerCoverageValid,
                 fingerCoverage: Int32(diag.fingerCoverage),
                 commonModeNoiseValid: diag.commonModeNoiseValid,
@@ -120,9 +121,9 @@ public final class NfcCommandsImpl: NfcCommands {
                 templateDataUpdate: Int32(diag.templateDataUpdate)
             )
         } else {
-            diagnostics = nil
+            nil
         }
-        
+
         return Shared.FingerprintEnrollmentResult(
             status: status,
             passCount: result.passCount.map { KotlinUInt(value: $0) },

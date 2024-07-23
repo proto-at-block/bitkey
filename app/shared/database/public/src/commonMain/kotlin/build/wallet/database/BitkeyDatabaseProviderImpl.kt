@@ -4,28 +4,9 @@ import app.cash.sqldelight.EnumColumnAdapter
 import build.wallet.analytics.v1.Event
 import build.wallet.database.adapters.*
 import build.wallet.database.adapters.bitkey.*
-import build.wallet.database.adapters.DurationColumnAdapter
-import build.wallet.database.adapters.EmailColumnAdapter
-import build.wallet.database.adapters.FullAccountColumnAdapter
-import build.wallet.database.adapters.InactiveKeysetIdsColumnAdapter
-import build.wallet.database.adapters.IsoCurrencyTextCodeColumnAdapter
-import build.wallet.database.adapters.MobilePaySnapValueColumnAdapter
-import build.wallet.database.adapters.NetworkConnectionColumnAdapter
-import build.wallet.database.adapters.ProtectedCustomerAliasColumnAdapter
-import build.wallet.database.adapters.PublicKeyColumnAdapter
-import build.wallet.database.adapters.TimeZoneColumnAdapter
-import build.wallet.database.adapters.TrustedContactAliasColumnAdapter
-import build.wallet.database.adapters.bitkey.AppGlobalAuthKeyHwSignatureColumnAdapter
-import build.wallet.database.adapters.bitkey.AppSpendingPublicKeyColumnAdapter
-import build.wallet.database.adapters.bitkey.F8eEnvironmentColumnAdapter
-import build.wallet.database.adapters.bitkey.F8eSpendingPublicKeyColumnAdapter
-import build.wallet.database.adapters.bitkey.FullAccountIdColumnAdapter
-import build.wallet.database.adapters.bitkey.HwAuthPublicKeyColumnAdapter
-import build.wallet.database.adapters.bitkey.HwSpendingPublicKeyColumnAdapter
-import build.wallet.database.adapters.bitkey.LiteAccountIdColumnAdapter
-import build.wallet.database.adapters.bitkey.SoftwareAccountIdColumnAdapter
 import build.wallet.database.sqldelight.*
 import build.wallet.money.currency.code.IsoCurrencyTextCode
+import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.sqldelight.SqlDriverFactory
 import build.wallet.sqldelight.adapter.ByteStringColumnAdapter
@@ -289,6 +270,7 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           destinationAppGlobalAuthKeyHwSignatureAdapter = AppGlobalAuthKeyHwSignatureColumnAdapter
         ),
       partnershipTransactionEntityAdapter = PartnershipTransactionEntity.Adapter(
+        partnerIdAdapter = DelegatedColumnAdapter(::PartnerId, PartnerId::value),
         transactionIdAdapter = DelegatedColumnAdapter(::PartnershipTransactionId, PartnershipTransactionId::value),
         fiatCurrencyAdapter = DelegatedColumnAdapter(::IsoCurrencyTextCode, IsoCurrencyTextCode::code),
         typeAdapter = EnumColumnAdapter(),
@@ -297,6 +279,7 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         updatedAdapter = InstantColumnAdapter
       ),
       coachmarkEntityAdapter = CoachmarkEntity.Adapter(
+        idAdapter = EnumColumnAdapter(),
         expirationAdapter = InstantColumnAdapter
       )
     )

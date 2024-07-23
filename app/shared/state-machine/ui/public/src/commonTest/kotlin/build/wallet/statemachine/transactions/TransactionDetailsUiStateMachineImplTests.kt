@@ -1,6 +1,9 @@
 package build.wallet.statemachine.transactions
 
 import build.wallet.analytics.events.EventTrackerMock
+import build.wallet.analytics.events.TrackedAction
+import build.wallet.analytics.v1.Action
+import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.BlockTimeFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.explorer.BitcoinExplorerMock
@@ -40,6 +43,7 @@ import build.wallet.ui.model.button.ButtonModel.Treatment
 import build.wallet.ui.model.button.ButtonModel.Treatment.Primary
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.icon.*
+import com.github.michaelbull.result.Err
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -101,7 +105,7 @@ class TransactionDetailsUiStateMachineImplTests :
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         feeBumpConfirmationUiStateMachine = feeBumpConfirmationUiStateMachine,
         feeRateEstimator = BitcoinFeeRateEstimatorMock(),
-        appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
+        appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
       )
 
     val onCloseCalls = turbines.create<Unit>("close-calls")
@@ -515,7 +519,36 @@ class TransactionDetailsUiStateMachineImplTests :
           awaitScreenWithBody<FormBodyModel>()
 
           // Show fee bump flow
-          awaitScreenWithBodyModelMock<FeeBumpConfirmationProps> ()
+          awaitScreenWithBodyModelMock<FeeBumpConfirmationProps>()
+        }
+      }
+
+      test("tapping speed up with insufficient balance to bump fee should show error screen") {
+        spendingWallet.createSignedPsbtResult = Err(BdkError.InsufficientFunds(null, null))
+        stateMachine.test(pendingSentProps) {
+          awaitScreenWithBody<FormBodyModel> {
+            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+          }
+
+          // after currency conversion
+          awaitScreenWithBody<FormBodyModel> {
+            clickPrimaryButton()
+          }
+
+          // loading the fee rates and fetching wallet
+          awaitScreenWithBody<FormBodyModel>()
+
+          // failed to launch fee bump flow from insufficient funds
+          awaitScreenWithBody<FormBodyModel> {
+            header.shouldNotBeNull()
+              .headline
+              .shouldBe("We couldn’t speed up this transaction")
+          }
+
+          // Ensure we log analytics event
+          eventTracker.eventCalls
+            .awaitItem()
+            .shouldBe(TrackedAction(Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION))
         }
       }
     }

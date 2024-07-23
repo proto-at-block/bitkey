@@ -19,6 +19,7 @@ deps = [
   bio_dep,
   sysevent_dep,
   sleep_dep,
+  kv_dep,
 ]
 
 sysinfo_task_lib = library('sysinfo-task',

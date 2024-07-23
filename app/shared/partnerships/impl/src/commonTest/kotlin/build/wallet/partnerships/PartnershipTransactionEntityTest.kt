@@ -11,7 +11,7 @@ class PartnershipTransactionEntityTest : FunSpec({
   test("Model Conversion") {
     val entity = PartnershipTransactionEntity(
       transactionId = PartnershipTransactionId("test-id"),
-      partnerId = "test-partner",
+      partnerId = PartnerId("test-partner"),
       partnerName = "test-partner-name",
       partnerLogoUrl = "test-partner-logo-url",
       context = "test-context",
@@ -67,7 +67,7 @@ class PartnershipTransactionEntityTest : FunSpec({
     val entity = model.toEntity()
 
     entity.transactionId.value.shouldBe("test-id")
-    entity.partnerId.shouldBe("test-partner")
+    entity.partnerId.value.shouldBe("test-partner")
     entity.partnerName.shouldBe("test-partner-name")
     entity.partnerLogoUrl.shouldBe("test-partner-logo-url")
     entity.context.shouldBe("test-context")

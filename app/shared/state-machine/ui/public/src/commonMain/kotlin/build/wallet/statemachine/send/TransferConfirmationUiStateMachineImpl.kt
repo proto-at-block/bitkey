@@ -203,7 +203,7 @@ class TransferConfirmationUiStateMachineImpl(
                     )
                 )
             ),
-          eventTrackerScreenIdContext = null,
+          eventTrackerContext = null,
           onBack = props.onExit,
           header =
             FormHeaderModel(

@@ -431,7 +431,7 @@ def list_deployments(ctx, version=None):
 
 def get_delta_releases(ctx, from_version=None, to_version=None):
     """Get all delta releases; optionally filter by from version."""
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/delta-releases"
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/delta-releases?per_page=10000"
 
     releases = json.loads(requests.get(
         url, headers=auth_headers()).text)['data']

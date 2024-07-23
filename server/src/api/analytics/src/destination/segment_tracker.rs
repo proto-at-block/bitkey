@@ -125,6 +125,7 @@ mod local_analytics_segment_tracker_test {
                 bitcoin_display_preference: String::from("test-bitcoin-display-preference"),
                 counter_id: String::from("counter_id"),
                 counter_count: 0,
+                fingerprint_scan_stats: None,
             }],
         };
 

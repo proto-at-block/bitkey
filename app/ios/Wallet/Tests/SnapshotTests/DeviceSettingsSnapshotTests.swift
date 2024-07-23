@@ -27,9 +27,9 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                multipleFingerprintsEnabled: false,
                 resetDeviceEnabled: false,
-                onManageFingerprints: {}
+                onManageFingerprints: {},
+                coachmark: nil
             )
         )
 
@@ -56,9 +56,9 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                multipleFingerprintsEnabled: false,
                 resetDeviceEnabled: false,
-                onManageFingerprints: {}
+                onManageFingerprints: {},
+                coachmark: nil
             )
         )
 
@@ -85,9 +85,9 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                multipleFingerprintsEnabled: false,
                 resetDeviceEnabled: false,
-                onManageFingerprints: {}
+                onManageFingerprints: {},
+                coachmark: nil
             )
         )
 
@@ -114,9 +114,9 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                multipleFingerprintsEnabled: false,
                 resetDeviceEnabled: false,
-                onManageFingerprints: {}
+                onManageFingerprints: {},
+                coachmark: nil
             )
         )
 
@@ -143,9 +143,9 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                multipleFingerprintsEnabled: false,
                 resetDeviceEnabled: false,
-                onManageFingerprints: {}
+                onManageFingerprints: {},
+                coachmark: nil
             )
         )
 

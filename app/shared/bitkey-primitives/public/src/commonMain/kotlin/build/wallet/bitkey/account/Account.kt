@@ -20,4 +20,5 @@ val Account.appRecoveryAuthKey: PublicKey<AppRecoveryAuthKey>
   get() = when (this) {
     is FullAccount -> keybox.activeAppKeyBundle.recoveryAuthKey
     is LiteAccount -> recoveryAuthKey
+    is OnboardingSoftwareAccount -> recoveryAuthKey
   }

@@ -43,6 +43,6 @@ fun StartFingerprintEnrollmentInstructionsBodyModel(
   eventTrackerScreenInfo =
     EventTrackerScreenInfo(
       eventTrackerScreenId = PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS,
-      eventTrackerScreenIdContext = eventTrackerScreenIdContext
+      eventTrackerContext = eventTrackerScreenIdContext
     )
 )

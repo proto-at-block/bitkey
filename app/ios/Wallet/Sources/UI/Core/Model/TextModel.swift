@@ -38,6 +38,7 @@ public struct TextModel {
         baselineOffset: CGFloat,
         lineSpacing: CGFloat,
         textAlignment: TextAlignment?,
+        width: Width? = nil,
         textColor: Color,
         treatment: LabelTreatment
     ) {
@@ -48,10 +49,12 @@ public struct TextModel {
         self.lineSpacing = lineSpacing
         self.textColor = textColor
 
-        if let textAlignment {
-            width = .fill(textAlignment: textAlignment)
+        if let width {
+            self.width = width
+        } else if let textAlignment {
+            self.width = .fill(textAlignment: textAlignment)
         } else {
-            width = .hug
+            self.width = .hug
         }
         self.treatment = treatment
     }
@@ -86,7 +89,7 @@ public struct ModeledText: View {
                     links[Int(linkIndexString)!].onClick()
                     return .handled
                 })
-                .tint(Color.primary)
+                .tint(Color.bitkeyPrimary)
             }
         }
         .font(model.font)

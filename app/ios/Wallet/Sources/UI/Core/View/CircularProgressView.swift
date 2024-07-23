@@ -31,7 +31,7 @@ public struct CircularProgressView: View {
         progress: Float,
         direction: TimerDirection,
         remainingDuration: TimeInterval,
-        progressColor: Color = .primary,
+        progressColor: Color = .bitkeyPrimary,
         strokeWidth: CGFloat = DesignSystemMetrics.Timer.strokeWidth
     ) {
         let remainingProgress = 1 - Double(progress)

@@ -80,8 +80,8 @@ import okio.ByteString
 import build.wallet.rust.firmware.CoredumpFragment as CoreCoredumpFragment
 import build.wallet.rust.firmware.EnrolledFingerprints as CoreEnrolledFingerprints
 import build.wallet.rust.firmware.EventFragment as CoreEventFragment
-import build.wallet.rust.firmware.FingerprintEnrollmentStatus as CoreFingerprintEnrollmentStatus
 import build.wallet.rust.firmware.FingerprintEnrollmentResult as CoreFingerprintEnrollmentResult
+import build.wallet.rust.firmware.FingerprintEnrollmentStatus as CoreFingerprintEnrollmentStatus
 import build.wallet.rust.firmware.FingerprintHandle as CoreFingerprintHandle
 import build.wallet.rust.firmware.FirmwareFeatureFlag as CoreFirmwareFeatureFlag
 import build.wallet.rust.firmware.FirmwareFeatureFlagCfg as CoreFirmwareFeatureFlagCfg
@@ -556,7 +556,18 @@ private fun DeviceInfo.toFirmwareDeviceInfo(now: Instant) =
         SecureBootConfig.DEV -> build.wallet.firmware.SecureBootConfig.DEV
         SecureBootConfig.PROD -> build.wallet.firmware.SecureBootConfig.PROD
       },
-    timeRetrieved = now.epochSeconds
+    timeRetrieved = now.epochSeconds,
+    bioMatchStats = bioMatchStats?.let {
+      BioMatchStats(
+        passCounts = it.passCounts.map { passCount ->
+          TemplateMatchStats(
+            passCount = passCount.passCount.toLong(),
+            firmwareVersion = passCount.firmwareVersion
+          )
+        },
+        failCount = it.failCount.toLong()
+      )
+    }
   )
 
 private fun CoreEventFragment.toEventFragment() =

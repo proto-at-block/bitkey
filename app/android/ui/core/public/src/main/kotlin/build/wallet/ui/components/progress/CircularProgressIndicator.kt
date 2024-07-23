@@ -41,7 +41,7 @@ fun CircularProgressIndicator(
   direction: TimerDirection,
   remainingSeconds: Long,
   size: Dp,
-  indicatorColor: Color = WalletTheme.colors.primary,
+  indicatorColor: Color = WalletTheme.colors.bitkeyPrimary,
   strokeWidth: Dp = size / 16.6f, // Stroke width defaults to proportional to the size.
 ) {
   /** Animate on initial composition from the start. */

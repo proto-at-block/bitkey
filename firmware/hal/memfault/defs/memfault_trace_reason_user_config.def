@@ -41,3 +41,6 @@ MEMFAULT_TRACE_REASON_DEFINE(tamper_status_raw)
 MEMFAULT_TRACE_REASON_DEFINE(tamper_reset)
 // Use tamper_error for failures to retrieve tamper information.
 MEMFAULT_TRACE_REASON_DEFINE(tamper_error)
+
+// Sysinfo
+MEMFAULT_TRACE_REASON_DEFINE(kv_init)

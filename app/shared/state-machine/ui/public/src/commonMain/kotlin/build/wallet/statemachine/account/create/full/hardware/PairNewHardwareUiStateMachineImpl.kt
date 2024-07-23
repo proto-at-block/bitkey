@@ -64,7 +64,7 @@ class PairNewHardwareUiStateMachineImpl(
             },
             onBack = props.onExit,
             isNavigatingBack = s.isNavigatingBack,
-            eventTrackerScreenIdContext = props.eventTrackerContext
+            eventTrackerContext = props.eventTrackerContext
           ),
           presentationStyle = pairNewHardwareBodyModelPresentationStyle,
           colorMode = ScreenColorMode.Dark
@@ -143,13 +143,13 @@ class PairNewHardwareUiStateMachineImpl(
               isNavigatingBack = true
             )
           },
-          eventTrackerScreenIdContext = props.eventTrackerContext,
+          eventTrackerContext = props.eventTrackerContext,
           isNavigatingBack = s.isNavigatingBack,
           presentationStyle = pairNewHardwareBodyModelPresentationStyle,
           headline = "Set up your first fingerprint",
           instructions = "Place your finger on the sensor until you see a blue light. Lift your" +
-              " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
-              " until the light turns green. Then save your fingerprint.",
+            " finger and repeat (15-20 times) adjusting your finger position slightly each time," +
+            " until the light turns green. Then save your fingerprint."
         )
 
       is CompleteFingerprintEnrollmentViaNfcUiState -> {

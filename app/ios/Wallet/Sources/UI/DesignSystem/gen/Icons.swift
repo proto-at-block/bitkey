@@ -89,6 +89,7 @@ public extension UIImage {
   static let smallIconRefresh = UIImage(named: "SmallIconRefresh", in: .main, compatibleWith: nil)!
   static let smallIconScan = UIImage(named: "SmallIconScan", in: .main, compatibleWith: nil)!
   static let smallIconSettings = UIImage(named: "SmallIconSettings", in: .main, compatibleWith: nil)!
+  static let smallIconSettingsBadged = UIImage(named: "SmallIconSettingsBadged", in: .main, compatibleWith: nil)!
   static let smallIconShare = UIImage(named: "SmallIconShare", in: .main, compatibleWith: nil)!
   static let smallIconShield = UIImage(named: "SmallIconShield", in: .main, compatibleWith: nil)!
   static let smallIconShieldCheck = UIImage(named: "SmallIconShieldCheck", in: .main, compatibleWith: nil)!
@@ -200,6 +201,7 @@ public extension Icon {
         case .smalliconrefresh: return .smallIconRefresh
         case .smalliconscan: return .smallIconScan
         case .smalliconsettings: return .smallIconSettings
+        case .smalliconsettingsbadged: return .smallIconSettingsBadged
         case .smalliconshare: return .smallIconShare
         case .smalliconshield: return .smallIconShield
         case .smalliconshieldcheck: return .smallIconShieldCheck

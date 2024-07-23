@@ -52,8 +52,8 @@ bool fs_util_read_all_global(char* filename, uint8_t* data, uint32_t max_size, u
   uint32_t size = fs_file_size(file);
   if (size == 0) {
     LOGW("File is empty");
-    fs_close_global(file);
-    return false;
+    *size_out = size;
+    return (fs_close_global(file) == 0);
   }
 
   if (size > max_size) {

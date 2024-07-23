@@ -127,7 +127,7 @@ fun sweepFundsPrompt(
 ) = ScreenModel(
   bottomSheetModel = SheetModel(
     body = NetworkFeesInfoSheetModel(onBack = onCloseNetworkFeesInfo),
-    onClosed = onCloseNetworkFeesInfo,
+    onClosed = onCloseNetworkFeesInfo
   ).takeIf { showNetworkFeesInfoSheet },
   presentationStyle = presentationStyle,
   body =
@@ -191,11 +191,11 @@ fun sweepFundsPrompt(
               title = "Network Fees",
               onTitle = onShowNetworkFeesInfo,
               titleIcon =
-              IconModel(
-                icon = Icon.SmallIconInformationFilled,
-                iconSize = IconSize.XSmall,
-                iconTint = IconTint.On30
-              ),
+                IconModel(
+                  icon = Icon.SmallIconInformationFilled,
+                  iconSize = IconSize.XSmall,
+                  iconTint = IconTint.On30
+                ),
               sideText = fee.secondaryAmount
             )
           ),
@@ -297,7 +297,7 @@ fun sweepSuccessScreenModel(
         ),
       mainContentList = immutableListOf(
         FormMainContentModel.Explainer(
-          items = walletUpdateExplainers,
+          items = walletUpdateExplainers
         )
       ),
       primaryButton =

@@ -52,7 +52,7 @@ extension UIColor {
     dark: UIColor(red: 0.965, green: 0.965, blue: 0.965, alpha: 1)
   )
   // The primary color for buttons, switches, etc
-  public static let primary = UIColor(
+  public static let bitkeyPrimary = UIColor(
     light: UIColor(red: 0.000, green: 0.502, blue: 0.588, alpha: 1),
     dark: UIColor(red: 0.000, green: 0.502, blue: 0.588, alpha: 1)
   )
@@ -333,7 +333,7 @@ extension Color {
   public static let foreground60 = Color(from: .foreground60)
   public static let foreground30 = Color(from: .foreground30)
   public static let foreground10 = Color(from: .foreground10)
-  public static let primary = Color(from: .primary)
+  public static let bitkeyPrimary = Color(from: .bitkeyPrimary)
   public static let primaryForeground = Color(from: .primaryForeground)
   public static let primaryForeground30 = Color(from: .primaryForeground30)
   public static let secondary = Color(from: .secondary)

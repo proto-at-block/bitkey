@@ -4,7 +4,7 @@ import SwiftUI
 struct ShowcaseView: View {
 
     let model: FormMainContentModel.Showcase
-    
+
     @SwiftUI.State
     private var videoViewModel: VideoViewModel? = nil
 
@@ -17,14 +17,17 @@ struct ShowcaseView: View {
                         .aspectRatio(contentMode: .fill)
                         .padding(.horizontal, 24)
                 }
-                
+
             case let content as FormMainContentModel.ShowcaseContentIconContent:
                 Image(uiImage: content.icon.uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .padding(.horizontal, 24)
+
             default:
-                fatalError("Unhandled FormMainContentModelShowcase.Content case: \(String(describing: model.content))")
+                fatalError(
+                    "Unhandled FormMainContentModelShowcase.Content case: \(String(describing: model.content))"
+                )
             }
 
             ModeledText(model: TextModel.standard(
@@ -43,12 +46,14 @@ struct ShowcaseView: View {
             ))
             .frame(maxWidth: .infinity)
         }.onAppear {
-           update(newModel: model)
+            update(newModel: model)
         }
     }
-    
+
     private func update(newModel: FormMainContentModel.Showcase) {
-        if let video = (newModel.content as? FormMainContentModel.ShowcaseContentVideoContent)?.video {
+        if let video = (newModel.content as? FormMainContentModel.ShowcaseContentVideoContent)?
+            .video
+        {
             if self.videoViewModel?.videoUrl != video.videoUrl {
                 self.videoViewModel = .init(
                     videoUrl: video.videoUrl,
@@ -63,15 +68,16 @@ struct ShowcaseView: View {
     }
 }
 
-
 extension FormMainContentModel.ShowcaseContentVideoContentVideo {
-    
+
     var videoUrl: URL {
         switch self {
         case .bitkeyReset:
             return .bitkeyResetVideoUrl
         default:
-            fatalError("Unhandled FormMainContentModelShowcase.Content.VideoContent.Video case: \(self)")
+            fatalError(
+                "Unhandled FormMainContentModelShowcase.Content.VideoContent.Video case: \(self)"
+            )
         }
     }
 }

@@ -379,14 +379,14 @@ async fn test_inactive_keyset_id_exists_in_wsm() {
 
     let wallet_ext_descriptor = format!(
         "wsh(sortedmulti(2,{},{},{}))",
-        spend_app.clone().to_string(),
-        spend_hw.clone().to_string(),
+        spend_app.clone(),
+        spend_hw.clone(),
         format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/0/*").to_string()
     );
     let wallet_change_descriptor = format!(
         "wsh(sortedmulti(2,{},{},{}))",
-        spend_app.to_string(),
-        spend_hw.to_string(),
+        spend_app,
+        spend_hw,
         format!("{TEST_XPUB_SPEND_ORIGIN}{TEST_XPUB_SPEND}/1/*").to_string()
     );
 

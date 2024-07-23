@@ -7,24 +7,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.ExpectedTransactionTrackerScreenId.EXPECTED_TRANSACTION_NOTICE_LOADING
-import build.wallet.f8e.partnerships.GetPartnerF8eClient
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import build.wallet.partnerships.PartnerInfo
 import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransaction
+import build.wallet.partnerships.PartnershipTransactionStatus
 import build.wallet.partnerships.PartnershipTransactionsStatusRepository
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.Delayer
 import build.wallet.time.withMinimumDelay
+import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class ExpectedTransactionNoticeUiStateMachineImpl(
-  private val getPartnerF8eClient: GetPartnerF8eClient,
   private val transactionsStatusRepository: PartnershipTransactionsStatusRepository,
   private val dateTimeFormatter: DateTimeFormatter,
   private val delayer: Delayer,
@@ -36,26 +35,20 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
     when (state) {
       is State.LoadingPartnershipDetails -> LaunchedEffect("load partnership details") {
         when (props.event) {
-          PartnershipEvent.TransactionCreated ->
-            props.partner?.let { partner ->
-              delayer
-                .withMinimumDelay {
-                  getPartnerF8eClient.getPartner(
-                    fullAccountId = props.fullAccountId,
-                    f8eEnvironment = props.f8eEnvironment,
-                    partner = partner
+          PartnershipEvent.TransactionCreated -> {
+            state = delayer.withMinimumDelay {
+              props.partner?.let {
+                transactionsStatusRepository
+                  .updateRecentTransactionStatusIfExists(
+                    partnerId = props.partner,
+                    status = PartnershipTransactionStatus.PENDING
                   )
-                }
-                .onSuccess { partnerInfo ->
-                  state = State.TransactionDetails(partnerInfo = partnerInfo)
-                }
-                .logFailure { "Unable to fetch partner info for expected transaction screen" }
-                .onFailure {
-                  state = State.TransactionDetails(null)
-                }
-            } ?: run {
-              state = State.TransactionDetails(null)
+                  .logFailure { "Unable to fetch partner info for expected transaction screen" }
+                  .get()
+                  .let { State.TransactionDetails(transaction = it) }
+              } ?: State.TransactionDetails(transaction = null)
             }
+          }
 
           PartnershipEvent.WebFlowCompleted -> state = State.LoadingTransferDetails
           else -> {
@@ -86,7 +79,6 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
             .onSuccess { transaction ->
               if (transaction != null) {
                 state = State.TransactionDetails(
-                  partnerInfo = transaction.partnerInfo,
                   transaction = transaction
                 )
               } else {
@@ -113,7 +105,7 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
         id = EXPECTED_TRANSACTION_NOTICE_LOADING
       )
       is State.TransactionDetails -> ExpectedTransactionNoticeModel(
-        partnerInfo = currentState.partnerInfo,
+        partnerInfo = currentState.transaction?.partnerInfo,
         transactionDate = dateTimeFormatter.shortDateWithTime(props.receiveTime),
         onViewInPartnerApp = props.onViewInPartnerApp,
         onBack = props.onBack
@@ -145,7 +137,6 @@ class ExpectedTransactionNoticeUiStateMachineImpl(
      * user about their completed transaction.
      */
     data class TransactionDetails(
-      val partnerInfo: PartnerInfo?,
       val transaction: PartnershipTransaction? = null,
     ) : State
   }

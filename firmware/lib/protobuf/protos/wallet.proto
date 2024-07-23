@@ -95,6 +95,7 @@ enum firmware_slot {
   SLOT_B = 2;
 }
 
+// Fingerprint enrollment diagnostics.
 message bio_diagnostics {
   bool finger_coverage_valid = 1;
   uint32 finger_coverage = 2;
@@ -110,6 +111,16 @@ message bio_diagnostics {
 
   bool template_data_update_valid = 9;
   uint32 template_data_update = 10;
+}
+
+message template_match_stats {
+  uint32 pass_count = 1;
+  semver firmware_version = 2;  // The firmware version this template was enrolled on
+}
+
+message bio_match_stats {
+  repeated template_match_stats pass_counts = 1 [(nanopb).max_count = 3];  // Maximum of 3 fingers
+  uint32 fail_count = 2;
 }
 
 message meta_rsp {
@@ -589,6 +600,8 @@ message device_info_rsp {
   uint32 battery_cycles = 10;
 
   secure_boot_config secure_boot_config = 11;
+
+  bio_match_stats bio_match_stats = 12;
 }
 
 message lock_device_cmd {}

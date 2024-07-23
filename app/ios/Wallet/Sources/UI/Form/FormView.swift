@@ -115,7 +115,7 @@ struct FormView_Previews: PreviewProvider {
                         ],
                         style: .none,
                         headerTreatment: .secondary,
-                        footerButton: nil, 
+                        footerButton: nil,
                         explainerSubtext: nil
                     ),
                     ListGroupModel(

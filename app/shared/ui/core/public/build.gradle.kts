@@ -13,7 +13,7 @@ kotlin {
       dependencies {
         api(projects.shared.analyticsPublic)
         api(projects.shared.composeRuntimePublic)
-
+        api(projects.shared.coachmarkPublic)
         implementation(projects.shared.featureFlagPublic)
       }
     }

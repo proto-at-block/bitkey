@@ -74,6 +74,22 @@ metadata_result_t metadata_get_active_slot(metadata_t* meta, fwpb_firmware_slot*
   }
 }
 
+metadata_result_t metadata_get_firmware_version(uint32_t* version) {
+  *version = 0;
+
+  metadata_t metadata = {0};
+  fwpb_firmware_slot slot;
+  metadata_result_t result = metadata_get_active_slot(&metadata, &slot);
+  if (result != METADATA_VALID) {
+    return result;
+  }
+
+  *version =
+    (metadata.version.major << 16) | (metadata.version.minor << 8) | metadata.version.patch;
+
+  return METADATA_VALID;
+}
+
 metadata_result_t metadata_validity(metadata_target_t target) {
   ASSERT(target < META_TGT_MAX);
 

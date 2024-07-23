@@ -1,4 +1,4 @@
-use crate::entities::{AuthFactor, FullAccount};
+use crate::entities::{AuthFactor, FullAccount, SoftwareAccount};
 use crate::service::FetchAccountByAuthKeyInput;
 use crate::{entities::Account, error::AccountError};
 use database::ddb::DatabaseError;
@@ -96,5 +96,16 @@ impl Service {
             return Err(AccountError::InvalidAccountType);
         };
         Ok(full_account)
+    }
+
+    pub async fn fetch_software_account(
+        &self,
+        input: FetchAccountInput<'_>,
+    ) -> Result<SoftwareAccount, AccountError> {
+        let account = self.account_repo.fetch(input.account_id).await?;
+        let Account::Software(software_account) = account else {
+            return Err(AccountError::InvalidAccountType);
+        };
+        Ok(software_account)
     }
 }

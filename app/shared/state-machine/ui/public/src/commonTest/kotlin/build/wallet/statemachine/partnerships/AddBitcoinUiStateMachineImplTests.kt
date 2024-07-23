@@ -1,15 +1,14 @@
 package build.wallet.statemachine.partnerships
 
+import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.partnerships.GetPurchaseOptionsF8eClientMock
-import build.wallet.f8e.partnerships.GetPurchaseQuoteListF8eClientMock
-import build.wallet.f8e.partnerships.GetPurchaseRedirectF8eClientMock
-import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
-import build.wallet.f8e.partnerships.GetTransferRedirectF8eClientMock
+import build.wallet.f8e.partnerships.*
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
+import build.wallet.money.exchange.CurrencyConverterFake
+import build.wallet.money.exchange.ExchangeRateSyncerMock
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.statemachine.core.SheetModel
@@ -37,9 +36,11 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
     clearCalls = turbines.create("clear calls"),
     syncCalls = turbines.create("sync calls"),
     createCalls = turbines.create("create calls"),
-    fetchMostRecentCalls = turbines.create("fetch most recent calls")
+    fetchMostRecentCalls = turbines.create("fetch most recent calls"),
+    updateRecentTransactionStatusCalls = turbines.create("update recent transaction status calls")
   )
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val eventTracker = EventTrackerMock(turbines::create)
 
   // state machines
   val stateMachine =
@@ -48,7 +49,8 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         PartnershipsTransferUiStateMachineImpl(
           getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
           getTransferRedirectF8eClient = getTransferRedirectF8eClient,
-          partnershipsRepository = partnershipRepositoryMock
+          partnershipsRepository = partnershipRepositoryMock,
+          eventTracker = eventTracker
         ),
       partnershipsPurchaseUiStateMachine = PartnershipsPurchaseUiStateMachineImpl(
         moneyDisplayFormatter = MoneyDisplayFormatterFake,
@@ -56,7 +58,10 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         getPurchaseQuoteListF8eClient = getPurchaseQuoteListF8eClient,
         getPurchaseRedirectF8eClient = getPurchaseRedirectF8eClient,
         partnershipsRepository = partnershipRepositoryMock,
-        fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+        fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+        eventTracker = eventTracker,
+        currencyConverter = CurrencyConverterFake(),
+        exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
       )
     )
 
@@ -101,6 +106,8 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
       awaitSheetWithBody<FormBodyModel> {
         id.shouldBe(DepositEventTrackerScreenId.PARTNER_QUOTES_LIST)
       }
+
+      eventTracker.eventCalls.awaitItem()
     }
   }
 })

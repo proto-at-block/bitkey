@@ -7,23 +7,14 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Biometric
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CloudBackupHealth
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.ContactUs
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CurrencyPreference
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CustomElectrumServer
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.NotificationPreferences
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RotateAuthKey
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.TrustedContacts
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
@@ -43,7 +34,8 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   val stateMachine =
     SettingsListUiStateMachineImpl(
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
-      cloudBackupHealthRepository = cloudBackupHealthRepository
+      cloudBackupHealthRepository = cloudBackupHealthRepository,
+      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
     )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")

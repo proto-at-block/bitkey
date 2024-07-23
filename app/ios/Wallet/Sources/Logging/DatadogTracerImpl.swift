@@ -24,8 +24,8 @@ public class DatadogTracerImpl: DatadogTracer {
 
     public func inject(span: DatadogSpan) -> TracerHeaders {
         let spanImpl = span as! DatadogSpanImpl
-        let ddHeadersWriter = HTTPHeadersWriter(samplingRate: 100)
-        let w3cHeadersWriter = W3CHTTPHeadersWriter(samplingRate: 100)
+        let ddHeadersWriter = HTTPHeadersWriter(sampleRate: 100)
+        let w3cHeadersWriter = W3CHTTPHeadersWriter(sampleRate: 100)
         var headers: [String: String] = [:]
 
         Tracer.shared().inject(spanContext: spanImpl.span.context, writer: ddHeadersWriter)

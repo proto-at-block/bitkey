@@ -1,5 +1,9 @@
 package build.wallet.nfc.interceptors
 
+import build.wallet.analytics.events.EventTracker
+import build.wallet.analytics.events.screen.EventTrackerFingerprintScanStatsInfo
+import build.wallet.analytics.v1.FingerprintScanStats
+import build.wallet.analytics.v1.TemplateMatchStats
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.transactions.Psbt
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
@@ -31,6 +35,7 @@ private const val SPAN_NAME = "nfc"
 fun collectMetrics(
   datadogRumMonitor: DatadogRumMonitor,
   datadogTracer: DatadogTracer,
+  eventTracker: EventTracker,
 ) = NfcTransactionInterceptor { next ->
   { session, commands ->
     datadogTracer.span(spanName = SPAN_NAME, resourceName = "transaction") {
@@ -39,7 +44,8 @@ fun collectMetrics(
         MetricsNfcCommandsImpl(
           commands = commands,
           datadogRumMonitor = datadogRumMonitor,
-          datadogTracer = datadogTracer
+          datadogTracer = datadogTracer,
+          eventTracker = eventTracker
         )
       )
     }
@@ -50,6 +56,7 @@ private class MetricsNfcCommandsImpl(
   private val commands: NfcCommands,
   private val datadogRumMonitor: DatadogRumMonitor,
   private val datadogTracer: DatadogTracer,
+  private val eventTracker: EventTracker,
 ) : NfcCommands {
   private suspend fun <T> measure(
     action: String,
@@ -120,7 +127,28 @@ private class MetricsNfcCommandsImpl(
   ) = measure("getCoredumpFragment") { commands.getCoredumpFragment(session, offset) }
 
   override suspend fun getDeviceInfo(session: NfcSession) =
-    measure("getDeviceInfo") { commands.getDeviceInfo(session) }
+    measure("getDeviceInfo") {
+      val deviceInfo = commands.getDeviceInfo(session)
+
+      // Store into Snowflake. We should fix all of the munge-ing.
+      deviceInfo.bioMatchStats?.let { bioMatchStats ->
+        eventTracker.track(
+          EventTrackerFingerprintScanStatsInfo(
+            stats = FingerprintScanStats(
+              pass_counts = bioMatchStats.passCounts.map {
+                TemplateMatchStats(
+                  pass_count = it.passCount.toInt(),
+                  firmware_version = it.firmwareVersion
+                )
+              },
+              fail_count = bioMatchStats.failCount.toInt()
+            )
+          )
+        )
+      }
+
+      deviceInfo
+    }
 
   override suspend fun getEvents(session: NfcSession) =
     measure("getEvents") { commands.getEvents(session) }

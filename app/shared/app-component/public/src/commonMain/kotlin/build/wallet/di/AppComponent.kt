@@ -189,10 +189,10 @@ interface AppComponent {
   val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider
   val analyticsTrackingPreference: AnalyticsTrackingPreference
   val exchangeRateF8eClient: ExchangeRateF8eClient
-  val multipleFingerprintsIsEnabledFeatureFlag: MultipleFingerprintsIsEnabledFeatureFlag
   val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag
   val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag
   val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
+  val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag
   val biometricPreference: BiometricPreference
 }

@@ -6,7 +6,7 @@ package build.wallet.bdk.bindings
  */
 sealed class BdkError(
   override val cause: Throwable?,
-  override val message: String? = cause?.message,
+  override val message: String?,
 ) : Error(message, cause) {
   class Bip32(cause: Throwable?, message: String?) : BdkError(cause, message)
 
@@ -93,4 +93,12 @@ sealed class BdkError(
   class TransactionNotFound(cause: Throwable?, message: String?) : BdkError(cause, message)
 
   class UnknownUtxo(cause: Throwable?, message: String?) : BdkError(cause, message)
+
+  /**
+   * Convert to Name-Only string.
+   *
+   * BDK Errors can contain sensitive data. When converting this to
+   * a string, we redact all but the underlying error type.
+   */
+  override fun toString(): String = "BdkError(${this::class.simpleName})"
 }

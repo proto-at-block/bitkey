@@ -5,13 +5,7 @@ package build.wallet.ui.components.list
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,36 +17,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
+import build.wallet.ui.components.coachmark.CoachmarkPresenter
+import build.wallet.ui.components.coachmark.NewCoachmark
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.label.LabelTreatment.Disabled
-import build.wallet.ui.components.label.LabelTreatment.Jumbo
-import build.wallet.ui.components.label.LabelTreatment.Primary
-import build.wallet.ui.components.label.LabelTreatment.Secondary
-import build.wallet.ui.components.label.LabelTreatment.Tertiary
+import build.wallet.ui.components.label.LabelTreatment.*
 import build.wallet.ui.components.layout.CollapsedMoneyView
 import build.wallet.ui.components.layout.CollapsibleLabelContainer
 import build.wallet.ui.compose.resId
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
+import build.wallet.ui.model.coachmark.CoachmarkModel
+import build.wallet.ui.model.coachmark.NewCoachmarkTreatment
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint
-import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.CENTER
 import build.wallet.ui.model.list.ListItemAccessoryAlignment.TOP
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemPickerMenu
-import build.wallet.ui.model.list.ListItemSideTextTint
-import build.wallet.ui.model.list.ListItemTitleAlignment
-import build.wallet.ui.model.list.ListItemTitleBackgroundTreatment
-import build.wallet.ui.model.list.ListItemTreatment.PRIMARY
-import build.wallet.ui.model.list.ListItemTreatment.PRIMARY_TITLE
-import build.wallet.ui.model.list.ListItemTreatment.SECONDARY
-import build.wallet.ui.model.list.ListItemTreatment.SECONDARY_DISPLAY
-import build.wallet.ui.model.list.ListItemTreatment.TERTIARY
-import build.wallet.ui.model.list.disable
+import build.wallet.ui.model.list.ListItemTreatment.*
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
@@ -132,7 +116,9 @@ fun ListItem(
       onClick = onClick,
       pickerMenu = pickerMenu,
       collapseContent = collapseContent,
-      testTag = testTag
+      testTag = testTag,
+      coachmark = model.coachmark,
+      showNewCoachmark = model.showNewCoachmark
     )
   }
 }
@@ -156,6 +142,8 @@ fun ListItem(
   testTag: String? = null,
   titleLabel: LabelModel? = null,
   specialTrailingAccessory: ListItemAccessory? = null,
+  coachmark: CoachmarkModel? = null,
+  showNewCoachmark: Boolean = false,
 ) {
   ListItem(
     modifier = modifier,
@@ -174,7 +162,9 @@ fun ListItem(
     onClick = onClick,
     pickerMenu = pickerMenu,
     testTag = testTag,
-    titleLabel = titleLabel
+    titleLabel = titleLabel,
+    coachmark = coachmark,
+    showNewCoachmark = showNewCoachmark
   )
 }
 
@@ -213,6 +203,8 @@ fun ListItem(
   testTag: String? = null,
   titleLabel: LabelModel? = null,
   collapseContent: Boolean = false,
+  coachmark: CoachmarkModel?,
+  showNewCoachmark: Boolean = false,
 ) {
   ListItem(
     modifier = modifier,
@@ -242,18 +234,31 @@ fun ListItem(
           }
         } ?: Alignment.TopStart
       ) {
-        if (titleLabel == null) {
-          Label(
-            text = title,
-            treatment = titleTreatment,
-            type = titleType
-          )
-        } else {
-          Label(
-            model = titleLabel,
-            treatment = titleTreatment,
-            type = titleType
-          )
+        Row {
+          if (titleLabel == null) {
+            Label(
+              text = title,
+              treatment = titleTreatment,
+              type = titleType
+            )
+          } else {
+            Label(
+              model = titleLabel,
+              treatment = titleTreatment,
+              type = titleType
+            )
+          }
+
+          if (showNewCoachmark) {
+            Spacer(Modifier.width(8.dp))
+            NewCoachmark(
+              if (titleTreatment == Disabled) {
+                NewCoachmarkTreatment.Disabled
+              } else {
+                NewCoachmarkTreatment.Light
+              }
+            )
+          }
         }
       }
     },
@@ -307,7 +312,8 @@ fun ListItem(
         }
       },
     collapseContent = collapseContent,
-    testTag = testTag
+    testTag = testTag,
+    coachmark = coachmark
   )
 }
 
@@ -328,6 +334,7 @@ private fun ListItem(
   trailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   specialTrailingAccessoryContent: @Composable (BoxScope.() -> Unit)?,
   pickerMenuContent: @Composable (BoxScope.() -> Unit)?,
+  coachmark: CoachmarkModel?,
   collapseContent: Boolean = false,
   testTag: String? = null,
 ) {
@@ -346,62 +353,68 @@ private fun ListItem(
         )
         .then(modifier)
   ) {
-    Row(
-      modifier =
-        Modifier
-          .fillMaxWidth()
-          .padding(
-            vertical = 16.dp
-          ),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-      leadingAccessoryContent?.run {
-        Box(modifier = Modifier.align(leadingAccessoryAlignment)) {
-          leadingAccessoryContent()
-        }
-      }
-      Column(
-        modifier = Modifier.weight(1F),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        horizontalAlignment = contentAlignment
+    Column {
+      Row(
+        modifier =
+          Modifier
+            .fillMaxWidth()
+            .padding(
+              vertical = 16.dp
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
-        Box { primaryContent() }
-        secondaryContent?.let {
-          Box { secondaryContent() }
+        leadingAccessoryContent?.run {
+          Box(modifier = Modifier.align(leadingAccessoryAlignment)) {
+            leadingAccessoryContent()
+          }
+        }
+        Column(
+          modifier = Modifier.weight(1F),
+          verticalArrangement = Arrangement.spacedBy(2.dp),
+          horizontalAlignment = contentAlignment
+        ) {
+          Box { primaryContent() }
+          secondaryContent?.let {
+            Box { secondaryContent() }
+          }
+        }
+        if (sideContent != null || secondarySideContent != null) {
+          CollapsibleLabelContainer(
+            modifier = Modifier.weight(1F),
+            collapsed = collapseContent,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalAlignment = Alignment.End,
+            topContent = sideContent?.let {
+              { Box { sideContent() } }
+            },
+            bottomContent = secondarySideContent?.let {
+              { Box { secondarySideContent() } }
+            },
+            collapsedContent = {
+              Box {
+                CollapsedMoneyView(
+                  height = 16.dp,
+                  modifier = Modifier.align(Alignment.Center)
+                )
+              }
+            }
+          )
+        }
+        specialTrailingAccessoryContent?.run {
+          Box { specialTrailingAccessoryContent() }
+        }
+        trailingAccessoryContent?.run {
+          Box { trailingAccessoryContent() }
         }
       }
-      if (sideContent != null || secondarySideContent != null) {
-        CollapsibleLabelContainer(
-          modifier = Modifier.weight(1F),
-          collapsed = collapseContent,
-          verticalArrangement = Arrangement.spacedBy(2.dp),
-          horizontalAlignment = Alignment.End,
-          topContent = sideContent?.let {
-            { Box { sideContent() } }
-          },
-          bottomContent = secondarySideContent?.let {
-            { Box { secondarySideContent() } }
-          },
-          collapsedContent = {
-            Box {
-              CollapsedMoneyView(
-                height = 16.dp,
-                modifier = Modifier.align(Alignment.Center)
-              )
-            }
-          }
-        )
+      pickerMenuContent?.run {
+        Box { pickerMenuContent() }
       }
-      specialTrailingAccessoryContent?.run {
-        Box { specialTrailingAccessoryContent() }
+
+      coachmark?.let {
+        CoachmarkPresenter(yOffset = 0f, model = coachmark)
       }
-      trailingAccessoryContent?.run {
-        Box { trailingAccessoryContent() }
-      }
-    }
-    pickerMenuContent?.run {
-      Box { pickerMenuContent() }
     }
   }
 }
@@ -491,6 +504,34 @@ internal fun ListItemWithSpecialTrailingAccessoryPreview() {
               iconSize = Small
             )
         ),
+      trailingAccessory = ListItemAccessory.drillIcon(),
+      specialTrailingAccessory = ListItemAccessory.IconAccessory(
+        model = IconModel(
+          icon = Icon.SmallIconInformationFilled,
+          iconSize = Small,
+          iconTint = IconTint.Warning
+        )
+      ),
+      onClick = {}
+    )
+  }
+}
+
+@Preview
+@Composable
+internal fun ListItemWithNewCoachmark() {
+  PreviewWalletTheme {
+    ListItem(
+      title = "Title",
+      leadingAccessory =
+        ListItemAccessory.IconAccessory(
+          model =
+            IconModel(
+              icon = Icon.SmallIconCloud,
+              iconSize = Small
+            )
+        ),
+      showNewCoachmark = true,
       trailingAccessory = ListItemAccessory.drillIcon(),
       specialTrailingAccessory = ListItemAccessory.IconAccessory(
         model = IconModel(

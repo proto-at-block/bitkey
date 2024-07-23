@@ -18,6 +18,6 @@ fun NfcErrorFormBodyModel(
     subline = message.description,
     primaryButton = ButtonDataModel("OK", onClick = onPrimaryButtonClick),
     eventTrackerScreenId = eventTrackerScreenId,
-    eventTrackerScreenIdContext = eventTrackerScreenIdContext
+    eventTrackerContext = eventTrackerScreenIdContext
   )
 }

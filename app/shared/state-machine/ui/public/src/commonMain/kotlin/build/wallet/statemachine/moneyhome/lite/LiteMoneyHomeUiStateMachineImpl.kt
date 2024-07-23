@@ -33,6 +33,7 @@ class LiteMoneyHomeUiStateMachineImpl(
               onSetUpBitkeyDevice = { props.accountData.onUpgradeAccount() }
             ),
             protectedCustomers = props.protectedCustomers,
+            badgedSettingsIcon = false,
             onProtectedCustomerClick = {
               state = State.ViewingProtectedCustomerDetail(it)
             },

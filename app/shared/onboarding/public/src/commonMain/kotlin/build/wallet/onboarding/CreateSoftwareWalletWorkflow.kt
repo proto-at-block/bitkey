@@ -1,5 +1,6 @@
 package build.wallet.onboarding
 
+import build.wallet.bitkey.account.Account
 import com.github.michaelbull.result.Result
 
 /**
@@ -11,5 +12,5 @@ interface CreateSoftwareWalletWorkflow {
   /**
    * Creates and activates a new account for a software wallet.
    */
-  suspend fun createAccount(): Result<Unit, Throwable>
+  suspend fun createAccount(): Result<Account, Throwable>
 }

@@ -35,7 +35,7 @@ class CloudSignInUiStateMachineImpl(
       message = "Loading...",
       onBack = null,
       id = CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING,
-      eventTrackerScreenIdContext = props.eventTrackerContext
+      eventTrackerContext = props.eventTrackerContext
     )
   }
 }

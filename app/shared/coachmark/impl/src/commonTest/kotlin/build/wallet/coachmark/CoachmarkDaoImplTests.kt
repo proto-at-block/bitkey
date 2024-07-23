@@ -2,7 +2,6 @@ package build.wallet.coachmark
 
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.sqldelight.inMemorySqlDriver
-import build.wallet.time.ClockFake
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
@@ -16,8 +15,7 @@ class CoachmarkDaoImplTests :
     beforeTest {
       val databaseProvider = BitkeyDatabaseProviderImpl(sqlDriver.factory)
       dao = CoachmarkDaoImpl(
-        databaseProvider,
-        ClockFake()
+        databaseProvider
       )
     }
 
@@ -50,7 +48,7 @@ class CoachmarkDaoImplTests :
       val list = dao.getAllCoachmarks()
       list.value.isNotEmpty().shouldBe(true)
       val hiddenBalance = list.value[0]
-      hiddenBalance.coachmarkId.shouldBe(CoachmarkIdentifier.HiddenBalanceCoachmark.string)
+      hiddenBalance.id.shouldBe(CoachmarkIdentifier.HiddenBalanceCoachmark)
       hiddenBalance.viewed.shouldBe(false)
       hiddenBalance.expiration.shouldBe(Instant.DISTANT_FUTURE)
     }

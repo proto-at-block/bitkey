@@ -85,19 +85,19 @@ impl WalletDescriptors {
     ) -> anyhow::Result<DefiniteWalletDescriptor> {
         let definite_descriptor_key = self
             .external
-            .at_derivation_index(index.clone())
+            .at_derivation_index(index)
             .or_else(|_| bail!("Unable to derive definite descriptor key"))?;
 
         let definite_change_descriptor_key = self
             .change
-            .at_derivation_index(index.clone())
+            .at_derivation_index(index)
             .or_else(|_| bail!("Unable to derive definite change descriptor key"))?;
 
         let derived_descriptor = definite_descriptor_key
-            .derived_descriptor(&secp)
+            .derived_descriptor(secp)
             .or_else(|_| bail!("Unable to derive descriptor"))?;
         let derived_change_descriptor = definite_change_descriptor_key
-            .derived_descriptor(&secp)
+            .derived_descriptor(secp)
             .or_else(|_| bail!("Unable to derive change descriptor"))?;
 
         Ok(DefiniteWalletDescriptor::new(
@@ -228,7 +228,7 @@ mod tests {
         child: ChildNumber,
         secp: &Secp256k1<All>,
     ) -> ExtendedPrivKey {
-        xprv.derive_priv(&secp, &derivation_path.child(child))
+        xprv.derive_priv(secp, &derivation_path.child(child))
             .unwrap()
     }
 
@@ -238,11 +238,11 @@ mod tests {
         child_number: ChildNumber,
         secp: &Secp256k1<All>,
     ) -> DescriptorPublicKey {
-        let derived_xpub = ExtendedPubKey::from_priv(&secp, &xprv);
+        let derived_xpub = ExtendedPubKey::from_priv(secp, xprv);
         DescriptorPublicKey::XPub(DescriptorXKey {
             origin: Some((
                 xprv.fingerprint(secp),
-                derivation_path.extend(&[child_number]).clone(),
+                derivation_path.extend([child_number]).clone(),
             )),
             xkey: derived_xpub,
             derivation_path: DerivationPath::default(),
@@ -268,13 +268,13 @@ mod tests {
                 &xprv,
                 derivation_path,
                 ChildNumber::Normal { index: 0 },
-                &secp,
+                secp,
             ));
             change_xprvs.push(derive_child_xprv(
                 &xprv,
                 derivation_path,
                 ChildNumber::Normal { index: 1 },
-                &secp,
+                secp,
             ))
         }
 
@@ -288,7 +288,7 @@ mod tests {
                             xprv,
                             derivation_path,
                             ChildNumber::Normal { index: 0 },
-                            &secp,
+                            secp,
                         )
                     })
                     .collect(),
@@ -303,7 +303,7 @@ mod tests {
                             xprv,
                             derivation_path,
                             ChildNumber::Normal { index: 1 },
-                            &secp,
+                            secp,
                         )
                     })
                     .collect(),
@@ -344,7 +344,7 @@ mod tests {
                 pk_1,
                 (
                     Fingerprint::default(),
-                    bk_derivation_path.extend(&[
+                    bk_derivation_path.extend([
                         ChildNumber::Normal { index: 0 },
                         ChildNumber::Normal { index: 0 },
                     ]),

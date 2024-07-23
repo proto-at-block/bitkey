@@ -133,7 +133,7 @@ private struct AddressQrCodeErrorView: View {
     var body: some View {
         VStack(spacing: 4) {
             Image(uiImage: .largeIconWarningFilled)
-                .foregroundColor(.primary)
+                .foregroundColor(.bitkeyPrimary)
                 .padding(.bottom, 8)
             ModeledText(model: .standard(errorModel.title, font: .title1, textAlignment: .center))
             ModeledText(model: .standard(

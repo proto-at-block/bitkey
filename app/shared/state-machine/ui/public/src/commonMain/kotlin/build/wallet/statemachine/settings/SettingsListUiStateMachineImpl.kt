@@ -1,55 +1,32 @@
 package build.wallet.statemachine.settings
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
+import build.wallet.coachmark.CoachmarkIdentifier
+import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconAnnouncement
-import build.wallet.statemachine.core.Icon.SmallIconBitkey
-import build.wallet.statemachine.core.Icon.SmallIconCloud
-import build.wallet.statemachine.core.Icon.SmallIconCurrency
-import build.wallet.statemachine.core.Icon.SmallIconElectrum
-import build.wallet.statemachine.core.Icon.SmallIconInformation
-import build.wallet.statemachine.core.Icon.SmallIconLock
-import build.wallet.statemachine.core.Icon.SmallIconMobileLimit
-import build.wallet.statemachine.core.Icon.SmallIconNotification
-import build.wallet.statemachine.core.Icon.SmallIconPhone
-import build.wallet.statemachine.core.Icon.SmallIconQuestion
-import build.wallet.statemachine.core.Icon.SmallIconRecovery
-import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.settings.SettingsBodyModel.RowModel
 import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.Biometric
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.BitkeyDevice
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CloudBackupHealth
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.ContactUs
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CurrencyPreference
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.CustomElectrumServer
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.DebugMenu
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.HelpCenter
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.MobilePay
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.NotificationPreferences
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RecoveryChannels
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.RotateAuthKey
-import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.TrustedContacts
+import build.wallet.statemachine.settings.SettingsListUiProps.SettingsListRow.*
 import build.wallet.statemachine.status.AppFunctionalityStatusAlertModel
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
+import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.toImmutableList
 import kotlin.reflect.KClass
 
 class SettingsListUiStateMachineImpl(
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
+  private val coachmarkService: CoachmarkService,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
@@ -122,13 +99,23 @@ class SettingsListUiStateMachineImpl(
     val mobileKeyBackupStatus by remember {
       cloudBackupHealthRepository.mobileKeyBackupStatus()
     }.collectAsState()
+
+    var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
+    LaunchedEffect("coachmarks") {
+      coachmarkService
+        .coachmarksToDisplay(
+          coachmarkIds = setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark, CoachmarkIdentifier.BiometricUnlockCoachmark)
+        ).onSuccess {
+          coachmarksToDisplay = it
+        }
+    }
     // Build the row models based on if the parent wants to show the row for the section
     val rowModels =
-      remember(appFunctionalityStatus, mobileKeyBackupStatus) {
+      remember(appFunctionalityStatus, coachmarksToDisplay, mobileKeyBackupStatus) {
         rowTypes.mapNotNull { rowType ->
           props.supportedRows
             .firstOrNull { rowType.isInstance(it) }
-            ?.rowModel(appFunctionalityStatus, props, mobileKeyBackupStatus)
+            ?.rowModel(appFunctionalityStatus, coachmarksToDisplay, props, mobileKeyBackupStatus)
         }
       }
 
@@ -142,6 +129,7 @@ class SettingsListUiStateMachineImpl(
 
   private fun SettingsListRow.rowModel(
     appFunctionalityStatus: AppFunctionalityStatus,
+    coachmarksToDisplay: List<CoachmarkIdentifier>,
     props: SettingsListUiProps,
     mobileKeyBackupStatus: MobileKeyBackupStatus?,
   ): RowModel {
@@ -182,6 +170,13 @@ class SettingsListUiStateMachineImpl(
               )
           }
         }
+      },
+      showNewCoachmark = when (this) {
+        is BitkeyDevice ->
+          coachmarksToDisplay
+            .contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)
+        is Biometric -> coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark)
+        else -> false
       }
     )
   }

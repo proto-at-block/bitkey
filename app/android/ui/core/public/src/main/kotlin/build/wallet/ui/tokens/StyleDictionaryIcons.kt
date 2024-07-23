@@ -13,6 +13,7 @@ import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaised
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
 import build.wallet.statemachine.core.Icon.BuyOwnBitkeyHero
+import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.CloudBackupEmergencyAccessKit
 import build.wallet.statemachine.core.Icon.CloudBackupMobileKey
 import build.wallet.statemachine.core.Icon.LargeIconAdd
@@ -45,10 +46,10 @@ import build.wallet.statemachine.core.Icon.SmallIconCaretLeft
 import build.wallet.statemachine.core.Icon.SmallIconCaretRight
 import build.wallet.statemachine.core.Icon.SmallIconCaretUp
 import build.wallet.statemachine.core.Icon.SmallIconCheck
-import build.wallet.statemachine.core.Icon.SmallIconCheckbox
-import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
 import build.wallet.statemachine.core.Icon.SmallIconCheckFilled
 import build.wallet.statemachine.core.Icon.SmallIconCheckStroked
+import build.wallet.statemachine.core.Icon.SmallIconCheckbox
+import build.wallet.statemachine.core.Icon.SmallIconCheckboxSelected
 import build.wallet.statemachine.core.Icon.SmallIconCircleStroked
 import build.wallet.statemachine.core.Icon.SmallIconClipboard
 import build.wallet.statemachine.core.Icon.SmallIconClock
@@ -91,6 +92,7 @@ import build.wallet.statemachine.core.Icon.SmallIconRecovery
 import build.wallet.statemachine.core.Icon.SmallIconRefresh
 import build.wallet.statemachine.core.Icon.SmallIconScan
 import build.wallet.statemachine.core.Icon.SmallIconSettings
+import build.wallet.statemachine.core.Icon.SmallIconSettingsBadged
 import build.wallet.statemachine.core.Icon.SmallIconShare
 import build.wallet.statemachine.core.Icon.SmallIconShield
 import build.wallet.statemachine.core.Icon.SmallIconShieldCheck
@@ -108,7 +110,6 @@ import build.wallet.statemachine.core.Icon.SmallIconXFilled
 import build.wallet.statemachine.core.Icon.SmallIconXStroked
 import build.wallet.statemachine.core.Icon.SubtractLeft
 import build.wallet.statemachine.core.Icon.SubtractRight
-import build.wallet.statemachine.core.Icon.CalloutArrow
 import build.wallet.statemachine.core.Icon.TabIconHome
 import build.wallet.statemachine.core.Icon.TabIconProfile
 
@@ -202,6 +203,7 @@ private val Icon.drawableRes
       SmallIconRefresh -> R.drawable.small_icon_refresh
       SmallIconScan -> R.drawable.small_icon_scan
       SmallIconSettings -> R.drawable.small_icon_settings
+      SmallIconSettingsBadged -> R.drawable.small_icon_settings_badged
       SmallIconShare -> R.drawable.small_icon_share
       SmallIconShield -> R.drawable.small_icon_shield
       SmallIconShieldCheck -> R.drawable.small_icon_shield_check

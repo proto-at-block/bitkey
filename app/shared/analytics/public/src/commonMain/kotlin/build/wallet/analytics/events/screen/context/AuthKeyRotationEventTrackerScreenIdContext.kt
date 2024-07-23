@@ -1,6 +1,8 @@
 package build.wallet.analytics.events.screen.context
 
-enum class AuthKeyRotationEventTrackerScreenIdContext : EventTrackerScreenIdContext {
+import build.wallet.analytics.events.EventTrackerContext
+
+enum class AuthKeyRotationEventTrackerScreenIdContext : EventTrackerContext {
   /** Auth key rotation was recommended to the user after cloud restoration */
   PROPOSED_ROTATION,
 

@@ -329,9 +329,6 @@ class AppComponentImpl(
 
   override val feeBumpIsAvailableFeatureFlag = FeeBumpIsAvailableFeatureFlag(featureFlagDao)
 
-  override val multipleFingerprintsIsEnabledFeatureFlag =
-    MultipleFingerprintsIsEnabledFeatureFlag(featureFlagDao)
-
   override val resetDeviceIsEnabledFeatureFlag =
     ResetDeviceIsEnabledFeatureFlag(featureFlagDao)
 
@@ -348,15 +345,18 @@ class AppComponentImpl(
   override val mobileTestFeatureFlag =
     MobileTestFeatureFlag(featureFlagDao)
 
+  override val coachmarksGlobalFeatureFlag =
+    CoachmarksGlobalFeatureFlag(featureFlagDao)
+
   override val allRemoteFeatureFlags: List<FeatureFlag<out FeatureFlagValue>> =
     setOf(
-      multipleFingerprintsIsEnabledFeatureFlag,
       resetDeviceIsEnabledFeatureFlag,
       inAppSecurityFeatureFlag,
       mobileTestFeatureFlag,
       DoubleMobileTestFeatureFlag(featureFlagDao),
       StringFlagMobileTestFeatureFlag(featureFlagDao),
-      promptSweepFeatureFlag
+      promptSweepFeatureFlag,
+      coachmarksGlobalFeatureFlag
     ).toList()
 
   private val allLocalFeatureFlags = setOf(

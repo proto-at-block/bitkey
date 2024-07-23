@@ -1,6 +1,6 @@
 package build.wallet.analytics.events.screen
 
-import build.wallet.analytics.events.screen.context.EventTrackerScreenIdContext
+import build.wallet.analytics.events.EventTrackerContext
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 
 /**
@@ -8,7 +8,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
  * to create a string screen ID to pass to analytics
  *
  * @property eventTrackerScreenId: Main ID for the screen, i.e. MONEY_HOME
- * @property eventTrackerScreenIdContext: Optional additional context for the screen if the
+ * @property eventTrackerContext: Optional additional context for the screen if the
  * screen is reused in different places, i.e. [ACCOUNT_CREATION] vs [HW_RECOVERY] to
  * disambiguate events when going through the pair new hardware flow.
  * @property eventTrackerShouldTrack: whether to track the event.
@@ -21,7 +21,7 @@ import build.wallet.analytics.events.screen.id.EventTrackerScreenId
  */
 data class EventTrackerScreenInfo(
   val eventTrackerScreenId: EventTrackerScreenId,
-  val eventTrackerScreenIdContext: EventTrackerScreenIdContext?,
+  val eventTrackerContext: EventTrackerContext?,
   val eventTrackerShouldTrack: Boolean = true,
 ) {
   constructor(
@@ -29,12 +29,12 @@ data class EventTrackerScreenInfo(
     eventTrackerShouldTrack: Boolean = true,
   ) : this(
     eventTrackerScreenId = eventTrackerScreenId,
-    eventTrackerScreenIdContext = null,
+    eventTrackerContext = null,
     eventTrackerShouldTrack = eventTrackerShouldTrack
   )
 
   val screenId: String
-    get() = when (val context = eventTrackerScreenIdContext) {
+    get() = when (val context = eventTrackerContext) {
       null -> eventTrackerScreenId.name
       else -> "${eventTrackerScreenId.name}_${context.name}"
     }

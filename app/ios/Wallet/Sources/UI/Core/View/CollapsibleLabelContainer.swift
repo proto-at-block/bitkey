@@ -46,7 +46,12 @@ public struct CollapsibleLabelContainer<
 
 private extension Animation {
     static var customSpring: Animation {
-        return Animation.interpolatingSpring(mass: 0.7, stiffness: 100, damping: 14, initialVelocity: 0).speed(1.8)
+        return Animation.interpolatingSpring(
+            mass: 0.7,
+            stiffness: 100,
+            damping: 14,
+            initialVelocity: 0
+        ).speed(1.8)
     }
 }
 
