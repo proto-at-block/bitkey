@@ -1,5 +1,6 @@
 package build.wallet.ui.components.slider
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import app.cash.paparazzi.DeviceConfig
 import build.wallet.kotest.paparazzi.paparazziExtension
@@ -10,24 +11,40 @@ class SliderSnapshots : FunSpec({
 
   test("slider - 0 value") {
     paparazzi.snapshot {
-      Slider(0f)
+      Column {
+        Slider(0f)
+        Slider(0f, 100f)
+      }
     }
   }
 
   test("slider - 50% value") {
     paparazzi.snapshot {
-      Slider(.5f)
+      Column {
+        Slider(.5f)
+        Slider(50f, 100f)
+      }
     }
   }
 
   test("slider - 100% value") {
     paparazzi.snapshot {
-      Slider(1f)
+      Column {
+        Slider(1f)
+        Slider(100f, 100f)
+      }
     }
   }
 })
 
 @Composable
-private fun Slider(value: Float) {
-  Slider(value = value, onValueChange = {})
+private fun Slider(
+  value: Float,
+  sliderMax: Float = 1f,
+) {
+  Slider(
+    value = value,
+    valueRange = 0f..sliderMax,
+    onValueChange = {}
+  )
 }

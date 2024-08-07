@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-runtime-iosarm64",
+    "components": [
+        {
+            "version": "2.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-iosarm64-2.8.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-runtime.klib": "f357b46c6b4e9745c2f3ca881b999632c3c0c562ed503dc2d9b1efe66ad2266a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

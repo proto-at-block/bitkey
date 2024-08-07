@@ -189,7 +189,8 @@ class AppTester(
           fakeNfcCommands = fakeNfcCommands,
           sharingManager = fakeSharingManager,
           cloudStoreAccRepository = cloudStoreAccountRepository,
-          cloudKeyValueStore = cloudKeyValueStore
+          cloudKeyValueStore = cloudKeyValueStore,
+          fakeHardwareKeyStore = fakeHardwareKeyStore
         )
 
       val treasury =
@@ -281,6 +282,7 @@ private fun createActivityComponent(
   sharingManager: SharingManager,
   cloudStoreAccRepository: CloudStoreAccountRepository? = null,
   cloudKeyValueStore: CloudKeyValueStore? = null,
+  fakeHardwareKeyStore: FakeHardwareKeyStore,
 ): ActivityComponentImpl {
   val cloudStoreAccountRepository = cloudStoreAccRepository
     ?: CloudStoreAccountRepositoryImpl(
@@ -317,7 +319,8 @@ private fun createActivityComponent(
     pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(),
     spake2 = Spake2Impl(),
     cryptoBox = CryptoBoxImpl(),
-    biometricPrompter = BiometricPrompterImpl()
+    biometricPrompter = BiometricPrompterImpl(),
+    fakeHardwareKeyStore = fakeHardwareKeyStore
   )
 }
 

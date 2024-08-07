@@ -6,7 +6,7 @@ import build.wallet.ui.app.nfc.FwupNfcScreenInternal
 import io.kotest.core.spec.style.FunSpec
 
 class FwupNfcSnapshots : FunSpec({
-  val paparazzi = paparazziExtension()
+  val paparazzi = paparazziExtension(maxPercentDifference = 0.8)
 
   test("fwup nfc progress with zero progress") {
     paparazzi.snapshot {

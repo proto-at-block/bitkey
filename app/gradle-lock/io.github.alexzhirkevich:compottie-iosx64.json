@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.github.alexzhirkevich:compottie-iosx64",
+    "components": [
+        {
+            "version": "2.0.0-beta02",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compottie-iosx64-2.0.0-beta02-metadata.jar": "c3e4c0a080a353de177ee766bd83a47cb418308971e47ead509e490fbb3fde95"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "compottie.klib": "d2639ef4a9f121e87252b8787e4dd892bfdddb575c9807a65d0482b17d0a9f22"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -2,16 +2,16 @@
     "module-identifier": "com.squareup.okio:okio-iossimulatorarm64",
     "components": [
         {
-            "version": "3.8.0",
+            "version": "3.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "okio-iossimulatorarm64-3.8.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
+                        "okio-iossimulatorarm64-3.9.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
                     }
                 },
                 {
                     "artifacts": {
-                        "okio.klib": "090dad5bafef0fdd4e8a6e95e2e5122b6dd55449b5fc2d23e8904ea3f5228486"
+                        "okio.klib": "46732d65c58d650cd60a4dff0bedc1b39f024c95ccf25c4b6601b82f407ee12d"
                     }
                 }
             ],

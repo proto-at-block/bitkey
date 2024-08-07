@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-desktop-1.6.11.jar": "01e5ba2526eb71b8eca4e91cebb7109e103823623b4ab11bb84faedf46d60c8c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

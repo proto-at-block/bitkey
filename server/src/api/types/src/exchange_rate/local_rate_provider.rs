@@ -1,11 +1,14 @@
 use std::sync::Arc;
+
 use tokio::sync::Mutex;
 
 pub const LOCAL_ONE_BTC_IN_FIAT: f64 = 22678.0; // bitstamp BTCUSD ask as of 2023-01-20 01:00 UTC
+pub const PRICE_TIMESTAMP: i64 = 1642614000;
 
 #[derive(Clone)]
 pub struct LocalRateProvider {
     pub rate_to_return: Option<f64>,
+    pub rate_timestamp: Option<i64>,
     // We need to have clones share the same counter, and interior mutability to be able to
     // increment this
     network_call_count: Arc<Mutex<u32>>,
@@ -24,23 +27,27 @@ impl LocalRateProvider {
     pub fn new() -> Self {
         Self {
             rate_to_return: Some(LOCAL_ONE_BTC_IN_FIAT),
+            rate_timestamp: Some(PRICE_TIMESTAMP),
             network_call_count: Arc::new(Mutex::new(0)),
         }
     }
 
-    pub fn new_with_rate(rate_to_return: Option<f64>) -> Self {
+    pub fn new_with_rate(rate_to_return: Option<f64>, rate_timestamp: Option<i64>) -> Self {
         Self {
             rate_to_return,
+            rate_timestamp,
             network_call_count: Arc::new(Mutex::new(0)),
         }
     }
 
     pub fn new_with_count(
         rate_to_return: Option<f64>,
+        rate_timestamp: Option<i64>,
         network_call_count: Arc<Mutex<u32>>,
     ) -> Self {
         Self {
             rate_to_return,
+            rate_timestamp,
             network_call_count,
         }
     }

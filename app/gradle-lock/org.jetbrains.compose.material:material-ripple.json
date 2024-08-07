@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-ripple",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-ripple-1.6.11.jar": "6501c2ae5373a5e76957c55e15982837980c35fb6b6242547aeda246ac065519"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

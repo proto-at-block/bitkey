@@ -6,3 +6,4 @@
 # available options.
 r: [bitkey-server-eng]
 modules: [bitkey-server]
+include_ancestors: false

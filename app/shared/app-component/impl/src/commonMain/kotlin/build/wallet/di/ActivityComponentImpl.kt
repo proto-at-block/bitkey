@@ -46,6 +46,9 @@ import build.wallet.f8e.mobilepay.MobilePaySpendingLimitF8eClientImpl
 import build.wallet.f8e.money.FiatCurrencyDefinitionF8eClientImpl
 import build.wallet.f8e.notifications.NotificationTouchpointF8eClientImpl
 import build.wallet.f8e.onboarding.*
+import build.wallet.f8e.onboarding.frost.ActivateSpendingDescriptorF8eClientImpl
+import build.wallet.f8e.onboarding.frost.ContinueDistributedKeygenF8eClientImpl
+import build.wallet.f8e.onboarding.frost.InitiateDistributedKeygenF8eClientImpl
 import build.wallet.f8e.partnerships.*
 import build.wallet.f8e.recovery.*
 import build.wallet.f8e.socrec.SocRecF8eClientFake
@@ -69,6 +72,7 @@ import build.wallet.money.exchange.ExchangeRateSyncerImpl
 import build.wallet.money.formatter.internal.MoneyDisplayFormatterImpl
 import build.wallet.money.formatter.internal.MoneyFormatterDefinitionsImpl
 import build.wallet.money.input.MoneyInputFormatterImpl
+import build.wallet.nfc.FakeHardwareKeyStore
 import build.wallet.nfc.NfcReaderCapabilityProviderImpl
 import build.wallet.nfc.NfcTransactorImpl
 import build.wallet.nfc.interceptors.*
@@ -291,6 +295,7 @@ class ActivityComponentImpl(
   cryptoBox: CryptoBox,
   val pdfAnnotatorFactory: PdfAnnotatorFactory,
   biometricPrompter: BiometricPrompter,
+  fakeHardwareKeyStore: FakeHardwareKeyStore,
 ) : ActivityComponent {
   init {
     log { "App Variant: ${appComponent.appVariant}" }
@@ -1587,7 +1592,8 @@ class ActivityComponentImpl(
   )
 
   val startSweepCardUiStateMachine = StartSweepCardUiStateMachineImpl(
-    sweepPromptRequirementCheck = sweepPromptRequirementCheck
+    sweepPromptRequirementCheck = sweepPromptRequirementCheck,
+    appSessionManager = appComponent.appSessionManager
   )
 
   val cardListStateMachine =
@@ -1794,14 +1800,12 @@ class ActivityComponentImpl(
 
   val booleanFlagItemStateMachine = BooleanFlagItemUiStateMachineImpl()
 
-  val featureFlagsStateMachine =
-    FeatureFlagsStateMachineImpl(
-      featureFlags = appComponent.allFeatureFlags,
-      booleanFlagItemUiStateMachine = booleanFlagItemStateMachine,
-      featureFlagSyncer = appComponent.featureFlagSyncer,
-      doubleFlagItemUiStateMachine = DoubleFlagItemUiStateMachineImpl(),
-      stringFlagItemUiStateMachine = StringFlagItemUiStateMachineImpl()
-    )
+  val featureFlagsStateMachine = FeatureFlagsStateMachineImpl(
+    featureFlagService = appComponent.featureFlagService,
+    booleanFlagItemUiStateMachine = booleanFlagItemStateMachine,
+    doubleFlagItemUiStateMachine = DoubleFlagItemUiStateMachineImpl(),
+    stringFlagItemUiStateMachine = StringFlagItemUiStateMachineImpl()
+  )
 
   val featureFlagsOptionsStateMachine =
     FeatureFlagsOptionsUiStateMachineImpl(
@@ -2076,8 +2080,23 @@ class ActivityComponentImpl(
     authTokenDao = appComponent.authTokenDao
   )
 
-  val createSoftwareWalletWorkflow = CreateSoftwareWalletWorkflowImpl(
+  val initiateDistributedKeygenF8eClient = InitiateDistributedKeygenF8eClientImpl(
+    f8eHttpClient = appComponent.f8eHttpClient
+  )
+  val continueDistributedKeygenF8eClient = ContinueDistributedKeygenF8eClientImpl(
+    f8eHttpClient = appComponent.f8eHttpClient
+  )
+
+  val activateSpendingDescriptorF8eClient = ActivateSpendingDescriptorF8eClientImpl(
+    f8eHttpClient = appComponent.f8eHttpClient
+  )
+
+  val createSoftwareWalletService = CreateSoftwareWalletServiceImpl(
     softwareAccountCreator = softwareAccountCreator,
+    initiateDistributedKeygenF8eClient = initiateDistributedKeygenF8eClient,
+    continueDistributedKeygenF8eClient = continueDistributedKeygenF8eClient,
+    activateSpendingDescriptorF8eClient = activateSpendingDescriptorF8eClient,
+    fakeHardwareKeyStore = fakeHardwareKeyStore,
     appKeysGenerator = appKeysGenerator,
     templateFullAccountConfigDao = appComponent.templateFullAccountConfigDao,
     softwareWalletIsEnabledFeatureFlag = appComponent.softwareWalletIsEnabledFeatureFlag,
@@ -2085,7 +2104,7 @@ class ActivityComponentImpl(
   )
 
   val createSoftwareWalletUiStateMachine = CreateSoftwareWalletUiStateMachineImpl(
-    createSoftwareWalletWorkflow = createSoftwareWalletWorkflow
+    createSoftwareWalletService = createSoftwareWalletService
   )
 
   val chooseAccountAccessUiStateMachine =
@@ -2382,16 +2401,14 @@ class ActivityComponentImpl(
         )
     )
 
-  val appDataStateMachine =
-    AppDataStateMachineImpl(
-      featureFlagInitializer = appComponent.featureFlagInitializer,
-      featureFlagSyncer = appComponent.featureFlagSyncer,
-      accountDataStateMachine = accountDataStateMachine,
-      templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
-      electrumServerDataStateMachine = electrumServerDataStateMachine,
-      firmwareDataStateMachine = firmwareDataStateMachine,
-      fiatCurrencyRepository = fiatCurrencyRepository
-    )
+  val appDataStateMachine = AppDataStateMachineImpl(
+    featureFlagService = appComponent.featureFlagService,
+    accountDataStateMachine = accountDataStateMachine,
+    templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
+    electrumServerDataStateMachine = electrumServerDataStateMachine,
+    firmwareDataStateMachine = firmwareDataStateMachine,
+    fiatCurrencyRepository = fiatCurrencyRepository
+  )
 
   val liteAccountCreator =
     LiteAccountCreatorImpl(

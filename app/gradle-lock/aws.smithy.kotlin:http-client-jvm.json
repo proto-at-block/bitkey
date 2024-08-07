@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:http-client-jvm",
     "components": [
         {
-            "version": "1.0.13",
+            "version": "1.2.11",
             "variants": [
                 {
                     "artifacts": {
-                        "http-client-jvm-1.0.13.jar": "ffa7ddd6022e0c39c9ccfc293893eb6c51cea1465761649f17cea6c14d3bfeaf"
+                        "http-client-jvm-1.2.11.jar": "bb3b9aae0e91da585e148eb57c50648f77c55c71bef3a4ce7fb5a6fc28a5e857"
                     }
                 }
             ],

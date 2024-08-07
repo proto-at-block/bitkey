@@ -18,7 +18,9 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.S
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
+import kotlin.native.HiddenFromObjC
 
+@HiddenFromObjC
 class SweepDataStateMachineImpl(
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val sweepService: SweepService,

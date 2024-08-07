@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.squareup.moshi:moshi-kotlin",
+    "components": [
+        {
+            "version": "1.15.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "moshi-kotlin-1.15.1.jar": "3c5a577200fc49a696647a52b1a97598a56d8d6f00e343ffed09d88b4007cdd0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

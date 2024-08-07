@@ -367,7 +367,6 @@ class AppComponentImpl(
 
   override val allFeatureFlags: List<FeatureFlag<*>> =
     (allLocalFeatureFlags + allRemoteFeatureFlags).toList()
-  override val featureFlagInitializer = FeatureFlagInitializerImpl(allFeatureFlags)
   private val appDeviceIdDao = AppDeviceIdDaoImpl(secureStoreFactory, uuidGenerator)
   override val deviceInfoProvider = DeviceInfoProviderImpl()
   override val localeLanguageCodeProvider = LocaleLanguageCodeProviderImpl(platformContext)
@@ -402,15 +401,6 @@ class AppComponentImpl(
       appVariant,
       bitkeyDatabaseProvider
     )
-
-  override val featureFlagSyncer = FeatureFlagSyncerImpl(
-    accountRepository = accountRepository,
-    templateFullAccountConfigDao = templateFullAccountConfigDao,
-    featureFlagsF8eClient = featureFlagsF8eClient,
-    clock = clock,
-    remoteFlags = allRemoteFeatureFlags,
-    appSessionManager = appSessionManager
-  )
 
   override val analyticsTrackingPreference = AnalyticsTrackingPreferenceImpl(
     appVariant = appVariant,
@@ -528,6 +518,20 @@ class AppComponentImpl(
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )
 
+  private val featureFlagSyncer = FeatureFlagSyncerImpl(
+    accountRepository = accountRepository,
+    templateFullAccountConfigDao = templateFullAccountConfigDao,
+    featureFlagsF8eClient = featureFlagsF8eClient,
+    clock = clock,
+    remoteFlags = allRemoteFeatureFlags,
+    appSessionManager = appSessionManager
+  )
+
+  override val featureFlagService = FeatureFlagServiceImpl(
+    featureFlags = allFeatureFlags,
+    featureFlagSyncer = featureFlagSyncer
+  )
+
   private val appWorkerProvider = AppWorkerProviderImpl(
     eventTracker = eventTracker,
     networkingDebugConfigRepository = networkingDebugConfigRepository,
@@ -535,7 +539,8 @@ class AppComponentImpl(
     periodicFirmwareCoredumpProcessor = periodicFirmwareCoredumpProcessor,
     periodicFirmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
     periodicRegisterWatchAddressProcessor = registerWatchAddressProcessor,
-    mobilePayFiatConfigSyncWorker = mobilePayFiatConfigService
+    mobilePayFiatConfigSyncWorker = mobilePayFiatConfigService,
+    featureFlagSyncWorker = featureFlagService
   )
   override val appWorkerExecutor = AppWorkerExecutorImpl(
     appScope = appCoroutineScope,

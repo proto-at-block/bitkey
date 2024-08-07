@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.components:components-resources",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "library-metadata-1.6.11.jar": "c266019121799d85a9e0694823482f320318dc10acd45329d4d2fe0a41b51489"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

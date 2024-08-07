@@ -33,12 +33,11 @@ pub trait AddressWatchlistTrait: DynClone + fmt::Debug + Send + Sync {
     async fn get(
         &self,
         addresses: &[Address<NetworkUnchecked>],
-    ) -> Result<HashMap<Address<NetworkUnchecked>, AccountId>, Error>;
+    ) -> Result<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>, Error>;
 }
 
 dyn_clone::clone_trait_object!(AddressWatchlistTrait);
 
-/// Metadata for a registered address we want to store
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct AddressAndKeysetId {
@@ -50,6 +49,23 @@ impl AddressAndKeysetId {
     pub fn new(address: Address<NetworkUnchecked>, spending_keyset_id: KeysetId) -> Self {
         Self {
             address,
+            spending_keyset_id,
+        }
+    }
+}
+
+/// Metadata for a registered address we want to store
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub struct AccountIdAndKeysetId {
+    pub account_id: AccountId,
+    pub spending_keyset_id: KeysetId,
+}
+
+impl AccountIdAndKeysetId {
+    pub fn new(account_id: AccountId, spending_keyset_id: KeysetId) -> Self {
+        Self {
+            account_id,
             spending_keyset_id,
         }
     }

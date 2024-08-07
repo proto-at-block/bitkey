@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-assertions-api-jvm",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-api-jvm-5.8.1.jar": "24e5429f8de994056147f4e4198f03bc1b37303b2e4e2bad81a5c388f5fe8d21"
+                        "kotest-assertions-api-jvm-5.9.0.jar": "4aff4ca83e9206cb2388325df872976f519e925a069494abec292ec3114c0d09"
                     }
                 }
             ],

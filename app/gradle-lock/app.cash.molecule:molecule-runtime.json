@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.molecule:molecule-runtime",
     "components": [
         {
-            "version": "1.4.2",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "molecule-runtime-metadata-1.4.2.jar": "6e0c6134f64c772b0ad57eeeb9f3dd1285642645e3d07fa57edfc33a38d95229"
+                        "molecule-runtime-metadata-2.0.0.jar": "341b0aa52f19fca7545099b37d06187892044463ce0c55155c50248e0b3cb4d6"
                     }
                 }
             ],

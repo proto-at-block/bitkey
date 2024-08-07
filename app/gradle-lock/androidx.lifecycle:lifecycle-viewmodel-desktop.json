@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-desktop",
+    "components": [
+        {
+            "version": "2.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-desktop-2.8.1.jar": "5c28f3ba9732f2180685038dbe674059fd9b7843c721cd0f6c73f3dbfcb2683c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

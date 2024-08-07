@@ -5,6 +5,7 @@ import build.wallet.gradle.logic.gradle.exclude
 plugins {
   id("build.wallet.kmp")
   alias(libs.plugins.compose.runtime)
+  alias(libs.plugins.compose.compiler)
 }
 
 kotlin {

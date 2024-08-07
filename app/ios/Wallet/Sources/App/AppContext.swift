@@ -153,11 +153,12 @@ class AppContext {
             spake2: Spake2Impl(),
             cryptoBox: CryptoBoxImpl(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
-            biometricPrompter: biometricsPrompter
+            biometricPrompter: biometricsPrompter,
+            fakeHardwareKeyStore: fakeHardwareKeyStore
         )
 
         self.appUiStateMachineManager = AppUiStateMachineManagerImpl(
-            appUiStateMachine: activityComponent.appUiStateMachine,
+            appUiStateMachine: activityComponent.appUiStateMachine as! AppUiStateMachineImpl,
             appViewController: appViewController,
             context: .init(
                 qrCodeScannerViewControllerFactory: QRCodeScannerViewControllerFactoryImpl()
@@ -165,7 +166,8 @@ class AppContext {
         )
 
         self.biometricPromptUiStateMachineManager = BiometricPromptUiStateMachineManager(
-            biometricPromptUiStateMachine: activityComponent.biometricPromptUiStateMachine,
+            biometricPromptUiStateMachine: activityComponent
+                .biometricPromptUiStateMachine as! BiometricPromptUiStateMachineImpl,
             appViewController: HiddenBarNavigationController()
         )
     }

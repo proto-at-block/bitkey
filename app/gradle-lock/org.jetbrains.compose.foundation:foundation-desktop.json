@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.foundation:foundation-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "foundation-desktop-1.6.11.jar": "b255c7c56ae0a401d03783e5ccdd3087de9ed56632159c2bd658d4314cfa2431"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

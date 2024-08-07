@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.10",
+            "version": "1.9.24",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-1.9.10.jar": "a4c74d94d64ce1abe53760fe0389dd941f6fc558d0dab35e47c085a11ec80f28"
+                        "kotlin-stdlib-jdk8-1.9.24.jar": "5b5bbfb3e1184b5e13317c3d42237fa24add443b2e7781961eea334db136adb1"
                     }
                 }
             ],
@@ -28,17 +28,16 @@
             ]
         },
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-jdk8-1.9.23.jar": "d624c60cc1b472a1dcbee3ad1ec4ea95f2fba0032152ddb15905c6207f7718ec"
+                        "kotlin-stdlib-jdk8-2.0.0.jar": "92035a0fa8b97a97bb430d30ba03e5ad51f4cfa839cf1559e55245cba735aa94"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "build-classpath",
-                "kotlin-compiler"
+                "build-classpath"
             ]
         }
     ]

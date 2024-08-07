@@ -5,7 +5,11 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList.FeeOption
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 
+@OptIn(ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 class FeeOptionUiStateMachineMock : FeeOptionUiStateMachine {
   var latestProps: FeeOptionProps? = null
 

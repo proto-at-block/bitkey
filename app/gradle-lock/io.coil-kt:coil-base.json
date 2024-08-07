@@ -2,11 +2,11 @@
     "module-identifier": "io.coil-kt:coil-base",
     "components": [
         {
-            "version": "2.6.0",
+            "version": "2.5.0",
             "variants": [
                 {
                     "artifacts": {
-                        "coil-base-2.6.0.aar": "8809fbd426f713a4a3e18d4c747e64b84ecbf59813d937b78af529b3da4cb2d1"
+                        "coil-base-2.5.0.aar": "bb399f8039e8cf7f159102c85b44281be2ff7ebc58214056f8601ca43fbeabc5"
                     }
                 }
             ],

@@ -2,16 +2,16 @@
     "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-core-iosx64",
     "components": [
         {
-            "version": "0.13.3",
+            "version": "1.0.0-ALPHA-31",
             "variants": [
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-core-iosx64-0.13.3-metadata.jar": "45784fa7e23f75ef9a6287b4756a90b374c870071bd851ad58136e953e3f993c"
+                        "kmp-nativecoroutines-core-iosx64-1.0.0-ALPHA-31-metadata.jar": "634b3463b221f34cb55fdd8c170cfc745436f14fb5c4646a511eba00d897d92d"
                     }
                 },
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-core.klib": "c51e92b57255f66937617d58055e57ab63e12ce6514d061e3c24585f21cdb9e0"
+                        "kmp-nativecoroutines-core.klib": "e64a40600aabaec776a2fc9a69eb3d186ee2a8b155288d0cad61540a4f436c35"
                     }
                 }
             ],

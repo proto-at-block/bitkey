@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-handler-proxy",
     "components": [
         {
-            "version": "4.1.72.Final",
+            "version": "4.1.93.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-handler-proxy-4.1.72.Final.jar": "ce1123250450d2b17815748177fd36843690b8cd703b47e6dc12d159d86da30d"
+                        "netty-handler-proxy-4.1.93.Final.jar": "2ac5f7fbefa0b73ef783889069344d5515505a14b2303be693c5002c486df2b4"
                     }
                 }
             ],

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.animation:animation-core-uikitsimarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "animation-core-uikitsimarm64-1.6.11-metadata.jar": "361930fbab15eb4ee98772dc87a3894d963db254f2c7b5e1e2a3cace7ed428a5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "animation-core.klib": "eb415bc0474913ce52c313611129d6ec9e2512b8d0c7ae54e41ea7bddacff72d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

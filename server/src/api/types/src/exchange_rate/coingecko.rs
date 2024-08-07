@@ -1,4 +1,5 @@
 use crate::currencies::CurrencyCode;
+use crate::exchange_rate::PriceAt;
 use reqwest::{Client, RequestBuilder};
 use serde::de::{SeqAccess, Visitor};
 use serde::{de, Deserialize, Deserializer};
@@ -9,25 +10,34 @@ use time::{Duration, OffsetDateTime};
 /// Deserializes Coingecko responses from CoingeckoRateProvider.
 #[derive(Deserialize)]
 pub struct Response {
-    pub prices: Vec<PriceAt>,
+    pub prices: Vec<CoingeckoPriceAt>,
 }
 
 #[derive(Debug)]
-pub struct PriceAt {
+pub struct CoingeckoPriceAt {
     pub timestamp: OffsetDateTime,
     pub price: f64,
+}
+
+impl From<CoingeckoPriceAt> for PriceAt {
+    fn from(price_at: CoingeckoPriceAt) -> Self {
+        PriceAt {
+            timestamp: price_at.timestamp,
+            price: price_at.price,
+        }
+    }
 }
 
 struct PriceAtVisitor;
 
 impl<'de> Visitor<'de> for PriceAtVisitor {
-    type Value = PriceAt;
+    type Value = CoingeckoPriceAt;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         formatter.write_str("an array of two floats")
     }
 
-    fn visit_seq<A>(self, mut seq: A) -> Result<PriceAt, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<CoingeckoPriceAt, A::Error>
     where
         A: SeqAccess<'de>,
     {
@@ -46,14 +56,14 @@ impl<'de> Visitor<'de> for PriceAtVisitor {
             .next_element()?
             .ok_or_else(|| de::Error::invalid_length(1, &self))?;
 
-        Ok(PriceAt {
+        Ok(CoingeckoPriceAt {
             timestamp: offset_datetime,
             price,
         })
     }
 }
 
-impl<'de> Deserialize<'de> for PriceAt {
+impl<'de> Deserialize<'de> for CoingeckoPriceAt {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -109,5 +119,71 @@ impl RateProvider {
                 ("to", to_timestamp.to_string()),
                 ("x_cg_pro_api_key", self.api_key.clone()),
             ])
+    }
+
+    pub fn rate_chart_request(&self, currency: &CurrencyCode, days: u16) -> RequestBuilder {
+        let path = format!(
+            "/api/v3/coins/{}/market_chart",
+            HISTORICAL_RATE_REQUEST_COIN
+        );
+        Client::new()
+            .get(format!("{}{}", &self.root_url, path))
+            .query(&[
+                ("vs_currency", currency.to_string()),
+                ("days", days.to_string()),
+                ("x_cg_pro_api_key", self.api_key.clone()),
+            ])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rate_chart_request_url_construction() {
+        // arrange
+        let provider = RateProvider {
+            root_url: "https://coingecko.example.com".to_string(),
+            api_key: "abc123".to_string(),
+        };
+        let currency = CurrencyCode::USD;
+        let days = 30u16;
+
+        // act
+        let request = provider
+            .rate_chart_request(&currency, days)
+            .build()
+            .unwrap();
+
+        // assert
+        let expected_url = format!(
+            "{}/api/v3/coins/{}/market_chart?vs_currency={}&days={}&x_cg_pro_api_key={}",
+            provider.root_url, HISTORICAL_RATE_REQUEST_COIN, "USD", days, provider.api_key
+        );
+        assert_eq!(request.url().as_str(), expected_url);
+    }
+
+    #[test]
+    fn test_rate_chart_request_query_parameters() {
+        // arrange
+        let provider = RateProvider {
+            root_url: "https://coingecko.example.com".to_string(),
+            api_key: "abc123".to_string(),
+        };
+        let currency = CurrencyCode::EUR;
+        let days = 7u16;
+
+        // act
+        let request = provider
+            .rate_chart_request(&currency, days)
+            .build()
+            .unwrap();
+        let query: Vec<(String, String)> = request.url().query_pairs().into_owned().collect();
+
+        // assert
+        assert!(query.contains(&("vs_currency".to_string(), "EUR".to_string())));
+        assert!(query.contains(&("days".to_string(), days.to_string())));
+        assert!(query.contains(&("x_cg_pro_api_key".to_string(), provider.api_key.clone())));
     }
 }

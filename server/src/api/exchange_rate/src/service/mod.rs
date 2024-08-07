@@ -3,25 +3,59 @@ use crate::error::ExchangeRateError::CacheRead;
 use crate::error::{ExchangeRateError, ProviderResponseError};
 use futures::future::join_all;
 use moka::future::{Cache, CacheBuilder};
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::instrument;
 use tracing::log::error;
 
+use crate::chart::ExchangeRateChartProvider;
 use crate::historical::HistoricalExchangeRateProvider;
+use crate::metrics as exchange_rate_metrics;
 use types::currencies::CurrencyCode::{BTC, USD};
 use types::currencies::{Currency, CurrencyCode};
-use types::exchange_rate::ExchangeRate;
-
-use crate::metrics as exchange_rate_metrics;
+use types::exchange_rate::{ExchangeRate, ExchangeRateChartData};
 
 /// A service for fetching the latest exchange rates.
 #[derive(Clone)]
 pub struct Service {
     /// A cache of exchange rates, keyed by their ISO-4217 currency code.
-    cache: Cache<u16, ExchangeRate>,
+    spot_rate_cache: Cache<u16, ExchangeRate>,
+    /// A map of rate chart data caches, keyed by the ttl.
+    charts_caches: HashMap<u64, Cache<ChartCacheKey, ExchangeRateChartData>>,
 }
 
-pub const TIME_WINDOW_DURATION: core::time::Duration = core::time::Duration::from_secs(5 * 60);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ChartCacheKey {
+    currency: u16, // ISO-4217 numeric currency code
+    days: u16,
+    max_price_points: usize,
+}
+
+impl ChartCacheKey {
+    pub fn new(currency_code: CurrencyCode, days: u16, max_price_points: usize) -> Self {
+        Self {
+            currency: currency_code as u16,
+            days,
+            max_price_points,
+        }
+    }
+}
+
+pub mod cache_ttl {
+    pub const MINUTE: u64 = 60;
+    pub const FIVE_MINUTES: u64 = 5 * MINUTE;
+    pub const ONE_HOUR: u64 = 60 * MINUTE;
+    pub const ONE_DAY: u64 = 24 * ONE_HOUR;
+}
+
+const SPOT_RATE_CACHE_TTL: u64 = cache_ttl::FIVE_MINUTES;
+const CHART_CACHE_TTLS: [u64; 3] = [
+    cache_ttl::FIVE_MINUTES,
+    cache_ttl::ONE_HOUR,
+    cache_ttl::ONE_DAY,
+];
 
 impl Default for Service {
     fn default() -> Self {
@@ -30,17 +64,37 @@ impl Default for Service {
 }
 
 impl Service {
-    /// Creates a new service object with an empty set of exchange rates.
-    ///
-    /// The initializer chooses a default time window of between [`TIME_WINDOW_DURATION`] ago and
-    /// now, so the next call of get_latest_rates will always trigger a refresh.
+    /// Creates a new service object with empty caches.
     pub fn new() -> Self {
-        // We set the max capacity to 1000 since the current max ISO-4217 currency codes is 1000.
-        let cache = CacheBuilder::new(1000)
-            .time_to_live(TIME_WINDOW_DURATION)
-            .build();
+        let rate_cache = Self::build_cache(SPOT_RATE_CACHE_TTL);
 
-        Self { cache }
+        let chart_caches: HashMap<u64, Cache<ChartCacheKey, ExchangeRateChartData>> =
+            CHART_CACHE_TTLS
+                .iter()
+                .map(|&ttl| (ttl, Self::build_cache(ttl)))
+                .collect();
+
+        Self::new_from_caches(rate_cache, chart_caches)
+    }
+
+    pub fn new_from_caches(
+        rate_cache: Cache<u16, ExchangeRate>,
+        chart_caches: HashMap<u64, Cache<ChartCacheKey, ExchangeRateChartData>>,
+    ) -> Self {
+        Self {
+            spot_rate_cache: rate_cache,
+            charts_caches: chart_caches,
+        }
+    }
+
+    fn build_cache<K, V>(ttl: u64) -> Cache<K, V>
+    where
+        K: Hash + Eq + Clone + Send + Sync + 'static,
+        V: Clone + Send + Sync + 'static,
+    {
+        // We set the max capacity to 1000 since the current max ISO-4217 currency codes is 1000.
+        let duration = Duration::from_secs(ttl);
+        CacheBuilder::new(1000).time_to_live(duration).build()
     }
 
     /// Returns the latest exchange rate for a given currency.
@@ -59,7 +113,7 @@ impl Service {
         let rate_retrieval_start_time = OffsetDateTime::now_utc();
 
         let new_rate = self
-            .cache
+            .spot_rate_cache
             .entry(currency_code.clone() as u16)
             .or_try_insert_with(async {
                 Self::fetch_latest_rate(&rate_provider, OffsetDateTime::now_utc(), currency_code)
@@ -205,6 +259,42 @@ impl Service {
         Ok(results)
     }
 
+    pub async fn fetch_chart_data(
+        &self,
+        rate_provider: impl ExchangeRateChartProvider,
+        currency: CurrencyCode,
+        days: u16,
+        max_price_points: usize,
+    ) -> Result<ExchangeRateChartData, ExchangeRateError> {
+        self.get_chart_cache(days)?
+            .entry(ChartCacheKey::new(currency.clone(), days, max_price_points))
+            .or_try_insert_with(async {
+                rate_provider
+                    .chart_data(&currency, days, max_price_points)
+                    .await
+                    .map(|data| ExchangeRateChartData {
+                        from_currency: BTC,
+                        to_currency: currency,
+                        exchange_rates: data,
+                    })
+            })
+            .await
+            .map_err(|_| CacheRead)
+            .map(|data| data.into_value())
+    }
+
+    fn get_chart_cache(
+        &self,
+        days: u16,
+    ) -> Result<&Cache<ChartCacheKey, ExchangeRateChartData>, ExchangeRateError> {
+        let ttl = match days {
+            0..=1 => cache_ttl::FIVE_MINUTES, // Day chart -> ttl of 5 minutes
+            2..=90 => cache_ttl::ONE_HOUR,    // 2 - 90 days (Week or Month chart) -> ttl of 1 hour
+            _ => cache_ttl::ONE_DAY, // above 90 days (Year or All time chart) -> ttl of 1 day
+        };
+        self.charts_caches.get(&ttl).ok_or(CacheRead)
+    }
+
     // Performs the network call to fetch the historical rate from the provider.
     async fn fetch_historical_rate<T>(
         &self,
@@ -232,6 +322,7 @@ impl Service {
 
 #[cfg(test)]
 mod tests {
+
     use crate::service::Service;
     use std::sync::Arc;
     use tokio::sync::Mutex;
@@ -245,7 +336,7 @@ mod tests {
 
         let exchange_rate = exchange_rate_service
             .clone()
-            .get_latest_rate(LocalRateProvider::new_with_rate(Some(1.0)), USD)
+            .get_latest_rate(LocalRateProvider::new_with_rate(Some(1.0), None), USD)
             .await;
 
         assert!(exchange_rate.is_ok());
@@ -257,7 +348,7 @@ mod tests {
         let exchange_rate_service = Service::new();
 
         let exchange_rate = exchange_rate_service
-            .get_latest_rate(LocalRateProvider::new_with_rate(None), USD)
+            .get_latest_rate(LocalRateProvider::new_with_rate(None, None), USD)
             .await;
 
         assert!(exchange_rate.is_err());
@@ -267,7 +358,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_latest_rate_caching() {
         let exchange_rate_service = Arc::new(Service::new());
-        let mock_provider = LocalRateProvider::new_with_rate(Some(1.0));
+        let mock_provider = LocalRateProvider::new_with_rate(Some(1.0), None);
 
         // Call get_latest_rate twice
         let exchange_rate_1 = exchange_rate_service
@@ -298,12 +389,18 @@ mod tests {
     async fn test_get_latest_rate_concurrency() {
         // Share reference across providers so they can be moved.
         let shared_network_call_count: Arc<Mutex<u32>> = Arc::new(Mutex::new(0));
-        let mock_provider_1 =
-            LocalRateProvider::new_with_count(Some(1.0), Arc::clone(&shared_network_call_count));
+        let mock_provider_1 = LocalRateProvider::new_with_count(
+            Some(1.0),
+            None,
+            Arc::clone(&shared_network_call_count),
+        );
         // We deliberately have the second mock provider return a different rate. It should never
         // be called and influence the second exchange rate call, handle2.
-        let mock_provider_2 =
-            LocalRateProvider::new_with_count(Some(2.0), Arc::clone(&shared_network_call_count));
+        let mock_provider_2 = LocalRateProvider::new_with_count(
+            Some(2.0),
+            None,
+            Arc::clone(&shared_network_call_count),
+        );
 
         // We wrap in Arc so that we always access the same instance of Service, and clone in
         // advance to accomodate the moves below.
@@ -348,7 +445,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_latest_rates_caching() {
         let exchange_rate_service = Arc::new(Service::new());
-        let mock_provider = LocalRateProvider::new_with_rate(Some(1.0));
+        let mock_provider = LocalRateProvider::new_with_rate(Some(1.0), None);
 
         // Call get_latest_rates twice
         let exchange_rates_1 = exchange_rate_service
@@ -375,7 +472,7 @@ mod tests {
     #[tokio::test]
     async fn test_get_latest_rates_and_rate_caching() {
         let exchange_rate_service = Arc::new(Service::new());
-        let mock_provider = LocalRateProvider::new_with_rate(Some(1.0));
+        let mock_provider = LocalRateProvider::new_with_rate(Some(1.0), None);
 
         let test_fiat_currency = USD;
 
@@ -410,5 +507,42 @@ mod tests {
 
         // Assert that fiat rate is the same
         assert_eq!(fiat_rate.rate, fiat_rate_2.rate);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_chart_data_success() {
+        // arrange
+        let exchange_rate_service = Service::new();
+        let mock_provider = LocalRateProvider::new();
+
+        // act
+        let chart_data = exchange_rate_service
+            .fetch_chart_data(mock_provider.clone(), USD, 1, 1)
+            .await;
+
+        // assert
+        assert!(chart_data.is_ok());
+        assert_eq!(chart_data.unwrap().exchange_rates.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_fetch_chart_data_cache() {
+        // arrange
+        let exchange_rate_service = Arc::new(Service::new());
+        let mock_provider = LocalRateProvider::new();
+        let chart_data_1 = exchange_rate_service
+            .clone()
+            .fetch_chart_data(mock_provider.clone(), USD, 1, 1)
+            .await;
+
+        // act
+        let chart_data_2 = exchange_rate_service
+            .clone()
+            .fetch_chart_data(mock_provider.clone(), USD, 1, 1)
+            .await;
+
+        // assert
+        assert_eq!(mock_provider.get_network_call_count().await, 1);
+        assert_eq!(chart_data_1.unwrap(), chart_data_2.unwrap());
     }
 }

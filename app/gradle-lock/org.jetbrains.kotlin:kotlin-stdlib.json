@@ -16,11 +16,11 @@
             ]
         },
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-1.9.22.jar": "6abe146c27864138b874ccccfe5f534e3eb923c99a1b7b5d45494ee5694f3e0a"
+                        "kotlin-stdlib-1.9.23.jar": "8910cc238807d86ef550cb1f0b10dd5ed40b35a4ec1a52525f760aede84ead37"
                     }
                 }
             ],
@@ -30,16 +30,16 @@
             ]
         },
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-stdlib-1.9.23-all.jar": "cec38bc3302e72a8aaf9cde436b5a9071ee0331e2ad05e84d8bb897334d7e9d4"
+                        "kotlin-stdlib-2.0.0-all.jar": "30e05222bc067fffb896a3276b5f1e3f29450bf1d9461d27a19ce0efc793b5cd"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlin-stdlib-1.9.23.jar": "8910cc238807d86ef550cb1f0b10dd5ed40b35a4ec1a52525f760aede84ead37"
+                        "kotlin-stdlib-2.0.0.jar": "240938c4aab8e73e888703e3e7d3f87383ffe5bd536d6d5e3c100d4cd0379fcf"
                     }
                 }
             ],

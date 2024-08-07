@@ -38,6 +38,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         appContext.appUiStateMachineManager.connectSharedStateMachine()
         appContext.biometricPromptUiStateMachineManager.connectSharedStateMachine()
+
+        // W-8924: Exclude Library/Application Support directory from iCloud backups. Otherwise, if
+        // a user performs an iCloud restore on a new phone, the app will think it is onboarded but
+        // will be missing the necessary keychain keys, resulting in a crash on boot. This is
+        // considered best-effort, both for our code and per Apple's documentation on
+        // isExcludedFromBackup.
+        do {
+            var url = URL(fileURLWithPath: appContext.appComponent.fileDirectoryProvider.appDir())
+            var resourceValues = URLResourceValues()
+            resourceValues.isExcludedFromBackup = true
+            try url.setResourceValues(resourceValues)
+        } catch {
+            log(.error, error: error) { "Failed to exclude appDir from iCloud backup." }
+        }
     }
 
     // MARK: - UIApplicationDelegate
@@ -211,6 +225,7 @@ private func initializeBugsnag(appVariant: AppVariant) {
     let config = BugsnagConfig(appVariant: appVariant)
     // Initialize Bugsnag using iOS SDK
     let bugsnagConfig = BugsnagConfiguration.loadConfig()
+    bugsnagConfig.appHangThresholdMillis = 250
     bugsnagConfig.enabledBreadcrumbTypes = [.all]
     bugsnagConfig.releaseStage = config.releaseStage
     Bugsnag().initialize(config: bugsnagConfig)

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.runtime:runtime-saveable",
     "components": [
         {
-            "version": "1.5.4",
+            "version": "1.6.7",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-saveable-metadata-1.5.4.jar": "473560f012448c5ffda939c3b43dd806428d0dfa77b53fe80018942f4555eb4f"
+                        "runtime-saveable-metadata-1.6.7.jar": "13a43cc361aced06050b235ae2ba0231b73b72c5bf9d14f0c3bd27169e3e06e3"
                     }
                 }
             ],

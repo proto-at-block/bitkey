@@ -4,5 +4,6 @@
 #
 # See https://git.sqcorp.co/projects/SQ/repos/square-stash-plugins/browse/owner-owl for
 # available options.
-r: [bitkey-mobile]
-modules: [bitkey-mobile]
+r: [bitkey-cryptosec-eng]
+modules: [bitkey-cryptosec]
+include_ancestors: false

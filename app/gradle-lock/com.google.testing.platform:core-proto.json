@@ -2,11 +2,11 @@
     "module-identifier": "com.google.testing.platform:core-proto",
     "components": [
         {
-            "version": "0.0.8-alpha08",
+            "version": "0.0.9-alpha02",
             "variants": [
                 {
                     "artifacts": {
-                        "core-proto-0.0.8-alpha08.jar": "3920575a74f1437975cdf45276f9b75e7ae41bafb8deb1d60e7d639f21d1b06c"
+                        "core-proto-0.0.9-alpha02.jar": "6d8a8906774150f43a8fad08ca64e25c6070c39bd8a6fc13b2593f289242fe95"
                     }
                 }
             ],

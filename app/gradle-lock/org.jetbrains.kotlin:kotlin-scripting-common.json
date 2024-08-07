@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-common",
     "components": [
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-scripting-common-1.9.23.jar": "8a2e567f3dbf373e61c01acd7884631ec8538465ab8ee978ac63296f8cc9af46"
+                        "kotlin-scripting-common-2.0.0.jar": "3cb9f18af2409c90793dfc6ce265a1a9268df4c7e5de3e2a2bcee7ec86059179"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[bitkey]",
+                "build-classpath",
                 "kotlin-compiler"
             ]
         }

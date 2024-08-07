@@ -23,9 +23,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.bitkey_full_logo
 import build.wallet.android.ui.core.R
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.ui.components.button.Button
@@ -35,6 +36,7 @@ import build.wallet.ui.components.video.Video
 import build.wallet.ui.compose.resId
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun ChooseAccountAccessScreen(model: ChooseAccountAccessModel) {
@@ -113,7 +115,7 @@ fun ChooseAccountAccessScreen(model: ChooseAccountAccessModel) {
           ) { model.onLogoClick() }
     ) {
       Icon(
-        painter = painterResource(R.drawable.bitkey_full_logo),
+        painter = painterResource(Res.drawable.bitkey_full_logo),
         contentDescription = "Bitkey Logo",
         tint = Color.White
       )

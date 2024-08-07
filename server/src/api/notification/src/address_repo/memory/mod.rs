@@ -10,9 +10,11 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use types::account::identifiers::AccountId;
 
+use super::AccountIdAndKeysetId;
+
 #[derive(Debug, Default, Clone)]
 pub struct Service {
-    repository: Arc<Mutex<HashMap<Address<NetworkUnchecked>, AccountId>>>,
+    repository: Arc<Mutex<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>>>,
 }
 
 #[async_trait]
@@ -27,9 +29,13 @@ impl AddressWatchlistTrait for Service {
             .lock()
             .map_err(|err| InternalError(err.to_string()))?;
 
-        for AddressAndKeysetId { address, .. } in addresses {
-            if let Some(id) = repo.get(&address.clone()) {
-                if id != account_id {
+        for AddressAndKeysetId {
+            address,
+            spending_keyset_id,
+        } in addresses
+        {
+            if let Some(v) = repo.get(&address.clone()) {
+                if v.account_id != *account_id {
                     return Err(Error::AccountMismatchError(
                         address.clone().assume_checked().to_string(),
                         account_id.clone(),
@@ -37,7 +43,13 @@ impl AddressWatchlistTrait for Service {
                 }
             }
 
-            repo.insert(address.clone(), account_id.clone());
+            repo.insert(
+                address.clone(),
+                AccountIdAndKeysetId {
+                    account_id: account_id.clone(),
+                    spending_keyset_id: spending_keyset_id.clone(),
+                },
+            );
         }
         Ok(())
     }
@@ -45,7 +57,7 @@ impl AddressWatchlistTrait for Service {
     async fn get(
         &self,
         addrs: &[Address<NetworkUnchecked>],
-    ) -> Result<HashMap<Address<NetworkUnchecked>, AccountId>, Error> {
+    ) -> Result<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>, Error> {
         let repo = self
             .repository
             .lock()

@@ -15,13 +15,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.money_home_hero
 import build.wallet.android.ui.core.R
 import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.LabelModel
@@ -68,6 +69,7 @@ import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tokens.painter
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -396,7 +398,7 @@ private fun DatePicker(model: DatePicker) {
 
 @Composable
 private fun MoneyHomeHero(model: MoneyHomeHero) {
-  val image = painterResource(R.drawable.money_home_hero)
+  val image = painterResource(Res.drawable.money_home_hero)
   Box {
     Image(
       painter = image,

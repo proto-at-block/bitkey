@@ -1,0 +1,23 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-iosx64",
+    "components": [
+        {
+            "version": "2.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-iosx64-2.8.1-metadata.jar": "2d51e66f801e3125d4ff16f17c598212c88ce096963b642b24eb2849dc88bb1c"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel.klib": "de59940b2b331a149fa345bcfc2a7fb9c331f59d581dab667b7f2de34962991c"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

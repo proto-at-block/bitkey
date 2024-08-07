@@ -4,7 +4,11 @@ import androidx.compose.runtime.Composable
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList.FeeOption
 import kotlinx.collections.immutable.toImmutableList
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 
+@OptIn(ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 class FeeOptionListUiStateMachineFake : FeeOptionListUiStateMachine {
   var latestProps: FeeOptionListProps? = null
 

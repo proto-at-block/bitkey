@@ -2,11 +2,22 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel",
     "components": [
         {
-            "version": "2.7.0",
+            "version": "2.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-2.7.0.aar": "4e1d92e289920cd7b50e3671b9191bd413407349cda6f602b0285464f41c1c82"
+                        "lifecycle-viewmodel-2.8.1.aar": "43d28a6c6da9c1cb72bfb5cc1b511a7937b2db8b79d52f37d0b7f14c79b090dd"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-2.8.1.aar": "43d28a6c6da9c1cb72bfb5cc1b511a7937b2db8b79d52f37d0b7f14c79b090dd",
+                        "lifecycle-viewmodel-metadata-2.8.1.jar": "dd82d174a6da88070ebbe6fc842808e797424dd8605ff1d87f8d95b5bb992c08"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-metadata-2.8.1.jar": "dd82d174a6da88070ebbe6fc842808e797424dd8605ff1d87f8d95b5bb992c08"
                     }
                 }
             ],

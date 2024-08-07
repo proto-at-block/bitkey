@@ -1,6 +1,7 @@
 package build.wallet.bitkey.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
+import dev.zacsweers.redacted.annotations.Redacted
 
 /***
  * Social Recovery Challenge Authentication
@@ -14,6 +15,7 @@ import build.wallet.bitkey.keys.app.AppKey
  */
 data class ChallengeAuthentication(
   val relationshipId: String,
+  @Redacted
   val fullCode: String,
   val pakeCode: PakeCode,
   val protectedCustomerRecoveryPakeKey: AppKey<ProtectedCustomerRecoveryPakeKey>,

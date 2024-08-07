@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material3:material3",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material3-1.6.11.jar": "ca68170aea4fbbf306444cf3823abc2bd57c35d8a841e8f7f0f83a747ee880b9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

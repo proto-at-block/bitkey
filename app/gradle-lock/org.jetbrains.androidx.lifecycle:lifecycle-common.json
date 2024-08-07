@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-common",
+    "components": [
+        {
+            "version": "2.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-common-2.8.0.jar": "b6f04afae504913dfa75e3cf66914b7547ec1b7f2470ab1f3cfbaabb77fd4f3a"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

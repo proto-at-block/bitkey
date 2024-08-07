@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:gradle-api",
     "components": [
         {
-            "version": "8.1.1",
+            "version": "8.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "gradle-api-8.1.1.jar": "ef77ec9169f536dfd550ecf1816735a9e45bd358e95cf5ac9f25ef392aec57ea"
+                        "gradle-api-8.3.2.jar": "433820c2508d915238cc59ba78f621420cbb6c34c312074472fde37b21555753"
                     }
                 }
             ],

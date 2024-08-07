@@ -6,3 +6,4 @@
 # available options.
 r: [bitkey-firmware-eng]
 modules: [bitkey-firmware]
+include_ancestors: false

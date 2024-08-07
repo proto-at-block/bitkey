@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-scripting-jvm",
     "components": [
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-scripting-jvm-1.9.23.jar": "d3fca7ec951ff7826f97a75989f8dcaff60cf9e1e76bbdc220edf778376a6e64"
+                        "kotlin-scripting-jvm-2.0.0.jar": "7f20010fba093904eed7a8b84938bf9934be4747ef25f676d17bc301bd139a62"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "gradle-plugins[bitkey]",
+                "build-classpath",
                 "kotlin-compiler"
             ]
         }

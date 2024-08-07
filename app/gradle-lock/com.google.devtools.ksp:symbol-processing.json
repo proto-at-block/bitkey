@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.google.devtools.ksp:symbol-processing",
+    "components": [
+        {
+            "version": "2.0.0-1.0.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "symbol-processing-2.0.0-1.0.21.jar": "4123f3f97b1e33284a0018b7ec382e8f57a35ba014f29fee449979d2edeeabd1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

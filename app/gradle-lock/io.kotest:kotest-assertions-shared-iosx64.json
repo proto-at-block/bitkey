@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-assertions-shared-iosx64",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-assertions-shared-iosx64-5.8.1-metadata.jar": "527c1a38397a80178cf5c3f8b3ec0e042850a1f41e0ba3564dd0125298c237f1"
+                        "kotest-assertions-shared-iosx64-5.9.0-metadata.jar": "1d3070d8b058a7690a7658eace8d3410c0712f5a99c274056e0201831d791770"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-assertions-shared.klib": "df271342ac68b7c516b1acf202808fd90416f9a61dc194e0f3b9caf37205e02f"
+                        "kotest-assertions-shared.klib": "d59b27ab7b153f5c42c670ce792bbb63bddb8cfd2823ae83920a469db8ac922a"
                     }
                 }
             ],

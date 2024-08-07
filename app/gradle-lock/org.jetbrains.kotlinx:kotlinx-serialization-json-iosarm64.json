@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-json-iosarm64",
     "components": [
         {
-            "version": "1.6.3",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-serialization-json-iosarm64-1.6.3-metadata.jar": "67a2f5c7f6749193b6d06f9517c8696ee64e8063be649a401490039059ae8a44"
+                        "kotlinx-serialization-json-iosarm64-1.7.0-metadata.jar": "b069d914ca385ebf0f76e8de28cceb55c9dea8b438c6421c6e1375366ce60c5b"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotlinx-serialization-json.klib": "c0b8ba71117a7ad346c7c804e6179cd3e62c7d84187cf6358deeceaf8f6401b9"
+                        "kotlinx-serialization-json.klib": "358097695c6d192a7f4e1ae5a30e4e252cb012fabdb20e93d627482d6ab372bb"
                     }
                 }
             ],

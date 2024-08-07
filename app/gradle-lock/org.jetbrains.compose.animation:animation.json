@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.animation:animation",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "animation-1.6.11.jar": "131a9e7ad73bf8d30a003df72a70ea8647a25e56b4f2436c2499d315048dec50"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

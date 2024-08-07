@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.animation:animation-core",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "animation-core-1.6.11.jar": "08b5ee1368b16bc706cd96762bc6e4d638ca950add17f869339394a39331681e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

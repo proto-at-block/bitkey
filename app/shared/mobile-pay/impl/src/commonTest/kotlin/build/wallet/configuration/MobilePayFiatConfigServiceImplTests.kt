@@ -40,7 +40,7 @@ class MobilePayFiatConfigServiceImplTests : FunSpec({
   test("use hardcoded config for preferred currency when repository does not provide one") {
     // initiate the sync
     backgroundScope.launch {
-      service.execute()
+      service.executeWork()
     }
 
     service.config.test {
@@ -69,7 +69,7 @@ class MobilePayFiatConfigServiceImplTests : FunSpec({
 
     // initiate the sync
     backgroundScope.launch {
-      service.execute()
+      service.executeWork()
     }
 
     service.config.test {
@@ -104,7 +104,7 @@ class MobilePayFiatConfigServiceImplTests : FunSpec({
 
     // initiate the sync
     backgroundScope.launch {
-      service.execute()
+      service.executeWork()
     }
 
     service.config.test {

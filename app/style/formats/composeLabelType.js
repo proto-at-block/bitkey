@@ -8,6 +8,7 @@ module.exports = function({ dictionary }) {
 
 package build.wallet.ui.tokens
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -22,6 +23,7 @@ enum class LabelType {\n` +
     + ',\n' +
 `}
 
+@Composable
 fun LabelType.style(baseStyle: TextStyle) =\n  when (this) {\n` +
   Object.keys(dictionary.properties.font.styles)
   .map(style => {

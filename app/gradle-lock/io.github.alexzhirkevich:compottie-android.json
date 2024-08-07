@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.github.alexzhirkevich:compottie-android",
+    "components": [
+        {
+            "version": "2.0.0-beta02",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compottie-release.aar": "d3d7c5b2d986e0e3d1db2be514cc15115bf57fcb50068a387a17ec714b35543f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

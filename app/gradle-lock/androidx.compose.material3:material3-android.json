@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.compose.material3:material3-android",
+    "components": [
+        {
+            "version": "1.2.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material3-release.aar": "d344e0d73060cde4bbc0ed64146986ca1fae0e0ec953ad9698713edd2bd11600"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

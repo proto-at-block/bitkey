@@ -1,0 +1,18 @@
+{
+    "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-android",
+    "components": [
+        {
+            "version": "2.8.1",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-release.aar": "c312cc454cd006e69b8f80a990c871fef60098a748bf0dcfadf079aa7d526d4f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

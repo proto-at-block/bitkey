@@ -267,7 +267,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           secondaryButton = ButtonDataModel(text = "Back", onClick = props.onExit),
           primaryButton =
             ButtonDataModel(
-              text = "retry",
+              text = "Retry",
               onClick = {
                 uiState =
                   SocRecRestorationState(

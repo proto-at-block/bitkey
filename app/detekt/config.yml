@@ -799,7 +799,8 @@ TwitterCompose:
       LocalAppVariant,
       LocalColors,
       LocalUiModelMap,
-      LocalSheetCloser
+      LocalSheetCloser,
+      LocalIsPreviewTheme
   CompositionLocalNaming:
     active: true
   ContentEmitterReturningValues:

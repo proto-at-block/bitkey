@@ -6,7 +6,9 @@ import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressProp
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.initiate.InitiatingLostHardwareRecoveryProps
+import kotlin.native.HiddenFromObjC
 
+@HiddenFromObjC
 class LostHardwareRecoveryDataStateMachineImpl(
   private val initiatingLostHardwareRecoveryDataStateMachine:
     InitiatingLostHardwareRecoveryDataStateMachine,

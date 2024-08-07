@@ -1,7 +1,8 @@
 package build.wallet.statemachine.account.create
 
 import androidx.compose.runtime.*
-import build.wallet.onboarding.CreateSoftwareWalletWorkflow
+import build.wallet.onboarding.CreateSoftwareWalletService
+import build.wallet.statemachine.account.create.CreateSoftwareWalletUiStateMachineImpl.State.SoftwareWalletCreated
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.LoadingSuccessBodyModel.State.Success
@@ -10,7 +11,7 @@ import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class CreateSoftwareWalletUiStateMachineImpl(
-  private val createSoftwareWalletWorkflow: CreateSoftwareWalletWorkflow,
+  private val createSoftwareWalletService: CreateSoftwareWalletService,
 ) : CreateSoftwareWalletUiStateMachine {
   @Composable
   override fun model(props: CreateSoftwareWalletProps): ScreenModel {
@@ -19,10 +20,10 @@ class CreateSoftwareWalletUiStateMachineImpl(
     return when (uiState) {
       is State.CreatingAccount -> {
         LaunchedEffect("create-account") {
-          createSoftwareWalletWorkflow
+          createSoftwareWalletService
             .createAccount()
             .onSuccess {
-              uiState = State.AccountCreated
+              uiState = SoftwareWalletCreated
             }
             .onFailure {
               props.onExit()
@@ -34,8 +35,7 @@ class CreateSoftwareWalletUiStateMachineImpl(
           message = "Creating Software Wallet..."
         ).asRootScreen()
       }
-
-      is State.AccountCreated -> {
+      SoftwareWalletCreated -> {
         LoadingSuccessBodyModel(
           message = "Software Wallet Created",
           state = Success,
@@ -48,6 +48,6 @@ class CreateSoftwareWalletUiStateMachineImpl(
   private sealed interface State {
     data object CreatingAccount : State
 
-    data object AccountCreated : State
+    data object SoftwareWalletCreated : State
   }
 }

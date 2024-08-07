@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.molecule:molecule-runtime-android",
     "components": [
         {
-            "version": "1.4.2",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "molecule-runtime-release.aar": "aea4b60963365d90c5a40ffbf2393a0af0f2c2cab383d9025735ac3bd81a4b03"
+                        "molecule-runtime-release.aar": "5db5c31ebf25a356e9ad2aae4817f01833a4d7e4384f1f9b7efc15dcefd1be7a"
                     }
                 }
             ],

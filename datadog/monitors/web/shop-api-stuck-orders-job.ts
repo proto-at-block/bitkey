@@ -2,7 +2,7 @@ import { Construct } from "constructs";
 import { Environment } from "../common/environments";
 import { getErrorRecipients } from "../recipients";
 import { Monitor } from "../common/monitor";
-import { Comparator, metric_sum_query, trace_analytics_count_query } from "../common/queries";
+import { Comparator, metric_avg_query, metric_sum_query, trace_analytics_count_query } from "../common/queries";
 
 export class ShopApiStuckOrdersJobMonitors extends Construct {
     constructor(scope: Construct, environment: Environment) {
@@ -30,15 +30,15 @@ export class ShopApiStuckOrdersJobMonitors extends Construct {
         const executionRateWindow = "15m";
 
         const statuses = [
-            'awaiting_fulfillment',
-            'awaiting_payment',
-            'awaiting_shipment',
-            'awaiting_pickup',
-            'declined',
-            'disputed',
-            'manual-verification_required',
-            'partially_shipped',
-            'shipped'
+            'Awaiting_Fulfillment',
+            'Awaiting_Payment',
+            'Awaiting_Shipment',
+            'Awaiting_Pickup',
+            'Declined',
+            'Disputed',
+            'Manual_Verification_Required',
+            'Partially_Shipped',
+            'Shipped'
         ]
 
         const window = "5m";
@@ -74,7 +74,7 @@ export class ShopApiStuckOrdersJobMonitors extends Construct {
             ...trace_alert_config,
         });
 
-        for (const status in statuses) {
+        for (const status of statuses) {
             const resourceName = `${stuckOrdersUsecase}_${status}#run`
 
             new Monitor(this, `service_error_rate_high_${status}`, {
@@ -115,6 +115,31 @@ export class ShopApiStuckOrdersJobMonitors extends Construct {
                     `[${serviceName}]: Periodic job's execution rate is too low for ${stuckOrdersUsecase}.`,
                 tags: tags,
                 ...executionRateConfig,
+            });
+
+
+            const metricAlertWindow = '15m';
+            const metricServiceName = 'web_shop_api';
+            const metricsAlertConfig = {
+                recipients: getErrorRecipients(environment),
+                type: "metric alert",
+                monitorThresholds: {
+                    critical: "5",
+                    warning: "2"
+                },
+            };
+
+            new Monitor(this, `stuck_orders_metric_error_rate_too_high_${status}`, {
+                query: metric_avg_query(
+                    `avg:${metricServiceName}.stuckOrders.${status}{*}`,
+                    metricAlertWindow,
+                    metricsAlertConfig.monitorThresholds.critical
+                ),
+                name: `[${serviceName}][${status}]: Metric error rate too high for ${stuckOrdersUsecase}`,
+                message:
+                    `[${serviceName}][${status}]: Metric error rate too high for ${stuckOrdersUsecase}.`,
+                tags: tags,
+                ...metricsAlertConfig,
             });
         }
     }

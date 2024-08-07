@@ -129,7 +129,9 @@ class NfcSessionUIStateMachineImpl(
               isHardwareFake = props.isHardwareFake
             )
           )
-          props.onSuccess.invoke(it)
+          // Must be cast to satisfy compiler type resolution
+          @Suppress("USELESS_CAST")
+          (props.onSuccess as suspend (Any?) -> Unit).invoke(it)
         }.onFailure { error ->
           when (error) {
             is NfcException.IOSOnly.UserCancellation ->

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-result-listener-gradle-proto",
     "components": [
         {
-            "version": "31.1.1",
+            "version": "31.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-result-listener-gradle-proto-31.1.1.jar": "b1e49ff23fa357f8702aef1632b04405224a3846f4fe76654c76ef9bd7b5a601"
+                        "android-test-plugin-result-listener-gradle-proto-31.3.2.jar": "cbdf71bca60e14c30e7b2cf4b90f0f0a3e8c138f7cadd874b0d9c0ae082e0274"
                     }
                 }
             ],

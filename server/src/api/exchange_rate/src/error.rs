@@ -15,8 +15,8 @@ pub enum ExchangeRateError {
     ProviderUnreachable(#[from] reqwest::Error),
     #[error(transparent)]
     ProviderResponseInvalid(#[from] ProviderResponseError),
-    #[error("Could not retrieve rates due to rate limits")]
-    ProviderRateLimited,
+    #[error("Could not retrieve rates from {0:?} due to rate limits")]
+    ProviderRateLimited(ExchangeRateProviderType),
 }
 
 impl From<ExchangeRateError> for ApiError {
@@ -26,7 +26,7 @@ impl From<ExchangeRateError> for ApiError {
         match value {
             ExchangeRateError::UnsupportedDestinationCurrency(_)
             | ExchangeRateError::UnsupportedSourceCurrency(_)
-            | ExchangeRateError::ProviderRateLimited => ApiError::GenericBadRequest(err_msg),
+            | ExchangeRateError::ProviderRateLimited(_) => ApiError::GenericBadRequest(err_msg),
             ExchangeRateError::CacheRead
             | ExchangeRateError::ProviderUnreachable(_)
             | ExchangeRateError::ProviderResponseInvalid(_) => {

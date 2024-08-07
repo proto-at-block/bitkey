@@ -14,6 +14,7 @@ kotlin {
         api(projects.shared.keyValueStorePublic)
         api(projects.shared.databasePublic)
         implementation(projects.shared.loggingPublic)
+        implementation(projects.shared.nfcFake)
         implementation(projects.shared.serializationPublic)
         implementation(libs.kmp.settings)
       }

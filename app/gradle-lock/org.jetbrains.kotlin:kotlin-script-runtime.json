@@ -2,15 +2,16 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-script-runtime",
     "components": [
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-script-runtime-1.9.23.jar": "75137e414a1a5b4b4d090f812d0e35eb30b4f0c923a53d69585456bb24fc1df8"
+                        "kotlin-script-runtime-2.0.0.jar": "b57a14387a504f1d3d8634899a830cb0bc5fe1adb86a62cc65d940fe982b04f9"
                     }
                 }
             ],
             "dependency-locking-groups": [
+                "build-classpath",
                 "kotlin-compiler"
             ]
         }

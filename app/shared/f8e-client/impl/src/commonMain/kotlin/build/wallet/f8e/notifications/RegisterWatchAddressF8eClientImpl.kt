@@ -28,7 +28,7 @@ class RegisterWatchAddressF8eClientImpl(
     )
       .bodyResult<EmptyResponseBody> {
         post("/api/accounts/${fullAccountId.serverId}/notifications/addresses") {
-          withDescription("Registering watch addresses: $addressAndKeysetIds")
+          withDescription("Registering (${addressAndKeysetIds.size}) watch addresses")
           setRedactedBody(
             RegisterWatchAddressRequest(addressAndKeysetIds)
           )

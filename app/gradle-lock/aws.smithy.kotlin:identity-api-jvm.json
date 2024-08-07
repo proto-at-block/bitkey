@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:identity-api-jvm",
     "components": [
         {
-            "version": "1.0.13",
+            "version": "1.2.11",
             "variants": [
                 {
                     "artifacts": {
-                        "identity-api-jvm-1.0.13.jar": "be3f9bd5ebfb83aa353f407a4389f7b3454a6945f82cea1d41e370aeedae71cd"
+                        "identity-api-jvm-1.2.11.jar": "be3f9bd5ebfb83aa353f407a4389f7b3454a6945f82cea1d41e370aeedae71cd"
                     }
                 }
             ],

@@ -4,7 +4,7 @@ import build.wallet.kotest.paparazzi.paparazziExtension
 import io.kotest.core.spec.style.FunSpec
 
 class NfcScreenSnapshots : FunSpec({
-  val paparazzi = paparazziExtension()
+  val paparazzi = paparazziExtension(maxPercentDifference = 0.8)
 
   test("NFC searching") {
     paparazzi.snapshot {

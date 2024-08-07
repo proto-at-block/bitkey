@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use async_stream::try_stream;
 use bdk_utils::bdk::bitcoin::Txid;
-use database::ddb::CHUNK_SIZE_MAX;
+use database::ddb::WRITE_BATCH_MAX;
 use futures::Stream;
 use time::{Duration, OffsetDateTime};
 use tracing::{event, Level};
@@ -50,7 +50,7 @@ impl Service {
 
             // We do these in batches to avoid hitting the DDB write limit
             let chunks = tx_records_to_update
-                .chunks(CHUNK_SIZE_MAX)
+                .chunks(WRITE_BATCH_MAX)
                 .map(|chunk| chunk.to_vec())
                 .collect::<Vec<Vec<TransactionRecord>>>();
 

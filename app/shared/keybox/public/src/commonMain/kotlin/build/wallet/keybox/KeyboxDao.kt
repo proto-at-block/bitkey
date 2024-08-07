@@ -6,9 +6,6 @@ import build.wallet.db.DbError
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.flow.Flow
 
-/**
- * TODO(W-1531): make dao calls to return Result with failure types.
- */
 @Suppress("TooManyFunctions")
 interface KeyboxDao {
   /**

@@ -34,7 +34,7 @@ class AccountRepositoryImplComponentTests : FunSpec({
     appTester.app.appComponent.softwareWalletIsEnabledFeatureFlag
       .setFlagValue(true)
 
-    val account = appTester.app.createSoftwareWalletWorkflow
+    val account = appTester.app.createSoftwareWalletService
       .createAccount()
       .shouldBeOkOfType<OnboardingSoftwareAccount>()
 

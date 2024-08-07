@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-ksp",
+    "components": [
+        {
+            "version": "1.0.0-ALPHA-31",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kmp-nativecoroutines-ksp-1.0.0-ALPHA-31.jar": "9b603c6acb51c33a1612381a86fe0f54c36e0d11d16fc82209c171ca48e66fab"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

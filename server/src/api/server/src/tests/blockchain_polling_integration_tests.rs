@@ -1,20 +1,27 @@
-use crate::tests::{
-    gen_services,
-    lib::{create_account, create_default_account_with_predefined_wallet},
-    requests::{axum::TestClient, worker::TestWorker},
+use crate::{
+    tests::{
+        gen_services,
+        lib::{create_account, create_default_account_with_predefined_wallet},
+        requests::{axum::TestClient, worker::TestWorker},
+    },
+    Services,
 };
-use account::entities::FullAccount;
+use account::{entities::FullAccount, service::FetchAccountInput};
 use account::{entities::TouchpointPlatform, service::AddPushTouchpointToAccountInput};
 use httpmock::{prelude::*, Mock, MockExt};
 use notification::address_repo::AddressAndKeysetId;
 use notification::service::FetchForAccountInput;
 use notification::service::Service as NotificationService;
 use notification::NotificationPayloadType;
+use onboarding::routes::RotateSpendingKeysetRequest;
+use queue::sqs::SqsQueue;
 use std::collections::{HashMap, HashSet};
 use types::{
-    account::identifiers::{AccountId, KeysetId},
+    account::identifiers::AccountId,
     notification::{NotificationChannel, NotificationsPreferences},
 };
+
+use super::lib::create_inactive_spending_keyset_for_account;
 
 struct ChainMockData {
     tip_hash_mock_id: Option<usize>,
@@ -37,8 +44,12 @@ struct BlockHeader {
 // TODO: add more test cases: W-3244/add-more-test-cases-for-blockchain-polling-job
 #[tokio::test]
 async fn test_init_block_received_payment() {
-    let (mock_server, account, worker, notification_service, mut chain_mock_data) =
+    let (mock_server, account, worker, services, mut chain_mock_data) =
         setup_full_accounts_and_server().await;
+
+    let notification_service = services.notification_service;
+    let sqs_queue = services.sqs;
+    let address_repo = services.address_repo;
 
     // Initializing service with block 107036
     run_and_test_blockchain_polling_worker(
@@ -50,7 +61,7 @@ async fn test_init_block_received_payment() {
     .await;
 
     // The account should have received 1 payment notification for block 107036
-    test_queue_message(&notification_service, &account.id, 1).await;
+    test_queue_message(&notification_service, &sqs_queue, &account.id, 1, true).await;
 
     // Running again with block 107036
     run_and_test_blockchain_polling_worker(
@@ -62,19 +73,19 @@ async fn test_init_block_received_payment() {
     .await;
 
     // The account should no longer receive payment notifications
-    test_queue_message(&notification_service, &account.id, 1).await;
+    test_queue_message(&notification_service, &sqs_queue, &account.id, 1, true).await;
 
-    // Advancing to block 107038
+    // Advancing to block 107037
     run_and_test_blockchain_polling_worker(
         &mock_server,
         &worker,
         &mut chain_mock_data,
-        "0000012b9852f41934927b43ebac7354b10627f17ebc85e1de6bae593312591a",
+        "000000d3d12016125e10320dc1e2b3a719266c48313c8529d812cd58b190d0d4",
     )
     .await;
 
     // The account should still not receive payment notifications
-    test_queue_message(&notification_service, &account.id, 1).await;
+    test_queue_message(&notification_service, &sqs_queue, &account.id, 1, true).await;
 
     // Serving old block 107035
     run_and_test_blockchain_polling_worker(
@@ -86,8 +97,33 @@ async fn test_init_block_received_payment() {
     .await;
 
     // The account should still not receive payment notifications
-    test_queue_message(&notification_service, &account.id, 1).await;
+    test_queue_message(&notification_service, &sqs_queue, &account.id, 1, true).await;
 
+    // Reverting back to block 107037
+    run_and_test_blockchain_polling_worker(
+        &mock_server,
+        &worker,
+        &mut chain_mock_data,
+        "000000d3d12016125e10320dc1e2b3a719266c48313c8529d812cd58b190d0d4",
+    )
+    .await;
+
+    // The account should still not receive payment notifications
+    test_queue_message(&notification_service, &sqs_queue, &account.id, 1, true).await;
+
+    // Add destination address from mocked block 107038 to watchlist table.
+    // Note, these addresses aren't actually derivable from the account's bdk wallet.
+    let fake_registration: AddressAndKeysetId = AddressAndKeysetId::new(
+        "tb1pks5uh06wa9pzn053xh6tnc4euyt5zqmvszu0mfuxgweq6emr05ns3skjp2"
+            .parse()
+            .unwrap(),
+        account.active_keyset_id.clone(),
+    );
+    address_repo
+        .clone()
+        .insert(&[fake_registration], &account.id)
+        .await
+        .unwrap();
     // Reverting back to block 107038
     run_and_test_blockchain_polling_worker(
         &mock_server,
@@ -97,17 +133,12 @@ async fn test_init_block_received_payment() {
     )
     .await;
 
-    // The account should still not receive payment notifications
-    test_queue_message(&notification_service, &account.id, 1).await;
+    // The account should receive a second payment notifications
+    test_queue_message(&notification_service, &sqs_queue, &account.id, 2, false).await;
 }
 
-async fn setup_full_accounts_and_server() -> (
-    MockServer,
-    FullAccount,
-    TestWorker,
-    NotificationService,
-    ChainMockData,
-) {
+async fn setup_full_accounts_and_server(
+) -> (MockServer, FullAccount, TestWorker, Services, ChainMockData) {
     let mock_server = MockServer::start();
     let (mut context, bootstrap) = gen_services().await;
     let client = TestClient::new(bootstrap.router.clone()).await;
@@ -202,7 +233,7 @@ async fn setup_full_accounts_and_server() -> (
         "tb1p2u3xcjt9x64s9u3lqwfndn5td5dkasf7amz0h7643k5ds9vvvacq7dvf7k"
             .parse()
             .unwrap(),
-        KeysetId::gen().unwrap(),
+        account_with_payment.active_keyset_id.clone(),
     );
     bootstrap
         .services
@@ -211,6 +242,33 @@ async fn setup_full_accounts_and_server() -> (
         .insert(&[fake_registration], &account_with_payment.id)
         .await
         .unwrap();
+
+    // Swap the active keyset for the account with payment
+    let keys = context
+        .get_authentication_keys_for_account_id(&account_with_payment.id)
+        .expect("Keys not found for account");
+    let keyset_id = create_inactive_spending_keyset_for_account(
+        &context,
+        &client,
+        &account_with_payment.id,
+        account::entities::Network::BitcoinSignet,
+    )
+    .await;
+    client
+        .rotate_to_spending_keyset(
+            &account_with_payment.id.to_string(),
+            &keyset_id.to_string(),
+            &RotateSpendingKeysetRequest {},
+            &keys,
+        )
+        .await;
+    let account_with_payment = state
+        .account_service
+        .fetch_full_account(FetchAccountInput {
+            account_id: &account_with_payment.id,
+        })
+        .await
+        .expect("Fetched updated account with payment");
 
     let worker = TestWorker::new(state).await;
 
@@ -240,7 +298,7 @@ async fn setup_full_accounts_and_server() -> (
         mock_server,
         account_with_payment,
         worker,
-        bootstrap.services.notification_service,
+        bootstrap.services,
         chain_mock_data,
     )
 }
@@ -348,8 +406,10 @@ async fn run_and_test_blockchain_polling_worker(
 
 async fn test_queue_message(
     notification_service: &NotificationService,
+    sqs_queue: &SqsQueue,
     account_id: &AccountId,
     aggregate_message_count: usize,
+    is_addressed_to_inactive_keyset: bool,
 ) {
     let scheduled_notifications = notification_service
         .fetch_scheduled_for_account(FetchForAccountInput {
@@ -389,4 +449,14 @@ async fn test_queue_message(
         "{:?}",
         notifications
     );
+
+    let messages = sqs_queue.fetch_messages("fake_url").await.unwrap();
+    assert!(messages
+        .clone()
+        .into_iter()
+        .all(|m| m.body.unwrap().contains("Action required") == is_addressed_to_inactive_keyset));
+    sqs_queue
+        .delete_messages("fake_url", messages)
+        .await
+        .unwrap();
 }

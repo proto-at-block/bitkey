@@ -14,7 +14,7 @@ use strum_macros::{Display as StrumDisplay, EnumString};
 use time::{serde::rfc3339, OffsetDateTime};
 use types::account::identifiers::TouchpointId;
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
-use types::account::PubkeysToAccount;
+use types::account::{AccountType, PubkeysToAccount};
 use types::notification::{NotificationChannel, NotificationsPreferencesState};
 use utoipa::ToSchema;
 
@@ -574,6 +574,16 @@ impl Account {
                 } => *platform == input_platform && *device_token == input_device_token,
                 _ => false,
             })
+    }
+}
+
+impl From<&Account> for AccountType {
+    fn from(account: &Account) -> Self {
+        match account {
+            Account::Full(_) => AccountType::Full,
+            Account::Lite(_) => AccountType::Lite,
+            Account::Software(_) => AccountType::Software,
+        }
     }
 }
 

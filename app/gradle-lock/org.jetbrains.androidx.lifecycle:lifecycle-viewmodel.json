@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel",
+    "components": [
+        {
+            "version": "2.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-viewmodel-2.8.0.jar": "fb0e8dbfcddce8c7658d547a32dcdfaf6da10c878d02a69333918a8285e0398d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

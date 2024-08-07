@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-icons-core",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-icons-core-1.6.11.jar": "2abf1c59a3b0a08747e1d6b0e99292c4ee611197a6ebafde77db6820d657b4d0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.ripple.rememberRipple
-import androidx.compose.material3.SliderPositions
+import androidx.compose.material3.SliderState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
@@ -82,9 +82,8 @@ fun Slider(
       },
     track =
       remember(enabled) {
-        {
-            sliderPositions ->
-          Track(sliderPositions = sliderPositions)
+        { sliderState ->
+          Track(sliderState = sliderState)
         }
       }
   )
@@ -96,7 +95,7 @@ private val TrackHeight = 8.dp
 
 @Composable
 private fun Track(
-  sliderPositions: SliderPositions,
+  sliderState: SliderState,
   modifier: Modifier = Modifier,
 ) {
   val inactiveTrackColor = WalletTheme.colors.foreground10
@@ -124,12 +123,12 @@ private fun Track(
 
     val sliderValueEnd =
       Offset(
-        sliderStart.x + (sliderEnd.x - sliderStart.x) * sliderPositions.activeRange.endInclusive,
+        sliderStart.x + (sliderEnd.x - sliderStart.x) * (sliderState.value / sliderState.valueRange.endInclusive),
         center.y
       )
     val sliderValueStart =
       Offset(
-        sliderStart.x + (sliderEnd.x - sliderStart.x) * sliderPositions.activeRange.start,
+        sliderStart.x + (sliderEnd.x - sliderStart.x) * sliderState.valueRange.start,
         center.y
       )
 

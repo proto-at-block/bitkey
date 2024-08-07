@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab.crashkios:bugsnag-android",
     "components": [
         {
-            "version": "0.8.5",
+            "version": "0.8.6",
             "variants": [
                 {
                     "artifacts": {
-                        "bugsnag-release.aar": "a122e3b26bf341e7b4c388281ae295e24eff501e76ee4e832e99cdc7c8a4489b"
+                        "bugsnag-release.aar": "b127aa14e671ad782e2aa5f1df548b5096c88712832066eb39666421f5094540"
                     }
                 }
             ],

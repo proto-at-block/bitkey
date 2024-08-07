@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-util-klib",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-klib-1.9.22.jar": "a679ee2f510f3ab92691818de5eb5b0902e86d88c97674e7db44dc4f2252c5f9"
+                        "kotlin-util-klib-1.9.23.jar": "e4018b6b8fbc91e4d0a37ab81c050a81396868075108cd85082b925c79d3bc6d"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-util-klib-1.9.23.jar": "e4018b6b8fbc91e4d0a37ab81c050a81396868075108cd85082b925c79d3bc6d"
+                        "kotlin-util-klib-2.0.0.jar": "95f1a677e8d24bc0b32e76783ef173c5c0e09ed41b50471736d6599bed19d875"
                     }
                 }
             ],

@@ -2,16 +2,16 @@
     "module-identifier": "co.touchlab.crashkios:core-iosx64",
     "components": [
         {
-            "version": "0.8.5",
+            "version": "0.8.6",
             "variants": [
                 {
                     "artifacts": {
-                        "core-iosx64-0.8.5-metadata.jar": "eacda9a7262eedbb432444a2f98f7667c94c4529f94397ec71d6067d1affefb4"
+                        "core-iosx64-0.8.6-metadata.jar": "902cd2500d8562be5d4bec51bba8a6a7d0a48634fad585517a73702b2f485f1c"
                     }
                 },
                 {
                     "artifacts": {
-                        "core.klib": "57114b2968859928d151ab62e295b9b56e58cc90f9322b9b3887892b856fd080"
+                        "core.klib": "7bb939c5bf0e8e53dd5bd2d55712d18bc36c5d9436b2580b207eebff22f9abde"
                     }
                 }
             ],

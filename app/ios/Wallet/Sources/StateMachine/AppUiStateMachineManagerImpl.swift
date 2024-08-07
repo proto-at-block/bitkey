@@ -50,7 +50,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
     // MARK: - Private Properties
 
-    private let appUiStateMachine: AppUiStateMachine
+    private let appUiStateMachine: AppUiStateMachineImpl
     private var cancellablesBag = Set<AnyCancellable>()
     private let context: Context
     private let stateChangeHandlerStack: StateChangeHandlerStack
@@ -58,7 +58,7 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
     // MARK: - Life Cycle
 
     public init(
-        appUiStateMachine: AppUiStateMachine,
+        appUiStateMachine: AppUiStateMachineImpl,
         appViewController: UINavigationController,
         context: Context
     ) {
@@ -74,14 +74,17 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
 
     public func connectSharedStateMachine() {
         // Convert our KMP model flows to a Combine publisher
-        createPublisher(for: appUiStateMachine.modelFlowNative(props: ()))
-            .receive(on: RunLoop.main)
-            .map { $0 as? ScreenModel }
-            .sink(
-                receiveCompletion: handleStateMachineCompletion,
-                receiveValue: handleStateMachineOutput
-            )
-            .store(in: &cancellablesBag)
+        createPublisher(for: StateMachineNativeKt.modelFlow(
+            appUiStateMachine as! StateMachine,
+            props: ()
+        ))
+        .receive(on: RunLoop.main)
+        .map { $0 as? ScreenModel }
+        .sink(
+            receiveCompletion: handleStateMachineCompletion,
+            receiveValue: handleStateMachineOutput
+        )
+        .store(in: &cancellablesBag)
     }
 
     public func disconnectStateMachine() {

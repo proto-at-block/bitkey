@@ -14,7 +14,7 @@ use types::currencies::{
 use types::exchange_rate::bitstamp::BitstampRateProvider;
 use types::exchange_rate::cash::CashAppRateProvider;
 use types::exchange_rate::coingecko::RateProvider as CoingeckoRateProvider;
-use types::exchange_rate::ExchangeRate;
+use types::exchange_rate::{ExchangeRate, ExchangeRateChartData};
 use types::serde::{deserialize_iso_4217, deserialize_ts_vec};
 use utoipa::{OpenApi, ToSchema};
 
@@ -40,6 +40,7 @@ impl RouteState {
                 "/api/exchange-rates/historical",
                 post(get_historical_price_data),
             )
+            .route("/api/exchange-rates/chart", post(get_chart_data))
             .with_state(self.to_owned())
     }
 }
@@ -143,6 +144,30 @@ pub async fn get_historical_price_data(
     Ok(Json(HistoricalPriceResponse { exchange_rates }))
 }
 
+#[instrument(err, skip(exchange_rate_service))]
+#[utoipa::path(
+    post,
+    path = "/api/exchange-rates/chart",
+    responses(
+        (status = 200, description = "Retrieve the historical chart data of bitcoin for a specific currency.", body=ExchangeRateChartData)
+    ),
+)]
+pub async fn get_chart_data(
+    State(exchange_rate_service): State<ExchangeRateService>,
+    Json(request): Json<ChartDataQuery>,
+) -> Result<Json<ExchangeRateChartData>, ApiError> {
+    let exchange_rates = exchange_rate_service
+        .fetch_chart_data(
+            CoingeckoRateProvider::new(),
+            request.currency_code,
+            request.days,
+            request.max_price_points,
+        )
+        .await?;
+
+    Ok(Json(exchange_rates))
+}
+
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct HistoricalPriceQuery {
     #[serde(deserialize_with = "deserialize_iso_4217")]
@@ -154,4 +179,16 @@ pub struct HistoricalPriceQuery {
 #[derive(Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 pub struct HistoricalPriceResponse {
     pub exchange_rates: Vec<ExchangeRate>,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ChartDataQuery {
+    #[serde(deserialize_with = "deserialize_iso_4217")]
+    currency_code: CurrencyCode,
+    /// The `days` field specifies the number of days to fetch data for.
+    days: u16,
+    /// The `max_price_points` field specifies the maximum number of price points to return.
+    /// The first and last price points by timestamp are always included.
+    /// The rest of the price points are selected such that they are uniformly distributed.
+    max_price_points: usize,
 }

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-text-uikitarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-text-uikitarm64-1.6.11-metadata.jar": "ae75f9e8bc4448a7497f61b13b803559e5566768a372ef575cbac845209556f3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ui-text.klib": "998ec7680ff6d65b952c63a0ebc85c62fc847887ddffc4c5d6961ae88441b587"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

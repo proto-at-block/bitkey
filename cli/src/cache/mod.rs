@@ -6,7 +6,7 @@ use sled::Db;
 
 use crate::{
     db::transactions::{FromDatabase, ToDatabase},
-    entities::{Account, AuthenticationToken, DescriptorKeyset, Keyset},
+    entities::{Account, AuthenticationToken, DescriptorKeyset, KeyMaterial, Keyset},
     requests::{helper::EndpointExt, KeysetsRequest},
 };
 
@@ -28,28 +28,36 @@ impl FromCache for Account {
         .exec_authenticated(client, &AuthenticationToken::from_database(db)?);
 
         if let Ok(response) = request {
-            let keysets_client = account.keysets;
-            let keysets_server = response.keysets.into_iter().map(|k| Keyset {
-                id: k.keyset_id,
-                network: k.network,
-                keys: DescriptorKeyset {
-                    application: k.app_dpub,
-                    hardware: k.hardware_dpub,
-                    server: k.server_dpub,
-                },
-            });
+            match account.key_material {
+                KeyMaterial::Keyset(keysets) => {
+                    let keysets_client = keysets;
+                    let keysets_server = response.keysets.into_iter().map(|k| Keyset {
+                        id: k.keyset_id,
+                        network: k.network,
+                        keys: DescriptorKeyset {
+                            application: k.app_dpub,
+                            hardware: k.hardware_dpub,
+                            server: k.server_dpub,
+                        },
+                    });
 
-            let mut keysets = HashSet::new();
-            keysets.extend(keysets_client);
-            keysets.extend(keysets_server);
+                    let mut keysets = HashSet::new();
+                    keysets.extend(keysets_client);
+                    keysets.extend(keysets_server);
 
-            Account {
-                id: account.id,
-                keysets: Vec::from_iter(keysets),
+                    Account {
+                        id: account.id,
+                        key_material: KeyMaterial::Keyset(Vec::from_iter(keysets)),
+                    }
+                    .to_database(db)?;
+
+                    Account::from_database(db)
+                }
+                KeyMaterial::ShareDetail(_) => {
+                    // Icebox accounts don't support caching currently.
+                    Ok(account)
+                }
             }
-            .to_database(db)?;
-
-            Account::from_database(db)
         } else {
             Ok(account)
         }

@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-codec",
     "components": [
         {
-            "version": "4.1.72.Final",
+            "version": "4.1.93.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-codec-4.1.72.Final.jar": "5d8591ca271a1e9c224e8de3873aa9936acb581ee0db514e7dc18523df36d16c"
+                        "netty-codec-4.1.93.Final.jar": "990c378168dc6364c6ff569701f4f2f122fffe8998b3e189eba4c4d868ed1084"
                     }
                 }
             ],

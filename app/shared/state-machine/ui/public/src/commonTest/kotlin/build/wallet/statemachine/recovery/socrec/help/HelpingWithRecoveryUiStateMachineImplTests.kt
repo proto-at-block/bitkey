@@ -5,11 +5,7 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.SocRecCryptoFake
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
-import build.wallet.recovery.socrec.SocRecKeysRepository
-import build.wallet.recovery.socrec.SocialChallengeError
-import build.wallet.recovery.socrec.SocialChallengeVerifierMock
+import build.wallet.recovery.socrec.*
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -51,7 +47,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   test("successful completion of the flow") {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        shouldClickPhoneCall()
+        shouldClickVideoChat()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -90,7 +86,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        shouldClickPhoneCall()
+        shouldClickVideoChat()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -132,7 +128,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
 
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        shouldClickPhoneCall()
+        shouldClickVideoChat()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -173,7 +169,7 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
   test("selecting I'm not sure returns to get in touch screen") {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
-        shouldClickPhoneCall()
+        shouldClickVideoChat()
 
         awaitScreenWithBody<FormBodyModel> {
           shouldClickButtonWithTitle("I'm not sure")
@@ -222,6 +218,24 @@ class HelpingWithRecoveryUiStateMachineImplTests : FunSpec({
     }
   }
 
+  test("security notice screen is shown when phone call is selected") {
+    stateMachine.test(props) {
+      awaitScreenWithBody<FormBodyModel> {
+        shouldClickPhoneCall()
+      }
+
+      awaitScreenWithBody<FormBodyModel> {
+        header.shouldNotBeNull().headline.shouldBe("Insecure verification method")
+
+        onBack.shouldNotBeNull().invoke()
+      }
+
+      awaitScreenWithBody<FormBodyModel> { // land back on first screen
+        id.shouldBe(SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH)
+      }
+    }
+  }
+
   test("onExit prop is called by state machine") {
     stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
@@ -249,6 +263,8 @@ private fun FormBodyModel.shouldClickTextMessage() = shouldClickButtonWithTitle(
 private fun FormBodyModel.shouldClickEmail() = shouldClickButtonWithTitle("Email")
 
 private fun FormBodyModel.shouldClickPhoneCall() = shouldClickButtonWithTitle("Phone Call")
+
+private fun FormBodyModel.shouldClickVideoChat() = shouldClickButtonWithTitle("Video Chat")
 
 private fun FormBodyModel.shouldClickButtonWithTitle(text: String) {
   mainContentList

@@ -337,9 +337,12 @@ async fn sign_transaction_maybe_broadcast_impl(
     // the customer will consume some of their spending budget without actually being able to make the spend
     // TODO: [W-3292] make the cache update and the spending record update transactional.
 
-    // save the psbt to the cache so that if the client
-    // retries the request, we can return the same signed psbt
-    signed_psbt_cache_service.put(signed_psbt.clone()).await?;
+    // Save the PSBT to cache so if the client retries the request, we can return the same signed
+    // PSBT. We do not want to do this for sweep trasactions because the cache path is only used
+    // for avoiding double-counting Mobile Pay spend limits, and does not apply to sweeps.
+    if is_mobile_pay {
+        signed_psbt_cache_service.put(signed_psbt.clone()).await?;
+    }
 
     if psbt_fully_signed {
         let broadcast_start_time = OffsetDateTime::now_utc();

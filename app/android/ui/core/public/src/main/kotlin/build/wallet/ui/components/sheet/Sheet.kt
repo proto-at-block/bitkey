@@ -14,7 +14,6 @@ import androidx.compose.material3.SheetState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
@@ -58,19 +57,6 @@ fun Sheet(
       )
     }
   }
-}
-
-/**
- * A [CompositionLocalProvider] that provides a [SheetCloser] to be used by the sheet content. Defaults
- * to a no-op implementation when not defined.
- */
-val LocalSheetCloser = staticCompositionLocalOf { SheetCloser { } }
-
-/**
- * An interface which defines an action to close the sheet.
- */
-fun interface SheetCloser {
-  suspend operator fun invoke()
 }
 
 @Composable

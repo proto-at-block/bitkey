@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-geometry-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-geometry-desktop-1.6.11.jar": "b962f1fc129a05a8ac1513eeaf50367a19f142fd4938fa83de519d0c8c5a8f1f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

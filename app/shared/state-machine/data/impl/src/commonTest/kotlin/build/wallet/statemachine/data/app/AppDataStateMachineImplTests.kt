@@ -2,8 +2,7 @@ package build.wallet.statemachine.data.app
 
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.feature.FeatureFlagInitializerMock
-import build.wallet.feature.FeatureFlagSyncerMock
+import build.wallet.feature.FeatureFlagServiceFake
 import build.wallet.money.currency.FiatCurrencyRepositoryMock
 import build.wallet.platform.permissions.PermissionCheckerMock
 import build.wallet.statemachine.StateMachineMock
@@ -31,8 +30,6 @@ import io.kotest.matchers.shouldBe
 
 class AppDataStateMachineImplTests : FunSpec({
 
-  val featureFlagInitializer = FeatureFlagInitializerMock(turbines::create)
-  val featureFlagSyncer = FeatureFlagSyncerMock(turbines::create)
   val accountDataStateMachine =
     object : AccountDataStateMachine, StateMachineMock<AccountDataProps, AccountData>(
       initialModel = CheckingActiveAccountData
@@ -58,33 +55,31 @@ class AppDataStateMachineImplTests : FunSpec({
     ) {}
   val fiatCurrencyRepository = FiatCurrencyRepositoryMock(turbines::create)
 
-  val stateMachine =
-    AppDataStateMachineImpl(
-      featureFlagInitializer = featureFlagInitializer,
-      featureFlagSyncer = featureFlagSyncer,
-      accountDataStateMachine = accountDataStateMachine,
-      templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
-      electrumServerDataStateMachine = electrumServerDataStateMachine,
-      firmwareDataStateMachine = firmwareDataStateMachine,
-      fiatCurrencyRepository = fiatCurrencyRepository
-    )
+  val featureFlagService = FeatureFlagServiceFake()
 
-  suspend fun shouldInitializeFeatureFlags() {
-    featureFlagInitializer.initializeFeatureFlagsCalls.awaitItem().shouldBe(Unit)
-    featureFlagSyncer.initializeSyncLoopCalls.awaitItem().shouldBe(Unit)
-    featureFlagSyncer.syncFeatureFlagsCalls.awaitItem().shouldBe(Unit)
-  }
+  val stateMachine = AppDataStateMachineImpl(
+    featureFlagService = featureFlagService,
+    accountDataStateMachine = accountDataStateMachine,
+    templateFullAccountConfigDataStateMachine = templateFullAccountConfigDataStateMachine,
+    electrumServerDataStateMachine = electrumServerDataStateMachine,
+    firmwareDataStateMachine = firmwareDataStateMachine,
+    fiatCurrencyRepository = fiatCurrencyRepository
+  )
 
   suspend fun shouldLaunchRepositories() {
     fiatCurrencyRepository.updateFromServerCalls.awaitItem().shouldBe(Unit)
   }
 
   suspend fun shouldRunInitialSideEffects() {
-    shouldInitializeFeatureFlags()
     shouldLaunchRepositories()
+    featureFlagService.featureFlagsInitialized.value = true
   }
 
   val accountData = ActiveKeyboxLoadedDataMock
+
+  beforeTest {
+    featureFlagService.reset()
+  }
 
   test("load app") {
     permissionChecker.permissionsOn = true

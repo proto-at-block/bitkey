@@ -1,6 +1,9 @@
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
-use database::ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError};
+use database::aws_sdk_dynamodb::types::AttributeValue;
+use database::ddb::{
+    try_from_item, try_to_attribute_val, DDBService, DatabaseError, FetchBatchTrait, ReadRequest,
+};
 
 use tracing::{event, instrument, Level};
 use types::account::identifiers::AccountId;
@@ -165,6 +168,34 @@ impl Repository {
                 }
             }
         }
+        Ok(accounts)
+    }
+
+    #[instrument(skip(self))]
+    pub(crate) async fn fetch_accounts<I>(
+        &self,
+        account_ids: I,
+    ) -> Result<Vec<Account>, DatabaseError>
+    where
+        I: IntoIterator<Item = AccountId> + std::fmt::Debug,
+    {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let read_requests = account_ids
+            .into_iter()
+            .map(|account_id| {
+                let attribute_value: AttributeValue =
+                    try_to_attribute_val(account_id, database_object)?;
+                Ok(ReadRequest {
+                    partition_key: (PARTITION_KEY.to_owned(), attribute_value),
+                    sort_key: None,
+                })
+            })
+            .collect::<Result<Vec<ReadRequest>, DatabaseError>>()?;
+        let accounts: Vec<Account> = read_requests
+            .fetch(&self.connection.client, &table_name, database_object)
+            .await?;
         Ok(accounts)
     }
 }

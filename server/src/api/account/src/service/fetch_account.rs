@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::entities::{AuthFactor, FullAccount, SoftwareAccount};
 use crate::service::FetchAccountByAuthKeyInput;
 use crate::{entities::Account, error::AccountError};
 use database::ddb::DatabaseError;
 use errors::ApiError;
+use types::account::identifiers::AccountId;
 use types::account::PubkeysToAccount;
 
 use super::{FetchAccountInput, Service};
@@ -107,5 +110,29 @@ impl Service {
             return Err(AccountError::InvalidAccountType);
         };
         Ok(software_account)
+    }
+
+    pub async fn fetch_full_accounts_by_account_ids<I>(
+        &self,
+        accounts_ids: I,
+    ) -> Result<HashMap<AccountId, FullAccount>, AccountError>
+    where
+        I: IntoIterator<Item = AccountId> + std::fmt::Debug,
+    {
+        let accounts = self.account_repo.fetch_accounts(accounts_ids).await?;
+        let full_accounts = accounts
+            .into_iter()
+            .filter_map(|account| {
+                if let Account::Full(full_account) = account {
+                    Some(full_account)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<FullAccount>>();
+        Ok(full_accounts
+            .into_iter()
+            .map(|account| (account.id.clone(), account))
+            .collect())
     }
 }

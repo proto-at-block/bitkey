@@ -21,6 +21,7 @@ profile-out*
 gradle-user-home
 
 # Kotlin
+.kotlin/
 **/build/classes/kotlin/commonizer/
 **/build/kotlin/sessions/**/*.salive
 

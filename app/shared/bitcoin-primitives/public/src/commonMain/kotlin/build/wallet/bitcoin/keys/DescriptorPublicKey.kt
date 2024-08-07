@@ -1,9 +1,12 @@
 package build.wallet.bitcoin.keys
 
+import dev.zacsweers.redacted.annotations.Redacted
+
 /**
  * A DescriptorPublicKey (dpub) that contains a spending key xpub with metadata.
  * See https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki#key-expressions for details
  */
+@Redacted
 data class DescriptorPublicKey(
   val origin: Origin,
   val xpub: String,

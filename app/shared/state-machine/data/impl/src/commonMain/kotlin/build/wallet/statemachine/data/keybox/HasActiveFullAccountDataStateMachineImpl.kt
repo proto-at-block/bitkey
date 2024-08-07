@@ -58,6 +58,7 @@ class HasActiveFullAccountDataStateMachineImpl(
     }
 
     LaunchedEffect("sync rates") {
+      // TODO: W-9117 - migrate to app worker pattern
       exchangeRateSyncer.launchSync(scope = this)
     }
 

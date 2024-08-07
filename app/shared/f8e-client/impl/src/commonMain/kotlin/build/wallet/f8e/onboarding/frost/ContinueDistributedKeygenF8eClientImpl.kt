@@ -1,6 +1,5 @@
 package build.wallet.f8e.onboarding.frost
 
-import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.keys.DescriptorPublicKey
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
@@ -12,7 +11,6 @@ import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.logging.withDescription
-import build.wallet.f8e.serialization.toJsonString
 import build.wallet.f8e.wsmIntegrityKeyVariant
 import build.wallet.ktor.result.*
 import build.wallet.logging.log
@@ -28,7 +26,6 @@ class ContinueDistributedKeygenF8eClientImpl(
 ) : ContinueDistributedKeygenF8eClient {
   override suspend fun continueDistributedKeygen(
     f8eEnvironment: F8eEnvironment,
-    networkType: BitcoinNetworkType,
     accountId: SoftwareAccountId,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
     keysetId: SoftwareKeysetId,
@@ -40,14 +37,9 @@ class ContinueDistributedKeygenF8eClientImpl(
         appFactorProofOfPossessionAuthKey = appAuthKey
       )
       .bodyResult<ResponseBody> {
-        post(urlString = "/api/accounts/${accountId.serverId}/distributed-keygen/${keysetId.keysetId}") {
+        put(urlString = "/api/accounts/${accountId.serverId}/distributed-keygen/${keysetId.keysetId}") {
           withDescription("Continue distributed keygen")
-          setRedactedBody(
-            RequestBody(
-              network = networkType.toJsonString(),
-              appDpub = appAuthKey.value
-            )
-          )
+          setRedactedBody(EmptyRequestBody)
         }
       }
       .map { response ->
@@ -78,14 +70,6 @@ class ContinueDistributedKeygenF8eClientImpl(
         )
       }
   }
-
-  @Serializable
-  private data class RequestBody(
-    @SerialName("network")
-    val network: String,
-    @SerialName("app")
-    val appDpub: String,
-  ) : RedactedRequestBody
 
   @Serializable
   private data class ResponseBody(

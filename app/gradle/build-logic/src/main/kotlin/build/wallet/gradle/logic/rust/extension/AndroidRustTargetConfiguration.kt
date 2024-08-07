@@ -90,11 +90,11 @@ abstract class AndroidRustTargetConfiguration
       directory: Provider<DirectoryProperty>,
     ) {
       configureAndroidSourceSet(profile) {
-        jniLibs.srcDir(directory)
+        jniLibs.srcDir(directory.map { it.asFile.get() })
       }
 
       project.tasks.withName(profile.mergeJniLibFolderTaskName).configureEach {
-        inputs.dir(directory)
+        inputs.files(directory.map { it.asFile.get() })
       }
     }
 
@@ -112,11 +112,11 @@ abstract class AndroidRustTargetConfiguration
     ) {
       configureAndroidSourceSet(profile) {
         // Cannot use the Kotlin source set because it is overwritten later
-        java.srcDir(directory)
+        java.srcDir(directory.map { it.asFile.get() })
       }
 
       project.tasks.withName(profile.compileKotlinTaskName).configureEach {
-        inputs.dir(directory)
+        inputs.files(directory.map { it.asFile.get() })
       }
     }
 

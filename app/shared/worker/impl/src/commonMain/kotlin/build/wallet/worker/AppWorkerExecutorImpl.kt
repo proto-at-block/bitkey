@@ -36,7 +36,7 @@ class AppWorkerExecutorImpl(
       appScope.launch {
         workerProvider.allWorkers().forEach { worker ->
           launch {
-            worker.execute()
+            worker.executeWork()
           }
         }
         executedWorkers = true

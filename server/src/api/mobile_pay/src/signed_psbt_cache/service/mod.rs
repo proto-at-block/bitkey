@@ -29,7 +29,7 @@ impl Service {
         }
     }
 
-    #[instrument(skip(self))]
+    #[instrument(skip(self, psbt))]
     pub async fn put(&self, psbt: Psbt) -> Result<(), ApiError> {
         self.repo
             .persist(&CachedPsbt::try_new(psbt)?)

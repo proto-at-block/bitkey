@@ -11,7 +11,7 @@ use aws_sdk_dynamodb::{
     config::Builder,
     error::{ProvideErrorMetadata, SdkError},
     operation::{batch_write_item::BatchWriteItemError, scan::ScanError},
-    types::WriteRequest,
+    types::{AttributeValue as AwsAttributeValue, KeysAndAttributes, WriteRequest},
 };
 use aws_sdk_dynamodb::{error::BuildError, Client};
 use aws_smithy_async::rt::sleep::default_async_sleep;
@@ -27,7 +27,8 @@ use tracing::{event, instrument, Level};
 
 use crate::{build_fake_sdk_config, DBMode};
 
-pub const CHUNK_SIZE_MAX: usize = 25;
+pub const GET_BATCH_MAX: usize = 100;
+pub const WRITE_BATCH_MAX: usize = 25;
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -114,6 +115,7 @@ impl Connection {
             DatabaseObject::Migration => ("MIGRATION_TABLE", "Migration"),
             DatabaseObject::SocialRecovery => ("SOCIAL_RECOVERY_TABLE", "SocialRecovery"),
             DatabaseObject::Consent => ("CONSENT_TABLE", "Consent"),
+            DatabaseObject::PrivilegedAction => ("PRIVILEGED_ACTION_TABLE", "PrivilegedAction"),
         };
 
         match self {
@@ -192,6 +194,7 @@ pub enum DatabaseObject {
     Migration,
     SocialRecovery,
     Consent,
+    PrivilegedAction,
 }
 
 impl fmt::Display for DatabaseObject {
@@ -209,6 +212,7 @@ impl fmt::Display for DatabaseObject {
             DatabaseObject::Migration => write!(f, "Migration"),
             DatabaseObject::SocialRecovery => write!(f, "SocialRecovery"),
             DatabaseObject::Consent => write!(f, "Consent"),
+            DatabaseObject::PrivilegedAction => write!(f, "PrivilegedAction"),
         }
     }
 }
@@ -308,6 +312,126 @@ where
         .map_err(|e| DatabaseError::SerializeAttributeValueError(database_obj, e))
 }
 
+#[async_trait]
+pub trait FetchBatchTrait<'a, T> {
+    async fn fetch(
+        &self,
+        client: &Client,
+        table_name: &str,
+        database_object: DatabaseObject,
+    ) -> Result<Vec<T>, DatabaseError>;
+
+    async fn fetch_batch(
+        client: &Client,
+        table_name: &str,
+        database_object: DatabaseObject,
+        ops: &[ReadRequest],
+    ) -> Result<Vec<T>, DatabaseError>;
+}
+
+#[derive(Debug)]
+pub struct ReadRequest {
+    pub partition_key: (String, AwsAttributeValue),
+    pub sort_key: Option<(String, AwsAttributeValue)>,
+}
+
+impl From<&ReadRequest> for HashMap<String, AwsAttributeValue> {
+    fn from(op: &ReadRequest) -> Self {
+        let mut ka = HashMap::new();
+        let (partition_key, hash_value) = op.partition_key.to_owned();
+        ka.insert(partition_key, hash_value);
+        if let Some((k, v)) = op.sort_key.to_owned() {
+            ka.insert(k, v);
+        }
+        ka
+    }
+}
+
+#[async_trait]
+impl<'a, T> FetchBatchTrait<'a, T> for Vec<ReadRequest>
+where
+    T: Send + Deserialize<'a>,
+{
+    #[instrument]
+    async fn fetch(
+        &self,
+        client: &Client,
+        table_name: &str,
+        database_object: DatabaseObject,
+    ) -> Result<Vec<T>, DatabaseError> {
+        let mut results = Vec::new();
+
+        // Split the requests into chunks < DDB limitation
+        for chunk in self.chunks(GET_BATCH_MAX) {
+            if let Ok(result) = <Self as FetchBatchTrait<T>>::fetch_batch(
+                client,
+                table_name,
+                database_object,
+                chunk,
+            )
+            .await
+            {
+                results.extend(result);
+            }
+        }
+        Ok(results)
+    }
+
+    #[instrument]
+    async fn fetch_batch(
+        client: &Client,
+        table_name: &str,
+        database_object: DatabaseObject,
+        ops: &[ReadRequest],
+    ) -> Result<Vec<T>, DatabaseError> {
+        let ka = ops
+            .iter()
+            .map(|op| op.into())
+            .collect::<Vec<HashMap<String, AwsAttributeValue>>>();
+        let keys_and_attributes = KeysAndAttributes::builder().set_keys(Some(ka)).build()?;
+
+        let mut fetched_values = Vec::new();
+        let mut unprocessed_keys = Some(HashMap::from([(
+            table_name.to_string(),
+            keys_and_attributes,
+        )]));
+
+        // On completion, unprocessed_keys is Some({}). Use a filter to break out of the loop.
+        while let Some(unprocessed) = unprocessed_keys.filter(|m| !m.is_empty()) {
+            let result = client
+                .batch_get_item()
+                .set_request_items(Some(unprocessed))
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not fetch records: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+
+            let values = result
+                .responses()
+                .and_then(|tables| {
+                    tables.get(table_name).map(|rows| {
+                        rows.iter()
+                            .map(|item| try_from_item(item.clone(), database_object))
+                    })
+                })
+                .into_iter()
+                .flatten()
+                .collect::<Result<Vec<T>, DatabaseError>>()?;
+
+            fetched_values.extend(values);
+            unprocessed_keys = result.unprocessed_keys().cloned();
+        }
+        Ok(fetched_values)
+    }
+}
+
 #[trait_variant::make(PersistBatchTrait: Send)]
 pub trait LocalPersistBatchTrait {
     async fn persist(
@@ -316,7 +440,8 @@ pub trait LocalPersistBatchTrait {
         table_name: &str,
         database_object: DatabaseObject,
     ) -> Result<(), DatabaseError>;
-    async fn persist_batch_chunk(
+
+    async fn persist_batch(
         client: &Client,
         table_name: &str,
         ops: &[WriteRequest],
@@ -337,9 +462,9 @@ impl PersistBatchTrait for Vec<WriteRequest> {
         database_object: DatabaseObject,
     ) -> Result<(), DatabaseError> {
         // Split the requests into chunks < DDB limitation
-        for chunk in self.chunks(CHUNK_SIZE_MAX) {
+        for chunk in self.chunks(WRITE_BATCH_MAX) {
             if let Err(err) =
-                <Self as PersistBatchTrait>::persist_batch_chunk(client, table_name, chunk).await
+                <Self as PersistBatchTrait>::persist_batch(client, table_name, chunk).await
             {
                 let service_err = err.into_service_error();
                 event!(
@@ -354,7 +479,7 @@ impl PersistBatchTrait for Vec<WriteRequest> {
     }
 
     #[instrument]
-    async fn persist_batch_chunk(
+    async fn persist_batch(
         client: &Client,
         table_name: &str,
         ops: &[WriteRequest],

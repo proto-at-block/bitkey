@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-build-common",
     "components": [
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-build-common-1.9.23.jar": "22825a1efe1549137d1813ed79dc9ccaf54b4a8a2700a4ac7f708dc660248baf"
+                        "kotlin-build-common-2.0.0.jar": "26868d37837621259993cd8b4587bfffae86b17e4f211d5baa0bf605248a2412"
                     }
                 }
             ],

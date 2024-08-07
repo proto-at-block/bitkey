@@ -70,8 +70,12 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
       Generic -> "Keep your wallet secure and stay updated."
       Recovery -> "You'll be notified with any updates to the status of your Bitkey recovery."
     }
-    val sublineSuffix = "Open your settings to change notification permissions for the Bitkey app."
-      .takeIf { uiState == OpenSettingsUiState }
+    val subline = if (uiState == OpenSettingsUiState) {
+      val sublineSuffix = "Open your settings to change notification permissions for the Bitkey app."
+      "$sublineMessage $sublineSuffix"
+    } else {
+      sublineMessage
+    }
 
     return FormBodyModel(
       id = NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS,
@@ -82,7 +86,7 @@ actual class EnableNotificationsUiStateMachineImpl actual constructor(
       header =
         FormHeaderModel(
           headline = "Enable Push Notifications on this Phone.",
-          subline = "$sublineMessage $sublineSuffix".trim()
+          subline = subline
         ),
       primaryButton =
         when (uiState) {

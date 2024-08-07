@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.utp:android-test-plugin-host-apk-installer-proto",
     "components": [
         {
-            "version": "31.1.1",
+            "version": "31.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "android-test-plugin-host-apk-installer-proto-31.1.1.jar": "abd2aac816a81e2af7705f3edff3de22bcd806212a1d158f432a39b06ae544e4"
+                        "android-test-plugin-host-apk-installer-proto-31.3.2.jar": "df8a31a9a5e05f6915cf55123bbfd36ad73229686bb13c6f40e951ec933c21bf"
                     }
                 }
             ],

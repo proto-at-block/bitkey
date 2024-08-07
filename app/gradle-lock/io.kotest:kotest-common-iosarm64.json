@@ -2,16 +2,16 @@
     "module-identifier": "io.kotest:kotest-common-iosarm64",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-common-iosarm64-5.8.1-metadata.jar": "dbc8401194e4cbdbd9bf68bf95ada23c6b15dd9c1e506295f042a383c57b81c8"
+                        "kotest-common-iosarm64-5.9.0-metadata.jar": "5898d431ae49a0a8661239c93e34e33de4060a7b83fab96c840cf2af94c0b0d6"
                     }
                 },
                 {
                     "artifacts": {
-                        "kotest-common.klib": "9fb3eba8a0e62fb5a058fab44562095e780dc38d1dca1d1ad6f875f98eadc776"
+                        "kotest-common.klib": "da4a96875e9ae766d9c66bfaf93618efc432a5195cb93cce3c4a9cfdad3e8ebf"
                     }
                 }
             ],

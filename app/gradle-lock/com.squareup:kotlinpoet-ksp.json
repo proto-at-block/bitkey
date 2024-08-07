@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.squareup:kotlinpoet-ksp",
+    "components": [
+        {
+            "version": "1.16.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinpoet-ksp-1.16.0.jar": "e81608b5499a3eb32cbde84c1c63d113e16e267b44dea537bb09fd32b6b2acfe"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

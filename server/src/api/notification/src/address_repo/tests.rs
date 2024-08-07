@@ -54,12 +54,13 @@ async fn test_first_insert_succeeds(
 
     repo.insert(&[addr1.clone()], &acct_id).await.unwrap();
     assert_eq!(
-        &acct_id,
+        acct_id,
         repo.get(&[addr1.address.clone()])
             .await
             .unwrap()
             .get(&addr1.address)
             .unwrap()
+            .account_id
     );
 }
 
@@ -75,20 +76,22 @@ async fn test_two_separate_inserts_succeeds(
     repo.insert(&[addr1.clone()], &acct_id).await.unwrap();
     repo.insert(&[addr2.clone()], &acct_id).await.unwrap();
     assert_eq!(
-        &acct_id,
+        acct_id,
         repo.get(&[addr1.address.clone()])
             .await
             .unwrap()
             .get(&addr1.address)
             .unwrap()
+            .account_id
     );
     assert_eq!(
-        &acct_id,
+        acct_id,
         repo.get(&[addr2.address.clone()])
             .await
             .unwrap()
             .get(&addr2.address)
             .unwrap()
+            .account_id
     );
 }
 
@@ -105,20 +108,22 @@ async fn test_batch_insert_succeeds(
         .await
         .unwrap();
     assert_eq!(
-        &acct_id,
+        acct_id,
         repo.get(&[addr1.address.clone()])
             .await
             .unwrap()
             .get(&addr1.address)
             .unwrap()
+            .account_id
     );
     assert_eq!(
-        &acct_id,
+        acct_id,
         repo.get(&[addr2.address.clone()])
             .await
             .unwrap()
             .get(&addr2.address)
             .unwrap()
+            .account_id
     );
 }
 
@@ -176,12 +181,13 @@ async fn test_large_batch_insert_succeeds<F>(
 
     for addr in addrs {
         assert_eq!(
-            &acct_id,
+            acct_id,
             repo.get(&[addr.address.clone()])
                 .await
                 .unwrap()
                 .get(&addr.address)
                 .unwrap()
+                .account_id
         );
     }
 }
@@ -209,7 +215,10 @@ async fn test_large_batch_get_succeeds<F>(
         .await
         .unwrap();
     for addr in addrs {
-        assert_eq!(&acct_id, stored_addresses.get(&addr.address).unwrap());
+        assert_eq!(
+            acct_id,
+            stored_addresses.get(&addr.address).unwrap().account_id
+        );
     }
 }
 
@@ -236,7 +245,7 @@ async fn test_batch_get_mixed_known_and_unknown_repo_superset_succeeds<F>(
 
     // all expected items are in the returned hashmap
     for addr in &get_addrs {
-        assert_eq!(&acct_id, stored_addresses.get(addr).unwrap());
+        assert_eq!(acct_id, stored_addresses.get(addr).unwrap().account_id);
     }
 
     // no additional items are in the returned hashmap
@@ -270,8 +279,11 @@ async fn test_batch_get_mixed_known_and_unknown_query_superset_succeeds<F>(
     // all expected items are in the returned hashmap
     for addr in &subset {
         assert_eq!(
-            &acct_id,
-            stored_addresses.get(&addr.address.clone()).unwrap()
+            acct_id,
+            stored_addresses
+                .get(&addr.address.clone())
+                .unwrap()
+                .account_id
         );
     }
 

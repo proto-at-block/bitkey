@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.build:builder-test-api",
     "components": [
         {
-            "version": "8.1.1",
+            "version": "8.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "builder-test-api-8.1.1.jar": "9a9b1c651a6e6136629f80d20795f559808dc58eb8d55419e54357943aae6d7f"
+                        "builder-test-api-8.3.2.jar": "1a19e6f29649a78936a9b6ae3287fd4b4e20e7b4dc33e3177c559dd463f44d81"
                     }
                 }
             ],

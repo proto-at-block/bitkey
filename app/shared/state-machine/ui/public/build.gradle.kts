@@ -4,6 +4,7 @@ import build.wallet.gradle.logic.extensions.allTargets
 plugins {
   id("build.wallet.kmp")
   alias(libs.plugins.compose.runtime)
+  alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.coroutines.native)
   alias(libs.plugins.kotlin.serialization)
   id("build.wallet.redacted")

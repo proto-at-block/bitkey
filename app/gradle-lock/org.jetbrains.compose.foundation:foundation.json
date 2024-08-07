@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.foundation:foundation",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "foundation-1.6.11.jar": "27530c4cee9f29f59845307a4ca58260a791bdb4bd4e62dbd92d616c4606e234"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

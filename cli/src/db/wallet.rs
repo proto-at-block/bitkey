@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use bdk::{
     bitcoin::bip32::ChildNumber,
     descriptor::{DescriptorPublicKey, ExtendedDescriptor},
@@ -10,7 +10,7 @@ use sled::{Db, Tree};
 use wca::{pcsc::NullTransactor, signing::ExtendDerivationPath};
 
 use crate::{
-    entities::{Account, DescriptorKeyset, Keyset, SignerPair},
+    entities::{Account, DescriptorKeyset, KeyMaterial, Keyset, SignerPair},
     nfc::SafeTransactor,
     signers::Spending,
 };
@@ -24,7 +24,13 @@ impl SignerPair {
         db: &Db,
         context: Option<&SafeTransactor>,
     ) -> Result<Wallet<Tree>> {
-        let keyset = find_active_keyset(&account.keysets, self);
+        // Guard clause to ensure account's key material is of Keysets variant
+        let account_keysets = match &account.key_material {
+            KeyMaterial::Keyset(keysets) => keysets,
+            _ => return Err(anyhow!("account key material is not of Keysets variant")),
+        };
+
+        let keyset = find_active_keyset(account_keysets, self);
         let receive_descriptor = keyset.receiving().into_multisig_descriptor();
         let change_descriptor = keyset.change().into_multisig_descriptor();
 

@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:logging-slf4j2-jvm",
     "components": [
         {
-            "version": "1.0.13",
+            "version": "1.2.11",
             "variants": [
                 {
                     "artifacts": {
-                        "logging-slf4j2-jvm-1.0.13.jar": "66c0700ca0c27046b0b12e6cf4c4da423800b88c1c72b2709cd5cbc3e0f1eb64"
+                        "logging-slf4j2-jvm-1.2.11.jar": "4718b8e0cbfdb20d256333f187d8a4b62416de7ace86e74ab99873d3ec34c563"
                     }
                 }
             ],

@@ -8,7 +8,7 @@ use types::account::identifiers::{AccountId, KeysetId};
 pub(crate) struct WatchedAddress {
     pub(crate) account_id: AccountId,
     pub(crate) address: Address<NetworkUnchecked>,
-    spending_keyset_id: KeysetId,
+    pub(crate) spending_keyset_id: KeysetId,
     created_at: OffsetDateTime,
 }
 

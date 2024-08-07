@@ -15,6 +15,7 @@ database = { workspace = true }
 types = { workspace = true }
 
 [features]
-all = ["consent", "recovery"]
+all = ["consent", "privileged_action", "recovery"]
 consent = ["types/consent"]
+privileged_action = ["types/privileged_action"]
 recovery = ["types/recovery"]

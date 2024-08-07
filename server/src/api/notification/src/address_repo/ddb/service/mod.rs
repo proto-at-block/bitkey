@@ -1,7 +1,7 @@
 use crate::address_repo::ddb::entities::WatchedAddress;
 use crate::address_repo::ddb::repository::Repository;
 use crate::address_repo::errors::Error;
-use crate::address_repo::{AddressAndKeysetId, AddressWatchlistTrait};
+use crate::address_repo::{AccountIdAndKeysetId, AddressAndKeysetId, AddressWatchlistTrait};
 use async_trait::async_trait;
 use bdk_utils::bdk::bitcoin::address::NetworkUnchecked;
 use bdk_utils::bdk::bitcoin::Address;
@@ -42,8 +42,8 @@ impl AddressWatchlistTrait for Service {
                     .collect::<Vec<Address<NetworkUnchecked>>>(),
             )
             .await?;
-        for (known_address, expected_account_id) in known_addresses {
-            if expected_account_id != *account_id {
+        for (known_address, v) in known_addresses {
+            if v.account_id != *account_id {
                 return Err(Error::AccountMismatchError(
                     known_address.assume_checked().to_string(),
                     account_id.clone(),
@@ -71,12 +71,20 @@ impl AddressWatchlistTrait for Service {
     async fn get(
         &self,
         addresses: &[Address<NetworkUnchecked>],
-    ) -> Result<HashMap<Address<NetworkUnchecked>, AccountId>, Error> {
+    ) -> Result<HashMap<Address<NetworkUnchecked>, AccountIdAndKeysetId>, Error> {
         let watched_addresses = self.repo.fetch_batch(addresses).await?;
 
         return Ok(watched_addresses
             .into_iter()
-            .map(|item| (item.address, item.account_id))
+            .map(|item| {
+                (
+                    item.address,
+                    AccountIdAndKeysetId {
+                        account_id: item.account_id,
+                        spending_keyset_id: item.spending_keyset_id,
+                    },
+                )
+            })
             .collect());
     }
 }

@@ -7,6 +7,8 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.BitcodeEmbeddingMode.DISABLE
 
 plugins {
   id("build.wallet.kmp")
+  alias(libs.plugins.compose.runtime)
+  alias(libs.plugins.compose.compiler)
 }
 
 kotlin {
@@ -168,6 +170,12 @@ kotlin {
       exposedDependencies.onEach { dep ->
         export(dep)
       }
+
+      freeCompilerArgs += listOf(
+        "-linker-option", "-framework", "-linker-option", "Metal",
+        "-linker-option", "-framework", "-linker-option", "CoreText",
+        "-linker-option", "-framework", "-linker-option", "CoreGraphics"
+      )
 
       // TODO: Remove after https://youtrack.jetbrains.com/issue/KT-64137 is fixed.
       @Suppress("UnstableApiUsage")

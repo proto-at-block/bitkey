@@ -2,11 +2,11 @@
     "module-identifier": "com.android:signflinger",
     "components": [
         {
-            "version": "8.1.1",
+            "version": "8.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "signflinger-8.1.1.jar": "c1dca2c683634ee1a294298f9c7179578af6a86e080bdc40f961915bc5c8142f"
+                        "signflinger-8.3.2.jar": "c1dca2c683634ee1a294298f9c7179578af6a86e080bdc40f961915bc5c8142f"
                     }
                 }
             ],

@@ -2,16 +2,16 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-assignment-compiler-plugin-embeddable",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-assignment-compiler-plugin-embeddable-1.9.22.jar": "2a61dd219fedbe5318a3b1e23c0f739b45ed1b5b24b0b6737519b7845e8095f8"
+                        "kotlin-assignment-compiler-plugin-embeddable-1.9.23.jar": "f882142256666122e9c5236eb4d9067528910e882a811fbe42d92fe72070a6a7"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "kotlin-compiler"
+                "build-classpath"
             ]
         }
     ]

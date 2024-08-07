@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.paparazzi:paparazzi",
     "components": [
         {
-            "version": "1.3.2",
+            "version": "1.3.4",
             "variants": [
                 {
                     "artifacts": {
-                        "paparazzi-1.3.2.jar": "60599f8f3492daabf6c38e7375c0254c2344d240b5eb5eaa55d7b1a80297b2bb"
+                        "paparazzi-1.3.4.jar": "05e6eec3dc3e2e5dd76ca7b691869a46b5a9a4dd4e62b272f00a13e8620efca6"
                     }
                 }
             ],

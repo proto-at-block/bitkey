@@ -3,6 +3,7 @@ package build.wallet.f8e.notifications
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
+import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,6 +19,7 @@ interface RegisterWatchAddressF8eClient {
 }
 
 @Serializable
+@Redacted
 data class AddressAndKeysetId(
   @SerialName("address")
   val address: String,

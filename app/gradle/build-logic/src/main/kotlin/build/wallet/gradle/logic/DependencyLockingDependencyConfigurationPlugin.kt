@@ -21,6 +21,7 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
   private fun DependencyLockingExtension.registerIgnoredModules() {
     // These libraries are used only in tests, and they are KMP which means they uses host platform dependent library coordinates which the locking doesn't support currently.
     ignoredModules.add("app.cash.paparazzi:layoutlib-*")
+    ignoredModules.add("com.android.tools.layoutlib:layoutlib-runtime-*")
 
     // This dependency cannot be locked because different configurations from the same group can rightfully use two different versions: '1.0' and '9999.0-empty-to-avoid-conflict-with-guava'.
     // See https://mvnrepository.com/artifact/com.google.guava/listenablefuture/9999.0-empty-to-avoid-conflict-with-guava
@@ -29,6 +30,8 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
 
   private fun Project.pinDependencies(dependencyLockingExtension: DependencyLockingExtension) {
     dependencyLockingExtension.commonDependencyLockingGroups.buildClasspath.pin(
+      libs.android.tools.common,
+      libs.android.tools.annotations,
       libs.android.lifecycle.common,
       libs.android.activity.asProvider(),
       libs.android.appcompat,
@@ -36,10 +39,20 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.android.annotations.experimental,
       libs.android.arch.core.runtime,
       libs.android.core.ktx,
+      libs.android.compose.animation,
       libs.android.compose.ui.core,
+      libs.android.compose.ui.foundation.asProvider(),
+      libs.android.compose.ui.foundation.layout,
       libs.android.compose.ui.animation.core,
       libs.android.compose.ui.material.icons.core,
       libs.android.compose.ui.material.ripple,
+      libs.android.compose.ui.material.asProvider(),
+      libs.android.compose.ui.tooling.preview,
+      libs.android.compose.ui.unit,
+      libs.android.compose.ui.text,
+      libs.android.compose.ui.graphics,
+      libs.android.compose.ui.geometry,
+      libs.android.compose.ui.util,
       libs.android.emoji2,
       libs.android.fragment,
       libs.android.gson,
@@ -54,6 +67,8 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.android.sqlite.asProvider(),
       libs.android.sqlite.framework,
       libs.android.test.findbugs,
+      libs.android.exifinterface,
+      libs.android.io.coil.base,
       libs.jvm.apache.httpclient,
       libs.jvm.bytebuddy.asProvider(),
       libs.jvm.bytebuddy.agent,
@@ -62,8 +77,10 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.jvm.jna.platform,
       libs.jvm.slf4j,
       libs.jvm.test.opentest4j,
+      libs.kmp.crashkios.bugsnag.asProvider(),
       libs.kmp.kotlin.stdlib.asProvider(),
       libs.kmp.kotlin.stdlib.jdk8,
+      libs.kmp.kotlin.coroutines.asProvider(),
       libs.kmp.kotlin.coroutines.debug,
       libs.kmp.kotlin.coroutines.android,
       libs.kmp.kotlin.atomicfu,
@@ -71,6 +88,7 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.kmp.kotlin.serialization.core,
       libs.kmp.kotlin.serialization.json,
       libs.kmp.kotlin.reflection,
+      libs.kmp.kotlin.datetime,
       libs.kmp.okhttp,
       libs.kmp.okio,
       libs.kmp.test.kotlin.coroutines

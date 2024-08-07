@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import app.cash.molecule.RecompositionMode.ContextClock
 import app.cash.molecule.launchMolecule
 import build.wallet.molecule.composeFrameClock
+import com.rickclephas.kmp.nativecoroutines.NativeCoroutines
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.plus
@@ -76,6 +77,7 @@ interface StateMachine<in PropsT : Any, out ModelT : Any?> {
    * This is used in combination with KMP-NativeCoroutines as an interop layer for ObjC/Swift code
    * to use [StateMachine]s.
    */
+  @NativeCoroutines
   fun modelFlow(props: PropsT): Flow<ModelT> {
     return MainScope().plus(composeFrameClock()).launchMolecule(mode = ContextClock) {
       model(props)

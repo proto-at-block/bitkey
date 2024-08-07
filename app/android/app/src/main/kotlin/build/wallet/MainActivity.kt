@@ -248,7 +248,8 @@ class MainActivity : FragmentActivity() {
       pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(applicationContext = this),
       spake2 = Spake2Impl(),
       cryptoBox = CryptoBoxImpl(),
-      biometricPrompter = BiometricPrompterImpl(this)
+      biometricPrompter = BiometricPrompterImpl(this),
+      fakeHardwareKeyStore = fakeHardwareKeyStore
     )
   }
 

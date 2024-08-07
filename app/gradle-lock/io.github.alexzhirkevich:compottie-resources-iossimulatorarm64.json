@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.github.alexzhirkevich:compottie-resources-iossimulatorarm64",
+    "components": [
+        {
+            "version": "2.0.0-beta02",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compottie-resources-iossimulatorarm64-2.0.0-beta02-metadata.jar": "e47e81e971abe5bb257dd7350aa7844f586f86a75eaeb93f0963d3965777b53f"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "compottie-resources.klib": "c75b9c1daa3317685def5407e0a37d62bc63e0078d410d03a03e9a1585928f4e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

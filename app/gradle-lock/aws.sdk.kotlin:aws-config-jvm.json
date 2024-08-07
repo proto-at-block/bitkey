@@ -2,11 +2,11 @@
     "module-identifier": "aws.sdk.kotlin:aws-config-jvm",
     "components": [
         {
-            "version": "1.0.59",
+            "version": "1.2.45",
             "variants": [
                 {
                     "artifacts": {
-                        "aws-config-jvm-1.0.59.jar": "b95f6ccda036e6baddd3ee753267aeec489b75d8646df2f18b96a7136a6bd2c7"
+                        "aws-config-jvm-1.2.45.jar": "8a111565cbe9774797ad86b09d05ab5fd1a718ead139625c48e7dc1ec45ff7e8"
                     }
                 }
             ],

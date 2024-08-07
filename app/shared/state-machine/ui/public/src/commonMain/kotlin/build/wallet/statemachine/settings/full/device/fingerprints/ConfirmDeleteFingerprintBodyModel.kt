@@ -4,6 +4,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.ui.model.SheetClosingClick
+import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
@@ -38,7 +39,7 @@ fun ConfirmDeleteFingerprintBodyModel(
       text = "Cancel",
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer,
-      onClick = SheetClosingClick(onCancel)
+      onClick = StandardClick(onCancel)
     ),
   renderContext = RenderContext.Sheet
 )

@@ -326,6 +326,19 @@ async fn spend_limit_transaction_test(vector: SpendingLimitTransactionTestVector
         response.body_string
     );
     check_psbt(response.body).await;
+
+    // Ensure PSBT caching works, by sending an invalid keyset with the same psbt
+    if vector.expected_status == StatusCode::OK {
+        let response = client
+            .sign_transaction_with_keyset(&account.id, &KeysetId::gen().unwrap(), &request_data)
+            .await;
+        assert_eq!(
+            vector.expected_status, response.status_code,
+            "{}",
+            response.body_string
+        );
+        check_psbt(response.body).await;
+    }
 }
 
 tests! {
@@ -503,19 +516,6 @@ async fn test_bypass_mobile_spend_limit_for_sweep(vector: SweepBypassTransaction
         response.body_string
     );
     check_psbt(response.body).await;
-
-    // Ensure PSBT caching works, by sending an invalid keyset with the same psbt
-    if vector.expected_status == StatusCode::OK {
-        let response = client
-            .sign_transaction_with_keyset(&account.id, &KeysetId::gen().unwrap(), &request_data)
-            .await;
-        assert_eq!(
-            vector.expected_status, response.status_code,
-            "{}",
-            response.body_string
-        );
-        check_psbt(response.body).await;
-    }
 }
 
 #[tokio::test]

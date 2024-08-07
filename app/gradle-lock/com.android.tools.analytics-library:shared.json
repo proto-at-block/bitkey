@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.analytics-library:shared",
     "components": [
         {
-            "version": "31.1.2",
+            "version": "31.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "shared-31.1.2.jar": "1c0059475ddac544e9f8f43ae018092dbb446c86970e2b5fe1e65931c780d42a"
+                        "shared-31.3.2.jar": "1ddf8b7c36aa336d8d982516b2a503c922e18e9972967b0d2a2ee43561bb97c9"
                     }
                 }
             ],

@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-desktop-1.6.11.jar": "506aed788b6a43f7e2ec44b0d40362b4ac10e09cba8384fb565fbc772d26c869"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "io.github.alexzhirkevich:compottie-resources-iosarm64",
+    "components": [
+        {
+            "version": "2.0.0-beta02",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compottie-resources-iosarm64-2.0.0-beta02-metadata.jar": "e47e81e971abe5bb257dd7350aa7844f586f86a75eaeb93f0963d3965777b53f"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "compottie-resources.klib": "528fcf08d10df62f3edc3f7051f9aae6aa212e1e5b97ba61da663b965134cf63"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

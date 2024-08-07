@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-uikitx64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-uikitx64-1.6.11-metadata.jar": "75cea1e4e537a21a7d2fcfa86fb7034a2119ce36c8131b2910157f629bcf1f94"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ui.klib": "287dfd275c026f77bfb3c37d2ba0542e0a7957ddbf4b7eacf08e6f822642d15b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

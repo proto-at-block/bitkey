@@ -317,6 +317,7 @@ class HomeUiStateMachineImpl(
   @Composable
   private fun SyncRelationshipsEffect(account: FullAccount): SocRecRelationships {
     LaunchedEffect(account) {
+      // TODO: W-9117 - migrate to app worker pattern
       socRecRelationshipsRepository.syncLoop(scope = this, account)
     }
 
@@ -330,6 +331,7 @@ class HomeUiStateMachineImpl(
   @Composable
   private fun SyncCloudBackupHealthEffect(props: HomeUiProps) {
     LaunchedEffect("sync-cloud-backup-health") {
+      // TODO: W-9117 - migrate to app worker pattern
       cloudBackupHealthRepository.syncLoop(scope = this, account = props.accountData.account)
     }
   }

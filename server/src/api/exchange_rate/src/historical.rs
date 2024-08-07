@@ -76,7 +76,7 @@ impl HistoricalExchangeRateProvider for CoinmarketcapRateProvider {
                 }),
                 StatusCode::TOO_MANY_REQUESTS => {
                     event!(Level::ERROR, "Coinmarketcap rate limit reached");
-                    Err(ProviderRateLimited)
+                    Err(ProviderRateLimited(Self::rate_provider_type()))
                 }
                 _ => Err(ProviderResponseError::Generic(r.status().to_string()).into()),
             },

@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-property-jvm",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-property-jvm-5.8.1.jar": "877d9239816f04eb16f718cb97d632d6c88cdaf761f6cadbbc9133f1a77bd3f0"
+                        "kotest-property-jvm-5.9.0.jar": "71984691d9e1fe702a3f05c849278dca0de4dc421eead35bbb923025b3c36879"
                     }
                 }
             ],

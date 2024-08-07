@@ -119,7 +119,7 @@ impl DDBService for Repository {
                 let service_err = err.into_service_error();
                 event!(
                     Level::ERROR,
-                    "Could not create SocialRecovery table: {service_err:?} with message: {:?}",
+                    "Could not create Consent table: {service_err:?} with message: {:?}",
                     service_err.message()
                 );
                 DatabaseError::CreateTableError(database_object)

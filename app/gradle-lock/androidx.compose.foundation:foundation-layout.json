@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.foundation:foundation-layout",
     "components": [
         {
-            "version": "1.5.4",
+            "version": "1.6.7",
             "variants": [
                 {
                     "artifacts": {
-                        "foundation-layout-metadata-1.5.4.jar": "f8cbd92d3585570dce2541aefef0d59b4c591ae225d98921058e484e9abf3e42"
+                        "foundation-layout-metadata-1.6.7.jar": "4e75469751c9d4c464c7d06af283b9737693c20bc4aaf657630bb294c27bbff1"
                     }
                 }
             ],

@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.foundation:foundation-layout-uikitsimarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "foundation-layout-uikitsimarm64-1.6.11-metadata.jar": "4214a17f7496ed9fd31c3051b21a364ce39f0c689f5939ffc4c52d99ea07fcd5"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "foundation-layout.klib": "a9e77c444bb4e3f0d29405becf8a6f71270d0a41e835c0c7a20e84ea2ae3b35e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

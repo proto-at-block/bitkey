@@ -2,11 +2,11 @@
     "module-identifier": "androidx.databinding:databinding-compiler-common",
     "components": [
         {
-            "version": "8.1.1",
+            "version": "8.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "databinding-compiler-common-8.1.1.jar": "5ace145c7e06289714877151339c55d9ffb6863517bdf5bcf3b9555f8c8d943e"
+                        "databinding-compiler-common-8.3.2.jar": "526eff036d73e21221cb04cca62751fe6d6e05a7c0460d2a3b956d8630b5c22e"
                     }
                 }
             ],

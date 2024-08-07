@@ -5,7 +5,7 @@ import kotlin.time.Duration
 
 /**
  * Fake implementation of [AppWorker] for testing purposes.
- * This worker does not actually do anything, except for setting a flag when the [execute] method is
+ * This worker does not actually do anything, except for setting a flag when the [executeWork] method is
  * called, after an [executionDelay], if specified.
  */
 class AppWorkerFake(
@@ -13,7 +13,7 @@ class AppWorkerFake(
 ) : AppWorker {
   var executed: Boolean = false
 
-  override suspend fun execute() {
+  override suspend fun executeWork() {
     delay(executionDelay)
     executed = true
   }

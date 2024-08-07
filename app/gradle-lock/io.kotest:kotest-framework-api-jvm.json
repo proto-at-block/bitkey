@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-api-jvm",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-api-jvm-5.8.1.jar": "8d81158012cc8b70093a67076c9ff265d7ba73df8d1b372a961123efb36a5c06"
+                        "kotest-framework-api-jvm-5.9.0.jar": "d9244bc687c83822126725b3ca7676e456447a6051210e25175cf8ab20c0b423"
                     }
                 }
             ],

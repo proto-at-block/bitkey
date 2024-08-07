@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:compose-compiler-gradle-plugin",
+    "components": [
+        {
+            "version": "2.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compose-compiler-gradle-plugin-2.0.0-gradle85.jar": "35d651834c0b63037b8803299d560042dc70236d871e30ace7e4cb516419af18"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-tooling-core",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-tooling-core-1.9.22.jar": "8938eb97e36320daa3e6fb2a60fd2a05b232ff4a557173c5019f045b8832d9f4"
+                        "kotlin-tooling-core-1.9.23.jar": "8938eb97e36320daa3e6fb2a60fd2a05b232ff4a557173c5019f045b8832d9f4"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-tooling-core-1.9.23.jar": "8938eb97e36320daa3e6fb2a60fd2a05b232ff4a557173c5019f045b8832d9f4"
+                        "kotlin-tooling-core-2.0.0.jar": "73464aa3c214567013a4373f09e7b6f0b63185b3a6df6988b347430d7777a971"
                     }
                 }
             ],

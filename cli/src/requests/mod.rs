@@ -25,6 +25,12 @@ pub struct AuthKeypairRequest {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct SoftwareOnlyAuthKeypairRequest {
+    pub app: PublicKey,
+    pub recovery: PublicKey,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ConfigKeypairRequest {
     // TODO: [W-774] Update visibility of struct after migration
     pub hardware: PublicKey,
@@ -54,6 +60,17 @@ pub struct CreateAccount {
 
 #[derive(Debug, Endpoint, Serialize)]
 #[endpoint(
+    path = "/api/accounts",
+    method = "POST",
+    response = "CreateSoftwareAccountResponse"
+)]
+pub struct CreateSoftwareAccount {
+    pub auth: SoftwareOnlyAuthKeypairRequest, // TODO: [W-774] Update visibility of struct after migration
+    pub is_test_account: bool,
+}
+
+#[derive(Debug, Endpoint, Serialize)]
+#[endpoint(
     path = "/api/hw-auth",
     method = "POST",
     response = "HardwareAuthenticationResponse"
@@ -74,6 +91,11 @@ pub struct CreateAccountResponse {
     pub account_id: AccountId,
     #[serde(flatten)]
     pub keyset: CreateKeysetResponse,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct CreateSoftwareAccountResponse {
+    pub account_id: AccountId,
 }
 
 #[derive(Debug, Endpoint, Serialize)]
@@ -406,3 +428,52 @@ pub struct MobilePaySetupRequest {
 
 #[derive(Deserialize, Debug)]
 pub struct MobilePaySetupResponse {}
+
+#[derive(Clone, Debug, Endpoint, Serialize)]
+#[endpoint(
+    path = "/api/authenticate",
+    method = "POST",
+    response = "InitiateAuthResponse"
+)]
+pub struct InitiateAuthRequest {
+    pub auth_request_key: AuthRequestKey,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum AuthRequestKey {
+    HwPubkey(PublicKey),
+    AppPubkey(PublicKey),
+    RecoveryPubkey(PublicKey),
+}
+
+#[derive(Deserialize, Debug)]
+pub struct InitiateAuthResponse {
+    pub username: String,
+    pub account_id: AccountId,
+    pub challenge: String,
+    pub session: String,
+}
+
+#[derive(Clone, Debug, Endpoint, Serialize)]
+#[endpoint(
+    path = "/api/authenticate/tokens",
+    method = "POST",
+    response = "GetTokensResponse"
+)]
+pub struct GetTokensRequest {
+    pub challenge: Option<ChallengeResponseParameters>,
+    pub refresh_token: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ChallengeResponseParameters {
+    pub username: String,
+    pub challenge_response: String,
+    pub session: String,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetTokensResponse {
+    pub access_token: String,
+    pub refresh_token: String,
+}

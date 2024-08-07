@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-icons-core-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-icons-core-desktop-1.6.11.jar": "5c08b3611942e1cac69a7ea44f47a92babf2c1eed68e5f7a2e3d69f1b75e88ca"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

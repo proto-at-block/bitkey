@@ -276,8 +276,8 @@ internal fun TextFieldWithCharacteristic(
         TextFieldDefaults.textFieldColors(
           containerColor = WalletTheme.colors.foreground10,
           cursorColor = WalletTheme.colors.bitkeyPrimary,
-          focusedIndicatorColor = Color.Unspecified,
-          unfocusedIndicatorColor = Color.Unspecified
+          focusedIndicatorColor = Color.Transparent,
+          unfocusedIndicatorColor = Color.Transparent
         ),
       keyboardOptions = keyboardOptions,
       visualTransformation = visualTransformation,

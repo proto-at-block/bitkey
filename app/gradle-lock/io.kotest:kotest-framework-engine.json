@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-engine",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-engine-metadata-5.8.1.jar": "836b5b0a64cecd0ce288503229533790a0c9796be4e73fd0160c28599e941a8d"
+                        "kotest-framework-engine-metadata-5.9.0.jar": "788dab6052123b301f8e7a17fad251c48631b36a4a40960a5209b18e50b73b06"
                     }
                 }
             ],

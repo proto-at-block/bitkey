@@ -10,7 +10,7 @@ use crate::signed_psbt_cache::entities::CachedPsbt;
 use super::Repository;
 
 impl Repository {
-    #[instrument(skip(self))]
+    #[instrument(skip(self, cached_psbt))]
     pub async fn persist(&self, cached_psbt: &CachedPsbt) -> Result<(), DatabaseError> {
         let table_name = self.get_table_name().await?;
         let database_object = self.get_database_object();

@@ -1,0 +1,52 @@
+use std::{
+    fmt::{self, Display, Formatter},
+    str::FromStr,
+};
+
+use external_identifier::ExternalIdentifier;
+use serde::{Deserialize, Serialize};
+use ulid::Ulid;
+use urn::Urn;
+use utoipa::ToSchema;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PrivilegedActionInstanceId(urn::Urn);
+
+impl FromStr for PrivilegedActionInstanceId {
+    type Err = urn::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Urn::from_str(s)?.into())
+    }
+}
+
+impl From<urn::Urn> for PrivilegedActionInstanceId {
+    fn from(urn: urn::Urn) -> Self {
+        Self(urn)
+    }
+}
+
+impl ExternalIdentifier<Ulid> for PrivilegedActionInstanceId {
+    fn namespace() -> &'static str {
+        "privileged-action-instance"
+    }
+}
+
+impl PrivilegedActionInstanceId {
+    pub fn gen() -> Result<Self, external_identifier::Error> {
+        Self::new(Ulid::new())
+    }
+}
+
+impl Display for PrivilegedActionInstanceId {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PrivilegedActionType {
+    SetPrivilegedActionDelays,
+    ActivateTouchpoint,
+}

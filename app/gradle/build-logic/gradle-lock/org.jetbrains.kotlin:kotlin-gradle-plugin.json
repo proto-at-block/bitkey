@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-gradle-plugin",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-1.9.22-gradle82.jar": "d4e718dd5f30c6ba932d93ccfc5b3015e9dd3e44143a052b877028f1fae542dc"
+                        "kotlin-gradle-plugin-1.9.23-gradle82.jar": "bcc74a07c69dd11c94b260b1ee8a618969629ccaeac2e6ea0a779da3c3f7ec3f"
                     }
                 }
             ],
@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.23",
+            "version": "2.0.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-gradle-plugin-1.9.23-gradle82.jar": "bcc74a07c69dd11c94b260b1ee8a618969629ccaeac2e6ea0a779da3c3f7ec3f"
+                        "kotlin-gradle-plugin-2.0.0-gradle85.jar": "fa9f364fb3ff1330ea2908e6ddfe66ee3d20abe975d61ae9f81e1e6bd276eaf7"
                     }
                 }
             ],

@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:serde-jvm",
     "components": [
         {
-            "version": "1.0.13",
+            "version": "1.2.11",
             "variants": [
                 {
                     "artifacts": {
-                        "serde-jvm-1.0.13.jar": "a69fa6d394e3fc360a78f4c26eb5640bdeac10e3868b94e0fbedaa920274c391"
+                        "serde-jvm-1.2.11.jar": "0ae8fdb61229dfe74c58559868dd1dd4a26d5996177609265cdb785c714f7629"
                     }
                 }
             ],

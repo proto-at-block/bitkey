@@ -2,11 +2,11 @@
     "module-identifier": "aws.smithy.kotlin:telemetry-api-jvm",
     "components": [
         {
-            "version": "1.0.13",
+            "version": "1.2.11",
             "variants": [
                 {
                     "artifacts": {
-                        "telemetry-api-jvm-1.0.13.jar": "508bde368d4b174402aeeccec68c7e29ad9349a953b1efab75ebeaa6c0a21f0e"
+                        "telemetry-api-jvm-1.2.11.jar": "67ebfc5186b75a512eb87272f2901f3701ef64ca9dcb5c3a739cdb82d58dc1ee"
                     }
                 }
             ],

@@ -37,14 +37,14 @@ class BiometricPromptUiStateMachineManager {
 
     // MARK: - Private Properties
 
-    private let biometricPromptUiStateMachine: BiometricPromptUiStateMachine
+    private let biometricPromptUiStateMachine: BiometricPromptUiStateMachineImpl
     private var cancellablesBag = Set<AnyCancellable>()
     private let stateChangeHandlerStack: StateChangeHandlerStack
 
     // MARK: - Life Cycle
 
     public init(
-        biometricPromptUiStateMachine: BiometricPromptUiStateMachine,
+        biometricPromptUiStateMachine: BiometricPromptUiStateMachineImpl,
         appViewController: UINavigationController
     ) {
         self.biometricPromptUiStateMachine = biometricPromptUiStateMachine
@@ -58,14 +58,17 @@ class BiometricPromptUiStateMachineManager {
 
     public func connectSharedStateMachine() {
         // Convert our KMP model flows to a Combine publisher
-        createPublisher(for: biometricPromptUiStateMachine.modelFlowNative(props: ()))
-            .receive(on: RunLoop.main)
-            .map { $0 as? ScreenModel }
-            .sink(
-                receiveCompletion: handleStateMachineCompletion,
-                receiveValue: handleStateMachineOutput
-            )
-            .store(in: &cancellablesBag)
+        createPublisher(for: StateMachineNativeKt.modelFlow(
+            biometricPromptUiStateMachine as! StateMachine,
+            props: ()
+        ))
+        .receive(on: RunLoop.main)
+        .map { $0 as? ScreenModel }
+        .sink(
+            receiveCompletion: handleStateMachineCompletion,
+            receiveValue: handleStateMachineOutput
+        )
+        .store(in: &cancellablesBag)
     }
 
     public func disconnectStateMachine() {

@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab.crashkios:core",
     "components": [
         {
-            "version": "0.8.5",
+            "version": "0.8.6",
             "variants": [
                 {
                     "artifacts": {
-                        "core-metadata-0.8.5.jar": "ae30a633331306889db20ad4d849acbdbe270c3446c8c05cf9fafe84167d967f"
+                        "core-metadata-0.8.6.jar": "6bb4ac0aff0d590cedea82898ad2164afcf0dcc18222fbb9494aa029d1c1754b"
                     }
                 }
             ],

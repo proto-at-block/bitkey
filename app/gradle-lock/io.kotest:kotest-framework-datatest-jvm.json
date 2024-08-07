@@ -2,11 +2,11 @@
     "module-identifier": "io.kotest:kotest-framework-datatest-jvm",
     "components": [
         {
-            "version": "5.8.1",
+            "version": "5.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotest-framework-datatest-jvm-5.8.1.jar": "f95ac3a710b367567933d767d2b51ef09d19e1c22efafe866a2b3d072e68b71e"
+                        "kotest-framework-datatest-jvm-5.9.0.jar": "351399d96be51a4b5c1afc35794c362fbb8dd0d25c3f54c7e5fee72298ffceef"
                     }
                 }
             ],

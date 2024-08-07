@@ -2,16 +2,16 @@
     "module-identifier": "com.squareup.okio:okio-iosx64",
     "components": [
         {
-            "version": "3.8.0",
+            "version": "3.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "okio-iosx64-3.8.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
+                        "okio-iosx64-3.9.0-metadata.jar": "41246b9c5b01870174165f30c450f252e4b9343b44e47c86c49ec7594f7b27de"
                     }
                 },
                 {
                     "artifacts": {
-                        "okio.klib": "dc9b979fd944a615cf976ad318684c3698754269cb9a0a94d8258c3b1b162472"
+                        "okio.klib": "9e4745e8e29f2a75a33b42604e854f15e226fde48293af42d49c339cc92ceed1"
                     }
                 }
             ],

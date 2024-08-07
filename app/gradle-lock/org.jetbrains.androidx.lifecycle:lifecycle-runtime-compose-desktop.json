@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose-desktop",
+    "components": [
+        {
+            "version": "2.8.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "lifecycle-runtime-compose-desktop-2.8.0.jar": "a38464368e327e792acceb5ebcd26defdae9d62438ea9f5b24bb16cab29a3eca"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

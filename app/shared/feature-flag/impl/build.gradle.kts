@@ -24,6 +24,7 @@ kotlin {
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.sqldelightTesting)
+        implementation(projects.shared.testingPublic)
         implementation(projects.shared.analyticsFake)
       }
     }

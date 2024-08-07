@@ -16,7 +16,7 @@ import org.gradle.kotlin.dsl.dependencies
  * Common extension properties for the Android Application. Library and Dynamic Feature Plugins.
  * Only the Android Gradle Plugin should create instances of this interface.
  */
-internal typealias AndroidExtension = CommonExtension<*, *, *, *, *>
+internal typealias AndroidExtension = CommonExtension<*, *, *, *, *, *>
 
 /**
  * Applies common configuration to an Android module (app or library).
@@ -40,12 +40,19 @@ internal fun AndroidExtension.commonConfiguration(project: Project) {
 }
 
 private fun AndroidExtension.configureAndroidSdk(project: Project) {
-  buildToolsVersion = project.libs.versions.android.build.tools.get()
-  compileSdk = project.libs.versions.android.sdk.compile.get().toInt()
+  buildToolsVersion = project.libs.versions.android.build.tools
+    .get()
+  compileSdk = project.libs.versions.android.sdk.compile
+    .get()
+    .toInt()
 
-  val targetSdkVersion = project.libs.versions.android.sdk.target.get().toInt()
+  val targetSdkVersion = project.libs.versions.android.sdk.target
+    .get()
+    .toInt()
   defaultConfig {
-    minSdk = project.libs.versions.android.sdk.min.get().toInt()
+    minSdk = project.libs.versions.android.sdk.min
+      .get()
+      .toInt()
     if (this is ApplicationBaseFlavor) {
       targetSdk = targetSdkVersion
     } else {
@@ -118,7 +125,10 @@ private fun AndroidExtension.configureInstrumentationTestsRunner() {
  */
 private fun AndroidExtension.configureJvmTarget(project: Project) =
   compileOptions {
-    val jvmTarget = JavaVersion.toVersion(project.libs.versions.jvmTarget.get())
+    val jvmTarget = JavaVersion.toVersion(
+      project.libs.versions.jvmTarget
+        .get()
+    )
     sourceCompatibility = jvmTarget
     targetCompatibility = jvmTarget
   }

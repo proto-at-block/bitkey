@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.6.3",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-serialization-json-jvm-1.6.3.jar": "d3234179bcff1886d53d67c11eca47f7f3cf7b63c349d16965f6db51b7f3dd9a"
+                        "kotlinx-serialization-json-jvm-1.7.0.jar": "bc5fb7ba6985a62c4cc2d95940a751d87597f12428fe37feea4bdc6ce996d67c"
                     }
                 }
             ],

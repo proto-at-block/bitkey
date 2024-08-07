@@ -28,11 +28,11 @@
             ]
         },
         {
-            "version": "3.8.0",
+            "version": "3.9.0",
             "variants": [
                 {
                     "artifacts": {
-                        "okio-jvm-3.8.0.jar": "88fb79f6fe1a462acf0a3bd2576ba1525c29f29825efeceec70a747ac1c6fc90"
+                        "okio-jvm-3.9.0.jar": "ddc386ff14bd25d5c934167196eaf45b18de4f28e1c55a4db37ae594cbfd37e4"
                     }
                 }
             ],

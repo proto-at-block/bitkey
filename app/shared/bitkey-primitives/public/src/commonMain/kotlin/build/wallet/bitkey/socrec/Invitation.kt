@@ -1,5 +1,6 @@
 package build.wallet.bitkey.socrec
 
+import dev.zacsweers.redacted.annotations.Redacted
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
@@ -20,6 +21,7 @@ import kotlinx.datetime.Instant
 data class Invitation(
   override val recoveryRelationshipId: String,
   override val trustedContactAlias: TrustedContactAlias,
+  @Redacted
   val code: String,
   val codeBitLength: Int,
   val expiresAt: Instant,

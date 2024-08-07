@@ -87,6 +87,7 @@ async fn get_acct_for_addr(
         .get(addr)
         .unwrap()
         .clone()
+        .account_id
 }
 
 #[rstest]
@@ -155,8 +156,14 @@ async fn test_register_watch_address_with_known_account_id_multiple_insert_200(
         .await
         .unwrap();
 
-    assert_eq!(&acct_id, known.get(&random_address.address).unwrap());
-    assert_eq!(&acct_id, known.get(&random_address2.address).unwrap());
+    assert_eq!(
+        acct_id,
+        known.get(&random_address.address).unwrap().account_id
+    );
+    assert_eq!(
+        acct_id,
+        known.get(&random_address2.address).unwrap().account_id
+    );
 }
 
 #[rstest]

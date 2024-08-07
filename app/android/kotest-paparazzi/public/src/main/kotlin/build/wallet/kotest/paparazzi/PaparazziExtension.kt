@@ -68,7 +68,7 @@ class PaparazziExtension(
     paparazzi.apply(
       base = NoopJunitStatement,
       description = junit4Description
-    )
+    ).evaluate()
     paparazzi.prepare(junit4Description)
   }
 

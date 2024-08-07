@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.ui:ui-graphics-android",
     "components": [
         {
-            "version": "1.5.4",
+            "version": "1.6.7",
             "variants": [
                 {
                     "artifacts": {
-                        "ui-graphics-release.aar": "8f7811d34f178e2de66399e8b0fd747db3502a9b844a4e2d946a711e75655cbc"
+                        "ui-graphics-release.aar": "b7f23801b1c53de2a86d2bfbf848e911da9f7fd540ec5d13278cd7f6b8c54056"
                     }
                 }
             ],

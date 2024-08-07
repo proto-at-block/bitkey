@@ -41,6 +41,20 @@ impl TimeWindow {
     }
 }
 
+#[derive(Debug, Serialize, PartialEq, Clone)]
+pub struct PriceAt {
+    #[serde(with = "rfc3339")]
+    pub timestamp: OffsetDateTime,
+    pub price: f64,
+}
+
+#[derive(Serialize, Debug, ToSchema, Clone, PartialEq)]
+pub struct ExchangeRateChartData {
+    pub from_currency: CurrencyCode,
+    pub to_currency: CurrencyCode,
+    pub exchange_rates: Vec<PriceAt>,
+}
+
 #[cfg(test)]
 mod tests {
     use crate::exchange_rate::TimeWindow;

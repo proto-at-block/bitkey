@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-text-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-text-desktop-1.6.11.jar": "c014073d865f784fb94c22fb6bb9d056a996af63c93a176e90118a58ff0facc6"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

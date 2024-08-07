@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-desktop-1.6.11.jar": "5e57a42a37457112eb560d1021e66e544da031559607e4408e3aa7f865f34c83"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

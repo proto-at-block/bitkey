@@ -20,14 +20,14 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.63.0
-        PROJECT_BUNDLE_VERSION: 4
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.66.0
+        PROJECT_BUNDLE_VERSION: 7
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
         OTHER_CFLAGS: -DSQLITE_HAS_CODEC -DSQLITE_TEMP_STORE=3 -DSQLCIPHER_CRYPTO_CC -DNDEBUG
         REPRODUCIBLE_BUILD_VARIABLES_PATH: ${REPRODUCIBLE_BUILD}
-        ENABLE_USER_SCRIPT_SANDBOXING: YES
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
       configs:
         Release:
           APP_ICON: AppIconRelease
@@ -281,7 +281,7 @@ packages:
     exactVersion: 2.10.0
   kmp-nativecoroutines:
     url: https://github.com/rickclephas/kmp-nativecoroutines
-    exactVersion: 0.13.3
+    exactVersion: 1.0.0-ALPHA-31
   lottie-spm:
     url: https://github.com/airbnb/lottie-spm
     exactVersion: 4.3.4

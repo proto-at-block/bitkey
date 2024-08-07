@@ -2,16 +2,16 @@
     "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-core-iossimulatorarm64",
     "components": [
         {
-            "version": "0.13.3",
+            "version": "1.0.0-ALPHA-31",
             "variants": [
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-core-iossimulatorarm64-0.13.3-metadata.jar": "3c30db1cb88d2741bbce37248f4b03ca29c044e3bc1fc2ebd3dc95e120a80e65"
+                        "kmp-nativecoroutines-core-iossimulatorarm64-1.0.0-ALPHA-31-metadata.jar": "bebf0b9c6ca7b0745180269b1864131ce72c36a388718f51d4376f34d187d945"
                     }
                 },
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-core.klib": "87a00e6060693be84d7dbff51e01f9197a4bb4a9b3e176e3df57c240371034b8"
+                        "kmp-nativecoroutines-core.klib": "1a287ab585c02a4c8404c463954e2b1e790f674a607ee55b56eaf4d5ff303810"
                     }
                 }
             ],

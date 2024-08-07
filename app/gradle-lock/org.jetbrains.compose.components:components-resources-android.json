@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.components:components-resources-android",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "library-release.aar": "c48b21eba68501c730e3126c4945b93738e1d55a2b89188bf448a2c214c4eca0"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

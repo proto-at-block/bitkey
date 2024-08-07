@@ -34,6 +34,7 @@ all = [
   "currencies",
   "exchange_rate",
   "notification",
+  "privileged_action",
   "recovery",
   "serde",
 ]
@@ -42,5 +43,6 @@ consent = []
 currencies = []
 exchange_rate = []
 notification = []
+privileged_action = []
 recovery = []
 serde = []

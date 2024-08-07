@@ -2,11 +2,11 @@
     "module-identifier": "androidx.compose.runtime:runtime-saveable-android",
     "components": [
         {
-            "version": "1.6.3",
+            "version": "1.6.7",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-saveable-release.aar": "3ee8dd49504312c82dc886467797e0db1cdc160297139879707d66221f22649c"
+                        "runtime-saveable-release.aar": "f3bb626badc17ef2405ba38ad8e896d667cc2602822ce46e916dc85d6b2f395c"
                     }
                 }
             ],

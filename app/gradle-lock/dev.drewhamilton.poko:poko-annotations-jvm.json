@@ -1,0 +1,18 @@
+{
+    "module-identifier": "dev.drewhamilton.poko:poko-annotations-jvm",
+    "components": [
+        {
+            "version": "0.15.3",
+            "variants": [
+                {
+                    "artifacts": {
+                        "poko-annotations-jvm-0.15.3.jar": "3bcb96770ac52075c431201e29fd5e67924435555df22f5e5ab2602b7b773635"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

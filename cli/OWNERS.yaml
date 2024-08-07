@@ -5,3 +5,4 @@
 # See https://git.sqcorp.co/projects/SQ/repos/square-stash-plugins/browse/owner-owl for
 # available options.
 modules: [bitkey-server]
+include_ancestors: false

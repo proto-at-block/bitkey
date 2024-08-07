@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-runtime-ktx",
     "components": [
         {
-            "version": "2.7.0",
+            "version": "2.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-ktx-2.7.0.aar": "ef7033b15db27569771c3c0aeb6f92392b5654216195fe74136ea3e108912ad4"
+                        "lifecycle-runtime-ktx-metadata-2.8.1.jar": "92e90c3bd6cc2f66a15e9597cc015cd3a2f8767a9bd29d7feadaea4d44b2fccf"
                     }
                 }
             ],

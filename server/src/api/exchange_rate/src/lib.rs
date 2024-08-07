@@ -1,3 +1,4 @@
+pub mod chart;
 pub mod currency_conversion;
 pub(crate) mod error;
 pub mod flags;

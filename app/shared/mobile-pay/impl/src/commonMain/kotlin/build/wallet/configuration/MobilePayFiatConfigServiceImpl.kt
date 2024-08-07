@@ -37,7 +37,7 @@ class MobilePayFiatConfigServiceImpl(
   /**
    * Fetches the latest Mobile Pay fiat configuration from f8e and updates local database.
    */
-  override suspend fun execute() {
+  override suspend fun executeWork() {
     coroutineScope {
       launch {
         // Combine latest fiat currency preference with available configs to update the cache.

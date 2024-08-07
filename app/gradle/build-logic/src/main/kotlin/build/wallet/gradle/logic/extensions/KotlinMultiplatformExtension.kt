@@ -1,5 +1,5 @@
 @file:Suppress("UnstableApiUsage")
-@file:OptIn(ExternalVariantApi::class, ExperimentalKotlinGradlePluginApi::class)
+@file:OptIn(ExperimentalKotlinGradlePluginApi::class)
 
 package build.wallet.gradle.logic.extensions
 
@@ -17,15 +17,12 @@ import build.wallet.gradle.logic.structure.isImplModule
 import build.wallet.gradle.logic.structure.isPublicModule
 import org.gradle.api.Project
 import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.creating
 import org.gradle.kotlin.dsl.getValue
 import org.gradle.kotlin.dsl.getting
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.kpm.external.ExternalVariantApi
-import org.jetbrains.kotlin.gradle.kpm.external.project
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.integrationTest
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.main
@@ -56,10 +53,11 @@ fun KotlinMultiplatformExtension.targets(
       if (ios) group("ios") { withIos() }
     }
   }
+  val project = metadata().project
 
-  if (android) configureAndroidTarget()
+  if (android) configureAndroidTarget(project)
   if (jvm) configureJvmTarget()
-  if (ios) configureIosTarget()
+  if (ios) configureIosTarget(project)
 
   with(project) {
     configureDependencies()
@@ -77,7 +75,7 @@ fun KotlinMultiplatformExtension.targets(
 private fun KotlinMultiplatformExtension.configureJvmTarget() {
   jvm {
     val integrationTest by compilations.creating {
-      val main by compilations.getting
+      val main by this@jvm.compilations.getting
       associateWith(main)
 
       defaultSourceSet {
@@ -150,7 +148,7 @@ private fun Project.configureJUnit(sourceSet: KotlinSourceSet) {
 /**
  * Configure Android target.
  */
-private fun KotlinMultiplatformExtension.configureAndroidTarget() {
+private fun KotlinMultiplatformExtension.configureAndroidTarget(project: Project) {
   project.pluginManager.apply<AndroidLibPlugin>()
 
   androidTarget()
@@ -165,7 +163,7 @@ private fun KotlinMultiplatformExtension.configureAndroidTarget() {
 /**
  * Configure iOS Native target.
  */
-private fun KotlinMultiplatformExtension.configureIosTarget() {
+private fun KotlinMultiplatformExtension.configureIosTarget(project: Project) {
   val targets = optimalTargetsForIOS(project)
 
   sourceSets {

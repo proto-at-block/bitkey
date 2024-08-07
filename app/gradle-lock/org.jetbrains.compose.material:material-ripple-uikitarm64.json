@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-ripple-uikitarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-ripple-uikitarm64-1.6.11-metadata.jar": "b4a4f5539e772512b2ab018de3277c4d9aab1e461eee3bfcabb4098d0a9f3696"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "material-ripple.klib": "db6de24c2e019639e1726f409029e609f486ce05aa82d55cdbeb6593d8d9121e"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -2,11 +2,11 @@
     "module-identifier": "com.android.tools.analytics-library:crash",
     "components": [
         {
-            "version": "31.1.1",
+            "version": "31.3.2",
             "variants": [
                 {
                     "artifacts": {
-                        "crash-31.1.1.jar": "cc5f028ac4fd037d57c0bb0cdc84ca37671852ea2370216b5ce6f45479f03261"
+                        "crash-31.3.2.jar": "2c5c26420967675c074bc7140831fe3bff5bbabc7fbbc08ba29fdc3eadcc9510"
                     }
                 }
             ],

@@ -1,0 +1,19 @@
+{
+    "module-identifier": "org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable",
+    "components": [
+        {
+            "version": "2.0.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlin-compose-compiler-plugin-embeddable-2.0.0.jar": "746dd46f3bb5ffb02a30a7066e8c7973bc09211d5cbdee8ff48e0159dd5747f2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "kotlin-compiler"
+            ]
+        }
+    ]
+}

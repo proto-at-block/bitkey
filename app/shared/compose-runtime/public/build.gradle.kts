@@ -3,6 +3,7 @@ import build.wallet.gradle.logic.extensions.targets
 plugins {
   id("build.wallet.kmp")
   alias(libs.plugins.compose.runtime)
+  alias(libs.plugins.compose.compiler)
 }
 
 kotlin {
@@ -13,6 +14,7 @@ kotlin {
       dependencies {
         api(compose.runtime)
         api(libs.kmp.kotlin.collections.immutable)
+        implementation(libs.android.lifecycle.common)
       }
     }
   }

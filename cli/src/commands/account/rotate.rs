@@ -1,10 +1,10 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use rustify::blocking::clients::reqwest::Client;
 
 use crate::{
     cache::FromCache,
     db::transactions::{FromDatabase, ToDatabase},
-    entities::{Account, AuthenticationToken, SignerHistory, SignerPair},
+    entities::{Account, AuthenticationToken, KeyMaterial, SignerHistory, SignerPair},
     requests::{
         helper::EndpointExt, CreateKeysetRequest, SetActiveKeysetRequest, SpendingKeysetRequest,
     },
@@ -17,16 +17,22 @@ pub(crate) fn rotate(client: &Client, db: &sled::Db) -> Result<()> {
     let context = signers.active.hardware.sign_context()?;
 
     let account = Account::from_cache(client, db)?;
+    let account_keysets = match account.key_material {
+        KeyMaterial::Keyset(keysets) => keysets,
+        KeyMaterial::ShareDetail(_) => {
+            return Err(anyhow!("Icebox accounts don't support rotation"))
+        }
+    };
     let account_id = account.id;
 
     let new_active = SignerPair {
         network: signers.active.network,
         application: signers.active.application.next(
-            account.keysets.iter().map(|ks| ks.keys.application.clone()),
+            account_keysets.iter().map(|ks| ks.keys.application.clone()),
             &context,
         )?,
         hardware: signers.active.hardware.next(
-            account.keysets.iter().map(|ks| ks.keys.hardware.clone()),
+            account_keysets.iter().map(|ks| ks.keys.hardware.clone()),
             &context,
         )?,
     };

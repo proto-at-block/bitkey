@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui-graphics-uikitsimarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-graphics-uikitsimarm64-1.6.11-metadata.jar": "463832ba1145aea26e194299da13969631122c6584260b34b38ba5d2f3beb03b"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "ui-graphics.klib": "ebd3cd4e71cdd56436dd1764f5bd56f94ab690d82e893f6a114d1fb00fbdf85f"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -1,6 +1,5 @@
 package build.wallet.f8e.onboarding.frost
 
-import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.F8eSpendingKeyset
 import build.wallet.bitkey.f8e.SoftwareAccountId
@@ -16,7 +15,6 @@ interface ContinueDistributedKeygenF8eClient {
    */
   suspend fun continueDistributedKeygen(
     f8eEnvironment: F8eEnvironment,
-    networkType: BitcoinNetworkType,
     accountId: SoftwareAccountId,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
     keysetId: SoftwareKeysetId,

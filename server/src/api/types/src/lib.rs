@@ -10,6 +10,8 @@ pub mod currencies;
 pub mod exchange_rate;
 #[cfg(feature = "notification")]
 pub mod notification;
+#[cfg(feature = "privileged_action")]
+pub mod privileged_action;
 #[cfg(feature = "recovery")]
 pub mod recovery;
 #[cfg(feature = "serde")]

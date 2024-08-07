@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlinx:kotlinx-serialization-json",
     "components": [
         {
-            "version": "1.6.3",
+            "version": "1.7.0",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlinx-serialization-json-metadata-1.6.3.jar": "8c0016890a79ab5980dd520a5ab1a6738023c29aa3b6437c482e0e5fdc06dab1"
+                        "kotlinx-serialization-json-metadata-1.7.0.jar": "35bf3b860574b0be7c0ce975e946f6d0e7da4ea5e8f8f13b71192e82f187051d"
                     }
                 }
             ],

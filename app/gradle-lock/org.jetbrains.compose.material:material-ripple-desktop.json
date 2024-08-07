@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-ripple-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-ripple-desktop-1.6.11.jar": "d6b9ba1554292b81139af768c48287479177bada9730773ba298d987ace56ec4"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -10,6 +10,7 @@ axum = { workspace = true }
 axum-macros = { workspace = true }
 jsonwebtoken = "9.2.0"
 jwt-authorizer = { workspace = true }
+once_cell = { workspace = true }
 secp256k1 = { version = "0.27.0", features = ["bitcoin_hashes", "serde"] }
 serde = { workspace = true }
 sha2 = "0.10.8"
@@ -21,6 +22,7 @@ account = { workspace = true }
 bdk_utils = { workspace = true }
 errors = { workspace = true }
 http_server = { workspace = true }
+instrumentation = { workspace = true }
 types = { workspace = true, features = ["account", "authn_authz"] }
 userpool = { workspace = true }
 

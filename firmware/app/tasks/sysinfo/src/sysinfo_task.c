@@ -725,5 +725,7 @@ void sysinfo_task_create(const platform_hwrev_t hwrev) {
     rtos_thread_create(sysinfo_thread, NULL, RTOS_THREAD_PRIORITY_NORMAL, 2048);
   ASSERT(sysinfo_thread_handle);
 
+  rtos_mutex_create(&sysinfo_task_priv.kv_mutex);
+
   rtos_timer_create_static(&sysinfo_task_priv.wdog_timer, wdog_feed_callback);
 }

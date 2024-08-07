@@ -7,10 +7,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
-import build.wallet.android.ui.core.R
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.hidden_hero_asterisk
 import build.wallet.ui.components.label.shimmer
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun CollapsedMoneyView(
@@ -18,7 +19,7 @@ fun CollapsedMoneyView(
   modifier: Modifier = Modifier,
 ) {
   Image(
-    painter = painterResource(R.drawable.hidden_hero_asterisk),
+    painter = painterResource(Res.drawable.hidden_hero_asterisk),
     contentDescription = "value is hidden",
     contentScale = ContentScale.FillHeight,
     alignment = Alignment.Center,

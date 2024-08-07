@@ -4,6 +4,7 @@ plugins {
   id("build.wallet.kmp")
   id("build.wallet.redacted")
   alias(libs.plugins.compose.runtime)
+  alias(libs.plugins.compose.compiler)
 }
 
 kotlin {

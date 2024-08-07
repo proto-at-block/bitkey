@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.components:components-resources-desktop",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "library-desktop-1.6.11.jar": "527603489cba0d482142f985a5f5285f9ce1259c84c1623b03fd2a7d8872cc25"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

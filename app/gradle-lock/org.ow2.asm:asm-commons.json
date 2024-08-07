@@ -2,11 +2,11 @@
     "module-identifier": "org.ow2.asm:asm-commons",
     "components": [
         {
-            "version": "9.2",
+            "version": "9.6",
             "variants": [
                 {
                     "artifacts": {
-                        "asm-commons-9.2.jar": "be4ce53138a238bb522cd781cf91f3ba5ce2f6ca93ec62d46a162a127225e0a6"
+                        "asm-commons-9.6.jar": "7aefd0d5c0901701c69f7513feda765fb6be33af2ce7aa17c5781fc87657c511"
                     }
                 }
             ],

@@ -101,7 +101,19 @@ impl Spending for HardwareSignerProxy {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Account {
     pub id: AccountId,
-    pub keysets: Vec<Keyset>,
+    pub key_material: KeyMaterial,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
+pub(crate) enum KeyMaterial {
+    Keyset(Vec<Keyset>),
+    ShareDetail(Option<Shareset>),
+}
+
+#[derive(Debug, Deserialize, Serialize, Hash, PartialEq, Eq)]
+pub struct Shareset {
+    pub id: KeysetId,
+    pub network: Network,
 }
 
 #[derive(Debug, Deserialize, Serialize, Hash, PartialEq, Eq)]

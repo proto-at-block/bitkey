@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.ui:ui",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "ui-1.6.11.jar": "e5041f7ad5efd1aa69e15e9aaaded3c210fb103583b6abe6d5de245bbf13d044"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

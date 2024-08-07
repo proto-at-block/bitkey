@@ -1,0 +1,19 @@
+{
+    "module-identifier": "com.google.devtools.ksp:symbol-processing-api",
+    "components": [
+        {
+            "version": "2.0.0-1.0.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "symbol-processing-api-2.0.0-1.0.21.jar": "e866d6481751e839683f86bb689e92dc943e5d63de7fcc8e69b734dbd3315663"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath",
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

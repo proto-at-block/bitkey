@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-icons-core-uikitarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-icons-core-uikitarm64-1.6.11-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "material-icons-core.klib": "c3a8a2afdde7fbf33b233021c4f2061fea1d0afc6a02e91b47a098626cb5e452"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

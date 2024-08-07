@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.material:material-uikitsimarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "material-uikitsimarm64-1.6.11-metadata.jar": "374a69a7e217a3475edc1b7368c3ba5f0fef67fafaee094172b797af6e66c86e"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "material.klib": "260cb52955b22591b877715e2c32cef890f5818ed12145bfbd89ace963f7dbad"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

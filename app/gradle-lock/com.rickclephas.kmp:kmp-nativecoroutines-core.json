@@ -2,11 +2,11 @@
     "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-core",
     "components": [
         {
-            "version": "0.13.3",
+            "version": "1.0.0-ALPHA-31",
             "variants": [
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-core-metadata-0.13.3.jar": "d0ac653bd219a5d2cbde156e157b0626f27721a2f08ad23da5c00d413af54ae0"
+                        "kmp-nativecoroutines-core-metadata-1.0.0-ALPHA-31.jar": "cf47b54e1d550265258af829940d41b88685ba086bc9f421b30cb6e306df0db1"
                     }
                 }
             ],

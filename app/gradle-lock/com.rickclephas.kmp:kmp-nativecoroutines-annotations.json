@@ -2,11 +2,11 @@
     "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-annotations",
     "components": [
         {
-            "version": "0.13.3",
+            "version": "1.0.0-ALPHA-31",
             "variants": [
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-annotations-metadata-0.13.3.jar": "17406b04a59d9c8730fdca7d2dbfc6f128e9b84d3eff2e1352fd2949ad819fc2"
+                        "kmp-nativecoroutines-annotations-metadata-1.0.0-ALPHA-31.jar": "1a48b4ed081a2075cd243acb3e679b49ed8bebaa87bc704bd30d818a6cde4e85"
                     }
                 }
             ],

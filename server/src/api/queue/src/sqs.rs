@@ -156,7 +156,10 @@ impl SqsQueue {
                 })?;
                 Ok(())
             }
-            Self::Test(_) => Ok(()),
+            Self::Test(messages) => {
+                messages.lock().unwrap().clear();
+                Ok(())
+            }
         }
     }
 

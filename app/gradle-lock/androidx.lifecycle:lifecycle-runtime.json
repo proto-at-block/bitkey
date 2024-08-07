@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-runtime",
     "components": [
         {
-            "version": "2.7.0",
+            "version": "2.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-runtime-2.7.0.aar": "81c6fb1dbb6a3cd7dc827d7b08e1c8142ed3a400a3422441108480e22f8937c4"
+                        "lifecycle-runtime-metadata-2.8.1.jar": "4ee784530e550754230395d4f4f56817c9fcbc08db4d645e77441f3dd82c56b5"
                     }
                 }
             ],

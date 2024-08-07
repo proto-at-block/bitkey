@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable-uikitarm64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-uikitarm64-1.6.11-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "runtime-saveable.klib": "1369f9bc85681ab7510923519b34004b30038f7a480211a13ec66706ae06b4b9"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

@@ -18,7 +18,7 @@ use bdk::bitcoin::Address;
 use bdk::blockchain::ElectrumBlockchain;
 use bdk::electrum_client::Client as ElectrumClient;
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use rustify::blocking::clients::reqwest::Client;
 use tracing_subscriber::{prelude::*, EnvFilter, Registry};
 
@@ -32,11 +32,6 @@ pub struct Cli {
     /// URL for the server
     #[clap(short, long, default_value = "https://api.dev.wallet.build")]
     server: String,
-
-    /// Cognito Client ID for the wallet user-pool
-    /// This one is from user pool us-west-2_YNkgrK6JC in the dev account
-    #[clap(short, long, default_value = "dk4rvffhp6k55bjb05vbemdn5")]
-    auth_client_id: String,
 
     /// URL for the Electrum node
     #[clap(short, long, default_value = "ssl://bitkey.mempool.space:50002")]
@@ -95,7 +90,10 @@ enum Commands {
 #[derive(Clone, Subcommand)]
 enum AccountCommands {
     /// Create an account on the server
-    Create {},
+    Create {
+        #[arg(value_enum, default_value_t = AccountType::Classic)]
+        account_type: AccountType,
+    },
     /// Authenticate with the App Key
     Authenticate {},
     /// Recover an account via the hardware factor
@@ -104,6 +102,12 @@ enum AccountCommands {
     Rotate {},
     /// Lookup an account by hardware public key
     Lookup { hardware_publickey: String },
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+enum AccountType {
+    Classic,
+    Software,
 }
 
 #[derive(Clone, Subcommand)]
@@ -197,13 +201,13 @@ fn main() -> Result<()> {
         Commands::Pair { network, fake } => commands::pair::pair(&db, network, fake)?,
         Commands::Wipe {} => commands::wipe()?,
         Commands::Account { command } => match command {
-            AccountCommands::Create {} => commands::account::create(&client, &db)?,
+            AccountCommands::Create { account_type } => {
+                commands::account::create(&client, &db, &account_type)?
+            }
             AccountCommands::Authenticate {} => {
-                commands::account::authenticate_with_app_key(&db, &cli.auth_client_id)?
+                commands::account::authenticate_with_app_key(&client, &db)?
             }
-            AccountCommands::Recover {} => {
-                commands::account::recover(&client, &db, &cli.auth_client_id)?
-            }
+            AccountCommands::Recover {} => commands::account::recover(&client, &db)?,
             AccountCommands::Rotate {} => commands::account::rotate(&client, &db)?,
             AccountCommands::Lookup { hardware_publickey } => {
                 commands::account::lookup(&client, hardware_publickey)?
@@ -271,12 +275,7 @@ fn main() -> Result<()> {
         },
         Commands::EndToEnd {
             ref treasury_root_key,
-        } => commands::end_to_end::end_to_end(
-            &client,
-            blockchain,
-            &cli.auth_client_id,
-            treasury_root_key,
-        )?,
+        } => commands::end_to_end::end_to_end(&client, blockchain, treasury_root_key)?,
         Commands::Firmware { command } => match command {
             FirmwareCommands::Metadata {} => commands::firmware::metadata()?,
             FirmwareCommands::Upload {

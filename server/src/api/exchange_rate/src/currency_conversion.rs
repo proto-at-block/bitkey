@@ -1,7 +1,8 @@
 use async_trait::async_trait;
-
+use time::OffsetDateTime;
 use tracing::instrument;
 
+use crate::chart::ExchangeRateChartProvider;
 use crate::error::ExchangeRateError::{
     ProviderUnreachable, UnsupportedDestinationCurrency, UnsupportedSourceCurrency,
 };
@@ -15,6 +16,7 @@ use types::currencies::{Currency, CurrencyCode};
 use types::exchange_rate::bitstamp::{BitstampRate, BitstampRateProvider};
 use types::exchange_rate::cash::{CashAppQuote, CashAppRateProvider};
 use types::exchange_rate::local_rate_provider::{LocalRateProvider, LocalRateType};
+use types::exchange_rate::PriceAt;
 
 #[instrument(err, skip(exchange_rate_service, rate_provider, money))]
 pub async fn sats_for<T>(
@@ -160,6 +162,29 @@ impl ExchangeRateProvider for LocalRateProvider {
 
     fn rate_provider_type() -> ExchangeRateProviderType {
         ExchangeRateProviderType::Local
+    }
+}
+
+#[async_trait]
+impl ExchangeRateChartProvider for LocalRateProvider {
+    async fn full_chart_data(
+        &self,
+        _currency: &CurrencyCode,
+        _days: u16,
+    ) -> Result<Vec<PriceAt>, ExchangeRateError> {
+        self.increment_network_call_count().await;
+
+        let price = self
+            .rate_to_return
+            .ok_or_else(|| ProviderResponseError::Deserialization(Self::rate_provider_type()))?;
+
+        let timestamp =
+            OffsetDateTime::from_unix_timestamp(self.rate_timestamp.ok_or_else(|| {
+                ProviderResponseError::Deserialization(Self::rate_provider_type())
+            })?)
+            .map_err(|_| ProviderResponseError::Deserialization(Self::rate_provider_type()))?;
+
+        Ok(vec![PriceAt { timestamp, price }])
     }
 }
 

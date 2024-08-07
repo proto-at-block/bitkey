@@ -1,11 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.help
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.socrec.DelegatedDecryptionKey
@@ -13,12 +8,7 @@ import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.recovery.socrec.SocialChallengeError
 import build.wallet.recovery.socrec.SocialChallengeVerifier
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.EnterRecoveryCodeFormBodyModel
@@ -47,7 +37,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
           onBack = props.onExit,
           onTextMessageClick = { uiState = UiState.ViewingSecurityNotice },
           onEmailClick = { uiState = UiState.ViewingSecurityNotice },
-          onPhoneCallClick = { uiState = UiState.ConfirmingIdentity },
+          onPhoneCallClick = { uiState = UiState.ViewingSecurityNotice },
           onVideoChatClick = { uiState = UiState.ConfirmingIdentity },
           onInPersonClick = { uiState = UiState.ConfirmingIdentity }
         ).asModalScreen()

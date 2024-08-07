@@ -1,8 +1,10 @@
 package build.wallet.f8e.onboarding.frost
 
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.SoftwareAccountId
 import build.wallet.bitkey.f8e.SoftwareKeysetId
+import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.ktor.result.NetworkingError
@@ -16,5 +18,7 @@ interface InitiateDistributedKeygenF8eClient {
     f8eEnvironment: F8eEnvironment,
     accountId: SoftwareAccountId,
     appAuthKey: PublicKey<AppGlobalAuthKey>,
+    networkType: BitcoinNetworkType,
+    hwAuthKey: HwAuthPublicKey,
   ): Result<SoftwareKeysetId, NetworkingError>
 }

@@ -2,11 +2,11 @@
     "module-identifier": "androidx.lifecycle:lifecycle-viewmodel-savedstate",
     "components": [
         {
-            "version": "2.7.0",
+            "version": "2.8.1",
             "variants": [
                 {
                     "artifacts": {
-                        "lifecycle-viewmodel-savedstate-2.7.0.aar": "57c578862e219e360c6957ff0bca6f169707b1e5582d4fa593e284f7f63e33f6"
+                        "lifecycle-viewmodel-savedstate-2.8.1.aar": "9dd54a05fabc8029fbfbbc4a6b74f946d70523e84ee246f7098669423e426708"
                     }
                 }
             ],

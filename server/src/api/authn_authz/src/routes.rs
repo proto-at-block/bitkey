@@ -15,6 +15,8 @@ use errors::ApiError;
 use http_server::swagger::{SwaggerEndpoint, Url};
 use types::account::identifiers::AccountId;
 
+use crate::metrics::{FACTORY, FACTORY_NAME};
+
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(pub UserPoolService, pub AccountService);
 
@@ -25,6 +27,7 @@ impl RouteState {
             .route("/api/hw-auth", post(authenticate_with_hardware))
             .route("/api/authenticate", post(authenticate))
             .route("/api/authenticate/tokens", post(get_tokens))
+            .route_layer(FACTORY.route_layer(FACTORY_NAME.to_owned()))
             .with_state(self.to_owned())
     }
 }

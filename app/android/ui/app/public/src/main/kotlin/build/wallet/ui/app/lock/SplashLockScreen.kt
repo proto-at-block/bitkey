@@ -8,10 +8,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import build.wallet.android.ui.core.R
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.bitkey_full_logo
 import build.wallet.statemachine.core.SplashLockModel
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.icon.Icon
@@ -23,6 +23,7 @@ import build.wallet.ui.model.icon.IconSize
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun SplashLockScreen(model: SplashLockModel) {
@@ -40,7 +41,7 @@ fun SplashLockScreen(model: SplashLockModel) {
         .height(25.dp)
     ) {
       androidx.compose.material3.Icon(
-        painter = painterResource(R.drawable.bitkey_full_logo),
+        painter = painterResource(Res.drawable.bitkey_full_logo),
         contentDescription = "Bitkey Logo",
         tint = Color.White.copy(alpha = 0.5F)
       )

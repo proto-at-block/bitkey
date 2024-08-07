@@ -2,11 +2,11 @@
     "module-identifier": "androidx.annotation:annotation-jvm",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-jvm-1.7.1.jar": "e36b8e4b8393a4adc74e3d4ab22ad5a36396f0cea2e40b5734eae14937dfd224"
+                        "annotation-jvm-1.8.0.jar": "9aab326d9492800991854360ac248f493ce7f7c3183519309b78ace9e240f6f6"
                     }
                 }
             ],

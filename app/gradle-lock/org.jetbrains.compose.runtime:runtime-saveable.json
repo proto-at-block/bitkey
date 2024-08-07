@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.compose.runtime:runtime-saveable",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "runtime-saveable-1.6.11.jar": "92cc01b07410bb1090432f458d0853b127f4c4e1f7036f48fb40bc3a98c07b32"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

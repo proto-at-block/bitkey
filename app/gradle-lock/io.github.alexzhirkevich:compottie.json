@@ -1,0 +1,18 @@
+{
+    "module-identifier": "io.github.alexzhirkevich:compottie",
+    "components": [
+        {
+            "version": "2.0.0-beta02",
+            "variants": [
+                {
+                    "artifacts": {
+                        "compottie-metadata-2.0.0-beta02.jar": "7ae10a7cb997ec50ea7234bf865e9782e3ccba7dc13b80b3ab58bee398a8aa33"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

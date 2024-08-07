@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-assignment",
     "components": [
         {
-            "version": "1.9.22",
+            "version": "1.9.23",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-assignment-1.9.22-gradle82.jar": "49b8075fa0e218ba11ba18a6f72504dfc5f0399428becf136bdc871dc78180c5"
+                        "kotlin-assignment-1.9.23-gradle82.jar": "9ae832be35049c828db2b777e779daa5c4ee807e80df10781ce3e340af819cba"
                     }
                 }
             ],

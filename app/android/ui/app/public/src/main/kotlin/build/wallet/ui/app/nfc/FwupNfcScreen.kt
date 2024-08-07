@@ -39,13 +39,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.android_nfc_tap
 import build.wallet.android.ui.core.R
 import build.wallet.statemachine.core.TimerDirection.Clockwise
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
@@ -68,6 +69,7 @@ import build.wallet.ui.tooling.PreviewWalletTheme
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.rememberLottieComposition
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun FwupNfcScreen(
@@ -291,7 +293,7 @@ private fun NfcIcon() {
   Image(
     alignment = Alignment.Center,
     modifier = Modifier.size(38.dp),
-    painter = painterResource(R.drawable.android_nfc_tap),
+    painter = painterResource(Res.drawable.android_nfc_tap),
     contentDescription = ""
   )
 }

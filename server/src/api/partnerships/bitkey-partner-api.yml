@@ -1,0 +1,567 @@
+openapi: 3.0.0
+info:
+  title: Bitkey API
+  description: Documentation for the recommended APIs for integrating with Bitkey's partnerships platform. Includes the recommended authentication method, and APIs for Capabilities, Transactions and Quotes.
+  version: 1.0.0
+paths:
+  /transactions:
+    post:
+      summary: Create a new transaction
+      security:
+        - signatureAuth: []
+      parameters:
+        - name: Bitkey-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: ECDSA signature for the request
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            example: application/json
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            example: application/json
+      requestBody:
+        description: Transaction object that needs to be added to the system
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                external_id:
+                  type: string
+                  description: A unique identifier for a transaction provided by Bitkey
+                type:
+                  type: string
+                  enum: [PURCHASE, RECEIVE, SEND, SELL]
+                  description: Type of transaction
+                destination_address:
+                  type: string
+                  description: The wallet address where funds will be deposited
+                fiat_amount:
+                  type: integer
+                  description: The amount in cents (required for PURCHASE)
+                crypto_amount:
+                  type: integer
+                  description: The amount in sats (required for SELL)
+            examples:
+              purchase:
+                summary: A purchase transaction
+                value:
+                  external_id: "txn_001"
+                  type: "PURCHASE"
+                  destination_address: "bc1pqp2v0xza0w7xr8t8v3d3p9w0t9sqvldgmdqh4c"
+                  fiat_amount: 100000
+              receive:
+                summary: A receive transaction
+                value:
+                  external_id: "txn_002"
+                  type: "RECEIVE"
+                  destination_address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kcrl0u5"
+              send:
+                summary: A send transaction
+                value:
+                  external_id: "txn_003"
+                  type: "SEND"
+              sell:
+                summary: A sell transaction
+                value:
+                  external_id: "txn_004"
+                  type: "SELL"
+                  crypto_amount: 5000000
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                purchase:
+                  summary: A purchase transaction
+                  value:
+                    external_id: "txn_001"
+                    type: "PURCHASE"
+                    status: "PENDING"
+                    destination_address: "bc1pqp2v0xza0w7xr8t8v3d3p9w0t9sqvldgmdqh4c"
+                    partner_redirect_url: "https://example.com/transaction/txn_001"
+                    updates_url: "https://example.com/transaction/txn_001"
+                    crypto_amount: 5000000
+                    fiat_amount: 100000
+                    fiat_currency: "USD"
+                    payment_method: "CARD"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:00:00Z"
+                receive:
+                  summary: A receive transaction
+                  value:
+                    external_id: "txn_002"
+                    type: "RECEIVE"
+                    status: "PENDING"
+                    destination_address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kcrl0u5"
+                    partner_redirect_url: "https://example.com/transaction/txn_002"
+                    updates_url: "https://example.com/transaction/txn_002"
+                    crypto_amount: 3000000
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:00:00Z"
+                send:
+                  summary: A send transaction
+                  value:
+                    external_id: "txn_003"
+                    type: "SEND"
+                    status: "PENDING"
+                    updates_url: "https://example.com/transaction/txn_003"
+                    partner_redirect_url: "https://example.com/transaction/txn_003"
+                    crypto_amount: 2000000
+                    txid: "txhash_001"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:00:00Z"
+                sell:
+                  summary: A sell transaction
+                  value:
+                    external_id: "txn_004"
+                    type: "SELL"
+                    status: "PENDING"
+                    updates_url: "https://example.com/transaction/txn_004"
+                    partner_redirect_url: "https://example.com/transaction/txn_004"
+                    crypto_amount: 1000000
+                    fiat_amount: 20000
+                    fiat_currency: "USD"
+                    payment_method: "BANK_ACCOUNT"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:00:00Z"
+  /transactions/{external_id}:
+    get:
+      summary: Get a transaction by external_id
+      security:
+        - signatureAuth: []
+      parameters:
+        - name: external_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: Bitkey-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Public-private key signature for the request
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            example: application/json
+      responses:
+        '200':
+          description: A transaction object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+              examples:
+                purchase:
+                  summary: A purchase transaction
+                  value:
+                    external_id: "txn_001"
+                    type: "PURCHASE"
+                    status: "SUCCESS"
+                    destination_address: "bc1pqp2v0xza0w7xr8t8v3d3p9w0t9sqvldgmdqh4c"
+                    updates_url: "https://example.com/transaction/txn_001"
+                    crypto_amount: 5000000
+                    txid: "txhash_002"
+                    fiat_amount: 100000
+                    fiat_currency: "USD"
+                    payment_method: "CARD"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:30:00Z"
+                receive:
+                  summary: A receive transaction
+                  value:
+                    external_id: "txn_002"
+                    type: "RECEIVE"
+                    status: "SUCCESS"
+                    destination_address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kcrl0u5"
+                    updates_url: "https://example.com/transaction/txn_002"
+                    crypto_amount: 3000000
+                    txid: "txhash_003"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:30:00Z"
+                send:
+                  summary: A send transaction
+                  value:
+                    external_id: "txn_003"
+                    type: "SEND"
+                    status: "SUCCESS"
+                    updates_url: "https://example.com/transaction/txn_003"
+                    crypto_amount: 2000000
+                    txid: "txhash_001"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:30:00Z"
+                sell:
+                  summary: A sell transaction
+                  value:
+                    external_id: "txn_004"
+                    type: "SELL"
+                    status: "SUCCESS"
+                    updates_url: "https://example.com/transaction/txn_004"
+                    crypto_amount: 1000000
+                    fiat_amount: 20000
+                    fiat_currency: "USD"
+                    payment_method: "BANK_ACCOUNT"
+                    created_at: "2023-07-02T12:00:00Z"
+                    updated_at: "2023-07-02T12:30:00Z"
+        '404':
+          description: Transaction not found
+  /quotes:
+    post:
+      summary: Create a new quote
+      security:
+        - signatureAuth: []
+      parameters:
+        - name: Bitkey-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Public-private key signature for the request
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            example: application/json
+        - name: Content-Type
+          in: header
+          required: true
+          schema:
+            type: string
+            example: application/json
+      requestBody:
+        description: Quote object that needs to be added to the system
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: A unique identifier for a quote generated by the partner
+                type:
+                  type: string
+                  enum: [PURCHASE, SALE]
+                  description: Type of quote
+                crypto_amount:
+                  type: integer
+                  description: The amount in sats
+                fiat_amount:
+                  type: integer
+                  description: The amount in cents
+                fiat_currency:
+                  type: string
+                  description: ISO 4217 currency code
+                network_fee_crypto:
+                  type: integer
+                  description: The estimated bitcoin network fee
+                partner_fee_fiat:
+                  type: integer
+                  description: The fees charged by the partner
+                created_at:
+                  type: string
+                  format: ISO 8601
+                expires_at:
+                  type: string
+                  format: ISO 8601
+            examples:
+              purchase:
+                summary: A purchase quote
+                value:
+                  type: "PURCHASE"
+                  fiat_amount: 100000
+                  fiat_currency: "USD"
+              sale:
+                summary: A sale quote
+                value:
+                  type: "SALE"
+                  crypto_amount: 3000000
+      responses:
+        '201':
+          description: Quote created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quote'
+              examples:
+                purchase:
+                  summary: A purchase quote
+                  value:
+                    id: "quote_001"
+                    type: "PURCHASE"
+                    crypto_amount: 5000000
+                    fiat_amount: 100000
+                    fiat_currency: "USD"
+                    network_fee_crypto: 10000
+                    partner_fee_fiat: 500
+                    created_at: "2023-07-02T12:00:00Z"
+                    expires_at: "2023-07-02T12:30:00Z"
+                sale:
+                  summary: A sale quote
+                  value:
+                    id: "quote_002"
+                    type: "SALE"
+                    crypto_amount: 3000000
+                    fiat_amount: 60000
+                    fiat_currency: "USD"
+                    partner_fee_fiat: 300
+                    created_at: "2023-07-02T12:00:00Z"
+                    expires_at: "2023-07-02T12:30:00Z"
+  /capabilities:
+    get:
+      summary: Get capabilities for a country
+      security:
+        - signatureAuth: []
+      parameters:
+        - name: country
+          in: query
+          required: true
+          schema:
+            type: string
+          description: The country code (ISO 3166-1 alpha-2) to get capabilities for
+        - name: Bitkey-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Public-private key signature for the request
+        - name: Accept
+          in: header
+          required: true
+          schema:
+            type: string
+            example: application/json
+        - name: Cache-Control
+          in: header
+          required: true
+          schema:
+            type: string
+            example: no-cache
+          description: Cache control directive
+      responses:
+        '200':
+          description: Capabilities for the specified country
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+              examples:
+                usa:
+                  summary: Capabilities for the USA
+                  value:
+                    country: "US"
+                    transactions:
+                      - type: "PURCHASE"
+                        currencies:
+                          - currency: "USD"
+                            payment_methods:
+                              - method: "CARD"
+                                min_limit: 1000
+                                max_limit: 5000000
+                              - method: "BANK_ACCOUNT"
+                                min_limit: 5000
+                                max_limit: 10000000
+                      - type: "SELL"
+                        currencies:
+                          - currency: "USD"
+                            payment_methods:
+                              - method: "BANK_ACCOUNT"
+                                min_limit: 1000
+                                max_limit: 5000000
+                      - type: "SEND"
+                      - type: "RECEIVE"
+components:
+  securitySchemes:
+    signatureAuth:
+      type: apiKey
+      in: header
+      name: Bitkey-Signature
+      description: |
+        Requests will be authenticated via ECDSA signature verification. A signed certificate in DER format will be provided by Bitkey.
+
+
+        The `Bitkey-Signature` header contains a nonce, a timestamp and a signature.
+
+
+        **Format:**
+        ```
+        Bitkey-Signature: n=<nonce>|t=<timestamp>|v1=<signature>
+        ```
+
+        - **Nonce**: A random string generated by Bitkey for each request.
+        - **Timestamp**: The current Unix timestamp in milliseconds. The timestamp should be within 5 minutes of the server time to prevent replay attacks.
+        - **Signature**: The signature of the signed_payload string using the private key.
+          - Algorithm: ECDSA
+          - Curve: P-256 (prime256v1, secp256r1)
+          - Hash Function: SHA-256
+
+        **Steps to verify the signature:**
+
+        1. **Extract nonce, timestamp and signature from the header:**
+           - Split the header using the `|` character as the separator to get a list of elements.
+           - Split each element using the `=` character to get a prefix and value pair.
+           - The value for the prefix `n` corresponds to the nonce, `t` corresponds to the timestamp, and `v1` corresponds to the signature.
+
+        2. **Rebuild the payload:**
+           - Concatenate the nonce, the timestamp and the request body using the character `|` as a separator
+             - `payload = nonce + "|" + timestamp + "|" + body`
+             - For a POST request, body is the actual JSON payload (i.e., the request's body).
+             - For a GET request, body is the query string (e.g., `transaction_id=adbb317d-cde9-4ebb-93a3-1b271812de06`).
+
+        3. **Decode the Signature:**
+           - The signature received is Base64 encoded. Decode this signature to get the actual byte array. Pseudo code:
+           ```
+            signatureBytes = base64Decoder.decode(signature)
+           ```
+        4. **Extract public key:**
+            - Extract the public key from the certificate provided by Bitkey. Pseudo code:
+            ```
+              certificate = x509CertificateService.loadCertificateDer(certificateDer)
+              publicKey = certificate.getPublicKey()
+            ```
+        5. **Prepare for ECDSA Verification:**
+           - Initialize the ECDSA verifier with the SHA-256 algorithm and the public key. Pseudo code:
+           ```
+              ecdsaVerify = SignatureVerifier(ECDSA_P256_SHA256_ASN1, publicKey)
+              ecdsaVerify.update(payload.getBytes(UTF8))
+           ```
+        6. **Verify the Signature:**
+            ```
+              isSignatureValid = ecdsaVerify.verify(signatureBytes)
+            ```
+  schemas:
+    Transaction:
+      type: object
+      properties:
+        external_id:
+          type: string
+          description: A unique identifier for a transaction provided by Bitkey
+        type:
+          type: string
+          enum: [PURCHASE, RECEIVE, SEND, SELL]
+        status:
+          type: string
+          enum: [CREATED, PENDING, SUCCESS, FAILED]
+        status_reason:
+          type: string
+          description: Additional details like why a transaction is PENDING or FAILED
+        destination_address:
+          type: string
+          description: The wallet address where funds will be deposited. For PURCHASE and RECEIVE, this will be provided by Bitkey when a transaction is created and it will be in Bech32m format. For SEND and SELL, this will be provided by the partner after the transaction is created.
+        partner_redirect_url:
+          type: string
+          description: A URL that will redirect customers to the partner's web widget
+        updates_url:
+          type: string
+          description: A URL that will show transaction details to customers
+        crypto_amount:
+          type: integer
+          description: For PURCHASE or RECEIVE transactions, this will be the amount of sats that will get deposited into Bitkey. For SEND or SELL transactions, this will be the amount of sats that will be deposited into the partner's wallet.
+        txid:
+          type: string
+          description: The bitcoin transaction hash
+        fiat_amount:
+          type: integer
+          description: For PURCHASE transactions this should be the total purchase price inclusive of all fees in cents. For SELL transactions, this should be the total amount in cents that will be deposited in a customer's account.
+        fiat_currency:
+          type: string
+          description: ISO 4217 currency code
+        payment_method:
+          type: string
+          enum: [CARD, BANK_ACCOUNT, OTHER]
+        created_at:
+          type: string
+          format: ISO 8601
+        updated_at:
+          type: string
+          format: ISO 8601
+    Quote:
+      type: object
+      properties:
+        id:
+          type: string
+          description: A unique identifier for a quote generated by the partner
+        type:
+          type: string
+          enum: [PURCHASE, SALE]
+        crypto_amount:
+          type: integer
+          description: For PURCHASE quotes, this will be provided by partners and will be the amount of sats that will get deposited into Bitkey. For SELL quotes, this will be provided by Bitkey and will be the amount of sats that will be deposited into the partner's wallet.
+        fiat_amount:
+          type: integer
+          description: For PURCHASE quotes, this will be provided by Bitkey and it will be the total purchase price inclusive of all fees in cents. For SELL quotes, this will be provided by the partner and it should be the total amount in cents that will be deposited in a customer's account.
+        fiat_currency:
+          type: string
+          description: ISO 4217 currency code
+        network_fee_crypto:
+          type: integer
+          description: The estimated bitcoin network fee in sats
+        partner_fee_fiat:
+          type: integer
+          description: The fees in cents charged by the partner
+        created_at:
+          type: string
+          format: ISO 8601
+        updated_at:
+          type: string
+          format: ISO 8601
+    Capabilities:
+      type: object
+      properties:
+        country:
+          type: string
+          description: The country code (ISO 3166-1 alpha-2)
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionCapability'
+    TransactionCapability:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [PURCHASE, RECEIVE, SEND, SELL]
+        currencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/CurrencyCapability'
+    CurrencyCapability:
+      type: object
+      properties:
+        currency:
+          type: string
+          description: ISO 4217 currency code
+        payment_methods:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentMethodCapability'
+    PaymentMethodCapability:
+      type: object
+      properties:
+        method:
+          type: string
+          enum: [CARD, BANK_ACCOUNT, OTHER]
+        min_limit:
+          type: integer
+          description: Minimum limit in cents
+        max_limit:
+          type: integer
+          description: Maximum limit in cents

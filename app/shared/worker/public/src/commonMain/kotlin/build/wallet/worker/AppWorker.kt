@@ -18,5 +18,5 @@ fun interface AppWorker {
    *
    * This coroutine will be only cancelled when the application is terminated.
    */
-  suspend fun execute()
+  suspend fun executeWork()
 }

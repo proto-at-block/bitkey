@@ -37,8 +37,7 @@ import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.feature.FeatureFlag
-import build.wallet.feature.FeatureFlagInitializer
-import build.wallet.feature.FeatureFlagSyncer
+import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.*
 import build.wallet.firmware.FirmwareDeviceInfoDao
 import build.wallet.firmware.FirmwareMetadataDao
@@ -134,8 +133,7 @@ interface AppComponent {
   val eventTracker: EventTracker
   val extendedKeyGenerator: ExtendedKeyGenerator
   val f8eHttpClient: F8eHttpClient
-  val featureFlagInitializer: FeatureFlagInitializer
-  val featureFlagSyncer: FeatureFlagSyncer
+  val featureFlagService: FeatureFlagService
   val feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag
   val fiatCurrencyDao: FiatCurrencyDao
   val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository

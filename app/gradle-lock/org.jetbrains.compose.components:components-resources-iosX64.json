@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.components:components-resources-iosX64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "library-iosx64-1.6.11-metadata.jar": "86f77a1a692024298bb83a01054a5730f49253cc6de3f366190ccf226beed567"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "library.klib": "22c3ea6bb8fe26363c5493ab07f1430d80fcd9f3daa89c77916f5dd00f5760aa"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

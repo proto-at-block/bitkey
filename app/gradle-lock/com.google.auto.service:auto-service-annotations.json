@@ -11,7 +11,7 @@
                 }
             ],
             "dependency-locking-groups": [
-                "kotlin-compiler"
+                "build-classpath"
             ]
         }
     ]

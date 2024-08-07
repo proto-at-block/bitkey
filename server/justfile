@@ -54,7 +54,7 @@ build-bins:
 
 # Run all tests
 test: sidecars
-  {{cargo}} nextest run
+  {{cargo}} nextest run --all-features
 
 # Run server tests
 test-server: sidecars

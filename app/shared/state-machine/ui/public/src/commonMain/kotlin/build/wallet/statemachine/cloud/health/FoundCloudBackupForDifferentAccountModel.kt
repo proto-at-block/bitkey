@@ -22,7 +22,7 @@ internal fun FoundCloudBackupForDifferentAccountModel(
   onBack = onClose,
   toolbar = ToolbarModel(leadingAccessory = CloseAccessory(onClose)),
   header = FormHeaderModel(
-    headline = "This cloud account already in use with another Bitkey",
+    headline = "This cloud account is already in use with another Bitkey",
     subline = """
       The backup for a different Bitkey was found in the connected cloud ${cloudServiceProvider().name} account.
       

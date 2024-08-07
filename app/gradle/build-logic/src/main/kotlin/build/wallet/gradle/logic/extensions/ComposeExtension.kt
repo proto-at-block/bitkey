@@ -42,14 +42,11 @@ open class ComposeExtension
       enableComposeRuntime.set(true)
       enableComposeRuntime.disallowChanges()
 
+      project.pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
       project.run {
         android {
           buildFeatures {
             compose = true
-          }
-
-          composeOptions {
-            kotlinCompilerExtensionVersion = libs.versions.android.compose.ui.compiler.get()
           }
         }
 
@@ -73,6 +70,7 @@ open class ComposeExtension
       enableComposeUi.set(true)
       enableComposeUi.disallowChanges()
 
+      project.pluginManager.apply("org.jetbrains.compose")
       project.run {
         dependencies {
           implementation(libs.android.compose.ui.core)
@@ -89,5 +87,5 @@ open class ComposeExtension
     }
   }
 
-private fun Project.android(configure: Action<CommonExtension<*, *, *, *, *>>): Unit =
+private fun Project.android(configure: Action<CommonExtension<*, *, *, *, *, *>>): Unit =
   extensions.configure("android", configure)

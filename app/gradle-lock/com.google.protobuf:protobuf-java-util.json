@@ -2,11 +2,11 @@
     "module-identifier": "com.google.protobuf:protobuf-java-util",
     "components": [
         {
-            "version": "3.19.3",
+            "version": "3.22.3",
             "variants": [
                 {
                     "artifacts": {
-                        "protobuf-java-util-3.19.3.jar": "1ec0733f32d49f8194fb5452613039370623715739568a6d3c987d9a7809c16c"
+                        "protobuf-java-util-3.22.3.jar": "c615f76879dc5c303e4df5b94a6afa39534058c7545db2d483fd95d9f63c8bfe"
                     }
                 }
             ],

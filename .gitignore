@@ -47,3 +47,6 @@ build/*
 
 # Node
 node_modules
+
+# CLI tool DB file
+cli/wallet.db/*

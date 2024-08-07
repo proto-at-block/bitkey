@@ -3,17 +3,9 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import app.cash.turbine.ReceiveTurbine
-import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
+import build.wallet.analytics.events.screen.id.*
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.LOADING_RESTORING_FROM_CLOUD_BACKUP
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId.BEING_TRUSTED_CONTACT_INTRODUCTION
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TRUSTED_CONTACTS_LIST
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountFake
@@ -29,14 +21,7 @@ import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
-import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
-import build.wallet.statemachine.ui.awaitUntilScreenWithBody
-import build.wallet.statemachine.ui.clickMainContentListFooterButton
-import build.wallet.statemachine.ui.clickMainContentListItemTrailingButtonAtIndex
-import build.wallet.statemachine.ui.clickPrimaryButton
-import build.wallet.statemachine.ui.findMainContentListItem
-import build.wallet.statemachine.ui.getMainContentListItemAtIndex
-import build.wallet.statemachine.ui.inputTextToMainContentTextInputItem
+import build.wallet.statemachine.ui.*
 import build.wallet.statemachine.ui.matchers.hasProtectedCustomers
 import build.wallet.statemachine.ui.matchers.shouldHaveId
 import build.wallet.statemachine.ui.matchers.shouldHaveMessage
@@ -320,7 +305,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH
   )
-    .findMainContentListItem { it.title == "Phone Call" }
+    .findMainContentListItem { it.title == "Video Chat" }
     .onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CONTACT_CONFIRMATION
@@ -387,7 +372,7 @@ suspend fun ReceiveTurbine<ScreenModel>.advanceThroughSocialChallengeVerifyScree
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_GET_IN_TOUCH
   )
-    .findMainContentListItem { it.title == "Phone Call" }
+    .findMainContentListItem { it.title == "Video Chat" }
     .onClick.shouldNotBeNull().invoke()
   awaitUntilScreenWithBody<FormBodyModel>(
     SocialRecoveryEventTrackerScreenId.TC_RECOVERY_CONTACT_CONFIRMATION

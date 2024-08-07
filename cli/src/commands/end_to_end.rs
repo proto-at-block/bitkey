@@ -5,9 +5,9 @@ use std::str::FromStr;
 use tracing::info;
 
 use crate::cache::FromCache;
-use crate::commands;
 use crate::db::transactions::FromDatabase;
 use crate::entities::{Account, SignerHistory};
+use crate::{commands, AccountType};
 use bdk::bitcoin::secp256k1::rand;
 use bdk::bitcoin::{Address, Network};
 use bdk::blockchain::{Blockchain, ElectrumBlockchain};
@@ -21,7 +21,6 @@ use tokio::runtime::Runtime;
 pub fn end_to_end(
     client: &Client,
     blockchain: ElectrumBlockchain,
-    auth_client_id: &str,
     treasury_root_key: &Option<String>,
 ) -> Result<()> {
     let db = open_database()?;
@@ -30,10 +29,10 @@ pub fn end_to_end(
     commands::pair::pair(&db, Network::Signet, true)?;
 
     info!("Creating wallet");
-    commands::account::create(client, &db)?;
+    commands::account::create(client, &db, &AccountType::Classic)?;
 
     info!("Authenticating to server");
-    commands::account::authenticate_with_app_key(&db, auth_client_id)?;
+    commands::account::authenticate_with_app_key(client, &db)?;
 
     info!("Setting up Mobilepay for 100,000,000 sats");
     commands::wallet::setup_mobile_pay(client, &db, 100_000_000)?;

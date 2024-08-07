@@ -2,16 +2,16 @@
     "module-identifier": "com.rickclephas.kmp:kmp-nativecoroutines-compiler-embeddable",
     "components": [
         {
-            "version": "0.13.3",
+            "version": "1.0.0-ALPHA-31",
             "variants": [
                 {
                     "artifacts": {
-                        "kmp-nativecoroutines-compiler-embeddable-0.13.3.jar": "52d5823ccf6382e30f7ef7937ebfb7175219877b9d7c1ad3625e955b99fe8210"
+                        "kmp-nativecoroutines-compiler-embeddable-1.0.0-ALPHA-31.jar": "7ec33d4d91665d2c2bf2be1d9741bce48ef376d50ccfc4ea02110aac9ef411ad"
                     }
                 }
             ],
             "dependency-locking-groups": [
-                "kotlin-compiler"
+                "build-classpath"
             ]
         }
     ]

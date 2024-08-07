@@ -67,7 +67,9 @@ dependencies {
   compileOnly(gradleApi())
 
   compileOnly(libs.pluginClasspath.android)
-  compileOnly(libs.pluginClasspath.android.paparazzi)
+  compileOnly(libs.pluginClasspath.android.paparazzi) {
+    exclude("org.jetbrains.kotlin", "kotlin-stdlib")
+  }
   compileOnly(libs.pluginClasspath.detekt)
   compileOnly(libs.pluginClasspath.gradleEnterprise)
   compileOnly(libs.pluginClasspath.kmp)
@@ -77,9 +79,7 @@ dependencies {
   compileOnly(libs.pluginClasspath.kotlin)
   compileOnly(libs.pluginClasspath.wire)
 
-  implementation(libs.pluginClasspath.redacted) {
-    exclude("org.jetbrains.kotlin", "kotlin-stdlib")
-  }
+  implementation(libs.pluginClasspath.redacted)
   implementation(libs.pluginClasspath.bugsnag.android) {
     exclude("org.jetbrains.kotlin")
   }

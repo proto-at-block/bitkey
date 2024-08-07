@@ -1,0 +1,23 @@
+{
+    "module-identifier": "org.jetbrains.compose.animation:animation-uikitx64",
+    "components": [
+        {
+            "version": "1.6.11",
+            "variants": [
+                {
+                    "artifacts": {
+                        "animation-uikitx64-1.6.11-metadata.jar": "a4f150fb143f2e45008c913a625263f0f0523d1179736d76b8dcb78b58333a06"
+                    }
+                },
+                {
+                    "artifacts": {
+                        "animation.klib": "80520f790aa37ed943282d3f053ef374dd3a0c2f73162af30277e1dfa9aebb80"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

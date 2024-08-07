@@ -2,11 +2,11 @@
     "module-identifier": "io.netty:netty-buffer",
     "components": [
         {
-            "version": "4.1.72.Final",
+            "version": "4.1.93.Final",
             "variants": [
                 {
                     "artifacts": {
-                        "netty-buffer-4.1.72.Final.jar": "568ff7cd9d8e2284ec980730c88924f686642929f8f219a74518b4e64755f3a1"
+                        "netty-buffer-4.1.93.Final.jar": "007c7d9c378df02d390567d0d7ddf542ffddb021b7313dbf502392113ffabb08"
                     }
                 }
             ],

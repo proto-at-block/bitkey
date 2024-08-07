@@ -12,9 +12,9 @@ StyleDictionary.extend({
   },
   "source": ["tokens/**/*.json"],
   "platforms": {
-    "android": {
+    "shared-ui": {
       "transformGroup": "compose",
-      "buildPath": "../android/ui/core/public/src/main/kotlin/build/wallet/ui/tokens/",
+      "buildPath": "../shared/ui/core/public/src/commonMain/kotlin/build/wallet/ui/tokens/",
       "files": [
         {
           "destination": "StyleDictionaryColors.kt",
@@ -113,6 +113,6 @@ StyleDictionary.extend({
             }
           }
         ]
-      }
+      },
   }
 }).buildAllPlatforms();

@@ -2,16 +2,16 @@
     "module-identifier": "androidx.annotation:annotation-iosx64",
     "components": [
         {
-            "version": "1.7.1",
+            "version": "1.8.0",
             "variants": [
                 {
                     "artifacts": {
-                        "annotation-iosx64-1.7.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "annotation-iosx64-1.8.0-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "annotation.klib": "0e804963c573cc2fd971574bdd77f2c4dfdd275e19a6bf08ab2a55fd00c74a40"
+                        "annotation.klib": "b6ae90382b34cb486e44f5d973b67f90afb649acb476a84995a2ee8ee8c5a187"
                     }
                 }
             ],

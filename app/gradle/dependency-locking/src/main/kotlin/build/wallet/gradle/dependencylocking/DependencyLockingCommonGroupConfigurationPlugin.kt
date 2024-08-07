@@ -52,8 +52,13 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
           "Klibraries",
           "metadata",
           "frameworkExport",
-          "CInterop"
+          "CInterop",
+          "kspClasspath",
+          "ProcessorClasspath",
+          "layoutlibRuntime",
+          "DependenciesMetadata"
         )
+        nameContains("PluginClasspath")
         nameIs(
           "androidApis",
           "protoPath",
@@ -83,6 +88,18 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
         // Linter does not affect the build
         nameContains("lint")
         nameIs("detekt", "detektPlugins")
+      } then {
+        isLocked.set(false)
+      }
+
+      ifMatches {
+        nameContains("_internal-unified-test")
+        nameIs("kotlinNativeBundleConfiguration")
+        nameEndsWith(
+          "DependencySources",
+          "COMPOSE_SKIKO_JS_WASM_RUNTIME",
+          "layoutlibResources"
+        )
       } then {
         isLocked.set(false)
       }

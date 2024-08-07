@@ -2,6 +2,19 @@
     "module-identifier": "io.grpc:grpc-context",
     "components": [
         {
+            "version": "1.57.0",
+            "variants": [
+                {
+                    "artifacts": {
+                        "grpc-context-1.57.0.jar": "953fcacd82f531e69b76e3834f5830bad4c22ae84144e058d71dc80a7430275d"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        },
+        {
             "version": "1.60.1",
             "variants": [
                 {

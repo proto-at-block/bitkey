@@ -24,13 +24,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import build.wallet.android.ui.core.R
+import bitkey.shared.ui_core_public.generated.resources.Res
+import bitkey.shared.ui_core_public.generated.resources.bitkey_logo_mark
+import bitkey.shared.ui_core_public.generated.resources.bitkey_word_mark
 import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.ui.tooling.PreviewWalletTheme
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 import kotlin.time.Duration.Companion.ZERO
 import kotlin.time.Duration.Companion.seconds
 
@@ -76,7 +78,7 @@ fun SplashScreen(model: SplashBodyModel) {
 private fun BitkeyLogoMark() {
   Icon(
     modifier = Modifier.height(38.dp),
-    painter = painterResource(R.drawable.bitkey_logo_mark),
+    painter = painterResource(Res.drawable.bitkey_logo_mark),
     contentDescription = "Bitkey Logo",
     tint = Color.White
   )
@@ -89,7 +91,7 @@ private fun BitkeyWordMark() {
       Modifier
         .padding(top = 5.dp)
         .height(38.dp),
-    painter = painterResource(R.drawable.bitkey_word_mark),
+    painter = painterResource(Res.drawable.bitkey_word_mark),
     contentDescription = "Bitkey",
     tint = Color.White
   )

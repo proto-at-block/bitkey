@@ -2,11 +2,11 @@
     "module-identifier": "org.jetbrains.compose.runtime:runtime",
     "components": [
         {
-            "version": "1.6.1",
+            "version": "1.6.11",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-1.6.1.jar": "5040476848646fc83bb67428ac8acc82fb2c227b7b75c8b26f4913d709a68bd2"
+                        "runtime-1.6.11.jar": "484e41582d425a86a57ead9ebe4a2573ae9d67a83b168b70ab0b190b067a4544"
                     }
                 }
             ],

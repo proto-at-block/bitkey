@@ -2,19 +2,6 @@
     "module-identifier": "org.ow2.asm:asm",
     "components": [
         {
-            "version": "9.2",
-            "variants": [
-                {
-                    "artifacts": {
-                        "asm-9.2.jar": "b9d4fe4d71938df38839f0eca42aaaa64cf8b313d678da036f0cb3ca199b47f5"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "gradle-plugins[bitkey]"
-            ]
-        },
-        {
             "version": "9.3",
             "variants": [
                 {
@@ -25,6 +12,19 @@
             ],
             "dependency-locking-groups": [
                 "build-classpath"
+            ]
+        },
+        {
+            "version": "9.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "asm-9.6.jar": "3c6fac2424db3d4a853b669f4e3d1d9c3c552235e19a319673f887083c2303a1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
             ]
         }
     ]
