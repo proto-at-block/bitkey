@@ -20,8 +20,8 @@ targets:
         CODE_SIGN_STYLE: Manual
         ENABLE_BITCODE: false
         PROJECT_BUNDLE_NAME: W1 Beta
-        PROJECT_BUNDLE_SHORT_VERSION: 2024.66.0
-        PROJECT_BUNDLE_VERSION: 7
+        PROJECT_BUNDLE_SHORT_VERSION: 2024.67.0
+        PROJECT_BUNDLE_VERSION: 1
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
@@ -139,6 +139,7 @@ targets:
         CFBundleVersion: "$(PROJECT_BUNDLE_VERSION)"
         CFBundleShortVersionString: "$(PROJECT_BUNDLE_SHORT_VERSION)"
         ITSAppUsesNonExemptEncryption: false
+        CADisableMinimumFrameDurationOnPhone: true
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         UIUserInterfaceStyle: Light

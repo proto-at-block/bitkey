@@ -2,20 +2,6 @@
     "module-identifier": "org.jetbrains.kotlin:kotlin-stdlib",
     "components": [
         {
-            "version": "1.9.21",
-            "variants": [
-                {
-                    "artifacts": {
-                        "kotlin-stdlib-1.9.21.jar": "3b479313ab6caea4e5e25d3dee8ca80c302c89ba73e1af4dafaa100f6ef9296a"
-                    }
-                }
-            ],
-            "dependency-locking-groups": [
-                "SQLDelight-DialectClasspath",
-                "SQLDelight-InternalClasspath"
-            ]
-        },
-        {
             "version": "1.9.23",
             "variants": [
                 {
@@ -25,6 +11,8 @@
                 }
             ],
             "dependency-locking-groups": [
+                "SQLDelight-DialectClasspath",
+                "SQLDelight-InternalClasspath",
                 "gradle-plugins[app]",
                 "gradle-plugins[bitkey]"
             ]

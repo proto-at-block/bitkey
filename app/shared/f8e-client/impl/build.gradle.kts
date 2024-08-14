@@ -1,13 +1,21 @@
 import build.wallet.gradle.logic.extensions.targets
+import kotlinx.benchmark.gradle.benchmark
 
 plugins {
   id("build.wallet.kmp")
   id("build.wallet.redacted")
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.kotlinx.benchmark)
 }
 
 kotlin {
   targets(ios = true, jvm = true)
+
+  jvm {
+    compilations.create("benchmark") {
+      associateWith(this@jvm.compilations.named("test").get())
+    }
+  }
 
   sourceSets {
     commonMain {
@@ -45,6 +53,13 @@ kotlin {
         implementation(projects.shared.accountFake)
       }
     }
+
+    val jvmBenchmark by getting {
+      dependencies {
+        implementation(libs.kmp.benchmark)
+      }
+    }
+
     val commonJvmMain by getting {
       dependencies {
         api(libs.jvm.ktor.client.okhttp)
@@ -54,6 +69,25 @@ kotlin {
       dependencies {
         api(libs.native.ktor.client.darwin)
       }
+    }
+  }
+}
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
+}
+
+benchmark {
+  targets {
+    register("jvmBenchmark")
+  }
+  configurations {
+    named("main") {
+      mode = "AverageTime"
+      iterationTime = 5
+      iterationTimeUnit = "s"
+      outputTimeUnit = "ms"
     }
   }
 }

@@ -1,26 +1,26 @@
 package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import build.wallet.compose.collections.immutableListOf
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
-import build.wallet.f8e.F8eEnvironment.Custom
-import build.wallet.f8e.F8eEnvironment.Development
-import build.wallet.f8e.F8eEnvironment.Local
-import build.wallet.f8e.F8eEnvironment.Production
-import build.wallet.f8e.F8eEnvironment.Staging
+import build.wallet.f8e.F8eEnvironment.*
 import build.wallet.f8e.name
 import build.wallet.f8e.url
 import build.wallet.platform.config.AppVariant
-import build.wallet.statemachine.data.keybox.AccountData
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.ui.model.list.ListGroupModel
 import build.wallet.ui.model.list.ListGroupStyle
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
 import build.wallet.ui.model.switch.SwitchModel
+import kotlinx.coroutines.launch
 
 class F8eEnvironmentPickerUiStateMachineImpl(
   private val appVariant: AppVariant,
+  private val debugOptionsService: DebugOptionsService,
 ) : F8eEnvironmentPickerUiStateMachine {
   @Composable
   override fun model(props: F8eEnvironmentPickerUiProps): ListGroupModel? {
@@ -30,56 +30,53 @@ class F8eEnvironmentPickerUiStateMachineImpl(
       AppVariant.Beta, AppVariant.Customer, AppVariant.Emergency -> return null
     }
 
-    val configData =
-      when (val accountData = props.accountData) {
-        is AccountData.NoActiveAccountData.GettingStartedData ->
-          accountData.templateFullAccountConfigData
-        else -> return null
-      }
-    val f8eEnvironment = configData.config.f8eEnvironment
+    val debugOptions = remember { debugOptionsService.options() }
+      .collectAsState(initial = null)
+      .value ?: return null
+
+    val f8eEnvironment = debugOptions.f8eEnvironment
     val customUrl = if (f8eEnvironment is Custom) f8eEnvironment.url else ""
 
     return ListGroupModel(
       header = "F8e Environment",
       style = ListGroupStyle.DIVIDER,
-      items =
-        immutableListOf(
-          F8eEnvironmentOptionModel(props, configData, Production),
-          F8eEnvironmentOptionModel(props, configData, Staging),
-          F8eEnvironmentOptionModel(props, configData, Development),
-          F8eEnvironmentOptionModel(props, configData, Local),
-          F8eEnvironmentOptionModel(props, configData, Custom(customUrl))
-        )
+      items = immutableListOf(
+        F8eEnvironmentOptionModel(props, f8eEnvironment, Production),
+        F8eEnvironmentOptionModel(props, f8eEnvironment, Staging),
+        F8eEnvironmentOptionModel(props, f8eEnvironment, Development),
+        F8eEnvironmentOptionModel(props, f8eEnvironment, Local),
+        F8eEnvironmentOptionModel(props, f8eEnvironment, Custom(customUrl))
+      )
     )
   }
 
   @Composable
   private fun F8eEnvironmentOptionModel(
     props: F8eEnvironmentPickerUiProps,
-    templateFullAccountConfigData:
-      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData,
-    environment: F8eEnvironment,
-  ) = ListItemModel(
-    title = environment.name,
-    secondaryText = environment.url,
-    trailingAccessory =
-      ListItemAccessory.SwitchAccessory(
-        model =
-          SwitchModel(
-            checked = templateFullAccountConfigData.config.f8eEnvironment == environment,
-            onCheckedChange = { isChecked ->
-              if (isChecked) {
-                templateFullAccountConfigData.updateConfig {
-                  it.copy(f8eEnvironment = environment)
-                }
+    currentEnvironment: F8eEnvironment,
+    environmentOption: F8eEnvironment,
+  ): ListItemModel {
+    val scope = rememberStableCoroutineScope()
+    return ListItemModel(
+      title = environmentOption.name,
+      secondaryText = environmentOption.url,
+      trailingAccessory = ListItemAccessory.SwitchAccessory(
+        model = SwitchModel(
+          checked = currentEnvironment == environmentOption,
+          onCheckedChange = { isChecked ->
+            if (isChecked) {
+              scope.launch {
+                debugOptionsService.setF8eEnvironment(environmentOption)
               }
             }
-          )
+          }
+        )
       ),
-    onClick = {
-      if (environment is Custom) {
-        props.openCustomUrlInput(environment.url, templateFullAccountConfigData)
+      onClick = {
+        if (environmentOption is Custom) {
+          props.openCustomUrlInput(environmentOption.url)
+        }
       }
-    }
-  )
+    )
+  }
 }

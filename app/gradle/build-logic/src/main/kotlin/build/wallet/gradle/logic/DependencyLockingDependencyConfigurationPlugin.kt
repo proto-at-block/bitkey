@@ -91,7 +91,8 @@ class DependencyLockingDependencyConfigurationPlugin : Plugin<Project> {
       libs.kmp.kotlin.datetime,
       libs.kmp.okhttp,
       libs.kmp.okio,
-      libs.kmp.test.kotlin.coroutines
+      libs.kmp.test.kotlin.coroutines,
+      libs.jvm.asm
     )
 
     dependencyLockingExtension.commonDependencyLockingGroups.kotlinCompiler.pin(

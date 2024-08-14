@@ -339,6 +339,58 @@ impl Repository {
     }
 
     #[instrument(skip(self))]
+    pub async fn fetch_all_recovery_relationships(
+        &self,
+    ) -> Result<Vec<RecoveryRelationship>, DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let mut exclusive_start_key = None;
+        let mut all_relationships = Vec::new();
+
+        loop {
+            let item_output = self
+                .connection
+                .client
+                .scan()
+                .table_name(table_name.clone())
+                .set_exclusive_start_key(exclusive_start_key.clone())
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not scan recovery relationships: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+
+            let relationships = try_from_items::<_, SocialRecoveryRow>(
+                item_output.items().to_owned(),
+                database_object,
+            )?
+            .into_iter()
+            .filter_map(|r| match r {
+                SocialRecoveryRow::Relationship(relationship) => Some(relationship),
+                _ => None,
+            })
+            .collect::<Vec<RecoveryRelationship>>();
+
+            all_relationships.extend(relationships);
+
+            if let Some(last_evaluated_key) = item_output.last_evaluated_key() {
+                exclusive_start_key = Some(last_evaluated_key.to_owned());
+            } else {
+                break;
+            }
+        }
+
+        Ok(all_relationships)
+    }
+
+    #[instrument(skip(self))]
     pub async fn count_social_challenges_for_customer(
         &self,
         customer_account_id: &AccountId,

@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import com.github.michaelbull.result.Result
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.Sign

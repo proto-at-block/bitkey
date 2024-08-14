@@ -6,11 +6,11 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.PakeCode
-import build.wallet.bitkey.socrec.PrivateKeyEncryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.PakeCode
+import build.wallet.bitkey.relationships.PrivateKeyEncryptionKey
+import build.wallet.bitkey.relationships.TcIdentityKeyAppSignature
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
-import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.crypto.Spake2Impl

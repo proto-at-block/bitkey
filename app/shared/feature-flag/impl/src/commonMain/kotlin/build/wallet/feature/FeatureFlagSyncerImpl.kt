@@ -5,14 +5,12 @@ import build.wallet.account.AccountStatus
 import build.wallet.analytics.events.AppSessionManager
 import build.wallet.analytics.events.AppSessionState
 import build.wallet.bitkey.account.Account
+import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient.F8eFeatureFlag
 import build.wallet.isOk
-import build.wallet.keybox.config.TemplateFullAccountConfigDao
-import build.wallet.logging.LogLevel
-import build.wallet.logging.log
 import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
@@ -30,7 +28,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class FeatureFlagSyncerImpl(
   private val accountRepository: AccountRepository,
-  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
+  private val debugOptionsService: DebugOptionsService,
   private val featureFlagsF8eClient: FeatureFlagsF8eClient,
   private val clock: Clock,
   private val remoteFlags: List<FeatureFlag<out FeatureFlagValue>>,
@@ -84,10 +82,6 @@ class FeatureFlagSyncerImpl(
       val accountId = account?.accountId
 
       val f8eEnvironment = account.getF8eEnvironment()
-      if (f8eEnvironment == null) {
-        log(LogLevel.Error) { "Failed to get f8eEnvironment, feature flags will not sync" }
-        return
-      }
 
       featureFlagsF8eClient.getF8eFeatureFlags(
         f8eEnvironment = f8eEnvironment,
@@ -157,9 +151,8 @@ class FeatureFlagSyncerImpl(
     return (lastSync != null && clock.now() - lastSync > 5.seconds)
   }
 
-  private suspend fun Account?.getF8eEnvironment(): F8eEnvironment? {
-    return this?.config?.f8eEnvironment
-      ?: templateFullAccountConfigDao.config().first().get()?.f8eEnvironment
+  private suspend fun Account?.getF8eEnvironment(): F8eEnvironment {
+    return this?.config?.f8eEnvironment ?: debugOptionsService.options().first().f8eEnvironment
   }
 
   private sealed interface SyncRequest {

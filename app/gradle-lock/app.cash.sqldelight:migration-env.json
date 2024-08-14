@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:migration-env",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "migration-env-2.0.1.jar": "8fecf072410e70cf163343b674553625aa97bfe8b50df0fe5a1ce8fac3084a37"
+                        "migration-env-2.0.2.jar": "3cb5aac9b123c4be8e51fd6e61774252ff2bf8bf19db7a5ed24d7a7921c7abd6"
                     }
                 }
             ],

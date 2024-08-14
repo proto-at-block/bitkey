@@ -11,27 +11,20 @@ import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.statemachine.data.account.create.onboard.BackingUpKeyboxToCloudDataMock
 import build.wallet.statemachine.data.account.create.onboard.SettingNotificationsPreferencesDataMock
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.data.keybox.transactions.KeyboxTransactionsDataMock
 import build.wallet.statemachine.data.mobilepay.MobilePayEnabledDataMock
-import build.wallet.statemachine.data.notifications.NotificationTouchpointDataMock
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 
-val ActiveKeyboxLoadedDataMock =
-  ActiveFullAccountLoadedData(
-    account = FullAccountMock,
-    spendingWallet = SpendingWalletMock({ Turbine() }, KeyboxMock.activeSpendingKeyset.localId),
-    addressData = KeyboxAddressDataMock,
-    transactionsData = KeyboxTransactionsDataMock,
-    mobilePayData = MobilePayEnabledDataMock,
-    lostHardwareRecoveryData =
-      AwaitingNewHardwareData(
-        newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
-        addHardwareKeys = { _, _, _ -> }
-      ),
-    notificationTouchpointData = NotificationTouchpointDataMock,
-    isCompletingSocialRecovery = false
+val ActiveKeyboxLoadedDataMock = ActiveFullAccountLoadedData(
+  account = FullAccountMock,
+  spendingWallet = SpendingWalletMock({ Turbine() }, KeyboxMock.activeSpendingKeyset.localId),
+  transactionsData = KeyboxTransactionsDataMock,
+  mobilePayData = MobilePayEnabledDataMock,
+  lostHardwareRecoveryData = AwaitingNewHardwareData(
+    newAppGlobalAuthKey = AppGlobalAuthPublicKeyMock,
+    addHardwareKeys = { _, _, _ -> }
   )
+)
 
 fun OnboardingKeyboxDataMock(inProgressStep: OnboardingKeyboxStep = CloudBackup) =
   when (inProgressStep) {

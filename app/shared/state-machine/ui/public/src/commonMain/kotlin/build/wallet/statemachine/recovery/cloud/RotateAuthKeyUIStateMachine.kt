@@ -1,18 +1,16 @@
 package build.wallet.statemachine.recovery.cloud
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.AuthKeyRotationEventTrackerScreenIdContext
 import build.wallet.auth.AuthKeyRotationFailure
-import build.wallet.auth.AuthKeyRotationManager
 import build.wallet.auth.AuthKeyRotationRequest
+import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppAuthPublicKeys
+import build.wallet.bitkey.app.AppGlobalAuthKey
+import build.wallet.bitkey.app.AppRecoveryAuthKey
+import build.wallet.crypto.PublicKey
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -66,7 +64,7 @@ sealed interface RotateAuthKeyUIOrigin {
 class RotateAuthKeyUIStateMachineImpl(
   val appKeysGenerator: AppKeysGenerator,
   val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
-  val authKeyRotationManager: AuthKeyRotationManager,
+  val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : RotateAuthKeyUIStateMachine {
   @Composable
@@ -84,12 +82,14 @@ class RotateAuthKeyUIStateMachineImpl(
     var state: State by remember(props.origin) {
       val initialState = when (props.origin) {
         is RotateAuthKeyUIOrigin.PendingAttempt -> when (props.origin.attempt) {
-          PendingAuthKeyRotationAttempt.ProposedAttempt -> State.WaitingOnChoiceState(newAppAuthKeys = null)
+          PendingAuthKeyRotationAttempt.ProposedAttempt -> State.WaitingOnChoiceState(
+            appGlobalAndRecoveryAuthKeys = null
+          )
           is PendingAuthKeyRotationAttempt.IncompleteAttempt -> State.RotatingAuthKeys(
             request = AuthKeyRotationRequest.Resume(newKeys = props.origin.attempt.newKeys)
           )
         }
-        is RotateAuthKeyUIOrigin.Settings -> State.WaitingOnChoiceState(newAppAuthKeys = null)
+        is RotateAuthKeyUIOrigin.Settings -> State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = null)
       }
       mutableStateOf(initialState)
     }
@@ -106,36 +106,40 @@ class RotateAuthKeyUIStateMachineImpl(
         ).asModalScreen()
       }
       is State.WaitingOnChoiceState -> {
-        if (uiState.newAppAuthKeys == null) {
+        if (uiState.appGlobalAndRecoveryAuthKeys == null) {
           LaunchedEffect("generate-new-app-auth-keys") {
             // Since we are rotating app global auth key, we need to create
             // a new AppGlobalAuthKeyHwSignature as well by tapping hardware.
             // This requires having a new app global auth key before the hardware tap,
             // so we are preloading it here, to save us from an extra tap after auth keys are rotated.
             generateAppAuthKeys()
-              .onSuccess {
-                state = State.WaitingOnChoiceState(newAppAuthKeys = it)
+              .onSuccess { keys ->
+                state = State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = keys)
               }
           }
         }
 
-        val removeAllOtherDevices = remember(uiState.newAppAuthKeys) {
-          if (uiState.newAppAuthKeys == null) {
+        val removeAllOtherDevices = remember(uiState.appGlobalAndRecoveryAuthKeys) {
+          if (uiState.appGlobalAndRecoveryAuthKeys == null) {
             { /* noop */ }
           } else {
-            { state = State.ObtainingHwProofOfPossession(uiState.newAppAuthKeys) }
+            {
+              state = State.ObtainingHwProofOfPossession(
+                appGlobalAndRecoveryAuthKeys = uiState.appGlobalAndRecoveryAuthKeys
+              )
+            }
           }
         }
 
         when (val origin = props.origin) {
           is RotateAuthKeyUIOrigin.PendingAttempt -> RotateAuthKeyScreens.DeactivateDevicesAfterRestoreChoice(
             onNotRightNow = { state = State.DismissingProposedAttempt },
-            removeAllOtherDevicesEnabled = uiState.newAppAuthKeys != null,
+            removeAllOtherDevicesEnabled = uiState.appGlobalAndRecoveryAuthKeys != null,
             onRemoveAllOtherDevices = removeAllOtherDevices
           )
           is RotateAuthKeyUIOrigin.Settings -> RotateAuthKeyScreens.DeactivateDevicesFromSettingsChoice(
             onBack = origin.onBack,
-            removeAllOtherDevicesEnabled = uiState.newAppAuthKeys != null,
+            removeAllOtherDevicesEnabled = uiState.appGlobalAndRecoveryAuthKeys != null,
             onRemoveAllOtherDevices = removeAllOtherDevices
           )
         }.asRootScreen()
@@ -172,7 +176,14 @@ class RotateAuthKeyUIStateMachineImpl(
       ).asRootScreen()
       is State.PresentingRecoverableFailure -> RotateAuthKeyScreens.AcceptableFailure(
         context = eventTrackerScreenIdContext,
-        onRetry = { state = State.ObtainingHwProofOfPossession(uiState.newAppAuthKeys) },
+        onRetry = {
+          state = State.ObtainingHwProofOfPossession(
+            AppGlobalAndRecoveryAuthKeys(
+              globalKey = uiState.newAppAuthKeys.appGlobalAuthPublicKey,
+              recoveryKey = uiState.newAppAuthKeys.appRecoveryAuthPublicKey
+            )
+          )
+        },
         onAcknowledge = {
           uiState.onAcknowledge()
           if (props.origin is RotateAuthKeyUIOrigin.Settings) {
@@ -191,7 +202,7 @@ class RotateAuthKeyUIStateMachineImpl(
       ).asRootScreen()
       State.DismissingProposedAttempt -> {
         LaunchedEffect("dismiss proposed attempt") {
-          authKeyRotationManager.dismissProposedRotationAttempt()
+          fullAccountAuthKeyRotationService.dismissProposedRotationAttempt()
         }
 
         RotateAuthKeyScreens.DismissingProposal(eventTrackerScreenIdContext).asRootScreen()
@@ -202,7 +213,7 @@ class RotateAuthKeyUIStateMachineImpl(
   private suspend fun getAuthKeyRotationResult(
     uiState: State.RotatingAuthKeys,
     props: RotateAuthKeyUIStateMachineProps,
-  ) = authKeyRotationManager.startOrResumeAuthKeyRotation(
+  ) = fullAccountAuthKeyRotationService.startOrResumeAuthKeyRotation(
     request = uiState.request,
     account = props.account
   ).mapBoth(
@@ -229,18 +240,18 @@ class RotateAuthKeyUIStateMachineImpl(
     }
   )
 
-  private suspend fun generateAppAuthKeys(): Result<AppAuthPublicKeys, Throwable> =
-    coroutineBinding {
+  private suspend fun generateAppAuthKeys(): Result<AppGlobalAndRecoveryAuthKeys, Throwable> {
+    return coroutineBinding {
       with(appKeysGenerator) {
         val appGlobalAuthPublicKey = generateGlobalAuthKey().bind()
         val appRecoveryAuthPublicKey = generateRecoveryAuthKey().bind()
-        AppAuthPublicKeys(
-          appGlobalAuthPublicKey,
-          appRecoveryAuthPublicKey,
-          appGlobalAuthKeyHwSignature = null
+        AppGlobalAndRecoveryAuthKeys(
+          globalKey = appGlobalAuthPublicKey,
+          recoveryKey = appRecoveryAuthPublicKey
         )
       }
     }.logFailure { "Error generating new app auth keys" }
+  }
 
   @Composable
   private fun waitingOnProofOfPossession(
@@ -250,7 +261,7 @@ class RotateAuthKeyUIStateMachineImpl(
   ) = proofOfPossessionNfcStateMachine.model(
     props = ProofOfPossessionNfcProps(
       request = Request.HwKeyProofAndAccountSignature(
-        appAuthGlobalKey = state.newAppAuthKeys.appGlobalAuthPublicKey,
+        appAuthGlobalKey = state.appGlobalAndRecoveryAuthKeys.globalKey,
         accountId = props.account.keybox.fullAccountId,
         onSuccess = {
             signedAccountId,
@@ -261,7 +272,9 @@ class RotateAuthKeyUIStateMachineImpl(
           setState(
             State.RotatingAuthKeys(
               request = AuthKeyRotationRequest.Start(
-                newKeys = state.newAppAuthKeys.copy(
+                newKeys = AppAuthPublicKeys(
+                  appGlobalAuthPublicKey = state.appGlobalAndRecoveryAuthKeys.globalKey,
+                  appRecoveryAuthPublicKey = state.appGlobalAndRecoveryAuthKeys.recoveryKey,
                   appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature
                 ),
                 hwFactorProofOfPossession = hwFactorProofOfPossession,
@@ -276,19 +289,21 @@ class RotateAuthKeyUIStateMachineImpl(
       fullAccountConfig = props.account.keybox.config,
       screenPresentationStyle = ScreenPresentationStyle.FullScreen,
       appAuthKey = props.account.keybox.activeAppKeyBundle.authKey,
-      onBack = { setState(State.WaitingOnChoiceState(newAppAuthKeys = state.newAppAuthKeys)) }
+      onBack = {
+        setState(State.WaitingOnChoiceState(appGlobalAndRecoveryAuthKeys = state.appGlobalAndRecoveryAuthKeys))
+      }
     )
   )
 
   private sealed interface State {
     // We're waiting on the customer to choose an option.
     data class WaitingOnChoiceState(
-      val newAppAuthKeys: AppAuthPublicKeys?,
+      val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys?,
     ) : State
 
     // We've passed control to the proof of possession state machine and are awaiting it's completion
     data class ObtainingHwProofOfPossession(
-      val newAppAuthKeys: AppAuthPublicKeys,
+      val appGlobalAndRecoveryAuthKeys: AppGlobalAndRecoveryAuthKeys,
     ) : State
 
     data class RotatingAuthKeys(val request: AuthKeyRotationRequest) : State
@@ -317,3 +332,13 @@ class RotateAuthKeyUIStateMachineImpl(
     ) : State
   }
 }
+
+/**
+ * Holds the newly generated app global and recovery auth keys. Primarily is used as a
+ * transient state to pass the newly generated keys until the global auth key is signed with
+ * hardware and [AppAuthPublicKeys] can be constructed.
+ */
+private data class AppGlobalAndRecoveryAuthKeys(
+  val globalKey: PublicKey<AppGlobalAuthKey>,
+  val recoveryKey: PublicKey<AppRecoveryAuthKey>,
+)

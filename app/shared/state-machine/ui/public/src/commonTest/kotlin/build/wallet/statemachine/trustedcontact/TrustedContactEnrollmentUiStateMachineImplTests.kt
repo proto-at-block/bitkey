@@ -10,8 +10,8 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME
 import build.wallet.bitkey.keybox.LiteAccountMock
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError

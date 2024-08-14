@@ -4,11 +4,12 @@ import app.cash.turbine.test
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.TAMPERED
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.AWAITING_VERIFY
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
 import build.wallet.compose.collections.immutableListOf
@@ -56,19 +57,21 @@ class SocRecRelationshipsRepositoryImplTests : FunSpec({
   }
 
   val tcAliceUnverified = EndorsedTrustedContact(
-    recoveryRelationshipId = "rel-123",
+    relationshipId = "rel-123",
     trustedContactAlias = TrustedContactAlias("alice"),
     authenticationState = AWAITING_VERIFY,
-    keyCertificate = TrustedContactKeyCertificateFake
+    keyCertificate = TrustedContactKeyCertificateFake,
+    roles = setOf(TrustedContactRole.SocialRecoveryContact)
   )
   val tcAliceVerified = tcAliceUnverified.copy(authenticationState = VERIFIED)
   val tcAliceTampered = tcAliceUnverified.copy(authenticationState = TAMPERED)
 
   val tcBobUnverified = EndorsedTrustedContact(
-    recoveryRelationshipId = "rel-456",
+    relationshipId = "rel-456",
     trustedContactAlias = TrustedContactAlias("bob"),
     authenticationState = AWAITING_VERIFY,
-    keyCertificate = TrustedContactKeyCertificateFake2
+    keyCertificate = TrustedContactKeyCertificateFake2,
+    roles = setOf(TrustedContactRole.SocialRecoveryContact)
   )
   val tcBobVerified = tcBobUnverified.copy(authenticationState = VERIFIED)
 

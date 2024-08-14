@@ -4,22 +4,20 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_KEY_MISSING
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.debug.DebugOptionsFake
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.CheckingRecoveryOrOnboarding
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData.LostAppRecoveryHaveNotStartedData.AttemptingCloudRecoveryLostAppRecoveryDataData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryDataStateMachine
@@ -41,11 +39,9 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
   val createFullAccountDataStateMachine =
     object : CreateFullAccountDataStateMachine,
       StateMachineMock<CreateFullAccountDataProps, CreateFullAccountData>(
-        initialModel =
-          CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
-            fullAccountConfig = FullAccountConfigMock,
-            rollback = {}
-          )
+        initialModel = CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
+          rollback = {}
+        )
       ) {}
   val eventTracker = EventTrackerMock(turbines::create)
   val keyboxDao = KeyboxDaoMock(turbines::create)
@@ -72,13 +68,9 @@ class NoActiveAccountDataStateMachineImplTests : FunSpec({
 
   fun props(existingRecovery: Recovery.StillRecovering? = null) =
     NoActiveAccountDataProps(
-      LoadedTemplateFullAccountConfigData(
-        config = FullAccountConfigMock,
-        updateConfig = {}
-      ),
+      debugOptions = DebugOptionsFake,
       existingRecovery = existingRecovery,
-      onAccountCreated = accountCreatedCalls::add,
-      onboardConfig = OnboardConfig(stepsToSkip = emptySet())
+      onAccountCreated = accountCreatedCalls::add
     )
 
   test("no onboarding in progress and no recovery in progress") {

@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:compiler-env",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "compiler-env-2.0.1.jar": "aa25b36061320ad1f63476e5e26274cb7089951be01491572cf06072d618cd8b"
+                        "compiler-env-2.0.2.jar": "77c281f953b30e1d3a0c758470dc404b754ced1df3a947300b0412342c5ec767"
                     }
                 }
             ],

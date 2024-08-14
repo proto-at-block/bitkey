@@ -1,6 +1,5 @@
 package build.wallet.statemachine.moneyhome.card.replacehardware
 
-import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.moneyhome.card.CardModel
 
@@ -16,5 +15,4 @@ interface SetupHardwareCardUiStateMachine : StateMachine<SetupHardwareCardUiProp
  */
 data class SetupHardwareCardUiProps(
   val onReplaceDevice: () -> Unit,
-  val deviceInfo: FirmwareDeviceInfo?,
 )

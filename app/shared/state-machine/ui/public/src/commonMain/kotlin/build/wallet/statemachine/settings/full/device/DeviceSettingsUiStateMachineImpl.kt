@@ -10,14 +10,14 @@ import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.firmware.EnrolledFingerprints
 import build.wallet.firmware.FirmwareDeviceInfo
 import build.wallet.firmware.FirmwareDeviceInfoDao
+import build.wallet.fwup.FirmwareData
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
@@ -59,10 +59,10 @@ class DeviceSettingsUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val durationFormatter: DurationFormatter,
   private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
-  private val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
   private val coachmarkService: CoachmarkService,
+  private val firmwareDataService: FirmwareDataService,
 ) : DeviceSettingsUiStateMachine {
   @Composable
   override fun model(props: DeviceSettingsProps): ScreenModel {
@@ -84,10 +84,6 @@ class DeviceSettingsUiStateMachineImpl(
       }
     }
 
-    val resetDeviceEnabled = remember {
-      resetDeviceIsEnabledFeatureFlag.flagValue().value.value
-    }
-
     val scope = rememberStableCoroutineScope()
 
     var coachmarkDisplayed by remember { mutableStateOf(false) }
@@ -98,11 +94,16 @@ class DeviceSettingsUiStateMachineImpl(
         .onSuccess { coachmarksToDisplay = it }
     }
 
+    val firmwareData = remember {
+      firmwareDataService.firmwareData()
+    }.collectAsState().value
+
     return when (val state = uiState) {
       is ViewingDeviceDataUiState -> {
-        val availability = props.firmwareData.firmwareDeviceInfo?.let { deviceInfo ->
+        val availability = firmwareData.firmwareDeviceInfo?.let { deviceInfo ->
           FirmwareDeviceAvailability.Present(deviceInfo)
         } ?: FirmwareDeviceAvailability.None
+
         ViewingDeviceScreenModel(
           props = props,
           coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)) {
@@ -150,7 +151,7 @@ class DeviceSettingsUiStateMachineImpl(
           timeZoneProvider = timeZoneProvider,
           durationFormatter = durationFormatter,
           replaceDeviceEnabled = securityAndRecoveryStatus == FunctionalityFeatureStates.FeatureState.Available,
-          resetDeviceEnabled = resetDeviceEnabled,
+          firmwareData = firmwareData,
           onManageFingerprints = {
             if (coachmarksToDisplay.contains(CoachmarkIdentifier.MultipleFingerprintsCoachmark)) {
               scope.launch {
@@ -165,11 +166,11 @@ class DeviceSettingsUiStateMachineImpl(
           bottomSheetModel = PromptingForFingerprintFwUpSheetModel(
             onCancel = { uiState = ViewingDeviceDataUiState() },
             onUpdate = {
-              uiState = when (val fwupState = props.firmwareData.firmwareUpdateState) {
+              uiState = when (val fwupState = firmwareData?.firmwareUpdateState) {
                 is FirmwareData.FirmwareUpdateState.PendingUpdate -> UpdatingFirmwareUiState(
                   pendingFirmwareUpdate = fwupState
                 )
-                FirmwareData.FirmwareUpdateState.UpToDate -> {
+                FirmwareData.FirmwareUpdateState.UpToDate, null -> {
                   ViewingDeviceDataUiState()
                 }
               }
@@ -257,6 +258,7 @@ class DeviceSettingsUiStateMachineImpl(
 @Composable
 private fun ViewingDeviceScreenModel(
   props: DeviceSettingsProps,
+  firmwareData: FirmwareData?,
   coachmark: CoachmarkModel?,
   firmwareDeviceAvailability: FirmwareDeviceAvailability,
   goToFwup: (FirmwareData.FirmwareUpdateState.PendingUpdate) -> Unit,
@@ -268,7 +270,6 @@ private fun ViewingDeviceScreenModel(
   timeZoneProvider: TimeZoneProvider,
   durationFormatter: DurationFormatter,
   replaceDeviceEnabled: Boolean,
-  resetDeviceEnabled: Boolean,
   onManageFingerprints: () -> Unit,
 ): ScreenModel {
   val noInfo = "-"
@@ -296,7 +297,7 @@ private fun ViewingDeviceScreenModel(
           ModelData(
             trackerScreenId = SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO,
             currentVersion = firmwareDeviceInfo.version,
-            updateVersion = props.firmwareData.updateVersion,
+            updateVersion = firmwareData?.updateVersion,
             modelNumber = firmwareDeviceInfo.hwRevision,
             serialNumber = firmwareDeviceInfo.serial,
             deviceCharge = "${firmwareDeviceInfo.batteryChargeForUninitializedModelGauge()}%",
@@ -340,8 +341,8 @@ private fun ViewingDeviceScreenModel(
         replaceDeviceEnabled = replaceDeviceEnabled,
         replacementPending = modelData.replacementPending,
         onUpdateVersion =
-          when (val firmwareUpdateState = props.firmwareData.firmwareUpdateState) {
-            is FirmwareData.FirmwareUpdateState.UpToDate -> null
+          when (val firmwareUpdateState = firmwareData?.firmwareUpdateState) {
+            is FirmwareData.FirmwareUpdateState.UpToDate, null -> null
             is FirmwareData.FirmwareUpdateState.PendingUpdate -> {
               { goToFwup(firmwareUpdateState) }
             }
@@ -351,7 +352,6 @@ private fun ViewingDeviceScreenModel(
         onManageReplacement = { onManageReplacement() },
         onResetDevice = { onResetDevice() },
         onBack = props.onBack,
-        resetDeviceEnabled = resetDeviceEnabled,
         onManageFingerprints = onManageFingerprints,
         coachmark = coachmark
       )

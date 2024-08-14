@@ -4,7 +4,6 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
-import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.log
 import build.wallet.platform.config.AppVariant
@@ -19,12 +18,10 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.data.app.AppData.AppLoadedData
 import build.wallet.statemachine.data.app.AppData.LoadingAppData
 import build.wallet.statemachine.data.app.AppDataStateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
-import build.wallet.statemachine.data.sync.ElectrumServerData
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.home.full.HomeUiProps
@@ -127,7 +124,6 @@ class AppUiStateMachineImpl(
       return debugMenuStateMachine.model(
         props = DebugMenuProps(
           accountData = appData.accountData,
-          firmwareData = appData.firmwareData,
           onClose = { isShowingDebugMenu = false }
         )
       )
@@ -156,12 +152,11 @@ class AppUiStateMachineImpl(
 
       is NoActiveAccountData -> {
         shouldShowWelcomeScreenWhenTransitionToActive = true
-        NoActiveAccountDataScreenModel(appData, accountData)
+        NoActiveAccountDataScreenModel(accountData)
       }
 
       is HasActiveFullAccountData ->
         HasActiveFullAccountDataScreenModel(
-          appData = appData,
           accountData = accountData,
           initialShouldShowWelcomeScreenWhenTransitionToActive = shouldShowWelcomeScreenWhenTransitionToActive
         )
@@ -169,8 +164,7 @@ class AppUiStateMachineImpl(
       is AccountData.HasActiveLiteAccountData ->
         liteHomeUiStateMachine.model(
           props = LiteHomeUiProps(
-            accountData = accountData,
-            firmwareData = appData.firmwareData
+            accountData = accountData
           )
         )
 
@@ -193,24 +187,20 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun NoActiveAccountDataScreenModel(
-    appData: AppLoadedData,
-    accountData: NoActiveAccountData,
-  ): ScreenModel {
+  private fun NoActiveAccountDataScreenModel(accountData: NoActiveAccountData): ScreenModel {
     return when (accountData) {
       is CheckingRecoveryOrOnboarding -> AppLoadingScreenModel()
 
       is GettingStartedData ->
         ChooseAccountAccessScreenModel(
-          chooseAccountAccessData = accountData,
-          firmwareData = appData.firmwareData
+          chooseAccountAccessData = accountData
         )
 
       is RecoveringAccountData ->
         lostAppRecoveryUiStateMachine.model(
           LostAppRecoveryUiProps(
             recoveryData = accountData.lostAppRecoveryData,
-            fullAccountConfig = accountData.templateFullAccountConfig
+            debugOptions = accountData.debugOptions
           )
         )
 
@@ -226,7 +216,6 @@ class AppUiStateMachineImpl(
       is RecoveringAccountWithEmergencyAccessKit ->
         emergencyAccessKitRecoveryUiStateMachine.model(
           EmergencyAccessKitRecoveryUiStateMachineProps(
-            fullAccountConfig = accountData.templateFullAccountConfig,
             onExit = accountData.onExit
           )
         )
@@ -234,8 +223,7 @@ class AppUiStateMachineImpl(
       is CreatingFullAccountData ->
         createAccountUiStateMachine.model(
           props = CreateAccountUiProps(
-            createFullAccountData = accountData.createFullAccountData,
-            isHardwareFake = accountData.templateFullAccountConfig.isHardwareFake
+            createFullAccountData = accountData.createFullAccountData
           )
         )
 
@@ -256,12 +244,6 @@ class AppUiStateMachineImpl(
         createLiteAccountUiStateMachine.model(
           props = CreateLiteAccountUiProps(
             onBack = accountData.onRollback,
-            accountConfig = LiteAccountConfig(
-              bitcoinNetworkType = accountData.templateFullAccountConfig.bitcoinNetworkType,
-              f8eEnvironment = accountData.templateFullAccountConfig.f8eEnvironment,
-              isTestAccount = accountData.templateFullAccountConfig.isTestAccount,
-              isUsingSocRecFakes = accountData.templateFullAccountConfig.isUsingSocRecFakes
-            ),
             inviteCode = accountData.inviteCode,
             onAccountCreated = accountData.onAccountCreated,
             // If this flow was reached via invite code, show the introduction screen.
@@ -272,7 +254,7 @@ class AppUiStateMachineImpl(
       is ResettingExistingDeviceData ->
         resettingDeviceUiStateMachine.model(
           props = ResettingDeviceProps(
-            fullAccountConfig = accountData.templateFullAccountConfig,
+            fullAccountConfig = accountData.debugOptions.toFullAccountConfig(),
             onBack = accountData.onExit,
             onSuccess = accountData.onSuccess,
             fullAccount = null,
@@ -285,7 +267,6 @@ class AppUiStateMachineImpl(
 
   @Composable
   private fun HasActiveFullAccountDataScreenModel(
-    appData: AppLoadedData,
     accountData: HasActiveFullAccountData,
     initialShouldShowWelcomeScreenWhenTransitionToActive: Boolean,
   ): ScreenModel {
@@ -310,9 +291,7 @@ class AppUiStateMachineImpl(
           ).asRootScreen()
         } else {
           HomeScreenModel(
-            accountData = accountData,
-            electrumServerData = appData.electrumServerData,
-            firmwareData = appData.firmwareData
+            accountData = accountData
           )
         }
 
@@ -364,26 +343,18 @@ class AppUiStateMachineImpl(
   @Composable
   private fun ChooseAccountAccessScreenModel(
     chooseAccountAccessData: GettingStartedData,
-    firmwareData: FirmwareData,
   ): ScreenModel =
     chooseAccountAccessUiStateMachine.model(
       props = ChooseAccountAccessUiProps(
-        chooseAccountAccessData = chooseAccountAccessData,
-        firmwareData = firmwareData
+        chooseAccountAccessData = chooseAccountAccessData
       )
     )
 
   @Composable
-  private fun HomeScreenModel(
-    accountData: ActiveFullAccountLoadedData,
-    electrumServerData: ElectrumServerData,
-    firmwareData: FirmwareData,
-  ): ScreenModel =
+  private fun HomeScreenModel(accountData: ActiveFullAccountLoadedData): ScreenModel =
     homeUiStateMachine.model(
       props = HomeUiProps(
-        accountData = accountData,
-        electrumServerData = electrumServerData,
-        firmwareData = firmwareData
+        accountData = accountData
       )
     )
 

@@ -1,18 +1,14 @@
 package build.wallet.statemachine.fwup
 
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
 import build.wallet.statemachine.ScreenStateMachineMock
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
@@ -38,7 +34,7 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   val onDoneCalls = turbines.create<Unit>("onDone calls")
   val props =
     FwupNfcUiProps(
-      firmwareData = PendingUpdate(FwupDataMock) {},
+      firmwareData = PendingUpdate(FwupDataMock),
       isHardwareFake = true,
       onDone = { onDoneCalls.add(Unit) }
     )

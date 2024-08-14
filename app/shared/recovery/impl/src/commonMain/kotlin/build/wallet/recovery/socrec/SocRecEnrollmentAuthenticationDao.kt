@@ -1,8 +1,8 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.PakeCode
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.relationships.PakeCode
+import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.db.DbTransactionError
 import com.github.michaelbull.result.Result
 

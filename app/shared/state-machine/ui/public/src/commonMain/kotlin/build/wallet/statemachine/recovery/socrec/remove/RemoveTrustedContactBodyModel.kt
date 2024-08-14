@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.remove
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext

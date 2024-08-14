@@ -70,7 +70,7 @@ impl Service {
                     Ok((
                         false,
                         customer_account_id.to_owned(),
-                        common_fields.trusted_contact_alias.clone(),
+                        common_fields.trusted_contact_info.alias.clone(),
                     ))
                 } else if trusted_contact_account_id == input.acting_account_id {
                     let CognitoUser::Recovery(_) = *input.cognito_user else {
@@ -82,7 +82,7 @@ impl Service {
                         // trusted contact is the one deleting the relationship
                         true,
                         customer_account_id.to_owned(),
-                        common_fields.trusted_contact_alias.clone(),
+                        common_fields.trusted_contact_info.alias.clone(),
                     ))
                 } else {
                     Err(ServiceError::UnauthorizedRelationshipDeletion)
@@ -104,7 +104,7 @@ impl Service {
                 Ok((
                     false,
                     customer_account_id.to_owned(),
-                    invitation.common_fields.trusted_contact_alias.clone(),
+                    invitation.common_fields.trusted_contact_info.alias.clone(),
                 ))
             }
             RecoveryRelationship::Unendorsed(connection) => {

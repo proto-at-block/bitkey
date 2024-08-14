@@ -1,10 +1,10 @@
 package build.wallet.statemachine.recovery.socrec.list.full
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
@@ -50,7 +50,7 @@ fun TrustedContactsListBodyModel(
   /**
    * Invoked when the user clicks on a trusted contact or invitation in the list of contacts.
    */
-  onContactPressed: (RecoveryContact) -> Unit,
+  onContactPressed: (TrustedContact) -> Unit,
   /**
    * Invoked when the user clicks on a customer in the list of protected customers.
    */
@@ -102,9 +102,9 @@ fun TrustedContactsListBodyModel(
 /**
  * Convert a list of recovery contacts to row items for a ListGroup.
  */
-private fun List<RecoveryContact>.toListItems(
+private fun List<TrustedContact>.toListItems(
   now: Long,
-  onClick: (RecoveryContact) -> Unit,
+  onClick: (TrustedContact) -> Unit,
 ) = map { contact ->
   ListItemModel(
     leadingAccessory =
@@ -120,7 +120,7 @@ private fun List<RecoveryContact>.toListItems(
 }
 
 private fun sideText(
-  recoveryContact: RecoveryContact,
+  recoveryContact: TrustedContact,
   now: Long,
 ): String? =
   if (recoveryContact is Invitation) {

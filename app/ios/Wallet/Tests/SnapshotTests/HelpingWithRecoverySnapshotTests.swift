@@ -26,8 +26,9 @@ final class HelpingWithRecoverySnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: HelpingWithRecoveryModelsKt.ConfirmingIdentityFormBodyModel(
                 protectedCustomer: .init(
-                    recoveryRelationshipId: "id",
-                    alias: "Customer Name"
+                    relationshipId: "id",
+                    alias: "Customer Name",
+                    roles: ["SOCIAL_RECOVERY_CONTACT"]
                 ),
                 onBack: {},
                 onVerifiedClick: {}

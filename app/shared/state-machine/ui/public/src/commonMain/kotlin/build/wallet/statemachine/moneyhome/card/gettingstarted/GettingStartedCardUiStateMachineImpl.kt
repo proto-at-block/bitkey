@@ -1,11 +1,6 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_GETTINGSTARTED_COMPLETED
 import build.wallet.analytics.v1.Action.ACTION_APP_WALLET_FUNDED
@@ -14,10 +9,7 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
-import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
-import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
-import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
+import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.logging.log
@@ -56,7 +48,7 @@ class GettingStartedCardUiStateMachineImpl(
           AddBitcoin -> {
             val transactions = props.accountData.transactionsData.transactions
             LaunchedEffect("add-bitcoin-task", transactions) {
-              if (transactions.isNotEmpty()) {
+              if (transactions.isNotEmpty() && task.state != Complete) {
                 gettingStartedTaskDao.updateTask(AddBitcoin, Complete)
                 eventTracker.track(ACTION_APP_WALLET_FUNDED)
               }

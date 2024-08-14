@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:core",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "core-2.0.1.jar": "c167b80c637ab6fca8ee586fe5ac4fa98edb10f2a3539a60ba6b583e027662f8"
+                        "core-2.0.2.jar": "09f9aea01692b9f81c566d5dc35445e02f3fe87fee3bacda42de1461741e418e"
                     }
                 }
             ],

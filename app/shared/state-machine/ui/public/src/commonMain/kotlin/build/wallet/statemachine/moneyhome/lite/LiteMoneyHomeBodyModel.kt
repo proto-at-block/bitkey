@@ -2,7 +2,7 @@ package build.wallet.statemachine.moneyhome.lite
 
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.Icon

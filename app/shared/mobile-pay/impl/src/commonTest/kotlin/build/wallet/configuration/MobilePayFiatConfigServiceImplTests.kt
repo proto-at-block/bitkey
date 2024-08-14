@@ -2,7 +2,7 @@ package build.wallet.configuration
 
 import app.cash.turbine.test
 import build.wallet.configuration.MobilePayFiatConfig.SnapTolerance
-import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.EUR
 import build.wallet.money.currency.GBP
@@ -18,18 +18,18 @@ class MobilePayFiatConfigServiceImplTests : FunSpec({
   coroutineTestScope = true
 
   val mobilePayFiatConfigRepository = MobilePayFiatConfigRepositoryFake()
-  val templateFullAccountConfigDao = TemplateFullAccountConfigDaoFake()
+  val debugOptionsService = DebugOptionsServiceFake()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryFake()
 
   val service = MobilePayFiatConfigServiceImpl(
     mobilePayFiatConfigRepository = mobilePayFiatConfigRepository,
-    templateFullAccountConfigDao = templateFullAccountConfigDao,
+    debugOptionsService = debugOptionsService,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )
 
   beforeTest {
     mobilePayFiatConfigRepository.reset()
-    templateFullAccountConfigDao.reset()
+    debugOptionsService.reset()
     fiatCurrencyPreferenceRepository.reset()
   }
 

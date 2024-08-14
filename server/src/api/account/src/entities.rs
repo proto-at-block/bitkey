@@ -11,11 +11,13 @@ use isocountry::CountryCode;
 use serde::{Deserialize, Serialize};
 
 use strum_macros::{Display as StrumDisplay, EnumString};
+
 use time::{serde::rfc3339, OffsetDateTime};
 use types::account::identifiers::TouchpointId;
 use types::account::identifiers::{AccountId, AuthKeysId, KeysetId};
 use types::account::{AccountType, PubkeysToAccount};
 use types::notification::{NotificationChannel, NotificationsPreferencesState};
+use types::privileged_action::shared::PrivilegedActionDelayDuration;
 use utoipa::ToSchema;
 
 use crate::error::AccountError;
@@ -266,6 +268,8 @@ pub struct CommonAccountFields {
     #[serde(default)]
     #[serde(alias = "notifications_preferences")]
     pub notifications_preferences_state: NotificationsPreferencesState,
+    #[serde(default)]
+    pub configured_privileged_action_delay_durations: Vec<PrivilegedActionDelayDuration>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -322,6 +326,7 @@ impl FullAccount {
                 onboarding_complete: false,
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
+                configured_privileged_action_delay_durations: Default::default(),
             },
         }
     }
@@ -378,6 +383,7 @@ impl LiteAccount {
                 onboarding_complete: true,
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
+                configured_privileged_action_delay_durations: Default::default(),
             },
         }
     }
@@ -461,6 +467,7 @@ impl SoftwareAccount {
                 onboarding_complete: false,
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
+                configured_privileged_action_delay_durations: Default::default(),
             },
         }
     }
@@ -784,6 +791,7 @@ mod tests {
                 onboarding_complete: false,
                 recovery_auth_pubkey: None,
                 notifications_preferences_state: Default::default(),
+                configured_privileged_action_delay_durations: Default::default(),
             },
         };
         let set_and_enabled_spending_limit_account = FullAccount {

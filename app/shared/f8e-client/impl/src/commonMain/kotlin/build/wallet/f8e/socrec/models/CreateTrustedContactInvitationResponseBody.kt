@@ -1,6 +1,7 @@
 package build.wallet.f8e.socrec.models
 
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.ktor.result.RedactedResponseBody
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
@@ -14,7 +15,7 @@ internal data class CreateTrustedContactInvitationResponseBody(
 @Serializable
 internal data class CreateTrustedContactInvitation(
   @SerialName("recovery_relationship_id")
-  val recoveryRelationshipId: String,
+  val relationshipId: String,
   @SerialName("trusted_contact_alias")
   val trustedContactAlias: TrustedContactAlias,
   @SerialName("code")
@@ -23,4 +24,6 @@ internal data class CreateTrustedContactInvitation(
   val codeBitLength: Int,
   @SerialName("expires_at")
   val expiresAt: Instant,
+  @SerialName("trusted_contact_roles")
+  val roles: Set<TrustedContactRole>,
 )

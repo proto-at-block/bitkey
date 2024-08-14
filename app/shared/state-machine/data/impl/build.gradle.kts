@@ -55,6 +55,7 @@ kotlin {
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.cloudBackupFake)
         implementation(projects.shared.cloudStoreFake)
+        implementation(projects.shared.debugFake)
         implementation(projects.shared.emailFake)
         implementation(projects.shared.emergencyAccessKitFake)
         implementation(projects.shared.f8eClientFake)

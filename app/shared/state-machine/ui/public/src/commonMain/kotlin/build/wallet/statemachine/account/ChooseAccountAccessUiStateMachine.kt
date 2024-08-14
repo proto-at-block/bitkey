@@ -2,7 +2,6 @@ package build.wallet.statemachine.account
 
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData
 
 /**
@@ -16,5 +15,4 @@ interface ChooseAccountAccessUiStateMachine : StateMachine<ChooseAccountAccessUi
 
 data class ChooseAccountAccessUiProps(
   val chooseAccountAccessData: NoActiveAccountData.GettingStartedData,
-  val firmwareData: FirmwareData,
 )

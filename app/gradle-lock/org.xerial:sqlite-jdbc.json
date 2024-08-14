@@ -2,11 +2,11 @@
     "module-identifier": "org.xerial:sqlite-jdbc",
     "components": [
         {
-            "version": "3.44.1.0",
+            "version": "3.45.2.0",
             "variants": [
                 {
                     "artifacts": {
-                        "sqlite-jdbc-3.44.1.0.jar": "e7f9ac47f4ae61f2e63157a1f97e0750cb6fd90c9d0bf25f188260e732f284fa"
+                        "sqlite-jdbc-3.45.2.0.jar": "a817162384b7d9d98fd616ca880bcbf2528cf29e31393666d2df85b307b03764"
                     }
                 }
             ],

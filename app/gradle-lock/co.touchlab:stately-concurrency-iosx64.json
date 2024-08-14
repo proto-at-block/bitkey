@@ -2,16 +2,16 @@
     "module-identifier": "co.touchlab:stately-concurrency-iosx64",
     "components": [
         {
-            "version": "2.0.5",
+            "version": "2.0.7",
             "variants": [
                 {
                     "artifacts": {
-                        "stately-concurrency-iosx64-2.0.5-metadata.jar": "546807b04b063d6093b3ac043f7fea2bd040cd5b97182d5adae6a62544056872"
+                        "stately-concurrency-iosx64-2.0.7-metadata.jar": "4122b6a9972f8ee62376fc2a7b24c2a6d3cc5d775d1460d9bb45bd73b4f72938"
                     }
                 },
                 {
                     "artifacts": {
-                        "stately-concurrency.klib": "6d1ba8eea21f9dacf4e9f5b274036bdaf1adcd0d00bcc4426200a31e0c9315bf"
+                        "stately-concurrency.klib": "00d509fdac633cc297ff8f148457c74d5c7aaa0007da7a84a7687873136ddb20"
                     }
                 }
             ],

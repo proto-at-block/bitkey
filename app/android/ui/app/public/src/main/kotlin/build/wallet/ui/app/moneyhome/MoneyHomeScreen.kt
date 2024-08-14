@@ -15,8 +15,9 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
@@ -363,7 +364,8 @@ internal fun MoneyHomeScreenFull(hideBalance: Boolean = false) {
           refresh = {},
           onRefresh = {},
           isRefreshing = false,
-          badgedSettingsIcon = true
+          badgedSettingsIcon = true,
+          onOpenPriceDetails = {}
         )
     )
   }
@@ -379,7 +381,7 @@ internal fun MoneyHomeScreenLite() {
           onSettings = {},
           buttonModel = MoneyHomeButtonsModel.SingleButtonModel(onSetUpBitkeyDevice = { }),
           protectedCustomers = immutableListOf(
-            ProtectedCustomer("", ProtectedCustomerAlias("Alice"))
+            ProtectedCustomer("", ProtectedCustomerAlias("Alice"), setOf(TrustedContactRole.SocialRecoveryContact))
           ),
           badgedSettingsIcon = false,
           onProtectedCustomerClick = {},

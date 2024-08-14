@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.reinvite
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.OutgoingInvitation
+import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine

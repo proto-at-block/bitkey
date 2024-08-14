@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-benchmark-plugin",
+    "components": [
+        {
+            "version": "0.4.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-benchmark-plugin-0.4.10.jar": "5bf207ad3818bd494d693a45190ba6d97eb62545dc89fd2007b2c08aad74b1a3"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

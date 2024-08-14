@@ -1,21 +1,19 @@
 package build.wallet.statemachine.recovery.emergencyaccesskit
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId
 import build.wallet.cloud.backup.csek.Csek
 import build.wallet.cloud.backup.csek.CsekDao
 import build.wallet.crypto.SymmetricKeyImpl
+import build.wallet.debug.DebugOptions
+import build.wallet.debug.DebugOptionsService
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoder
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer
 import build.wallet.keybox.KeyboxDao
+import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
@@ -43,8 +41,8 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
   private val keyboxDao: KeyboxDao,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val uuidGenerator: UuidGenerator,
-) :
-  EmergencyAccessKitRecoveryUiStateMachine {
+  private val debugOptionsService: DebugOptionsService,
+) : EmergencyAccessKitRecoveryUiStateMachine {
   @Composable
   override fun model(props: EmergencyAccessKitRecoveryUiStateMachineProps): ScreenModel {
     var state: State by remember {
@@ -52,23 +50,28 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         State.SelectInputMethod
       )
     }
+    val debugOptions = remember { debugOptionsService.options() }
+      .collectAsState(initial = null).value
 
     return when (val currentState = state) {
-      is State.SelectInputMethod ->
-        EmergencyAccessKitImportWalletModel(
-          onBack = { state = currentState.onBack(props) },
-          onEnterManually = {
-            state = currentState.onSelectManualEntry()
-          },
-          onScanQRCode = {
-            state =
-              if (permissionUiStateMachine.isImplemented) {
-                State.RequestingCameraPermission
-              } else {
-                State.QrEntry
-              }
+      is State.SelectInputMethod -> {
+        val onBack = remember { { state = currentState.onBack(props) } }
+        val onEnterManually =
+          remember(currentState) { { state = currentState.onSelectManualEntry() } }
+        val onScanQrCode = remember(currentState) {
+          {
+            state = when {
+              permissionUiStateMachine.isImplemented -> State.RequestingCameraPermission
+              else -> State.QrEntry
+            }
           }
+        }
+        EmergencyAccessKitImportWalletModel(
+          onBack = onBack,
+          onEnterManually = onEnterManually,
+          onScanQRCode = onScanQrCode
         ).asRootScreen()
+      }
 
       is State.RequestingCameraPermission ->
         permissionUiStateMachine.model(
@@ -123,13 +126,22 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
         ).asRootScreen()
       }
 
-      is State.RestoreWallet ->
+      is State.RestoreWallet -> {
+        val onRestore = remember(currentState, debugOptions) {
+          {
+            if (debugOptions != null) {
+              // DebugOptions should be preloaded at this point.
+              state = currentState.onStartRestore(debugOptions)
+            } else {
+              log { "Debug options are not available" }
+            }
+          }
+        }
         EmergencyAccessKitRestoreWallet(
           onBack = { state = currentState.onBack(props) },
-          onRestore = {
-            state = currentState.onStartRestore()
-          }
+          onRestore = onRestore
         ).asRootScreen()
+      }
 
       is State.StartNFCRestore -> {
         val sealedCsek =
@@ -155,7 +167,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
               state = currentState.onSuccess()
             },
             onCancel = { state = currentState.onBack(props) },
-            isHardwareFake = props.fullAccountConfig.isHardwareFake,
+            isHardwareFake = currentState.debugOptions.isHardwareFake,
             screenPresentationStyle = ScreenPresentationStyle.Root,
             eventTrackerContext = NfcEventTrackerScreenIdContext.UNSEAL_EMERGENCY_ACCESS_KIT_BACKUP
           )
@@ -278,8 +290,9 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       val payload: EmergencyAccessKitPayload,
       val entrySource: EntrySource,
     ) : State {
-      fun onStartRestore(): State =
+      fun onStartRestore(debugOptions: DebugOptions): State =
         StartNFCRestore(
+          debugOptions = debugOptions,
           payload = this.payload,
           entrySource = this.entrySource
         )
@@ -290,6 +303,7 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
      * access payload, and restore the wallet.
      */
     data class StartNFCRestore(
+      val debugOptions: DebugOptions,
       val payload: EmergencyAccessKitPayload,
       val entrySource: EntrySource,
     ) : State {

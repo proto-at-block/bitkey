@@ -1,16 +1,12 @@
 package build.wallet.statemachine.dev
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.DEBUG
+import build.wallet.fwup.FirmwareData
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.data.firmware.FirmwareData
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.dev.analytics.AnalyticsUiStateMachine
 import build.wallet.statemachine.dev.analytics.Props
 import build.wallet.statemachine.dev.cloud.CloudDevOptionsProps
@@ -36,10 +32,15 @@ class DebugMenuStateMachineImpl(
   private val networkingDebugConfigPickerUiStateMachine: NetworkingDebugConfigPickerUiStateMachine,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val cloudDevOptionsStateMachine: CloudDevOptionsStateMachine,
+  private val firmwareDataService: FirmwareDataService,
 ) : DebugMenuStateMachine {
   @Composable
   override fun model(props: DebugMenuProps): ScreenModel {
     var uiState: DebugMenuState by remember { mutableStateOf(DebugMenuState.ShowingDebugMenu) }
+
+    val firmwareData = remember {
+      firmwareDataService.firmwareData()
+    }.collectAsState().value
 
     return when (val state = uiState) {
       is DebugMenuState.ShowingDebugMenu ->
@@ -47,7 +48,7 @@ class DebugMenuStateMachineImpl(
           props =
             DebugMenuListProps(
               accountData = props.accountData,
-              firmwareData = props.firmwareData,
+              firmwareData = firmwareData,
               onSetState = { uiState = it },
               onClose = props.onClose
             )
@@ -57,7 +58,6 @@ class DebugMenuStateMachineImpl(
         f8eCustomUrlStateMachine.model(
           F8eCustomUrlStateMachineProps(
             customUrl = state.customUrl,
-            templateFullAccountConfigData = state.templateFullAccountConfigData,
             onBack = { uiState = DebugMenuState.ShowingDebugMenu }
           )
         )
@@ -130,7 +130,6 @@ sealed interface DebugMenuState {
 
   data class ShowingF8eCustomUrl(
     val customUrl: String,
-    val templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
   ) : DebugMenuState
 
   data object ShowingLogs : DebugMenuState

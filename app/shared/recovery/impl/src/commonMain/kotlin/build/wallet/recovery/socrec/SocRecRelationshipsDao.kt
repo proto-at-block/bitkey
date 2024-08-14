@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.db.DbError
 import build.wallet.f8e.socrec.SocRecRelationships
 import com.github.michaelbull.result.Result

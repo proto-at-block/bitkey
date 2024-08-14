@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.account.create
 
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.keybox.AppDataDeleterMock
@@ -8,10 +7,7 @@ import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.CreateFullAccountData.ActivateKeyboxDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull
-import build.wallet.statemachine.data.account.OnboardConfig
+import build.wallet.statemachine.data.account.CreateFullAccountData.*
 import build.wallet.statemachine.data.account.create.activate.ActivateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.activate.ActivateFullAccountDataStateMachine
 import build.wallet.statemachine.data.account.create.keybox.CreateKeyboxDataProps
@@ -34,11 +30,9 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
   val createKeyboxDataStateMachine =
     object : CreateKeyboxDataStateMachine,
       StateMachineMock<CreateKeyboxDataProps, CreateKeyboxData>(
-        initialModel =
-          CreateKeyboxData.CreatingAppKeysData(
-            fullAccountConfig = FullAccountConfigMock,
-            rollback = {}
-          )
+        initialModel = CreateKeyboxData.CreatingAppKeysData(
+          rollback = {}
+        )
       ) {}
   val onboardKeyboxDataStateMachine =
     object : OnboardKeyboxDataStateMachine,
@@ -62,14 +56,11 @@ class CreateFullAccountDataStateMachineImplTests : FunSpec({
 
   val rollbackCalls = turbines.create<Unit>("rollback calls")
 
-  val props =
-    CreateFullAccountDataProps(
-      templateFullAccountConfig = FullAccountConfigMock,
-      onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
-      onboardingKeybox = null,
-      rollback = { rollbackCalls.add(Unit) },
-      context = CreateFullAccountContext.NewFullAccount
-    )
+  val props = CreateFullAccountDataProps(
+    onboardingKeybox = null,
+    rollback = { rollbackCalls.add(Unit) },
+    context = CreateFullAccountContext.NewFullAccount
+  )
 
   test("data with no existing onboarding") {
     dataStateMachine.test(props) {

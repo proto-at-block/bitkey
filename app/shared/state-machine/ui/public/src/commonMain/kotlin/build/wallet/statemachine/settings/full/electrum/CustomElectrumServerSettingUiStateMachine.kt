@@ -1,7 +1,6 @@
 package build.wallet.statemachine.settings.full.electrum
 
 import build.wallet.bitcoin.BitcoinNetworkType
-import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -19,7 +18,5 @@ interface CustomElectrumServerSettingUiStateMachine : StateMachine<CustomElectru
  */
 data class CustomElectrumServerProps(
   val onBack: () -> Unit,
-  val electrumServerPreferenceValue: ElectrumServerPreferenceValue,
   val activeNetwork: BitcoinNetworkType,
-  val disableCustomElectrumServer: () -> Unit,
 )

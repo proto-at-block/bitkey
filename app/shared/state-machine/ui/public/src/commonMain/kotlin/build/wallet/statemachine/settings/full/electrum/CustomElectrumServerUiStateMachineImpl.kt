@@ -1,11 +1,7 @@
 package build.wallet.statemachine.settings.full.electrum
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import build.wallet.bitcoin.sync.ElectrumConfigService
 import build.wallet.bitcoin.sync.ElectrumServer
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
@@ -15,7 +11,9 @@ import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiSt
 import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerUiStateMachineImpl.State.CustomElectrumServerEnabledUiState
 import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
 
-class CustomElectrumServerUiStateMachineImpl : CustomElectrumServerUiStateMachine {
+class CustomElectrumServerUiStateMachineImpl(
+  private val electrumConfigService: ElectrumConfigService,
+) : CustomElectrumServerUiStateMachine {
   @Composable
   override fun model(props: CustomElectrumServerUiProps): BodyModel {
     var state: State by remember {
@@ -40,7 +38,7 @@ class CustomElectrumServerUiStateMachineImpl : CustomElectrumServerUiStateMachin
       is CustomElectrumServerEnabledUiState -> {
         if (currentState.isDisablingCustomElectrumServer) {
           LaunchedEffect("clear-custom-electrum-server") {
-            props.disableCustomElectrumServer()
+            electrumConfigService.disableCustomElectrumServer()
             state = CustomElectrumServerDisabledUiState
           }
         }

@@ -20,33 +20,12 @@ final class CurrencyPreferenceSnapshotTests: XCTestCase {
                 onFiatCurrencyPreferenceClick: {},
                 bitcoinDisplayPreferenceString: "Sats",
                 bitcoinDisplayPreferencePickerModel: .snapshot,
-                shouldShowHideBalance: false,
+                shouldShowBitcoinPriceCardToggle: false,
+                isBitcoinPriceCardEnabled: false,
                 isHideBalanceEnabled: false,
                 onEnableHideBalanceChanged: { _ in },
-                onBitcoinDisplayPreferenceClick: {}
-            )
-        )
-
-        assertBitkeySnapshots(view: view)
-    }
-
-    func test_currency_preference_with_hide_balance() {
-        let view = FormView(
-            viewModel: CurrencyPreferenceFormModelKt.CurrencyPreferenceFormModel(
-                onBack: {},
-                moneyHomeHero: .init(
-                    primaryAmount: "$0",
-                    secondaryAmount: "0 sats",
-                    isHidden: true
-                ),
-                fiatCurrencyPreferenceString: "USD",
-                onFiatCurrencyPreferenceClick: {},
-                bitcoinDisplayPreferenceString: "Sats",
-                bitcoinDisplayPreferencePickerModel: .snapshot,
-                shouldShowHideBalance: true,
-                isHideBalanceEnabled: true,
-                onEnableHideBalanceChanged: { _ in },
-                onBitcoinDisplayPreferenceClick: {}
+                onBitcoinDisplayPreferenceClick: {},
+                onBitcoinPriceCardPreferenceClick: { _ in }
             )
         )
 

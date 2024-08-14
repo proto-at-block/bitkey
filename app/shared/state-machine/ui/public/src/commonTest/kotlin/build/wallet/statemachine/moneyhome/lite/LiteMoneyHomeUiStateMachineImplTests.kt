@@ -1,6 +1,6 @@
 package build.wallet.statemachine.moneyhome.lite
 
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines

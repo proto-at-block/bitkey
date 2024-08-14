@@ -127,6 +127,44 @@ final class MoneyHomeSnapshotTests: XCTestCase {
         assertBitkeySnapshots(view: view)
     }
 
+    func test_money_home_with_hide_balance_coachmark() {
+        let view = MoneyHomeView(viewModel: MoneyHomeBodyModel(
+            hideBalance: false,
+            onSettings: {},
+            balanceModel: MoneyAmountModel(
+                primaryAmount: "$123.75",
+                secondaryAmount: "435,228 sats"
+            ),
+            buttonsModel: MoneyHomeButtonsModelMoneyMovementButtonsModel(
+                sendButton: .init(enabled: true, onClick: {}),
+                receiveButton: .init(enabled: true, onClick: {}),
+                addButton: .init(enabled: false, onClick: {})
+            ),
+            cardsModel: .init(cards: []),
+            transactionsModel: ListModel.transactionsSnapshotTest,
+            seeAllButtonModel: .snapshotTest(text: "See All", treatment: .secondary),
+            coachmark: CoachmarkModel(
+                identifier: Coachmark_publicCoachmarkIdentifier.hiddenbalancecoachmark,
+                title: "Tap to hide balance",
+                description: "Now you can easily conceal your balance by tapping to hide.",
+                arrowPosition: CoachmarkModel.ArrowPosition(
+                    vertical: .top,
+                    horizontal: .centered
+                ),
+                button: nil,
+                image: nil,
+                dismiss: {}
+            ),
+            refresh: TestSuspendFunction(),
+            onRefresh: {},
+            onHideBalance: {},
+            isRefreshing: false,
+            badgedSettingsIcon: true,
+            onOpenPriceDetails: {}
+        ))
+        assertBitkeySnapshots(view: view)
+    }
+
     func test_lite_money_home_with_coachmark_settings() {
         let view = LiteMoneyHomeView(viewModel: .snapshotTestLite(
             protectedCustomers: ["Alice"],
@@ -150,7 +188,7 @@ private extension LiteMoneyHomeBodyModel {
                 onSetUpBitkeyDevice: {}
             ),
             protectedCustomers: protectedCustomers.map {
-                ProtectedCustomer(recoveryRelationshipId: "", alias: $0)
+                ProtectedCustomer(relationshipId: "", alias: $0, roles: ["SOCIAL_RECOVERY_CONTACT"])
             },
             badgedSettingsIcon: badgedSettingsIcon,
             onProtectedCustomerClick: { _ in },
@@ -187,7 +225,8 @@ private extension MoneyHomeBodyModel {
             onRefresh: {},
             onHideBalance: {},
             isRefreshing: false,
-            badgedSettingsIcon: badgedSettingsIcon
+            badgedSettingsIcon: badgedSettingsIcon,
+            onOpenPriceDetails: {}
         )
     }
 }
@@ -238,8 +277,9 @@ private extension CardModel {
 
     static let pendingInvitation = RecoveryContactCardModelKt.RecoveryContactCardModel(
         contact: Invitation(
-            recoveryRelationshipId: "foo",
+            relationshipId: "foo",
             trustedContactAlias: "Alice",
+            roles: ["SOCIAL_RECOVERY_CONTACT"],
             code: "bar",
             codeBitLength: 20,
             expiresAt: Kotlinx_datetimeInstant.companion.DISTANT_FUTURE
@@ -251,8 +291,9 @@ private extension CardModel {
 
     static let expiredInvitation = RecoveryContactCardModelKt.RecoveryContactCardModel(
         contact: Invitation(
-            recoveryRelationshipId: "foo",
+            relationshipId: "foo",
             trustedContactAlias: "Alice",
+            roles: ["SOCIAL_RECOVERY_CONTACT"],
             code: "bar",
             codeBitLength: 20,
             expiresAt: Kotlinx_datetimeInstant.companion.DISTANT_PAST

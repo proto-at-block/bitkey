@@ -1,9 +1,9 @@
 package build.wallet.statemachine.fwup
 
+import build.wallet.fwup.FirmwareData
 import build.wallet.nfc.NfcException
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 
 /**
  * State machine managing the NFC session for FWUP and vending UI screen models

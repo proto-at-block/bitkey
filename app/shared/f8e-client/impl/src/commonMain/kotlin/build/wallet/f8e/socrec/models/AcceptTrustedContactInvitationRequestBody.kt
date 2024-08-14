@@ -1,6 +1,6 @@
 package build.wallet.f8e.socrec.models
 
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.bitkey.relationships.TrustedContactEnrollmentPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.ktor.result.RedactedRequestBody

@@ -1,0 +1,25 @@
+import kotlin.Boolean;
+
+-- This migration renames the `templateFullAccountConfigEntity` table to `debugOptionsEntity`
+
+-- 1. Create table with new name, same schema
+CREATE TABLE debugOptionsEntity(
+  rowId           INTEGER NOT NULL PRIMARY KEY,
+  bitcoinNetworkType     TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware    INTEGER AS Boolean NOT NULL,
+  f8eEnvironment  TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount   INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration TEXT AS Duration
+);
+
+-- 2. Move data from templateFullAccountConfigEntity
+INSERT INTO debugOptionsEntity (rowId, bitcoinNetworkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration)
+SELECT rowId, bitcoinNetworkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration
+FROM templateFullAccountConfigEntity;
+
+-- 3. Drop old table
+DROP TABLE templateFullAccountConfigEntity;
+
+-- 4. Make sure the foreign keys still work
+PRAGMA foreign_key_check;

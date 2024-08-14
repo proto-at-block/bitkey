@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.ensure
 import build.wallet.serialization.Base32Encoding
 import build.wallet.serialization.checksum.CRC6

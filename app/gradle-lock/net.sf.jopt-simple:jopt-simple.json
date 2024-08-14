@@ -2,6 +2,19 @@
     "module-identifier": "net.sf.jopt-simple:jopt-simple",
     "components": [
         {
+            "version": "4.6",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jopt-simple-4.6.jar": "3fcfbe3203c2ea521bf7640484fd35d6303186ea2e08e72f032d640ca067ffda"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        },
+        {
             "version": "4.9",
             "variants": [
                 {

@@ -15,11 +15,11 @@
             ]
         },
         {
-            "version": "1.9.21",
+            "version": "1.9.22",
             "variants": [
                 {
                     "artifacts": {
-                        "kotlin-reflect-1.9.21.jar": "a133e049f0a4e249651582428e166de4dfac9546adf436b6172119255ede510f"
+                        "kotlin-reflect-1.9.22.jar": "77f311ca1384811d519fda389fcb1268bdaa058d605046e0ede76c03b0df3e97"
                     }
                 }
             ],

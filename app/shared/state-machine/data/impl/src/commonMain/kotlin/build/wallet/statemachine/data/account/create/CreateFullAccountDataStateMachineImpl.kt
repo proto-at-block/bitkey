@@ -1,12 +1,6 @@
 package build.wallet.statemachine.data.account.create
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -17,11 +11,7 @@ import build.wallet.onboarding.OnboardingKeyboxStepState
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.CreateFullAccountData.ReplaceWithLiteAccountRestoreData
-import build.wallet.statemachine.data.account.create.CreateAccountState.ActivateKeyboxState
-import build.wallet.statemachine.data.account.create.CreateAccountState.CreateKeyboxState
-import build.wallet.statemachine.data.account.create.CreateAccountState.OnboardKeyboxState
-import build.wallet.statemachine.data.account.create.CreateAccountState.OverwriteFullAccountCloudBackupWarningState
-import build.wallet.statemachine.data.account.create.CreateAccountState.ReplaceWithLiteAccountRestoreState
+import build.wallet.statemachine.data.account.create.CreateAccountState.*
 import build.wallet.statemachine.data.account.create.activate.ActivateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.activate.ActivateFullAccountDataStateMachine
 import build.wallet.statemachine.data.account.create.keybox.CreateKeyboxDataProps
@@ -72,16 +62,11 @@ class CreateFullAccountDataStateMachineImpl(
           }
         }
         createKeyboxDataStateMachine.model(
-          props =
-            CreateKeyboxDataProps(
-              // Reuse keybox configuration used for ongoing onboarding,
-              // otherwise fall back on current template.
-              templateFullAccountConfig =
-                props.onboardingKeybox?.config
-                  ?: props.templateFullAccountConfig,
-              context = props.context,
-              rollback = props.rollback
-            )
+          props = CreateKeyboxDataProps(
+            onboardingKeybox = props.onboardingKeybox,
+            context = props.context,
+            rollback = props.rollback
+          )
         )
       }
 
@@ -95,7 +80,6 @@ class CreateFullAccountDataStateMachineImpl(
           props =
             OnboardKeyboxDataProps(
               keybox = state.keybox,
-              onboardConfig = props.onboardConfig,
               isSkipCloudBackupInstructions = state.isSkipCloudBackupInstructions,
               onExistingAppDataFound = { cloudBackup, proceed ->
                 if (cloudBackup?.accountId == state.keybox.fullAccountId.serverId) {

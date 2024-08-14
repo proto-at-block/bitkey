@@ -7,24 +7,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_BACKUP_FAILURE
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_LITE_ACCOUNT_CREATION_FAILURE
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
 import build.wallet.auth.LiteAccountCreator
 import build.wallet.bitkey.account.LiteAccount
+import build.wallet.debug.DebugOptionsService
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
-import build.wallet.statemachine.core.Retreat
-import build.wallet.statemachine.core.RetreatStyle
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
@@ -35,6 +28,7 @@ import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Compani
 import build.wallet.ui.model.toolbar.ToolbarModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
+import kotlinx.coroutines.flow.first
 
 class CreateLiteAccountUiStateMachineImpl(
   private val liteAccountCreator: LiteAccountCreator,
@@ -44,6 +38,7 @@ class CreateLiteAccountUiStateMachineImpl(
     LiteAccountCloudSignInAndBackupUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val eventTracker: EventTracker,
+  private val debugOptionsService: DebugOptionsService,
 ) : CreateLiteAccountUiStateMachine {
   @Composable
   override fun model(props: CreateLiteAccountUiProps): ScreenModel {
@@ -112,21 +107,21 @@ class CreateLiteAccountUiStateMachineImpl(
 
       is State.CreatingLiteAccount -> {
         LaunchedEffect("create-account-on-f8e") {
+          val debugOptions = debugOptionsService.options().first()
+          val accountConfig = debugOptions.toLiteAccountConfig()
           liteAccountCreator
-            .createAccount(props.accountConfig)
+            .createAccount(accountConfig)
             .onSuccess { liteAccount ->
-              uiState =
-                State.BackingUpLiteAccount(
-                  liteAccount = liteAccount,
-                  inviteCode = state.inviteCode
-                )
+              uiState = State.BackingUpLiteAccount(
+                liteAccount = liteAccount,
+                inviteCode = state.inviteCode
+              )
             }
             .onFailure { error ->
-              uiState =
-                State.CreatingLiteAccountFailure(
-                  isConnectivityError = error.isConnectivityError,
-                  inviteCode = state.inviteCode
-                )
+              uiState = State.CreatingLiteAccountFailure(
+                isConnectivityError = error.isConnectivityError,
+                inviteCode = state.inviteCode
+              )
             }
         }
         LoadingBodyModel(id = NEW_LITE_ACCOUNT_CREATION)

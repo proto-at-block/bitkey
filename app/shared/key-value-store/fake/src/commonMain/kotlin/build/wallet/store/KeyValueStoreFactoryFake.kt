@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 /**
- * Fake [KeyValueStoreFactory] implementation baked by in memory storage.
+ * Fake [KeyValueStoreFactory] implementation backed by in memory storage.
  */
 class KeyValueStoreFactoryFake : KeyValueStoreFactory {
   val store = MapSettings()

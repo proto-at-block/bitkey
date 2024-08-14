@@ -2,7 +2,7 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl

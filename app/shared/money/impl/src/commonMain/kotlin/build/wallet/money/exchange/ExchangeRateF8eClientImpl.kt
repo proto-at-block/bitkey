@@ -18,6 +18,8 @@ import io.ktor.client.request.post
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
 
 class ExchangeRateF8eClientImpl(
   private val f8eHttpClient: F8eHttpClient,
@@ -56,6 +58,28 @@ class ExchangeRateF8eClientImpl(
       .logNetworkFailure { "Failed to get historical exchange rate for $currencyCode" }
   }
 
+  override suspend fun getHistoricalBtcExchangeRateChartData(
+    f8eEnvironment: F8eEnvironment,
+    accountId: AccountId,
+    currencyCode: String,
+    days: Duration,
+    maxPricePoints: Int,
+  ): Result<ExchangeRateChartData, NetworkingError> =
+    f8eHttpClient.authenticated(f8eEnvironment, accountId)
+      .bodyResult<ExchangeRateChartDataDTO> {
+        post("/api/exchange-rates/chart") {
+          setRedactedBody(
+            HistoricalBtcExchangeRateChartData(
+              currencyCode,
+              days.toInt(DurationUnit.DAYS),
+              maxPricePoints
+            )
+          )
+        }
+      }
+      .map { it.toExchangeRateChartData() }
+      .logNetworkFailure { "Failed to get historical exchange rate chart data for $currencyCode" }
+
   @Serializable
   data class HistoricalRateRequest(
     @SerialName("currency_code")
@@ -86,6 +110,47 @@ class ExchangeRateF8eClientImpl(
         toCurrency = IsoCurrencyTextCode(toCurrency),
         rate = rate,
         timeRetrieved = timeRetrieved
+      )
+    }
+  }
+
+  @Serializable
+  data class HistoricalBtcExchangeRateChartData(
+    @SerialName("currency_code")
+    val currencyCode: String,
+    val days: Int,
+    @SerialName("max_price_points")
+    val maxPricePoints: Int,
+  ) : RedactedRequestBody
+
+  @Serializable
+  private data class ExchangeRateChartDataDTO(
+    @SerialName("from_currency")
+    val fromCurrency: String,
+    @SerialName("to_currency")
+    val toCurrency: String,
+    @Unredacted
+    @SerialName("exchange_rates")
+    val exchangeRates: List<PriceAtDTO>,
+  ) : RedactedResponseBody {
+    fun toExchangeRateChartData(): ExchangeRateChartData {
+      return ExchangeRateChartData(
+        fromCurrency = IsoCurrencyTextCode(fromCurrency),
+        toCurrency = IsoCurrencyTextCode(toCurrency),
+        exchangeRates = exchangeRates.map { it.toPriceAt() }
+      )
+    }
+  }
+
+  @Serializable
+  private data class PriceAtDTO(
+    val timestamp: Instant,
+    val price: Double,
+  ) {
+    fun toPriceAt(): PriceAt {
+      return PriceAt(
+        timestamp = timestamp,
+        price = price
       )
     }
   }

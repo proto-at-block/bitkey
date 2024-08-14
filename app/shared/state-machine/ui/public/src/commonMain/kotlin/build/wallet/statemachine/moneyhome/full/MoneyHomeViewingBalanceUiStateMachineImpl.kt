@@ -6,12 +6,12 @@ import build.wallet.analytics.v1.Action
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.relationships.Invitation
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.feature.flags.InAppSecurityFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.fwup.FirmwareData
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTaskDao
 import build.wallet.inappsecurity.MoneyHomeHiddenStatus
@@ -30,7 +30,6 @@ import build.wallet.recovery.sweep.SweepPromptRequirementCheck
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.limit.MobilePayOnboardingScreenModel
 import build.wallet.statemachine.money.amount.MoneyAmountModel
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -39,6 +38,7 @@ import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsModel
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachine
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiProps
+import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiProps
@@ -64,8 +64,8 @@ import build.wallet.statemachine.transactions.TransactionListUiStateMachine
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
+import build.wallet.ui.model.coachmark.CoachmarkModel
 import com.github.michaelbull.result.onSuccess
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -85,9 +85,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val moneyHomeHiddenStatusProvider: MoneyHomeHiddenStatusProvider,
   private val coachmarkService: CoachmarkService,
-  private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
   private val sweepPromptRequirementCheck: SweepPromptRequirementCheck,
   private val haptics: Haptics,
+  private val firmwareDataService: FirmwareDataService,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
@@ -112,14 +112,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       }.collectAsState(AppFunctionalityStatus.FullFunctionality).value
 
     val hideBalance by remember {
-      if (inAppSecurityFeatureFlag.isEnabled()) {
-        moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest {
-            status ->
-          status == MoneyHomeHiddenStatus.HIDDEN
-        }.stateIn(scope = scope, SharingStarted.Eagerly, moneyHomeHiddenStatusProvider.hiddenStatus.value == MoneyHomeHiddenStatus.HIDDEN)
-      } else {
-        MutableStateFlow(false)
-      }
+      moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest {
+          status ->
+        status == MoneyHomeHiddenStatus.HIDDEN
+      }.stateIn(scope = scope, SharingStarted.Eagerly, moneyHomeHiddenStatusProvider.hiddenStatus.value == MoneyHomeHiddenStatus.HIDDEN)
     }.collectAsState()
 
     var coachmarksToDisplay by remember { mutableStateOf(listOf<CoachmarkIdentifier>()) }
@@ -127,7 +123,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
     LaunchedEffect("coachmarks", coachmarkDisplayed) {
       coachmarkService
         .coachmarksToDisplay(
-          setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark, CoachmarkIdentifier.BiometricUnlockCoachmark)
+          setOf(CoachmarkIdentifier.MultipleFingerprintsCoachmark, CoachmarkIdentifier.BiometricUnlockCoachmark, CoachmarkIdentifier.HiddenBalanceCoachmark)
         ).onSuccess {
           coachmarksToDisplay = it
         }
@@ -142,11 +138,13 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           MoneyHomeBodyModel(
             hideBalance = hideBalance,
             onHideBalance = {
-              if (inAppSecurityFeatureFlag.isEnabled()) {
-                scope.launch {
-                  moneyHomeHiddenStatusProvider.toggleStatus()
-                  haptics.vibrate(HapticsEffect.MediumClick)
-                }
+              scope.launch {
+                moneyHomeHiddenStatusProvider.toggleStatus()
+                haptics.vibrate(HapticsEffect.MediumClick)
+                coachmarkService.markCoachmarkAsDisplayed(
+                  coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark
+                )
+                coachmarkDisplayed = true
               }
             },
             onSettings = props.onSettings,
@@ -200,7 +198,27 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
                     }
                 )
               },
-            coachmark = null, // TODO W-8910 Show coachmark once render issues are resolved
+            coachmark = if (coachmarksToDisplay.contains(CoachmarkIdentifier.HiddenBalanceCoachmark)) {
+              CoachmarkModel(
+                identifier = CoachmarkIdentifier.HiddenBalanceCoachmark,
+                title = "Tap to hide balance",
+                description = "Now you can easily conceal your balance by tapping to hide.",
+                arrowPosition = CoachmarkModel.ArrowPosition(
+                  vertical = CoachmarkModel.ArrowPosition.Vertical.Top,
+                  horizontal = CoachmarkModel.ArrowPosition.Horizontal.Centered
+                ),
+                button = null,
+                image = null,
+                dismiss = {
+                  scope.launch {
+                    coachmarkService.markCoachmarkAsDisplayed(coachmarkId = CoachmarkIdentifier.HiddenBalanceCoachmark)
+                    coachmarkDisplayed = true
+                  }
+                }
+              )
+            } else {
+              null
+            },
             refresh = props.accountData.transactionsData.syncTransactions,
             onRefresh = {
               props.setState(props.state.copy(isRefreshing = true))
@@ -210,7 +228,10 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               coachmarksToDisplay.contains(CoachmarkIdentifier.BiometricUnlockCoachmark) ||
                 coachmarksToDisplay.contains(
                   CoachmarkIdentifier.MultipleFingerprintsCoachmark
-                )
+                ),
+            onOpenPriceDetails = {
+              props.setState(ShowingPriceChartUiState())
+            }
           ),
         bottomSheetModel =
           MoneyHomeBottomSheetModel(
@@ -271,7 +292,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           ),
           deviceUpdateCardUiProps =
             DeviceUpdateCardUiProps(
-              firmwareData = props.firmwareData,
               onUpdateDevice = { firmwareData ->
                 props.setState(FwupFlowUiState(firmwareData = firmwareData))
               }
@@ -324,7 +344,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             ),
           setupHardwareCardUiProps =
             SetupHardwareCardUiProps(
-              deviceInfo = props.firmwareData.firmwareDeviceInfo,
               onReplaceDevice = {
                 props.setState(
                   ViewHardwareRecoveryStatusUiState(InstructionsStyle.ResumedRecoveryAttempt)
@@ -334,6 +353,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           startSweepCardUiProps = StartSweepCardUiProps(
             keybox = props.accountData.account.keybox,
             onStartSweepClicked = props.onStartSweepFlow
+          ),
+          bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
+            onOpenPriceChart = { props.setState(ShowingPriceChartUiState()) }
           )
         )
     )
@@ -439,9 +461,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             addBitcoinUiStateMachine.model(
               props =
                 AddBitcoinUiProps(
+                  account = props.accountData.account,
                   keybox = props.accountData.account.keybox,
                   purchaseAmount = currentState.purchaseAmount,
-                  generateAddress = props.accountData.addressData.generateAddress,
                   onAnotherWalletOrExchange = { props.setState(ReceiveFlowUiState) },
                   onPartnerRedirected = { redirectMethod, transaction ->
                     handlePartnerRedirected(
@@ -499,7 +521,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             }
             val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
             ViewingAddTrustedContactFormBodyModel(
-              onAddTrustedContact = { props.setState(MoneyHomeUiState.InviteTrustedContactFlow) },
+              onAddTrustedContact = { props.setState(InviteTrustedContactFlow) },
               onSkip = {
                 props.setState(
                   props.state.copy(
@@ -539,10 +561,14 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           }
           PromptingForFwUpUiState -> {
             val onClosed = { props.setState(props.state.copy(bottomSheetDisplayState = null)) }
+            val fwupState = remember { firmwareDataService.firmwareData() }
+              .collectAsState()
+              .value.firmwareUpdateState
+
             PromptingForFingerprintFwUpSheetModel(
               onCancel = onClosed,
               onUpdate = {
-                when (val fwupState = props.firmwareData.firmwareUpdateState) {
+                when (fwupState) {
                   is FirmwareData.FirmwareUpdateState.PendingUpdate -> props.setState(
                     FwupFlowUiState(fwupState)
                   )

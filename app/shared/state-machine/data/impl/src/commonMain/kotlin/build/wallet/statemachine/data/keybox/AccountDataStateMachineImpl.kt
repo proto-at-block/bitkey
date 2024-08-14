@@ -12,6 +12,8 @@ import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.db.DbError
+import build.wallet.debug.DebugOptions
+import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -20,10 +22,7 @@ import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.*
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
 import build.wallet.recovery.RecoverySyncer
-import build.wallet.statemachine.data.account.OnboardConfig
-import build.wallet.statemachine.data.account.create.OnboardingStepSkipConfigDao
 import build.wallet.statemachine.data.keybox.AccountData.*
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachine
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
@@ -32,7 +31,6 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
 
@@ -45,18 +43,16 @@ class AccountDataStateMachineImpl(
   private val noLongerRecoveringDataStateMachine: NoLongerRecoveringDataStateMachine,
   private val someoneElseIsRecoveringDataStateMachine: SomeoneElseIsRecoveringDataStateMachine,
   private val recoverySyncFrequency: Duration,
-  private val onboardingStepSkipConfigDao: OnboardingStepSkipConfigDao,
+  private val debugOptionsService: DebugOptionsService,
 ) : AccountDataStateMachine {
   @Composable
-  override fun model(props: AccountDataProps): AccountData {
+  override fun model(props: Unit): AccountData {
     val activeAccountResult = rememberActiveAccount()
     val activeRecoveryResult = rememberActiveRecovery()
+    val debugOptions = remember { debugOptionsService.options() }
+      .collectAsState(initial = null).value
 
-    val onboardConfig = remember {
-      onboardingStepSkipConfigDao.stepsToSkip().map(::OnboardConfig)
-    }.collectAsState(initial = null).value
-
-    if (onboardConfig == null) {
+    if (debugOptions == null) {
       // If we don't have results yet, we're still checking
       return CheckingActiveAccountData
     }
@@ -73,12 +69,7 @@ class AccountDataStateMachineImpl(
           when (val account = activeAccountResult.value) {
             is LiteAccount ->
               hasActiveLiteAccountDataStateMachine.model(
-                props =
-                  HasActiveLiteAccountDataProps(
-                    account = account,
-                    onboardConfig = onboardConfig,
-                    accountUpgradeTemplateFullAccountConfigData = props.templateFullAccountConfigData
-                  )
+                props = HasActiveLiteAccountDataProps(account = account)
               )
 
             is FullAccount? -> {
@@ -86,7 +77,6 @@ class AccountDataStateMachineImpl(
               activeAccountResult.mapBoth(
                 success = {
                   maybePollRecoveryStatus(
-                    templateFullAccountConfigData = props.templateFullAccountConfigData,
                     activeKeybox = account?.keybox,
                     activeRecovery = activeRecoveryResult.value
                   )
@@ -94,22 +84,19 @@ class AccountDataStateMachineImpl(
                   // We have results from DB for both keybox and recovery.
                   // First, try to create [KeyboxData] based on recovery state.
                   fullAccountDataBasedOnRecovery(
-                    props = props,
+                    debugOptions = debugOptions,
                     activeAccount = account,
-                    activeRecovery = activeRecoveryResult.value,
-                    onboardConfig = onboardConfig
+                    activeRecovery = activeRecoveryResult.value
                   )
                 },
                 failure = {
                   maybePollRecoveryStatus(
-                    templateFullAccountConfigData = props.templateFullAccountConfigData,
                     activeKeybox = account?.keybox,
                     activeRecovery = NoActiveRecovery
                   )
                   NoActiveAccountData(
-                    templateFullAccountConfigData = props.templateFullAccountConfigData,
-                    activeRecovery = null,
-                    onboardConfig = onboardConfig
+                    debugOptions = debugOptions,
+                    activeRecovery = null
                   )
                 }
               )
@@ -117,18 +104,16 @@ class AccountDataStateMachineImpl(
 
             else -> {
               NoActiveAccountData(
-                templateFullAccountConfigData = props.templateFullAccountConfigData,
-                activeRecovery = null,
-                onboardConfig = onboardConfig
+                debugOptions = debugOptions,
+                activeRecovery = null
               )
             }
           }
         },
         failure = {
           NoActiveAccountData(
-            templateFullAccountConfigData = props.templateFullAccountConfigData,
-            activeRecovery = null,
-            onboardConfig = onboardConfig
+            debugOptions = debugOptions,
+            activeRecovery = null
           )
         }
       )
@@ -136,10 +121,9 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun fullAccountDataBasedOnRecovery(
-    props: AccountDataProps,
+    debugOptions: DebugOptions,
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
-    onboardConfig: OnboardConfig,
   ): AccountData {
     /*
     [shouldShowSomeoneElseIsRecoveringIfPresent] tracks whether we are showing an app-level notice
@@ -189,10 +173,9 @@ class AccountDataStateMachineImpl(
         } else {
           // Otherwise, create [KeyboxData] solely based on keybox state.
           accountDataBasedOnAccount(
-            props = props,
+            debugOptions = debugOptions,
             activeAccount = activeAccount,
-            activeRecovery = activeRecovery,
-            onboardConfig = onboardConfig
+            activeRecovery = activeRecovery
           )
         }
       }
@@ -200,10 +183,9 @@ class AccountDataStateMachineImpl(
       else -> {
         // Otherwise, create [KeyboxData] solely based on Full account state.
         accountDataBasedOnAccount(
-          props = props,
+          debugOptions = debugOptions,
           activeAccount = activeAccount,
-          activeRecovery = activeRecovery,
-          onboardConfig = onboardConfig
+          activeRecovery = activeRecovery
         )
       }
     }
@@ -211,17 +193,15 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun accountDataBasedOnAccount(
-    props: AccountDataProps,
+    debugOptions: DebugOptions,
     activeAccount: FullAccount?,
     activeRecovery: Recovery,
-    onboardConfig: OnboardConfig,
   ): AccountData {
     return when (activeAccount) {
       null -> {
         NoActiveAccountData(
-          templateFullAccountConfigData = props.templateFullAccountConfigData,
-          activeRecovery = activeRecovery as? StillRecovering,
-          onboardConfig = onboardConfig
+          debugOptions = debugOptions,
+          activeRecovery = activeRecovery as? StillRecovering
         )
       }
 
@@ -266,16 +246,14 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun NoActiveAccountData(
-    templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
+    debugOptions: DebugOptions,
     activeRecovery: StillRecovering?,
-    onboardConfig: OnboardConfig,
   ): AccountData {
     val scope = rememberStableCoroutineScope()
     return noActiveAccountDataStateMachine.model(
       NoActiveAccountDataProps(
-        templateFullAccountConfigData = templateFullAccountConfigData,
+        debugOptions = debugOptions,
         existingRecovery = activeRecovery,
-        onboardConfig = onboardConfig,
         onAccountCreated = { account ->
           scope.launch {
             accountRepository.setActiveAccount(account)
@@ -287,7 +265,6 @@ class AccountDataStateMachineImpl(
 
   @Composable
   private fun maybePollRecoveryStatus(
-    templateFullAccountConfigData: LoadedTemplateFullAccountConfigData,
     activeKeybox: Keybox?,
     activeRecovery: Recovery,
   ) {
@@ -298,13 +275,17 @@ class AccountDataStateMachineImpl(
       return
     }
 
+    val debugOptions = remember { debugOptionsService.options() }
+      .collectAsState(initial = null)
+      .value ?: return
+
     // We also poll for recovery status if there's an active recovery, and it hasn't progressed
     // into ServerIndependentRecovery yet, in case there's a contest.
     when (activeRecovery) {
       is ServerDependentRecovery ->
         pollRecoveryStatus(
           fullAccountId = activeRecovery.serverRecovery.fullAccountId,
-          f8eEnvironment = templateFullAccountConfigData.config.f8eEnvironment
+          f8eEnvironment = debugOptions.f8eEnvironment
         )
 
       else -> {}

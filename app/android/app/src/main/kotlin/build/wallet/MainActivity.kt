@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.cloud.store.*
@@ -26,7 +27,6 @@ import build.wallet.google.signin.GoogleSignOutActionImpl
 import build.wallet.logging.log
 import build.wallet.nfc.*
 import build.wallet.nfc.platform.NfcCommandsProvider
-import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.biometrics.BiometricPrompterImpl
 import build.wallet.platform.notifications.NotificationChannelRepository
 import build.wallet.platform.pdf.PdfAnnotatorFactoryImpl
@@ -234,7 +234,6 @@ class MainActivity : FragmentActivity() {
       cloudDevOptionsStateMachine = cloudDevOptionsStateMachine,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       datadogRumMonitor = DatadogRumMonitorImpl(),
-      phoneNumberLibBindings = PhoneNumberLibBindingsImpl(),
       symmetricKeyEncryptor = SymmetricKeyEncryptorImpl(),
       symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
       lightningInvoiceParser = LightningInvoiceParserImpl(),
@@ -260,6 +259,6 @@ class MainActivity : FragmentActivity() {
           setRecentsScreenshotEnabled(!isEnabled)
         }
       }
-      .stateIn(appComponent.appCoroutineScope, SharingStarted.Eagerly, false)
+      .stateIn(lifecycleScope, SharingStarted.Eagerly, false)
   }
 }

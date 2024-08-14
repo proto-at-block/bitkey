@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.catchingResult
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result

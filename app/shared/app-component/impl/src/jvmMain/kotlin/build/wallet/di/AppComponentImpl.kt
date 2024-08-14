@@ -18,6 +18,7 @@ import build.wallet.firmware.HardwareAttestationMock
 import build.wallet.firmware.Teltra
 import build.wallet.logging.dev.LogStoreNoop
 import build.wallet.money.exchange.ExchangeRateF8eClient
+import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -80,6 +81,7 @@ fun makeAppComponent(
     messageSigner = messageSigner,
     signatureVerifier = signatureVerifier,
     platformContext = platformContext,
+    phoneNumberLibBindings = PhoneNumberLibBindingsImpl(),
     secp256k1KeyGenerator = publicKeyGenerator,
     recoverySyncFrequency = 5.seconds,
     hardwareAttestation = hardwareAttestation,

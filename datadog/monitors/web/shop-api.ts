@@ -119,7 +119,7 @@ class ShopApiMetricMonitor extends Construct {
 
     new Monitor(this, `${metricServiceName}_metric_${service}_${metricName}_error`, {
       query: metric_avg_query(
-        `avg:${metricServiceName}.${service}.${metricName}.error{*}`,
+        `avg:${metricServiceName}.${service}.${metricName}.error{env:${environment}}`,
         metricAlertWindow,
         metricsAlertConfig.monitorThresholds.critical
       ),

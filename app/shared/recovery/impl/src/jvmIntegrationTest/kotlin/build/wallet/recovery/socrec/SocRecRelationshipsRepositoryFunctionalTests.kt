@@ -31,7 +31,7 @@ class SocRecRelationshipsRepositoryFunctionalTests : FunSpec({
         shouldNotBeNull()
         shouldOnlyHaveSingleInvitation {
           it.shouldHaveAlias(tcName)
-          it.recoveryRelationshipId.shouldBe(tcInvitation.recoveryRelationshipId)
+          it.relationshipId.shouldBe(tcInvitation.relationshipId)
         }
       }
     }
@@ -61,7 +61,7 @@ class SocRecRelationshipsRepositoryFunctionalTests : FunSpec({
         shouldNotBeNull()
         shouldOnlyHaveSingleEndorsedTrustedContact {
           it.shouldHaveAlias(tcName)
-          it.recoveryRelationshipId.shouldBe(tcInvitation.recoveryRelationshipId)
+          it.relationshipId.shouldBe(tcInvitation.relationshipId)
         }
       }
     }

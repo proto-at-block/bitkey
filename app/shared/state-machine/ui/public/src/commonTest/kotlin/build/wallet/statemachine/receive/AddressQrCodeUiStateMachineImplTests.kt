@@ -2,6 +2,7 @@ package build.wallet.statemachine.receive
 
 import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressServiceFake
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoderMock
 import build.wallet.coroutines.turbine.turbines
@@ -13,7 +14,6 @@ import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.qr.QrCodeModel
 import build.wallet.statemachine.receive.AddressQrCodeBodyModel.Content.QrCode
 import build.wallet.time.ControlledDelayer
@@ -30,13 +30,15 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
   val clipboard = ClipboardMock()
 
   val sharingManager = SharingManagerMock(turbines::create)
+  val bitcoinAddressService = BitcoinAddressServiceFake()
 
   val stateMachine =
     AddressQrCodeUiStateMachineImpl(
       clipboard = clipboard,
       delayer = ControlledDelayer(),
       sharingManager = sharingManager,
-      bitcoinInvoiceUrlEncoder = BitcoinInvoiceUrlEncoderMock()
+      bitcoinInvoiceUrlEncoder = BitcoinInvoiceUrlEncoderMock(),
+      bitcoinAddressService = bitcoinAddressService
     )
 
   val onBackCalls = turbines.create<Unit>("back calls")
@@ -47,6 +49,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
         onBackCalls += Unit
       }
     )
+
+  beforeTest {
+    bitcoinAddressService.reset()
+  }
 
   test("show screen with address and QR code") {
     stateMachine.test(props) {
@@ -78,22 +84,10 @@ class AddressQrCodeUiStateMachineImplTests : FunSpec({
       awaitBody<AddressQrCodeBodyModel> {
         content.shouldBeTypeOf<QrCode>()
           .addressDisplayString.string.shouldBe("bc1z w508 d6qe jxtd g4y5 r3za rvar yvax xpcs")
-      }
 
-      val newAddress = BitcoinAddress("new1ksdjfksljfdsklj1234")
-      updateProps(
-        props.copy(
-          accountData =
-            ActiveKeyboxLoadedDataMock.copy(
-              addressData =
-                KeyboxAddressDataMock.copy(
-                  generateAddress = { Ok(newAddress) }
-                )
-            )
-        )
-      )
+        val newAddress = BitcoinAddress("new1ksdjfksljfdsklj1234")
+        bitcoinAddressService.result = Ok(newAddress)
 
-      awaitBody<AddressQrCodeBodyModel> {
         toolbarModel.trailingAccessory
           .shouldNotBeNull()
           .shouldBeInstanceOf<ToolbarAccessoryModel.IconAccessory>()

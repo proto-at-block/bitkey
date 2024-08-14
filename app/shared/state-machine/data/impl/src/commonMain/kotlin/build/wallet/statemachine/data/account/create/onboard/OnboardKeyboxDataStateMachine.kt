@@ -4,7 +4,6 @@ import build.wallet.bitkey.keybox.Keybox
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.OnboardConfig
 
 /**
  * Data state machine for managing onboarding of a Keybox, but not activation!
@@ -17,7 +16,6 @@ interface OnboardKeyboxDataStateMachine :
 
 data class OnboardKeyboxDataProps(
   val keybox: Keybox,
-  val onboardConfig: OnboardConfig,
   val onExistingAppDataFound: (cloudBackup: CloudBackup?, proceed: () -> Unit) -> Unit,
   val isSkipCloudBackupInstructions: Boolean,
 )

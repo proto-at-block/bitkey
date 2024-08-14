@@ -10,6 +10,7 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClient
 import build.wallet.f8e.partnerships.GetTransferRedirectF8eClient
@@ -60,6 +61,7 @@ class PartnershipsTransferUiStateMachineImpl(
   private val getTransferRedirectF8eClient: GetTransferRedirectF8eClient,
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
   private val eventTracker: EventTracker,
+  private val bitcoinAddressService: BitcoinAddressService,
 ) : PartnershipsTransferUiStateMachine {
   @Composable
   override fun model(props: PartnershipsTransferUiProps): SheetModel {
@@ -143,7 +145,7 @@ class PartnershipsTransferUiStateMachineImpl(
               partnerInfo = currentState.partnerInfo,
               type = PartnershipTransactionType.TRANSFER
             ).bind()
-            val address = props.generateAddress().bind()
+            val address = bitcoinAddressService.generateAddress(props.account).bind()
             val result = getTransferRedirectF8eClient
               .getTransferRedirect(
                 fullAccountId = props.keybox.fullAccountId,

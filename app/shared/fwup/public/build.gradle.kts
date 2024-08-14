@@ -15,6 +15,7 @@ kotlin {
         implementation(libs.kmp.kotlin.serialization.json)
         implementation(projects.shared.featureFlagPublic)
         implementation(projects.shared.firmwarePublic)
+        implementation(projects.shared.workerPublic)
       }
     }
   }

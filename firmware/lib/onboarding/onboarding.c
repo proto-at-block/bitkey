@@ -2,6 +2,7 @@
 
 #include "assert.h"
 #include "bio.h"
+#include "kv.h"
 #include "log.h"
 #include "unlock.h"
 #include "wallet.h"
@@ -26,4 +27,5 @@ void onboarding_wipe_state(void) {
   wallet_remove_files();
   bio_wipe_state();
   unlock_wipe_state();
+  kv_wipe_state();
 }

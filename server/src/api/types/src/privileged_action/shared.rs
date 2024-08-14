@@ -5,6 +5,7 @@ use std::{
 
 use external_identifier::ExternalIdentifier;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 use ulid::Ulid;
 use urn::Urn;
 use utoipa::ToSchema;
@@ -44,9 +45,15 @@ impl Display for PrivilegedActionInstanceId {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq, Hash, Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PrivilegedActionType {
     SetPrivilegedActionDelays,
     ActivateTouchpoint,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq)]
+pub struct PrivilegedActionDelayDuration {
+    pub privileged_action_type: PrivilegedActionType,
+    pub delay_duration_secs: usize,
 }

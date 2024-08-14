@@ -1,7 +1,7 @@
 package build.wallet.statemachine.moneyhome.card.gettingstarted
 
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -23,7 +23,7 @@ interface GettingStartedCardUiStateMachine : StateMachine<GettingStartedCardUiPr
 data class GettingStartedCardUiProps(
   val accountData: ActiveFullAccountLoadedData,
   val appFunctionalityStatus: AppFunctionalityStatus,
-  val trustedContacts: List<RecoveryContact>,
+  val trustedContacts: List<TrustedContact>,
   val onAddBitcoin: () -> Unit,
   val onEnableSpendingLimit: () -> Unit,
   val onInviteTrustedContact: () -> Unit,

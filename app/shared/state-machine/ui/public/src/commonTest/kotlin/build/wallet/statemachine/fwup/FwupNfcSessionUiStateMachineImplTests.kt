@@ -1,6 +1,5 @@
 package build.wallet.statemachine.fwup
 
-import app.cash.turbine.plusAssign
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.FWUP
@@ -8,9 +7,9 @@ import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETEC
 import build.wallet.analytics.v1.Action.ACTION_APP_FWUP_COMPLETE
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.fwup.FwupDataDaoMock
-import build.wallet.fwup.FwupDataMock
-import build.wallet.fwup.FwupProgressCalculatorMock
+import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.fwup.*
+import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.nfc.NfcException
 import build.wallet.nfc.NfcReaderCapabilityProviderMock
 import build.wallet.nfc.NfcSession
@@ -18,11 +17,7 @@ import build.wallet.nfc.NfcTransactorMock
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.PendingUpdate
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.InProgress
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.LostConnection
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.Searching
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.Success
+import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.*
 import build.wallet.statemachine.platform.nfc.EnableNfcNavigatorMock
 import build.wallet.time.ControlledDelayer
 import com.github.michaelbull.result.Err
@@ -39,6 +34,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   val deviceInfoProvider = DeviceInfoProviderMock()
   val nfcTransactor = NfcTransactorMock(turbines::create)
   val fwupDataDao = FwupDataDaoMock(turbines::create)
+  val firmwareDataService = FirmwareDataServiceFake()
 
   val stateMachine =
     FwupNfcSessionUiStateMachineImpl(
@@ -49,19 +45,17 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       deviceInfoProvider = deviceInfoProvider,
       nfcReaderCapabilityProvider = NfcReaderCapabilityProviderMock(),
       nfcTransactor = nfcTransactor,
-      fwupDataDao = fwupDataDao
+      fwupDataDao = fwupDataDao,
+      firmwareDataService = firmwareDataService
     )
 
   val onBackCalls = turbines.create<Unit>("onBack calls")
   val onDoneCalls = turbines.create<Unit>("onDone calls")
   val onErrorCalls = turbines.create<NfcException>("onError calls")
-  val onUpdateCompletedCalls = turbines.create<Unit>("onUpdateCompleted calls")
+
   val props =
     FwupNfcSessionUiProps(
-      firmwareData =
-        PendingUpdate(FwupDataMock) {
-          onUpdateCompletedCalls += Unit
-        },
+      firmwareData = PendingUpdate(FwupDataMock),
       isHardwareFake = true,
       onBack = { onBackCalls.add(Unit) },
       onDone = { onDoneCalls.add(Unit) },
@@ -72,6 +66,7 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
   beforeTest {
     deviceInfoProvider.reset()
     nfcTransactor.reset()
+    firmwareDataService.reset()
   }
 
   test("happy path") {
@@ -91,7 +86,13 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       }
 
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
-      onUpdateCompletedCalls.awaitItem()
+      firmwareDataService.firmwareData.value.shouldBe(
+        FirmwareDataUpToDateMock.copy(
+          firmwareDeviceInfo = FirmwareDeviceInfoMock.copy(
+            version = FwupDataMock.version
+          )
+        )
+      )
       onDoneCalls.awaitItem()
     }
   }
@@ -111,7 +112,6 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       // have responded in this case.
       awaitScreenWithBody<FwupNfcBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
-      onUpdateCompletedCalls.awaitItem()
       onDoneCalls.awaitItem()
 
       onBackCalls.awaitItem()
@@ -134,7 +134,6 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       // have responded in this case.
       awaitScreenWithBody<FwupNfcBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
-      onUpdateCompletedCalls.awaitItem()
       onDoneCalls.awaitItem()
 
       transactCalls.onTagConnected()
@@ -165,7 +164,6 @@ class FwupNfcSessionUiStateMachineImplTests : FunSpec({
       // have responded in this case.
       awaitScreenWithBody<FwupNfcBodyModel>()
       eventTracker.eventCalls.awaitItem().shouldBe(TrackedAction(ACTION_APP_FWUP_COMPLETE))
-      onUpdateCompletedCalls.awaitItem()
       onDoneCalls.awaitItem()
 
       transactCalls.onTagDisconnected()

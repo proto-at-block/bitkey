@@ -14,5 +14,4 @@ interface CreateAccountUiStateMachine : StateMachine<CreateAccountUiProps, Scree
  */
 data class CreateAccountUiProps(
   val createFullAccountData: CreateFullAccountData,
-  val isHardwareFake: Boolean,
 )

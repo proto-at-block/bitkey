@@ -3,6 +3,7 @@ package build.wallet.statemachine.moneyhome.card
 import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.buildImmutableList
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachine
@@ -20,10 +21,11 @@ class MoneyHomeCardsUiStateMachineImpl(
   private val setupHardwareCardUiStateMachine: SetupHardwareCardUiStateMachine,
   private val cloudBackupHealthCardUiStateMachine: CloudBackupHealthCardUiStateMachine,
   private val startSweepCardUiStateMachine: StartSweepCardUiStateMachine,
+  private val bitcoinPriceCardUiStateMachine: BitcoinPriceCardUiStateMachine,
 ) : MoneyHomeCardsUiStateMachine {
   @Composable
-  override fun model(props: MoneyHomeCardsProps): MoneyHomeCardsModel =
-    MoneyHomeCardsModel(
+  override fun model(props: MoneyHomeCardsProps): MoneyHomeCardsModel {
+    return MoneyHomeCardsModel(
       cards = buildImmutableList {
         add(startSweepCardUiStateMachine.model(props.startSweepCardUiProps))
 
@@ -36,6 +38,8 @@ class MoneyHomeCardsUiStateMachineImpl(
             ?: setupHardwareCardUiStateMachine.model(props.setupHardwareCardUiProps)
             ?: deviceUpdateCardUiStateMachine.model(props.deviceUpdateCardUiProps)
         )
+
+        add(bitcoinPriceCardUiStateMachine.model(props.bitcoinPriceCardUiProps))
 
         // Add invitation cards
         recoveryContactCardsUiStateMachine
@@ -53,4 +57,5 @@ class MoneyHomeCardsUiStateMachineImpl(
         .filterNotNull()
         .toImmutableList()
     )
+  }
 }

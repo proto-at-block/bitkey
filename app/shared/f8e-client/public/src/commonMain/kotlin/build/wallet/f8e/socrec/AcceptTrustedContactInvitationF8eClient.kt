@@ -1,10 +1,10 @@
 package build.wallet.f8e.socrec
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
+import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.TrustedContactEnrollmentPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.error.F8eError

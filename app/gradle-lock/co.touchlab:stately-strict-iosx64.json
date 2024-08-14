@@ -2,16 +2,16 @@
     "module-identifier": "co.touchlab:stately-strict-iosx64",
     "components": [
         {
-            "version": "2.0.5",
+            "version": "2.0.7",
             "variants": [
                 {
                     "artifacts": {
-                        "stately-strict-iosx64-2.0.5-metadata.jar": "d62276633e7a2b873a2c45098f4a6dcb96ed3a39c396708a30ebd7fc363711cd"
+                        "stately-strict-iosx64-2.0.7-metadata.jar": "e31d1f2b485d66ac4c842c08ed12c7dc396801f264458e68d1d4bb953605771e"
                     }
                 },
                 {
                     "artifacts": {
-                        "stately-strict.klib": "58ce35ecbd8f4f519dc0409430d2a669ffbd2d1491c42474b44c17cd0b18e87f"
+                        "stately-strict.klib": "f1a296c6738335e3927dc404d24a906fc42df0816492f82f65d7f95e1b4722f1"
                     }
                 }
             ],

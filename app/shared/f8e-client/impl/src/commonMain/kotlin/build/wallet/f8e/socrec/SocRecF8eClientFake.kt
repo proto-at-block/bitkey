@@ -5,24 +5,12 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.PakeCode
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
-import build.wallet.bitkey.socrec.TrustedContactEndorsement
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
@@ -114,17 +102,18 @@ class SocRecF8eClientFake(
       )
     }
     val outgoing = Invitation(
-      recoveryRelationshipId = uuidGenerator.random(),
+      relationshipId = uuidGenerator.random(),
       trustedContactAlias = trustedContactAlias,
       code = genServerInviteCode(),
       codeBitLength = 20,
-      expiresAt = clock.now().plus(7.days)
+      expiresAt = clock.now().plus(7.days),
+      roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
 
     val invitation = InvitationPair(
       outgoing = outgoing,
       incoming = IncomingInvitation(
-        recoveryRelationshipId = outgoing.recoveryRelationshipId,
+        relationshipId = outgoing.relationshipId,
         code = outgoing.code,
         protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakeKey
       )
@@ -137,12 +126,13 @@ class SocRecF8eClientFake(
       if (invitations.remove(invitation)) {
         unendorsedTrustedContacts.add(
           UnendorsedTrustedContact(
-            recoveryRelationshipId = invitation.outgoing.recoveryRelationshipId,
+            relationshipId = invitation.outgoing.relationshipId,
             trustedContactAlias = invitation.outgoing.trustedContactAlias,
             sealedDelegatedDecryptionKey = XCiphertext("deadbeef"),
             enrollmentPakeKey = PublicKey("deadbeef"),
             enrollmentKeyConfirmation = "deadbeef".encodeUtf8(),
-            authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED
+            authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED,
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         )
       }
@@ -157,7 +147,7 @@ class SocRecF8eClientFake(
     relationshipId: String,
   ): Result<Invitation, NetworkingError> {
     val invitation =
-      invitations.find { it.outgoing.recoveryRelationshipId == relationshipId }
+      invitations.find { it.outgoing.relationshipId == relationshipId }
         ?: return Err(UnhandledException(Exception("Invitation $relationshipId not found.")))
     invitations.remove(invitation)
 
@@ -194,9 +184,9 @@ class SocRecF8eClientFake(
   ): Result<Unit, NetworkingError> {
     fakeNetworkingError?.let { return Err(it) }
 
-    if (invitations.removeAll { it.outgoing.recoveryRelationshipId == relationshipId } ||
-      endorsedTrustedContacts.removeAll { it.recoveryRelationshipId == relationshipId } ||
-      protectedCustomers.removeAll { it.recoveryRelationshipId == relationshipId }
+    if (invitations.removeAll { it.outgoing.relationshipId == relationshipId } ||
+      endorsedTrustedContacts.removeAll { it.relationshipId == relationshipId } ||
+      protectedCustomers.removeAll { it.relationshipId == relationshipId }
     ) {
       return Ok(Unit)
     }
@@ -209,7 +199,7 @@ class SocRecF8eClientFake(
   ): Result<IncomingInvitation, F8eError<RetrieveTrustedContactInvitationErrorCode>> {
     return Ok(
       IncomingInvitation(
-        recoveryRelationshipId = uuidGenerator.random(),
+        relationshipId = uuidGenerator.random(),
         code = genServerInviteCode(),
         protectedCustomerEnrollmentPakeKey = PublicKey("deadbeef")
       )
@@ -226,8 +216,9 @@ class SocRecF8eClientFake(
   ): Result<ProtectedCustomer, F8eError<AcceptTrustedContactInvitationErrorCode>> {
     val protectedCustomer =
       ProtectedCustomer(
-        recoveryRelationshipId = invitation.recoveryRelationshipId,
-        alias = protectedCustomerAlias
+        relationshipId = invitation.relationshipId,
+        alias = protectedCustomerAlias,
+        roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
     protectedCustomers.add(protectedCustomer)
     return Ok(protectedCustomer)
@@ -317,7 +308,7 @@ class SocRecF8eClientFake(
     endorsements.forEach { (relationshipId, certificate) ->
       // Find known unendorsed trusted contacts based on given endorsement
       val unendorsedContact =
-        unendorsedTrustedContacts.find { it.recoveryRelationshipId == relationshipId.value }
+        unendorsedTrustedContacts.find { it.relationshipId == relationshipId.value }
 
       if (unendorsedContact != null) {
         // Add new certificates
@@ -327,10 +318,11 @@ class SocRecF8eClientFake(
         unendorsedTrustedContacts.remove(unendorsedContact)
         endorsedTrustedContacts.add(
           EndorsedTrustedContact(
-            recoveryRelationshipId = relationshipId.value,
+            relationshipId = relationshipId.value,
             trustedContactAlias = unendorsedContact.trustedContactAlias,
             authenticationState = TrustedContactAuthenticationState.VERIFIED,
-            keyCertificate = certificate
+            keyCertificate = certificate,
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         )
       }
@@ -355,7 +347,7 @@ class SocRecF8eClientFake(
   }
 
   fun deleteInvitation(recoveryRelationshipId: String) {
-    invitations.removeAll { it.outgoing.recoveryRelationshipId == recoveryRelationshipId }
+    invitations.removeAll { it.outgoing.relationshipId == recoveryRelationshipId }
   }
 
   fun reset() {

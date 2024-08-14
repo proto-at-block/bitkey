@@ -1,0 +1,31 @@
+INSERT INTO partnershipTransactionEntity(
+    transactionId,
+    type,
+    status,
+    context,
+    partnerLogoUrl,
+    partnerName,
+    partnerId,
+    cryptoAmount,
+    txid,
+    fiatAmount,
+    fiatCurrency,
+    paymentMethod,
+    created,
+    updated
+) VALUES (
+    '1',
+    'type-val',
+    'status-val',
+    'context-val',
+    'partnerLogoUrl-val',
+    'partnerName-val',
+    'partnerId-val',
+    1.0,
+    'txid-val',
+    1.0,
+    'fiatCurrency-val',
+    'paymentMethod-val',
+    '1',
+    '1'
+);

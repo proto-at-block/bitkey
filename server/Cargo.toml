@@ -26,6 +26,7 @@ members = [
   "src/api/onboarding",
   "src/api/partnerships",
   "src/api/partnerships/partnerships_lib/src/partners/cash_app/lambdas",
+  "src/api/privileged_action",
   "src/api/queue",
   "src/api/recovery",
   "src/api/repository",
@@ -141,6 +142,7 @@ notification = { path = "src/api/notification" }
 notification_validation = { path = "src/api/notification_validation" }
 onboarding = { path = "src/api/onboarding" }
 partnerships = { path = "src/api/partnerships" }
+privileged_action = { path = "src/api/privileged_action" }
 queue = { path = "src/api/queue" }
 recovery = { path = "src/api/recovery" }
 repository = { path = "src/api/repository" }

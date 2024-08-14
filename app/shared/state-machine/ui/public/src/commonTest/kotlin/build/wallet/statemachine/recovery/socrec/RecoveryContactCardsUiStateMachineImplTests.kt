@@ -1,8 +1,8 @@
 package build.wallet.statemachine.recovery.socrec
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.InvitationFake
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
 import build.wallet.bitkey.socrec.UnendorsedTrustedContactFake
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines

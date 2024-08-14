@@ -4,10 +4,10 @@ import build.wallet.account.AccountRepositoryFake
 import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.database.BitkeyDatabaseProviderImpl
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.featureflags.F8eFeatureFlagValue
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClient
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClientMock
-import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
 import io.kotest.core.coroutines.backgroundScope
@@ -45,6 +45,7 @@ class FeatureFlagSyncerTests : FunSpec({
   val sqlDriver = inMemorySqlDriver()
 
   val appSessionManager = AppSessionManagerFake()
+  val debugOptionsService = DebugOptionsServiceFake()
 
   lateinit var featureFlagDao: FeatureFlagDao
 
@@ -65,10 +66,11 @@ class FeatureFlagSyncerTests : FunSpec({
     testFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false), overridden = false)
 
     appSessionManager.reset()
+    debugOptionsService.reset()
 
     featureFlagSyncer = FeatureFlagSyncerImpl(
       accountRepository = AccountRepositoryFake(),
-      templateFullAccountConfigDao = TemplateFullAccountConfigDaoFake(),
+      debugOptionsService = debugOptionsService,
       featureFlagsF8eClient = getFeatureFlagsF8eClient,
       clock = clock,
       remoteFlags = listOf(testFlag),

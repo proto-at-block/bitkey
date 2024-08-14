@@ -31,5 +31,6 @@ types = { workspace = true, features = [
   "currencies",
   "exchange_rate",
   "notification",
+  "privileged_action",
 ] }
 userpool = { workspace = true }

@@ -1,0 +1,18 @@
+import kotlin.Boolean;
+
+CREATE TABLE bitcoinPriceCardPreferenceEntity(
+    rowId   INTEGER NOT NULL PRIMARY KEY,
+    enabled INTEGER AS Boolean NOT NULL
+);
+
+setBitcoinPriceCardPreference:
+INSERT OR REPLACE INTO bitcoinPriceCardPreferenceEntity(rowId, enabled)
+-- Use stable row ID to ensure we only ever have a single entity.
+VALUES(0, ?);
+
+getBitcoinPriceCardPreference:
+SELECT * FROM bitcoinPriceCardPreferenceEntity
+WHERE rowId = 0;
+
+clear:
+DELETE FROM bitcoinPriceCardPreferenceEntity;

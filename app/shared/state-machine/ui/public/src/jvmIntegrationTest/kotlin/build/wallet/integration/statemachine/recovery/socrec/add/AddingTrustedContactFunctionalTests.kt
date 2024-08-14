@@ -1,9 +1,10 @@
 package build.wallet.integration.statemachine.recovery.socrec.add
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -36,6 +37,7 @@ class AddingTrustedContactFunctionalTests : FunSpec({
         Invitation(
           "test-id",
           alias,
+          setOf(TrustedContactRole.SocialRecoveryContact),
           "test-token",
           40,
           Clock.System.now()

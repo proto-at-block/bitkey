@@ -1,13 +1,12 @@
 package build.wallet.statemachine.partnerships.purchase
 
-import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.money.FiatMoney
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import com.github.michaelbull.result.Result
 
 /**
  * State machine used to purchase bitcoin from our partners
@@ -23,8 +22,8 @@ interface PartnershipsPurchaseUiStateMachine : StateMachine<PartnershipsPurchase
  * @param onExit - used to exit the purchase flow
  */
 data class PartnershipsPurchaseUiProps(
+  val account: FullAccount,
   val keybox: Keybox,
-  val generateAddress: suspend () -> Result<BitcoinAddress, Throwable>,
   val selectedAmount: FiatMoney?,
   val onPartnerRedirected: (PartnerRedirectionMethod, PartnershipTransaction) -> Unit,
   val onSelectCustomAmount: (FiatMoney, FiatMoney) -> Unit,

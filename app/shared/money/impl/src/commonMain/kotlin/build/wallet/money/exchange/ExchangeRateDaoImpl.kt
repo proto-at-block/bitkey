@@ -61,7 +61,7 @@ class ExchangeRateDaoImpl(
             rate = exchangeRate.rate,
             timeRetrieved = exchangeRate.timeRetrieved
           )
-        } else {
+        } else if (exchangeRate.timeRetrieved > existingRate.timeRetrieved) {
           exchangeRateQueries.updateExchangeRate(
             rate = exchangeRate.rate,
             fromCurrency = exchangeRate.fromCurrency,

@@ -8,26 +8,13 @@ import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.SAVE_CLOUD_BACKUP_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_PENDING
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_ROTATING_AUTH_KEYS
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_BROADCASTING
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_GENERATING_PSBTS
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SIGN_PSBTS_PROMPT
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_SUCCESS
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
+import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.integration.statemachine.create.restoreButton
-import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_ABORTED
-import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
-import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_NOT_STARTED
+import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.*
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
@@ -48,9 +35,7 @@ import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
-import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
@@ -61,12 +46,7 @@ import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.statemachine.ui.robots.clickMoreOptionsButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.testing.ext.addSomeFunds
-import build.wallet.testing.ext.completeRecoveryDelayPeriodOnF8e
-import build.wallet.testing.ext.getActiveFullAccount
-import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import build.wallet.testing.ext.returnFundsToTreasury
-import build.wallet.testing.ext.waitForFunds
+import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
@@ -103,12 +83,7 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       if (props.originalKeyboxId != activeKeybox?.localId && activeRecovery == NoActiveRecovery) {
         return preStartOrPostRecoveryCompletionScreen(RECOVERY_COMPLETED)
       }
-      val accountData =
-        dsm.model(
-          AccountDataProps(
-            templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(props.fullAccountConfig) {}
-          )
-        )
+      val accountData = dsm.model(Unit)
       return when (accountData) {
         is LoadingActiveFullAccountData,
         is CheckingActiveAccountData,

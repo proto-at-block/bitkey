@@ -13,12 +13,14 @@ sqldelight {
       packageName.set("build.wallet.database.sqldelight")
       schemaOutputDirectory.set(File("src/commonMain/sqldelight/databases"))
       verifyMigrations.set(true)
+      dialect(libs.kmp.sqldelight.sqlite.dialect)
     }
     create("BitkeyDebugDatabase") {
       packageName.set("build.wallet.database.sqldelight")
       schemaOutputDirectory.set(File("src/commonMain/sqldelightDebug/databases"))
       srcDirs.setFrom(File("src/commonMain/sqldelightDebug/"))
       verifyMigrations.set(true)
+      dialect(libs.kmp.sqldelight.sqlite.dialect)
     }
   }
 }
@@ -60,7 +62,15 @@ kotlin {
       }
     }
 
-    jvmTest {}
+    jvmTest {
+      resources.srcDir("${project.projectDir}/src/commonMain/sqldelight")
+        .include("databases/*", "fixtures/*")
+
+      dependencies {
+        implementation(projects.shared.sqldelightTesting)
+        implementation(libs.jvm.sqldelight.driver)
+      }
+    }
   }
 }
 

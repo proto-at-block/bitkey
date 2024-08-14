@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.f8e.partnerships.*
 import build.wallet.logging.LogLevel
@@ -50,6 +51,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val exchangeRateSyncer: ExchangeRateSyncer,
   private val currencyConverter: CurrencyConverter,
+  private val bitcoinAddressService: BitcoinAddressService,
 ) : PartnershipsPurchaseUiStateMachine {
   @Composable
   override fun model(props: PartnershipsPurchaseUiProps): SheetModel {
@@ -122,7 +124,10 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 }
             }
         }
-        loadingModel(id = DepositEventTrackerScreenId.LOADING_PARTNER_PURCHASE_OPTIONS, onExit = props.onExit)
+        loadingModel(
+          id = DepositEventTrackerScreenId.LOADING_PARTNER_PURCHASE_OPTIONS,
+          onExit = props.onExit
+        )
       }
 
       is QuotesState.Loaded -> {
@@ -178,7 +183,10 @@ class PartnershipsPurchaseUiStateMachineImpl(
                 )
             }
         }
-        loadingModel(id = DepositEventTrackerScreenId.LOADING_PARTNER_QUOTES_LIST, onExit = props.onExit)
+        loadingModel(
+          id = DepositEventTrackerScreenId.LOADING_PARTNER_QUOTES_LIST,
+          onExit = props.onExit
+        )
       }
       is RedirectState.Loaded -> {
         handleRedirect(currentState, props)
@@ -238,7 +246,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
     localTransactionId: PartnershipTransactionId,
   ): Result<GetPurchaseRedirectF8eClient.Success, Throwable> =
     coroutineBinding {
-      props.generateAddress()
+      bitcoinAddressService.generateAddress(props.account)
         .flatMap { address ->
           getPurchaseRedirectF8eClient.purchaseRedirect(
             fullAccountId = props.keybox.fullAccountId,

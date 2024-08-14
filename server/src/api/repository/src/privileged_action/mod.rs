@@ -20,6 +20,9 @@ const ACCOUNT_IDX: &str = "account_id_to_created_at";
 const ACCOUNT_IDX_PARTITION_KEY: &str = "account_id";
 const ACCOUNT_IDX_SORT_KEY: &str = "created_at";
 
+const CANCELLATION_TOKEN_IDX: &str = "by_cancellation_token";
+const CANCELLATION_TOKEN_IDX_PARTITION_KEY: &str = "cancellation_token";
+
 #[derive(Clone)]
 pub struct Repository {
     connection: Connection,
@@ -85,6 +88,15 @@ impl DDBService for Repository {
             .key_type(KeyType::Range)
             .build()?;
 
+        let cancellation_token_index_pk = AttributeDefinition::builder()
+            .attribute_name(CANCELLATION_TOKEN_IDX_PARTITION_KEY)
+            .attribute_type(ScalarAttributeType::S)
+            .build()?;
+        let cancellation_token_index_pk_ks = KeySchemaElement::builder()
+            .attribute_name(CANCELLATION_TOKEN_IDX_PARTITION_KEY)
+            .key_type(KeyType::Hash)
+            .build()?;
+
         self.connection
             .client
             .create_table()
@@ -93,6 +105,7 @@ impl DDBService for Repository {
             .attribute_definitions(pk)
             .attribute_definitions(account_index_pk)
             .attribute_definitions(account_index_sk)
+            .attribute_definitions(cancellation_token_index_pk)
             .billing_mode(BillingMode::PayPerRequest)
             .global_secondary_indexes(
                 GlobalSecondaryIndex::builder()
@@ -100,6 +113,13 @@ impl DDBService for Repository {
                     .projection(Projection::builder().projection_type(All).build())
                     .key_schema(account_index_pk_ks)
                     .key_schema(account_index_sk_ks)
+                    .build()?,
+            )
+            .global_secondary_indexes(
+                GlobalSecondaryIndex::builder()
+                    .index_name(CANCELLATION_TOKEN_IDX)
+                    .projection(Projection::builder().projection_type(All).build())
+                    .key_schema(cancellation_token_index_pk_ks)
                     .build()?,
             )
             .send()

@@ -13,4 +13,8 @@ class PostSocRecTaskRepositoryMock : PostSocRecTaskRepository {
   override suspend fun setHardwareReplacementNeeded(value: Boolean): Result<Unit, DbError> {
     return Ok(Unit)
   }
+
+  fun reset() {
+    mutableState.value = PostSocialRecoveryTaskState.None
+  }
 }

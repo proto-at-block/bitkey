@@ -10,7 +10,6 @@ import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataFake
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
@@ -64,7 +63,6 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
   val props =
     LiteSettingsHomeUiProps(
       accountData = HasActiveLiteAccountDataFake,
-      firmwareData = FirmwareDataUpToDateMock,
       protectedCustomers = immutableListOf(),
       homeStatusBannerModel = null,
       socRecTrustedContactActions = socrecRepositoryMock.toActions(LiteAccountMock),

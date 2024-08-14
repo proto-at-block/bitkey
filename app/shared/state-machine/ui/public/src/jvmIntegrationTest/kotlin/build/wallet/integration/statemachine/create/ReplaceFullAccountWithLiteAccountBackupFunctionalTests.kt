@@ -4,7 +4,7 @@ import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.onboarding.OnboardingKeyboxStep

@@ -1,6 +1,8 @@
 package build.wallet.statemachine.settings.full.electrum
 
+import build.wallet.bitcoin.sync.ElectrumConfigServiceFake
 import build.wallet.bitcoin.sync.OffElectrumServerPreferenceValueMock
+import build.wallet.bitcoin.sync.OffElectrumServerWithPreviousPreferenceValueMock
 import build.wallet.bitcoin.sync.OnElectrumServerPreferenceValueMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.statemachine.core.awaitBody
@@ -15,27 +17,26 @@ import io.kotest.matchers.shouldBe
 class CustomElectrumServerUiStateMachineImplTests : FunSpec({
 
   val onSetElectrumServerCalls = turbines.create<Unit>("set electrum server click calls")
-  val disableCustomElectrumServerCalls =
-    turbines.create<Unit>(
-      "disable custom electrum server click calls"
-    )
+
   val props =
     CustomElectrumServerUiProps(
       onBack = {},
       electrumServerPreferenceValue = OffElectrumServerPreferenceValueMock,
       onAdjustElectrumServerClick = {
         onSetElectrumServerCalls.add(Unit)
-      },
-      disableCustomElectrumServer = {
-        disableCustomElectrumServerCalls.add(Unit)
       }
     )
+  val electrumConfigService = ElectrumConfigServiceFake()
 
   lateinit var stateMachine: CustomElectrumServerUiStateMachineImpl
 
   beforeTest {
     stateMachine =
-      CustomElectrumServerUiStateMachineImpl()
+      CustomElectrumServerUiStateMachineImpl(
+        electrumConfigService = electrumConfigService
+      )
+
+    electrumConfigService.reset()
   }
 
   test("initial state - without custom electrum server") {
@@ -61,6 +62,8 @@ class CustomElectrumServerUiStateMachineImplTests : FunSpec({
     stateMachine.test(
       props.copy(electrumServerPreferenceValue = OnElectrumServerPreferenceValueMock)
     ) {
+      electrumConfigService.electrumServerPreference.value = OnElectrumServerPreferenceValueMock
+
       // Showing custom electrum server, hydrated from Settings state machine
       awaitBody<CustomElectrumServerBodyModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -78,7 +81,9 @@ class CustomElectrumServerUiStateMachineImplTests : FunSpec({
         disableAlertModel.shouldNotBeNull().onPrimaryButtonClick()
 
         // Should have reset the ElectrumServer to default
-        disableCustomElectrumServerCalls.awaitItem()
+        electrumConfigService.electrumServerPreference().value.shouldBe(
+          OffElectrumServerWithPreviousPreferenceValueMock
+        )
       }
 
       // Verify that the confirmation dialog has been dismissed

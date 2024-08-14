@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.list.lite
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel

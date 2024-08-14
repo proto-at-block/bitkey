@@ -53,19 +53,17 @@ fun EmergencyAccessKitImportWalletModel(
           )
       )
     ),
-  primaryButton =
-    ButtonModel(
-      text = "Enter details manually",
-      treatment = Secondary,
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick { onEnterManually() }
-    ),
-  secondaryButton =
-    ButtonModel(
-      text = "Scan QR code",
-      size = ButtonModel.Size.Footer,
-      onClick = StandardClick { onScanQRCode() }
-    )
+  primaryButton = ButtonModel(
+    text = "Enter details manually",
+    treatment = Secondary,
+    size = ButtonModel.Size.Footer,
+    onClick = StandardClick(onEnterManually)
+  ),
+  secondaryButton = ButtonModel(
+    text = "Scan QR code",
+    size = ButtonModel.Size.Footer,
+    onClick = StandardClick(onScanQRCode)
+  )
 )
 
 fun EmergencyAccessKitImportPasteMobileKeyModel(
@@ -110,7 +108,7 @@ fun EmergencyAccessKitImportPasteMobileKeyModel(
               leadingIcon = Icon.SmallIconClipboard,
               treatment = Secondary,
               size = Compact,
-              onClick = StandardClick { onPasteButtonClick() }
+              onClick = StandardClick(onPasteButtonClick)
             )
           } else {
             null
@@ -122,7 +120,7 @@ fun EmergencyAccessKitImportPasteMobileKeyModel(
       text = "Continue",
       isEnabled = enteredText.isNotEmpty(),
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick { onContinue() }
+      onClick = StandardClick(onContinue)
     )
 )
 
@@ -190,20 +188,20 @@ fun EmergencyAccessKitCodeNotRecognized(
       text = "Scan QR code",
       treatment = ButtonModel.Treatment.Secondary,
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick { onScanQRCode() }
+      onClick = StandardClick(onScanQRCode)
     ),
   secondaryButton =
     ButtonModel(
       text =
         if (arrivedFromManualEntry) "Try again" else "Import",
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick { onImport() }
+      onClick = StandardClick(onImport)
     )
 )
 
 fun EmergencyAccessKitRestoreWallet(
   onBack: () -> Unit,
-  onRestore: () -> Unit,
+  onRestore: (() -> Unit)?,
 ) = FormBodyModel(
   onBack = onBack,
   toolbar =
@@ -222,7 +220,8 @@ fun EmergencyAccessKitRestoreWallet(
     BitkeyInteractionButtonModel(
       text = "Restore Bitkey Wallet",
       size = ButtonModel.Size.Footer,
-      onClick = StandardClick(onRestore)
+      isEnabled = onRestore != null,
+      onClick = onRestore?.let(::StandardClick) ?: StandardClick {}
     ),
   id = EmergencyAccessKitTrackerScreenId.RESTORE_YOUR_WALLET
 )

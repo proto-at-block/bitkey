@@ -1,13 +1,7 @@
 package build.wallet.statemachine.recovery.emergencyaccesskit
 
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.CODE_NOT_RECOGNIZED
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.IMPORT_TEXT_KEY
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.RESTORE_YOUR_WALLET
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.SCAN_QR_CODE
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.SELECT_IMPORT_METHOD
+import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.*
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
@@ -16,6 +10,7 @@ import build.wallet.cloud.backup.csek.CsekDaoFake
 import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.SymmetricKey
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoderImpl
@@ -37,6 +32,7 @@ import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.QrCodeScanBodyModel
+import build.wallet.statemachine.ui.awaitUntilScreenWithBody
 import build.wallet.statemachine.ui.clickPrimaryButton
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.unwrap
@@ -95,44 +91,41 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
       }
     }
 
-  val props =
-    EmergencyAccessKitRecoveryUiStateMachineProps(
-      fullAccountConfig = FullAccountConfigMock,
-      onExit = { onExitCalls.add(Unit) }
-    )
+  val props = EmergencyAccessKitRecoveryUiStateMachineProps(
+    onExit = { onExitCalls.add(Unit) }
+  )
   val permissionMock = PermissionUiStateMachineMock()
-  val stateMachine =
-    EmergencyAccessKitRecoveryUiStateMachineImpl(
-      clipboard = clipboard,
-      payloadDecoder = EmergencyAccessKitPayloadDecoderImpl,
-      permissionUiStateMachine = permissionMock,
-      emergencyAccessPayloadRestorer = EmergencyAccessPayloadRestorerImpl(
-        csekDao = csekDao,
-        symmetricKeyEncryptor = symmetricKeyEncryptor,
-        appPrivateKeyDao = appPrivateKeyDao
-      ),
+  val debugOptionsService = DebugOptionsServiceFake()
+  val stateMachine = EmergencyAccessKitRecoveryUiStateMachineImpl(
+    clipboard = clipboard,
+    payloadDecoder = EmergencyAccessKitPayloadDecoderImpl,
+    permissionUiStateMachine = permissionMock,
+    emergencyAccessPayloadRestorer = EmergencyAccessPayloadRestorerImpl(
       csekDao = csekDao,
-      keyboxDao = keyboxDao,
-      nfcSessionUIStateMachine = nfcSessionUIStateMachine,
-      uuidGenerator = UuidGeneratorFake()
-    )
-  val validData =
-    EmergencyAccessKitPayloadDecoderImpl.encode(
-      EmergencyAccessKitPayloadV1(
-        sealedHwEncryptionKey = CsekFake.key.raw,
-        sealedActiveSpendingKeys =
-          SealedData(
-            ciphertext = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
-              EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
-                spendingKeyset = SpendingKeysetMock,
-                appSpendingKeyXprv = AppSpendingPrivateKeyMock
-              )
-            ),
-            nonce = "nonce".toByteArray().toByteString(),
-            tag = EMPTY
+      symmetricKeyEncryptor = symmetricKeyEncryptor,
+      appPrivateKeyDao = appPrivateKeyDao
+    ),
+    csekDao = csekDao,
+    keyboxDao = keyboxDao,
+    nfcSessionUIStateMachine = nfcSessionUIStateMachine,
+    uuidGenerator = UuidGeneratorFake(),
+    debugOptionsService = debugOptionsService
+  )
+  val validData = EmergencyAccessKitPayloadDecoderImpl.encode(
+    EmergencyAccessKitPayloadV1(
+      sealedHwEncryptionKey = CsekFake.key.raw,
+      sealedActiveSpendingKeys = SealedData(
+        ciphertext = EmergencyAccessKitPayloadDecoderImpl.encodeBackup(
+          EmergencyAccessKitBackup.EmergencyAccessKitBackupV1(
+            spendingKeyset = SpendingKeysetMock,
+            appSpendingKeyXprv = AppSpendingPrivateKeyMock
           )
+        ),
+        nonce = "nonce".toByteArray().toByteString(),
+        tag = EMPTY
       )
     )
+  )
 
   beforeTest {
     permissionMock.isImplemented = true
@@ -340,7 +333,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
         clickPrimaryButton()
       }
-      awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
+      awaitUntilScreenWithBody<FormBodyModel>(
+        RESTORE_YOUR_WALLET,
+        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      ) {
         clickPrimaryButton()
       }
       // Unsealing CSEK
@@ -392,7 +388,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
         clickPrimaryButton()
       }
-      awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
+      awaitUntilScreenWithBody<FormBodyModel>(
+        RESTORE_YOUR_WALLET,
+        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      ) {
         clickPrimaryButton()
       }
       // Unsealing CSEK
@@ -441,7 +440,10 @@ class EmergencyAccessKitRecoveryUiStateMachineImplTests : FunSpec({
 
         clickPrimaryButton()
       }
-      awaitScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET) {
+      awaitUntilScreenWithBody<FormBodyModel>(
+        RESTORE_YOUR_WALLET,
+        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      ) {
         clickPrimaryButton()
       }
       // Unsealing CSEK

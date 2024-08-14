@@ -1,6 +1,5 @@
 package build.wallet.statemachine.data.keybox
 
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
@@ -8,10 +7,8 @@ import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataProps
 import build.wallet.statemachine.data.account.create.CreateFullAccountDataStateMachine
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.types.shouldBeTypeOf
@@ -21,11 +18,9 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
   val createFullAccountDataStateMachine =
     object : CreateFullAccountDataStateMachine,
       StateMachineMock<CreateFullAccountDataProps, CreateFullAccountData>(
-        initialModel =
-          CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
-            fullAccountConfig = FullAccountConfigMock,
-            rollback = {}
-          )
+        initialModel = CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
+          rollback = {}
+        )
       ) {}
   val keyboxDao = KeyboxDaoMock(turbines::create)
 
@@ -35,15 +30,9 @@ class HasActiveLiteAccountDataStateMachineTests : FunSpec({
       keyboxDao = keyboxDao
     )
 
-  val props =
-    HasActiveLiteAccountDataProps(
-      account = LiteAccountMock,
-      onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
-      accountUpgradeTemplateFullAccountConfigData =
-        TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData(
-          FullAccountConfigMock
-        ) {}
-    )
+  val props = HasActiveLiteAccountDataProps(
+    account = LiteAccountMock
+  )
 
   beforeTest {
     keyboxDao.reset()

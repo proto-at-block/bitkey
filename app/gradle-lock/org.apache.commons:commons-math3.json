@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.apache.commons:commons-math3",
+    "components": [
+        {
+            "version": "3.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "commons-math3-3.2.jar": "6268a9a0ea3e769fc493a21446664c0ef668e48c93d126791f6f3f757978fee2"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

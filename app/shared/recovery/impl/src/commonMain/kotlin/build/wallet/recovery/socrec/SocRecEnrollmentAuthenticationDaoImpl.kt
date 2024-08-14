@@ -2,8 +2,8 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.PakeCode
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.relationships.PakeCode
+import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.db.DbTransactionError
 import build.wallet.sqldelight.awaitTransactionWithResult

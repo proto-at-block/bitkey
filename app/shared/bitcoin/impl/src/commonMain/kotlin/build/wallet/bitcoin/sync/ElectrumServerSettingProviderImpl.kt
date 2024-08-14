@@ -1,23 +1,17 @@
 package build.wallet.bitcoin.sync
 
-import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
 import build.wallet.bitcoin.sync.ElectrumServer.F8eDefined
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
+import build.wallet.debug.DebugOptionsService
 import build.wallet.keybox.KeyboxDao
-import build.wallet.keybox.config.TemplateFullAccountConfigDao
-import com.github.michaelbull.result.get
 import com.github.michaelbull.result.mapBoth
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.transform
-import kotlinx.coroutines.flow.zip
+import kotlinx.coroutines.flow.*
 
 class ElectrumServerSettingProviderImpl(
   private val keyboxDao: KeyboxDao,
-  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
-  private val electrumServerDao: ElectrumServerConfigRepository,
+  private val debugOptionsService: DebugOptionsService,
+  private val electrumServerConfigRepository: ElectrumServerConfigRepository,
 ) : ElectrumServerSettingProvider {
   override fun get(): Flow<ElectrumServerSetting> {
     return keyboxDao
@@ -38,13 +32,12 @@ class ElectrumServerSettingProviderImpl(
         // In the event the user has not persisted a custom Electrum server at all, we want to be
         // able to infer the network they are connected to, since Block-provided Electrum endpoints
         // would be network-aware for development purposes.
-        val defaultNetwork =
-          templateFullAccountConfigDao.config().first().get()?.bitcoinNetworkType ?: BITCOIN
+        val defaultNetwork = debugOptionsService.options().first().bitcoinNetworkType
         val networkToUse = activeNetwork ?: defaultNetwork
 
-        electrumServerDao.getF8eDefinedElectrumServer()
+        electrumServerConfigRepository.getF8eDefinedElectrumServer()
           .zip(
-            electrumServerDao.getUserElectrumServerPreference()
+            electrumServerConfigRepository.getUserElectrumServerPreference()
           ) { f8eDefault, preference -> Pair(f8eDefault, preference) }
           .collect { (defaultServer, preference) ->
             emit(
@@ -70,7 +63,7 @@ class ElectrumServerSettingProviderImpl(
   }
 
   override suspend fun setUserDefinedServer(server: ElectrumServer) {
-    electrumServerDao.storeUserPreference(
+    electrumServerConfigRepository.storeUserPreference(
       preference = On(server)
     )
   }

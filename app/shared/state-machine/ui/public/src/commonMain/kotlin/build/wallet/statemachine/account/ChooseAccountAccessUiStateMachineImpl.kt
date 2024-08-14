@@ -3,9 +3,7 @@ package build.wallet.statemachine.account
 import androidx.compose.runtime.*
 import build.wallet.emergencyaccesskit.EmergencyAccessKitAssociation.EakBuild
 import build.wallet.emergencyaccesskit.EmergencyAccessKitDataProvider
-import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
-import build.wallet.feature.isEnabled
 import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.*
 import build.wallet.platform.device.DeviceInfoProvider
@@ -27,7 +25,6 @@ class ChooseAccountAccessUiStateMachineImpl(
   private val demoModeConfigUiStateMachine: DemoModeConfigUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val emergencyAccessKitDataProvider: EmergencyAccessKitDataProvider,
-  private val resetDeviceIsEnabledFeatureFlag: ResetDeviceIsEnabledFeatureFlag,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
   private val createSoftwareWalletUiStateMachine: CreateSoftwareWalletUiStateMachine,
 ) : ChooseAccountAccessUiStateMachine {
@@ -86,8 +83,6 @@ class ChooseAccountAccessUiStateMachineImpl(
             onRestoreEmergencyAccessKit = props.chooseAccountAccessData.startEmergencyAccessRecovery
           ).asRootScreen()
         } else {
-          val resetDeviceEnabled = resetDeviceIsEnabledFeatureFlag.isEnabled()
-
           AccountAccessMoreOptionsFormBodyModel(
             onBack = { state = ShowingChooseAccountAccess },
             onRestoreYourWalletClick = props.chooseAccountAccessData.startRecovery,
@@ -95,7 +90,6 @@ class ChooseAccountAccessUiStateMachineImpl(
               state = ShowingBeTrustedContactIntroduction
             },
             onResetExistingDevice = props.chooseAccountAccessData.resetExistingDevice
-              .takeIf { resetDeviceEnabled }
           ).asRootScreen()
         }
       }
@@ -111,7 +105,6 @@ class ChooseAccountAccessUiStateMachineImpl(
       is ShowingDebugMenu -> debugMenuStateMachine.model(
         props = DebugMenuProps(
           accountData = props.chooseAccountAccessData,
-          firmwareData = props.firmwareData,
           onClose = { state = ShowingChooseAccountAccess }
         )
       )

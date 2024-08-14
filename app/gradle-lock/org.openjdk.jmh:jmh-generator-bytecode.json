@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.openjdk.jmh:jmh-generator-bytecode",
+    "components": [
+        {
+            "version": "1.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jmh-generator-bytecode-1.21.jar": "db4b0577f0a6413dc1299872c104518a54a3280abe486de7ec01003baf5ba018"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

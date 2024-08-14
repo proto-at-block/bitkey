@@ -3,7 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.cloud.backup.v2.AppKeyKeyPairSerializer
 import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.f8e.F8eEnvironment

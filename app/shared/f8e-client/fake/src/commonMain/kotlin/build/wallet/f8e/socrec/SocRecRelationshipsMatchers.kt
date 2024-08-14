@@ -1,9 +1,9 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.TrustedContact
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
@@ -78,7 +78,7 @@ fun SocRecRelationships.shouldOnlyHaveSingleEndorsedTrustedContact(
   invitations.shouldBeEmpty()
 }
 
-fun RecoveryContact.shouldHaveAlias(alias: String) =
+fun TrustedContact.shouldHaveAlias(alias: String) =
   apply {
     trustedContactAlias.alias.shouldBe(alias)
   }

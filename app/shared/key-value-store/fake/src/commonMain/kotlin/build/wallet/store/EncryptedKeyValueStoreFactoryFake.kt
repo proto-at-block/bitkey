@@ -7,7 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 /**
- * Fake [EncryptedKeyValueStoreFactory] implementation baked by in memory  storage.
+ * Fake [EncryptedKeyValueStoreFactory] implementation backed by in memory  storage.
  */
 class EncryptedKeyValueStoreFactoryFake : EncryptedKeyValueStoreFactory {
   val store = MapSettings()

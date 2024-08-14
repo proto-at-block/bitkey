@@ -2,11 +2,12 @@ package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.CloudEventTrackerScreenIdContext
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.coachmark.CoachmarkService
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.debug.DebugOptions
+import build.wallet.debug.DebugOptionsService
 import build.wallet.keybox.AppDataDeleter
 import build.wallet.keybox.CloudBackupDeleter
 import build.wallet.logging.LogLevel
@@ -18,7 +19,6 @@ import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountDat
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveLiteAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiStateMachine
 import build.wallet.statemachine.dev.featureFlags.FeatureFlagsOptionsUiProps
@@ -47,19 +47,13 @@ class DebugMenuListStateMachineImpl(
   private val onboardingConfigStateMachine: OnboardingConfigStateMachine,
   private val cloudSignUiStateMachine: CloudSignInUiStateMachine,
   private val coachmarkService: CoachmarkService,
+  private val debugOptionsService: DebugOptionsService,
 ) : DebugMenuListStateMachine {
   @Composable
   override fun model(props: DebugMenuListProps): BodyModel {
     var actionConfirmation: ActionConfirmationRequest? by remember { mutableStateOf(null) }
     var deleteAppDataRequest: DeleteAppDataRequest? by remember { mutableStateOf(null) }
     var resetCoachmarks by remember { mutableStateOf(false) }
-
-    val templateFullAccountConfigData =
-      when (val accountData = props.accountData) {
-        is GettingStartedData -> accountData.templateFullAccountConfigData
-        is HasActiveLiteAccountData -> accountData.accountUpgradeTemplateFullAccountConfigData
-        else -> null
-      }
 
     if (deleteAppDataRequest != null) {
       val interstitial = DeleteEffect(deleteAppDataRequest!!, props.accountData) {
@@ -82,9 +76,13 @@ class DebugMenuListStateMachineImpl(
       onBack = props.onClose,
       groups =
         immutableListOfNotNull(
-          AccountConfigListGroupModel(props, templateFullAccountConfigData),
+          accountConfigUiStateMachine.model(
+            AccountConfigProps(props.accountData)
+          ),
           OnboardingConfigListGroupModel(props),
-          BitcoinNetworkPickerListGroupModel(templateFullAccountConfigData),
+          bitcoinNetworkPickerUiStateMachine.model(
+            Unit
+          ),
           F8eEnvironmentPickerListGroupModel(props),
           infoOptionsUiStateMachine.model(Unit),
           BitkeyDeviceOptionsListGroupModel(
@@ -184,30 +182,9 @@ class DebugMenuListStateMachineImpl(
   }
 
   @Composable
-  private fun AccountConfigListGroupModel(
-    props: DebugMenuListProps,
-    templateFullAccountConfigData:
-      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData?,
-  ): ListGroupModel? {
-    return accountConfigUiStateMachine.model(
-      AccountConfigProps(props.accountData, templateFullAccountConfigData)
-    )
-  }
-
-  @Composable
   private fun OnboardingConfigListGroupModel(props: DebugMenuListProps): ListGroupModel? {
     return onboardingConfigStateMachine.model(
       OnboardingConfigProps(props.accountData)
-    )
-  }
-
-  @Composable
-  private fun BitcoinNetworkPickerListGroupModel(
-    templateFullAccountConfigData:
-      TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData?,
-  ): ListGroupModel? {
-    return bitcoinNetworkPickerUiStateMachine.model(
-      BitcoinNetworkPickerUiProps(templateFullAccountConfigData)
     )
   }
 
@@ -216,7 +193,10 @@ class DebugMenuListStateMachineImpl(
     props: DebugMenuListProps,
     onActionConfirmationRequest: (ActionConfirmationRequest) -> Unit,
   ): ListGroupModel? {
-    val isHardwareFake = props.accountData.fullAccountConfig?.isHardwareFake ?: return null
+    val debugOptions =
+      remember { debugOptionsService.options() }.collectAsState(initial = null).value
+
+    val isHardwareFake = props.accountData.isHardwareFake(debugOptions) ?: return null
     return bitkeyDeviceOptionsUiStateMachine.model(
       props =
         BitkeyDeviceOptionsUiProps(
@@ -367,13 +347,8 @@ class DebugMenuListStateMachineImpl(
     return f8eEnvironmentPickerUiStateMachine.model(
       F8eEnvironmentPickerUiProps(
         accountData = props.accountData,
-        openCustomUrlInput = { customUrl, templateFullAccountConfigData ->
-          props.onSetState(
-            DebugMenuState.ShowingF8eCustomUrl(
-              customUrl,
-              templateFullAccountConfigData
-            )
-          )
+        openCustomUrlInput = { customUrl ->
+          props.onSetState(DebugMenuState.ShowingF8eCustomUrl(customUrl))
         }
       )
     )
@@ -398,6 +373,19 @@ class DebugMenuListStateMachineImpl(
         )
     }
   }
+
+  private fun AccountData.isHardwareFake(debugOptions: DebugOptions?): Boolean? {
+    if (debugOptions == null) return null
+    return when (val accountData = this) {
+      is ActiveFullAccountLoadedData -> accountData.account.keybox.config.isHardwareFake
+      is LoadingActiveFullAccountData -> accountData.account.keybox.config.isHardwareFake
+      is CreatingFullAccountData -> debugOptions.isHardwareFake
+      is GettingStartedData -> debugOptions.isHardwareFake
+      is RecoveringAccountData -> debugOptions.isHardwareFake
+      is HasActiveLiteAccountData -> debugOptions.isHardwareFake
+      else -> null
+    }
+  }
 }
 
 /**
@@ -415,15 +403,3 @@ private data class ActionConfirmationRequest(
   val gatedActionTitle: String,
   val gatedAction: () -> Unit,
 )
-
-private val AccountData.fullAccountConfig: FullAccountConfig?
-  get() =
-    when (val accountData = this) {
-      is ActiveFullAccountLoadedData -> accountData.account.keybox.config
-      is LoadingActiveFullAccountData -> accountData.account.keybox.config
-      is CreatingFullAccountData -> accountData.templateFullAccountConfig
-      is GettingStartedData -> accountData.templateFullAccountConfigData.config
-      is RecoveringAccountData -> accountData.templateFullAccountConfig
-      is HasActiveLiteAccountData -> accountData.accountUpgradeTemplateFullAccountConfigData.config
-      else -> null
-    }

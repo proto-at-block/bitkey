@@ -1,9 +1,9 @@
 package build.wallet.statemachine.recovery.socrec
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.FAILED
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.ui.model.button.ButtonModel
 import kotlinx.collections.immutable.ImmutableList

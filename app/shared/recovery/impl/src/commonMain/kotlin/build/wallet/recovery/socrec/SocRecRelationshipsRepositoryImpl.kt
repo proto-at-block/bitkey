@@ -8,14 +8,13 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.HwFactorProofOfPossession
@@ -147,7 +146,7 @@ class SocRecRelationshipsRepositoryImpl(
         .flatMap { invitation ->
           socRecEnrollmentAuthenticationDao
             .insert(
-              invitation.recoveryRelationshipId,
+              invitation.relationshipId,
               protectedCustomerEnrollmentPakeKey,
               enrollmentPakeCode
             )
@@ -302,8 +301,8 @@ class SocRecRelationshipsRepositoryImpl(
       .isOk()
 
     val authState = when {
-      isVerified -> TrustedContactAuthenticationState.VERIFIED
-      else -> TrustedContactAuthenticationState.TAMPERED
+      isVerified -> build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+      else -> build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
     }
 
     return copy(authenticationState = authState)

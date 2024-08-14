@@ -1,6 +1,5 @@
 package build.wallet.statemachine.account.create.full
 
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.keybox.create.CreateKeyboxUiProps
@@ -26,9 +25,10 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
           "onboarding-keybox"
         ) {},
       replaceWithLiteAccountRestoreUiStateMachine =
-        object : ReplaceWithLiteAccountRestoreUiStateMachine, ScreenStateMachineMock<ReplaceWithLiteAccountRestoreUiProps>(
-          "replace-with-lite-account-restore"
-        ) {},
+        object : ReplaceWithLiteAccountRestoreUiStateMachine,
+          ScreenStateMachineMock<ReplaceWithLiteAccountRestoreUiProps>(
+            "replace-with-lite-account-restore"
+          ) {},
       overwriteFullAccountCloudBackupUiStateMachine =
         object : OverwriteFullAccountCloudBackupUiStateMachine,
           ScreenStateMachineMock<OverwriteFullAccountCloudBackupUiProps>(
@@ -36,15 +36,12 @@ class CreateFullAccountUiStateMachineImplTests : FunSpec({
           ) {}
     )
 
-  val props =
-    CreateAccountUiProps(
-      createFullAccountData =
-        CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
-          fullAccountConfig = FullAccountConfigMock,
-          rollback = {}
-        ),
-      isHardwareFake = true
-    )
+  val props = CreateAccountUiProps(
+    createFullAccountData =
+      CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData(
+        rollback = {}
+      )
+  )
 
   test("CreateKeyboxData screen") {
     stateMachine.test(props) {

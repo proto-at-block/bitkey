@@ -5,12 +5,7 @@ import build.wallet.bitcoin.keys.ExtendedPrivateKey
 import build.wallet.bitkey.app.AppSpendingKeypair
 import build.wallet.bitkey.app.AppSpendingPrivateKey
 import build.wallet.bitkey.app.AppSpendingPublicKey
-import build.wallet.bitkey.auth.AppGlobalAuthKeypairMock
-import build.wallet.bitkey.auth.AppGlobalAuthPrivateKeyMock
-import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
-import build.wallet.bitkey.auth.AppRecoveryAuthKeypairMock
-import build.wallet.bitkey.auth.AppRecoveryAuthPrivateKeyMock
-import build.wallet.bitkey.auth.AppRecoveryAuthPublicKeyMock
+import build.wallet.bitkey.auth.*
 import build.wallet.bitkey.spending.AppSpendingPrivateKeyMock
 import build.wallet.bitkey.spending.AppSpendingPublicKeyMock
 import build.wallet.crypto.PrivateKey

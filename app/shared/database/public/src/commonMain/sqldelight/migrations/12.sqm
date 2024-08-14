@@ -1,0 +1,30 @@
+import kotlin.Boolean;
+
+-- This migration adds onboarding skip steps to `debugOptionsEntity`
+
+-- 1. Rename current table
+ALTER TABLE debugOptionsEntity RENAME TO debugOptionsEntity_old;
+
+-- 2. Create table with new schema
+CREATE TABLE debugOptionsEntity(
+  rowId                         INTEGER NOT NULL PRIMARY KEY,
+  bitcoinNetworkType            TEXT AS BitcoinNetworkType NOT NULL,
+  fakeHardware                  INTEGER AS Boolean NOT NULL,
+  f8eEnvironment                TEXT AS F8eEnvironment NOT NULL,
+  isTestAccount                 INTEGER AS Boolean NOT NULL,
+  isUsingSocRecFakes            INTEGER AS Boolean NOT NULL,
+  delayNotifyDuration           TEXT AS Duration,
+  skipCloudBackupOnboarding     INTEGER AS Boolean NOT NULL,
+  skipNotificationsOnboarding   INTEGER AS Boolean NOT NULL
+);
+
+-- 3. Move data from old table
+INSERT INTO debugOptionsEntity (rowId, bitcoinNetworkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, skipCloudBackupOnboarding, skipNotificationsOnboarding)
+SELECT rowId, bitcoinNetworkType, fakeHardware, f8eEnvironment, isTestAccount, isUsingSocRecFakes, delayNotifyDuration, 0, 0
+FROM debugOptionsEntity_old;
+
+-- 4. Drop old table
+DROP TABLE debugOptionsEntity_old;
+
+-- 5. Make sure the foreign keys still work
+PRAGMA foreign_key_check;

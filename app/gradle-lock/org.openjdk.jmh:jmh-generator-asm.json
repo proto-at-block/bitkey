@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.openjdk.jmh:jmh-generator-asm",
+    "components": [
+        {
+            "version": "1.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jmh-generator-asm-1.21.jar": "f6757d41c0c99d0f463d0bea726ca3f9fae2713d577f3935e8ceb2b8635f8e0b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

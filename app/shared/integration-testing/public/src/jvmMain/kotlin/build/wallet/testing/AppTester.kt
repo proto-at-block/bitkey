@@ -20,7 +20,6 @@ import build.wallet.bitcoin.blockchain.RegtestControl
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.bitcoin.treasury.TreasuryWallet
 import build.wallet.bitcoin.treasury.TreasuryWalletFactory
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudKeyValueStore
 import build.wallet.cloud.store.CloudKeyValueStoreImpl
@@ -53,7 +52,6 @@ import build.wallet.nfc.NfcCommandsFake
 import build.wallet.nfc.NfcSessionFake
 import build.wallet.nfc.platform.NfcCommands
 import build.wallet.nfc.platform.NfcCommandsProvider
-import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.biometrics.BiometricPrompterImpl
 import build.wallet.platform.config.DeviceTokenConfig
@@ -75,7 +73,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import java.nio.file.Files
 import java.nio.file.Path
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.ZERO
 
 const val BITCOIN_NETWORK_ENV_VAR_NAME = "BITCOIN_NETWORK"
 const val F8E_ENV_ENV_VAR_NAME = "F8E_ENVIRONMENT"
@@ -204,17 +202,15 @@ class AppTester(
           ).create(bitcoinNetworkType)
         }
 
-      val fullAccountConfig =
-        FullAccountConfig(
-          bitcoinNetworkType = bitcoinNetworkType,
-          isHardwareFake = true,
-          f8eEnvironment = f8eEnvironment,
-          isTestAccount = true,
-          isUsingSocRecFakes = isUsingSocRecFakes,
-          delayNotifyDuration = 0.seconds
-        )
       runBlocking {
-        appComponent.templateFullAccountConfigDao.set(fullAccountConfig)
+        appComponent.debugOptionsService.apply {
+          setBitcoinNetworkType(bitcoinNetworkType)
+          setIsHardwareFake(true)
+          setF8eEnvironment(f8eEnvironment)
+          setIsTestAccount(true)
+          setUsingSocRecFakes(isUsingSocRecFakes)
+          setDelayNotifyDuration(ZERO)
+        }
       }
 
       return AppTester(
@@ -305,7 +301,6 @@ private fun createActivityComponent(
     cloudDevOptionsStateMachine = cloudDevOptionsStateMachineNoop,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
     datadogRumMonitor = DatadogRumMonitorImpl(),
-    phoneNumberLibBindings = PhoneNumberLibBindingsImpl(),
     symmetricKeyEncryptor = SymmetricKeyEncryptorImpl(),
     symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
     lightningInvoiceParser = LightningInvoiceParserImpl(),

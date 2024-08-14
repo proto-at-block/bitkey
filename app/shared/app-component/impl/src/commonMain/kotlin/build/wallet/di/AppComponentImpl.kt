@@ -12,6 +12,7 @@ import build.wallet.availability.*
 import build.wallet.bdk.bindings.*
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitcoin.AppPrivateKeyDaoImpl
+import build.wallet.bitcoin.address.BitcoinAddressServiceImpl
 import build.wallet.bitcoin.bdk.*
 import build.wallet.bitcoin.descriptor.BitcoinMultiSigDescriptorBuilderImpl
 import build.wallet.bitcoin.fees.BitcoinFeeRateEstimatorImpl
@@ -32,6 +33,8 @@ import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
+import build.wallet.debug.DebugOptionsServiceImpl
+import build.wallet.debug.DefaultDebugOptionsDeciderImpl
 import build.wallet.encrypt.MessageSigner
 import build.wallet.encrypt.Secp256k1KeyGenerator
 import build.wallet.encrypt.SignatureVerifier
@@ -45,6 +48,7 @@ import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.f8e.debug.NetworkingDebugConfigRepositoryImpl
 import build.wallet.f8e.featureflags.FeatureFlagsF8eClientImpl
 import build.wallet.f8e.mobilepay.MobilePayFiatConfigF8eClientImpl
+import build.wallet.f8e.notifications.NotificationTouchpointF8eClientImpl
 import build.wallet.f8e.notifications.RegisterWatchAddressF8eClientImpl
 import build.wallet.f8e.onboarding.AddDeviceTokenF8eClientImpl
 import build.wallet.feature.*
@@ -54,7 +58,6 @@ import build.wallet.fwup.*
 import build.wallet.inappsecurity.BiometricPreferenceImpl
 import build.wallet.keybox.KeyboxDao
 import build.wallet.keybox.KeyboxDaoImpl
-import build.wallet.keybox.config.TemplateFullAccountConfigDaoImpl
 import build.wallet.keybox.keys.AppAuthKeyGeneratorImpl
 import build.wallet.keybox.keys.AppKeysGeneratorImpl
 import build.wallet.keybox.keys.OnboardingAppKeyKeystoreImpl
@@ -78,9 +81,9 @@ import build.wallet.money.display.FiatCurrencyPreferenceRepositoryImpl
 import build.wallet.money.exchange.ExchangeRateF8eClient
 import build.wallet.money.exchange.ExchangeRateF8eClientImpl
 import build.wallet.nfc.haptics.NfcHapticsImpl
-import build.wallet.notifications.DeviceTokenManagerImpl
-import build.wallet.notifications.RegisterWatchAddressQueueImpl
-import build.wallet.notifications.RegisterWatchAddressSenderImpl
+import build.wallet.notifications.*
+import build.wallet.phonenumber.PhoneNumberValidatorImpl
+import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -99,6 +102,7 @@ import build.wallet.platform.random.UuidGeneratorImpl
 import build.wallet.platform.settings.*
 import build.wallet.platform.versions.OsVersionInfoProvider
 import build.wallet.platform.versions.OsVersionInfoProviderImpl
+import build.wallet.pricechart.BitcoinPriceCardPreferenceImpl
 import build.wallet.queueprocessor.BatcherProcessorImpl
 import build.wallet.queueprocessor.ProcessorImpl
 import build.wallet.recovery.RecoveryAppAuthPublicKeyProvider
@@ -146,6 +150,7 @@ class AppComponentImpl(
   teltra: Teltra,
   override val hardwareAttestation: HardwareAttestation,
   wsmVerifier: WsmVerifier,
+  override val phoneNumberLibBindings: PhoneNumberLibBindings,
   override val recoverySyncFrequency: Duration = 1.minutes,
   override val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider =
     F8eAuthSignatureStatusProviderImpl(),
@@ -189,7 +194,7 @@ class AppComponentImpl(
     LocaleCountryCodeProviderImpl(platformContext),
   private val telephonyCountryCodeProvider: TelephonyCountryCodeProvider =
     TelephonyCountryCodeProviderImpl(platformContext),
-  private val countryCodeGuesser: CountryCodeGuesser = CountryCodeGuesserImpl(
+  override val countryCodeGuesser: CountryCodeGuesser = CountryCodeGuesserImpl(
     localeCountryCodeProvider,
     telephonyCountryCodeProvider
   ),
@@ -329,15 +334,8 @@ class AppComponentImpl(
 
   override val feeBumpIsAvailableFeatureFlag = FeeBumpIsAvailableFeatureFlag(featureFlagDao)
 
-  override val resetDeviceIsEnabledFeatureFlag =
-    ResetDeviceIsEnabledFeatureFlag(featureFlagDao)
-
   override val softwareWalletIsEnabledFeatureFlag =
     SoftwareWalletIsEnabledFeatureFlag(featureFlagDao)
-
-  override val inAppSecurityFeatureFlag = InAppSecurityFeatureFlag(
-    featureFlagDao = featureFlagDao
-  )
 
   override val promptSweepFeatureFlag: PromptSweepFeatureFlag =
     PromptSweepFeatureFlag(featureFlagDao)
@@ -348,15 +346,17 @@ class AppComponentImpl(
   override val coachmarksGlobalFeatureFlag =
     CoachmarksGlobalFeatureFlag(featureFlagDao)
 
+  override val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag =
+    BitcoinPriceChartFeatureFlag(featureFlagDao)
+
   override val allRemoteFeatureFlags: List<FeatureFlag<out FeatureFlagValue>> =
     setOf(
-      resetDeviceIsEnabledFeatureFlag,
-      inAppSecurityFeatureFlag,
       mobileTestFeatureFlag,
       DoubleMobileTestFeatureFlag(featureFlagDao),
       StringFlagMobileTestFeatureFlag(featureFlagDao),
       promptSweepFeatureFlag,
-      coachmarksGlobalFeatureFlag
+      coachmarksGlobalFeatureFlag,
+      bitcoinPriceChartFeatureFlag
     ).toList()
 
   private val allLocalFeatureFlags = setOf(
@@ -396,40 +396,43 @@ class AppComponentImpl(
 
   override val appSessionManager = AppSessionManagerImpl(clock, uuidGenerator)
   override val eventStore = EventStoreImpl()
-  override val templateFullAccountConfigDao =
-    TemplateFullAccountConfigDaoImpl(
-      appVariant,
-      bitkeyDatabaseProvider
-    )
+  private val defaultDebugOptionsDecider = DefaultDebugOptionsDeciderImpl(appVariant)
+  override val debugOptionsService =
+    DebugOptionsServiceImpl(bitkeyDatabaseProvider, defaultDebugOptionsDecider)
 
   override val analyticsTrackingPreference = AnalyticsTrackingPreferenceImpl(
     appVariant = appVariant,
     databaseProvider = bitkeyDatabaseProvider
   )
 
-  override val eventTracker =
-    EventTrackerImpl(
-      appCoroutineScope = appCoroutineScope,
-      appDeviceIdDao = appDeviceIdDao,
-      deviceInfoProvider = deviceInfoProvider,
-      accountRepository = accountRepository,
-      templateFullAccountConfigDao = templateFullAccountConfigDao,
-      clock = clock,
-      countryCodeProvider = localeCountryCodeProvider,
-      hardwareInfoProvider = hardwareInfoProvider,
-      eventProcessor = periodicEventProcessor,
-      appInstallationDao = appInstallationDao,
-      platformInfoProvider = platformInfoProvider,
-      appSessionManager = appSessionManager,
-      eventStore = eventStore,
-      bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
-      localeCurrencyCodeProvider = localeCurrencyCodeProvider,
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
-      analyticsTrackingPreference = analyticsTrackingPreference
-    )
+  override val eventTracker = EventTrackerImpl(
+    appCoroutineScope = appCoroutineScope,
+    appDeviceIdDao = appDeviceIdDao,
+    deviceInfoProvider = deviceInfoProvider,
+    accountRepository = accountRepository,
+    debugOptionsService = debugOptionsService,
+    clock = clock,
+    countryCodeProvider = localeCountryCodeProvider,
+    hardwareInfoProvider = hardwareInfoProvider,
+    eventProcessor = periodicEventProcessor,
+    appInstallationDao = appInstallationDao,
+    platformInfoProvider = platformInfoProvider,
+    appSessionManager = appSessionManager,
+    eventStore = eventStore,
+    bitcoinDisplayPreferenceRepository = bitcoinDisplayPreferenceRepository,
+    localeCurrencyCodeProvider = localeCurrencyCodeProvider,
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    analyticsTrackingPreference = analyticsTrackingPreference
+  )
   override val biometricPreference = BiometricPreferenceImpl(
     databaseProvider = bitkeyDatabaseProvider,
     eventTracker = eventTracker
+  )
+  override val bitcoinPriceCardPreference = BitcoinPriceCardPreferenceImpl(
+    databaseProvider = bitkeyDatabaseProvider,
+    eventTracker = eventTracker,
+    bitcoinPriceChartFeatureFlag = bitcoinPriceChartFeatureFlag,
+    appCoroutineScope = appCoroutineScope
   )
   override val memfaultClient =
     MemfaultClientImpl(
@@ -514,13 +517,13 @@ class AppComponentImpl(
 
   override val mobilePayFiatConfigService = MobilePayFiatConfigServiceImpl(
     mobilePayFiatConfigRepository = mobilePayFiatConfigRepository,
-    templateFullAccountConfigDao = templateFullAccountConfigDao,
+    debugOptionsService = debugOptionsService,
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
   )
 
   private val featureFlagSyncer = FeatureFlagSyncerImpl(
     accountRepository = accountRepository,
-    templateFullAccountConfigDao = templateFullAccountConfigDao,
+    debugOptionsService = debugOptionsService,
     featureFlagsF8eClient = featureFlagsF8eClient,
     clock = clock,
     remoteFlags = allRemoteFeatureFlags,
@@ -532,33 +535,48 @@ class AppComponentImpl(
     featureFlagSyncer = featureFlagSyncer
   )
 
-  private val appWorkerProvider = AppWorkerProviderImpl(
-    eventTracker = eventTracker,
-    networkingDebugConfigRepository = networkingDebugConfigRepository,
-    periodicEventProcessor = periodicEventProcessor,
-    periodicFirmwareCoredumpProcessor = periodicFirmwareCoredumpProcessor,
-    periodicFirmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
-    periodicRegisterWatchAddressProcessor = registerWatchAddressProcessor,
-    mobilePayFiatConfigSyncWorker = mobilePayFiatConfigService,
-    featureFlagSyncWorker = featureFlagService
+  override val firmwareDataService = FirmwareDataServiceImpl(
+    firmwareDeviceInfoDao = firmwareDeviceInfoDao,
+    fwupDataFetcher = fwupDataFetcher,
+    fwupDataDao = fwupDataDao,
+    appSessionManager = appSessionManager,
+    debugOptionsService = debugOptionsService
   )
-  override val appWorkerExecutor = AppWorkerExecutorImpl(
-    appScope = appCoroutineScope,
-    workerProvider = appWorkerProvider
+
+  override val phoneNumberValidator = PhoneNumberValidatorImpl(
+    countryCodeGuesser = countryCodeGuesser,
+    phoneNumberLibBindings = phoneNumberLibBindings
   )
+
+  override val notificationTouchpointF8eClient = NotificationTouchpointF8eClientImpl(
+    f8eHttpClient = f8eHttpClient,
+    phoneNumberValidator = phoneNumberValidator
+  )
+
+  override val notificationTouchpointDao = NotificationTouchpointDaoImpl(
+    databaseProvider = bitkeyDatabaseProvider,
+    phoneNumberValidator = phoneNumberValidator
+  )
+
+  override val notificationTouchpointService = NotificationTouchpointServiceImpl(
+    notificationTouchpointF8eClient = notificationTouchpointF8eClient,
+    notificationTouchpointDao = notificationTouchpointDao,
+    accountRepository = accountRepository
+  )
+
   override val outgoingTransactionDetailDao =
     OutgoingTransactionDetailDaoImpl(bitkeyDatabaseProvider)
   private val bdkTransactionMapper =
     BdkTransactionMapperImpl(bdkAddressBuilder, outgoingTransactionDetailDao)
   private val bdkDatabaseConfigProvider = BdkDatabaseConfigProviderImpl(fileDirectoryProvider)
   private val bdkWalletProvider = BdkWalletProviderImpl(bdkWalletFactory, bdkDatabaseConfigProvider)
-  override val electrumServerDao = ElectrumServerConfigRepositoryImpl(bitkeyDatabaseProvider)
-  override val electrumServerSettingProvider =
-    ElectrumServerSettingProviderImpl(
-      keyboxDao,
-      templateFullAccountConfigDao,
-      electrumServerDao
-    )
+  override val electrumServerConfigRepository =
+    ElectrumServerConfigRepositoryImpl(bitkeyDatabaseProvider)
+  override val electrumServerSettingProvider = ElectrumServerSettingProviderImpl(
+    keyboxDao,
+    debugOptionsService,
+    electrumServerConfigRepository
+  )
   override val bdkBlockchainProvider =
     BdkBlockchainProviderImpl(
       bdkBlockchainFactory,
@@ -641,4 +659,28 @@ class AppComponentImpl(
       authKeyGenerator,
       appPrivateKeyDao
     )
+
+  override val bitcoinAddressService = BitcoinAddressServiceImpl(
+    registerWatchAddressProcessor = registerWatchAddressProcessor,
+    appSpendingWalletProvider = appSpendingWalletProvider
+  )
+
+  private val appWorkerProvider = AppWorkerProviderImpl(
+    eventTracker = eventTracker,
+    networkingDebugConfigRepository = networkingDebugConfigRepository,
+    periodicEventProcessor = periodicEventProcessor,
+    periodicFirmwareCoredumpProcessor = periodicFirmwareCoredumpProcessor,
+    periodicFirmwareTelemetryProcessor = periodicFirmwareTelemetryEventProcessor,
+    periodicRegisterWatchAddressProcessor = registerWatchAddressProcessor,
+    mobilePayFiatConfigSyncWorker = mobilePayFiatConfigService,
+    featureFlagSyncWorker = featureFlagService,
+    firmwareDataSyncWorker = firmwareDataService,
+    notificationTouchpointSyncWorker = notificationTouchpointService,
+    bitcoinAddressRegisterWatchAddressWorker = bitcoinAddressService
+  )
+
+  override val appWorkerExecutor = AppWorkerExecutorImpl(
+    appScope = appCoroutineScope,
+    workerProvider = appWorkerProvider
+  )
 }

@@ -22,6 +22,7 @@ kotlin {
       dependencies {
         implementation(projects.shared.accountFake)
         implementation(projects.shared.bitcoinFake)
+        implementation(projects.shared.debugFake)
         implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.f8eClientImpl)

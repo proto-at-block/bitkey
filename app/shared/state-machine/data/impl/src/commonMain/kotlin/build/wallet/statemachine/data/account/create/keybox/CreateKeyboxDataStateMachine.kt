@@ -1,6 +1,7 @@
 package build.wallet.statemachine.data.account.create.keybox
 
-import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.bitkey.keybox.Keybox
+import build.wallet.debug.DebugOptions
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.account.CreateFullAccountData
 import build.wallet.statemachine.data.account.create.CreateFullAccountContext
@@ -15,10 +16,10 @@ interface CreateKeyboxDataStateMachine :
   StateMachine<CreateKeyboxDataProps, CreateFullAccountData.CreateKeyboxData>
 
 /**
- * @property templateFullAccountConfig [FullAccountConfig] to use for creating new Keybox.
+ * @property accountConfig [DebugOptions] to use for creating new Keybox.
  */
 data class CreateKeyboxDataProps(
-  val templateFullAccountConfig: FullAccountConfig,
+  val onboardingKeybox: Keybox?,
   val context: CreateFullAccountContext,
   val rollback: () -> Unit,
 )

@@ -7,15 +7,24 @@ use tracing::{event, instrument, Level};
 use types::{
     account::identifiers::AccountId,
     privileged_action::{
-        repository::PrivilegedActionInstanceRecord, shared::PrivilegedActionInstanceId,
+        repository::{DelayAndNotifyStatus, PrivilegedActionInstanceRecord},
+        shared::{PrivilegedActionInstanceId, PrivilegedActionType},
     },
 };
 
-use super::{Repository, ACCOUNT_IDX, ACCOUNT_IDX_PARTITION_KEY, PARTITION_KEY};
+use super::{
+    Repository, ACCOUNT_IDX, ACCOUNT_IDX_PARTITION_KEY, CANCELLATION_TOKEN_IDX,
+    CANCELLATION_TOKEN_IDX_PARTITION_KEY, PARTITION_KEY,
+};
+
+const AUTHORIZATION_STRATEGY_TYPE_EXPRESSION: &str =
+    "authorization_strategy_type = :authorization_strategy_type";
+const PRIVILEGED_ACTION_TYPE_EXPRESSION: &str = "privileged_action_type = :privileged_action_type";
+const STATUS_EXPRESSION: &str = "status = :status";
 
 impl Repository {
     #[instrument(skip(self))]
-    pub async fn fetch<T>(
+    pub async fn fetch_by_id<T>(
         &self,
         privileged_action_instance_id: &PrivilegedActionInstanceId,
     ) -> Result<PrivilegedActionInstanceRecord<T>, DatabaseError>
@@ -54,10 +63,57 @@ impl Repository {
         try_from_item(item, database_object)
     }
 
+    #[instrument(skip(self, cancellation_token))]
+    pub async fn fetch_by_cancellation_token<T>(
+        &self,
+        cancellation_token: String,
+    ) -> Result<PrivilegedActionInstanceRecord<T>, DatabaseError>
+    where
+        T: DeserializeOwned,
+    {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let item_output = self
+            .connection
+            .client
+            .query()
+            .table_name(table_name)
+            .index_name(CANCELLATION_TOKEN_IDX)
+            .key_condition_expression(format!(
+                "{} = :{}",
+                CANCELLATION_TOKEN_IDX_PARTITION_KEY, CANCELLATION_TOKEN_IDX_PARTITION_KEY
+            ))
+            .expression_attribute_values(
+                format!(":{}", CANCELLATION_TOKEN_IDX_PARTITION_KEY),
+                try_to_attribute_val(cancellation_token, database_object)?,
+            )
+            .send()
+            .await
+            .map_err(|err| {
+                let service_err = err.into_service_error();
+                event!(
+                    Level::ERROR,
+                    "Could not query database: {service_err:?} with message: {:?}",
+                    service_err.message()
+                );
+                DatabaseError::FetchError(database_object)
+            })?;
+
+        let items = item_output.items();
+        match items.len() {
+            1 => try_from_item(items[0].to_owned(), database_object),
+            0 => Err(DatabaseError::ObjectNotFound(database_object)),
+            _ => Err(DatabaseError::ObjectNotUnique(database_object)),
+        }
+    }
+
     #[instrument(skip(self))]
-    pub async fn fetch_for_account_id<T>(
+    pub async fn fetch_delay_notify_for_account_id<T>(
         &self,
         account_id: &AccountId,
+        privileged_action_type: Option<PrivilegedActionType>,
+        status: Option<DelayAndNotifyStatus>,
     ) -> Result<Vec<PrivilegedActionInstanceRecord<T>>, DatabaseError>
     where
         T: DeserializeOwned,
@@ -67,17 +123,55 @@ impl Repository {
 
         let account_id_attr: AttributeValue =
             try_to_attribute_val(account_id.to_string(), self.get_database_object())?;
+        let authorization_strategy_type_attr: AttributeValue =
+            try_to_attribute_val("DELAY_AND_NOTIFY", self.get_database_object())?;
+        let privileged_action_type_attr: Option<AttributeValue> = privileged_action_type
+            .map(|p| try_to_attribute_val(p.to_string(), self.get_database_object()))
+            .transpose()?;
+        let status_attr: Option<AttributeValue> = status
+            .map(|status| try_to_attribute_val(status, self.get_database_object()))
+            .transpose()?;
 
         let mut exclusive_start_key = None;
         let mut result = Vec::new();
 
         loop {
-            let item_output = self.connection.client
-                .scan()
+            let mut query = self
+                .connection
+                .client
+                .query()
                 .table_name(table_name.clone())
                 .index_name(ACCOUNT_IDX)
-                .filter_expression(format!("{} = :account_id", ACCOUNT_IDX_PARTITION_KEY))
-                .expression_attribute_values(":account_id", account_id_attr.clone())
+                .key_condition_expression(format!(
+                    "{} = :{}",
+                    ACCOUNT_IDX_PARTITION_KEY, ACCOUNT_IDX_PARTITION_KEY
+                ))
+                .expression_attribute_values(
+                    format!(":{}", ACCOUNT_IDX_PARTITION_KEY),
+                    account_id_attr.clone(),
+                )
+                .filter_expression(AUTHORIZATION_STRATEGY_TYPE_EXPRESSION)
+                .expression_attribute_values(
+                    ":authorization_strategy_type",
+                    authorization_strategy_type_attr.clone(),
+                );
+
+            if let Some(privileged_action_type_attr) = &privileged_action_type_attr {
+                query = query
+                    .filter_expression(PRIVILEGED_ACTION_TYPE_EXPRESSION)
+                    .expression_attribute_values(
+                        ":privileged_action_type",
+                        privileged_action_type_attr.to_owned(),
+                    );
+            }
+
+            if let Some(status_attr) = &status_attr {
+                query = query
+                    .filter_expression(STATUS_EXPRESSION)
+                    .expression_attribute_values(":status", status_attr.to_owned());
+            }
+
+            let item_output = query
                 .set_exclusive_start_key(exclusive_start_key.clone())
                 .send()
                 .await

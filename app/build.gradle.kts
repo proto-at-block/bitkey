@@ -30,6 +30,7 @@ plugins {
   alias(libs.plugins.paparazzi) apply false
   alias(libs.plugins.sqldelight) apply false
   alias(libs.plugins.wire) apply false
+  alias(libs.plugins.kotlinx.benchmark) apply false
 }
 
 tasks.wrapper {

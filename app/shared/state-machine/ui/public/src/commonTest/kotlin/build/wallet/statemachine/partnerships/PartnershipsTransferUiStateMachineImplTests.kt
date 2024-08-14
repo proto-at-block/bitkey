@@ -2,6 +2,8 @@ package build.wallet.statemachine.partnerships
 
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.address.BitcoinAddressServiceFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.GetTransferPartnerListF8eClientMock
@@ -12,7 +14,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
@@ -47,13 +48,14 @@ class PartnershipsTransferUiStateMachineImplTests : FunSpec({
       getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
       getTransferRedirectF8eClient = getTransferRedirectF8eClient,
       partnershipsRepository = partnershipRepositoryMock,
-      eventTracker = eventTracker
+      eventTracker = eventTracker,
+      bitcoinAddressService = BitcoinAddressServiceFake()
     )
 
   fun props() =
     PartnershipsTransferUiProps(
+      account = FullAccountMock,
       keybox = KeyboxMock,
-      generateAddress = KeyboxAddressDataMock.generateAddress,
       onBack = {
         onBack.add(Unit)
       },

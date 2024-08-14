@@ -2,11 +2,11 @@
     "module-identifier": "co.touchlab:stately-strict",
     "components": [
         {
-            "version": "2.0.5",
+            "version": "2.0.7",
             "variants": [
                 {
                     "artifacts": {
-                        "stately-strict-metadata-2.0.5.jar": "ff64820716de8409175c0c3f19fa9e96c3e440be3443a4169553c303a366e78b"
+                        "stately-strict-metadata-2.0.7.jar": "d25c300fbeba1aaae35b0b8170990b4d62befd834b2ed839d81419dad42b0d2d"
                     }
                 }
             ],

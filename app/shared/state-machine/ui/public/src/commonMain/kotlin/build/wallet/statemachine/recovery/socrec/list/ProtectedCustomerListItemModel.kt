@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.list
 
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.ui.model.icon.IconTint
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemAccessory.Companion.drillIcon

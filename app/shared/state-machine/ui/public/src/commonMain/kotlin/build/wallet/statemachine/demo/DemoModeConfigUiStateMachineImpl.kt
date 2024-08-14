@@ -1,19 +1,20 @@
 package build.wallet.statemachine.demo
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.debug.DebugOptionsService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.ui.model.alert.DisableAlertModel
+import kotlinx.coroutines.launch
 
 class DemoModeConfigUiStateMachineImpl(
   private val demoModeCodeEntryUiStateMachine: DemoModeCodeEntryUiStateMachineImpl,
+  private val debugOptionsService: DebugOptionsService,
 ) : DemoModeConfigUiStateMachine {
   @Composable
   override fun model(props: DemoModeConfigUiProps): ScreenModel {
     var uiState: ConfigState by remember { mutableStateOf(ConfigState.DemoModeDisabled) }
+    val scope = rememberStableCoroutineScope()
 
     return when (val state = uiState) {
       is ConfigState.DemoModeEnabled ->
@@ -27,11 +28,9 @@ class DemoModeConfigUiStateMachineImpl(
                 state.confirmingCancellation -> {
                   disableDemoMode(
                     onConfirm = {
-                      props.accountData.templateFullAccountConfigData.updateConfig {
-                        it.copy(
-                          isHardwareFake = false,
-                          isTestAccount = false
-                        )
+                      scope.launch {
+                        debugOptionsService.setIsHardwareFake(value = false)
+                        debugOptionsService.setIsTestAccount(value = false)
                       }
                       uiState = ConfigState.DemoModeDisabled
                     },
@@ -61,13 +60,11 @@ class DemoModeConfigUiStateMachineImpl(
           props = DemoCodeEntryUiProps(
             accountData = props.accountData,
             onCodeSuccess = {
-              props.accountData.templateFullAccountConfigData.updateConfig {
-                it.copy(
-                  isHardwareFake = true,
-                  isTestAccount = true
-                )
+              scope.launch {
+                debugOptionsService.setIsHardwareFake(value = true)
+                debugOptionsService.setIsTestAccount(value = true)
+                uiState = ConfigState.DemoModeEnabled(confirmingCancellation = false)
               }
-              uiState = ConfigState.DemoModeEnabled(confirmingCancellation = false)
             },
             onBack = { uiState = ConfigState.DemoModeDisabled }
           )

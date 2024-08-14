@@ -14,8 +14,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                     onExit: {},
                     endorsedTrustedContacts: [
                         .init(
-                            recoveryRelationshipId: "1",
+                            relationshipId: "1",
                             trustedContactAlias: "alias",
+                            roles: ["SOCIAL_RECOVERY_CONTACT"],
                             keyCertificate: TrustedContactKeyCertificate(
                                 delegatedDecryptionKey: "",
                                 hwAuthPublicKey: .init(pubKey: .init(value: "")),
@@ -43,8 +44,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                     onExit: {},
                     endorsedTrustedContacts: [
                         .init(
-                            recoveryRelationshipId: "1",
+                            relationshipId: "1",
                             trustedContactAlias: "alias",
+                            roles: ["SOCIAL_RECOVERY_CONTACT"],
                             keyCertificate: TrustedContactKeyCertificate(
                                 delegatedDecryptionKey: "",
                                 hwAuthPublicKey: .init(pubKey: .init(value: "")),
@@ -72,8 +74,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                     onExit: {},
                     endorsedTrustedContacts: [
                         .init(
-                            recoveryRelationshipId: "1",
+                            relationshipId: "1",
                             trustedContactAlias: "alias1",
+                            roles: ["SOCIAL_RECOVERY_CONTACT"],
                             keyCertificate: TrustedContactKeyCertificate(
                                 delegatedDecryptionKey: "",
                                 hwAuthPublicKey: .init(pubKey: .init(value: "")),
@@ -84,8 +87,9 @@ final class RecoveryChallengeContactListSnapshots: XCTestCase {
                             authenticationState: .awaitingVerify
                         ),
                         .init(
-                            recoveryRelationshipId: "2",
+                            relationshipId: "2",
                             trustedContactAlias: "alias2",
+                            roles: ["SOCIAL_RECOVERY_CONTACT"],
                             keyCertificate: TrustedContactKeyCertificate(
                                 delegatedDecryptionKey: "",
                                 hwAuthPublicKey: .init(pubKey: .init(value: "")),

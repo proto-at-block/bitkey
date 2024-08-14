@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.challenge
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -64,7 +64,7 @@ fun RecoveryChallengeContactListBodyModel(
                 sideText =
                   "Verified".takeIf {
                     verifiedBy.contains(
-                      contact.recoveryRelationshipId
+                      contact.relationshipId
                     )
                   },
                 trailingAccessory =

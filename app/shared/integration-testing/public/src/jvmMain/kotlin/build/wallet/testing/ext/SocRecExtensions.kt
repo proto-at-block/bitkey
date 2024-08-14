@@ -1,9 +1,9 @@
 package build.wallet.testing.ext
 
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.cloud.backup.SocRecV1BackupFeatures
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
@@ -33,7 +33,7 @@ suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
       // Wait until TC is synced and verified
       awaitRelationships { relationships ->
         relationships.endorsedTrustedContacts.any {
-          it.recoveryRelationshipId == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
+          it.relationshipId == relationshipId && it.authenticationState == TrustedContactAuthenticationState.VERIFIED
         }
       }
 
@@ -57,13 +57,13 @@ suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
     )
     .getOrThrow()
   val pakeData = app.socRecEnrollmentAuthenticationDao
-    .getByRelationshipId(invitation.invitation.recoveryRelationshipId)
+    .getByRelationshipId(invitation.invitation.relationshipId)
     .getOrThrow()
     .shouldNotBeNull()
   return TrustedContactFullInvite(
     invitation.inviteCode,
     IncomingInvitation(
-      invitation.invitation.recoveryRelationshipId,
+      invitation.invitation.relationshipId,
       invitation.invitation.code,
       pakeData.protectedCustomerEnrollmentPakeKey.publicKey
     )

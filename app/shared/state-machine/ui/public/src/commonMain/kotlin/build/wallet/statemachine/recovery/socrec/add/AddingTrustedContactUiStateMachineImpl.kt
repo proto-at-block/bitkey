@@ -9,8 +9,8 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.analytics.v1.Action
-import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError

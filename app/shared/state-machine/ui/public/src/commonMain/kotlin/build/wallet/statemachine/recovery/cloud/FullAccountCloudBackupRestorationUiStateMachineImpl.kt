@@ -11,14 +11,14 @@ import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdConte
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_CLOUD_RECOVERY_KEY_RECOVERED
 import build.wallet.auth.AccountAuthenticator
-import build.wallet.auth.AuthKeyRotationManager
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokenScope
+import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.logAuthFailure
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.app.AppAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.cloud.backup.CloudBackupV2
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer
 import build.wallet.cloud.backup.FullAccountCloudBackupRestorer.AccountRestoration
@@ -101,7 +101,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val uuidGenerator: UuidGenerator,
-  private val authKeyRotationManager: AuthKeyRotationManager,
+  private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
 ) : FullAccountCloudBackupRestorationUiStateMachine {
   @Composable
   override fun model(props: FullAccountCloudBackupRestorationUiProps): ScreenModel {
@@ -226,7 +226,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
                 RestoringFromBackupUiState
             },
             onCancel = { uiState = CloudBackupFoundUiState },
-            isHardwareFake = props.fullAccountConfig.isHardwareFake,
+            isHardwareFake = props.debugOptions.isHardwareFake,
             screenPresentationStyle = Root,
             eventTrackerContext = UNSEAL_CLOUD_BACKUP,
             segment = RecoverySegment.CloudBackup.FullAccount.Restoration,
@@ -334,7 +334,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
           )
         }
         .onSuccess {
-          authKeyRotationManager.recommendKeyRotation()
+          fullAccountAuthKeyRotationService.recommendKeyRotation()
           keyboxDao
             .saveKeyboxAsActive(state.accountRestoration.asKeybox(uuidGenerator.random(), it))
             .onFailure { dbError ->
@@ -407,7 +407,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       // Authenticate with f8e using recovered app [Global] authentication key.
       val globalAuthData =
         authenticateWithF8eAndStoreAuthTokens(
-          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          f8eEnvironment = props.debugOptions.f8eEnvironment,
           appAuthPublicKey = accountRestoration.activeAppKeyBundle.authKey,
           tokenScope = AuthTokenScope.Global
         ).bind()
@@ -415,7 +415,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
       // Authenticate with f8e using recovered app [Recovery] authentication key.
       authenticateWithF8eAndStoreAuthTokens(
-        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+        f8eEnvironment = props.debugOptions.f8eEnvironment,
         appAuthPublicKey = accountRestoration.activeAppKeyBundle.recoveryAuthKey,
         tokenScope = AuthTokenScope.Recovery
       ).bind()
@@ -424,7 +424,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       deviceTokenManager
         .addDeviceTokenIfPresentForAccount(
           fullAccountId = accountId,
-          f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+          f8eEnvironment = props.debugOptions.f8eEnvironment,
           authTokenScope = AuthTokenScope.Global
         )
 
@@ -441,7 +441,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
       // the background refresh doesn't delete existing TCs. But don't bind any failures.
       socialRelationshipsRepository.syncAndVerifyRelationships(
         accountId = accountId,
-        f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
+        f8eEnvironment = props.debugOptions.f8eEnvironment,
         appAuthKey = accountRestoration.activeAppKeyBundle.authKey,
         hwAuthPublicKey = accountRestoration.activeHwKeyBundle.authKey
       )

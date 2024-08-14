@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.f8e.socrec.models.ChallengeVerificationResponse
 import com.github.michaelbull.result.getOrThrow
 import io.ktor.utils.io.core.toByteArray

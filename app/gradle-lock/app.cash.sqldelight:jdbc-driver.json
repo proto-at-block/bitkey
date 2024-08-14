@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:jdbc-driver",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "jdbc-driver-2.0.1.jar": "134025e254460cf53e459e3716d75eaa29233d6249a8ddba9dbf514a915dcaa3"
+                        "jdbc-driver-2.0.2.jar": "076f1ac9927d3a944a98c22b9c768cca9a43cdaabea5fbc343af68249fbbcb21"
                     }
                 }
             ],

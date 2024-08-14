@@ -1,8 +1,8 @@
 package build.wallet.statemachine.dev
 
+import build.wallet.fwup.FirmwareData
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData
 
 /**

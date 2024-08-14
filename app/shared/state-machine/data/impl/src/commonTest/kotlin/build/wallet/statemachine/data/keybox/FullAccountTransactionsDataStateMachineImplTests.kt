@@ -1,5 +1,6 @@
 package build.wallet.statemachine.data.keybox
 
+import build.wallet.analytics.events.AppSessionManagerFake
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinTransactionFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
@@ -9,6 +10,7 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
+import build.wallet.money.exchange.ExchangeRateSyncerMock
 import build.wallet.money.matchers.shouldBeZero
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
@@ -26,7 +28,9 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class FullAccountTransactionsDataStateMachineImplTests : FunSpec({
   val stateMachine = FullAccountTransactionsDataStateMachineImpl(
     currencyConverter = CurrencyConverterFake(),
-    fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+    fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
+    appSessionManager = AppSessionManagerFake(),
+    exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
   )
 
   val account = FullAccountMock

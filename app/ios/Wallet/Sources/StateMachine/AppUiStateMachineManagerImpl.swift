@@ -748,6 +748,20 @@ public class AppUiStateMachineManagerImpl: AppUiStateMachineManager {
                 )
             }
 
+        case let viewModel as ComposeBodyModel:
+            if let vc = topViewController as? SwiftUIWrapperViewController<ComposeView> {
+                vc.updateWrappedView { view in
+                    view.update(bodyModel: viewModel)
+                }
+                return .none
+            } else {
+                let vc = SwiftUIWrapperViewController(
+                    ComposeView(bodyModel: viewModel),
+                    screenModel: screenModel
+                )
+                return .showNewView(vc: vc, key: "ios-bitcoin-price", animation: .pushPop)
+            }
+
         default:
             fatalError("Unhandled model body: \(bodyModel)")
         }

@@ -1,10 +1,12 @@
 package build.wallet.platform.clipboard
 
 import build.wallet.platform.clipboard.ClipItem.PlainText
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -36,7 +38,7 @@ interface Clipboard {
 
 fun Clipboard.plainTextItem(): Flow<PlainText?> {
   return flow {
-    while (true) {
+    while (currentCoroutineContext().isActive) {
       emit(getPlainTextItem())
       delay(1.seconds)
     }
@@ -45,7 +47,7 @@ fun Clipboard.plainTextItem(): Flow<PlainText?> {
 
 fun Clipboard.plainTextItemAndroid(): Flow<PlainText?> {
   return flow {
-    while (true) {
+    while (currentCoroutineContext().isActive) {
       emit(getPlainTextItemAndroid())
       delay(1.seconds)
     }

@@ -17,10 +17,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.Progress
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.*
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
@@ -191,11 +188,12 @@ internal fun PreviewMoneyHomeCardInvitationPending() {
       RecoveryContactCardModel(
         contact =
           Invitation(
-            recoveryRelationshipId = "foo",
+            relationshipId = "foo",
             trustedContactAlias = TrustedContactAlias("Bela"),
             code = "token",
             codeBitLength = 20,
-            expiresAt = DISTANT_FUTURE
+            expiresAt = DISTANT_FUTURE,
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
         buttonText = "Pending",
         onClick = {}
@@ -211,11 +209,12 @@ internal fun PreviewMoneyHomeCardInvitationExpired() {
       RecoveryContactCardModel(
         contact =
           Invitation(
-            recoveryRelationshipId = "foo",
+            relationshipId = "foo",
             trustedContactAlias = TrustedContactAlias("Bela"),
             code = "token",
             codeBitLength = 20,
-            expiresAt = DISTANT_PAST
+            expiresAt = DISTANT_PAST,
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
         buttonText = "Expired",
         onClick = {}
@@ -260,8 +259,16 @@ internal fun PreviewMoneyHomeCardWalletsProtecting() {
       WalletsProtectingMoneyHomeCardModel(
         protectedCustomers =
           immutableListOf(
-            ProtectedCustomer("", ProtectedCustomerAlias("Alice")),
-            ProtectedCustomer("", ProtectedCustomerAlias("Bob"))
+            ProtectedCustomer(
+              relationshipId = "",
+              alias = ProtectedCustomerAlias("Alice"),
+              roles = setOf(TrustedContactRole.SocialRecoveryContact)
+            ),
+            ProtectedCustomer(
+              relationshipId = "",
+              alias = ProtectedCustomerAlias("Bob"),
+              roles = setOf(TrustedContactRole.SocialRecoveryContact)
+            )
           ),
         onProtectedCustomerClick = {},
         onAcceptInviteClick = {}

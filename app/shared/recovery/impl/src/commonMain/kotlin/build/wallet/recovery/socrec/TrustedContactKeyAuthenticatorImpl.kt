@@ -5,12 +5,12 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.RecoveryRelationshipId
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
-import build.wallet.bitkey.socrec.TrustedContactEndorsement
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.RelationshipId
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.TrustedContactEndorsement
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.socrec.EndorseTrustedContactsF8eClientProvider
@@ -65,17 +65,17 @@ class TrustedContactKeyAuthenticatorImpl(
           newAppGlobalAuthKey = newAppGlobalAuthKey,
           newAppGlobalAuthKeyHwSignature = newAppGlobalAuthKeyHwSignature
         ).logFailure {
-          "Failed to verify contact ${contact.recoveryRelationshipId} key certificate for certificate regeneration."
+          "Failed to verify contact ${contact.relationshipId} key certificate for certificate regeneration."
         }.onFailure {
           socRecRelationshipsDao.setTrustedContactAuthenticationState(
-            contact.recoveryRelationshipId,
+            contact.relationshipId,
             TrustedContactAuthenticationState.TAMPERED
           ).logFailure {
-            "Failed to set contact ${contact.recoveryRelationshipId} authentication state to TAMPERED."
+            "Failed to set contact ${contact.relationshipId} authentication state to TAMPERED."
           }.bind()
         }.map { newCert ->
           TrustedContactEndorsement(
-            recoveryRelationshipId = RecoveryRelationshipId(contact.recoveryRelationshipId),
+            relationshipId = RelationshipId(contact.relationshipId),
             keyCertificate = newCert
           )
         }
@@ -102,7 +102,7 @@ class TrustedContactKeyAuthenticatorImpl(
         .map {
           authenticate(it)
             .logFailure {
-              "Unexpected application error handling key confirmation for ${it.recoveryRelationshipId}. We did not get far enough to attempt PAKE authentication"
+              "Unexpected application error handling key confirmation for ${it.relationshipId}. We did not get far enough to attempt PAKE authentication"
             }
         }
         // Any successful, non-null results are successful authentications
@@ -125,11 +125,11 @@ class TrustedContactKeyAuthenticatorImpl(
     coroutineBinding<Pair<UnendorsedTrustedContact, PublicKey<DelegatedDecryptionKey>>?, Throwable> {
       // Make sure PAKE data is available
       val pakeData =
-        socRecEnrollmentAuthenticationDao.getByRelationshipId(contact.recoveryRelationshipId)
+        socRecEnrollmentAuthenticationDao.getByRelationshipId(contact.relationshipId)
           .bind()
       if (pakeData == null) {
         socRecRelationshipsDao.setUnendorsedTrustedContactAuthenticationState(
-          contact.recoveryRelationshipId,
+          contact.relationshipId,
           TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
         ).bind()
         return@coroutineBinding null
@@ -139,7 +139,7 @@ class TrustedContactKeyAuthenticatorImpl(
       val delegatedDecryptionKey = authenticateKeys(contact, pakeData)
       if (delegatedDecryptionKey == null) {
         socRecRelationshipsDao.setUnendorsedTrustedContactAuthenticationState(
-          contact.recoveryRelationshipId,
+          contact.relationshipId,
           TrustedContactAuthenticationState.FAILED
         ).bind()
         return@coroutineBinding null
@@ -169,7 +169,7 @@ class TrustedContactKeyAuthenticatorImpl(
       // DO NOT REMOVE this log line. We alert on it.
       // See BKR-858
       .logFailure {
-        "[socrec_enrollment_pake_failure] Failed to authenticate keys for ${contact.recoveryRelationshipId}"
+        "[socrec_enrollment_pake_failure] Failed to authenticate keys for ${contact.relationshipId}"
       }
       .get()
 
@@ -191,7 +191,7 @@ class TrustedContactKeyAuthenticatorImpl(
             .bind()
 
           TrustedContactEndorsement(
-            recoveryRelationshipId = RecoveryRelationshipId(unendorsedTc.recoveryRelationshipId),
+            relationshipId = RelationshipId(unendorsedTc.relationshipId),
             keyCertificate = keyCertificate
           )
         }

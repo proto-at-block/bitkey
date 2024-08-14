@@ -29,7 +29,6 @@ sealed interface CreateFullAccountData {
      */
     data class CreatingAppKeysData(
       val rollback: () -> Unit,
-      val fullAccountConfig: FullAccountConfig,
     ) : CreateKeyboxData
 
     /**

@@ -7,7 +7,6 @@ import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.ui.model.status.StatusBannerModel
 
@@ -26,7 +25,6 @@ interface MoneyHomeUiStateMachine : StateMachine<MoneyHomeUiProps, ScreenModel>
  */
 data class MoneyHomeUiProps(
   val accountData: ActiveFullAccountLoadedData,
-  val firmwareData: FirmwareData,
   val socRecRelationships: SocRecRelationships,
   val socRecActions: SocRecProtectedCustomerActions,
   val homeBottomSheetModel: SheetModel?,

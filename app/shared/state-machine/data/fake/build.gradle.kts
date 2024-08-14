@@ -14,6 +14,7 @@ kotlin {
         implementation(projects.shared.authFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.bdkBindingsFake)
+        implementation(projects.shared.debugFake)
         implementation(projects.shared.moneyFake)
         implementation(projects.shared.mobilePayFake)
         implementation(projects.shared.firmwareFake)

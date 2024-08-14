@@ -109,7 +109,7 @@ class RecoveryAuthCompleterImpl(
                   f8eEnvironment = f8eEnvironment,
                   hardwareProofOfPossession = null,
                   AuthTokenScope.Recovery,
-                  it.recoveryRelationshipId
+                  it.relationshipId
                 ).bind()
               }
             }

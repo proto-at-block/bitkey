@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.challenge
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment

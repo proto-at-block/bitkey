@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:migrations",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "migrations-2.0.1.jar": "b0b10184d24c95d4792ad25710af7d4e6ce61c47404a16929de6d1039f2ae476"
+                        "migrations-2.0.2.jar": "b0b10184d24c95d4792ad25710af7d4e6ce61c47404a16929de6d1039f2ae476"
                     }
                 }
             ],

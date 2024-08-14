@@ -362,7 +362,10 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
             &context,
             &client,
             &customer_account.id,
-            &create_relationship_body.invitation.recovery_relationship_id,
+            &create_relationship_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id,
             "ENDORSEMENT_CERT",
             StatusCode::OK,
         )
@@ -375,6 +378,7 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
         vec![StartChallengeTrustedContactRequest {
             recovery_relationship_id: create_relationship_body
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .clone(),
             challenge_request: TrustedContactChallengeRequest {
@@ -406,7 +410,10 @@ async fn verify_social_challenge_test(vector: VerifySocialChallengeTestVector) {
     try_verify_social_challenge(
         &client,
         &tc_account.id,
-        &create_relationship_body.invitation.recovery_relationship_id,
+        &create_relationship_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         counter,
         vector.expected_status_code,
     )
@@ -511,7 +518,10 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
             &context,
             &client,
             &customer_account.id,
-            &create_relationship_body.invitation.recovery_relationship_id,
+            &create_relationship_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id,
             "ENDORSEMENT_CERT",
             StatusCode::OK,
         )
@@ -524,6 +534,7 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         vec![StartChallengeTrustedContactRequest {
             recovery_relationship_id: create_relationship_body
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .clone(),
             challenge_request: TrustedContactChallengeRequest {
@@ -553,7 +564,10 @@ async fn respond_to_social_challenge_test(vector: RespondToSocialChallengeTestVe
         } else {
             &other_account.id
         },
-        &create_relationship_body.invitation.recovery_relationship_id,
+        &create_relationship_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         start_body.social_challenge.counter,
         StatusCode::OK,
     )

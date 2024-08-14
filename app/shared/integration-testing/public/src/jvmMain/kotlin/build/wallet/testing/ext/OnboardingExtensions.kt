@@ -1,13 +1,12 @@
 package build.wallet.testing.ext
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.keybox.KeyCrossDraft
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
 import build.wallet.email.Email
@@ -20,6 +19,7 @@ import com.github.michaelbull.result.getOrThrow
 import com.github.michaelbull.result.mapError
 import com.github.michaelbull.result.unwrap
 import io.kotest.matchers.shouldBe
+import kotlinx.coroutines.flow.first
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -39,30 +39,26 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
 ): FullAccount {
   fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
   app.apply {
-    // Create Keybox config
-    val fullAccountConfig =
-      FullAccountConfig(
-        bitcoinNetworkType = initialBitcoinNetworkType,
-        isHardwareFake = true,
-        f8eEnvironment = initialF8eEnvironment,
-        isTestAccount = true,
-        isUsingSocRecFakes = isUsingSocRecFakes,
-        delayNotifyDuration = delayNotifyDuration
-      )
-    appComponent.templateFullAccountConfigDao.set(fullAccountConfig)
+    appComponent.debugOptionsService.apply {
+      setBitcoinNetworkType(initialBitcoinNetworkType)
+      setIsHardwareFake(true)
+      setF8eEnvironment(initialF8eEnvironment)
+      setIsTestAccount(true)
+      setUsingSocRecFakes(isUsingSocRecFakes)
+      setDelayNotifyDuration(delayNotifyDuration)
+    }
 
     // Generate app keys
-    val appKeys =
-      appComponent.appKeysGenerator.generateKeyBundle(fullAccountConfig.bitcoinNetworkType)
-        .getOrThrow()
+    val appKeys = appComponent.appKeysGenerator.generateKeyBundle(initialBitcoinNetworkType)
+      .getOrThrow()
 
     // Start fingerprint enrollment, which is just a pairing attempt before fingerprint enrollment
     pairingTransactionProvider(
-      networkType = fullAccountConfig.bitcoinNetworkType,
+      networkType = initialBitcoinNetworkType,
       appGlobalAuthPublicKey = appKeys.authKey,
       onSuccess = {},
       onCancel = {},
-      isHardwareFake = fullAccountConfig.isHardwareFake
+      isHardwareFake = true
     ).let { transaction ->
       nfcTransactor.fakeTransact(
         transaction = transaction::session
@@ -72,11 +68,11 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     // Generate hardware keys
     val hwActivation =
       pairingTransactionProvider(
-        networkType = fullAccountConfig.bitcoinNetworkType,
+        networkType = initialBitcoinNetworkType,
         appGlobalAuthPublicKey = appKeys.authKey,
         onSuccess = {},
         onCancel = {},
-        isHardwareFake = fullAccountConfig.isHardwareFake
+        isHardwareFake = true
       ).let { transaction ->
         nfcTransactor.fakeTransact(
           transaction = transaction::session
@@ -86,11 +82,12 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     val appGlobalAuthKeyHwSignature = signChallengeWithHardware(
       appKeys.authKey.value
     ).let(::AppGlobalAuthKeyHwSignature)
+    val debugOptions = app.appComponent.debugOptionsService.options().first()
     val keyCrossAppHwDraft = KeyCrossDraft.WithAppKeysAndHardwareKeys(
       appKeyBundle = appKeys,
       hardwareKeyBundle = hwActivation.keyBundle,
       appGlobalAuthKeyHwSignature = appGlobalAuthKeyHwSignature,
-      config = fullAccountConfig
+      config = debugOptions.toFullAccountConfig()
     )
 
     // Create f8e account
@@ -99,23 +96,22 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
 
     if (shouldSetUpNotifications) {
       val addedTouchpoint =
-        notificationTouchpointF8eClient.addTouchpoint(
-          f8eEnvironment = fullAccountConfig.f8eEnvironment,
+        appComponent.notificationTouchpointF8eClient.addTouchpoint(
+          f8eEnvironment = initialF8eEnvironment,
           fullAccountId = account.accountId,
-          touchpoint =
-            NotificationTouchpoint.EmailTouchpoint(
-              touchpointId = "",
-              value = Email("integration-test@wallet.build") // This is a fake email
-            )
+          touchpoint = NotificationTouchpoint.EmailTouchpoint(
+            touchpointId = "",
+            value = Email("integration-test@wallet.build") // This is a fake email
+          )
         ).mapError { it.error }.getOrThrow()
-      notificationTouchpointF8eClient.verifyTouchpoint(
-        f8eEnvironment = fullAccountConfig.f8eEnvironment,
+      appComponent.notificationTouchpointF8eClient.verifyTouchpoint(
+        f8eEnvironment = initialF8eEnvironment,
         fullAccountId = account.accountId,
         touchpointId = addedTouchpoint.touchpointId,
         verificationCode = "123456" // This code always works for Test Accounts
       ).mapError { it.error }.getOrThrow()
-      notificationTouchpointF8eClient.activateTouchpoint(
-        f8eEnvironment = fullAccountConfig.f8eEnvironment,
+      appComponent.notificationTouchpointF8eClient.activateTouchpoint(
+        f8eEnvironment = initialF8eEnvironment,
         fullAccountId = account.accountId,
         touchpointId = addedTouchpoint.touchpointId,
         hwFactorProofOfPossession = null
@@ -142,7 +138,7 @@ suspend fun AppTester.onboardFullAccountWithFakeHardware(
     }
 
     onboardingF8eClient.completeOnboarding(
-      f8eEnvironment = fullAccountConfig.f8eEnvironment,
+      f8eEnvironment = initialF8eEnvironment,
       fullAccountId = account.accountId
     ).getOrThrow()
 

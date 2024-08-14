@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.cloud
 
 import build.wallet.analytics.events.screen.id.InactiveAppEventTrackerScreenId
 import build.wallet.auth.AuthKeyRotationFailure
-import build.wallet.auth.AuthKeyRotationManagerMock
+import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
 import build.wallet.bitkey.auth.HwAuthSecp256k1PublicKeyMock
@@ -35,14 +35,14 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
     object : ProofOfPossessionNfcStateMachine,
       ScreenStateMachineMock<ProofOfPossessionNfcProps>(id = "hw-proof-of-possession") {}
 
-  val authKeyRotationManager = AuthKeyRotationManagerMock(turbines::create)
+  val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
   val appKeysGenerator = AppKeysGeneratorMock()
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
   val stateMachine = RotateAuthKeyUIStateMachineImpl(
     appKeysGenerator = appKeysGenerator,
     proofOfPossessionNfcStateMachine = proofOfPossessionUIStateMachine,
-    authKeyRotationManager = authKeyRotationManager,
+    fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
     inAppBrowserNavigator = inAppBrowserNavigator
   )
 
@@ -54,7 +54,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
   )
 
   beforeTest {
-    authKeyRotationManager.reset()
+    fullAccountAuthKeyRotationService.reset()
   }
 
   test("deactivate other devices -- success") {
@@ -87,7 +87,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-        authKeyRotationManager.rotateAuthKeysCalls.awaitItem()
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitScreenWithBody<FormBodyModel> {
@@ -98,7 +98,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
 
   test("deactivate other devices -- failure") {
     stateMachine.test(props) {
-      authKeyRotationManager.rotationResult.value = { request, _ ->
+      fullAccountAuthKeyRotationService.rotationResult.value = { request, _ ->
         Err(AuthKeyRotationFailure.Unexpected(retryRequest = request))
       }
 
@@ -130,7 +130,7 @@ class RotateAuthKeyUIStateMachineImplTests : FunSpec({
       awaitScreenWithBody<LoadingSuccessBodyModel> {
         id.shouldBe(InactiveAppEventTrackerScreenId.ROTATING_AUTH)
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
-        authKeyRotationManager.rotateAuthKeysCalls.awaitItem()
+        fullAccountAuthKeyRotationService.rotateAuthKeysCalls.awaitItem()
       }
 
       awaitScreenWithBody<FormBodyModel> {

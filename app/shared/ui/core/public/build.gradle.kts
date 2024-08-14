@@ -29,11 +29,6 @@ kotlin {
         implementation(libs.kmp.compottie)
         implementation(libs.kmp.compottie.resources)
         implementation(projects.shared.featureFlagPublic)
-
-        implementation(compose.runtime)
-        implementation(compose.foundation)
-        implementation(compose.material)
-        implementation(compose.components.resources)
       }
     }
 

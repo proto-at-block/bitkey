@@ -14,10 +14,10 @@ import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerSc
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_AWAITING_AUTH_CHALLENGE
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_LOADING
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwSpendingPublicKey
+import build.wallet.debug.DebugOptions
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.nfc.platform.signAccessToken
 import build.wallet.nfc.platform.signChallenge
@@ -63,7 +63,7 @@ interface InitiatingLostAppRecoveryUiStateMachine :
   StateMachine<InitiatingLostAppRecoveryUiProps, ScreenModel>
 
 data class InitiatingLostAppRecoveryUiProps(
-  val fullAccountConfig: FullAccountConfig,
+  val debugOptions: DebugOptions,
   val initiatingLostAppRecoveryData: InitiatingLostAppRecoveryData,
 )
 
@@ -92,7 +92,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
                 session = { session, commands -> commands.getAuthenticationKey(session) },
                 onSuccess = { recoveryData.addHardwareAuthKey(it) },
                 onCancel = { uiState = ShowingInstructionsState },
-                isHardwareFake = props.fullAccountConfig.isHardwareFake,
+                isHardwareFake = props.debugOptions.isHardwareFake,
                 shouldLock = false, // Don't lock because we quickly call [SignChallenge] next
                 screenPresentationStyle = Root,
                 eventTrackerContext = NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_GET_HW_KEYS
@@ -167,7 +167,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
               uiState = ShowingInstructionsState
               recoveryData.rollback()
             },
-            isHardwareFake = props.fullAccountConfig.isHardwareFake,
+            isHardwareFake = props.debugOptions.isHardwareFake,
             shouldLock = false, // Don't lock because we quickly call [GetNextSpendingKey] next
             eventTrackerContext = APP_DELAY_NOTIFY_SIGN_AUTH,
             screenPresentationStyle = Root
@@ -201,7 +201,7 @@ class InitiatingLostAppRecoveryUiStateMachineImpl(
               uiState = ShowingInstructionsState
               recoveryData.rollback()
             },
-            isHardwareFake = props.fullAccountConfig.isHardwareFake,
+            isHardwareFake = props.debugOptions.isHardwareFake,
             eventTrackerContext = HW_PROOF_OF_POSSESSION,
             screenPresentationStyle = Root
           )

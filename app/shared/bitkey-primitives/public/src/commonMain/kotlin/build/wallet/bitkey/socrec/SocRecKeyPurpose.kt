@@ -1,5 +1,6 @@
 package build.wallet.bitkey.socrec
 
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import kotlin.reflect.KClass
 
 /**

@@ -1,7 +1,8 @@
 package build.wallet.ui.app.recovery
 
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.kotest.paparazzi.paparazziExtension
 import build.wallet.statemachine.recovery.socrec.help.model.ConfirmingIdentityFormBodyModel
 import build.wallet.statemachine.recovery.socrec.help.model.VerifyingContactMethodFormBodyModel
@@ -34,8 +35,9 @@ class HelpingWithRecoverySnapshots : FunSpec({
           ConfirmingIdentityFormBodyModel(
             protectedCustomer =
               ProtectedCustomer(
-                recoveryRelationshipId = "id",
-                alias = ProtectedCustomerAlias("Customer Name")
+                relationshipId = "id",
+                alias = ProtectedCustomerAlias("Customer Name"),
+                roles = setOf(TrustedContactRole.SocialRecoveryContact)
               ),
             onBack = {},
             onVerifiedClick = {}

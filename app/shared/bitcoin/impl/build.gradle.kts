@@ -34,6 +34,7 @@ kotlin {
         api(projects.shared.moneyPublic)
         api(projects.shared.nfcPublic)
         api(projects.shared.platformPublic)
+        api(projects.shared.queueProcessorPublic)
         api(projects.shared.databasePublic)
         implementation(projects.shared.loggingPublic)
         implementation(libs.kmp.okio)
@@ -43,6 +44,7 @@ kotlin {
     commonTest {
       dependencies {
         implementation(projects.shared.accountFake)
+        implementation(projects.shared.analyticsFake)
         implementation(projects.shared.availabilityFake)
         implementation(projects.shared.bdkBindingsFake)
         implementation(projects.shared.bitcoinFake) {
@@ -53,19 +55,20 @@ kotlin {
         }
         implementation(projects.shared.bitcoinPrimitivesFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
-        implementation(projects.shared.datadogFake)
-        implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.datadogFake)
+        implementation(projects.shared.debugFake)
+        implementation(projects.shared.f8eClientFake)
+        implementation(projects.shared.featureFlagFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.keyValueStoreFake)
-        implementation(projects.shared.platformFake)
-        implementation(projects.shared.sqldelightTesting)
-        implementation(projects.shared.timeFake)
         implementation(projects.shared.moneyFake)
-        implementation(projects.shared.featureFlagFake)
+        implementation(projects.shared.platformFake)
+        implementation(projects.shared.queueProcessorFake)
+        implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.testingPublic)
+        implementation(projects.shared.timeFake)
         implementation(libs.kmp.test.ktor.client.mock)
-        implementation(projects.shared.analyticsFake)
       }
     }
 

@@ -1,8 +1,9 @@
 package build.wallet.statemachine.home.lite
 
 import build.wallet.analytics.events.EventTrackerMock
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
@@ -10,7 +11,6 @@ import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.HasActiveLiteAccountDataFake
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiProps
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeUiStateMachine
@@ -53,8 +53,7 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
 
   val props =
     LiteHomeUiProps(
-      accountData = HasActiveLiteAccountDataFake,
-      firmwareData = FirmwareDataUpToDateMock
+      accountData = HasActiveLiteAccountDataFake
     )
 
   test("launches soc rec relationships sync") {
@@ -65,7 +64,11 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("money home onRemoveRelationship calls soc rec repository") {
-    val customer = ProtectedCustomer("relationship-id", ProtectedCustomerAlias("allison"))
+    val customer = ProtectedCustomer(
+      relationshipId = "relationship-id",
+      alias = ProtectedCustomerAlias("allison"),
+      roles = setOf(TrustedContactRole.SocialRecoveryContact)
+    )
     stateMachine.test(props) {
       socRecRelationshipsRepository.launchSyncCalls.awaitItem()
 
@@ -75,7 +78,7 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
         onRemoveRelationship(customer)
       }
       socRecRelationshipsRepository.removeRelationshipCalls.awaitItem()
-        .shouldBe(customer.recoveryRelationshipId)
+        .shouldBe(customer.relationshipId)
     }
   }
 

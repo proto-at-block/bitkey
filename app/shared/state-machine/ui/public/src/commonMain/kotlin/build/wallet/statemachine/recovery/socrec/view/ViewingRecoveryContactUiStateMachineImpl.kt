@@ -5,10 +5,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.FAILED
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.TAMPERED
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.FAILED
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.PAKE_DATA_UNAVAILABLE
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.TAMPERED
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiProps
 import build.wallet.statemachine.recovery.socrec.remove.RemoveTrustedContactUiStateMachine

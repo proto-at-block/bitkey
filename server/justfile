@@ -52,6 +52,10 @@ build:
 build-bins:
   {{cargo}} build --bins
 
+# Run DDB migrations locally
+run-migrations:
+  ROCKET_CONFIG=src/api/Rocket.toml {{cargo}} run --bin server -- migrate
+
 # Run all tests
 test: sidecars
   {{cargo}} nextest run --all-features

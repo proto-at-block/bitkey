@@ -41,6 +41,7 @@ kotlin {
         api(projects.shared.moneyFake)
         api(projects.shared.platformFake)
         api(projects.shared.timeFake)
+        implementation(projects.shared.debugFake)
         implementation(projects.shared.queueProcessorFake)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.coroutinesTesting)

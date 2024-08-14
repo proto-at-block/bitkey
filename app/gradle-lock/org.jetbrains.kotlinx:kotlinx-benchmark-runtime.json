@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.jetbrains.kotlinx:kotlinx-benchmark-runtime",
+    "components": [
+        {
+            "version": "0.4.10",
+            "variants": [
+                {
+                    "artifacts": {
+                        "kotlinx-benchmark-runtime-metadata-0.4.10.jar": "c98b9333b1195ce5c7e5aa28a1c50de0b34fce2986207bad410eb3650f3abb69"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

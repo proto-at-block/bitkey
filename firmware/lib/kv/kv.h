@@ -49,3 +49,6 @@ kv_result_t kv_set(const char* key, const void* value, uint8_t value_len);
 // If the buffer pointed to by value is too small, the value will be truncated and KV_ERR_TRUNCATED
 // will be returned.
 kv_result_t kv_get(const char* key, void* value, uint8_t* value_len);
+
+// Delete the KV store file.
+kv_result_t kv_wipe_state(void);

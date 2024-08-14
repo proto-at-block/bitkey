@@ -4,12 +4,15 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
 import build.wallet.analytics.v1.Action.ACTION_APP_SCREEN_IMPRESSION
+import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.debug.DebugOptions
+import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
@@ -23,22 +26,18 @@ import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.OnboardConfig
 import build.wallet.statemachine.data.app.AppData
 import build.wallet.statemachine.data.app.AppData.AppLoadedData
 import build.wallet.statemachine.data.app.AppData.LoadingAppData
 import build.wallet.statemachine.data.app.AppDataStateMachine
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.keybox.OnboardingKeyboxDataMock
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
-import build.wallet.statemachine.data.sync.PlaceholderElectrumServerDataMock
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.home.full.HomeUiProps
@@ -173,9 +172,7 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - ActiveKeyboxLoadedData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        accountData = ActiveKeyboxLoadedDataMock,
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+        accountData = ActiveKeyboxLoadedDataMock
       )
     )
     stateMachine.test(Unit) {
@@ -189,13 +186,9 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - CreatingAccountData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        accountData =
-          AccountData.NoActiveAccountData.CreatingFullAccountData(
-            createFullAccountData = OnboardingKeyboxDataMock(),
-            templateFullAccountConfig = FullAccountConfigMock
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+        accountData = AccountData.NoActiveAccountData.CreatingFullAccountData(
+          createFullAccountData = OnboardingKeyboxDataMock()
+        )
       )
     )
     stateMachine.test(Unit) {
@@ -207,23 +200,14 @@ class AppUiStateMachineImplTests : FunSpec({
   test("AppLoadedData - ReadyToChooseAccountAccessKeyboxData") {
     appDataStateMachine.emitModel(
       AppLoadedData(
-        accountData =
-          GettingStartedData(
-            startFullAccountCreation = {},
-            startLiteAccountCreation = {},
-            startRecovery = {},
-            startEmergencyAccessRecovery = {},
-            onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
-            templateFullAccountConfigData =
-              LoadedTemplateFullAccountConfigData(
-                config = FullAccountConfigMock,
-                updateConfig = {}
-              ),
-            isNavigatingBack = false,
-            resetExistingDevice = {}
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+        accountData = GettingStartedData(
+          startFullAccountCreation = {},
+          startLiteAccountCreation = {},
+          startRecovery = {},
+          startEmergencyAccessRecovery = {},
+          isNavigatingBack = false,
+          resetExistingDevice = {}
+        )
       )
     )
     stateMachine.test(Unit) {
@@ -237,7 +221,13 @@ class AppUiStateMachineImplTests : FunSpec({
       AppLoadedData(
         accountData =
           AccountData.NoActiveAccountData.RecoveringAccountData(
-            templateFullAccountConfig = FullAccountConfigMock,
+            debugOptions = DebugOptions(
+              bitcoinNetworkType = SIGNET,
+              isHardwareFake = true,
+              f8eEnvironment = Development,
+              isUsingSocRecFakes = true,
+              isTestAccount = true
+            ),
             lostAppRecoveryData =
               LostAppRecoveryData.LostAppRecoveryInProgressData(
                 recoveryInProgressData =
@@ -249,9 +239,7 @@ class AppUiStateMachineImplTests : FunSpec({
                     retryCloudRecovery = null
                   )
               )
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+          )
       )
     )
     stateMachine.test(Unit) {
@@ -268,9 +256,7 @@ class AppUiStateMachineImplTests : FunSpec({
             cloudBackup = CloudBackupV2WithLiteAccountMock,
             onAccountCreated = {},
             onExit = {}
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+          )
       )
     )
     stateMachine.test(Unit) {
@@ -284,11 +270,8 @@ class AppUiStateMachineImplTests : FunSpec({
       AppLoadedData(
         accountData =
           AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit(
-            templateFullAccountConfig = FullAccountConfigMock,
             onExit = {}
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+          )
       )
     )
     stateMachine.test(Unit) {
@@ -303,9 +286,7 @@ class AppUiStateMachineImplTests : FunSpec({
         accountData =
           AccountData.NoLongerRecoveringFullAccountData(
             data = NoLongerRecoveringData.ShowingNoLongerRecoveringData(App, {})
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+          )
       )
     )
     stateMachine.test(Unit) {
@@ -322,9 +303,7 @@ class AppUiStateMachineImplTests : FunSpec({
             data = SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {}),
             fullAccountConfig = FullAccountConfigMock,
             fullAccountId = FullAccountIdMock
-          ),
-        electrumServerData = PlaceholderElectrumServerDataMock,
-        firmwareData = FirmwareDataUpToDateMock
+          )
       )
     )
     stateMachine.test(Unit) {

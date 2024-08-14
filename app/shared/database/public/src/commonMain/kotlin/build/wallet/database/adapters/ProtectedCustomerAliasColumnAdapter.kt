@@ -1,7 +1,7 @@
 package build.wallet.database.adapters
 
 import app.cash.sqldelight.ColumnAdapter
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 
 /**
  * SQLDelight column adapter for [ProtectedCustomerAlias].

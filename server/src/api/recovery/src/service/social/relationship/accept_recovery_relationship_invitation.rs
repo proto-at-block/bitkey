@@ -89,7 +89,7 @@ impl Service {
 
         let prev_common_fields = prev_relationship.common_fields();
         let customer_account_id = &prev_common_fields.customer_account_id;
-        let trusted_contact_alias = &prev_common_fields.trusted_contact_alias;
+        let trusted_contact_alias = &prev_common_fields.trusted_contact_info.alias;
 
         if customer_account_id == input.trusted_contact_account_id {
             return Err(ServiceError::CustomerIsTrustedContact);

@@ -1,10 +1,9 @@
 package build.wallet.configuration
 
-import build.wallet.keybox.config.TemplateFullAccountConfigDao
+import build.wallet.debug.DebugOptionsService
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,8 +20,7 @@ import kotlinx.coroutines.launch
  */
 class MobilePayFiatConfigServiceImpl(
   private val mobilePayFiatConfigRepository: MobilePayFiatConfigRepository,
-  // TODO(W-6665): extract dao usage into its own domain service
-  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
+  private val debugOptionsService: DebugOptionsService,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : MobilePayFiatConfigService, MobilePayFiatConfigSyncWorker {
   /**
@@ -55,11 +53,9 @@ class MobilePayFiatConfigServiceImpl(
       launch {
         // Fetch configs from f8e for the environment currently used by the app.
         // Will fetch configs on app start as well as when different environment is selected in debug menu.
-        templateFullAccountConfigDao.config()
-          .collectLatest { config ->
-            config.onSuccess {
-              mobilePayFiatConfigRepository.fetchAndUpdateConfigs(it.f8eEnvironment)
-            }
+        debugOptionsService.options()
+          .collectLatest { options ->
+            mobilePayFiatConfigRepository.fetchAndUpdateConfigs(options.f8eEnvironment)
           }
       }
     }

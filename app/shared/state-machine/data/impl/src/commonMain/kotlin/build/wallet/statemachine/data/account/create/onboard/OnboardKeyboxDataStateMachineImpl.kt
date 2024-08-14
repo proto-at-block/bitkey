@@ -1,14 +1,9 @@
 package build.wallet.statemachine.data.account.create.onboard
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.debug.DebugOptions
+import build.wallet.debug.DebugOptionsService
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
@@ -17,11 +12,7 @@ import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepState.Incomplete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.BackingUpKeyboxToCloudDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingNotificationsDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.FailedCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
+import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.*
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onSuccess
@@ -29,45 +20,55 @@ import com.github.michaelbull.result.onSuccess
 class OnboardKeyboxDataStateMachineImpl(
   private val onboardingKeyboxSealedCsekDao: OnboardingKeyboxSealedCsekDao,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
+  private val debugOptionsService: DebugOptionsService,
 ) : OnboardKeyboxDataStateMachine {
   @Composable
   override fun model(props: OnboardKeyboxDataProps): OnboardKeyboxDataFull {
+    val debugOptions =
+      remember { debugOptionsService.options() }.collectAsState(initial = null).value
     val cloudBackupState =
       rememberCloudBackupState()
-        ?: return OnboardKeyboxDataFull.LoadingInitialStepDataFull
+        ?: return LoadingInitialStepDataFull
 
     val notificationPreferencesState =
       rememberNotificationPreferencesState()
-        ?: return OnboardKeyboxDataFull.LoadingInitialStepDataFull
+        ?: return LoadingInitialStepDataFull
+
+    if (debugOptions == null) {
+      return LoadingInitialStepDataFull
+    }
 
     // Steps are: CloudBackup, NotificationPreferences.
     // Check for Incomplete in that order.
     when (cloudBackupState) {
       Incomplete ->
-        return CloudBackupData(props)
+        return CloudBackupData(props, debugOptions)
       Complete ->
         Unit
     }
 
     return when (notificationPreferencesState) {
       Incomplete ->
-        NotificationPreferencesData(props)
+        NotificationPreferencesData(props, debugOptions)
       Complete ->
         CompletingNotificationsDataFull
     }
   }
 
   @Composable
-  private fun CloudBackupData(props: OnboardKeyboxDataProps): OnboardKeyboxDataFull {
+  private fun CloudBackupData(
+    props: OnboardKeyboxDataProps,
+    debugOptions: DebugOptions,
+  ): OnboardKeyboxDataFull {
     // Wait until sealed CSEK result is loaded from the database
     val sealedCsekResult =
       rememberSealedCsek()
-        ?: return OnboardKeyboxDataFull.LoadingInitialStepDataFull
+        ?: return LoadingInitialStepDataFull
 
     // Local variables to keep track of state
     var stepIsCompleting by remember {
-      // Start off completing if the CloudBackup step is configured to be skipped
-      mutableStateOf(props.onboardConfig.stepsToSkip.contains(CloudBackup))
+      // Start off completing if the cloud backup step is configured to be skipped
+      mutableStateOf(debugOptions.skipCloudBackupOnboarding)
     }
     var stepDidFail: Error? by remember { mutableStateOf(null) }
 
@@ -111,11 +112,14 @@ class OnboardKeyboxDataStateMachineImpl(
   }
 
   @Composable
-  private fun NotificationPreferencesData(props: OnboardKeyboxDataProps): OnboardKeyboxDataFull {
+  private fun NotificationPreferencesData(
+    props: OnboardKeyboxDataProps,
+    debugOptions: DebugOptions,
+  ): OnboardKeyboxDataFull {
     // Local variables to keep track of state
     var stepIsCompleting by remember {
       // Start off completing if the NotificationPreferences step is configured to be skipped
-      mutableStateOf(props.onboardConfig.stepsToSkip.contains(NotificationPreferences))
+      mutableStateOf(debugOptions.skipNotificationsOnboarding)
     }
 
     return if (stepIsCompleting) {

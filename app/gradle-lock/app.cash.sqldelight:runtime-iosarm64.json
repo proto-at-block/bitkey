@@ -2,16 +2,16 @@
     "module-identifier": "app.cash.sqldelight:runtime-iosarm64",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-iosarm64-2.0.1-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
+                        "runtime-iosarm64-2.0.2-metadata.jar": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3"
                     }
                 },
                 {
                     "artifacts": {
-                        "runtime.klib": "6b5dee9b2f2f713c826d0617ffb296ea81c682747edf397984db1debd9453a97"
+                        "runtime.klib": "c1218ed66df62a06c53aad09414eedaaf4d0b28f5918d813eab47376dc8a65d9"
                     }
                 }
             ],

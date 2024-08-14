@@ -1,18 +1,17 @@
 package build.wallet.statemachine.partnerships.transfer
 
-import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.keybox.Keybox
 import build.wallet.partnerships.PartnerRedirectionMethod
 import build.wallet.partnerships.PartnershipTransaction
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.StateMachine
-import com.github.michaelbull.result.Result
 
 interface PartnershipsTransferUiStateMachine : StateMachine<PartnershipsTransferUiProps, SheetModel>
 
 data class PartnershipsTransferUiProps(
+  val account: FullAccount,
   val keybox: Keybox,
-  val generateAddress: suspend () -> Result<BitcoinAddress, Throwable>,
   val onBack: () -> Unit,
   val onAnotherWalletOrExchange: () -> Unit,
   val onPartnerRedirected: (PartnerRedirectionMethod, PartnershipTransaction) -> Unit,

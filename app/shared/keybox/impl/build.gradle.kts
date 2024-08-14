@@ -40,6 +40,7 @@ kotlin {
         implementation(projects.shared.cloudBackupFake)
         implementation(projects.shared.cloudStoreFake)
         implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.debugFake)
         implementation(projects.shared.testingPublic)
         implementation(projects.shared.firmwareFake)
         implementation(projects.shared.fwupFake)

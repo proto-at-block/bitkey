@@ -14,8 +14,8 @@ class ExchangeRateDaoImplTests : FunSpec({
 
   lateinit var dao: ExchangeRateDaoImpl
 
-  val rate1 = USDtoBTC(0.000041)
-  val rate2 = USDtoBTC(0.000042)
+  val rate1 = USDtoBTC(0.000041, 100)
+  val rate2 = USDtoBTC(0.000042, 1000) // a newer rate
   val rate3 =
     ExchangeRate(
       fromCurrency = IsoCurrencyTextCode("EUR"),

@@ -15,11 +15,9 @@ interface CustomElectrumServerUiStateMachine : StateMachine<CustomElectrumServer
  *
  * @property electrumServerPreferenceValue user's Electrum server preference setting.
  * @property onAdjustElectrumServerClick called when a user taps the action row to adjust their Electrum setting.
- * @property disableCustomElectrumServer turns off the custom Electrum server feature.
  */
 data class CustomElectrumServerUiProps(
   val onBack: () -> Unit,
   val electrumServerPreferenceValue: ElectrumServerPreferenceValue,
   val onAdjustElectrumServerClick: () -> Unit,
-  val disableCustomElectrumServer: () -> Unit,
 )

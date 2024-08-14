@@ -5,14 +5,10 @@ import build.wallet.auth.FullAccountCreatorMock
 import build.wallet.auth.LiteToFullAccountUpgraderMock
 import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.auth.AppGlobalAuthKeyHwSignatureMock
-import build.wallet.bitkey.keybox.AppKeyBundleMock
-import build.wallet.bitkey.keybox.AppKeyBundleMock2
-import build.wallet.bitkey.keybox.FullAccountConfigMock
-import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.HwKeyBundleMock
-import build.wallet.bitkey.keybox.KeyCrossDraft
+import build.wallet.bitkey.keybox.*
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.f8e.error.F8eError.ConnectivityError
 import build.wallet.f8e.error.SpecificClientErrorMock
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
@@ -25,10 +21,7 @@ import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.platform.random.UuidGeneratorFake
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.HasAppAndHardwareKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.HasAppKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.PairingWithServerData
+import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.*
 import build.wallet.statemachine.data.account.create.CreateFullAccountContext
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -49,26 +42,26 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
 
   val onboardingAppKeyKeystore = OnboardingAppKeyKeystoreFake()
   val uuid = UuidGeneratorFake()
+  val debugOptionsService = DebugOptionsServiceFake()
 
-  val dataStateMachine =
-    CreateKeyboxDataStateMachineImpl(
-      fullAccountCreator = fullAccountCreator,
-      appKeysGenerator = appKeysGenerator,
-      onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
-      onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
-      uuidGenerator = uuid,
-      onboardingAppKeyKeystore = onboardingAppKeyKeystore,
-      liteToFullAccountUpgrader = liteToFullAccountUpgrader
-    )
+  val dataStateMachine = CreateKeyboxDataStateMachineImpl(
+    fullAccountCreator = fullAccountCreator,
+    appKeysGenerator = appKeysGenerator,
+    onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
+    onboardingKeyboxHardwareKeysDao = onboardingKeyboxHwAuthPublicKeyDao,
+    uuidGenerator = uuid,
+    onboardingAppKeyKeystore = onboardingAppKeyKeystore,
+    liteToFullAccountUpgrader = liteToFullAccountUpgrader,
+    debugOptionsService = debugOptionsService
+  )
 
   val rollbackCalls = turbines.create<Unit>("rollback calls")
 
-  val props =
-    CreateKeyboxDataProps(
-      templateFullAccountConfig = FullAccountConfigMock,
-      context = CreateFullAccountContext.NewFullAccount,
-      rollback = { rollbackCalls.add(Unit) }
-    )
+  val props = CreateKeyboxDataProps(
+    onboardingKeybox = KeyboxMock,
+    context = CreateFullAccountContext.NewFullAccount,
+    rollback = { rollbackCalls.add(Unit) }
+  )
 
   beforeTest {
     appKeysGenerator.reset()
@@ -76,6 +69,7 @@ class CreateKeyboxDataStateMachineImplTests : FunSpec({
     onboardingKeyboxSealedCsekDao.clear()
     onboardingKeyboxHwAuthPublicKeyDao.clear()
     uuid.reset()
+    debugOptionsService.reset()
   }
 
   test("create new keybox successfully") {

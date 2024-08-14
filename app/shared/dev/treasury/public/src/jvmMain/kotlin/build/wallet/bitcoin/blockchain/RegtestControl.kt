@@ -5,10 +5,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.*
 import wf.bitcoin.javabitcoindrpcclient.BitcoinJSONRPCClient
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -48,7 +45,7 @@ class RegtestControl(
     val url = "$electrumHttpApiUrl/block/$blockHash"
     withContext(Dispatchers.Default) {
       withTimeout(10.seconds) {
-        while (true) {
+        while (isActive) {
           val resp = HttpClient().get(url)
           when (resp.status) {
             HttpStatusCode.OK -> return@withTimeout

@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:async-extensions-jvm",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "sqldelight-async-extensions-jvm-2.0.1.jar": "c17023e14435d930a378d805e49a113895d9379a06210408bc781f4bc24d9e8e"
+                        "sqldelight-async-extensions-jvm-2.0.2.jar": "c17023e14435d930a378d805e49a113895d9379a06210408bc781f4bc24d9e8e"
                     }
                 }
             ],

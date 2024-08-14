@@ -7,7 +7,7 @@ import build.wallet.bitkey.app.AppGlobalAuthKey
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Ok

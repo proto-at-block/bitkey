@@ -2,8 +2,8 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.ChallengeWrapper
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext

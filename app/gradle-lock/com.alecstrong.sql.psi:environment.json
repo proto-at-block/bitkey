@@ -1,0 +1,18 @@
+{
+    "module-identifier": "com.alecstrong.sql.psi:environment",
+    "components": [
+        {
+            "version": "0.4.9",
+            "variants": [
+                {
+                    "artifacts": {
+                        "environment-0.4.9.jar": "fd58f8c63bd0ea6ff857336df7e67517d93c07bcda8a717e957554d1e5f106a1"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "gradle-plugins[bitkey]"
+            ]
+        }
+    ]
+}

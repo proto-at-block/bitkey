@@ -2,7 +2,7 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.encrypt.XCiphertext
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding

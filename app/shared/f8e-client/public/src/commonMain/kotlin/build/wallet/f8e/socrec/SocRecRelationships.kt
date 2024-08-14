@@ -1,9 +1,9 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
 import kotlinx.collections.immutable.ImmutableList
 

@@ -2,9 +2,9 @@ package build.wallet.f8e.socrec
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.RecoveryRelationshipId
-import build.wallet.bitkey.socrec.TrustedContactEndorsement
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
+import build.wallet.bitkey.relationships.RelationshipId
+import build.wallet.bitkey.relationships.TrustedContactEndorsement
+import build.wallet.bitkey.relationships.TrustedContactKeyCertificate
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result
 
@@ -13,7 +13,7 @@ import com.github.michaelbull.result.Result
  * If a certificate was previously uploaded for a trusted contact, it will be replaced with the new
  * one.
  *
- * @param endorsements [TrustedContactKeyCertificate] associated with TC's [RecoveryRelationshipId]
+ * @param endorsements [TrustedContactKeyCertificate] associated with TC's [RelationshipId]
  */
 fun interface EndorseTcsF8eClient {
   suspend fun endorseTrustedContacts(

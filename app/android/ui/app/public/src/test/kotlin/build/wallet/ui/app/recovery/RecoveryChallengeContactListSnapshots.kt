@@ -1,7 +1,8 @@
 package build.wallet.ui.app.recovery
 
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.kotest.paparazzi.paparazziExtension
@@ -19,9 +20,10 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           onExit = {},
           endorsedTrustedContacts = immutableListOf(
             EndorsedTrustedContact(
-              recoveryRelationshipId = "1",
+              relationshipId = "1",
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
-              keyCertificate = TrustedContactKeyCertificateFake
+              keyCertificate = TrustedContactKeyCertificateFake,
+              roles = setOf(TrustedContactRole.SocialRecoveryContact)
             )
           ),
           onVerifyClick = {},
@@ -40,9 +42,10 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           onExit = {},
           endorsedTrustedContacts = immutableListOf(
             EndorsedTrustedContact(
-              recoveryRelationshipId = "1",
+              relationshipId = "1",
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
-              keyCertificate = TrustedContactKeyCertificateFake
+              keyCertificate = TrustedContactKeyCertificateFake,
+              roles = setOf(TrustedContactRole.SocialRecoveryContact)
             )
           ),
           onVerifyClick = {},
@@ -61,14 +64,16 @@ class RecoveryChallengeContactListSnapshots : FunSpec({
           onExit = {},
           endorsedTrustedContacts = immutableListOf(
             EndorsedTrustedContact(
-              recoveryRelationshipId = "1",
+              relationshipId = "1",
               trustedContactAlias = TrustedContactAlias(alias = "alias"),
-              keyCertificate = TrustedContactKeyCertificateFake
+              keyCertificate = TrustedContactKeyCertificateFake,
+              roles = setOf(TrustedContactRole.SocialRecoveryContact)
             ),
             EndorsedTrustedContact(
-              recoveryRelationshipId = "2",
+              relationshipId = "2",
               trustedContactAlias = TrustedContactAlias(alias = "alias2"),
-              keyCertificate = TrustedContactKeyCertificateFake
+              keyCertificate = TrustedContactKeyCertificateFake,
+              roles = setOf(TrustedContactRole.SocialRecoveryContact)
             )
           ),
           onVerifyClick = {},

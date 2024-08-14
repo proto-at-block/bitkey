@@ -2,6 +2,8 @@ package build.wallet.statemachine.partnerships
 
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId
+import build.wallet.bitcoin.address.BitcoinAddressServiceFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.*
@@ -18,7 +20,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiStateMachineImpl
 import io.kotest.core.spec.style.FunSpec
@@ -41,6 +42,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
   )
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
+  val bitcoinAddressService = BitcoinAddressServiceFake()
 
   // state machines
   val stateMachine =
@@ -50,7 +52,8 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
           getTransferPartnerListF8eClient = getTransferPartnerListF8eClient,
           getTransferRedirectF8eClient = getTransferRedirectF8eClient,
           partnershipsRepository = partnershipRepositoryMock,
-          eventTracker = eventTracker
+          eventTracker = eventTracker,
+          bitcoinAddressService = bitcoinAddressService
         ),
       partnershipsPurchaseUiStateMachine = PartnershipsPurchaseUiStateMachineImpl(
         moneyDisplayFormatter = MoneyDisplayFormatterFake,
@@ -61,18 +64,19 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         eventTracker = eventTracker,
         currencyConverter = CurrencyConverterFake(),
-        exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
+        exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create),
+        bitcoinAddressService = bitcoinAddressService
       )
     )
 
   fun props(purchaseAmount: FiatMoney? = null): AddBitcoinUiProps =
     AddBitcoinUiProps(
+      account = FullAccountMock,
       purchaseAmount = purchaseAmount,
       onAnotherWalletOrExchange = {},
       onPartnerRedirected = { _, _ -> },
       onExit = {},
       keybox = KeyboxMock,
-      generateAddress = KeyboxAddressDataMock.generateAddress,
       onSelectCustomAmount = { _, _ -> }
     )
 

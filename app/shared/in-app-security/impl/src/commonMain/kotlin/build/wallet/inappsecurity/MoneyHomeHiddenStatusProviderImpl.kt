@@ -31,6 +31,15 @@ class MoneyHomeHiddenStatusProviderImpl(
         }
       }
       .launchIn(appCoroutineScope)
+
+    hideBalancePreference.isEnabled
+      .onEach { enabled ->
+        // If the hide balance preference is enabled, immediately hide the balance
+        if (enabled) {
+          hiddenStatus.value = MoneyHomeHiddenStatus.HIDDEN
+        }
+      }
+      .launchIn(appCoroutineScope)
   }
 
   override fun toggleStatus() {

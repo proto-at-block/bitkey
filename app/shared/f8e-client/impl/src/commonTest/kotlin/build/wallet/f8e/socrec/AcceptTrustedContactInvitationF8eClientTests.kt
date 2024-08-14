@@ -1,7 +1,8 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.socrec.models.AcceptTrustedContactInvitationRequestBody
@@ -45,7 +46,8 @@ class AcceptTrustedContactInvitationF8eClientTests : FunSpec({
       {
         "customer": {
           "customer_alias": "Some Alias",
-          "recovery_relationship_id": "test-id"
+          "recovery_relationship_id": "test-id",
+          "trusted_contact_roles": ["SOCIAL_RECOVERY_CONTACT"]
         }
       }
       """.trimIndent()
@@ -57,7 +59,8 @@ class AcceptTrustedContactInvitationF8eClientTests : FunSpec({
         customer =
           ProtectedCustomer(
             alias = ProtectedCustomerAlias("Some Alias"),
-            recoveryRelationshipId = "test-id"
+            relationshipId = "test-id",
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
       )
     )

@@ -185,3 +185,12 @@ out:
   ctx.unlock();
   return result;
 }
+
+kv_result_t kv_wipe_state(void) {
+  if (fs_remove(KVSTORE_FILE_NAME) != 0) {
+    return KV_ERR_IO;
+  }
+  memset(ctx.buf, 0, sizeof(ctx.buf));
+  ctx.len = 0;
+  return KV_ERR_NONE;
+}

@@ -12,8 +12,9 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
             viewModel: TrustedContactsListBodyModelKt.TrustedContactsListBodyModel(
                 contacts: [
                     .init(
-                        recoveryRelationshipId: "",
+                        relationshipId: "",
                         trustedContactAlias: "Bob",
+                        roles: ["SOCIAL_RECOVERY_CONTACT"],
                         keyCertificate: TrustedContactKeyCertificate(
                             delegatedDecryptionKey: "",
                             hwAuthPublicKey: .init(pubKey: .init(value: "")),
@@ -25,8 +26,9 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
                     ),
                 ],
                 invitations: [.init(
-                    recoveryRelationshipId: "",
+                    relationshipId: "",
                     trustedContactAlias: "Alice",
+                    roles: ["SOCIAL_RECOVERY_CONTACT"],
                     code: "",
                     codeBitLength: 0,
                     expiresAt: .companion.DISTANT_FUTURE
@@ -48,7 +50,11 @@ final class TrustedContactsListSnapshotTests: XCTestCase {
         let view = FormView(
             viewModel: LiteTrustedContactsListBodyModelKt.LiteTrustedContactsListBodyModel(
                 id: .tcManagementSettingsListLite,
-                protectedCustomers: [.init(recoveryRelationshipId: "", alias: "Alice")],
+                protectedCustomers: [.init(
+                    relationshipId: "",
+                    alias: "Alice",
+                    roles: ["SOCIAL_RECOVERY_CONTACT"]
+                )],
                 onProtectedCustomerPressed: { _ in },
                 onAcceptInvitePressed: {},
                 onBackPressed: {},

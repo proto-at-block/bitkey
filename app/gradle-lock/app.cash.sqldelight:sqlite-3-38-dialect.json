@@ -1,0 +1,18 @@
+{
+    "module-identifier": "app.cash.sqldelight:sqlite-3-38-dialect",
+    "components": [
+        {
+            "version": "2.0.2",
+            "variants": [
+                {
+                    "artifacts": {
+                        "sqlite-3-38-dialect-2.0.2.jar": "68d22b4a8fe8a982dc604140cc15f6c43787d3b865f97cdf18724e2668edec0b"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "SQLDelight-DialectClasspath"
+            ]
+        }
+    ]
+}

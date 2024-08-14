@@ -3,20 +3,18 @@ package build.wallet.statemachine.data.keybox
 import build.wallet.account.AccountRepositoryFake
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.bitkey.factor.PhysicalFactor.App
-import build.wallet.bitkey.keybox.FullAccountConfigMock
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.recovery.Recovery
 import build.wallet.recovery.Recovery.Loading
 import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.create.OnboardingStepSkipConfigDaoFake
 import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.data.recovery.conflict.*
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
@@ -60,7 +58,7 @@ class AccountDataStateMachineImplTests : FunSpec({
       StateMachineMock<SomeoneElseIsRecoveringDataProps, SomeoneElseIsRecoveringData>(
         SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {})
       ) {}
-  val onboardingStepSkipConfigDao = OnboardingStepSkipConfigDaoFake()
+  val debugOptionsService = DebugOptionsServiceFake()
 
   val stateMachine =
     AccountDataStateMachineImpl(
@@ -72,16 +70,7 @@ class AccountDataStateMachineImplTests : FunSpec({
       noLongerRecoveringDataStateMachine = noLongerRecoveringDataStateMachine,
       someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
       recoverySyncFrequency = 1.minutes,
-      onboardingStepSkipConfigDao = onboardingStepSkipConfigDao
-    )
-
-  val props =
-    AccountDataProps(
-      templateFullAccountConfigData =
-        LoadedTemplateFullAccountConfigData(
-          config = FullAccountConfigMock,
-          updateConfig = {}
-        )
+      debugOptionsService = debugOptionsService
     )
 
   beforeTest {
@@ -89,13 +78,13 @@ class AccountDataStateMachineImplTests : FunSpec({
     hasActiveFullAccountDataStateMachine.reset()
     hasActiveLiteAccountDataStateMachine.reset()
     noActiveKeyboxDataStateMachine.reset()
-    onboardingStepSkipConfigDao.reset()
+    debugOptionsService.reset()
   }
 
   test("no active keybox") {
     accountRepository.accountState.value = Ok(NoAccount)
 
-    stateMachine.test(props) {
+    stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
       recoverySyncerMock.recoveryStatus.value = Ok(NoActiveRecovery)
       awaitItem().shouldBe(NoActiveAccountData.CheckingRecoveryOrOnboarding)
@@ -105,7 +94,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   test("has active full account") {
     accountRepository.setActiveAccount(FullAccountMock)
 
-    stateMachine.test(props) {
+    stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
 
       awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
@@ -115,7 +104,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   test("has active lite account") {
     accountRepository.setActiveAccount(LiteAccountMock)
 
-    stateMachine.test(props) {
+    stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
 
       awaitItem().shouldBeInstanceOf<AccountData.HasActiveLiteAccountData>().also {
@@ -128,7 +117,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     recoverySyncerMock.recoveryStatus.value = Ok(Recovery.NoLongerRecovering(App))
     accountRepository.setActiveAccount(FullAccountMock)
 
-    stateMachine.test(props) {
+    stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
       awaitItem().shouldBeInstanceOf<AccountData.NoLongerRecoveringFullAccountData>()
     }
@@ -138,7 +127,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     recoverySyncerMock.recoveryStatus.value = Ok(Recovery.SomeoneElseIsRecovering(App))
     accountRepository.setActiveAccount(FullAccountMock)
 
-    stateMachine.test(props) {
+    stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
       val item = awaitItem()
       item.shouldBeInstanceOf<AccountData.SomeoneElseIsRecoveringFullAccountData>()

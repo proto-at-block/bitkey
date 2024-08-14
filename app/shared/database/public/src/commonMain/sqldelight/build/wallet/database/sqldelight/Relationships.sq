@@ -1,0 +1,120 @@
+import build.wallet.crypto.PublicKey;
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias;
+import build.wallet.bitkey.relationships.TrustedContactAlias;
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState;
+import build.wallet.bitkey.relationships.TrustedContactEnrollmentPakeKey;
+import build.wallet.bitkey.relationships.TrustedContactRole;
+import kotlin.collections.Set;
+import kotlinx.datetime.Instant;
+import okio.ByteString;
+
+CREATE TABLE trustedContactEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  relationshipId          TEXT UNIQUE NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  authenticationState     TEXT AS TrustedContactAuthenticationState NOT NULL CHECK (authenticationState IN ('AWAITING_VERIFY', 'VERIFIED', 'TAMPERED')),
+  certificate             TEXT NOT NULL,
+  roles                   TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT'
+);
+
+CREATE TABLE protectedCustomerEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  relationshipId          TEXT UNIQUE NOT NULL,
+  alias                   TEXT AS ProtectedCustomerAlias NOT NULL,
+  roles                   TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT'
+);
+
+CREATE TABLE trustedContactInvitationEntity(
+  rowId                   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  relationshipId          TEXT UNIQUE NOT NULL,
+  trustedContactAlias     TEXT AS TrustedContactAlias NOT NULL,
+  token                   TEXT NOT NULL,
+  tokenBitLength          INTEGER NOT NULL,
+  expiresAt               INTEGER AS Instant NOT NULL,
+  roles                   TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT'
+);
+
+CREATE TABLE unendorsedTrustedContactEntity(
+  rowId                        INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  relationshipId               TEXT UNIQUE NOT NULL,
+  trustedContactAlias          TEXT AS TrustedContactAlias NOT NULL,
+  enrollmentPakeKey            TEXT AS PublicKey<TrustedContactEnrollmentPakeKey> NOT NULL,
+  enrollmentKeyConfirmation    BLOB AS ByteString NOT NULL,
+  sealedDelegatedDecryptionKey TEXT NOT NULL,
+  authenticationState          TEXT AS TrustedContactAuthenticationState NOT NULL,
+  roles                        TEXT AS Set<TrustedContactRole> NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT'
+);
+
+insertSocRecTrustedContactInvitation:
+INSERT OR REPLACE INTO trustedContactInvitationEntity(relationshipId, trustedContactAlias, token, tokenBitLength, expiresAt, roles)
+VALUES(?, ?, ?, ?, ?, ?);
+
+getSocRecTrustedContactInvitations:
+SELECT * FROM trustedContactInvitationEntity
+-- Arbitrary but stable sort
+ORDER BY relationshipId;
+
+insertSocRecTrustedContact:
+INSERT OR REPLACE INTO trustedContactEntity(relationshipId, trustedContactAlias, authenticationState, certificate, roles)
+VALUES(:relationshipId, :trustedContactAlias, :authenticationState, :certificate, :roles);
+
+getSocRecTrustedContacts:
+SELECT * FROM trustedContactEntity
+-- Arbitrary but stable sort
+ORDER BY relationshipId;
+
+insertSocRecProtectedCustomer:
+INSERT OR REPLACE INTO protectedCustomerEntity(relationshipId, alias, roles)
+VALUES(?, ?, ?);
+
+getSocRecProtectedCustomers:
+SELECT * FROM protectedCustomerEntity
+-- Arbitrary but stable sort
+ORDER BY relationshipId;
+
+insertSocRecUnendorsedTrustedContact:
+INSERT OR REPLACE INTO unendorsedTrustedContactEntity(
+    relationshipId,
+    trustedContactAlias,
+    enrollmentPakeKey,
+    enrollmentKeyConfirmation,
+    sealedDelegatedDecryptionKey,
+    authenticationState,
+    roles
+)
+VALUES(?, ?, ?, ?, ?, ?, ?);
+
+getSocRecUnendorsedTrustedContacts:
+SELECT * FROM unendorsedTrustedContactEntity
+-- Arbitrary but stable sort
+ORDER BY relationshipId;
+
+setSocRecUnendorsedTrustedContactAuthenticationState:
+UPDATE unendorsedTrustedContactEntity
+SET authenticationState = ?
+WHERE relationshipId = ?;
+
+setSocRecTrustedContactAuthenticationState:
+UPDATE trustedContactEntity
+SET authenticationState = ?
+WHERE relationshipId = ?;
+
+clearSocRecTrustedContactInvitations:
+DELETE FROM trustedContactInvitationEntity;
+
+clearSocRecTrustedContacts:
+DELETE FROM trustedContactEntity;
+
+clearSocRecProtectedCustomers:
+DELETE FROM protectedCustomerEntity;
+
+clearSocRecUnendorsedTrustedContacts:
+DELETE FROM unendorsedTrustedContactEntity;
+
+clear {
+  DELETE FROM trustedContactEntity;
+  DELETE FROM protectedCustomerEntity;
+  DELETE FROM trustedContactInvitationEntity;
+  DELETE FROM unendorsedTrustedContactEntity;
+}
+

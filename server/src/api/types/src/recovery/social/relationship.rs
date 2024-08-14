@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::account::identifiers::AccountId;
+use crate::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
 use derive_builder::Builder;
 use external_identifier::ExternalIdentifier;
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,12 @@ use time::{serde::rfc3339, OffsetDateTime};
 use ulid::Ulid;
 use urn::Urn;
 use utoipa::ToSchema;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub enum RecoveryRelationshipRole {
+    Beneficiary,
+    SocialRecoveryContact,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RecoveryRelationshipId(urn::Urn);
@@ -52,7 +59,8 @@ pub struct RecoveryRelationshipCommonFields {
     #[serde(rename = "partition_key")]
     pub id: RecoveryRelationshipId,
     pub customer_account_id: AccountId,
-    pub trusted_contact_alias: String, // This is the customer's alias for the trusted contact
+    #[serde(flatten)]
+    pub trusted_contact_info: TrustedContactInfo,
     #[serde(with = "rfc3339")]
     pub created_at: OffsetDateTime,
     #[serde(with = "rfc3339")]
@@ -138,7 +146,7 @@ impl RecoveryRelationship {
     pub fn new_invitation(
         id: &RecoveryRelationshipId,
         customer_account_id: &AccountId,
-        trusted_contact_alias: &str,
+        trusted_contact: &TrustedContactInfo,
         protected_customer_enrollment_pake_pubkey: &str,
         code: &str,
         code_bit_length: usize,
@@ -148,7 +156,7 @@ impl RecoveryRelationship {
             common_fields: RecoveryRelationshipCommonFields {
                 id: id.to_owned(),
                 customer_account_id: customer_account_id.to_owned(),
-                trusted_contact_alias: trusted_contact_alias.to_owned(),
+                trusted_contact_info: trusted_contact.to_owned(),
                 created_at: OffsetDateTime::now_utc(),
                 updated_at: OffsetDateTime::now_utc(),
             },
@@ -201,6 +209,13 @@ impl RecoveryRelationship {
                     .to_owned(),
             }),
         }
+    }
+
+    pub fn has_role(&self, trusted_contact_role: &TrustedContactRole) -> bool {
+        self.common_fields()
+            .trusted_contact_info
+            .roles
+            .contains(trusted_contact_role)
     }
 }
 

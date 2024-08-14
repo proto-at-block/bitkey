@@ -1,18 +1,14 @@
 package build.wallet.statemachine.data.account.create.onboard
 
 import build.wallet.bitkey.keybox.KeyboxMock
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDaoMock
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
 import build.wallet.onboarding.OnboardingKeyboxStep.NotificationPreferences
 import build.wallet.onboarding.OnboardingKeyboxStepState.Complete
 import build.wallet.onboarding.OnboardingKeyboxStepStateDaoFake
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.BackingUpKeyboxToCloudDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingNotificationsDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.LoadingInitialStepDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
-import build.wallet.statemachine.data.account.OnboardConfig
+import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.shouldBe
@@ -24,24 +20,24 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
 
   val onboardingKeyboxSealedCsekDao = OnboardingKeyboxSealedCsekDaoMock()
   val onboardingKeyboxStepStateDao = OnboardingKeyboxStepStateDaoFake()
+  val debugOptionsService = DebugOptionsServiceFake()
 
-  val dataStateMachine =
-    OnboardKeyboxDataStateMachineImpl(
-      onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
-      onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao
-    )
+  val dataStateMachine = OnboardKeyboxDataStateMachineImpl(
+    onboardingKeyboxSealedCsekDao = onboardingKeyboxSealedCsekDao,
+    onboardingKeyboxStepStateDao = onboardingKeyboxStepStateDao,
+    debugOptionsService = debugOptionsService
+  )
 
-  val props =
-    OnboardKeyboxDataProps(
-      keybox = KeyboxMock,
-      onboardConfig = OnboardConfig(stepsToSkip = emptySet()),
-      onExistingAppDataFound = { _, proceed -> proceed() },
-      isSkipCloudBackupInstructions = false
-    )
+  val props = OnboardKeyboxDataProps(
+    keybox = KeyboxMock,
+    onExistingAppDataFound = { _, proceed -> proceed() },
+    isSkipCloudBackupInstructions = false
+  )
 
   beforeTest {
     onboardingKeyboxStepStateDao.clear()
     onboardingKeyboxSealedCsekDao.clear()
+    debugOptionsService.reset()
   }
 
   test("onboard new keybox successfully") {
@@ -54,9 +50,7 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
         it.onBackupSaved()
       }
 
-      awaitItem().let {
-        it.shouldBeTypeOf<CompletingCloudBackupDataFull>()
-      }
+      awaitItem().shouldBeTypeOf<CompletingCloudBackupDataFull>()
 
       onboardingKeyboxSealedCsekDao.sealedCsek.shouldBeNull()
       onboardingKeyboxStepStateDao.stateForStep(CloudBackup).first().shouldBe(Complete)
@@ -105,9 +99,8 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
   }
 
   test("skip cloud backup") {
-    dataStateMachine.test(
-      props.copy(onboardConfig = OnboardConfig(stepsToSkip = setOf(CloudBackup)))
-    ) {
+    debugOptionsService.setSkipCloudBackupOnboarding(value = true)
+    dataStateMachine.test(props) {
       awaitItem().shouldBeTypeOf<LoadingInitialStepDataFull>()
       awaitItem().shouldBeTypeOf<CompletingCloudBackupDataFull>()
 
@@ -119,9 +112,8 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
 
   test("skip notifications") {
     onboardingKeyboxStepStateDao.setStateForStep(CloudBackup, Complete)
-    dataStateMachine.test(
-      props.copy(onboardConfig = OnboardConfig(stepsToSkip = setOf(NotificationPreferences)))
-    ) {
+    debugOptionsService.setSkipNotificationsOnboarding(value = true)
+    dataStateMachine.test(props) {
       awaitItem().shouldBeTypeOf<LoadingInitialStepDataFull>()
       awaitItem().shouldBeTypeOf<CompletingNotificationsDataFull>()
 
@@ -130,14 +122,9 @@ class OnboardKeyboxDataStateMachineImplTests : FunSpec({
   }
 
   test("skip all steps") {
-    dataStateMachine.test(
-      props.copy(
-        onboardConfig =
-          OnboardConfig(
-            stepsToSkip = setOf(CloudBackup, NotificationPreferences)
-          )
-      )
-    ) {
+    debugOptionsService.setSkipCloudBackupOnboarding(value = true)
+    debugOptionsService.setSkipNotificationsOnboarding(value = true)
+    dataStateMachine.test(props) {
       awaitItem().shouldBeTypeOf<LoadingInitialStepDataFull>()
       awaitItem().shouldBeTypeOf<CompletingCloudBackupDataFull>()
       awaitItem().shouldBeTypeOf<CompletingNotificationsDataFull>()

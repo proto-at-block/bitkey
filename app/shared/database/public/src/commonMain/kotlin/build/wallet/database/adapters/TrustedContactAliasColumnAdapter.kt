@@ -1,7 +1,7 @@
 package build.wallet.database.adapters
 
 import app.cash.sqldelight.ColumnAdapter
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAlias
 
 /** SQLDelight column adapter for [TrustedContactAlias]. */
 internal object TrustedContactAliasColumnAdapter : ColumnAdapter<TrustedContactAlias, String> {

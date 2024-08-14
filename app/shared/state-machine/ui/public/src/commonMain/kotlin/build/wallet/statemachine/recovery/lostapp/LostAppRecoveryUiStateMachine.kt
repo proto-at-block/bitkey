@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.lostapp
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.debug.DebugOptions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Root
 import build.wallet.statemachine.core.StateMachine
@@ -19,7 +19,7 @@ interface LostAppRecoveryUiStateMachine : StateMachine<LostAppRecoveryUiProps, S
 
 data class LostAppRecoveryUiProps(
   val recoveryData: LostAppRecoveryData,
-  val fullAccountConfig: FullAccountConfig,
+  val debugOptions: DebugOptions,
 )
 
 class LostAppRecoveryUiStateMachineImpl(
@@ -34,7 +34,7 @@ class LostAppRecoveryUiStateMachineImpl(
         lostAppRecoveryHaveNotStartedDataStateMachine.model(
           LostAppRecoveryHaveNotStartedUiProps(
             notUndergoingRecoveryData = recoveryData,
-            fullAccountConfig = props.fullAccountConfig
+            debugOptions = props.debugOptions
           )
         )
 
@@ -43,7 +43,7 @@ class LostAppRecoveryUiStateMachineImpl(
           RecoveryInProgressUiProps(
             presentationStyle = Root,
             recoveryInProgressData = recoveryData.recoveryInProgressData,
-            fullAccountConfig = props.fullAccountConfig
+            fullAccountConfig = props.debugOptions.toFullAccountConfig()
           )
         )
     }

@@ -16,6 +16,9 @@ public struct MoneyHomeView: View {
     @SwiftUI.State
     private var moneyHomeCardsHeight: CGFloat?
 
+    @SwiftUI.State
+    private var balanceViewYOffset: CGFloat?
+
     // MARK: - Lifecycle
 
     public init(viewModel: MoneyHomeBodyModel) {
@@ -29,7 +32,10 @@ public struct MoneyHomeView: View {
         ZStack(alignment: .top) {
             // Bottom of the ZStack: MoneyHome screen
             ScrollView(showsIndicators: false) {
-                ZStack {
+                ZStack(alignment: .top) {
+                    // when adding a coachmark to this screen, be sure to add a zIndex so it
+                    // appropriately stays on top of all elements
+                    // as it is exiting
                     scrollAnimationsGeometryReader
                     VStack(alignment: .center, spacing: 0) {
                         // Header
@@ -53,6 +59,14 @@ public struct MoneyHomeView: View {
                                 }
                             }
                         )
+                        .background(GeometryReader { geometry in
+                            AnyView(Color.clear.onAppear {
+                                // get the y offset of the balance view relative to the money home
+                                // scroll view
+                                balanceViewYOffset = geometry
+                                    .frame(in: .named("money-home-scroll-view")).maxY
+                            })
+                        })
                         .padding(.top, 40)
 
                         // Balance Hero
@@ -86,11 +100,17 @@ public struct MoneyHomeView: View {
                         }
                     }
 
-                    if let coachmark = viewModel.coachmark {
+                    if let coachmark = viewModel.coachmark, let yOffset = balanceViewYOffset {
                         CoachmarkView(model: coachmark)
-                            .offset(x: 0, y: -110)
+                            .offset(
+                                x: 0,
+                                y: yOffset +
+                                    4
+                            ) // add a little space in addition to balance view y offset
+                            .zIndex(2) // this ensures the coachmark is always above all elements
                     }
                 }
+                .coordinateSpace(name: "money-home-scroll-view")
             }
             .padding(.horizontal, 20)
             .refreshable {
@@ -231,7 +251,8 @@ struct MoneyHomeView_Preview: PreviewProvider {
                 onRefresh: {},
                 onHideBalance: {},
                 isRefreshing: false,
-                badgedSettingsIcon: false
+                badgedSettingsIcon: false,
+                onOpenPriceDetails: {}
             )
         )
 
@@ -314,7 +335,8 @@ struct MoneyHomeView_Preview: PreviewProvider {
                 onRefresh: {},
                 onHideBalance: {},
                 isRefreshing: false,
-                badgedSettingsIcon: true
+                badgedSettingsIcon: true,
+                onOpenPriceDetails: {}
             )
         ).previewDisplayName("settings badged")
     }

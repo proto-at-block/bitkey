@@ -194,6 +194,18 @@ interface StyleDictionaryColors {
 
   // Coachmark background color
   val coachmarkBackground: Color
+
+  // Primary color used for Bitcoin elements
+  val bitcoinPrimary: Color
+
+  // Primary color used for 'Your balance' elements
+  val yourBalancePrimary: Color
+
+  // Background fill for elements while in loading state
+  val loadingBackground: Color
+
+  // Chart foreground element color (y-axis labels, dividers, etc.)
+  val chartElement: Color
 }
 
 val lightStyleDictionaryColors =
@@ -261,6 +273,10 @@ val lightStyleDictionaryColors =
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
     override val coachmarkBackground: Color = Color(0xff333442)
+    override val bitcoinPrimary: Color = Color(0xfff7931a)
+    override val yourBalancePrimary: Color = Color(0xff0c9ada)
+    override val loadingBackground: Color = Color(0xfff4f4f4)
+    override val chartElement: Color = Color(0xffe5e5e5)
   }
 
 val darkStyleDictionaryColors =
@@ -328,4 +344,8 @@ val darkStyleDictionaryColors =
     override val calloutDangerSubtitle: Color = Color(0xff74140d)
     override val calloutDangerTrailingIcon: Color = Color(0xffffffff)
     override val coachmarkBackground: Color = Color(0xff333442)
+    override val bitcoinPrimary: Color = Color(0xfff7931a)
+    override val yourBalancePrimary: Color = Color(0xff0c9ada)
+    override val loadingBackground: Color = Color(0xfff4f4f4)
+    override val chartElement: Color = Color(0xffe5e5e5)
   }

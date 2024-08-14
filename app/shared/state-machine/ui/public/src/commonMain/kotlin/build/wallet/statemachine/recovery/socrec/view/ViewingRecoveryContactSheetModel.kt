@@ -1,8 +1,8 @@
 package build.wallet.statemachine.recovery.socrec.view
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.RecoveryContact
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.bitkey.relationships.TrustedContact
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -19,7 +19,7 @@ import build.wallet.ui.model.button.ButtonModel
  * @param onClosed Invoked when the user closes the sheet.
  */
 fun ViewingTrustedContactSheetModel(
-  contact: RecoveryContact,
+  contact: TrustedContact,
   onRemove: () -> Unit,
   onClosed: () -> Unit,
 ) = ViewingRecoveryContactSheetModel(

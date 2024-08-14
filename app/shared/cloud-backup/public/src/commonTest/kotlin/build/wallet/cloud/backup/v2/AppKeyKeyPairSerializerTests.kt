@@ -1,7 +1,7 @@
 package build.wallet.cloud.backup.v2
 
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.crypto.PrivateKey
 import build.wallet.crypto.PublicKey
 import io.kotest.core.spec.style.FunSpec

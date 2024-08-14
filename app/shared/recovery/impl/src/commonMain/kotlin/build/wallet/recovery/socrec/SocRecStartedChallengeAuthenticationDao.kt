@@ -1,7 +1,7 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.bitkey.socrec.ProtectedCustomerRecoveryPakeKey
 import build.wallet.database.sqldelight.SocRecStartedChallengeAuthentication
 import build.wallet.db.DbTransactionError

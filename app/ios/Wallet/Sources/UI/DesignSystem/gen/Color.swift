@@ -321,6 +321,26 @@ extension UIColor {
     light: UIColor(red: 0.200, green: 0.204, blue: 0.259, alpha: 1),
     dark: UIColor(red: 0.200, green: 0.204, blue: 0.259, alpha: 1)
   )
+  // Primary color used for Bitcoin elements
+  public static let bitcoinPrimary = UIColor(
+    light: UIColor(red: 0.969, green: 0.576, blue: 0.102, alpha: 1),
+    dark: UIColor(red: 0.969, green: 0.576, blue: 0.102, alpha: 1)
+  )
+  // Primary color used for 'Your balance' elements
+  public static let yourBalancePrimary = UIColor(
+    light: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 1),
+    dark: UIColor(red: 0.047, green: 0.604, blue: 0.855, alpha: 1)
+  )
+  // Background fill for elements while in loading state
+  public static let loadingBackground = UIColor(
+    light: UIColor(red: 0.957, green: 0.957, blue: 0.957, alpha: 1),
+    dark: UIColor(red: 0.957, green: 0.957, blue: 0.957, alpha: 1)
+  )
+  // Chart foreground element color (y-axis labels, dividers, etc.)
+  public static let chartElement = UIColor(
+    light: UIColor(red: 0.898, green: 0.898, blue: 0.898, alpha: 1),
+    dark: UIColor(red: 0.898, green: 0.898, blue: 0.898, alpha: 1)
+  )
 }
 
 extension Color {
@@ -387,4 +407,8 @@ extension Color {
   public static let calloutDangerSubtitle = Color(from: .calloutDangerSubtitle)
   public static let calloutDangerTrailingIcon = Color(from: .calloutDangerTrailingIcon)
   public static let coachmarkBackground = Color(from: .coachmarkBackground)
+  public static let bitcoinPrimary = Color(from: .bitcoinPrimary)
+  public static let yourBalancePrimary = Color(from: .yourBalancePrimary)
+  public static let loadingBackground = Color(from: .loadingBackground)
+  public static let chartElement = Color(from: .chartElement)
 }

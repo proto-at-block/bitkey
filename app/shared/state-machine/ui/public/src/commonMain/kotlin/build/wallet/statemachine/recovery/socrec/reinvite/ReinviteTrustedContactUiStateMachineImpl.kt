@@ -2,7 +2,7 @@ package build.wallet.statemachine.recovery.socrec.reinvite
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import build.wallet.bitkey.socrec.OutgoingInvitation
+import build.wallet.bitkey.relationships.OutgoingInvitation
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError

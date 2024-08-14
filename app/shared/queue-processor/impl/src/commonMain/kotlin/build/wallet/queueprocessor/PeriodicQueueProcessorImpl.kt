@@ -1,12 +1,12 @@
 package build.wallet.queueprocessor
 
-import build.wallet.coroutines.callCoroutineEvery
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.logging.logFailure
 import build.wallet.logging.logNetworkFailure
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.getError
 import com.github.michaelbull.result.mapError
+import kotlinx.coroutines.delay
 import kotlin.time.Duration
 
 /**
@@ -19,9 +19,10 @@ class PeriodicQueueProcessorImpl<T>(
   private val batchSize: Int,
 ) : PeriodicProcessor {
   override suspend fun start() {
-    callCoroutineEvery(frequency) {
+    while (true) {
       processQueueInBatches(queue, processor, batchSize)
         .logFailureOrNetworkingFailure { "Failed to process items in queue" }
+      delay(frequency)
     }
   }
 }

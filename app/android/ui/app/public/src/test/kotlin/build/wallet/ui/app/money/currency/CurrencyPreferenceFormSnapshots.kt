@@ -27,28 +27,4 @@ class CurrencyPreferenceFormSnapshots : FunSpec({
       )
     }
   }
-
-  test("currency preference with hide balance switch") {
-    paparazzi.snapshot {
-      FormScreen(
-        model =
-          CurrencyPreferenceFormModel(
-            onBack = {},
-            moneyHomeHero = FormMainContentModel.MoneyHomeHero(
-              primaryAmount = "$0",
-              secondaryAmount = "0 sats",
-              isHidden = true
-            ),
-            fiatCurrencyPreferenceString = "USD",
-            onFiatCurrencyPreferenceClick = {},
-            bitcoinDisplayPreferenceString = "Sats",
-            bitcoinDisplayPreferencePickerModel = CurrencyPreferenceListItemPickerMenu,
-            onBitcoinDisplayPreferenceClick = {},
-            isHideBalanceEnabled = true,
-            shouldShowHideBalance = true,
-            onEnableHideBalanceChanged = {}
-          )
-      )
-    }
-  }
 })

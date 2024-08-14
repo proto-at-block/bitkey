@@ -83,7 +83,7 @@ test-integration-all:
 
 # Run unit tests targeting all platforms
 test-unit-all:
-  {{gradle}} jvmTest testDebugUnitTest iosTest verifySqlDelightMigration
+  {{gradle}} jvmTest testDebugUnitTest iosTest verifySqlDelightMigration verifySqlDelightMigrationForeignKeyCheck
 
 # Run unit and integration tests targeting all platforms
 test-all:
@@ -239,7 +239,7 @@ generate-db-schema:
 
 # Verifies validity of the schema and runs migration tests
 verify-db-schema:
-  {{gradle}} verifySqlDelightMigration
+  {{gradle}} verifySqlDelightMigration verifySqlDelightMigrationForeignKeyCheck
 
 # Run Maestro End-to-End Integration Tests
 maestro os:
@@ -307,3 +307,35 @@ generate-state-machine-graph machine_name='' excludes='' output_file='':
 
 generate-entire-state-machine-graph output_file='':
   gradle :shared:state-machine-ui-public:generateStateMachineDiagram -PoutputFile={{output_file}} -PoverridePermanentExcludes=true
+
+# Run all verification tasks required for a PR to be merged
+pr-ready:
+  #!/usr/bin/env bash
+  if ! (git diff --quiet --exit-code && git diff --cached --quiet --exit-code); then
+    while true; do
+        read -p "Local changes detected! Continue anyway? [y/N]: " yn
+        case $yn in
+            [Yy]* ) break;;
+            [Nn]* ) exit;;
+            * ) exit;;
+        esac
+    done
+  fi
+  while ! docker info > /dev/null 2>&1; do
+    echo "Please start Docker, press enter to continue"
+    read -n 1 -s
+  done
+  while pgrep -x "Xcode" > /dev/null; do
+    echo "Please close Xcode, press enter to continue"
+    read -n 1 -s
+  done
+  just detekt
+  just verify-gradle-lockfile
+  just verify-ios-lockfile
+  just test-unit-all
+  just android-snapshots-verify
+  just ios-snapshots-verify
+  just start-backend
+  just test-integration-all
+  just stop-backend
+  just ../valid-dependencies/check-gradle

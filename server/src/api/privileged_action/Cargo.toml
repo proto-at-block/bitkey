@@ -1,0 +1,24 @@
+[package]
+edition = { workspace = true }
+name = "privileged_action"
+publish = { workspace = true }
+version = "0.1.0"
+
+[dependencies]
+base64 = { workspace = true }
+once_cell = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
+
+# path dependencies
+account = { workspace = true }
+authn_authz = { workspace = true }
+database = { workspace = true }
+errors = { workspace = true }
+external_identifier = { workspace = true }
+repository = { workspace = true, features = ["privileged_action"] }
+types = { workspace = true, features = ["account", "privileged_action"] }

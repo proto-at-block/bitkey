@@ -23,24 +23,18 @@ class CreateKeyboxUiStateMachineImplTests : FunSpec({
         ) {}
     )
 
-  val props =
-    CreateKeyboxUiProps(
-      createKeyboxData =
-        CreateKeyboxData.CreatingAppKeysData(
-          fullAccountConfig = FullAccountConfigMock,
-          rollback = {}
-        ),
-      isHardwareFake = true
+  val props = CreateKeyboxUiProps(
+    createKeyboxData = CreateKeyboxData.CreatingAppKeysData(
+      rollback = {}
     )
+  )
 
   test("initial state") {
     stateMachine.test(
       props.copy(
-        createKeyboxData =
-          CreateKeyboxData.CreatingAppKeysData(
-            fullAccountConfig = FullAccountConfigMock,
-            rollback = {}
-          )
+        createKeyboxData = CreateKeyboxData.CreatingAppKeysData(
+          rollback = {}
+        )
       )
     ) {
       // Pair hw screen

@@ -131,7 +131,7 @@ export class ShopApiStuckOrdersJobMonitors extends Construct {
 
             new Monitor(this, `stuck_orders_metric_error_rate_too_high_${status}`, {
                 query: metric_avg_query(
-                    `avg:${metricServiceName}.stuckOrders.${status}{*}`,
+                    `avg:${metricServiceName}.stuckOrders.${status}{env:${environment}}`,
                     metricAlertWindow,
                     metricsAlertConfig.monitorThresholds.critical
                 ),

@@ -2,9 +2,12 @@ package build.wallet.worker
 
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action.ACTION_APP_OPEN_INITIALIZE
+import build.wallet.bitcoin.address.BitcoinRegisterWatchAddressWorker
 import build.wallet.configuration.MobilePayFiatConfigSyncWorker
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
 import build.wallet.feature.FeatureFlagSyncWorker
+import build.wallet.fwup.FirmwareDataSyncWorker
+import build.wallet.notifications.NotificationTouchpointSyncWorker
 import build.wallet.queueprocessor.PeriodicProcessor
 
 fun interface AppWorkerProvider {
@@ -27,6 +30,9 @@ class AppWorkerProviderImpl(
   private val networkingDebugConfigRepository: NetworkingDebugConfigRepository,
   private val mobilePayFiatConfigSyncWorker: MobilePayFiatConfigSyncWorker,
   private val featureFlagSyncWorker: FeatureFlagSyncWorker,
+  private val firmwareDataSyncWorker: FirmwareDataSyncWorker,
+  private val notificationTouchpointSyncWorker: NotificationTouchpointSyncWorker,
+  private val bitcoinAddressRegisterWatchAddressWorker: BitcoinRegisterWatchAddressWorker,
 ) : AppWorkerProvider {
   override fun allWorkers(): Set<AppWorker> {
     return setOf(
@@ -37,7 +43,10 @@ class AppWorkerProviderImpl(
       AppWorker(periodicFirmwareTelemetryProcessor::start),
       AppWorker(periodicRegisterWatchAddressProcessor::start),
       mobilePayFiatConfigSyncWorker,
-      featureFlagSyncWorker
+      featureFlagSyncWorker,
+      firmwareDataSyncWorker,
+      notificationTouchpointSyncWorker,
+      bitcoinAddressRegisterWatchAddressWorker
     )
   }
 }

@@ -1,6 +1,6 @@
 package build.wallet.f8e.socrec.models
 
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.ktor.result.RedactedResponseBody
 import kotlinx.datetime.Instant
@@ -17,7 +17,7 @@ internal data class RetrieveTrustedContactInvitation(
   @SerialName("expires_at")
   val expiresAt: Instant,
   @SerialName("recovery_relationship_id")
-  val recoveryRelationshipId: String,
+  val relationshipId: String,
   @SerialName("protected_customer_enrollment_pake_pubkey")
   val protectedCustomerEnrollmentPakePubkey: PublicKey<ProtectedCustomerEnrollmentPakeKey>,
 )

@@ -65,6 +65,8 @@ kotlin {
       projects.shared.phoneNumberPublic,
       projects.shared.platformImpl,
       projects.shared.platformPublic,
+      projects.shared.priceChartImpl,
+      projects.shared.priceChartPublic,
       projects.shared.recoveryImpl,
       projects.shared.recoveryPublic,
       projects.shared.routerPublic,
@@ -150,6 +152,7 @@ kotlin {
       projects.shared.timeImpl,
       projects.shared.timePublic,
       projects.shared.uiCorePublic,
+      projects.shared.priceChartPublic,
       libs.native.nserror.kt
     )
 

@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.lostapp
 
 import androidx.compose.runtime.Composable
-import build.wallet.bitkey.account.FullAccountConfig
+import build.wallet.debug.DebugOptions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
@@ -16,11 +16,12 @@ import build.wallet.statemachine.recovery.lostapp.initiate.InitiatingLostAppReco
  * A UI state machine when the customer has engaged with the Lost App recovery process but has not yet
  * officially started a recovery on the server.
  */
-interface LostAppRecoveryHaveNotStartedUiStateMachine : StateMachine<LostAppRecoveryHaveNotStartedUiProps, ScreenModel>
+interface LostAppRecoveryHaveNotStartedUiStateMachine :
+  StateMachine<LostAppRecoveryHaveNotStartedUiProps, ScreenModel>
 
 data class LostAppRecoveryHaveNotStartedUiProps(
   val notUndergoingRecoveryData: LostAppRecoveryData.LostAppRecoveryHaveNotStartedData,
-  val fullAccountConfig: FullAccountConfig,
+  val debugOptions: DebugOptions,
 )
 
 class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
@@ -33,19 +34,18 @@ class LostAppRecoveryHaveNotStartedUiStateMachineImpl(
     return when (props.notUndergoingRecoveryData) {
       is AttemptingCloudRecoveryLostAppRecoveryDataData -> {
         fullAccountCloudBackupRestorationUiStateMachine.model(
-          props =
-            FullAccountCloudBackupRestorationUiProps(
-              fullAccountConfig = props.fullAccountConfig,
-              backup = props.notUndergoingRecoveryData.cloudBackup,
-              onExit = props.notUndergoingRecoveryData.rollback
-            )
+          props = FullAccountCloudBackupRestorationUiProps(
+            debugOptions = props.debugOptions,
+            backup = props.notUndergoingRecoveryData.cloudBackup,
+            onExit = props.notUndergoingRecoveryData.rollback
+          )
         )
       }
 
       is InitiatingLostAppRecoveryData ->
         initiatingLostAppRecoveryUiStateMachine.model(
           InitiatingLostAppRecoveryUiProps(
-            fullAccountConfig = props.fullAccountConfig,
+            debugOptions = props.debugOptions,
             initiatingLostAppRecoveryData = props.notUndergoingRecoveryData
           )
         )

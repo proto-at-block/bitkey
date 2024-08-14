@@ -1,52 +1,33 @@
 package build.wallet.statemachine.data.keybox
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import build.wallet.auth.AuthKeyRotationManager
+import androidx.compose.runtime.*
+import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.PendingAuthKeyRotationAttempt
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.log
 import build.wallet.money.exchange.ExchangeRateSyncer
-import build.wallet.recovery.socrec.PostSocRecTaskRepository
-import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.HardwareReplacementScreens
-import build.wallet.recovery.socrec.PostSocialRecoveryTaskState.None
 import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
-import build.wallet.statemachine.data.keybox.address.FullAccountAddressDataProps
-import build.wallet.statemachine.data.keybox.address.FullAccountAddressDataStateMachine
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.*
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.LoadingFullAccountTransactionsData
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataProps
 import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataStateMachine
 import build.wallet.statemachine.data.mobilepay.MobilePayDataStateMachine
 import build.wallet.statemachine.data.mobilepay.MobilePayProps
-import build.wallet.statemachine.data.notifications.NotificationTouchpointDataStateMachine
-import build.wallet.statemachine.data.notifications.NotificationTouchpointProps
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
 import com.github.michaelbull.result.get
 
 class HasActiveFullAccountDataStateMachineImpl(
   private val mobilePayDataStateMachine: MobilePayDataStateMachine,
-  private val fullAccountAddressDataStateMachine: FullAccountAddressDataStateMachine,
   private val fullAccountTransactionsDataStateMachine: FullAccountTransactionsDataStateMachine,
   private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
-  private val notificationTouchpointDataStateMachine: NotificationTouchpointDataStateMachine,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
   private val exchangeRateSyncer: ExchangeRateSyncer,
   private val trustedContactCloudBackupRefresher: TrustedContactCloudBackupRefresher,
-  private val postSocRecTaskRepository: PostSocRecTaskRepository,
-  private val authKeyRotationManager: AuthKeyRotationManager,
+  private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
   private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
 ) : HasActiveFullAccountDataStateMachine {
   @Composable
@@ -78,23 +59,16 @@ class HasActiveFullAccountDataStateMachineImpl(
      */
     if (props.hardwareRecovery == null) {
       LaunchedEffect("refresh cloud backups", props.account) {
-        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(scope = this, props.account)
+        trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(
+          scope = this,
+          props.account
+        )
       }
     }
 
     LaunchedEffect("authenticate and endorse trusted contacts") {
       trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorse(scope = this, props.account)
     }
-
-    val addressData =
-      fullAccountAddressDataStateMachine.model(FullAccountAddressDataProps(props.account))
-
-    val notificationTouchpointData =
-      notificationTouchpointDataStateMachine.model(
-        props = NotificationTouchpointProps(props.account)
-      )
-
-    val recoveryIncompleteStatus = postSocRecTaskRepository.taskState.collectAsState(None)
 
     var spendingWallet by remember { mutableStateOf<SpendingWallet?>(null) }
     LaunchedEffect(props.account.keybox.activeSpendingKeyset) {
@@ -107,7 +81,7 @@ class HasActiveFullAccountDataStateMachineImpl(
       null,
       "observing pending attempts"
     ) {
-      authKeyRotationManager.observePendingKeyRotationAttemptUntilNull()
+      fullAccountAuthKeyRotationService.observePendingKeyRotationAttemptUntilNull()
         .collect { value = it }
     }
 
@@ -155,12 +129,9 @@ class HasActiveFullAccountDataStateMachineImpl(
             ActiveFullAccountLoadedData(
               account = props.account,
               spendingWallet = sw,
-              addressData = addressData,
               transactionsData = transactionsData,
               mobilePayData = mobilePayData,
-              lostHardwareRecoveryData = lostHardwareRecoveryData,
-              notificationTouchpointData = notificationTouchpointData,
-              isCompletingSocialRecovery = recoveryIncompleteStatus.value == HardwareReplacementScreens
+              lostHardwareRecoveryData = lostHardwareRecoveryData
             )
           }
         }

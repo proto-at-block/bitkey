@@ -2,8 +2,8 @@ package build.wallet.cloud.backup
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.FullAccountCloudBackupCreator.FullAccountCloudBackupCreatorError.FullAccountFieldsCreationError

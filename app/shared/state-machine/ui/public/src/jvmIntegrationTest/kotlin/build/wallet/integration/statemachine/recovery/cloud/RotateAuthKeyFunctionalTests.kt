@@ -29,7 +29,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
+    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
@@ -50,7 +50,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
+    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
@@ -80,7 +80,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     // synced up, even if we don't have any.
     app.app.socRecRelationshipsRepository.syncAndVerifyRelationships(account)
 
-    app.app.authKeyRotationManager.recommendKeyRotation()
+    app.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
     app.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
@@ -147,7 +147,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     // synced up, even if we don't have any.
     firstAppRun.app.socRecRelationshipsRepository.syncAndVerifyRelationships(account)
 
-    firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
+    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
     firstAppRun.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
       screenDecideIfShouldRotate {
@@ -182,7 +182,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     val firstAppRun = launchNewApp()
     firstAppRun.onboardFullAccountWithFakeHardware()
 
-    firstAppRun.app.authKeyRotationManager.recommendKeyRotation()
+    firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
     firstAppRun.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
 

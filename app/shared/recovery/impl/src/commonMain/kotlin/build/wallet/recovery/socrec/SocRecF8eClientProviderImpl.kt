@@ -2,15 +2,15 @@ package build.wallet.recovery.socrec
 
 import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus
+import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.socrec.SocRecF8eClient
-import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.first
 
 class SocRecF8eClientProviderImpl(
   private val accountRepository: AccountRepository,
-  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
+  private val debugOptionsService: DebugOptionsService,
   private val socRecFake: SocRecF8eClient,
   private val socRecF8eClient: SocRecF8eClient,
 ) : SocRecF8eClientProvider {
@@ -28,7 +28,7 @@ class SocRecF8eClientProviderImpl(
             status.account.config.isUsingSocRecFakes
 
           is AccountStatus.NoAccount -> {
-            templateFullAccountConfigDao.config().first().get()?.isUsingSocRecFakes ?: false
+            debugOptionsService.options().first().isUsingSocRecFakes
           }
         }
       }.get() ?: false

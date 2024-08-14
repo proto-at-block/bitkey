@@ -30,6 +30,7 @@ import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImp
 import build.wallet.statemachine.core.input.VerificationCodeInputStateMachineImpl.State.SkipBottomSheetState
 import build.wallet.time.DurationFormatter
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlin.time.Duration.Companion.seconds
@@ -61,7 +62,7 @@ class VerificationCodeInputStateMachineImpl(
 
     // Update the resend state every 1 second
     LaunchedEffect("update-resend-code-state") {
-      while (true) {
+      while (isActive) {
         state =
           state.copy(
             resendCodeState =

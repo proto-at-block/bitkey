@@ -28,12 +28,7 @@ class CreateAccountUiStateMachineImpl(
   override fun model(props: CreateAccountUiProps): ScreenModel {
     return when (val data = props.createFullAccountData) {
       is CreateKeyboxData ->
-        createKeyboxUiStateMachine.model(
-          CreateKeyboxUiProps(
-            createKeyboxData = data,
-            isHardwareFake = props.isHardwareFake
-          )
-        )
+        createKeyboxUiStateMachine.model(CreateKeyboxUiProps(createKeyboxData = data))
 
       is OnboardKeyboxDataFull ->
         onboardKeyboxUiStateMachine.model(OnboardKeyboxUiProps(data))

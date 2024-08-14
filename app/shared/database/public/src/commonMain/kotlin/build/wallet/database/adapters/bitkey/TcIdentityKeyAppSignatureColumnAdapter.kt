@@ -1,7 +1,7 @@
 package build.wallet.database.adapters.bitkey
 
 import app.cash.sqldelight.ColumnAdapter
-import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
+import build.wallet.bitkey.relationships.TcIdentityKeyAppSignature
 
 /**
  * SqlDelight column adapter for [TcIdentityKeyAppSignature].

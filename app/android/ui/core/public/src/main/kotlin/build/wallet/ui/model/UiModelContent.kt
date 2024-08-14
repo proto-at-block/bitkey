@@ -20,7 +20,7 @@ fun UiModelContent(
   /** Lookup [UiModel] using [model]s type, if any. */
   val uiModel =
     LocalUiModelMap.current
-      .getUiModelFor(model::class)
+      .getUiModelFor(model::class, model)
 
   when (uiModel) {
     null -> {

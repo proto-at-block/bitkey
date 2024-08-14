@@ -346,6 +346,7 @@ module "privileged_action_table" {
     { name = "partition_key", type = "S" },
     { name = "account_id", type = "S" },
     { name = "created_at", type = "S" },
+    { name = "cancellation_token", type = "S" },
   ]
 
   global_secondary_indexes = [
@@ -353,6 +354,11 @@ module "privileged_action_table" {
       name            = "account_id_to_created_at"
       hash_key        = "account_id"
       range_key       = "created_at"
+      projection_type = "ALL"
+    },
+    {
+      name            = "by_cancellation_token"
+      hash_key        = "cancellation_token"
       projection_type = "ALL"
     },
   ]

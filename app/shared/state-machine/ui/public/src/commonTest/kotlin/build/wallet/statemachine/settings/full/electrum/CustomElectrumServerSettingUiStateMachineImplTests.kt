@@ -1,6 +1,7 @@
 package build.wallet.statemachine.settings.full.electrum
 
 import build.wallet.bitcoin.BitcoinNetworkType.BITCOIN
+import build.wallet.bitcoin.sync.ElectrumConfigServiceFake
 import build.wallet.bitcoin.sync.OffElectrumServerPreferenceValueMock
 import build.wallet.bitcoin.sync.OffElectrumServerWithPreviousPreferenceValueMock
 import build.wallet.statemachine.BodyStateMachineMock
@@ -15,10 +16,10 @@ class CustomElectrumServerSettingUiStateMachineImplTests : FunSpec({
   val defaultProps =
     CustomElectrumServerProps(
       onBack = {},
-      electrumServerPreferenceValue = OffElectrumServerPreferenceValueMock,
-      activeNetwork = BITCOIN,
-      disableCustomElectrumServer = {}
+      activeNetwork = BITCOIN
     )
+
+  val electrumConfigService = ElectrumConfigServiceFake()
 
   lateinit var stateMachine: CustomElectrumServerSettingUiStateMachineImpl
 
@@ -30,12 +31,15 @@ class CustomElectrumServerSettingUiStateMachineImplTests : FunSpec({
           object : SetElectrumServerUiStateMachine,
             ScreenStateMachineMock<SetElectrumServerProps>(
               "set-electrum-server-ui-state-machine"
-            ) {}
+            ) {},
+        electrumConfigService = electrumConfigService
       )
   }
 
   test("no initial custom server -> setting electrum server") {
     stateMachine.test(defaultProps) {
+      awaitItem() // default item
+
       awaitScreenWithBodyModelMock<CustomElectrumServerUiProps> {
         electrumServerPreferenceValue.shouldBe(OffElectrumServerPreferenceValueMock)
         onAdjustElectrumServerClick()
@@ -49,12 +53,11 @@ class CustomElectrumServerSettingUiStateMachineImplTests : FunSpec({
   }
 
   test("user with previous custom electrum server should have pre-populated form") {
-    val props =
-      defaultProps.copy(
-        electrumServerPreferenceValue = OffElectrumServerWithPreviousPreferenceValueMock
-      )
+    electrumConfigService.electrumServerPreference.value = OffElectrumServerWithPreviousPreferenceValueMock
 
-    stateMachine.test(props) {
+    stateMachine.test(defaultProps) {
+      awaitItem() // default item
+
       awaitScreenWithBodyModelMock<CustomElectrumServerUiProps> {
         electrumServerPreferenceValue.shouldBe(
           OffElectrumServerWithPreviousPreferenceValueMock

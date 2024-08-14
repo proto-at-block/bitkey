@@ -14,5 +14,4 @@ interface CreateKeyboxUiStateMachine : StateMachine<CreateKeyboxUiProps, ScreenM
  */
 data class CreateKeyboxUiProps(
   val createKeyboxData: CreateFullAccountData.CreateKeyboxData,
-  val isHardwareFake: Boolean,
 )

@@ -1,16 +1,10 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.*
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.AWAITING_VERIFY
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.crypto.PublicKey
 import build.wallet.database.BitkeyDatabaseProviderImpl
@@ -37,62 +31,70 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
       invitations =
         listOf(
           Invitation(
-            recoveryRelationshipId = "c",
+            relationshipId = "c",
             trustedContactAlias = TrustedContactAlias("Dad"),
             code = "dadToken",
             codeBitLength = 10,
-            expiresAt = Instant.DISTANT_FUTURE
+            expiresAt = Instant.DISTANT_FUTURE,
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           Invitation(
-            recoveryRelationshipId = "d",
+            relationshipId = "d",
             trustedContactAlias = TrustedContactAlias("Bro"),
             code = "broToken",
             codeBitLength = 10,
-            expiresAt = Instant.DISTANT_FUTURE
+            expiresAt = Instant.DISTANT_FUTURE,
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           Invitation(
-            recoveryRelationshipId = "f",
+            relationshipId = "f",
             trustedContactAlias = TrustedContactAlias("Gramps"),
             code = "grampsToken",
             codeBitLength = 10,
-            expiresAt = Instant.fromEpochMilliseconds(0)
+            expiresAt = Instant.fromEpochMilliseconds(0),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         ),
       endorsedTrustedContacts =
         listOf(
           EndorsedTrustedContact(
-            recoveryRelationshipId = "a",
+            relationshipId = "a",
             trustedContactAlias = TrustedContactAlias("Mom"),
             authenticationState = AWAITING_VERIFY,
-            keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = momKey)
+            keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = momKey),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           EndorsedTrustedContact(
-            recoveryRelationshipId = "b",
+            relationshipId = "b",
             trustedContactAlias = TrustedContactAlias("Sis"),
             authenticationState = AWAITING_VERIFY,
-            keyCertificate = TrustedContactKeyCertificateFake2.copy(delegatedDecryptionKey = sisKey)
+            keyCertificate = TrustedContactKeyCertificateFake2.copy(delegatedDecryptionKey = sisKey),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         ),
       protectedCustomers =
         immutableListOf(
           ProtectedCustomer(
-            recoveryRelationshipId = "d",
-            alias = ProtectedCustomerAlias("Aunt")
+            relationshipId = "d",
+            alias = ProtectedCustomerAlias("Aunt"),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           ),
           ProtectedCustomer(
-            recoveryRelationshipId = "e",
-            alias = ProtectedCustomerAlias("Uncle")
+            relationshipId = "e",
+            alias = ProtectedCustomerAlias("Uncle"),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         ),
       unendorsedTrustedContacts =
         listOf(
           UnendorsedTrustedContact(
-            recoveryRelationshipId = "g",
+            relationshipId = "g",
             trustedContactAlias = TrustedContactAlias("Cousin"),
             enrollmentPakeKey =
               PublicKey("cousinEnrollmentKey"),
             enrollmentKeyConfirmation = "cousinEnrollmentKeyConfirmation".encodeUtf8(),
-            sealedDelegatedDecryptionKey = XCiphertext("cipher")
+            sealedDelegatedDecryptionKey = XCiphertext("cipher"),
+            roles = setOf(TrustedContactRole.SocialRecoveryContact)
           )
         )
     )
@@ -127,10 +129,11 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
     val newKey = PublicKey<DelegatedDecryptionKey>("newKey")
     val newEndorsedTrustedContact =
       EndorsedTrustedContact(
-        recoveryRelationshipId = invitationToAccept.recoveryRelationshipId,
+        relationshipId = invitationToAccept.relationshipId,
         trustedContactAlias = invitationToAccept.trustedContactAlias,
         authenticationState = AWAITING_VERIFY,
-        keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = newKey)
+        keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey = newKey),
+        roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
 
     val socRecRelationshipsWithAcceptedInvite =
@@ -167,7 +170,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
     )
 
     dao.setUnendorsedTrustedContactAuthenticationState(
-      endorsedTc.recoveryRelationshipId,
+      endorsedTc.relationshipId,
       VERIFIED
     )
     // The authentication state should have changed after setting the state directly.

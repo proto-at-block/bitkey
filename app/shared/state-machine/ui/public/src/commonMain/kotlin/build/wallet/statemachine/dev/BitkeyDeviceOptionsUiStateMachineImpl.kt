@@ -2,8 +2,8 @@ package build.wallet.statemachine.dev
 
 import androidx.compose.runtime.Composable
 import build.wallet.compose.collections.immutableListOfNotNull
+import build.wallet.fwup.FirmwareData
 import build.wallet.platform.config.AppVariant
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel.Companion.BitkeyInteractionButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact

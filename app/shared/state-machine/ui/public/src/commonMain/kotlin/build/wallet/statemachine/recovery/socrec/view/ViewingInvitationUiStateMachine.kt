@@ -1,9 +1,9 @@
 package build.wallet.statemachine.recovery.socrec.view
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
@@ -23,7 +23,7 @@ data class ViewingInvitationProps(
     HwFactorProofOfPossession,
   ) -> Result<OutgoingInvitation, Error>,
   val onRemoveInvitation: suspend (
-    RecoveryContact,
+    TrustedContact,
     HwFactorProofOfPossession?,
   ) -> Result<Unit, Error>,
   val onExit: () -> Unit,

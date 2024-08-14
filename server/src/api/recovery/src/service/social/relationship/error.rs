@@ -4,6 +4,7 @@ use types::recovery::social::relationship::{
     RecoveryRelationshipConnectionFieldsBuilderError, RecoveryRelationshipEndorsedBuilderError,
     RecoveryRelationshipUnendorsedBuilderError,
 };
+use types::recovery::trusted_contacts::{TrustedContactError, TrustedContactRole};
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
@@ -41,10 +42,23 @@ pub enum ServiceError {
     Notification(#[from] notification::NotificationError),
     #[error(transparent)]
     NotificationPayloadBuilder(#[from] notification::NotificationPayloadBuilderError),
-    #[error("Account has reached the maximum number of trusted contacts")]
-    MaxTrustedContactsReached,
+    #[error("Account has reached the maximum number of trusted contacts for role: {0:?}")]
+    MaxTrustedContactsReached(TrustedContactRole),
     #[error("Account has reached the maximum number of protected customers")]
     MaxProtectedCustomersReached,
+    #[error("Trusted contact's alias cannot be blank")]
+    BlankTrustedContactAlias,
+    #[error("Trusted contact has no roles assigned")]
+    MissingTrustedContactRoles,
+}
+
+impl From<TrustedContactError> for ServiceError {
+    fn from(value: TrustedContactError) -> Self {
+        match value {
+            TrustedContactError::BlankAlias => ServiceError::BlankTrustedContactAlias,
+            TrustedContactError::NoRoles => ServiceError::MissingTrustedContactRoles,
+        }
+    }
 }
 
 impl From<ServiceError> for ApiError {
@@ -58,7 +72,9 @@ impl From<ServiceError> for ApiError {
             | ServiceError::NotificationPayloadBuilder(_) => {
                 ApiError::GenericInternalApplicationError(msg)
             }
-            ServiceError::InvitationNonEndorsable => ApiError::GenericBadRequest(msg),
+            ServiceError::InvitationNonEndorsable
+            | ServiceError::BlankTrustedContactAlias
+            | ServiceError::MissingTrustedContactRoles => ApiError::GenericBadRequest(msg),
             ServiceError::Database(e) => e.into(),
             ServiceError::RelationshipAlreadyEstablished
             | ServiceError::AccountAlreadyTrustedContact => ApiError::GenericConflict(msg),
@@ -78,7 +94,7 @@ impl From<ServiceError> for ApiError {
                 field: None,
             },
             ServiceError::Notification(e) => e.into(),
-            ServiceError::MaxTrustedContactsReached => ApiError::Specific {
+            ServiceError::MaxTrustedContactsReached(_) => ApiError::Specific {
                 code: ErrorCode::MaxTrustedContactsReached,
                 detail: Some(msg),
                 field: None,

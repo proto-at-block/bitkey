@@ -1,10 +1,10 @@
 package build.wallet.statemachine.trustedcontact
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
 import build.wallet.crypto.PublicKey
 import build.wallet.recovery.socrec.AcceptInvitationCodeError
 import build.wallet.recovery.socrec.RetrieveInvitationCodeError

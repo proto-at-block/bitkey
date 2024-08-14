@@ -1,12 +1,8 @@
 package build.wallet.statemachine.receive
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitcoin.address.BitcoinAddress
+import build.wallet.bitcoin.address.BitcoinAddressService
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.BitcoinInvoiceUrlEncoder
 import build.wallet.platform.clipboard.ClipItem.PlainText
@@ -29,6 +25,7 @@ class AddressQrCodeUiStateMachineImpl(
   private val delayer: Delayer,
   private val sharingManager: SharingManager,
   private val bitcoinInvoiceUrlEncoder: BitcoinInvoiceUrlEncoder,
+  private val bitcoinAddressService: BitcoinAddressService,
 ) : AddressQrCodeUiStateMachine {
   @Composable
   override fun model(props: AddressQrCodeUiProps): BodyModel {
@@ -37,7 +34,7 @@ class AddressQrCodeUiStateMachineImpl(
     when (val currentState = state) {
       is State.LoadingAddressUiState -> {
         LaunchedEffect("loading-address") {
-          props.accountData.addressData.generateAddress()
+          bitcoinAddressService.generateAddress(props.accountData.account)
             .onSuccess { address ->
               state =
                 State.AddressLoadedUiState(

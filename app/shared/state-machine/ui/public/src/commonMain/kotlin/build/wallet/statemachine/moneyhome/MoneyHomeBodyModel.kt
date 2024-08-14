@@ -45,6 +45,7 @@ data class MoneyHomeBodyModel(
   val refresh: suspend () -> Unit,
   val onRefresh: () -> Unit,
   val onHideBalance: () -> Unit,
+  val onOpenPriceDetails: () -> Unit,
   val isRefreshing: Boolean,
   val badgedSettingsIcon: Boolean = false,
   override val eventTrackerScreenInfo: EventTrackerScreenInfo? =
@@ -67,6 +68,7 @@ data class MoneyHomeBodyModel(
     onHideBalance: () -> Unit,
     isRefreshing: Boolean,
     badgedSettingsIcon: Boolean,
+    onOpenPriceDetails: () -> Unit,
   ) : this(
     hideBalance = hideBalance,
     onHideBalance = onHideBalance,
@@ -92,6 +94,7 @@ data class MoneyHomeBodyModel(
     coachmark = coachmark,
     refresh = refresh,
     onRefresh = onRefresh,
-    isRefreshing = isRefreshing
+    isRefreshing = isRefreshing,
+    onOpenPriceDetails = onOpenPriceDetails
   )
 }

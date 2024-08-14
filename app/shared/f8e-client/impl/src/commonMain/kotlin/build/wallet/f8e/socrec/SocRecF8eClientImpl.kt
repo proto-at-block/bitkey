@@ -5,18 +5,18 @@ import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.f8e.AccountId
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.IncomingInvitation
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.IncomingInvitation
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomerAlias
+import build.wallet.bitkey.relationships.ProtectedCustomerEnrollmentPakeKey
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.AWAITING_VERIFY
+import build.wallet.bitkey.relationships.TrustedContactEndorsement
+import build.wallet.bitkey.relationships.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.SocialChallenge
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.AWAITING_VERIFY
-import build.wallet.bitkey.socrec.TrustedContactEndorsement
-import build.wallet.bitkey.socrec.TrustedContactEnrollmentPakeKey
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.XCiphertext
@@ -294,7 +294,7 @@ class SocRecF8eClientImpl(
   private suspend fun TrustedContactEndorsement.body(): Result<EndorsementBody, JsonEncodingError> =
     coroutineBinding {
       EndorsementBody(
-        recoveryRelationshipId = recoveryRelationshipId.value,
+        relationshipId = relationshipId.value,
         delegatedDecryptionKeyCertificate = keyCertificate.encode().bind()
       )
     }
@@ -336,7 +336,7 @@ class SocRecF8eClientImpl(
       )
       .bodyResult<AcceptTrustedContactInvitationResponseBody> {
         put(
-          "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.recoveryRelationshipId}"
+          "/api/accounts/${account.accountId.serverId}/recovery/relationships/${invitation.relationshipId}"
         ) {
           withDescription("Accept Trusted Contact invitation")
           setRedactedBody(
@@ -357,28 +357,34 @@ class SocRecF8eClientImpl(
 
 private fun CreateTrustedContactInvitation.toInvitation() =
   Invitation(
-    recoveryRelationshipId = recoveryRelationshipId,
+    relationshipId = relationshipId,
     trustedContactAlias = trustedContactAlias,
     code = code,
     codeBitLength = codeBitLength,
-    expiresAt = expiresAt
+    expiresAt = expiresAt,
+    roles = roles
   )
 
 private fun F8eEndorsedTrustedContact.toEndorsedTrustedContact() =
   EndorsedTrustedContact(
-    recoveryRelationshipId = recoveryRelationshipId,
+    relationshipId = relationshipId,
     trustedContactAlias = trustedContactAlias,
     keyCertificate = keyCertificate,
     /**
      * The default auth state is [AWAITING_VERIFY] because the server does not store the auth state,
      * and the app cannot assume that the contact is verified.
      */
-    authenticationState = AWAITING_VERIFY
+    /**
+     * The default auth state is [AWAITING_VERIFY] because the server does not store the auth state,
+     * and the app cannot assume that the contact is verified.
+     */
+    authenticationState = AWAITING_VERIFY,
+    roles = roles
   )
 
 private fun RetrieveTrustedContactInvitation.toIncomingInvitation(invitationCode: String) =
   IncomingInvitation(
-    recoveryRelationshipId = recoveryRelationshipId,
+    relationshipId = relationshipId,
     code = invitationCode,
     protectedCustomerEnrollmentPakeKey = protectedCustomerEnrollmentPakePubkey
   )

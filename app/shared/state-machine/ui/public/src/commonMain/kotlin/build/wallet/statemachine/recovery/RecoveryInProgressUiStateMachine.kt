@@ -46,6 +46,7 @@ import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerif
 import build.wallet.statemachine.recovery.verification.RecoveryNotificationVerificationUiStateMachine
 import build.wallet.time.DurationFormatter
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 
 /**
@@ -87,7 +88,7 @@ class RecoveryInProgressUiStateMachineImpl(
 
         // Periodically update [remainingDelayPeriod] so that the formatted words update accordingly
         LaunchedEffect("update-delay-progress") {
-          while (true) {
+          while (isActive) {
             remainingDelayPeriod = recoveryInProgressData.remainingDelayPeriod(clock)
             delay(DurationFormatter.MINIMUM_DURATION_WORD_FORMAT_UPDATE)
           }

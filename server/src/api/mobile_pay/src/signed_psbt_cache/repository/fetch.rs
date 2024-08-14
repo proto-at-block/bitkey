@@ -4,7 +4,7 @@ use bdk_utils::bdk::bitcoin::Txid;
 use database::aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use database::ddb::{try_from_item, try_to_attribute_val, DDBService, DatabaseError};
 
-use crate::signed_psbt_cache::entities::CachedPsbt;
+use crate::signed_psbt_cache::entities::{CachedPsbt, NonBase64CachedPsbt};
 use crate::signed_psbt_cache::repository::PARTITION_KEY;
 
 use super::Repository;
@@ -40,6 +40,15 @@ impl Repository {
             );
             DatabaseError::ObjectNotFound(database_object)
         })?;
-        try_from_item(item, database_object)
+        match try_from_item(item.clone(), database_object) {
+            Ok(cached_psbt) => Ok(cached_psbt),
+            Err(DatabaseError::DeserializationError(_, _)) => {
+                // Attempt to deserialize as non base64 encoded cached psbt
+                let non_base64_cached_psbt: Result<NonBase64CachedPsbt, DatabaseError> =
+                    try_from_item(item, database_object);
+                non_base64_cached_psbt.map(Into::into)
+            }
+            Err(err) => Err(err),
+        }
     }
 }

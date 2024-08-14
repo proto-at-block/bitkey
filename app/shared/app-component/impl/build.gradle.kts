@@ -22,6 +22,7 @@ kotlin {
         api(projects.shared.cloudBackupImpl)
         api(projects.shared.cloudStoreImpl)
         api(projects.shared.datadogImpl)
+        api(projects.shared.debugImpl)
         api(projects.shared.emailImpl)
         api(projects.shared.emergencyAccessKitImpl)
         api(projects.shared.emergencyAccessKitFake)
@@ -54,6 +55,7 @@ kotlin {
         api(projects.shared.supportImpl)
         api(projects.shared.workerImpl)
         api(projects.shared.inAppSecurityImpl)
+        api(projects.shared.priceChartImpl)
       }
     }
 

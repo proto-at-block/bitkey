@@ -9,9 +9,9 @@ import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.context.PushNotificationEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.auth.AuthTokenScope
-import build.wallet.bitkey.socrec.ChallengeAuthentication
-import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.ChallengeAuthentication
+import build.wallet.bitkey.relationships.ChallengeWrapper
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.SocialChallengeResponse
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.encrypt.XCiphertext
@@ -139,7 +139,7 @@ class RecoveryChallengeUiStateMachineImpl(
             val response = current.challenge.challenge.responses.first()
             val respondingContact =
               props.endorsedTrustedContacts.first { contact ->
-                contact.recoveryRelationshipId == response.recoveryRelationshipId
+                contact.relationshipId == response.recoveryRelationshipId
               }
             state =
               State.RestoringAppKey(
@@ -160,7 +160,7 @@ class RecoveryChallengeUiStateMachineImpl(
           recoveryChallengeCode =
             challengeCodeFormatter.format(
               current.challenge.tcAuths
-                .first { it.relationshipId == current.selectedContact.recoveryRelationshipId }
+                .first { it.relationshipId == current.selectedContact.relationshipId }
                 .fullCode
             ),
           onBack = {

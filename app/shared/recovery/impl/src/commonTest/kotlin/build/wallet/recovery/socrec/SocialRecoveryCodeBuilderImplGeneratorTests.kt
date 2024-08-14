@@ -1,6 +1,6 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.serialization.Base32Encoding
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.core.spec.style.FunSpec

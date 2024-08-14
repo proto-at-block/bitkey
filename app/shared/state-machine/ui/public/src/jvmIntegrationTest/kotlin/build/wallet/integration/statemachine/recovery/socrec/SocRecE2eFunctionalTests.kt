@@ -6,11 +6,11 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
-import build.wallet.bitkey.socrec.RecoveryRelationshipId
-import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
-import build.wallet.bitkey.socrec.TrustedContactEndorsement
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
+import build.wallet.bitkey.relationships.RelationshipId
+import build.wallet.bitkey.relationships.TcIdentityKeyAppSignature
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.TrustedContactEndorsement
+import build.wallet.bitkey.relationships.TrustedContactKeyCertificate
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.f8e.socrec.endorseTrustedContacts
@@ -94,7 +94,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       }
         .protectedCustomers
         .first()
-        .recoveryRelationshipId
+        .relationshipId
       cancelAndIgnoreRemainingEvents()
     }
 
@@ -123,7 +123,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       CloudStoreAccountFake.TrustedContactFake
     )
 
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     customerApp = launchNewApp(
       cloudKeyValueStore = customerApp.app.cloudKeyValueStore
@@ -192,7 +192,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       account = customerAccount,
       endorsements = listOf(
         TrustedContactEndorsement(
-          RecoveryRelationshipId(unendorsedTc.recoveryRelationshipId),
+          RelationshipId(unendorsedTc.relationshipId),
           badKeyCert
         )
       )
@@ -258,7 +258,7 @@ class SocRecE2eFunctionalTests : FunSpec({
         PROTECTED_CUSTOMER_ALIAS,
         CloudStoreAccountFake.TrustedContactFake
       )
-      customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+      customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
       customerApp = launchNewApp(
         cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
@@ -328,7 +328,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       protectedCustomerName = PROTECTED_CUSTOMER_ALIAS,
       cloudStoreAccountForBackup = CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     customerApp = launchNewApp(
       cloudKeyValueStore = customerApp.app.cloudKeyValueStore,
@@ -369,7 +369,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     // PC: lost hardware D+N
     customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
@@ -427,7 +427,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     // PC: lost app & cloud D+N
     val hardwareSeed = customerApp.fakeHardwareKeyStore.getSeed()
@@ -485,7 +485,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       }
         .protectedCustomers
         .first()
-        .recoveryRelationshipId
+        .relationshipId
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -526,7 +526,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     // PC: lost hardware D+N
     customerApp.fakeNfcCommands.clearHardwareKeysAndFingerprintEnrollment()
@@ -558,7 +558,7 @@ class SocRecE2eFunctionalTests : FunSpec({
       PROTECTED_CUSTOMER_ALIAS,
       CloudStoreAccountFake.TrustedContactFake
     )
-    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.recoveryRelationshipId)
+    customerApp.awaitTcIsVerifiedAndBackedUp(invite.invitation.relationshipId)
 
     val recoveredApp = shouldSucceedSocialRestore(customerApp, tcApp, PROTECTED_CUSTOMER_ALIAS)
 

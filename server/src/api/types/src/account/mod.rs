@@ -1,12 +1,13 @@
 use bdk_utils::bdk::bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 use utoipa::ToSchema;
 
 use self::identifiers::AccountId;
 
 pub mod identifiers;
 
-#[derive(Serialize, Deserialize, Debug, Clone, ToSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq, Hash, Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AccountType {
     Full,

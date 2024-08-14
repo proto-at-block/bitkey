@@ -1,25 +1,23 @@
 package build.wallet.statemachine.moneyhome.full
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME_ALL_TRANSACTIONS
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.fwup.FirmwareData
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.pricechart.ChartType
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.cloud.health.RepairCloudBackupStateMachine
 import build.wallet.statemachine.cloud.health.RepairMobileKeyBackupProps
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -27,31 +25,22 @@ import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
 import build.wallet.statemachine.core.list.ListFormBodyModel
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.LostHardwareRecoveryInProgressData
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
 import build.wallet.statemachine.limit.SpendingLimitProps
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.AddAdditionalFingerprintUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.FwupFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.PerformingSweep
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ReceiveFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SendFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.SetSpendingLimitFlowUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ShowingInAppBrowserUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewHardwareRecoveryStatusUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingAllTransactionActivityUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState
+import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.*
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.Partners
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingBalanceUiState.BottomSheetDisplayState.PromptingForFwUpUiState
-import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.ACTIVITY
 import build.wallet.statemachine.moneyhome.full.MoneyHomeUiState.ViewingTransactionUiState.EntryPoint.BALANCE
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiProps
 import build.wallet.statemachine.partnerships.purchase.CustomAmountEntryUiStateMachine
+import build.wallet.statemachine.pricechart.BitcoinPriceChartUiProps
+import build.wallet.statemachine.pricechart.BitcoinPriceChartUiStateMachine
 import build.wallet.statemachine.receive.AddressQrCodeUiProps
 import build.wallet.statemachine.receive.AddressQrCodeUiStateMachine
 import build.wallet.statemachine.recovery.losthardware.LostHardwareRecoveryProps
@@ -95,19 +84,24 @@ class MoneyHomeUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val sweepUiStateMachine: SweepUiStateMachine,
+  private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
+  private val socRecService: SocRecService,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
+    val justCompletingSocialRecovery by remember {
+      socRecService.justCompletedRecovery()
+    }.collectAsState(initial = false)
     var uiState: MoneyHomeUiState by remember(
       props.origin,
-      props.accountData.isCompletingSocialRecovery
+      justCompletingSocialRecovery
     ) {
       val initialState = if (props.origin == MoneyHomeUiProps.Origin.Launch) {
         // Navigate directly to hardware recovery when completing hardware recovery
         val lostHardwareRecoveryData = props.accountData.lostHardwareRecoveryData
 
         when {
-          props.accountData.isCompletingSocialRecovery -> {
+          justCompletingSocialRecovery -> {
             ViewHardwareRecoveryStatusUiState(InstructionsStyle.ContinuingRecovery)
           }
           lostHardwareRecoveryData is LostHardwareRecoveryInProgressData ->
@@ -145,7 +139,6 @@ class MoneyHomeUiStateMachineImpl(
         moneyHomeViewingBalanceUiStateMachine.model(
           props = MoneyHomeViewingBalanceUiProps(
             accountData = props.accountData,
-            firmwareData = props.firmwareData,
             socRecRelationships = props.socRecRelationships,
             socRecActions = props.socRecActions,
             homeBottomSheetModel = props.homeBottomSheetModel,
@@ -301,6 +294,16 @@ class MoneyHomeUiStateMachineImpl(
           entryPoint = FingerprintManagementEntryPoint.MONEY_HOME
         )
       )
+      is MoneyHomeUiState.ShowingPriceChartUiState -> {
+        bitcoinPriceChartUiStateMachine.model(
+          BitcoinPriceChartUiProps(
+            initialType = state.type,
+            fullAccountId = props.accountData.account.accountId,
+            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
+            onBack = { uiState = ViewingBalanceUiState() }
+          )
+        )
+      }
     }
   }
 
@@ -429,7 +432,7 @@ sealed interface MoneyHomeUiState {
     val isRefreshing: Boolean = false,
     val bottomSheetDisplayState: BottomSheetDisplayState? = null,
     val urlStringForInAppBrowser: Boolean = false,
-    val selectedContact: RecoveryContact? = null,
+    val selectedContact: TrustedContact? = null,
   ) : MoneyHomeUiState {
     sealed interface BottomSheetDisplayState {
       /**
@@ -551,5 +554,14 @@ sealed interface MoneyHomeUiState {
   data class SelectCustomPartnerPurchaseAmountState(
     val minimumAmount: FiatMoney,
     val maximumAmount: FiatMoney,
+  ) : MoneyHomeUiState
+
+  /**
+   * Displays various interactive price charts defaulting to [type].
+   *
+   * @param type The initial chart type to display.
+   */
+  data class ShowingPriceChartUiState(
+    val type: ChartType = ChartType.BTC_PRICE,
   ) : MoneyHomeUiState
 }

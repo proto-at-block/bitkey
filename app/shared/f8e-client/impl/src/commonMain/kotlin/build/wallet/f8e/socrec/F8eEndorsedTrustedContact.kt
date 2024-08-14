@@ -1,9 +1,6 @@
 package build.wallet.f8e.socrec
 
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificateAsBase64JsonSerializer
+import build.wallet.bitkey.relationships.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -18,10 +15,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 internal data class F8eEndorsedTrustedContact(
   @SerialName("recovery_relationship_id")
-  val recoveryRelationshipId: String,
+  val relationshipId: String,
   @SerialName("trusted_contact_alias")
   val trustedContactAlias: TrustedContactAlias,
   @SerialName("delegated_decryption_pubkey_certificate")
   @Serializable(with = TrustedContactKeyCertificateAsBase64JsonSerializer::class)
   val keyCertificate: TrustedContactKeyCertificate,
+  @SerialName("trusted_contact_roles")
+  val roles: Set<TrustedContactRole>,
 )

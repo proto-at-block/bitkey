@@ -27,7 +27,6 @@ import build.wallet.testing.ext.returnFundsToTreasury
 import com.github.michaelbull.result.unwrap
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.shouldBe
 import kotlin.time.Duration.Companion.seconds
 
 class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
@@ -72,8 +71,11 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
         cancelAndIgnoreRemainingEvents()
       }
 
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.primaryAmount.shouldBe("0 sats")
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        expectedBodyContentMatch = {
+          it.balanceModel.primaryAmount == "$0.00"
+        }
+      )
 
       cancelAndIgnoreRemainingEvents()
     }
@@ -111,8 +113,11 @@ class LostAppRecoveryUsingCloudFunctionalTests : FunSpec({
       screenDecideIfShouldRotate {
         clickPrimaryButton()
       }
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.primaryAmount.shouldBe("$0.00")
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        expectedBodyContentMatch = {
+          it.balanceModel.primaryAmount == "$0.00"
+        }
+      )
 
       val wallet = app.getActiveWallet()
       wallet.sync().unwrap()

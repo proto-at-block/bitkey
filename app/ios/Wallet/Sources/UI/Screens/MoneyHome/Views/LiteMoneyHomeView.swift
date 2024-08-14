@@ -67,7 +67,11 @@ struct LiteMoneyHomeView_Preview: PreviewProvider {
                     onSetUpBitkeyDevice: {}
                 ),
                 protectedCustomers: [
-                    ProtectedCustomer(recoveryRelationshipId: "", alias: "bob"),
+                    ProtectedCustomer(
+                        relationshipId: "",
+                        alias: "bob",
+                        roles: ["SOCIAL_RECOVERY_CONTACT"]
+                    ),
                 ],
                 badgedSettingsIcon: false,
                 onProtectedCustomerClick: { _ in },
@@ -95,7 +99,11 @@ struct LiteMoneyHomeView_Preview: PreviewProvider {
                     onSetUpBitkeyDevice: {}
                 ),
                 protectedCustomers: [
-                    ProtectedCustomer(recoveryRelationshipId: "", alias: "bob"),
+                    ProtectedCustomer(
+                        relationshipId: "",
+                        alias: "bob",
+                        roles: ["SOCIAL_RECOVERY_CONTACT"]
+                    ),
                 ],
                 badgedSettingsIcon: true,
                 onProtectedCustomerClick: { _ in },

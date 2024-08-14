@@ -2,6 +2,7 @@ package build.wallet.database
 
 import app.cash.sqldelight.EnumColumnAdapter
 import build.wallet.analytics.v1.Event
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.database.adapters.*
 import build.wallet.database.adapters.bitkey.*
 import build.wallet.database.sqldelight.*
@@ -187,12 +188,11 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         FwupDataEntity.Adapter(
           fwupModeAdapter = EnumColumnAdapter()
         ),
-      templateFullAccountConfigEntityAdapter =
-        TemplateFullAccountConfigEntity.Adapter(
-          bitcoinNetworkTypeAdapter = EnumColumnAdapter(),
-          f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter,
-          delayNotifyDurationAdapter = DurationColumnAdapter
-        ),
+      debugOptionsEntityAdapter = DebugOptionsEntity.Adapter(
+        bitcoinNetworkTypeAdapter = EnumColumnAdapter(),
+        f8eEnvironmentAdapter = F8eEnvironmentColumnAdapter,
+        delayNotifyDurationAdapter = DurationColumnAdapter
+      ),
       priorityPreferenceEntityAdapter =
         PriorityPreferenceEntity.Adapter(
           priorityAdapter = EnumColumnAdapter()
@@ -214,19 +214,22 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
           textCodeAdapter = IsoCurrencyTextCodeColumnAdapter,
           snapValuesAdapter = MobilePaySnapValueColumnAdapter
         ),
-      socRecProtectedCustomerEntityAdapter =
-        SocRecProtectedCustomerEntity.Adapter(
-          aliasAdapter = ProtectedCustomerAliasColumnAdapter
+      protectedCustomerEntityAdapter =
+        ProtectedCustomerEntity.Adapter(
+          aliasAdapter = ProtectedCustomerAliasColumnAdapter,
+          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
         ),
-      socRecTrustedContactInvitationEntityAdapter =
-        SocRecTrustedContactInvitationEntity.Adapter(
+      trustedContactInvitationEntityAdapter =
+        TrustedContactInvitationEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
-          expiresAtAdapter = InstantColumnAdapter
+          expiresAtAdapter = InstantColumnAdapter,
+          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
         ),
-      socRecTrustedContactEntityAdapter =
-        SocRecTrustedContactEntity.Adapter(
+      trustedContactEntityAdapter =
+        TrustedContactEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
-          authenticationStateAdapter = EnumColumnAdapter()
+          authenticationStateAdapter = EnumColumnAdapter(),
+          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
         ),
       socRecEnrollmentAuthenticationAdapter =
         SocRecEnrollmentAuthentication.Adapter(
@@ -240,12 +243,13 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
             PublicKeyColumnAdapter(),
           pakeCodeAdapter = ByteStringColumnAdapter
         ),
-      socRecUnendorsedTrustedContactEntityAdapter =
-        SocRecUnendorsedTrustedContactEntity.Adapter(
+      unendorsedTrustedContactEntityAdapter =
+        UnendorsedTrustedContactEntity.Adapter(
           trustedContactAliasAdapter = TrustedContactAliasColumnAdapter,
           enrollmentPakeKeyAdapter = PublicKeyColumnAdapter(),
           enrollmentKeyConfirmationAdapter = ByteStringColumnAdapter,
-          authenticationStateAdapter = EnumColumnAdapter()
+          authenticationStateAdapter = EnumColumnAdapter(),
+          rolesAdapter = StringSetAdapter(DelegatedColumnAdapter(::TrustedContactRole, TrustedContactRole::key))
         ),
       socRecKeysAdapter =
         SocRecKeys.Adapter(
@@ -271,8 +275,14 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
         ),
       partnershipTransactionEntityAdapter = PartnershipTransactionEntity.Adapter(
         partnerIdAdapter = DelegatedColumnAdapter(::PartnerId, PartnerId::value),
-        transactionIdAdapter = DelegatedColumnAdapter(::PartnershipTransactionId, PartnershipTransactionId::value),
-        fiatCurrencyAdapter = DelegatedColumnAdapter(::IsoCurrencyTextCode, IsoCurrencyTextCode::code),
+        transactionIdAdapter = DelegatedColumnAdapter(
+          ::PartnershipTransactionId,
+          PartnershipTransactionId::value
+        ),
+        fiatCurrencyAdapter = DelegatedColumnAdapter(
+          ::IsoCurrencyTextCode,
+          IsoCurrencyTextCode::code
+        ),
         typeAdapter = EnumColumnAdapter(),
         statusAdapter = EnumColumnAdapter(),
         createdAdapter = InstantColumnAdapter,
@@ -287,11 +297,7 @@ class BitkeyDatabaseProviderImpl(sqlDriverFactory: SqlDriverFactory) : BitkeyDat
 
   private val debugDatabase by lazy {
     BitkeyDebugDatabase(
-      driver = debugSqlDriver,
-      onboardingStepSkipConfigEntityAdapter =
-        OnboardingStepSkipConfigEntity.Adapter(
-          onboardingStepAdapter = EnumColumnAdapter()
-        )
+      driver = debugSqlDriver
     )
   }
 

@@ -2,10 +2,7 @@ package build.wallet.integration.statemachine.recovery.emergencyaccesskit
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.IMPORT_TEXT_KEY
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.LOADING_BACKUP
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.RESTORE_YOUR_WALLET
-import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.SELECT_IMPORT_METHOD
+import build.wallet.analytics.events.screen.id.EmergencyAccessKitTrackerScreenId.*
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.emergencyaccesskit.EmergencyAccessKitBackup
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload.EmergencyAccessKitPayloadV1
@@ -123,8 +120,12 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
 
         clickPrimaryButton()
       }
-      awaitUntilScreenWithBody<FormBodyModel>(RESTORE_YOUR_WALLET)
-        .clickPrimaryButton()
+      awaitUntilScreenWithBody<FormBodyModel>(
+        RESTORE_YOUR_WALLET,
+        expectedBodyContentMatch = { it.primaryButton?.isEnabled == true }
+      ) {
+        clickPrimaryButton()
+      }
 
       awaitUntilScreenWithBody<NfcBodyModel>()
       awaitUntilScreenWithBody<NfcBodyModel>()
@@ -134,11 +135,11 @@ class EmergencyAccessRecoveryFunctionalTests : FunSpec({
       }
 
       // Validate that this is the same wallet as originally created.
-      awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        .balanceModel.apply {
-          primaryAmount.shouldBe("0 sats")
-          secondaryAmount.shouldBe("")
+      awaitUntilScreenWithBody<MoneyHomeBodyModel>(
+        expectedBodyContentMatch = {
+          it.balanceModel.primaryAmount == "$0.00" && it.balanceModel.secondaryAmount == "0 sats"
         }
+      )
 
       newApp.getActiveFullAccount().keybox.activeSpendingKeyset.appKey
         .shouldBeEqual(spendingKeys.appKey)

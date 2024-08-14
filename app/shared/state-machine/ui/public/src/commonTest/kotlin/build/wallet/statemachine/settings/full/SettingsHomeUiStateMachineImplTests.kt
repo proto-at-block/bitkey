@@ -1,13 +1,12 @@
 package build.wallet.statemachine.settings.full
 
-import app.cash.turbine.plusAssign
 import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.FeatureFlagValue
-import build.wallet.feature.flags.InAppSecurityFeatureFlag
-import build.wallet.firmware.FirmwareDeviceInfoMock
+import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
+import build.wallet.fwup.FirmwareDataPendingUpdateMock
+import build.wallet.fwup.FirmwareDataServiceFake
+import build.wallet.fwup.FwupDataMock
 import build.wallet.platform.config.AppVariant
 import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.BodyStateMachineMock
@@ -19,11 +18,7 @@ import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardUiStateM
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.input.SheetModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareData
-import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.UpToDate
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.sync.PlaceholderElectrumServerDataMock
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.money.currency.CurrencyPreferenceProps
@@ -59,12 +54,11 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class SettingsHomeUiStateMachineImplTests : FunSpec({
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
+  val firmwareDataService = FirmwareDataServiceFake()
 
   val props =
     SettingsHomeUiProps(
       accountData = ActiveKeyboxLoadedDataMock,
-      electrumServerData = PlaceholderElectrumServerDataMock,
-      firmwareData = FirmwareDataUpToDateMock,
       homeBottomSheetModel = null,
       homeStatusBannerModel = null,
       onBack = { propsOnBackCalls.add(Unit) },
@@ -75,27 +69,44 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         ).toActions(FullAccountMock)
     )
 
-  val inAppSecurityFeatureFlag = InAppSecurityFeatureFlag(featureFlagDao = FeatureFlagDaoMock())
-
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =
     SettingsHomeUiStateMachineImpl(
       appVariant = appVariant,
-      mobilePaySettingsUiStateMachine = object : MobilePaySettingsUiStateMachine, ScreenStateMachineMock<MobilePaySettingsUiProps>("mobile-txn") {},
-      notificationPreferencesUiStateMachine = object : NotificationPreferencesUiStateMachine, ScreenStateMachineMock<NotificationPreferencesProps>("notifications-preferences") {},
-      recoveryChannelSettingsUiStateMachine = object : RecoveryChannelSettingsUiStateMachine, ScreenStateMachineMock<RecoveryChannelSettingsProps>("recovery-channel-settings") {},
-      currencyPreferenceUiStateMachine = object : CurrencyPreferenceUiStateMachine, ScreenStateMachineMock<CurrencyPreferenceProps>("currency-preference") {},
-      customElectrumServerSettingUiStateMachine = object : CustomElectrumServerSettingUiStateMachine, ScreenStateMachineMock<CustomElectrumServerProps>("custom-electrum-server") {},
-      deviceSettingsUiStateMachine = object : DeviceSettingsUiStateMachine, ScreenStateMachineMock<DeviceSettingsProps>("device-settings") {},
-      feedbackUiStateMachine = object : FeedbackUiStateMachine, ScreenStateMachineMock<FeedbackUiProps>("feedback") {},
-      helpCenterUiStateMachine = object : HelpCenterUiStateMachine, ScreenStateMachineMock<HelpCenterUiProps>("help-center") {},
-      trustedContactManagementUiStateMachine = object : TrustedContactManagementUiStateMachine, ScreenStateMachineMock<TrustedContactManagementProps>("trusted-contacts") {},
-      settingsListUiStateMachine = object : SettingsListUiStateMachine, BodyStateMachineMock<SettingsListUiProps>("settings-list") {},
-      cloudBackupHealthDashboardUiStateMachine = object : CloudBackupHealthDashboardUiStateMachine, ScreenStateMachineMock<CloudBackupHealthDashboardProps>("cloud-backup-health") {},
-      rotateAuthKeyUIStateMachine = object : RotateAuthKeyUIStateMachine, ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>("rotate-auth-key") {},
-      debugMenuStateMachine = object : DebugMenuStateMachine, ScreenStateMachineMock<DebugMenuProps>("debug-menu") {},
-      biometricSettingUiStateMachine = object : BiometricSettingUiStateMachine, ScreenStateMachineMock<BiometricSettingUiProps>("debug-menu") {},
-      inAppSecurityFeatureFlag = inAppSecurityFeatureFlag
+      mobilePaySettingsUiStateMachine = object : MobilePaySettingsUiStateMachine,
+        ScreenStateMachineMock<MobilePaySettingsUiProps>("mobile-txn") {},
+      notificationPreferencesUiStateMachine = object : NotificationPreferencesUiStateMachine,
+        ScreenStateMachineMock<NotificationPreferencesProps>("notifications-preferences") {},
+      recoveryChannelSettingsUiStateMachine = object : RecoveryChannelSettingsUiStateMachine,
+        ScreenStateMachineMock<RecoveryChannelSettingsProps>("recovery-channel-settings") {},
+      currencyPreferenceUiStateMachine = object : CurrencyPreferenceUiStateMachine,
+        ScreenStateMachineMock<CurrencyPreferenceProps>("currency-preference") {},
+      customElectrumServerSettingUiStateMachine = object :
+        CustomElectrumServerSettingUiStateMachine,
+        ScreenStateMachineMock<CustomElectrumServerProps>("custom-electrum-server") {},
+      deviceSettingsUiStateMachine = object : DeviceSettingsUiStateMachine,
+        ScreenStateMachineMock<DeviceSettingsProps>("device-settings") {},
+      feedbackUiStateMachine = object : FeedbackUiStateMachine,
+        ScreenStateMachineMock<FeedbackUiProps>("feedback") {},
+      helpCenterUiStateMachine = object : HelpCenterUiStateMachine,
+        ScreenStateMachineMock<HelpCenterUiProps>("help-center") {},
+      trustedContactManagementUiStateMachine = object : TrustedContactManagementUiStateMachine,
+        ScreenStateMachineMock<TrustedContactManagementProps>("trusted-contacts") {},
+      settingsListUiStateMachine = object : SettingsListUiStateMachine,
+        BodyStateMachineMock<SettingsListUiProps>("settings-list") {},
+      cloudBackupHealthDashboardUiStateMachine = object : CloudBackupHealthDashboardUiStateMachine,
+        ScreenStateMachineMock<CloudBackupHealthDashboardProps>("cloud-backup-health") {},
+      rotateAuthKeyUIStateMachine = object : RotateAuthKeyUIStateMachine,
+        ScreenStateMachineMock<RotateAuthKeyUIStateMachineProps>("rotate-auth-key") {},
+      debugMenuStateMachine = object : DebugMenuStateMachine,
+        ScreenStateMachineMock<DebugMenuProps>("debug-menu") {},
+      biometricSettingUiStateMachine = object : BiometricSettingUiStateMachine,
+        ScreenStateMachineMock<BiometricSettingUiProps>("debug-menu") {},
+      firmwareDataService = firmwareDataService
     )
+
+  beforeTest {
+    firmwareDataService.reset()
+  }
 
   test("onBack calls props onBack") {
     stateMachine().test(props) {
@@ -107,32 +118,6 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("settings list") {
-    stateMachine().test(props) {
-      awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows
-          .map { it::class }.toSet()
-          .shouldBe(
-            setOf(
-              SettingsListUiProps.SettingsListRow.BitkeyDevice::class,
-              SettingsListUiProps.SettingsListRow.CustomElectrumServer::class,
-              SettingsListUiProps.SettingsListRow.CurrencyPreference::class,
-              SettingsListUiProps.SettingsListRow.HelpCenter::class,
-              SettingsListUiProps.SettingsListRow.MobilePay::class,
-              SettingsListUiProps.SettingsListRow.NotificationPreferences::class,
-              SettingsListUiProps.SettingsListRow.RecoveryChannels::class,
-              SettingsListUiProps.SettingsListRow.ContactUs::class,
-              SettingsListUiProps.SettingsListRow.TrustedContacts::class,
-              SettingsListUiProps.SettingsListRow.CloudBackupHealth::class,
-              SettingsListUiProps.SettingsListRow.RotateAuthKey::class
-            )
-          )
-      }
-    }
-  }
-
-  test("settings list has biometrics with feature flag enabled") {
-    inAppSecurityFeatureFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
-
     stateMachine().test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
         supportedRows
@@ -172,7 +157,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   test("open and close notifications") {
     stateMachine().test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.NotificationPreferences }.onClick()
+        supportedRows.first { it is SettingsListUiProps.SettingsListRow.NotificationPreferences }
+          .onClick()
       }
 
       awaitScreenWithBodyModelMock<NotificationPreferencesProps> {
@@ -186,7 +172,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   test("open and close custom electrum server") {
     stateMachine().test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.CustomElectrumServer }.onClick()
+        supportedRows.first { it is SettingsListUiProps.SettingsListRow.CustomElectrumServer }
+          .onClick()
       }
       awaitScreenWithBodyModelMock<CustomElectrumServerProps> {
         onBack()
@@ -198,7 +185,8 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   test("open and close currency preference") {
     stateMachine().test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.CurrencyPreference }.onClick()
+        supportedRows.first { it is SettingsListUiProps.SettingsListRow.CurrencyPreference }
+          .onClick()
       }
       awaitScreenWithBodyModelMock<CurrencyPreferenceProps> {
         onBack.shouldNotBeNull().invoke()
@@ -256,21 +244,23 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
   }
 
   test("all settings screen checks for new firmware") {
-    val checkForNewFirmwareCalls = turbines.create<Unit>("check for new fw calls")
-    val propsWithFwCheck =
-      props.copy(
-        firmwareData =
-          FirmwareData(
-            firmwareDeviceInfo = FirmwareDeviceInfoMock,
-            firmwareUpdateState = UpToDate,
-            checkForNewFirmware = { checkForNewFirmwareCalls += Unit }
-          )
-      )
+    val firstUpdate = FirmwareDataPendingUpdateMock
+    val secondUpdate = firstUpdate.copy(
+      firmwareUpdateState =
+        PendingUpdate(
+          fwupData = FwupDataMock.copy(version = "second update")
+        )
+    )
 
-    stateMachine().test(propsWithFwCheck) {
+    // Prepare an update
+    firmwareDataService.pendingUpdate = firstUpdate
+
+    stateMachine().test(props) {
       awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        checkForNewFirmwareCalls.awaitItem()
+        firmwareDataService.firmwareData.value.shouldBe(firstUpdate)
 
+        // Prepare a new update
+        firmwareDataService.pendingUpdate = secondUpdate
         // Navigate somewhere else and back
         supportedRows.first { it is SettingsListUiProps.SettingsListRow.MobilePay }.onClick()
       }
@@ -279,7 +269,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
         onBack()
       }
       awaitScreenWithBodyModelMock<SettingsListUiProps>()
-      checkForNewFirmwareCalls.awaitItem()
+      firmwareDataService.firmwareData.value.shouldBe(secondUpdate)
     }
   }
 

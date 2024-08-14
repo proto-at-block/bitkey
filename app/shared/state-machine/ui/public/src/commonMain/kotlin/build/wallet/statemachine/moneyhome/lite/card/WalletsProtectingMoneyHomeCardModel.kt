@@ -1,6 +1,6 @@
 package build.wallet.statemachine.moneyhome.lite.card
 
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.recovery.socrec.list.listItemModel

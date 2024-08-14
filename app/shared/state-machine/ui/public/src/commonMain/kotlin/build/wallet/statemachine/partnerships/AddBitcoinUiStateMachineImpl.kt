@@ -1,15 +1,9 @@
 package build.wallet.statemachine.partnerships
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.money.FiatMoney
 import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.partnerships.AddBitcoinUiState.PurchasingUiState
-import build.wallet.statemachine.partnerships.AddBitcoinUiState.ShowingBuyOrTransferUiState
-import build.wallet.statemachine.partnerships.AddBitcoinUiState.TransferringUiState
+import build.wallet.statemachine.partnerships.AddBitcoinUiState.*
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachine
 import build.wallet.statemachine.partnerships.transfer.PartnershipsTransferUiProps
@@ -45,8 +39,8 @@ class AddBitcoinUiStateMachineImpl(
         partnershipsTransferUiStateMachine.model(
           props =
             PartnershipsTransferUiProps(
+              account = props.account,
               keybox = props.keybox,
-              generateAddress = props.generateAddress,
               onBack = { uiState = ShowingBuyOrTransferUiState },
               onAnotherWalletOrExchange = props.onAnotherWalletOrExchange,
               onPartnerRedirected = props.onPartnerRedirected,
@@ -57,8 +51,8 @@ class AddBitcoinUiStateMachineImpl(
       is PurchasingUiState ->
         partnershipsPurchaseUiStateMachine.model(
           props = PartnershipsPurchaseUiProps(
+            account = props.account,
             keybox = props.keybox,
-            generateAddress = props.generateAddress,
             selectedAmount = currentState.selectedAmount,
             onPartnerRedirected = props.onPartnerRedirected,
             onBack = showBuyOrTransferState,

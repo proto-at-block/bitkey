@@ -13,8 +13,7 @@ import build.wallet.analytics.v1.Event
 import build.wallet.analytics.v1.FingerprintScanStats
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.f8e.F8eEnvironment.Production
-import build.wallet.keybox.config.TemplateFullAccountConfigDao
+import build.wallet.debug.DebugOptionsService
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
@@ -39,7 +38,7 @@ class EventTrackerImpl(
   private val appDeviceIdDao: AppDeviceIdDao,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val accountRepository: AccountRepository,
-  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
+  private val debugOptionsService: DebugOptionsService,
   private val countryCodeProvider: LocaleCountryCodeProvider,
   private val eventProcessor: Processor<QueueAnalyticsEvent>,
   private val hardwareInfoProvider: HardwareInfoProvider,
@@ -148,13 +147,9 @@ class EventTrackerImpl(
         else -> ""
       }
 
-      val f8eEnvironment =
-        account?.config?.f8eEnvironment ?: run {
-          // fallback on template config
-          templateFullAccountConfigDao.config().first().get()?.f8eEnvironment
-            // fallback on Production
-            ?: Production
-        }
+      val f8eEnvironment = account?.config?.f8eEnvironment
+        ?: // fallback on default value
+        debugOptionsService.options().first().f8eEnvironment
 
       val platformInfo = platformInfoProvider.getPlatformInfo()
 

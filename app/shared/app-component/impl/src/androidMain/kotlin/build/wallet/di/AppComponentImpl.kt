@@ -19,6 +19,7 @@ import build.wallet.firmware.Teltra
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStoreInMemoryImpl
 import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
+import build.wallet.phonenumber.PhoneNumberLibBindingsImpl
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.config.AppId
 import build.wallet.platform.config.AppVariant
@@ -88,6 +89,7 @@ fun makeAppComponent(
     messageSigner = messageSigner,
     signatureVerifier = signatureVerifier,
     platformContext = platformContext,
+    phoneNumberLibBindings = PhoneNumberLibBindingsImpl(),
     secp256k1KeyGenerator = publicKeyGenerator,
     teltra = teltra,
     hardwareAttestation = hardwareAttestation,

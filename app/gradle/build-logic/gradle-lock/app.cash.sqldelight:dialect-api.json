@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:dialect-api",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "dialect-api-2.0.1.jar": "a99b753af8ccc83cffeb4e0b725c76df238d41cfe2c8ae4e7a21976a0f3d3205"
+                        "dialect-api-2.0.2.jar": "3bc8ca9d2c93da96f9a68bf7861564e7751ca4bd7b9c9055f1384b339db32fc4"
                     }
                 }
             ],

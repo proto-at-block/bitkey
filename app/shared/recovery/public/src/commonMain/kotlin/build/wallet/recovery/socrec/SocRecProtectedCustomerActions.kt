@@ -2,9 +2,9 @@ package build.wallet.recovery.socrec
 
 import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.RecoveryContact
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.TrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 
 /**
@@ -34,7 +34,7 @@ class SocRecProtectedCustomerActions internal constructor(
     hardwareProofOfPossession: HwFactorProofOfPossession,
   ) = repository.refreshInvitation(
     account = account,
-    relationshipId = invitation.recoveryRelationshipId,
+    relationshipId = invitation.relationshipId,
     hardwareProofOfPossession = hardwareProofOfPossession
   )
 
@@ -42,12 +42,12 @@ class SocRecProtectedCustomerActions internal constructor(
    * @see SocRecRelationshipsRepository.removeRelationship
    */
   suspend fun removeTrustedContact(
-    contact: RecoveryContact,
+    contact: TrustedContact,
     hardwareProofOfPossession: HwFactorProofOfPossession?,
   ) = repository.removeRelationship(
     account = account,
     hardwareProofOfPossession = hardwareProofOfPossession,
     authTokenScope = AuthTokenScope.Global,
-    relationshipId = contact.recoveryRelationshipId
+    relationshipId = contact.relationshipId
   )
 }

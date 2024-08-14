@@ -1,7 +1,7 @@
 set -euo pipefail
 
 release_version=$(buildkite-agent meta-data get "release-version")
-release_tag="app/customer/$release_version"
+release_tag="app/$release_version"
 
 echo "--- Checking out release tag"
 git checkout $release_tag

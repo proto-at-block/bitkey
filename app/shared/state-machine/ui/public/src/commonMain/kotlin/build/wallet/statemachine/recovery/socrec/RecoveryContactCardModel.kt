@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.socrec
 
-import build.wallet.bitkey.socrec.RecoveryContact
+import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -9,7 +9,7 @@ import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Compact
 
 fun RecoveryContactCardModel(
-  contact: RecoveryContact,
+  contact: TrustedContact,
   buttonText: String,
   onClick: () -> Unit,
   buttonTreatment: ButtonModel.Treatment = ButtonModel.Treatment.Primary,

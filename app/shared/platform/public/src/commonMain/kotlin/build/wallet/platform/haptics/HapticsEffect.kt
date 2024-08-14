@@ -7,6 +7,14 @@ enum class HapticsEffect {
   /** A longer, duller vibration. Used for error states. */
   DullOneShot,
 
+  Selection,
+
+  /** A short, soft vibration. Used for user click feedback. */
+  LightClick,
+
   /** A short, intense vibration. Used for user click feedback. */
   MediumClick,
+
+  /** A short, very-intense vibration. Used for user click feedback. */
+  HeavyClick,
 }

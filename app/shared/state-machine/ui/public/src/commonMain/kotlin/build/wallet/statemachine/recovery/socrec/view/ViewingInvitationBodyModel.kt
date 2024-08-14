@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.view
 
-import build.wallet.bitkey.socrec.Invitation
+import build.wallet.bitkey.relationships.Invitation
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel

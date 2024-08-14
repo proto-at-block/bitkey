@@ -9,6 +9,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Instant
+import kotlin.time.Duration
 
 class ExchangeRateF8eClientMock : ExchangeRateF8eClient {
   val exchangeRates =
@@ -18,6 +19,10 @@ class ExchangeRateF8eClientMock : ExchangeRateF8eClient {
   val historicalBtcToUsdExchangeRate =
     MutableStateFlow<Result<ExchangeRate, NetworkingError>>(
       Ok(ExchangeRateFake)
+    )
+  val historicalBtcToUsdExchangeRateChartData =
+    MutableStateFlow<Result<ExchangeRateChartData, NetworkingError>>(
+      Ok(ExchangeRateChartDataFake)
     )
 
   override suspend fun getExchangeRates(
@@ -33,5 +38,15 @@ class ExchangeRateF8eClientMock : ExchangeRateF8eClient {
     timestamps: List<Instant>,
   ): Result<List<ExchangeRate>, NetworkingError> {
     return historicalBtcToUsdExchangeRate.value.map { listOf(it) }
+  }
+
+  override suspend fun getHistoricalBtcExchangeRateChartData(
+    f8eEnvironment: F8eEnvironment,
+    accountId: AccountId,
+    currencyCode: String,
+    days: Duration,
+    maxPricePoints: Int,
+  ): Result<ExchangeRateChartData, NetworkingError> {
+    return historicalBtcToUsdExchangeRateChartData.value
   }
 }

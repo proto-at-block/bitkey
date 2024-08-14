@@ -7,7 +7,6 @@ import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus.ActiveAccount
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_COMPLETED
 import build.wallet.integration.statemachine.recovery.RecoveryTestingTrackerScreenId.RECOVERY_NOT_STARTED
 import build.wallet.recovery.Recovery.Loading
@@ -19,9 +18,7 @@ import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountData
-import build.wallet.statemachine.data.keybox.AccountDataProps
 import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
-import build.wallet.statemachine.data.keybox.config.TemplateFullAccountConfigData.LoadedTemplateFullAccountConfigData
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiProps
 import build.wallet.statemachine.recovery.lostapp.LostAppRecoveryUiStateMachineImpl
 import com.github.michaelbull.result.Ok
@@ -51,9 +48,9 @@ class RecoveryTestingStateMachine(
   val usm: LostAppRecoveryUiStateMachineImpl,
   val recoverySyncer: RecoverySyncer,
   val accountRepository: AccountRepository,
-) : StateMachine<FullAccountConfig, ScreenModel> {
+) : StateMachine<Unit, ScreenModel> {
   @Composable
-  override fun model(fullAccountConfig: FullAccountConfig): ScreenModel {
+  override fun model(props: Unit): ScreenModel {
     val accountStatus =
       remember { accountRepository.accountStatus() }.collectAsState(null)
         .value?.getOrThrow()
@@ -64,12 +61,7 @@ class RecoveryTestingStateMachine(
     if (accountStatus is ActiveAccount && accountStatus.account is FullAccount && activeRecovery == NoActiveRecovery) {
       return preStartOrPostRecoveryCompletionScreen(RECOVERY_COMPLETED)
     }
-    val data =
-      dsm.model(
-        AccountDataProps(
-          templateFullAccountConfigData = LoadedTemplateFullAccountConfigData(fullAccountConfig) {}
-        )
-      )
+    val data = dsm.model(Unit)
     return when (data) {
       is GettingStartedData -> {
         data.startRecovery()
@@ -87,7 +79,7 @@ class RecoveryTestingStateMachine(
         usm.model(
           LostAppRecoveryUiProps(
             recoveryData = data.lostAppRecoveryData,
-            fullAccountConfig = data.templateFullAccountConfig
+            debugOptions = data.debugOptions
           )
         )
 

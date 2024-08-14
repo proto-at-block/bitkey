@@ -19,6 +19,7 @@ dependencies {
   api(projects.android.uiCorePublic)
   api(projects.shared.stateMachineUiPublic)
   api(projects.shared.uiCorePublic)
+  api(projects.shared.priceChartPublic)
 
   implementation(projects.shared.loggingPublic)
   implementation(libs.android.camera.camera2)

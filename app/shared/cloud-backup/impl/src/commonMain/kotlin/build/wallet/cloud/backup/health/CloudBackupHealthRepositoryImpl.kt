@@ -1,5 +1,6 @@
 package build.wallet.cloud.backup.health
 
+import build.wallet.analytics.events.AppSessionManager
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.CloudBackupRepository
@@ -7,7 +8,6 @@ import build.wallet.cloud.backup.local.CloudBackupDao
 import build.wallet.cloud.store.CloudStoreAccount
 import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.cloudServiceProvider
-import build.wallet.coroutines.callCoroutineEvery
 import build.wallet.emergencyaccesskit.EmergencyAccessKitRepository
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.log
@@ -16,17 +16,15 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.toErrorIfNull
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
-import kotlin.time.Duration.Companion.hours
 
 class CloudBackupHealthRepositoryImpl(
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
@@ -34,6 +32,7 @@ class CloudBackupHealthRepositoryImpl(
   private val cloudBackupDao: CloudBackupDao,
   private val emergencyAccessKitRepository: EmergencyAccessKitRepository,
   private val fullAccountCloudBackupRepairer: FullAccountCloudBackupRepairer,
+  private val appSessionManager: AppSessionManager,
 ) : CloudBackupHealthRepository {
   private val mobileKeyBackupStatus = MutableStateFlow<MobileKeyBackupStatus?>(null)
 
@@ -65,20 +64,25 @@ class CloudBackupHealthRepositoryImpl(
     scope: CoroutineScope,
     account: FullAccount,
   ) {
-    scope.launch {
-      // Perform sync whenever a sync is requested
-      syncRequests
-        // Only perform sync for the requested account as a safety measure.
-        .filter { it == account }
-        .collect {
-          performSync(account)
-        }
-    }
+    withContext(Dispatchers.IO) {
+      scope.launch {
+        // Perform sync whenever a sync is requested
+        syncRequests
+          // Only perform sync for the requested account as a safety measure.
+          .filter { it == account }
+          .collect {
+            performSync(account)
+          }
+      }
 
-    scope.launch {
-      callCoroutineEvery(frequency = 24.hours) {
-        // send sync signal to request a sync
-        syncRequests.emit(account)
+      scope.launch {
+        appSessionManager.appSessionState
+          .collect {
+            if (appSessionManager.isAppForegrounded()) {
+              // send sync signal to request a sync
+              syncRequests.emit(account)
+            }
+          }
       }
     }
   }

@@ -5,10 +5,11 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_FAILED
 import build.wallet.auth.AppAuthKeyMessageSignerImpl
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.bitkey.socrec.SocialChallengeResponse
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.FullAccountKeysMock
@@ -70,10 +71,11 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   val delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow()
   val endorsedTrustedContact =
     EndorsedTrustedContact(
-      recoveryRelationshipId = "someRelationshipId",
+      relationshipId = "someRelationshipId",
       trustedContactAlias = TrustedContactAlias("someContact"),
       authenticationState = VERIFIED,
-      keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey.publicKey)
+      keyCertificate = TrustedContactKeyCertificateFake.copy(delegatedDecryptionKey.publicKey),
+      roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
   val pkMat = FullAccountKeysMock
   val (privateKeyEncryptionKey, sealedPrivateKeyMaterial) =
@@ -85,7 +87,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     appTester.app.socialRecoveryF8eClientFake.reset()
     appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.add(endorsedTrustedContact)
     appTester.app.socRecPendingChallengeDao.clear()
-    relationshipIdToPkekMap[endorsedTrustedContact.recoveryRelationshipId] =
+    relationshipIdToPkekMap[endorsedTrustedContact.relationshipId] =
       socRecCrypto.encryptPrivateKeyEncryptionKey(
         endorsedTrustedContact.identityKey,
         privateKeyEncryptionKey
@@ -332,17 +334,17 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
 
     suspend fun simulateRespondToChallenge() {
       val recoveryAuth = appTester.app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
-        recoveryRelationshipId = endorsedTrustedContact.recoveryRelationshipId
+        recoveryRelationshipId = endorsedTrustedContact.relationshipId
       ).getOrThrow().shouldNotBeNull()
       val decryptOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
         password = recoveryAuth.pakeCode,
         protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey = delegatedDecryptionKey,
-        sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[endorsedTrustedContact.recoveryRelationshipId].shouldNotBeNull()
+        sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[endorsedTrustedContact.relationshipId].shouldNotBeNull()
       ).getOrThrow()
       appTester.app.socialRecoveryF8eClientFake.challengeResponses.add(
         SocialChallengeResponse(
-          recoveryRelationshipId = endorsedTrustedContact.recoveryRelationshipId,
+          recoveryRelationshipId = endorsedTrustedContact.relationshipId,
           trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey,
           recoveryPakeConfirmation = decryptOutput.keyConfirmation,
           resealedDek = decryptOutput.sealedPrivateKeyEncryptionKey

@@ -3,7 +3,7 @@ package build.wallet.cloud.backup
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.AppRecoveryAuthKeypairRetrievalError
 import build.wallet.cloud.backup.LiteAccountCloudBackupCreator.LiteAccountCloudBackupCreatorError.SocRecKeysRetrievalError
 import build.wallet.recovery.socrec.SocRecKeysRepository

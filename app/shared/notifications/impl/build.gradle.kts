@@ -21,8 +21,10 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.shared.accountFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.f8eClientFake)
+        implementation(projects.shared.emailFake)
         implementation(projects.shared.keyboxFake)
         implementation(projects.shared.notificationsFake)
         implementation(projects.shared.phoneNumberFake)

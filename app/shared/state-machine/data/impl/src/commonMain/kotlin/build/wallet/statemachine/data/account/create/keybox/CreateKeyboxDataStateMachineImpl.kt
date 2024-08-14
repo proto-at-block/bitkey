@@ -1,23 +1,17 @@
 package build.wallet.statemachine.data.account.create.keybox
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.APP_KEYS_CREATION_FAILURE
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE_APP_KEY_ALREADY_IN_USE
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_FAILURE_HW_KEY_ALREADY_IN_USE
-import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.NEW_ACCOUNT_CREATION_HW_FAILURE
+import androidx.compose.runtime.*
+import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId.*
 import build.wallet.auth.AccountCreationError
 import build.wallet.auth.FullAccountCreator
 import build.wallet.auth.LiteToFullAccountUpgrader
+import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.app.AppKeyBundle
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeys
 import build.wallet.bitkey.keybox.KeyCrossDraft.WithAppKeysAndHardwareKeys
 import build.wallet.cloud.backup.csek.SealedCsek
+import build.wallet.debug.DebugOptionsService
 import build.wallet.f8e.error.F8eError
 import build.wallet.f8e.error.code.CreateAccountClientErrorCode
 import build.wallet.keybox.keys.AppKeysGenerator
@@ -28,27 +22,12 @@ import build.wallet.onboarding.OnboardingKeyboxHardwareKeysDao
 import build.wallet.onboarding.OnboardingKeyboxSealedCsekDao
 import build.wallet.platform.random.UuidGenerator
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreateKeyboxErrorData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.CreatingAppKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.HasAppAndHardwareKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.HasAppKeysData
-import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.PairingWithServerData
+import build.wallet.statemachine.data.account.CreateFullAccountData.CreateKeyboxData.*
 import build.wallet.statemachine.data.account.create.CreateFullAccountContext.LiteToFullAccountUpgrade
 import build.wallet.statemachine.data.account.create.CreateFullAccountContext.NewFullAccount
-import build.wallet.statemachine.data.account.create.keybox.State.CreateAppKeysErrorState
-import build.wallet.statemachine.data.account.create.keybox.State.CreatingAppKeysState
-import build.wallet.statemachine.data.account.create.keybox.State.ErrorStoringSealedCsek
-import build.wallet.statemachine.data.account.create.keybox.State.HasAppAndHardwareKeysState
-import build.wallet.statemachine.data.account.create.keybox.State.HasAppKeysState
-import build.wallet.statemachine.data.account.create.keybox.State.PairWithServerErrorAppKeyAlreadyInUseState
-import build.wallet.statemachine.data.account.create.keybox.State.PairWithServerErrorHardwareKeyAlreadyInUseState
-import build.wallet.statemachine.data.account.create.keybox.State.PairWithServerErrorState
-import build.wallet.statemachine.data.account.create.keybox.State.PairingWithServerState
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
-import com.github.michaelbull.result.andThen
-import com.github.michaelbull.result.onFailure
-import com.github.michaelbull.result.onSuccess
+import build.wallet.statemachine.data.account.create.keybox.State.*
+import com.github.michaelbull.result.*
+import kotlinx.coroutines.flow.first
 
 class CreateKeyboxDataStateMachineImpl(
   private val fullAccountCreator: FullAccountCreator,
@@ -58,6 +37,7 @@ class CreateKeyboxDataStateMachineImpl(
   private val uuidGenerator: UuidGenerator,
   private val onboardingAppKeyKeystore: OnboardingAppKeyKeystore,
   private val liteToFullAccountUpgrader: LiteToFullAccountUpgrader,
+  private val debugOptionsService: DebugOptionsService,
 ) : CreateKeyboxDataStateMachine {
   @Composable
   override fun model(props: CreateKeyboxDataProps): CreateFullAccountData.CreateKeyboxData {
@@ -67,36 +47,35 @@ class CreateKeyboxDataStateMachineImpl(
       when (s) {
         is CreatingAppKeysState -> {
           LaunchedEffect("generate-app-keys") {
-            generateAppKeys(props)
+            // Reuse keybox configuration used for ongoing onboarding,
+            // otherwise fall back on debug options
+            val accountConfig = props.onboardingKeybox?.config
+              ?: debugOptionsService.options().first().toFullAccountConfig()
+
+            generateAppKeys(accountConfig.bitcoinNetworkType)
               .onSuccess { appKeyBundle ->
                 // once we successfully generate app keys, persist them in the case onboarding is
                 // interrupted so we can resume account creation with the same keys
                 onboardingAppKeyKeystore.persistAppKeys(
                   spendingKey = appKeyBundle.spendingKey,
                   globalAuthKey = appKeyBundle.authKey,
-                  recoveryAuthKey =
-                    requireNotNull(appKeyBundle.recoveryAuthKey) {
-                      "AppKeyBundle is missing PublicKey<AppRecoveryAuthKey>."
-                    },
-                  bitcoinNetworkType = props.templateFullAccountConfig.bitcoinNetworkType
+                  recoveryAuthKey = requireNotNull(appKeyBundle.recoveryAuthKey) {
+                    "AppKeyBundle is missing PublicKey<AppRecoveryAuthKey>."
+                  },
+                  bitcoinNetworkType = accountConfig.bitcoinNetworkType
                 )
-                state =
-                  HasAppKeysState(
-                    keyCrossDraft =
-                      WithAppKeys(
-                        appKeyBundle = appKeyBundle,
-                        config = props.templateFullAccountConfig
-                      )
+                state = HasAppKeysState(
+                  keyCrossDraft = WithAppKeys(
+                    appKeyBundle = appKeyBundle,
+                    config = accountConfig
                   )
+                )
               }
               .onFailure {
                 state = CreateAppKeysErrorState
               }
           }
-          CreatingAppKeysData(
-            rollback = props.rollback,
-            fullAccountConfig = props.templateFullAccountConfig
-          )
+          CreatingAppKeysData(rollback = props.rollback)
         }
 
         is CreateAppKeysErrorState ->
@@ -111,19 +90,17 @@ class CreateKeyboxDataStateMachineImpl(
           HasAppKeysData(
             appKeys = s.keyCrossDraft,
             rollback = props.rollback,
-            fullAccountConfig = props.templateFullAccountConfig,
+            fullAccountConfig = s.keyCrossDraft.config,
             onPairHardwareComplete = { newHardwareActivation ->
-              state =
-                HasAppAndHardwareKeysState(
-                  keyCrossDraft =
-                    WithAppKeysAndHardwareKeys(
-                      appKeyBundle = s.keyCrossDraft.appKeyBundle,
-                      hardwareKeyBundle = newHardwareActivation.keyBundle,
-                      config = s.keyCrossDraft.config,
-                      appGlobalAuthKeyHwSignature = newHardwareActivation.appGlobalAuthKeyHwSignature
-                    ),
-                  sealedCsek = newHardwareActivation.sealedCsek
-                )
+              state = HasAppAndHardwareKeysState(
+                keyCrossDraft = WithAppKeysAndHardwareKeys(
+                  appKeyBundle = s.keyCrossDraft.appKeyBundle,
+                  hardwareKeyBundle = newHardwareActivation.keyBundle,
+                  config = s.keyCrossDraft.config,
+                  appGlobalAuthKeyHwSignature = newHardwareActivation.appGlobalAuthKeyHwSignature
+                ),
+                sealedCsek = newHardwareActivation.sealedCsek
+              )
             }
           )
 
@@ -198,7 +175,7 @@ class CreateKeyboxDataStateMachineImpl(
                     // the key and generate new keys before showing the customer error messaging
                     // asking them to retry
                     onboardingAppKeyKeystore.clear()
-                    generateAppKeys(props)
+                    generateAppKeys(s.keyCrossDraft.config.bitcoinNetworkType)
                       .onSuccess { newAppKeyBundle ->
                         state =
                           PairWithServerErrorAppKeyAlreadyInUseState(
@@ -248,7 +225,7 @@ class CreateKeyboxDataStateMachineImpl(
                 state = PairingWithServerState(keyCrossDraft = s.keyCrossDraft)
               },
             secondaryButton = CreateKeyboxErrorData.Button("Back", props.rollback),
-            eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE_HW_KEY_ALREADY_IN_USE
+            eventTrackerScreenId = NEW_ACCOUNT_CREATION_FAILURE
           )
 
         is ErrorStoringSealedCsek -> {
@@ -270,7 +247,7 @@ class CreateKeyboxDataStateMachineImpl(
   }
 
   private suspend fun generateAppKeys(
-    props: CreateKeyboxDataProps,
+    networkType: BitcoinNetworkType,
   ): Result<AppKeyBundle, Throwable> {
     // if we have previously persisted app keys we restore those and return them (to keep account
     // creation idempotent). Otherwise we create a new app key bundle for account creation
@@ -278,12 +255,12 @@ class CreateKeyboxDataStateMachineImpl(
       val appKeys =
         onboardingAppKeyKeystore.getAppKeyBundle(
           localId = uuidGenerator.random(),
-          network = props.templateFullAccountConfig.bitcoinNetworkType
+          network = networkType
         )
     ) {
       null -> {
         log { "Generating new app key bundle" }
-        appKeysGenerator.generateKeyBundle(props.templateFullAccountConfig.bitcoinNetworkType)
+        appKeysGenerator.generateKeyBundle(networkType)
       }
       else -> {
         log { "Using existing app key bundle " }
@@ -299,25 +276,23 @@ class CreateKeyboxDataStateMachineImpl(
     return when (props.context) {
       is NewFullAccount ->
         fullAccountCreator.createAccount(
-          keyCrossDraft =
-            WithAppKeysAndHardwareKeys(
-              appKeyBundle = state.keyCrossDraft.appKeyBundle,
-              hardwareKeyBundle = state.keyCrossDraft.hardwareKeyBundle,
-              config = props.templateFullAccountConfig,
-              appGlobalAuthKeyHwSignature = state.keyCrossDraft.appGlobalAuthKeyHwSignature
-            )
+          keyCrossDraft = WithAppKeysAndHardwareKeys(
+            appKeyBundle = state.keyCrossDraft.appKeyBundle,
+            hardwareKeyBundle = state.keyCrossDraft.hardwareKeyBundle,
+            config = state.keyCrossDraft.config,
+            appGlobalAuthKeyHwSignature = state.keyCrossDraft.appGlobalAuthKeyHwSignature
+          )
         )
 
       is LiteToFullAccountUpgrade ->
         liteToFullAccountUpgrader.upgradeAccount(
           liteAccount = props.context.liteAccount,
-          keyCrossDraft =
-            WithAppKeysAndHardwareKeys(
-              appKeyBundle = state.keyCrossDraft.appKeyBundle,
-              hardwareKeyBundle = state.keyCrossDraft.hardwareKeyBundle,
-              config = props.templateFullAccountConfig,
-              appGlobalAuthKeyHwSignature = state.keyCrossDraft.appGlobalAuthKeyHwSignature
-            )
+          keyCrossDraft = WithAppKeysAndHardwareKeys(
+            appKeyBundle = state.keyCrossDraft.appKeyBundle,
+            hardwareKeyBundle = state.keyCrossDraft.hardwareKeyBundle,
+            config = state.keyCrossDraft.config,
+            appGlobalAuthKeyHwSignature = state.keyCrossDraft.appGlobalAuthKeyHwSignature
+          )
         )
     }
   }

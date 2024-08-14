@@ -12,6 +12,7 @@ kotlin {
       dependencies {
         api(projects.shared.f8eClientPublic)
         api(projects.shared.queueProcessorPublic)
+        api(projects.shared.fwupPublic)
 
         implementation(projects.shared.loggingPublic)
       }

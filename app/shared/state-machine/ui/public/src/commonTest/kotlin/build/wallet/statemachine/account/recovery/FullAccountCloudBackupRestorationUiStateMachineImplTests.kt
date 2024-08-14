@@ -7,14 +7,12 @@ import build.wallet.auth.AccessToken
 import build.wallet.auth.AccountAuthTokens
 import build.wallet.auth.AccountAuthenticatorMock
 import build.wallet.auth.AppAuthKeyMessageSignerMock
-import build.wallet.auth.AuthKeyRotationManagerMock
 import build.wallet.auth.AuthTokenDaoMock
 import build.wallet.auth.AuthTokenScope
+import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.auth.RefreshToken
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
-import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitcoin.wallet.SpendingWalletMock
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.cloud.backup.AccountRestorationMock
 import build.wallet.cloud.backup.CloudBackupV2WithFullAccountMock
@@ -25,7 +23,7 @@ import build.wallet.cloud.backup.csek.CsekFake
 import build.wallet.cloud.backup.csek.SealedCsekFake
 import build.wallet.cloud.backup.local.CloudBackupDaoFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.F8eEnvironment.Development
+import build.wallet.debug.DebugOptionsFake
 import build.wallet.keybox.KeyboxDaoMock
 import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
 import build.wallet.notifications.DeviceTokenManagerMock
@@ -97,7 +95,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
   val socRecPendingChallengeDao = SocRecStartedChallengeDaoFake()
 
-  val authKeyRotationManager = AuthKeyRotationManagerMock(turbines::create)
+  val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
 
   val stateMachineActiveDeviceFlagOn =
     FullAccountCloudBackupRestorationUiStateMachineImpl(
@@ -123,22 +121,14 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       socRecChallengeRepository = socRecChallengeRepository,
       postSocRecTaskRepository = postSocRecTaskRepository,
       socRecStartedChallengeDao = socRecPendingChallengeDao,
-      authKeyRotationManager = authKeyRotationManager
+      fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService
     )
 
-  val props =
-    FullAccountCloudBackupRestorationUiProps(
-      fullAccountConfig =
-        FullAccountConfig(
-          bitcoinNetworkType = SIGNET,
-          isHardwareFake = false,
-          f8eEnvironment = Development,
-          isUsingSocRecFakes = false,
-          isTestAccount = false
-        ),
-      backup = CloudBackupV2WithFullAccountMock,
-      onExit = { onExitCalls.add(Unit) }
-    )
+  val props = FullAccountCloudBackupRestorationUiProps(
+    debugOptions = DebugOptionsFake,
+    backup = CloudBackupV2WithFullAccountMock,
+    onExit = { onExitCalls.add(Unit) }
+  )
 
   beforeTest {
     appAuthKeyMessageSigner.reset()
@@ -209,7 +199,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       recoverySyncer.clearCalls.awaitItem()
       socRecRelationshipsRepository.syncCalls.awaitItem()
 
-      authKeyRotationManager.recommendKeyRotationCalls.awaitItem()
+      fullAccountAuthKeyRotationService.recommendKeyRotationCalls.awaitItem()
       keyboxDao.activeKeybox.value
         .shouldBeOk()
         .shouldNotBeNull()

@@ -1,7 +1,7 @@
 package build.wallet.statemachine.recovery.socrec.help
 
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 

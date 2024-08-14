@@ -63,7 +63,8 @@ impl Service {
                         SocialChallengeResponseReceivedPayload {
                             trusted_contact_alias: endorsed_relationship
                                 .common_fields
-                                .trusted_contact_alias
+                                .trusted_contact_info
+                                .alias
                                 .clone(),
                         },
                     ))

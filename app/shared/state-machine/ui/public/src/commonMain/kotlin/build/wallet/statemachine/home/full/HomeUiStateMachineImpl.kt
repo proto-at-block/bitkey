@@ -1,12 +1,6 @@
 package build.wallet.statemachine.home.full
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
 import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
@@ -25,12 +19,7 @@ import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
 import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.router.Route
 import build.wallet.router.Router
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.Retreat
-import build.wallet.statemachine.core.RetreatStyle
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.home.full.HomeScreen.MoneyHome
 import build.wallet.statemachine.home.full.HomeScreen.Settings
 import build.wallet.statemachine.home.full.PresentedScreen.AppFunctionalityStatus
@@ -295,7 +284,6 @@ class HomeUiStateMachineImpl(
     props =
       MoneyHomeUiProps(
         accountData = props.accountData,
-        firmwareData = props.firmwareData,
         socRecRelationships = socRecRelationships,
         socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,
@@ -349,8 +337,6 @@ class HomeUiStateMachineImpl(
       SettingsHomeUiProps(
         onBack = onBack,
         accountData = props.accountData,
-        electrumServerData = props.electrumServerData,
-        firmwareData = props.firmwareData,
         socRecRelationships = socRecRelationships,
         socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,

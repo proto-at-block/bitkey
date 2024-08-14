@@ -4,7 +4,7 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
-import build.wallet.feature.flags.InAppSecurityFeatureFlag
+import build.wallet.feature.flags.BitcoinPriceChartFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.HideBalancePreference
 import build.wallet.money.FiatMoney
@@ -15,6 +15,7 @@ import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
+import build.wallet.pricechart.BitcoinPriceCardPreference
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.money.currency.CurrencyPreferenceUiState.ShowingCurrencyFiatSelectionUiState
@@ -31,8 +32,9 @@ class CurrencyPreferenceUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val fiatCurrencyRepository: FiatCurrencyRepository,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
-  private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
   private val hideBalancePreference: HideBalancePreference,
+  private val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag,
+  private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,
 ) : CurrencyPreferenceUiStateMachine {
   @Composable
   override fun model(props: CurrencyPreferenceProps): ScreenModel {
@@ -91,6 +93,7 @@ class CurrencyPreferenceUiStateMachineImpl(
     isHideBalanceEnabled: Boolean,
     onFiatCurrencyPreferenceClick: () -> Unit,
   ): ScreenModel {
+    val isBitcoinPriceCardEnabled by bitcoinPriceCardPreference.isEnabled.collectAsState()
     val selectedBitcoinUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
 
     // Primary amount: fiat
@@ -153,8 +156,9 @@ class CurrencyPreferenceUiStateMachineImpl(
       onFiatCurrencyPreferenceClick = onFiatCurrencyPreferenceClick,
       bitcoinDisplayPreferenceString = selectedBitcoinUnit.displayText,
       bitcoinDisplayPreferencePickerModel = bitcoinDisplayPreferencePickerModel,
-      shouldShowHideBalance = inAppSecurityFeatureFlag.isEnabled(),
+      shouldShowBitcoinPriceCardToggle = bitcoinPriceChartFeatureFlag.isEnabled(),
       isHideBalanceEnabled = isHideBalanceEnabled,
+      isBitcoinPriceCardEnabled = isBitcoinPriceCardEnabled,
       onEnableHideBalanceChanged = { isEnabled ->
         scope.launch {
           hideBalancePreference.set(isEnabled)
@@ -162,6 +166,11 @@ class CurrencyPreferenceUiStateMachineImpl(
       },
       onBitcoinDisplayPreferenceClick = {
         isShowingBitcoinUnitPicker = true
+      },
+      onBitcoinPriceCardPreferenceClick = { isEnabled ->
+        scope.launch {
+          bitcoinPriceCardPreference.set(isEnabled)
+        }
       }
     ).asRootScreen()
   }

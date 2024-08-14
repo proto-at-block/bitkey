@@ -2,7 +2,6 @@ package build.wallet.statemachine.dev
 
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData
 
 /**
@@ -18,6 +17,5 @@ interface DebugMenuStateMachine : StateMachine<DebugMenuProps, ScreenModel>
  */
 data class DebugMenuProps(
   val accountData: AccountData,
-  val firmwareData: FirmwareData?,
   val onClose: () -> Unit,
 )

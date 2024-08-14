@@ -2,7 +2,7 @@ package build.wallet.cloud.backup.v2
 
 import build.wallet.bitcoin.AppPrivateKeyDao
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.cloud.backup.appGlobalAuthKeypair
 import build.wallet.cloud.backup.appKeys
 import build.wallet.cloud.backup.csek.CsekDao
@@ -82,7 +82,7 @@ class FullAccountFieldsCreatorImpl(
 
       val socRecRelationshipsMap =
         endorsedTrustedContacts.associate {
-          it.recoveryRelationshipId to
+          it.relationshipId to
             socRecCrypto
               .encryptPrivateKeyEncryptionKey(
                 it.identityKey,

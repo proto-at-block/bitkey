@@ -4,8 +4,8 @@ import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.count.id.SocialRecoveryEventTrackerCounterId
 import build.wallet.analytics.events.screen.EventTrackerCountInfo
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.cloud.backup.CloudBackupRepository
 import build.wallet.cloud.backup.CloudBackupV2
@@ -118,7 +118,7 @@ class TrustedContactCloudBackupRefresherImpl(
             ?: return Err(Error("Lite Account Backups have no trusted contacts to refresh"))
 
         val backedUpRelationshipIds = fields.socRecSealedDekMap.keys
-        val newRelationshipIds = endorsedTrustedContacts.map { it.recoveryRelationshipId }.toSet()
+        val newRelationshipIds = endorsedTrustedContacts.map { it.relationshipId }.toSet()
         if (backedUpRelationshipIds == newRelationshipIds) {
           Ok(UpToDate)
         } else {

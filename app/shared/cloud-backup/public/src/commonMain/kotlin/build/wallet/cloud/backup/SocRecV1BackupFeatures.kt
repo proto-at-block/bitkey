@@ -2,7 +2,7 @@ package build.wallet.cloud.backup
 
 import build.wallet.bitkey.app.AppRecoveryAuthKey
 import build.wallet.bitkey.keys.app.AppKey
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.cloud.backup.v2.FullAccountFields
 import build.wallet.cloud.backup.v2.SocRecV1AccountFeatures
 

@@ -7,9 +7,11 @@ import build.wallet.availability.F8eUnreachable
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.db.DbError
-import build.wallet.feature.FeatureFlagDaoMock
-import build.wallet.feature.flags.ResetDeviceIsEnabledFeatureFlag
 import build.wallet.firmware.FirmwareDeviceInfoDaoMock
+import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
+import build.wallet.fwup.FirmwareDataPendingUpdateMock
+import build.wallet.fwup.FirmwareDataServiceFake
+import build.wallet.fwup.FirmwareDataUpToDateMock
 import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcCommandsMock
 import build.wallet.nfc.NfcSessionFake
@@ -20,10 +22,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList.Data
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.PendingUpdate
-import build.wallet.statemachine.data.firmware.FirmwareData.FirmwareUpdateState.UpToDate
-import build.wallet.statemachine.data.firmware.FirmwareDataPendingUpdateMock
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.fwup.FwupNfcUiProps
 import build.wallet.statemachine.fwup.FwupNfcUiStateMachine
@@ -56,9 +54,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
   val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
-  val resetDeviceIsEnabledFeatureFlag = ResetDeviceIsEnabledFeatureFlag(
-    featureFlagDao = FeatureFlagDaoMock()
-  )
+  val firmwareDataService = FirmwareDataServiceFake()
   val stateMachine =
     DeviceSettingsUiStateMachineImpl(
       lostHardwareRecoveryUiStateMachine =
@@ -79,7 +75,6 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       durationFormatter = DurationFormatterFake(),
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
       appFunctionalityStatusProvider = appFunctionalityStatusProvider,
-      resetDeviceIsEnabledFeatureFlag = resetDeviceIsEnabledFeatureFlag,
       managingFingerprintsUiStateMachine = object : ManagingFingerprintsUiStateMachine,
         ScreenStateMachineMock<ManagingFingerprintsProps>(
           id = "managing fingerprints"
@@ -88,14 +83,14 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         object : ResettingDeviceUiStateMachine, ScreenStateMachineMock<ResettingDeviceProps>(
           "resetting device"
         ) {},
-      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
+      coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create),
+      firmwareDataService = firmwareDataService
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
 
   val props = DeviceSettingsProps(
     accountData = ActiveKeyboxLoadedDataMock,
-    firmwareData = FirmwareDataUpToDateMock.copy(firmwareUpdateState = UpToDate),
     onBack = { onBackCalls += Unit },
     onUnwindToMoneyHome = {}
   )
@@ -104,17 +99,16 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   beforeTest {
     firmwareDeviceInfoDao.reset()
+    firmwareDataService.reset()
   }
 
   test("metadata is appropriately formatted with update") {
-    stateMachine.test(
-      props.copy(
-        firmwareData =
-          FirmwareDataUpToDateMock.copy(
-            firmwareUpdateState = PendingUpdate(FwupDataMock) {}
-          )
+    firmwareDataService.firmwareData.value =
+      FirmwareDataUpToDateMock.copy(
+        firmwareUpdateState = PendingUpdate(FwupDataMock)
       )
-    ) {
+
+    stateMachine.test(props) {
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0].apply {
           shouldBeInstanceOf<DataList>()
@@ -208,18 +202,13 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   test("fwup") {
     val version = "fake-version"
-    stateMachine.test(
-      props.copy(
-        firmwareData =
-          FirmwareDataPendingUpdateMock.copy(
-            firmwareUpdateState =
-              PendingUpdate(
-                fwupData = FwupDataMock.copy(version = version),
-                onUpdateComplete = {}
-              )
-          )
-      )
-    ) {
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock.copy(
+      firmwareUpdateState =
+        PendingUpdate(
+          fwupData = FwupDataMock.copy(version = version)
+        )
+    )
+    stateMachine.test(props) {
       // Device settings
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[0].apply {
@@ -287,9 +276,9 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   }
 
   test("tap on manage fingerprints but need fwup") {
-    stateMachine.test(
-      props.copy(firmwareData = FirmwareDataPendingUpdateMock)
-    ) {
+    firmwareDataService.firmwareData.value = FirmwareDataPendingUpdateMock
+
+    stateMachine.test(props) {
       // Tap the Fingerprint button
       awaitScreenWithBody<FormBodyModel> {
         mainContentList[1].apply {
@@ -323,6 +312,26 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       }
 
       // Back to device settings
+      awaitScreenWithBody<FormBodyModel>()
+    }
+  }
+
+  test("tap on reset device") {
+    stateMachine.test(props) {
+      // Tap the Reset Device button
+      awaitScreenWithBody<FormBodyModel> {
+        mainContentList[1].apply {
+          shouldBeInstanceOf<ListGroup>()
+          listGroupModel.items[1].onClick!!()
+        }
+      }
+
+      // Going to manage reset device
+      awaitScreenWithBodyModelMock<ResettingDeviceProps> {
+        onBack()
+      }
+
+      // Back on the device settings screen
       awaitScreenWithBody<FormBodyModel>()
     }
   }

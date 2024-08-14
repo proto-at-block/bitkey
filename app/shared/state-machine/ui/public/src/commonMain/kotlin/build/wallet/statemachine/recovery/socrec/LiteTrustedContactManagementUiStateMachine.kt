@@ -1,6 +1,6 @@
 package build.wallet.statemachine.recovery.socrec
 
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.recovery.socrec.SocRecTrustedContactActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine

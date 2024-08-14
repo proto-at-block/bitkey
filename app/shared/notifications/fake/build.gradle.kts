@@ -11,6 +11,8 @@ kotlin {
     commonMain {
       dependencies {
         implementation(libs.kmp.kotlin.datetime)
+        implementation(projects.shared.emailFake)
+        implementation(projects.shared.phoneNumberFake)
       }
     }
   }

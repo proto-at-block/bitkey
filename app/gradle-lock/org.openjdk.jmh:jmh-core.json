@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.openjdk.jmh:jmh-core",
+    "components": [
+        {
+            "version": "1.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jmh-core-1.21.jar": "79aecd73ffb5d95d88b1ac36b505fa30ae3e83788e936838e2be9a51074fd2dd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

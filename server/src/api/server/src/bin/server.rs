@@ -172,6 +172,7 @@ async fn main() -> Result<(), Error> {
                         Box::new(bootstrap.services.userpool_service),
                         Box::new(bootstrap.services.notification_service),
                         Box::new(bootstrap.services.daily_spend_record_service),
+                        Box::new(bootstrap.services.recovery_relationship_service),
                     ],
                 );
                 migration_runner.run_migrations().await?;

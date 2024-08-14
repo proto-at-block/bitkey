@@ -31,7 +31,7 @@ class ViewingInvitationUiStateMachineImpl(
     var state: State by remember { mutableStateOf(State.Viewing) }
     var code: String by remember { mutableStateOf("") }
 
-    LaunchedEffect(props.invitation.recoveryRelationshipId) {
+    LaunchedEffect(props.invitation.relationshipId) {
       inviteCodeLoader.getInviteCode(props.invitation)
         .logFailure { "failed to load invite code" }
         .onSuccess {
@@ -73,7 +73,7 @@ class ViewingInvitationUiStateMachineImpl(
           ReinviteTrustedContactUiProps(
             account = props.fullAccount,
             trustedContactAlias = props.invitation.trustedContactAlias.alias,
-            relationshipId = props.invitation.recoveryRelationshipId,
+            relationshipId = props.invitation.relationshipId,
             onReinviteTc = {
               props.onRefreshInvitation(props.invitation, it)
             },

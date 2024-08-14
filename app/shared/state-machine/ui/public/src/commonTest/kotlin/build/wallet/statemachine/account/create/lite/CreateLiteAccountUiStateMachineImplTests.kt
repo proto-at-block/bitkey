@@ -9,9 +9,11 @@ import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenI
 import build.wallet.analytics.v1.Action
 import build.wallet.auth.LiteAccountCreationError
 import build.wallet.auth.LiteAccountCreatorMock
+import build.wallet.bitcoin.BitcoinNetworkType.SIGNET
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.keybox.LiteAccountConfigMock
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.debug.DebugOptionsServiceFake
+import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.error.F8eError
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.device.DeviceInfoProviderMock
@@ -42,45 +44,48 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
   val liteAccountCreator = LiteAccountCreatorMock(turbines::create)
   val socRecRepositoryMock = SocRecRelationshipsRepositoryMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
-  val stateMachine =
-    CreateLiteAccountUiStateMachineImpl(
-      liteAccountCreator = liteAccountCreator,
-      trustedContactEnrollmentUiStateMachine =
-        object : TrustedContactEnrollmentUiStateMachine,
-          ScreenStateMachineMock<TrustedContactEnrollmentUiProps>(
-            "tc-enrollment"
-          ) {},
-      socRecRelationshipsRepository = socRecRepositoryMock,
-      liteAccountCloudSignInAndBackupUiStateMachine =
-        object : LiteAccountCloudSignInAndBackupUiStateMachine,
-          ScreenStateMachineMock<LiteAccountCloudSignInAndBackupProps>(
-            "cloud-backup"
-          ) {},
-      deviceInfoProvider = DeviceInfoProviderMock(),
-      eventTracker = eventTracker
-    )
+  val debugOptionsService = DebugOptionsServiceFake()
+  val stateMachine = CreateLiteAccountUiStateMachineImpl(
+    liteAccountCreator = liteAccountCreator,
+    trustedContactEnrollmentUiStateMachine = object : TrustedContactEnrollmentUiStateMachine,
+      ScreenStateMachineMock<TrustedContactEnrollmentUiProps>(
+        "tc-enrollment"
+      ) {},
+    socRecRelationshipsRepository = socRecRepositoryMock,
+    liteAccountCloudSignInAndBackupUiStateMachine = object :
+      LiteAccountCloudSignInAndBackupUiStateMachine,
+      ScreenStateMachineMock<LiteAccountCloudSignInAndBackupProps>(
+        "cloud-backup"
+      ) {},
+    deviceInfoProvider = DeviceInfoProviderMock(),
+    eventTracker = eventTracker,
+    debugOptionsService = debugOptionsService
+  )
 
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
   val propsOnAccountCreatedCalls = turbines.create<LiteAccount>("props onDone calls")
-  val props =
-    CreateLiteAccountUiProps(
-      onBack = { propsOnBackCalls.add(Unit) },
-      accountConfig = LiteAccountConfigMock,
-      onAccountCreated = { propsOnAccountCreatedCalls.add(it) },
-      inviteCode = null,
-      showBeTrustedContactIntroduction = false
-    )
-  val inviteProps =
-    CreateLiteAccountUiProps(
-      onBack = { propsOnBackCalls.add(Unit) },
-      accountConfig = LiteAccountConfigMock,
-      onAccountCreated = { propsOnAccountCreatedCalls.add(it) },
-      inviteCode = "1234",
-      showBeTrustedContactIntroduction = true
-    )
+  val props = CreateLiteAccountUiProps(
+    onBack = { propsOnBackCalls.add(Unit) },
+    onAccountCreated = { propsOnAccountCreatedCalls.add(it) },
+    inviteCode = null,
+    showBeTrustedContactIntroduction = false
+  )
+  val inviteProps = CreateLiteAccountUiProps(
+    onBack = { propsOnBackCalls.add(Unit) },
+    onAccountCreated = { propsOnAccountCreatedCalls.add(it) },
+    inviteCode = "1234",
+    showBeTrustedContactIntroduction = true
+  )
 
   beforeTest {
     liteAccountCreator.reset()
+    debugOptionsService.apply {
+      reset()
+      setBitcoinNetworkType(SIGNET)
+      setF8eEnvironment(Development)
+      setIsTestAccount(true)
+      setUsingSocRecFakes(true)
+    }
   }
 
   test("happy path") {

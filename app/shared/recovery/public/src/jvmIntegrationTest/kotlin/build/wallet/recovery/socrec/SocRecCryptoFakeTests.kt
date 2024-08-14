@@ -3,7 +3,7 @@ package build.wallet.recovery.socrec
 import build.wallet.bitcoin.AppPrivateKeyDaoFake
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.socrec.PakeCode
+import build.wallet.bitkey.relationships.PakeCode
 import build.wallet.encrypt.MessageSignerImpl
 import build.wallet.encrypt.SignatureVerifierImpl
 import build.wallet.encrypt.toSecp256k1PrivateKey

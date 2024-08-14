@@ -6,7 +6,7 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.f8e.FullAccountId
 import build.wallet.bitkey.keybox.KeyboxMock
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError.UnhandledException
@@ -78,7 +78,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -88,7 +88,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -104,7 +104,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
-        it.recoveryRelationshipId.shouldBe("uuid-1")
+        it.relationshipId.shouldBe("uuid-1")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Bob"))
       }
 
@@ -115,12 +115,12 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
     ).shouldBeOk { relationships ->
       relationships.invitations.shouldHaveSize(2)
       relationships.invitations[0].should {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
       relationships.invitations[1].should {
-        it.recoveryRelationshipId.shouldBe("uuid-1")
+        it.relationshipId.shouldBe("uuid-1")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Bob"))
       }
     }
@@ -136,7 +136,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -146,7 +146,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -183,7 +183,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -193,7 +193,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -217,7 +217,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
       relationships.protectedCustomers.shouldBeEmpty()
@@ -235,7 +235,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 
@@ -257,7 +257,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
       hardwareProofOfPossession = hwPopMock,
       relationshipId = "uuid-0"
     ).shouldBeOk {
-      it.recoveryRelationshipId.shouldBe("uuid-0")
+      it.relationshipId.shouldBe("uuid-0")
       it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       it.isExpired(clock).shouldBe(false)
     }
@@ -268,7 +268,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
       f8eEnvironment = Development
     ).shouldBeOk { relationships ->
       relationships.invitations.single().should {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
         it.isExpired(clock).shouldBe(false)
       }
@@ -287,7 +287,7 @@ class SocialRecoveryF8eClientFakeTests : FunSpec({
         protectedCustomerEnrollmentPakeKey = ProtectedCustomerEnrollmentPakeKeyFake.publicKey
       )
       .shouldBeOk {
-        it.recoveryRelationshipId.shouldBe("uuid-0")
+        it.relationshipId.shouldBe("uuid-0")
         it.trustedContactAlias.shouldBe(TrustedContactAlias("Jack"))
       }
 

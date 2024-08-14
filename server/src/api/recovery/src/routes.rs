@@ -19,7 +19,9 @@ use types::authn_authz::cognito::CognitoUser;
 use types::recovery::social::challenge::{
     SocialChallenge, SocialChallengeId, SocialChallengeResponse, TrustedContactChallengeRequest,
 };
-use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
+use types::recovery::social::relationship::{
+    RecoveryRelationship, RecoveryRelationshipCommonFields, RecoveryRelationshipId,
+};
 use types::recovery::social::PAKE_PUBLIC_KEY_STRING_LENGTH;
 use userpool::userpool::UserPoolService;
 use utoipa::{OpenApi, ToSchema};
@@ -75,6 +77,7 @@ use crate::{
     },
 };
 use types::recovery::social::relationship::RecoveryRelationshipEndorsement;
+use types::recovery::trusted_contacts::TrustedContactRole;
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
@@ -226,7 +229,7 @@ impl From<RouteState> for SwaggerEndpoint {
             CreateAccountDelayNotifyRequest,
             CreateRecoveryRelationshipRequest,
             CreateRecoveryRelationshipResponse,
-            Customer,
+            CustomerRecoveryRelationshipView,
             CustomerSocialChallenge,
             CustomerSocialChallengeResponse,
             DelayNotifyRecoveryAction,
@@ -257,7 +260,7 @@ impl From<RouteState> for SwaggerEndpoint {
             StartChallengeTrustedContactRequest,
             StartSocialChallengeRequest,
             StartSocialChallengeResponse,
-            TrustedContact,
+            TrustedContactRecoveryRelationshipView,
             TrustedContactSocialChallenge,
             UnendorsedTrustedContact,
             UpdateRecoveryRelationshipRequest,
@@ -914,8 +917,8 @@ pub async fn rotate_authentication_keys(
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct OutboundInvitation {
-    pub recovery_relationship_id: RecoveryRelationshipId,
-    pub trusted_contact_alias: String,
+    #[serde(flatten)]
+    pub recovery_relationship_info: TrustedContactRecoveryRelationshipView,
     pub code: String,
     pub code_bit_length: usize,
     #[serde(with = "rfc3339")]
@@ -928,8 +931,7 @@ impl TryFrom<RecoveryRelationship> for OutboundInvitation {
     fn try_from(value: RecoveryRelationship) -> Result<Self, Self::Error> {
         match value {
             RecoveryRelationship::Invitation(invitation) => Ok(Self {
-                recovery_relationship_id: invitation.common_fields.id,
-                trusted_contact_alias: invitation.common_fields.trusted_contact_alias,
+                recovery_relationship_info: invitation.common_fields.into(),
                 code: invitation.code,
                 code_bit_length: invitation.code_bit_length,
                 expires_at: invitation.expires_at,
@@ -964,15 +966,26 @@ impl TryFrom<RecoveryRelationship> for InboundInvitation {
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
-pub struct TrustedContact {
+pub struct TrustedContactRecoveryRelationshipView {
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub trusted_contact_alias: String,
+    pub trusted_contact_roles: Vec<TrustedContactRole>,
+}
+
+impl From<RecoveryRelationshipCommonFields> for TrustedContactRecoveryRelationshipView {
+    fn from(value: RecoveryRelationshipCommonFields) -> Self {
+        Self {
+            recovery_relationship_id: value.id,
+            trusted_contact_alias: value.trusted_contact_info.alias,
+            trusted_contact_roles: value.trusted_contact_info.roles,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct UnendorsedTrustedContact {
     #[serde(flatten)]
-    pub info: TrustedContact,
+    pub recovery_relationship_info: TrustedContactRecoveryRelationshipView,
     pub sealed_delegated_decryption_pubkey: String,
     pub trusted_contact_enrollment_pake_pubkey: String,
     pub enrollment_pake_confirmation: String,
@@ -984,10 +997,7 @@ impl TryFrom<RecoveryRelationship> for UnendorsedTrustedContact {
     fn try_from(value: RecoveryRelationship) -> Result<Self, Self::Error> {
         match value {
             RecoveryRelationship::Unendorsed(connection) => Ok(Self {
-                info: TrustedContact {
-                    recovery_relationship_id: connection.common_fields.id,
-                    trusted_contact_alias: connection.common_fields.trusted_contact_alias,
-                },
+                recovery_relationship_info: connection.common_fields.into(),
                 sealed_delegated_decryption_pubkey: connection.sealed_delegated_decryption_pubkey,
                 trusted_contact_enrollment_pake_pubkey: connection
                     .trusted_contact_enrollment_pake_pubkey,
@@ -1001,7 +1011,7 @@ impl TryFrom<RecoveryRelationship> for UnendorsedTrustedContact {
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
 pub struct EndorsedTrustedContact {
     #[serde(flatten)]
-    pub info: TrustedContact,
+    pub recovery_relationship_info: TrustedContactRecoveryRelationshipView,
     pub delegated_decryption_pubkey_certificate: String,
 }
 
@@ -1011,10 +1021,7 @@ impl TryFrom<RecoveryRelationship> for EndorsedTrustedContact {
     fn try_from(value: RecoveryRelationship) -> Result<Self, Self::Error> {
         match value {
             RecoveryRelationship::Endorsed(connection) => Ok(Self {
-                info: TrustedContact {
-                    recovery_relationship_id: connection.common_fields.id,
-                    trusted_contact_alias: connection.common_fields.trusted_contact_alias,
-                },
+                recovery_relationship_info: connection.common_fields.into(),
                 delegated_decryption_pubkey_certificate: connection
                     .delegated_decryption_pubkey_certificate,
             }),
@@ -1024,12 +1031,13 @@ impl TryFrom<RecoveryRelationship> for EndorsedTrustedContact {
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema, PartialEq)]
-pub struct Customer {
+pub struct CustomerRecoveryRelationshipView {
     pub recovery_relationship_id: RecoveryRelationshipId,
     pub customer_alias: String,
+    pub trusted_contact_roles: Vec<TrustedContactRole>,
 }
 
-impl TryFrom<RecoveryRelationship> for Customer {
+impl TryFrom<RecoveryRelationship> for CustomerRecoveryRelationshipView {
     type Error = RecoveryError;
 
     fn try_from(value: RecoveryRelationship) -> Result<Self, Self::Error> {
@@ -1037,10 +1045,12 @@ impl TryFrom<RecoveryRelationship> for Customer {
             RecoveryRelationship::Endorsed(connection) => Ok(Self {
                 recovery_relationship_id: connection.common_fields.id,
                 customer_alias: connection.connection_fields.customer_alias,
+                trusted_contact_roles: connection.common_fields.trusted_contact_info.roles,
             }),
             RecoveryRelationship::Unendorsed(connection) => Ok(Self {
                 recovery_relationship_id: connection.common_fields.id,
                 customer_alias: connection.connection_fields.customer_alias,
+                trusted_contact_roles: connection.common_fields.trusted_contact_info.roles,
             }),
             _ => Err(RecoveryError::InvalidRecoveryRelationshipType),
         }
@@ -1184,7 +1194,7 @@ pub struct GetRecoveryRelationshipsResponse {
     pub invitations: Vec<OutboundInvitation>,
     pub unendorsed_trusted_contacts: Vec<UnendorsedTrustedContact>,
     pub endorsed_trusted_contacts: Vec<EndorsedTrustedContact>,
-    pub customers: Vec<Customer>,
+    pub customers: Vec<CustomerRecoveryRelationshipView>,
 }
 
 ///
@@ -1272,8 +1282,12 @@ pub enum UpdateRecoveryRelationshipRequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema, PartialEq)]
 #[serde(untagged)]
 pub enum UpdateRecoveryRelationshipResponse {
-    Accept { customer: Customer },
-    Reissue { invitation: OutboundInvitation },
+    Accept {
+        customer: CustomerRecoveryRelationshipView,
+    },
+    Reissue {
+        invitation: OutboundInvitation,
+    },
 }
 
 ///

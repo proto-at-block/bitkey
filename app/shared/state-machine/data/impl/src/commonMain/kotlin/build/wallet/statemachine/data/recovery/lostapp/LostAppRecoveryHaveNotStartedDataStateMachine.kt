@@ -14,7 +14,8 @@ import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryHaveNotSta
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.lostapp.initiate.InitiatingLostAppRecoveryProps
 
-interface LostAppRecoveryHaveNotStartedDataStateMachine : StateMachine<LostAppRecoveryHaveNotStartedProps, LostAppRecoveryHaveNotStartedData>
+interface LostAppRecoveryHaveNotStartedDataStateMachine :
+  StateMachine<LostAppRecoveryHaveNotStartedProps, LostAppRecoveryHaveNotStartedData>
 
 data class LostAppRecoveryHaveNotStartedProps(
   /**

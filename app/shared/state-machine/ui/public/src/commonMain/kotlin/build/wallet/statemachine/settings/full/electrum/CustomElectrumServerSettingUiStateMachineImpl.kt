@@ -1,10 +1,7 @@
 package build.wallet.statemachine.settings.full.electrum
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import build.wallet.bitcoin.sync.ElectrumConfigService
 import build.wallet.bitcoin.sync.ElectrumServer
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.Off
 import build.wallet.bitcoin.sync.ElectrumServerPreferenceValue.On
@@ -16,12 +13,15 @@ import build.wallet.statemachine.settings.full.electrum.CustomElectrumServerSett
 class CustomElectrumServerSettingUiStateMachineImpl(
   private val customElectrumServerUIStateMachine: CustomElectrumServerUiStateMachine,
   private val setElectrumServerUiStateMachine: SetElectrumServerUiStateMachine,
+  private val electrumConfigService: ElectrumConfigService,
 ) : CustomElectrumServerSettingUiStateMachine {
   @Composable
   override fun model(props: CustomElectrumServerProps): ScreenModel {
     var state: State by remember {
       mutableStateOf(ShowingCustomElectrumServerSettingsUiState)
     }
+    val electrumServerPreference = remember { electrumConfigService.electrumServerPreference() }
+      .collectAsState(initial = null).value ?: Off(previousUserDefinedElectrumServer = null)
 
     return when (val currentState = state) {
       is ShowingCustomElectrumServerSettingsUiState ->
@@ -31,15 +31,14 @@ class CustomElectrumServerSettingUiStateMachineImpl(
               props =
                 CustomElectrumServerUiProps(
                   onBack = props.onBack,
-                  electrumServerPreferenceValue = props.electrumServerPreferenceValue,
+                  electrumServerPreferenceValue = electrumServerPreference,
                   onAdjustElectrumServerClick = {
                     state =
-                      when (val electrumServerPreferenceValue = props.electrumServerPreferenceValue) {
-                        is On -> SettingCustomElectrumServerUiState(electrumServerPreferenceValue.server)
-                        is Off -> SettingCustomElectrumServerUiState(electrumServerPreferenceValue.previousUserDefinedElectrumServer)
+                      when (electrumServerPreference) {
+                        is On -> SettingCustomElectrumServerUiState(electrumServerPreference.server)
+                        is Off -> SettingCustomElectrumServerUiState(electrumServerPreference.previousUserDefinedElectrumServer)
                       }
-                  },
-                  disableCustomElectrumServer = props.disableCustomElectrumServer
+                  }
                 )
             ),
           presentationStyle = Root

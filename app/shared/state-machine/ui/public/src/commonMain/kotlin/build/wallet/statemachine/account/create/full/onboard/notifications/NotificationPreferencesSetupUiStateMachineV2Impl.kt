@@ -1,20 +1,11 @@
 package build.wallet.statemachine.account.create.full.onboard.notifications
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_DISABLED
-import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_BITKEY_ENABLED
-import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_DISABLED
-import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATIONS_ENABLED
+import build.wallet.analytics.v1.Action.*
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.notifications.NotificationChannel
-import build.wallet.notifications.NotificationTouchpointDao
+import build.wallet.notifications.NotificationTouchpointService
 import build.wallet.notifications.NotificationTouchpointType
 import build.wallet.onboarding.OnboardingKeyboxStep
 import build.wallet.onboarding.OnboardingKeyboxStep.CloudBackup
@@ -24,18 +15,12 @@ import build.wallet.onboarding.OnboardingKeyboxStepStateDao
 import build.wallet.platform.settings.TelephonyCountryCodeProvider
 import build.wallet.platform.settings.isCountry
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.BottomSheetState
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.*
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.*
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.BottomSheetState.ConfirmSkipRecoveryMethods
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.BottomSheetState.NoEmailError
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.OverlayState
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.OverlayState.None
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.PushAlertState
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.SpecialState
 import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.ConfigureRecoveryOptionsUiState.SpecialState.SystemPromptRequestingPush
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.EnteringAndVerifyingEmailUiState
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.EnteringAndVerifyingPhoneNumberUiState
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2Impl.RecoveryState.TransactionsAndProductUpdatesState
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.Completed
 import build.wallet.statemachine.account.create.full.onboard.notifications.RecoveryChannelsSetupFormItemModel.State.NotCompleted
 import build.wallet.statemachine.core.InAppBrowserModel
@@ -48,13 +33,12 @@ import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVer
 import build.wallet.statemachine.notifications.NotificationTouchpointInputAndVerificationUiStateMachine
 import build.wallet.statemachine.platform.permissions.NotificationPermissionRequester
 import build.wallet.ui.model.alert.ButtonAlertModel
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class NotificationPreferencesSetupUiStateMachineV2Impl(
   private val eventTracker: EventTracker,
   private val notificationPermissionRequester: NotificationPermissionRequester,
-  private val notificationTouchpointDao: NotificationTouchpointDao,
+  private val notificationTouchpointService: NotificationTouchpointService,
   private val notificationPreferencesUiStateMachine: NotificationPreferencesUiStateMachine,
   private val onboardingKeyboxStepStateDao: OnboardingKeyboxStepStateDao,
   private val notificationTouchpointInputAndVerificationUiStateMachine:
@@ -99,26 +83,24 @@ class NotificationPreferencesSetupUiStateMachineV2Impl(
       mutableStateOf<String?>(null)
     }
 
-    LaunchedEffect("observe-stored-phone-number") {
-      notificationTouchpointDao
-        .phoneNumber()
-        .collectLatest { storedPhoneNumber ->
-          if (storedPhoneNumber != null) {
-            smsState = Completed
-            smsNumber = storedPhoneNumber.formattedDisplayValue
-          }
-        }
+    val notificationTouchpointData =
+      remember { notificationTouchpointService.notificationTouchpointData() }
+        .collectAsState(initial = null).value
+
+    LaunchedEffect("email-state", notificationTouchpointData?.email) {
+      val storedEmail = notificationTouchpointData?.email
+      if (storedEmail != null) {
+        emailState = Completed
+        emailAddress = storedEmail.value
+      }
     }
 
-    LaunchedEffect("observe-stored-email") {
-      notificationTouchpointDao
-        .email()
-        .collectLatest { storedEmail ->
-          if (storedEmail != null) {
-            emailState = Completed
-            emailAddress = storedEmail.value
-          }
-        }
+    LaunchedEffect("phone-number-state", notificationTouchpointData?.phoneNumber) {
+      val storedPhoneNumber = notificationTouchpointData?.phoneNumber
+      if (storedPhoneNumber != null) {
+        smsState = Completed
+        smsNumber = storedPhoneNumber.formattedDisplayValue
+      }
     }
 
     return when (val currentState = state) {

@@ -20,9 +20,7 @@ import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.input.SheetModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.sync.PlaceholderElectrumServerDataMock
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachine
 import build.wallet.statemachine.limit.SetSpendingLimitUiStateMachine
@@ -120,9 +118,7 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   val props =
     HomeUiProps(
-      accountData = ActiveKeyboxLoadedDataMock,
-      electrumServerData = PlaceholderElectrumServerDataMock,
-      firmwareData = FirmwareDataUpToDateMock
+      accountData = ActiveKeyboxLoadedDataMock
     )
 
   beforeEach {

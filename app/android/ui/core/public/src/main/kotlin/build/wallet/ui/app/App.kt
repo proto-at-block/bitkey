@@ -4,13 +4,7 @@ import android.graphics.ColorSpace.Model
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
@@ -20,27 +14,16 @@ import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBod
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.ScreenPresentationStyle.FullScreen
-import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.ScreenPresentationStyle.ModalFullScreen
-import build.wallet.statemachine.core.ScreenPresentationStyle.Root
-import build.wallet.statemachine.core.ScreenPresentationStyle.RootFullScreen
+import build.wallet.statemachine.core.ScreenPresentationStyle.*
 import build.wallet.statemachine.core.SplashBodyModel
-import build.wallet.ui.components.screen.Axis
-import build.wallet.ui.components.screen.AxisAnimationDirection
-import build.wallet.ui.components.screen.FadeAnimation
-import build.wallet.ui.components.screen.NoAnimation
-import build.wallet.ui.components.screen.sharedAxisAnimation
-import build.wallet.ui.components.screen.slideOverlayAnimation
+import build.wallet.statemachine.nfc.NfcBodyModel
+import build.wallet.ui.components.screen.*
 import build.wallet.ui.model.LocalUiModelMap
 import build.wallet.ui.model.UiModel
 import build.wallet.ui.model.UiModelContentScreen
 import build.wallet.ui.model.UiModelMap
 import build.wallet.ui.theme.WalletTheme
-import cafe.adriel.voyager.core.stack.StackEvent.Idle
-import cafe.adriel.voyager.core.stack.StackEvent.Pop
-import cafe.adriel.voyager.core.stack.StackEvent.Push
-import cafe.adriel.voyager.core.stack.StackEvent.Replace
+import cafe.adriel.voyager.core.stack.StackEvent.*
 import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.transitions.ScreenTransitionContent
 import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
@@ -286,7 +269,8 @@ private fun ScreenModel.shouldClearStack(): Boolean {
  */
 private fun Navigator.shouldReplaceModel(model: ScreenModel): Boolean {
   return isTransitioningFromLoadingToLoading(model) ||
-    isTransitioningFromPairHwToPairHw(model)
+    isTransitioningFromPairHwToPairHw(model) ||
+    isTransitioningFromNfcToNfc(model)
 }
 
 private fun Navigator.isTransitioningFromSplashScreen(): Boolean {
@@ -300,6 +284,11 @@ private fun Navigator.isTransitioningFromLoadingToLoading(newModel: ScreenModel)
 private fun Navigator.isTransitioningFromPairHwToPairHw(newModel: ScreenModel): Boolean {
   return currentModel().body is PairNewHardwareBodyModel &&
     newModel.body is PairNewHardwareBodyModel
+}
+
+private fun Navigator.isTransitioningFromNfcToNfc(newModel: ScreenModel): Boolean {
+  return currentModel().body is NfcBodyModel &&
+    newModel.body is NfcBodyModel
 }
 
 private fun Navigator.previousModel(): ScreenModel? {

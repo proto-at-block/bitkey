@@ -1,3 +1,5 @@
+mod tests;
+
 use tracing::instrument;
 
 use bdk_utils::bdk::bitcoin::psbt::Psbt;

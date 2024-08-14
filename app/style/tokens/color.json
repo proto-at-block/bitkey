@@ -251,6 +251,22 @@
       "coachmarkBackground": {
         "light": { "value": "#333442FF", "comment": "Coachmark background color" },
         "dark": { "value": "#333442FF" }
+      },
+      "bitcoinPrimary": {
+        "light": { "value":  "#F7931AFF", "comment": "Primary color used for Bitcoin elements" },
+        "dark": { "value":  "#F7931AFF" }
+      },
+      "yourBalancePrimary": {
+        "light": { "value":  "#0C9ADAFF", "comment": "Primary color used for 'Your balance' elements" },
+        "dark": { "value":  "#0C9ADAFF" }
+      },
+      "loadingBackground": {
+        "light": { "value": "#F4F4F4FF", "comment": "Background fill for elements while in loading state" },
+        "dark": { "value": "#F4F4F4FF" }
+      },
+      "chartElement": {
+        "light": { "value": "#E5E5E5FF", "comment": "Chart foreground element color (y-axis labels, dividers, etc.)" },
+        "dark": { "value": "#E5E5E5FF" }
       }
   }
 }

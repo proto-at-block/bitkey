@@ -3,11 +3,7 @@ package build.wallet.ui.app
 import build.wallet.statemachine.account.ChooseAccountAccessModel
 import build.wallet.statemachine.account.create.full.hardware.PairNewHardwareBodyModel
 import build.wallet.statemachine.cloud.health.CloudBackupHealthDashboardBodyModel
-import build.wallet.statemachine.core.InAppBrowserModel
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.SplashBodyModel
-import build.wallet.statemachine.core.SplashLockModel
-import build.wallet.statemachine.core.TabBarModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.demo.DemoModeConfigBodyModel
 import build.wallet.statemachine.dev.DebugMenuBodyModel
@@ -80,6 +76,7 @@ object AppUiModelMap : UiModelMap by TypedUiModelMap(
   UiModel<ChooseAccountAccessModel> { ChooseAccountAccessScreen(it) },
   UiModel<LoadingSuccessBodyModel> { LoadingSuccessScreen(it) },
   UiModel<MoneyHomeBodyModel> { MoneyHomeScreen(it) },
+  UiModel<ComposeBodyModel> { it.render() },
   UiModel<LiteMoneyHomeBodyModel> { LiteMoneyHomeScreen(it) },
   UiModel<NfcBodyModel> { NfcScreen(it) },
   UiModel<AddressQrCodeBodyModel> { AddressQrCodeScreen(it) },

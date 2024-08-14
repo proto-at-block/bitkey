@@ -19,6 +19,7 @@ import build.wallet.firmware.Teltra
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStoreInMemoryImpl
 import build.wallet.logging.prod.BoundedInMemoryLogStoreImpl
+import build.wallet.phonenumber.lib.PhoneNumberLibBindings
 import build.wallet.platform.PlatformContext
 import build.wallet.platform.biometrics.BiometricPrompter
 import build.wallet.platform.config.AppId
@@ -50,6 +51,7 @@ fun makeAppComponent(
   fileManagerProvider: (FileDirectoryProvider) -> FileManager,
   logWritersProvider: (LogWriterContextStore) -> List<LogWriter>,
   messageSigner: MessageSigner,
+  phoneNumberLibBindings: PhoneNumberLibBindings,
   signatureVerifier: SignatureVerifier,
   secp256k1KeyGenerator: Secp256k1KeyGenerator,
   teltra: Teltra,
@@ -101,6 +103,7 @@ fun makeAppComponent(
     messageSigner = messageSigner,
     signatureVerifier = signatureVerifier,
     platformContext = platformContext,
+    phoneNumberLibBindings = phoneNumberLibBindings,
     secp256k1KeyGenerator = secp256k1KeyGenerator,
     teltra = teltra,
     hardwareAttestation = hardwareAttestation,

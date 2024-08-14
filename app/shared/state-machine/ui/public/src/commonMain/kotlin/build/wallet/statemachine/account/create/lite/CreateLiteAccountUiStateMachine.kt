@@ -1,7 +1,6 @@
 package build.wallet.statemachine.account.create.lite
 
 import build.wallet.bitkey.account.LiteAccount
-import build.wallet.bitkey.account.LiteAccountConfig
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -12,13 +11,11 @@ import build.wallet.statemachine.core.StateMachine
  * a Trusted Contact and already have an account, you should use
  * [TrustedContactEnrollmentUiStateMachine].
  */
-interface CreateLiteAccountUiStateMachine :
-  StateMachine<CreateLiteAccountUiProps, ScreenModel>
+interface CreateLiteAccountUiStateMachine : StateMachine<CreateLiteAccountUiProps, ScreenModel>
 
 data class CreateLiteAccountUiProps(
   val onBack: () -> Unit,
   val showBeTrustedContactIntroduction: Boolean,
-  val accountConfig: LiteAccountConfig,
   val inviteCode: String?,
   val onAccountCreated: (LiteAccount) -> Unit,
 )

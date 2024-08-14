@@ -2,12 +2,8 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
-import build.wallet.bitkey.socrec.PakeCode
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState
+import build.wallet.bitkey.relationships.*
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake2
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.signResult
 import build.wallet.f8e.socrec.SocRecF8eClientFake
@@ -86,11 +82,11 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       )
       .getOrThrow()
     // Delete the invitation since we'll be adding it back as an unendorsed trusted contact.
-    socialRecoveryF8eClient.deleteInvitation(invite.invitation.recoveryRelationshipId)
+    socialRecoveryF8eClient.deleteInvitation(invite.invitation.relationshipId)
 
     // Get the PAKE code and enrollment public key that should be shared with the TC
     val pakeData = socRecEnrollmentAuthenticationDao
-      .getByRelationshipId(invite.invitation.recoveryRelationshipId)
+      .getByRelationshipId(invite.invitation.relationshipId)
       .getOrThrow()
       .shouldNotBeNull()
     val delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow()
@@ -109,17 +105,18 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       )
       .getOrThrow()
     val unendorsedTc = UnendorsedTrustedContact(
-      recoveryRelationshipId = invite.invitation.recoveryRelationshipId,
+      relationshipId = invite.invitation.relationshipId,
       trustedContactAlias = alias,
       sealedDelegatedDecryptionKey = tcResponse.sealedDelegatedDecryptionKey,
       enrollmentPakeKey = tcResponse.trustedContactEnrollmentPakeKey,
       enrollmentKeyConfirmation = overrideConfirmation?.encodeUtf8() ?: tcResponse.keyConfirmation,
-      authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED
+      authenticationState = TrustedContactAuthenticationState.UNAUTHENTICATED,
+      roles = setOf(TrustedContactRole.SocialRecoveryContact)
     )
 
     // Update unendorsed TC
     socialRecoveryF8eClient.unendorsedTrustedContacts
-      .removeAll { it.recoveryRelationshipId == unendorsedTc.recoveryRelationshipId }
+      .removeAll { it.relationshipId == unendorsedTc.relationshipId }
     socialRecoveryF8eClient.unendorsedTrustedContacts.add(unendorsedTc)
 
     socRecRepository.syncAndVerifyRelationships(account).getOrThrow()
@@ -360,7 +357,7 @@ class TrustedContactKeyAuthenticatorImplComponentTests : FunSpec({
       .unendorsedTrustedContacts
       .single()
       .run {
-        recoveryRelationshipId.shouldBe(tcBad.recoveryRelationshipId)
+        relationshipId.shouldBe(tcBad.relationshipId)
         authenticationState.shouldBe(TrustedContactAuthenticationState.FAILED)
       }
 

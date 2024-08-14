@@ -54,7 +54,6 @@ fun DeviceSettingsFormBodyModel(
   onManageReplacement: (() -> Unit)?,
   onResetDevice: (() -> Unit)?,
   onBack: () -> Unit,
-  resetDeviceEnabled: Boolean,
   onManageFingerprints: () -> Unit,
   coachmark: CoachmarkModel?,
 ) = FormBodyModel(
@@ -183,7 +182,7 @@ fun DeviceSettingsFormBodyModel(
               treatment = ListItemTreatment.SECONDARY,
               trailingAccessory = ListItemAccessory.drillIcon(tint = IconTint.On30),
               onClick = onResetDevice
-            ).takeIf { resetDeviceEnabled }
+            )
           ),
           style = ListGroupStyle.CARD_GROUP_DIVIDER
         )

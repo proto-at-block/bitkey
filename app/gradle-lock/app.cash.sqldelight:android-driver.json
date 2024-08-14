@@ -2,16 +2,16 @@
     "module-identifier": "app.cash.sqldelight:android-driver",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "android-driver-2.0.1-debug.aar": "228d3bf00d6b34e12ce60cc70dbf45685059ed6d34b819f29a694f75884597d0"
+                        "android-driver-2.0.2-debug.aar": "c48e51bd283a83dbe8e25c87677ef5bad6d722c5cebaea47765c58afe4a18420"
                     }
                 },
                 {
                     "artifacts": {
-                        "android-driver-2.0.1-release.aar": "a3fdc3edf7ca7dfe9c5322bc12ba297b73be89e885f11904b871e9ff3c8a2c80"
+                        "android-driver-2.0.2-release.aar": "5291d833dd8ce313ff4b6c65ea55a2db5dfbaed9c3b0fc51da68c5c3fd0c5686"
                     }
                 }
             ],

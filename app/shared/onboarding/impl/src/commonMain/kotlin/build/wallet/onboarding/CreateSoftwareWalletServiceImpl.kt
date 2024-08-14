@@ -4,14 +4,13 @@ import build.wallet.account.AccountRepository
 import build.wallet.account.AccountStatus.NoAccount
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
-import build.wallet.bitkey.account.SoftwareAccountConfig
+import build.wallet.debug.DebugOptionsService
 import build.wallet.ensure
 import build.wallet.f8e.onboarding.frost.ActivateSpendingDescriptorF8eClient
 import build.wallet.f8e.onboarding.frost.ContinueDistributedKeygenF8eClient
 import build.wallet.f8e.onboarding.frost.InitiateDistributedKeygenF8eClient
 import build.wallet.feature.flags.SoftwareWalletIsEnabledFeatureFlag
 import build.wallet.feature.isEnabled
-import build.wallet.keybox.config.TemplateFullAccountConfigDao
 import build.wallet.keybox.keys.AppKeysGenerator
 import build.wallet.logging.logFailure
 import build.wallet.nfc.FakeHardwareKeyStore
@@ -27,7 +26,7 @@ class CreateSoftwareWalletServiceImpl(
   private val fakeHardwareKeyStore: FakeHardwareKeyStore,
   private val softwareAccountCreator: SoftwareAccountCreator,
   private val appKeysGenerator: AppKeysGenerator,
-  private val templateFullAccountConfigDao: TemplateFullAccountConfigDao,
+  private val debugOptionsService: DebugOptionsService,
   private val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag,
 ) : CreateSoftwareWalletService {
   override suspend fun createAccount(): Result<Account, Throwable> {
@@ -44,7 +43,7 @@ class CreateSoftwareWalletServiceImpl(
         Error("Expected no active or onboarding account, but found: $currentAccountStatus.")
       }
 
-      val config = templateAccountConfig()
+      val config = debugOptionsService.options().first().toSoftwareAccountConfig()
       val newAppKeys = appKeysGenerator.generateKeyBundle(config.bitcoinNetworkType).bind()
 
       val account = softwareAccountCreator
@@ -95,20 +94,5 @@ class CreateSoftwareWalletServiceImpl(
       // TODO(W-8963) Create a keybox/icebox
       // TODO(W-8963) Save the keybox/icebox to database
     }.logFailure { "Error creating keybox for software wallet account." }
-  }
-
-  /**
-   * Returns a [SoftwareAccountConfig] to use for the new account.
-   * Can be customized through debug menu.
-   */
-  private suspend fun templateAccountConfig(): SoftwareAccountConfig {
-    // TODO(W-8716): implement component to manage template config for the Software Account.
-    val fullAccountConfig = templateFullAccountConfigDao.config().first().value
-    return SoftwareAccountConfig(
-      bitcoinNetworkType = fullAccountConfig.bitcoinNetworkType,
-      f8eEnvironment = fullAccountConfig.f8eEnvironment,
-      isTestAccount = fullAccountConfig.isTestAccount,
-      isUsingSocRecFakes = fullAccountConfig.isUsingSocRecFakes
-    )
   }
 }

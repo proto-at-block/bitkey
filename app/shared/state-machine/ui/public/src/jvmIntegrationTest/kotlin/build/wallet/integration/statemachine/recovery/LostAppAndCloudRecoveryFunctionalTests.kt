@@ -12,7 +12,6 @@ import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerSc
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_SUCCESS
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
-import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.di.ActivityComponentImpl
@@ -47,17 +46,13 @@ import kotlin.time.Duration.Companion.seconds
 class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   lateinit var appTester: AppTester
   lateinit var app: ActivityComponentImpl
-  lateinit var fullAccountConfig: FullAccountConfig
   lateinit var recoveryStateMachine: RecoveryTestingStateMachine
   lateinit var appSpendingWalletProvider: AppSpendingWalletProvider
 
   suspend fun setup(initWithTreasuryFunds: BitcoinMoney = BitcoinMoney.zero()) {
     appTester = launchNewApp()
     app = appTester.app
-    appTester.onboardFullAccountWithFakeHardware()
-    fullAccountConfig =
-      appTester.getActiveFullAccount().keybox.config
-        .copy(delayNotifyDuration = 2.seconds)
+    appTester.onboardFullAccountWithFakeHardware(delayNotifyDuration = 2.seconds)
     if (initWithTreasuryFunds != BitcoinMoney.zero()) {
       val wallet = appTester.getActiveWallet()
       appTester.treasuryWallet.fund(wallet, initWithTreasuryFunds)
@@ -78,6 +73,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
   suspend fun resetApp() {
     appTester = appTester.relaunchApp()
     app = appTester.app
+    app.appComponent.debugOptionsService.setDelayNotifyDuration(2.seconds)
     recoveryStateMachine =
       RecoveryTestingStateMachine(
         app.accountDataStateMachine,
@@ -89,10 +85,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("delay & notify") {
     setup()
-    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -128,10 +123,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("recovery lost app - force exiting in the middle of initiating") {
     setup()
-    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -146,7 +140,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       resetApp()
 
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -182,10 +176,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("force exiting before cloud backup takes you back to icloud backup") {
     setup()
-    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -209,7 +202,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       resetApp()
 
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -233,10 +226,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("force exiting after cloud backup & before sweep takes you back to sweep") {
     setup()
-    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -268,7 +260,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       resetApp()
 
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -288,10 +280,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("force exiting during D&N wait") {
     setup()
-    val props = fullAccountConfig
     app.apply {
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -307,7 +298,7 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
       resetApp()
 
       recoveryStateMachine.test(
-        props = props,
+        props = Unit,
         useVirtualTime = false,
         testTimeout = 20.seconds,
         turbineTimeout = 10.seconds
@@ -328,10 +319,9 @@ class LostAppAndCloudRecoveryFunctionalTests : FunSpec({
 
   test("ensure funds are swept after recovery") {
     setup(BitcoinMoney.sats(10_000))
-    val props = fullAccountConfig
 
     recoveryStateMachine.test(
-      props = props,
+      props = Unit,
       useVirtualTime = false,
       testTimeout = 60.seconds,
       turbineTimeout = 10.seconds

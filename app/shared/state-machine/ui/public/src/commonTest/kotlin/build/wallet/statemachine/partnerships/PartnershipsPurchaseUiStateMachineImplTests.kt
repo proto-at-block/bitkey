@@ -3,6 +3,8 @@ package build.wallet.statemachine.partnerships
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.screen.id.DepositEventTrackerScreenId.PARTNER_QUOTES_LIST
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.address.BitcoinAddressServiceFake
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.partnerships.*
@@ -20,7 +22,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
 import build.wallet.statemachine.core.form.FormMainContentModel.Loader
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.address.KeyboxAddressDataMock
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiProps
 import build.wallet.statemachine.partnerships.purchase.PartnershipsPurchaseUiStateMachineImpl
 import build.wallet.ui.model.list.ListItemModel
@@ -64,13 +65,14 @@ class PartnershipsPurchaseUiStateMachineImplTests : FunSpec({
     fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
     eventTracker = eventTracker,
     currencyConverter = currencyConverter,
-    exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
+    exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create),
+    bitcoinAddressService = BitcoinAddressServiceFake()
   )
 
   fun props(selectedAmount: FiatMoney? = null) =
     PartnershipsPurchaseUiProps(
+      account = FullAccountMock,
       keybox = KeyboxMock,
-      generateAddress = KeyboxAddressDataMock.generateAddress,
       selectedAmount = selectedAmount,
       onPartnerRedirected = { method, _ -> onPartnerRedirectedCalls.add(method) },
       onSelectCustomAmount = { min, max -> onSelectCustomAmount.add(min to max) },

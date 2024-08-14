@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:coroutines-extensions",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "sqldelight-coroutines-extensions-metadata-2.0.1.jar": "ac46da1ac282dcbebca7770a11e268841acf6afb49478886492a860a2810ed6f"
+                        "sqldelight-coroutines-extensions-metadata-2.0.2.jar": "88157a32a4ea52c10aae94ec8fbf6829da2da6bea2ea34c4dfd07448e50584c7"
                     }
                 }
             ],

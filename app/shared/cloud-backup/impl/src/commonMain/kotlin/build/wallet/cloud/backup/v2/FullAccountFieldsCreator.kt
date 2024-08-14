@@ -1,7 +1,7 @@
 package build.wallet.cloud.backup.v2
 
 import build.wallet.bitkey.keybox.Keybox
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.cloud.backup.csek.SealedCsek
 import com.github.michaelbull.result.Result
 

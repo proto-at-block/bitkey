@@ -1,12 +1,6 @@
 package build.wallet.statemachine.home.lite
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -111,7 +105,6 @@ class LiteHomeUiStateMachineImpl(
             liteSettingsHomeUiStateMachine.model(
               props = LiteSettingsHomeUiProps(
                 accountData = props.accountData,
-                firmwareData = props.firmwareData,
                 protectedCustomers = socRecRelationships.protectedCustomers,
                 homeStatusBannerModel = homeStatusBannerModel,
                 socRecTrustedContactActions = socRecLiteAccountActions,

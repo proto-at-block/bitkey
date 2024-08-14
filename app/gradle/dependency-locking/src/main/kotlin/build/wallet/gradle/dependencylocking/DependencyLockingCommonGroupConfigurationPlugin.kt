@@ -58,6 +58,7 @@ class DependencyLockingCommonGroupConfigurationPlugin : Plugin<Project> {
           "layoutlibRuntime",
           "DependenciesMetadata"
         )
+        nameEndsWith("BenchmarkGenerateCP")
         nameContains("PluginClasspath")
         nameIs(
           "androidApis",

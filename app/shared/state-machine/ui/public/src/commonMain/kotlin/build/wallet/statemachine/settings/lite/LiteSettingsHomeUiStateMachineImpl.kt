@@ -86,7 +86,6 @@ class LiteSettingsHomeUiStateMachineImpl(
         debugMenuStateMachine.model(
           props = DebugMenuProps(
             accountData = props.accountData,
-            firmwareData = props.firmwareData,
             onClose = { uiState = State.ShowingAllSettingsList }
           )
         )

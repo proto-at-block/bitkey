@@ -1,8 +1,7 @@
 package build.wallet.statemachine.settings.full
 
 import androidx.compose.runtime.*
-import build.wallet.feature.flags.InAppSecurityFeatureFlag
-import build.wallet.feature.isEnabled
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.biometric.BiometricSettingUiProps
 import build.wallet.statemachine.biometric.BiometricSettingUiStateMachine
@@ -55,7 +54,7 @@ class SettingsHomeUiStateMachineImpl(
   private val rotateAuthKeyUIStateMachine: RotateAuthKeyUIStateMachine,
   private val debugMenuStateMachine: DebugMenuStateMachine,
   private val biometricSettingUiStateMachine: BiometricSettingUiStateMachine,
-  private val inAppSecurityFeatureFlag: InAppSecurityFeatureFlag,
+  private val firmwareDataService: FirmwareDataService,
 ) : SettingsHomeUiStateMachine {
   @Composable
   override fun model(props: SettingsHomeUiProps): ScreenModel {
@@ -65,7 +64,7 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingAllSettingsUiState -> {
         // Check for new FW whenever we navigate to the Settings screen
         LaunchedEffect("check-for-new-fw") {
-          props.firmwareData.checkForNewFirmware()
+          firmwareDataService.syncLatestFwupData()
         }
 
         var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
@@ -116,8 +115,8 @@ class SettingsHomeUiStateMachineImpl(
                         state = ShowingDebugMenuUiState
                       }.takeIf { appVariant.showDebugMenu },
                       SettingsListUiProps.SettingsListRow.Biometric {
-                        state = State.ShowingBiometricSettingUiState
-                      }.takeIf { inAppSecurityFeatureFlag.isEnabled() }
+                        state = ShowingBiometricSettingUiState
+                      }
                     ),
                   onShowAlert = { alertModel = it },
                   onDismissAlert = { alertModel = null }
@@ -161,13 +160,6 @@ class SettingsHomeUiStateMachineImpl(
           props =
             CustomElectrumServerProps(
               onBack = { state = ShowingAllSettingsUiState },
-              electrumServerPreferenceValue =
-                props.electrumServerData.userDefinedElectrumServerPreferenceValue,
-              disableCustomElectrumServer = {
-                props.electrumServerData.disableCustomElectrumServer(
-                  props.electrumServerData.userDefinedElectrumServerPreferenceValue
-                )
-              },
               activeNetwork = props.accountData.account.config.bitcoinNetworkType
             )
         )
@@ -184,7 +176,6 @@ class SettingsHomeUiStateMachineImpl(
         deviceSettingsUiStateMachine.model(
           props = DeviceSettingsProps(
             accountData = props.accountData,
-            firmwareData = props.firmwareData,
             onBack = { state = ShowingAllSettingsUiState },
             onUnwindToMoneyHome = props.onBack
           )
@@ -241,11 +232,10 @@ class SettingsHomeUiStateMachineImpl(
       is ShowingDebugMenuUiState -> debugMenuStateMachine.model(
         DebugMenuProps(
           accountData = props.accountData,
-          firmwareData = props.firmwareData,
           onClose = { state = ShowingAllSettingsUiState }
         )
       )
-      State.ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
+      ShowingBiometricSettingUiState -> biometricSettingUiStateMachine.model(
         BiometricSettingUiProps(
           keybox = props.accountData.account.keybox,
           onBack = { state = ShowingAllSettingsUiState }

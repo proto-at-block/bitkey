@@ -1,8 +1,8 @@
 package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.ChallengeWrapper
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.encrypt.XCiphertext
 import build.wallet.f8e.F8eEnvironment
 import com.github.michaelbull.result.Result

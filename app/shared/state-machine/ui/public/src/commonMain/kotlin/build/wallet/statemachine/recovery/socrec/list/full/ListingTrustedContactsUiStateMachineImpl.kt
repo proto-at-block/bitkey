@@ -5,10 +5,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.UnendorsedTrustedContact
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.bitkey.relationships.UnendorsedTrustedContact
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine

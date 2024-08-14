@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:sqlite-3-18-dialect",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "sqlite-3-18-dialect-2.0.1.jar": "9c5a5202e889416b63076ae63263cc2a07ba89fa1443b80d28c911589763308f"
+                        "sqlite-3-18-dialect-2.0.2.jar": "1ec744b86f0b1e6074afcb184cdb6c4def55ee28a47a3372b896b5d025fc4cd1"
                     }
                 }
             ],

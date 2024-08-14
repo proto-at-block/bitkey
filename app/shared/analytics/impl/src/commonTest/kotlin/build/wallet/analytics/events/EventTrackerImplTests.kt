@@ -13,7 +13,7 @@ import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.bitkey.keybox.LiteAccountMock
 import build.wallet.bitkey.spending.SpendingKeysetMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.keybox.config.TemplateFullAccountConfigDaoFake
+import build.wallet.debug.DebugOptionsServiceFake
 import build.wallet.money.display.BitcoinDisplayPreferenceRepositoryMock
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.platform.device.DeviceInfoProviderMock
@@ -44,39 +44,36 @@ class EventTrackerImplTests : FunSpec({
   val deviceInfoProvider = DeviceInfoProviderMock()
   val accountRepository = AccountRepositoryFake()
   val eventStore = EventStoreMock()
-  val templateFullAccountConfigDao = TemplateFullAccountConfigDaoFake()
+  val debugOptionsService = DebugOptionsServiceFake()
   val analyticsTrackingPreference = AnalyticsTrackingPreferenceFake()
 
   val appScope = TestScope()
 
-  val eventTracker =
-    EventTrackerImpl(
-      appCoroutineScope = appScope,
-      appDeviceIdDao = appDeviceIdDao,
-      deviceInfoProvider = deviceInfoProvider,
-      accountRepository = accountRepository,
-      templateFullAccountConfigDao = templateFullAccountConfigDao,
-      clock = clock,
-      countryCodeProvider = countryCodeProvider,
-      eventProcessor = eventProcessor,
-      appInstallationDao = appInstallationDao,
-      hardwareInfoProvider = hardWareInfoProvider,
-      platformInfoProvider = platformInfoProvider,
-      appSessionManager = AppSessionManagerFake(sessionId),
-      eventStore = eventStore,
-      bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(),
-      fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
-      localeCurrencyCodeProvider = LocaleCurrencyCodeProviderFake(),
-      analyticsTrackingPreference = analyticsTrackingPreference
-    )
+  val eventTracker = EventTrackerImpl(
+    appCoroutineScope = appScope,
+    appDeviceIdDao = appDeviceIdDao,
+    deviceInfoProvider = deviceInfoProvider,
+    accountRepository = accountRepository,
+    debugOptionsService = debugOptionsService,
+    clock = clock,
+    countryCodeProvider = countryCodeProvider,
+    eventProcessor = eventProcessor,
+    appInstallationDao = appInstallationDao,
+    hardwareInfoProvider = hardWareInfoProvider,
+    platformInfoProvider = platformInfoProvider,
+    appSessionManager = AppSessionManagerFake(sessionId),
+    eventStore = eventStore,
+    bitcoinDisplayPreferenceRepository = BitcoinDisplayPreferenceRepositoryMock(),
+    fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
+    localeCurrencyCodeProvider = LocaleCurrencyCodeProviderFake(),
+    analyticsTrackingPreference = analyticsTrackingPreference
+  )
 
   beforeTest {
-    eventProcessor.processBatchReturnValues = listOf(Ok(Unit))
-    analyticsTrackingPreference.clear()
-  }
-
-  afterTest {
     accountRepository.reset()
+    analyticsTrackingPreference.clear()
+    debugOptionsService.reset()
+    eventProcessor.processBatchReturnValues = listOf(Ok(Unit))
     eventProcessor.reset()
   }
 

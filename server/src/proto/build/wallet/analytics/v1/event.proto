@@ -239,7 +239,16 @@ enum Action {
     /** [Hw] Collection of statistics for fingerprint scan attempts */
     ACTION_HW_FINGERPRINT_SCAN_STATS = 64;
 
-    // Next tag is 65
+    /** [App] Customer has enabled the bitcoin price money home card. */
+    ACTION_APP_BITCOIN_PRICE_CARD_ENABLED = 65;
+
+    /** [App] Customer has disabled the bitcoin price money home card. */
+    ACTION_APP_BITCOIN_PRICE_CARD_DISABLED = 66;
+
+    /** [App] Customer has seen the bitcoin price card coachmark */
+    ACTION_APP_COACHMARK_VIEWIED_BITCOIN_PRICE_CARD = 67;
+
+    // Next tag is 68
 }
 
 message PlatformInfo {

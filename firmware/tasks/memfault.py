@@ -41,9 +41,7 @@ def auth_headers():
     }
 
 
-@task(help={
-    "target": "Build target to backup"
-})
+@task(help={"target": "Build target to backup"})
 def coredump(ctx, target=None):
     target = target if target else ctx.target
 
@@ -53,68 +51,75 @@ def coredump(ctx, target=None):
     # Check for saved memfault login
     check_login(ctx)
 
-    click.echo('Reading filesystem memory')
+    click.echo("Reading filesystem memory")
     try:
         gdbfs = GDBFs(ctx, target=target)
         fs = gdbfs.fetch()
     except:
-        click.echo(click.style(f'Unable to read device filesystem', fg='red'))
+        click.echo(click.style(f"Unable to read device filesystem", fg="red"))
         raise exceptions.Exit(code=1)
 
-    click.echo('Extracting coredump')
+    click.echo("Extracting coredump")
     try:
         cd = fs.read_file(coredumps_filename)
         if cd is None:
             click.echo(click.style(
-                f'{coredumps_filename} not found', fg='red'))
+                f"{coredumps_filename} not found", fg="red"))
             raise exceptions.Exit(code=1)
     except:
         click.echo(click.style(
-            f'Unable to read {coredumps_filename}', fg='red'))
+            f"Unable to read {coredumps_filename}", fg="red"))
         raise exceptions.Exit(code=1)
 
     # Get the last trace id, before we upload the coredump
 
     try:
-        click.echo('Getting device serial number and most recent trace id')
+        click.echo("Getting device serial number and most recent trace id")
         serial = fs.get_serial() or "XXXXXXXXXXXXXXXX"
-        click.echo('Getting most recent trace id')
+        click.echo("Getting most recent trace id")
         (previous_trace_id, previous_trace_count) = find_latest_trace_id(
-            ctx, "coredump", serial)
+            ctx, "coredump", serial
+        )
     except Exception as e:
-        click.echo(click.style(f'Error {e}', fg='red'))
+        click.echo(click.style(f"Error {e}", fg="red"))
         raise exceptions.Exit(code=1)
 
     # Upload the coredump
     upload_symbols = True
-    click.echo('Uploading coredump')
+    click.echo("Uploading coredump")
     try:
-        with tempfile.NamedTemporaryFile(mode='wb') as tmp:
+        with tempfile.NamedTemporaryFile(mode="wb") as tmp:
             tmp.write(cd.getvalue())
             tmp.flush()
 
             # Upload coredump
             upload_coredump_cmd = [
                 "memfault",
-                "--org-token", f"{ctx.memfault_org_token}",
-                "--org", f"{ctx.memfault_org}",
-                "--project", f"{ctx.memfault_project}",
+                "--org-token",
+                f"{ctx.memfault_org_token}",
+                "--org",
+                f"{ctx.memfault_org}",
+                "--project",
+                f"{ctx.memfault_project}",
                 "upload-coredump",
-                "--device-serial", f"{serial}",
+                "--device-serial",
+                f"{serial}",
                 f"{tmp.name}",
             ]
-            result = ctx.run(' '.join(upload_coredump_cmd), hide=True)
+            result = ctx.run(" ".join(upload_coredump_cmd), hide=True)
 
             if "was already uploaded" in result.stdout:
                 upload_symbols = False
     except:
-        click.echo(click.style(
-            f'Unable to upload coredump {coredumps_filename}', fg='red'))
+        click.echo(
+            click.style(
+                f"Unable to upload coredump {coredumps_filename}", fg="red")
+        )
         raise exceptions.Exit(code=1)
 
     # Upload symbol files
     if upload_symbols:
-        click.echo('Uploading mcu symbols')
+        click.echo("Uploading mcu symbols")
         try:
             git = Git()
             sw_type = Path(target).stem.replace(f"{ctx.memfault_project}-", "")
@@ -123,23 +128,33 @@ def coredump(ctx, target=None):
             version = f"{git.semver_tag}-{git.identity}-{int(time.time())}"
             upload_symbols_cmd = [
                 "memfault",
-                "--org-token", f"{ctx.memfault_org_token}",
-                "--org", f"{ctx.memfault_org}",
-                "--project", f"{ctx.memfault_project}",
+                "--org-token",
+                f"{ctx.memfault_org_token}",
+                "--org",
+                f"{ctx.memfault_org}",
+                "--project",
+                f"{ctx.memfault_project}",
                 "upload-mcu-symbols",
-                "--software-type", f"{sw_type}",
-                "--software-version", f"{version}",
-                "--revision", f"{git.head_rev}",
+                "--software-type",
+                f"{sw_type}",
+                "--software-version",
+                f"{version}",
+                "--revision",
+                f"{git.head_rev}",
                 f"{symbols}",
             ]
-            ctx.run(' '.join(upload_symbols_cmd), hide=True)
+            ctx.run(" ".join(upload_symbols_cmd), hide=True)
         except:
-            click.echo(click.style(f'Unable to upload mcu symbols', fg='red'))
+            click.echo(click.style(f"Unable to upload mcu symbols", fg="red"))
             raise exceptions.Exit(code=1)
     else:
-        click.echo(f'Coredump already uploaded, skipping mcu symbol upload')
-        click.echo(click.style(
-            f'View the coredump here: {issue_url + f"{previous_trace_id}"}', fg='green'))
+        click.echo(f"Coredump already uploaded, skipping mcu symbol upload")
+        click.echo(
+            click.style(
+                f'View the coredump here: {issue_url + f"{previous_trace_id}"}',
+                fg="green",
+            )
+        )
         raise exceptions.Exit(code=1)
         return
 
@@ -147,22 +162,32 @@ def coredump(ctx, target=None):
     # so we keep track of the latest trace id before the codedump upload,
     # then attempt to find a new trace id once a second for 5 seconds
     try:
-        click.echo('Getting new trace id')
+        click.echo("Getting new trace id")
         for _ in range(10):
             # Find the latest coredump
             (trace_id, trace_count) = find_latest_trace_id(
                 ctx, "coredump", serial)
 
-            if trace_id is not None and trace_id != previous_trace_id or (trace_id == previous_trace_id and trace_count > previous_trace_count):
-                click.echo(click.style(
-                    f'View the coredump here: {issue_url + f"{trace_id}"}', fg='green'))
+            if (
+                trace_id is not None
+                and trace_id != previous_trace_id
+                or (
+                    trace_id == previous_trace_id and trace_count > previous_trace_count
+                )
+            ):
+                click.echo(
+                    click.style(
+                        f'View the coredump here: {issue_url + f"{trace_id}"}',
+                        fg="green",
+                    )
+                )
                 return
 
             time.sleep(1)
     except:
         pass
 
-    click.echo(click.style(f'Unable to find trace on Memfault.', fg='red'))
+    click.echo(click.style(f"Unable to find trace on Memfault.", fg="red"))
     click.echo(
         f'Coredump may be viewable here: {issue_url + f"{previous_trace_id}"}')
 
@@ -173,25 +198,30 @@ def find_latest_trace_id(ctx, type, serial) -> Tuple[int, int]:
     url = f"https://api.memfault.com/api/v0/organizations/{ctx.memfault_org}/projects/{ctx.memfault_project}/issues"
     auth = f":{ctx.memfault_org_token}"
     token = base64.b64encode(auth.encode("utf-8")).decode("utf-8")
-    headers = {
-        "cache-control": "no-cache",
-        "Authorization": f"Basic {token}"
-    }
+    headers = {"cache-control": "no-cache", "Authorization": f"Basic {token}"}
 
     response = requests.get(url, headers=headers)
     data = json.loads(response.text)
 
     for issue in data["data"]:
-        if (last_trace := issue["last_trace"])["source_type"] == type and \
-                serial == last_trace["device"]["device_serial"]:
+        if (last_trace := issue["last_trace"])[
+            "source_type"
+        ] == type and serial == last_trace["device"]["device_serial"]:
             return (last_trace["issue_id"], issue["trace_count"])
 
     return (None, None)
 
 
 def check_login(ctx):
-    if "memfault_user" not in ctx or "memfault_key" not in ctx or "memfault_org_token" not in ctx or ctx.memfault_user == "" or ctx.memfault_key == "" or ctx.memfault_org_token == "":
-        click.echo(click.style(f'Memfault login is required', fg='yellow'))
+    if (
+        "memfault_user" not in ctx
+        or "memfault_key" not in ctx
+        or "memfault_org_token" not in ctx
+        or ctx.memfault_user == ""
+        or ctx.memfault_key == ""
+        or ctx.memfault_org_token == ""
+    ):
+        click.echo(click.style(f"Memfault login is required", fg="yellow"))
         save_login(ctx)
 
 
@@ -199,19 +229,29 @@ def save_login(ctx):
     config = {}
     if "memfault_user" not in ctx or ctx.memfault_user == "":
         config["memfault_user"] = click.prompt(
-            'Memfault Email address', type=str)
+            "Memfault Email address", type=str)
 
     if "memfault_key" not in ctx or ctx.memfault_key == "":
-        click.echo(click.style(
-            "Generate a user API key here: https://app.memfault.com/profile", fg='green'))
+        click.echo(
+            click.style(
+                "Generate a user API key here: https://app.memfault.com/profile",
+                fg="green",
+            )
+        )
         config["memfault_key"] = click.prompt(
-            'Memfault User API Key', type=str, hide_input=True)
+            "Memfault User API Key", type=str, hide_input=True
+        )
 
     if "memfault_org_token" not in ctx or ctx.memfault_org_token == "":
-        click.echo(click.style(
-            "Create an organization token named 'Invoke: yourname' here:\nhttps://app.memfault.com/organizations/block-wallet/settings/auth-tokens", fg='green'))
+        click.echo(
+            click.style(
+                "Create an organization token named 'Invoke: yourname' here:\nhttps://app.memfault.com/organizations/block-wallet/settings/auth-tokens",
+                fg="green",
+            )
+        )
         config["memfault_org_token"] = click.prompt(
-            'Memfault Org Token', type=str, hide_input=True)
+            "Memfault Org Token", type=str, hide_input=True
+        )
 
     config["memfault_org"] = "block-wallet"
     config["memfault_project"] = "w1a"
@@ -229,8 +269,7 @@ def create_device(ctx, device_serial, hw_version, cohort="default"):
         "cohort": cohort,
     }
 
-    click.echo(requests.post(
-        url, headers=auth_headers(), json=payload))
+    click.echo(requests.post(url, headers=auth_headers(), json=payload))
 
 
 @task()
@@ -246,14 +285,14 @@ def check_coredump_status(ctx, identifier, project_key):
 
 @task
 def released_versions(ctx, quiet=False):
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/releases"
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/releases?per_page=10000"
 
     releases = json.loads(requests.get(
-        url, headers=auth_headers()).text)['data']
+        url, headers=auth_headers()).text)["data"]
     output = []
     for release in releases:
         click.echo(release)
-        output.append(release['version'])
+        output.append(release["version"])
 
     if not quiet:
         click.echo(output)
@@ -268,14 +307,14 @@ def fetch_release(ctx, version, hw_revision, sw_type, output_dir) -> Path:
     if they are present in `output_dir`.
     """
     url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/releases/{version}"
-    template = f'fwup-bundle-{version}-{hw_revision}-{sw_type}'
+    template = f"fwup-bundle-{version}-{hw_revision}-{sw_type}"
 
     def download_and_extract(zip_contents):
         o = Path(output_dir)
-        zip_path = o.joinpath(template + '.zip')
+        zip_path = o.joinpath(template + ".zip")
         zip_path.unlink(missing_ok=True)
 
-        with open(zip_path, 'wb') as f:
+        with open(zip_path, "wb") as f:
             f.write(zip_contents)
         bundle_path = o.joinpath(template)
 
@@ -286,46 +325,52 @@ def fetch_release(ctx, version, hw_revision, sw_type, output_dir) -> Path:
 
         return bundle_path
 
-    rsp = json.loads(requests.get(
-        url, headers=auth_headers()).text)['data']
-    for artifact in rsp['artifacts']:
-        if artifact['hardware_version']['name'] == hw_revision and \
-                artifact['hardware_version']['primary_software_type']['name'] == sw_type:
-            return download_and_extract(requests.get(artifact['url']).content)
+    rsp = json.loads(requests.get(url, headers=auth_headers()).text)["data"]
+    for artifact in rsp["artifacts"]:
+        if (
+            artifact["hardware_version"]["name"] == hw_revision
+            and artifact["hardware_version"]["primary_software_type"]["name"] == sw_type
+        ):
+            return download_and_extract(requests.get(artifact["url"]).content)
 
     click.echo(f"No release found for {hw_revision}, {sw_type}, {version}")
     return None
 
 
 def _list_issues():
-    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/issues"
-    return json.loads(requests.get(
-        url, headers=auth_headers()).text)['data']
+    url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/issues?per_page=10000"
+    return json.loads(requests.get(url, headers=auth_headers()).text)["data"]
 
 
 @task
-def list_issues(ctx,):
-    print(_list_issues(ctx,))
+def list_issues(
+    ctx,
+):
+    print(
+        _list_issues(
+            ctx,
+        )
+    )
 
 
 @task
 def fingerprint_issue_tracker(ctx, no_graph=False):
     all_issues = _list_issues()
 
-    pass_reason = 'Bio Enroll Sample Pass Count'
-    fail_reason = 'Bio Enroll Sample Fail Count'
-    title = 'Bio Enroll Sample'
+    pass_reason = "Bio Enroll Sample Pass Count"
+    fail_reason = "Bio Enroll Sample Fail Count"
+    title = "Bio Enroll Sample"
 
     pass_count = 0
     fail_count_map = {}
     for issue in all_issues:
-        if title in issue['title']:
-            count = issue['trace_count']
-            if issue['reason'] == pass_reason:
-                status_code = int(issue['title'].split('/ ')[1].rstrip(']'))
+        if title in issue["title"]:
+            count = issue["trace_count"]
+            if issue["reason"] == pass_reason:
+                status_code = int(issue["title"].split("/ ")[1].rstrip("]"))
                 pass_count += count
-            if issue['reason'] == fail_reason:
-                status_code = int(issue['title'].split('/ ')[1].rstrip(']'))
+            if issue["reason"] == fail_reason:
+                status_code = int(issue["title"].split("/ ")[1].rstrip("]"))
                 try:
                     fail_count_map[status_code] += count
                 except:
@@ -336,16 +381,19 @@ def fingerprint_issue_tracker(ctx, no_graph=False):
         print(f"Failed samples per enrollment:")
         pprint.pprint(fail_count_map, width=1)
     else:
-        data_frame = pandas.DataFrame(list(fail_count_map.items()),
-                                      columns=['Failed samples per enrollment', 'Count'])
+        data_frame = pandas.DataFrame(
+            list(fail_count_map.items()),
+            columns=["Failed samples per enrollment", "Count"],
+        )
         figure = px.bar(
-            data_frame, x='Failed samples per enrollment', y='Count')
+            data_frame, x="Failed samples per enrollment", y="Count")
         figure.show()
 
 
 @dataclass
 class DeploymentView:
     """Wrapper around raw Memfault deployment, displaying only certain fields."""
+
     deployed_date: str
     updated_date: str
     created_date: str
@@ -362,41 +410,43 @@ def get_deployments():
     url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/deployments"
 
     deployments = json.loads(requests.get(
-        url, headers=auth_headers()).text)['data']
+        url, headers=auth_headers()).text)["data"]
 
     delta = []
     normal = []
 
     for d in deployments:
-        if d['status'] == 'pulled':
+        if d["status"] == "pulled":
             continue
 
         try:
-            release_type = d['release']['type']
+            release_type = d["release"]["type"]
         except:
-            release_type = 'normal'
+            release_type = "normal"
 
         try:
-            email = d['deployer']['email']
+            email = d["deployer"]["email"]
         except:
-            email = 'CLI'
+            email = "CLI"
 
         view = DeploymentView(
-            deployed_date=d['deployed_date'],
-            updated_date=d['updated_date'],
-            created_date=d['created_date'],
-            cohort=d['cohort']['name'],
+            deployed_date=d["deployed_date"],
+            updated_date=d["updated_date"],
+            created_date=d["created_date"],
+            cohort=d["cohort"]["name"],
             deployer_email=email,
             type=release_type,
-            version="", from_version="", to_version="",
+            version="",
+            from_version="",
+            to_version="",
         )
 
-        if view.type == 'delta':
-            view.from_version = d['release']['from_version']['version']
-            view.to_version = d['release']['to_version']['version']
+        if view.type == "delta":
+            view.from_version = d["release"]["from_version"]["version"]
+            view.to_version = d["release"]["to_version"]["version"]
             delta.append(view)
         else:
-            view.version = d['release']['version']
+            view.version = d["release"]["version"]
             normal.append(view)
 
     return delta, normal
@@ -407,25 +457,50 @@ def list_deployments(ctx, version=None):
     delta, normal = get_deployments()
 
     table = PrettyTable()
-    table.field_names = ["Deployed Date", "Cohort", "Deployer Email",
-                         "Type", "Version", "From Version", "To Version"]
+    table.field_names = [
+        "Deployed Date",
+        "Cohort",
+        "Deployer Email",
+        "Type",
+        "Version",
+        "From Version",
+        "To Version",
+    ]
 
     for d in normal:
         if version is None or version == d.version:
-            table.add_row([d.deployed_date, d.cohort, d.deployer_email,
-                           d.type, d.version, d.from_version, d.to_version])
+            table.add_row(
+                [
+                    d.deployed_date,
+                    d.cohort,
+                    d.deployer_email,
+                    d.type,
+                    d.version,
+                    d.from_version,
+                    d.to_version,
+                ]
+            )
 
-    click.echo(click.style("Full deployments\n", fg='blue', bold=True))
+    click.echo(click.style("Full deployments\n", fg="blue", bold=True))
     print(table)
 
     table.clear_rows()
 
     for d in delta:
         if version is None or version == d.to_version:
-            table.add_row([d.deployed_date, d.cohort, d.deployer_email,
-                           d.type, d.version, d.from_version, d.to_version])
+            table.add_row(
+                [
+                    d.deployed_date,
+                    d.cohort,
+                    d.deployer_email,
+                    d.type,
+                    d.version,
+                    d.from_version,
+                    d.to_version,
+                ]
+            )
 
-    click.echo(click.style("\nDelta deployments\n", fg='blue', bold=True))
+    click.echo(click.style("\nDelta deployments\n", fg="blue", bold=True))
     print(table)
 
 
@@ -434,14 +509,14 @@ def get_delta_releases(ctx, from_version=None, to_version=None):
     url = f"https://api.memfault.com/api/v0/organizations/block-wallet/projects/w1a/delta-releases?per_page=10000"
 
     releases = json.loads(requests.get(
-        url, headers=auth_headers()).text)['data']
+        url, headers=auth_headers()).text)["data"]
 
     if from_version:
-        releases = [r for r in releases if r['from_version']
-                    ['version'] == from_version]
+        releases = [r for r in releases if r["from_version"]
+                    ["version"] == from_version]
     elif to_version:
-        releases = [r for r in releases if r['to_version']
-                    ['version'] == to_version]
+        releases = [r for r in releases if r["to_version"]
+                    ["version"] == to_version]
 
     return releases
 
@@ -452,14 +527,17 @@ def list_delta_releases(ctx, from_version=None, to_version=None):
     table.field_names = ["From Version", "To Version"]
 
     for release in get_delta_releases(ctx, from_version, to_version):
-        table.add_row([release['from_version']['version'],
-                      release['to_version']['version']]),
+        table.add_row(
+            [release["from_version"]["version"], release["to_version"]["version"]]
+        ),
 
     print(table)
 
 
 @task
-def activate_delta_release(ctx, to_version, cohort, from_version=None, deactivate=False, dry_run=False):
+def activate_delta_release(
+    ctx, to_version, cohort, from_version=None, deactivate=False, percent=0, dry_run=False
+):
     """Activate (or deactivate) a delta release for a given cohort.
 
     `to_version` is the version to activate, and must be supplied.
@@ -476,17 +554,30 @@ def activate_delta_release(ctx, to_version, cohort, from_version=None, deactivat
     releases = get_delta_releases(
         ctx, from_version=from_version, to_version=to_version)
 
+    if cohort == "bitkey-external":
+        # We changed the cosmetic name in Memfault, but it doesn't change the real name
+        cohort = "bitkey-external-beta"
+
     assert cohort in COHORTS
+    assert percent > 0
 
     for release in releases:
         args = [
-            "--org-token", bearer_token(),
-            "--org", "block-wallet",
-            "--project", "w1a",
+            "--org-token",
+            bearer_token(),
+            "--org",
+            "block-wallet",
+            "--project",
+            "w1a",
             "deploy-release",
-            "--delta-from", release['from_version']['version'],
-            "--delta-to", release['to_version']['version'],
-            "--cohort", cohort,
+            "--delta-from",
+            release["from_version"]["version"],
+            "--delta-to",
+            release["to_version"]["version"],
+            "--cohort",
+            cohort,
+            "--rollout-percent",
+            str(percent),
         ]
         if deactivate:
             args.append("--deactivate")
@@ -496,13 +587,21 @@ def activate_delta_release(ctx, to_version, cohort, from_version=None, deactivat
         else:
             try:
                 verb = "Deactivating" if deactivate else "Activating"
-                click.echo(click.style(
-                    f"{verb} {release['from_version']['version']} -> {release['to_version']['version']} to cohort {cohort}", fg='green'))
+                click.echo(
+                    click.style(
+                        f"{verb} {release['from_version']['version']} -> {release['to_version']['version']} to cohort {cohort}",
+                        fg="green",
+                    )
+                )
                 click.echo(sh.memfault(*args))
             except sh.ErrorReturnCode as e:
                 # Gross. But, so is shelling out.
                 if "Already active for this cohort" in e.stderr.decode("utf-8"):
-                    click.echo(click.style(
-                        f"  Delta {release['from_version']['version']} -> {release['to_version']['version']} already active for cohort {cohort}", fg='yellow'))
+                    click.echo(
+                        click.style(
+                            f"  Delta {release['from_version']['version']} -> {release['to_version']['version']} already active for cohort {cohort}",
+                            fg="yellow",
+                        )
+                    )
                 else:
-                    click.echo(click.style(e.stderr.decode("utf-8"), fg='red'))
+                    click.echo(click.style(e.stderr.decode("utf-8"), fg="red"))

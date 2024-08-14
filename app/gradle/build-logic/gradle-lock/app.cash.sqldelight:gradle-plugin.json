@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:gradle-plugin",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "gradle-plugin-2.0.1.jar": "ac4a8cc4b4fa93bb8a76c6aa13b43af32bcf97726677c4372eb16287bbeb2ceb"
+                        "gradle-plugin-2.0.2.jar": "cec39d88c7627ef48e6a5e3171a0d1ede0090d7abb0ce2ba664360fed5e247d5"
                     }
                 }
             ],

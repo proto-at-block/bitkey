@@ -1,7 +1,7 @@
 package build.wallet.statemachine.trustedcontact.model
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS
-import build.wallet.bitkey.socrec.ProtectedCustomer
+import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.SuccessBodyModel
 import build.wallet.statemachine.core.form.FormBodyModel

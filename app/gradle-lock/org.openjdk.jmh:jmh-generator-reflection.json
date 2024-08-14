@@ -1,0 +1,18 @@
+{
+    "module-identifier": "org.openjdk.jmh:jmh-generator-reflection",
+    "components": [
+        {
+            "version": "1.21",
+            "variants": [
+                {
+                    "artifacts": {
+                        "jmh-generator-reflection-1.21.jar": "80309a00b3afcf65d238603e66d60203280a6699de8867d16b4571c420a707bd"
+                    }
+                }
+            ],
+            "dependency-locking-groups": [
+                "build-classpath"
+            ]
+        }
+    ]
+}

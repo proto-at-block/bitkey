@@ -2,7 +2,6 @@ package build.wallet.statemachine.settings.full.device
 
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
-import build.wallet.statemachine.data.firmware.FirmwareData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 
 /**
@@ -18,7 +17,6 @@ interface DeviceSettingsUiStateMachine : StateMachine<DeviceSettingsProps, Scree
  */
 data class DeviceSettingsProps(
   val accountData: ActiveFullAccountLoadedData,
-  val firmwareData: FirmwareData,
   val onBack: () -> Unit,
   val onUnwindToMoneyHome: () -> Unit,
 )

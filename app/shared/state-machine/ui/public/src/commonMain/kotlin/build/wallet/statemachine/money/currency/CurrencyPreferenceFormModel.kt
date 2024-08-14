@@ -19,10 +19,12 @@ fun CurrencyPreferenceFormModel(
   onFiatCurrencyPreferenceClick: () -> Unit,
   bitcoinDisplayPreferenceString: String,
   bitcoinDisplayPreferencePickerModel: ListItemPickerMenu<*>,
-  shouldShowHideBalance: Boolean = false,
+  shouldShowBitcoinPriceCardToggle: Boolean = false,
+  isBitcoinPriceCardEnabled: Boolean = false,
   isHideBalanceEnabled: Boolean = false,
   onEnableHideBalanceChanged: (Boolean) -> Unit,
   onBitcoinDisplayPreferenceClick: () -> Unit,
+  onBitcoinPriceCardPreferenceClick: (Boolean) -> Unit = {},
 ) = FormBodyModel(
   id = CurrencyEventTrackerScreenId.CURRENCY_PREFERENCE,
   onBack = onBack,
@@ -62,6 +64,26 @@ fun CurrencyPreferenceFormModel(
             style = ListGroupStyle.CARD_GROUP_DIVIDER
           )
       ).apply { add(this) }
+
+      if (shouldShowBitcoinPriceCardToggle) {
+        FormMainContentModel.ListGroup(
+          listGroupModel = ListGroupModel(
+            style = ListGroupStyle.CARD_GROUP_DIVIDER,
+            items =
+              immutableListOf(
+                ListItemModel(
+                  title = "Show Bitcoin Performance",
+                  trailingAccessory = ListItemAccessory.SwitchAccessory(
+                    model = SwitchModel(
+                      checked = isBitcoinPriceCardEnabled,
+                      onCheckedChange = onBitcoinPriceCardPreferenceClick
+                    )
+                  )
+                )
+              )
+          )
+        ).apply { add(this) }
+      }
       FormMainContentModel.ListGroup(
         listGroupModel =
           ListGroupModel(
@@ -82,9 +104,7 @@ fun CurrencyPreferenceFormModel(
             explainerSubtext = "You can always tap your Home balance to quickly switch between hide and reveal."
           )
       ).apply {
-        if (shouldShowHideBalance) {
-          add(this)
-        }
+        add(this)
       }
     },
   primaryButton = null

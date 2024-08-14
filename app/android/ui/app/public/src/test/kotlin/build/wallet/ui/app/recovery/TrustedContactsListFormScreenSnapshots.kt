@@ -2,14 +2,8 @@ package build.wallet.ui.app.recovery
 
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
 import build.wallet.bitkey.hardware.HwAuthPublicKey
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.ProtectedCustomer
-import build.wallet.bitkey.socrec.ProtectedCustomerAlias
-import build.wallet.bitkey.socrec.TcIdentityKeyAppSignature
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
-import build.wallet.bitkey.socrec.TrustedContactKeyCertificate
+import build.wallet.bitkey.relationships.*
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.crypto.PublicKey
 import build.wallet.encrypt.Secp256k1PublicKey
@@ -40,7 +34,8 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
                   appAuthGlobalKeyHwSignature = AppGlobalAuthKeyHwSignature(""),
                   trustedContactIdentityKeyAppSignature = TcIdentityKeyAppSignature("")
                 ),
-                authenticationState = VERIFIED
+                authenticationState = VERIFIED,
+                roles = setOf(TrustedContactRole.SocialRecoveryContact)
               )
             ),
           invitations =
@@ -48,6 +43,7 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
               Invitation(
                 "",
                 TrustedContactAlias("Alice"),
+                setOf(TrustedContactRole.SocialRecoveryContact),
                 "",
                 20,
                 Instant.DISTANT_FUTURE
@@ -71,7 +67,11 @@ class TrustedContactsListFormScreenSnapshots : FunSpec({
         LiteTrustedContactsListBodyModel(
           protectedCustomers =
             immutableListOf(
-              ProtectedCustomer("", ProtectedCustomerAlias("Alice"))
+              ProtectedCustomer(
+                relationshipId = "",
+                alias = ProtectedCustomerAlias("Alice"),
+                roles = setOf(TrustedContactRole.SocialRecoveryContact)
+              )
             ),
           onProtectedCustomerPressed = {},
           onAcceptInvitePressed = {},

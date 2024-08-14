@@ -1,10 +1,11 @@
 package build.wallet.integration.statemachine.recovery.socrec
 
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.TrustedContactAlias
-import build.wallet.bitkey.socrec.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.TrustedContactAlias
+import build.wallet.bitkey.relationships.TrustedContactAuthenticationState.VERIFIED
+import build.wallet.bitkey.relationships.TrustedContactRole
 import build.wallet.bitkey.socrec.TrustedContactKeyCertificateFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.socrec.SocRecRelationships
@@ -59,10 +60,11 @@ class TrustedContactManagementFunctionalTests : FunSpec({
     val account = appTester.onboardFullAccountWithFakeHardware()
     val testContact =
       EndorsedTrustedContact(
-        recoveryRelationshipId = "test-id",
+        relationshipId = "test-id",
         trustedContactAlias = TrustedContactAlias("test-contact"),
         keyCertificate = TrustedContactKeyCertificateFake,
-        authenticationState = VERIFIED
+        authenticationState = VERIFIED,
+        roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
 
     appTester.app.trustedContactManagementUiStateMachine.test(
@@ -95,11 +97,12 @@ class TrustedContactManagementFunctionalTests : FunSpec({
     val account = appTester.onboardFullAccountWithFakeHardware()
     val testInvitation =
       Invitation(
-        recoveryRelationshipId = "test-id",
+        relationshipId = "test-id",
         trustedContactAlias = TrustedContactAlias("test-invitation"),
         code = "test-token",
         codeBitLength = 40,
-        expiresAt = Instant.DISTANT_FUTURE
+        expiresAt = Instant.DISTANT_FUTURE,
+        roles = setOf(TrustedContactRole.SocialRecoveryContact)
       )
 
     appTester.app.trustedContactManagementUiStateMachine.test(

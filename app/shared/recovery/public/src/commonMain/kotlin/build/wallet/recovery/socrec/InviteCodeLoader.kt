@@ -1,7 +1,7 @@
 package build.wallet.recovery.socrec
 
-import build.wallet.bitkey.socrec.Invitation
-import build.wallet.bitkey.socrec.OutgoingInvitation
+import build.wallet.bitkey.relationships.Invitation
+import build.wallet.bitkey.relationships.OutgoingInvitation
 import com.github.michaelbull.result.Result
 
 interface InviteCodeLoader {

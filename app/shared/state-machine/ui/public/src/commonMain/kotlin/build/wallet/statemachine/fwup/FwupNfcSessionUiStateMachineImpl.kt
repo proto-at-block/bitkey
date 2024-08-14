@@ -1,29 +1,17 @@
 package build.wallet.statemachine.fwup
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.FWUP
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_DEVICE_LOST_CONNECTION_FWUP
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId.NFC_UPDATE_IN_PROGRESS_FWUP
-import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETECTED
-import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
-import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_SUCCESS
+import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
+import build.wallet.fwup.FirmwareDataService
 import build.wallet.fwup.FwupData
 import build.wallet.fwup.FwupDataDao
-import build.wallet.fwup.FwupFinishResponseStatus.Error
-import build.wallet.fwup.FwupFinishResponseStatus.SignatureInvalid
-import build.wallet.fwup.FwupFinishResponseStatus.Success
-import build.wallet.fwup.FwupFinishResponseStatus.Unauthenticated
-import build.wallet.fwup.FwupFinishResponseStatus.Unspecified
-import build.wallet.fwup.FwupFinishResponseStatus.VersionInvalid
-import build.wallet.fwup.FwupFinishResponseStatus.WillApplyPatch
+import build.wallet.fwup.FwupFinishResponseStatus.*
 import build.wallet.fwup.FwupMode
 import build.wallet.fwup.FwupProgressCalculator
 import build.wallet.logging.log
@@ -38,13 +26,9 @@ import build.wallet.nfc.platform.NfcCommands
 import build.wallet.platform.device.DeviceInfoProvider
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState
-import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState.EnableNFCInstructions
-import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState.NavigateToEnableNFC
-import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState.NoNFCMessage
+import build.wallet.statemachine.fwup.FwupNfcSessionUiState.AndroidOnlyUiState.*
 import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState
-import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState.SearchingUiState
-import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState.SuccessUiState
-import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState.UpdatingUiState
+import build.wallet.statemachine.fwup.FwupNfcSessionUiState.InSessionUiState.*
 import build.wallet.statemachine.nfc.EnableNfcInstructionsModel
 import build.wallet.statemachine.nfc.NfcSuccessScreenDuration
 import build.wallet.statemachine.nfc.NoNfcMessageModel
@@ -66,8 +50,9 @@ class FwupNfcSessionUiStateMachineImpl(
   private val nfcReaderCapabilityProvider: NfcReaderCapabilityProvider,
   private val nfcTransactor: NfcTransactor,
   private val fwupDataDao: FwupDataDao,
+  private val firmwareDataService: FirmwareDataService,
 ) : FwupNfcSessionUiStateMachine {
-  var fwupInProgress = false
+  private var fwupInProgress = false
 
   @Composable
   override fun model(props: FwupNfcSessionUiProps): ScreenModel {
@@ -121,7 +106,7 @@ class FwupNfcSessionUiStateMachineImpl(
 
           is SuccessUiState -> {
             LaunchedEffect("fwup-success") {
-              props.firmwareData.onUpdateComplete()
+              firmwareDataService.updateFirmwareVersion(props.firmwareData.fwupData)
               eventTracker.track(Action.ACTION_APP_FWUP_COMPLETE)
               delayer.delay(
                 NfcSuccessScreenDuration(

@@ -10,7 +10,6 @@ import build.wallet.database.BitkeyDatabaseProviderImpl
 import build.wallet.feature.FeatureFlagDaoMock
 import build.wallet.feature.FeatureFlagValue
 import build.wallet.feature.flags.CoachmarksGlobalFeatureFlag
-import build.wallet.feature.flags.InAppSecurityFeatureFlag
 import build.wallet.sqldelight.inMemorySqlDriver
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Ok
@@ -25,18 +24,15 @@ class CoachmarkServiceTests :
     lateinit var service: CoachmarkService
     val featureFlagDao = FeatureFlagDaoMock()
     val accountRepository = AccountRepositoryFake()
-    val inAppSecurityFlag = InAppSecurityFeatureFlag(featureFlagDao)
     val coachmarksGlobalFlag = CoachmarksGlobalFeatureFlag(featureFlagDao)
     val eventTracker = EventTrackerMock(turbines::create)
 
     beforeTest {
       accountRepository.setActiveAccount(FullAccountMock)
-      inAppSecurityFlag.setFlagValue(FeatureFlagValue.BooleanFlag(true))
       service = CoachmarkServiceImpl(
         CoachmarkDaoImpl(BitkeyDatabaseProviderImpl(sqlDriver.factory)),
         accountRepository,
         CoachmarkVisibilityDecider(
-          inAppSecurityFeatureFlag = inAppSecurityFlag,
           ClockFake()
         ),
         coachmarksGlobalFlag,
@@ -151,7 +147,6 @@ class CoachmarkServiceTests :
         coachmarkDao,
         accountRepository,
         CoachmarkVisibilityDecider(
-          inAppSecurityFeatureFlag = inAppSecurityFlag,
           ClockFake()
         ),
         coachmarksGlobalFlag,
@@ -172,7 +167,6 @@ class CoachmarkServiceTests :
         coachmarkDao,
         accountRepository,
         CoachmarkVisibilityDecider(
-          inAppSecurityFeatureFlag = inAppSecurityFlag,
           ClockFake()
         ),
         coachmarksGlobalFlag,
@@ -182,19 +176,6 @@ class CoachmarkServiceTests :
       service
         .coachmarksToDisplay(setOf(CoachmarkIdentifier.HiddenBalanceCoachmark))
         .shouldBe(Ok(emptyList()))
-    }
-
-    test("don't return feature flagged coachmarks that are off") {
-      inAppSecurityFlag.setFlagValue(FeatureFlagValue.BooleanFlag(false))
-      service
-        .coachmarksToDisplay(
-          setOf(
-            CoachmarkIdentifier.HiddenBalanceCoachmark,
-            CoachmarkIdentifier.BiometricUnlockCoachmark
-          )
-        ).shouldBe(
-          Ok(emptyList())
-        )
     }
 
     test("don't return any coachmarks if the global flag is on") {

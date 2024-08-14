@@ -27,7 +27,7 @@ class RetrieveTrustedContactInvitationF8eClientTests : FunSpec({
       RetrieveTrustedContactInvitationResponseBody(
         invitation =
           RetrieveTrustedContactInvitation(
-            recoveryRelationshipId = "test-id",
+            relationshipId = "test-id",
             expiresAt = Instant.fromEpochSeconds(123),
             protectedCustomerEnrollmentPakePubkey = PublicKey("deadbeef")
           )

@@ -15,10 +15,10 @@ import kotlin.time.Duration.Companion.seconds
  */
 suspend fun AppTester.completeRecoveryDelayPeriodOnF8e() {
   val accountId = getFullAccountId()
-  val config = app.appComponent.templateFullAccountConfigDao.config().first().getOrThrow()
+  val options = app.appComponent.debugOptionsService.options().first()
   UpdateDelayNotifyPeriodForTestingApiImpl(app.appComponent.f8eHttpClient)
     .updateDelayNotifyPeriodForTesting(
-      config.f8eEnvironment,
+      options.f8eEnvironment,
       accountId,
       delayNotifyDuration = 0.seconds
     )

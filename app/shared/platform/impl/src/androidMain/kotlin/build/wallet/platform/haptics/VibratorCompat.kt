@@ -5,16 +5,16 @@ import android.content.Context
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.os.VibrationEffect
-import android.os.VibrationEffect.EFFECT_DOUBLE_CLICK
-import android.os.VibrationEffect.EFFECT_TICK
+import android.os.VibrationEffect.*
 import android.os.Vibrator
-import build.wallet.platform.haptics.HapticsEffect.DoubleClick
-import build.wallet.platform.haptics.HapticsEffect.DullOneShot
-import build.wallet.platform.haptics.HapticsEffect.MediumClick
+import build.wallet.platform.haptics.HapticsEffect.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 internal fun Context.vibrator(): Vibrator? = getSystemService(Vibrator::class.java)
+
+private val SELECTION_TIMINGS = longArrayOf(1, 10)
+private val SELECTION_AMPLITUDE = intArrayOf(60, 0)
 
 /**
  * If vibrator is the phone supports vibration, vibrate with the given vibration [Effect].
@@ -36,7 +36,13 @@ internal fun Vibrator.maybeVibrate(
         DullOneShot ->
           vibrate(VibrationEffect.createOneShot(800, 125))
         MediumClick ->
+          vibrate(VibrationEffect.createPredefined(EFFECT_CLICK))
+        HeavyClick ->
+          vibrate(VibrationEffect.createPredefined(EFFECT_HEAVY_CLICK))
+        LightClick ->
           vibrate(VibrationEffect.createPredefined(EFFECT_TICK))
+        Selection ->
+          vibrate(VibrationEffect.createWaveform(SELECTION_TIMINGS, SELECTION_AMPLITUDE, -1))
       }
     } else {
       @Suppress("DEPRECATION")

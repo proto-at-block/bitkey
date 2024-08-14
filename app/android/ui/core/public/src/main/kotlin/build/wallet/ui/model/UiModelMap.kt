@@ -1,5 +1,6 @@
 package build.wallet.ui.model
 
+import build.wallet.statemachine.core.ComposeBodyModel
 import kotlin.reflect.KClass
 
 /**
@@ -13,5 +14,14 @@ interface UiModelMap {
   /**
    * Retrieve a [UiModel] using given [Model] type, if any.
    */
-  fun <ModelT : Model> getUiModelFor(type: KClass<out ModelT>): UiModel? = uiModels[type]
+  fun <ModelT : Model> getUiModelFor(
+    type: KClass<out ModelT>,
+    model: ModelT? = null,
+  ): UiModel? {
+    return if (model is ComposeBodyModel) {
+      uiModels[ComposeBodyModel::class]
+    } else {
+      uiModels[type]
+    }
+  }
 }

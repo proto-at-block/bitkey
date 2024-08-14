@@ -2,16 +2,16 @@
     "module-identifier": "app.cash.sqldelight:native-driver-iossimulatorarm64",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "native-driver-iossimulatorarm64-2.0.1-metadata.jar": "abdcd8f118ec28e045b21376ab80efa95c57733a90ab8c367b7b1aa46e0691a5"
+                        "native-driver-iossimulatorarm64-2.0.2-metadata.jar": "bcac65bd8b3a9c07ef2fba8651adf9f8b9134a6a780610ce82d22b359491998e"
                     }
                 },
                 {
                     "artifacts": {
-                        "native-driver.klib": "aeb24befe081dc112923dc07818d6cc7d3434b4b55dba306da299b0cdc4d17e5"
+                        "native-driver.klib": "5ee0af26346e9fa41e0f27ef3585cf27b6c9299d46168d8a10794b41f8e78540"
                     }
                 }
             ],

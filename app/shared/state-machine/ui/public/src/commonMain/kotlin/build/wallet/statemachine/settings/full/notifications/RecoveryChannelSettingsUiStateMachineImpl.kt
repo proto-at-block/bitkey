@@ -12,9 +12,7 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.analytics.v1.Action
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.f8e.auth.HwFactorProofOfPossession
-import build.wallet.notifications.NotificationChannel
-import build.wallet.notifications.NotificationPreferences
-import build.wallet.notifications.NotificationTouchpointType
+import build.wallet.notifications.*
 import build.wallet.platform.permissions.Permission.PushNotifications
 import build.wallet.platform.permissions.PermissionChecker
 import build.wallet.platform.permissions.PermissionStatus.Authorized
@@ -75,11 +73,15 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   private val eventTracker: EventTracker,
   private val notificationPermissionRequester: NotificationPermissionRequester,
   private val uiErrorHintsProvider: UiErrorHintsProvider,
+  private val notificationTouchpointService: NotificationTouchpointService,
 ) : RecoveryChannelSettingsUiStateMachine {
   @Composable
   override fun model(props: RecoveryChannelSettingsProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     val smsErrorHint = uiErrorHintsProvider.errorHintFlow(UiErrorHintKey.Phone).collectAsState()
+    val notificationTouchpointData = remember {
+      notificationTouchpointService.notificationTouchpointData()
+    }.collectAsState(null).value
 
     var state: RecoveryState by remember {
       mutableStateOf(
@@ -129,7 +131,9 @@ class RecoveryChannelSettingsUiStateMachineImpl(
       is DisablingNotificationChannelProofOfHwPossessionUiState ->
         return NotificationOperationApprovalInstructionsFormScreenModel(
           onExit = { state = ShowingNotificationsSettingsUiState() },
-          operationDescriptiton = stateVal.notificationChannel.disableOperationDescription(props),
+          operationDescriptiton = stateVal.notificationChannel.disableOperationDescription(
+            notificationTouchpointData
+          ),
           isApproveButtonLoading = false,
           errorBottomSheetState = NotificationTouchpointInputAndVerificationUiState.ActivationApprovalInstructionsUiState.ErrorBottomSheetState.Hidden,
           onApprove = {
@@ -145,7 +149,9 @@ class RecoveryChannelSettingsUiStateMachineImpl(
             state =
               TogglingNotificationChannelUiState(stateVal.notificationChannel, proof)
           },
-          operationDescriptiton = stateVal.notificationChannel.disableOperationDescription(props)
+          operationDescriptiton = stateVal.notificationChannel.disableOperationDescription(
+            notificationTouchpointData
+          )
         )
       }
 
@@ -156,9 +162,9 @@ class RecoveryChannelSettingsUiStateMachineImpl(
           notificationPreferences = notificationPreferences,
           scope = scope,
           smsErrorHint.value,
-          updateState = { state = it }
+          updateState = { state = it },
+          notificationTouchpointData = notificationTouchpointData
         )
-
       is EnteringAndVerifyingPhoneNumberUiState -> {
         notificationTouchpointInputAndVerificationUiStateMachine.model(
           props =
@@ -337,6 +343,7 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     scope: CoroutineScope,
     phoneErrorHint: UiErrorHint,
     updateState: (RecoveryState) -> Unit,
+    notificationTouchpointData: NotificationTouchpointData?,
   ): ScreenModel {
     val delayedAlertOverlay = (stateVal.overlayState as? AlertOverlayState)?.alertModel
 
@@ -356,9 +363,8 @@ class RecoveryChannelSettingsUiStateMachineImpl(
     val isDisabled = delayedAlertOverlay != null
     val isLoading =
       stateVal.overlayState is LoadingPreferencesOverlayState
-    val smsNumber =
-      props.accountData.notificationTouchpointData.phoneNumber?.formattedDisplayValue
-    val emailAddress = props.accountData.notificationTouchpointData.email?.value
+    val smsNumber = notificationTouchpointData?.phoneNumber?.formattedDisplayValue
+    val emailAddress = notificationTouchpointData?.email?.value
     val isCountryUS = telephonyCountryCodeProvider.isCountry("us")
     val smsRecoveryEnabled =
       smsNumber != null && notificationPreferences.accountSecurity.contains(NotificationChannel.Sms)
@@ -639,15 +645,15 @@ class RecoveryChannelSettingsUiStateMachineImpl(
   }
 
   private fun NotificationChannel.disableOperationDescription(
-    props: RecoveryChannelSettingsProps,
+    notificationTouchpointData: NotificationTouchpointData?,
   ): String =
     when (this) {
       NotificationChannel.Email ->
-        props.accountData.notificationTouchpointData.email?.value
+        notificationTouchpointData?.email?.value
           ?: "(Email Address)"
       NotificationChannel.Push -> "Push Notification"
       NotificationChannel.Sms ->
-        props.accountData.notificationTouchpointData.phoneNumber?.formattedDisplayValue
+        notificationTouchpointData?.phoneNumber?.formattedDisplayValue
           ?: "(SMS Number)"
     }.let { "Recovery channel $it will be disabled" }
 

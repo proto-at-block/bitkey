@@ -12,6 +12,7 @@ kotlin {
     commonMain {
       dependencies {
         api(projects.shared.accountPublic)
+        api(projects.shared.debugPublic)
         api(projects.shared.databasePublic)
         api(projects.shared.memfaultPublic)
         api(projects.shared.platformPublic)
@@ -24,7 +25,12 @@ kotlin {
 
     commonTest {
       dependencies {
+        implementation(projects.shared.analyticsFake)
+        implementation(projects.shared.coroutinesTesting)
+        implementation(projects.shared.debugFake)
+        implementation(projects.shared.firmwareFake)
         implementation(projects.shared.fwupFake)
+        implementation(projects.shared.keyboxFake)
         implementation(projects.shared.sqldelightTesting)
         implementation(projects.shared.testingPublic)
       }

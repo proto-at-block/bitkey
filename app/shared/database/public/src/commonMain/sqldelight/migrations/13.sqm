@@ -1,0 +1,19 @@
+-- This migration renames socrec relationship tables in favor of generic relationship definitions with a role type.
+
+ALTER TABLE socRecTrustedContactEntity RENAME TO trustedContactEntity;
+ALTER TABLE trustedContactEntity RENAME COLUMN recoveryRelationshipId TO relationshipId;
+ALTER TABLE trustedContactEntity ADD COLUMN roles TEXT NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT';
+
+ALTER TABLE socRecProtectedCustomerEntity RENAME TO protectedCustomerEntity;
+ALTER TABLE protectedCustomerEntity RENAME COLUMN recoveryRelationshipId TO relationshipId;
+ALTER TABLE protectedCustomerEntity ADD COLUMN roles TEXT NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT';
+
+ALTER TABLE socRecTrustedContactInvitationEntity RENAME TO trustedContactInvitationEntity;
+ALTER TABLE trustedContactInvitationEntity RENAME COLUMN recoveryRelationshipId TO relationshipId;
+ALTER TABLE trustedContactInvitationEntity ADD COLUMN roles TEXT NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT';
+
+ALTER TABLE socRecUnendorsedTrustedContactEntity RENAME TO unendorsedTrustedContactEntity;
+ALTER TABLE unendorsedTrustedContactEntity RENAME COLUMN recoveryRelationshipId TO relationshipId;
+ALTER TABLE unendorsedTrustedContactEntity ADD COLUMN roles TEXT NOT NULL DEFAULT 'SOCIAL_RECOVERY_CONTACT';
+
+PRAGMA foreign_key_check;

@@ -1,3 +1,5 @@
+use super::requests::CognitoAuthentication;
+use super::TestContext;
 use crate::tests;
 use crate::tests::gen_services;
 use crate::tests::lib::update_recovery_relationship_invitation_expiration;
@@ -18,9 +20,7 @@ use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::{
     RecoveryRelationshipEndorsement, RecoveryRelationshipId,
 };
-
-use super::requests::CognitoAuthentication;
-use super::TestContext;
+use types::recovery::trusted_contacts::TrustedContactRole;
 
 const TRUSTED_CONTACT_ALIAS: &str = "Trusty";
 const CUSTOMER_ALIAS: &str = "Custy";
@@ -51,6 +51,7 @@ async fn assert_relationship_counts(
     num_unendorsed_trusted_contacts: usize,
     num_endorsed_trusted_contacts: usize,
     num_customers: usize,
+    trusted_contact_role: &TrustedContactRole,
 ) {
     let get_response = client
         .get_recovery_relationships(&account_id.to_string())
@@ -65,13 +66,41 @@ async fn assert_relationship_counts(
 
     let get_body = get_response.body.unwrap();
 
-    assert_eq!(get_body.invitations.len(), num_invitations);
+    let invitations_count = get_body
+        .invitations
+        .iter()
+        .filter(|inv| {
+            inv.recovery_relationship_info
+                .trusted_contact_roles
+                .contains(trusted_contact_role)
+        })
+        .count();
+    let unendorsed_trusted_contacts_count = get_body
+        .unendorsed_trusted_contacts
+        .iter()
+        .filter(|tc| {
+            tc.recovery_relationship_info
+                .trusted_contact_roles
+                .contains(trusted_contact_role)
+        })
+        .count();
+    let endorsed_trusted_contacts_count = get_body
+        .endorsed_trusted_contacts
+        .iter()
+        .filter(|tc| {
+            tc.recovery_relationship_info
+                .trusted_contact_roles
+                .contains(trusted_contact_role)
+        })
+        .count();
+
+    assert_eq!(invitations_count, num_invitations);
     assert_eq!(
-        get_body.unendorsed_trusted_contacts.len(),
+        unendorsed_trusted_contacts_count,
         num_unendorsed_trusted_contacts
     );
     assert_eq!(
-        get_body.endorsed_trusted_contacts.len(),
+        endorsed_trusted_contacts_count,
         num_endorsed_trusted_contacts
     );
     assert_eq!(get_body.customers.len(), num_customers);
@@ -118,8 +147,18 @@ pub(super) async fn try_create_recovery_relationship(
     if expected_status_code == StatusCode::OK {
         let create_body = create_response.body.unwrap();
         assert_eq!(
-            create_body.invitation.trusted_contact_alias,
+            create_body
+                .invitation
+                .recovery_relationship_info
+                .trusted_contact_alias,
             TRUSTED_CONTACT_ALIAS
+        );
+        assert_eq!(
+            create_body
+                .invitation
+                .recovery_relationship_info
+                .trusted_contact_roles,
+            vec![TrustedContactRole::SocialRecoveryContact]
         );
 
         assert_relationship_counts(
@@ -129,6 +168,7 @@ pub(super) async fn try_create_recovery_relationship(
             expected_num_trusted_contacts,
             0,
             0,
+            &TrustedContactRole::SocialRecoveryContact,
         )
         .await;
 
@@ -155,7 +195,10 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
     let accept_response = client
         .update_recovery_relationship(
             &trusted_contact_account_id.to_string(),
-            &invitation.recovery_relationship_id.to_string(),
+            &invitation
+                .recovery_relationship_info
+                .recovery_relationship_id
+                .to_string(),
             &UpdateRecoveryRelationshipRequest::Accept {
                 code: code_override.apply(&invitation.code),
                 customer_alias: CUSTOMER_ALIAS.to_string(),
@@ -184,7 +227,16 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
 
         assert_eq!(customer.customer_alias, CUSTOMER_ALIAS);
 
-        assert_relationship_counts(client, customer_account_id, 0, 1, 0, 0).await;
+        assert_relationship_counts(
+            client,
+            customer_account_id,
+            0,
+            1,
+            0,
+            0,
+            &TrustedContactRole::SocialRecoveryContact,
+        )
+        .await;
         assert_relationship_counts(
             client,
             trusted_contact_account_id,
@@ -192,6 +244,7 @@ pub(super) async fn try_accept_recovery_relationship_invitation(
             0,
             0,
             tc_expected_num_customers,
+            &TrustedContactRole::SocialRecoveryContact,
         )
         .await;
 
@@ -234,7 +287,16 @@ pub(super) async fn try_endorse_recovery_relationship(
 
     if expected_status_code == StatusCode::OK {
         let endorse_body: EndorseRecoveryRelationshipsResponse = endorse_response.body.unwrap();
-        assert_relationship_counts(client, customer_account_id, 0, 0, 1, 0).await;
+        assert_relationship_counts(
+            client,
+            customer_account_id,
+            0,
+            0,
+            1,
+            0,
+            &TrustedContactRole::SocialRecoveryContact,
+        )
+        .await;
         return Some(endorse_body);
     }
     None
@@ -359,6 +421,7 @@ async fn test_reissue_recovery_relationship_invitation() {
             &other_account.id.to_string(),
             &create_response
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
@@ -382,6 +445,7 @@ async fn test_reissue_recovery_relationship_invitation() {
             &tc_account.id.to_string(),
             &create_response
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
@@ -402,6 +466,7 @@ async fn test_reissue_recovery_relationship_invitation() {
             &customer_account.id.to_string(),
             &create_response
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
@@ -425,6 +490,7 @@ async fn test_reissue_recovery_relationship_invitation() {
             &customer_account.id.to_string(),
             &create_response
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
@@ -466,6 +532,7 @@ async fn test_reissue_recovery_relationship_invitation() {
             &customer_account.id.to_string(),
             &create_response
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
@@ -487,7 +554,10 @@ async fn test_reissue_recovery_relationship_invitation() {
         &context,
         &client,
         &customer_account.id,
-        &create_response.invitation.recovery_relationship_id,
+        &create_response
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         "RANDOM_CERT",
         StatusCode::OK,
     )
@@ -499,6 +569,7 @@ async fn test_reissue_recovery_relationship_invitation() {
             &customer_account.id.to_string(),
             &create_response
                 .invitation
+                .recovery_relationship_info
                 .recovery_relationship_id
                 .to_string(),
             &UpdateRecoveryRelationshipRequest::Reissue,
@@ -578,7 +649,10 @@ async fn accept_recovery_relationship_invitation_test(
     if let Some(override_expiration) = vector.override_expires_at {
         update_recovery_relationship_invitation_expiration(
             &bootstrap.services,
-            &create_body.invitation.recovery_relationship_id,
+            &create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id,
             override_expiration,
         )
         .await;
@@ -697,7 +771,10 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
         &context,
         &client,
         &customer_account.id,
-        &create_body.invitation.recovery_relationship_id,
+        &create_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         "RANDOM_CERT",
         vector.expected_status_code,
     )
@@ -722,7 +799,10 @@ async fn endorse_recovery_relationship_test(vector: EndorseRecoveryRelationshipT
             &context,
             &client,
             &customer_account.id,
-            &create_body.invitation.recovery_relationship_id,
+            &create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id,
             "RANDOM_CERT_2",
             vector.expected_status_code,
         )
@@ -858,7 +938,10 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
             &context,
             &client,
             &customer_account.id,
-            &create_body.invitation.recovery_relationship_id,
+            &create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id,
             "RANDOM_CERT",
             StatusCode::OK,
         )
@@ -874,7 +957,11 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
     let delete_response = client
         .delete_recovery_relationship(
             &deleter_account_id.to_string(),
-            &create_body.invitation.recovery_relationship_id.to_string(),
+            &create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id
+                .to_string(),
             &vector.deleter_auth,
             keys,
         )
@@ -887,8 +974,26 @@ async fn delete_recovery_relationship_test(vector: DeleteRecoveryRelationshipTes
     );
 
     if vector.expected_status_code == StatusCode::OK {
-        assert_relationship_counts(&client, &customer_account.id, 0, 0, 0, 0).await;
-        assert_relationship_counts(&client, tc_account.get_id(), 0, 0, 0, 0).await;
+        assert_relationship_counts(
+            &client,
+            &customer_account.id,
+            0,
+            0,
+            0,
+            0,
+            &TrustedContactRole::SocialRecoveryContact,
+        )
+        .await;
+        assert_relationship_counts(
+            &client,
+            tc_account.get_id(),
+            0,
+            0,
+            0,
+            0,
+            &TrustedContactRole::SocialRecoveryContact,
+        )
+        .await;
     }
 }
 
@@ -1018,7 +1123,11 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
     let delete_response = client
         .delete_recovery_relationship(
             &customer_account.id.to_string(),
-            &create_body.invitation.recovery_relationship_id.to_string(),
+            &create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id
+                .to_string(),
             &CognitoAuthentication::Recovery,
             &customer_keys,
         )
@@ -1033,7 +1142,10 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
 
     update_recovery_relationship_invitation_expiration(
         &bootstrap.services,
-        &create_body.invitation.recovery_relationship_id,
+        &create_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         OffsetDateTime::now_utc(),
     )
     .await;
@@ -1041,7 +1153,11 @@ async fn test_customer_deletes_expired_invitation_with_no_keyproof() {
     let delete_response = client
         .delete_recovery_relationship(
             &customer_account.id.to_string(),
-            &create_body.invitation.recovery_relationship_id.to_string(),
+            &create_body
+                .invitation
+                .recovery_relationship_info
+                .recovery_relationship_id
+                .to_string(),
             &CognitoAuthentication::Wallet {
                 is_app_signed: false,
                 is_hardware_signed: false,
@@ -1180,7 +1296,10 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
         &context,
         &client,
         &customer_account.id,
-        &create_body.invitation.recovery_relationship_id,
+        &create_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         "RANDOM_CERT",
         StatusCode::OK,
     )
@@ -1190,7 +1309,10 @@ async fn test_accept_already_accepted_and_endorsed_recovery_relationship() {
         &context,
         &client,
         &customer_account.id,
-        &create_body.invitation.recovery_relationship_id,
+        &create_body
+            .invitation
+            .recovery_relationship_info
+            .recovery_relationship_id,
         "RANDOM_CERT",
         StatusCode::OK,
     )

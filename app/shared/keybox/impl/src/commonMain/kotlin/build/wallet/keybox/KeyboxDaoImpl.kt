@@ -96,7 +96,7 @@ class KeyboxDaoImpl(
       .awaitTransactionWithResult {
         keyboxQueries.rotateAppGlobalAuthKeyHwSignature(
           id = keyboxToRotate.localId,
-          appGlobalAuthKeyHwSignature = appAuthKeys.requireAppGlobalAuthKeyHwSignature()
+          appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature
         )
         appKeyBundleQueries.rotateAppAuthKeys(
           globalAuthKey = appAuthKeys.appGlobalAuthPublicKey,
@@ -109,7 +109,7 @@ class KeyboxDaoImpl(
             authKey = appAuthKeys.appGlobalAuthPublicKey,
             recoveryAuthKey = appAuthKeys.appRecoveryAuthPublicKey
           ),
-          appGlobalAuthKeyHwSignature = appAuthKeys.requireAppGlobalAuthKeyHwSignature()
+          appGlobalAuthKeyHwSignature = appAuthKeys.appGlobalAuthKeyHwSignature
         )
       }
       .logFailure { "Failed to rotate app auth keys" }

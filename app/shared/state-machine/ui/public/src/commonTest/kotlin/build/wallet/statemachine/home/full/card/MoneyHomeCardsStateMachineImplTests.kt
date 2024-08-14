@@ -9,7 +9,6 @@ import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.firmware.FirmwareDataUpToDateMock
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.moneyhome.card.CardModel
@@ -17,6 +16,8 @@ import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsProps
 import build.wallet.statemachine.moneyhome.card.MoneyHomeCardsUiStateMachineImpl
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiProps
 import build.wallet.statemachine.moneyhome.card.backup.CloudBackupHealthCardUiStateMachine
+import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiProps
+import build.wallet.statemachine.moneyhome.card.bitcoinprice.BitcoinPriceCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiProps
 import build.wallet.statemachine.moneyhome.card.fwup.DeviceUpdateCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCardUiProps
@@ -44,28 +45,38 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       initialModel = null
     ) {}
   val gettingStartedCardStateMachine =
-    object : GettingStartedCardUiStateMachine, StateMachineMock<GettingStartedCardUiProps, CardModel?>(
-      initialModel = null
-    ) {}
+    object : GettingStartedCardUiStateMachine,
+      StateMachineMock<GettingStartedCardUiProps, CardModel?>(
+        initialModel = null
+      ) {}
   val hardwareRecoveryStatusCardUiStateMachine =
-    object : HardwareRecoveryStatusCardUiStateMachine, StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
-      initialModel = null
-    ) {}
+    object : HardwareRecoveryStatusCardUiStateMachine,
+      StateMachineMock<HardwareRecoveryStatusCardUiProps, CardModel?>(
+        initialModel = null
+      ) {}
   val recoveryContactCardsUiStateMachine =
-    object : RecoveryContactCardsUiStateMachine, StateMachineMock<RecoveryContactCardsUiProps, ImmutableList<CardModel>>(
-      initialModel = emptyImmutableList()
-    ) {}
+    object : RecoveryContactCardsUiStateMachine,
+      StateMachineMock<RecoveryContactCardsUiProps, ImmutableList<CardModel>>(
+        initialModel = emptyImmutableList()
+      ) {}
   val setupHardwareCardUiStateMachine =
-    object : SetupHardwareCardUiStateMachine, StateMachineMock<SetupHardwareCardUiProps, CardModel?>(
-      initialModel = null
-    ) {}
+    object : SetupHardwareCardUiStateMachine,
+      StateMachineMock<SetupHardwareCardUiProps, CardModel?>(
+        initialModel = null
+      ) {}
   val cloudBackupHealthCardUiStateMachine =
-    object : CloudBackupHealthCardUiStateMachine, StateMachineMock<CloudBackupHealthCardUiProps, CardModel?>(
-      initialModel = null
-    ) {}
+    object : CloudBackupHealthCardUiStateMachine,
+      StateMachineMock<CloudBackupHealthCardUiProps, CardModel?>(
+        initialModel = null
+      ) {}
 
   val startSweepCardUiStateMachine =
     object : StartSweepCardUiStateMachine, StateMachineMock<StartSweepCardUiProps, CardModel?>(
+      initialModel = null
+    ) {}
+
+  val bitcoinPriceCardUiStateMachine =
+    object : BitcoinPriceCardUiStateMachine, StateMachineMock<BitcoinPriceCardUiProps, CardModel?>(
       initialModel = null
     ) {}
 
@@ -77,14 +88,14 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       recoveryContactCardsUiStateMachine = recoveryContactCardsUiStateMachine,
       setupHardwareCardUiStateMachine = setupHardwareCardUiStateMachine,
       cloudBackupHealthCardUiStateMachine = cloudBackupHealthCardUiStateMachine,
-      startSweepCardUiStateMachine = startSweepCardUiStateMachine
+      startSweepCardUiStateMachine = startSweepCardUiStateMachine,
+      bitcoinPriceCardUiStateMachine = bitcoinPriceCardUiStateMachine
     )
 
   val props =
     MoneyHomeCardsProps(
       deviceUpdateCardUiProps =
         DeviceUpdateCardUiProps(
-          firmwareData = FirmwareDataUpToDateMock,
           onUpdateDevice = {}
         ),
       gettingStartedCardUiProps =
@@ -115,7 +126,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         ),
       setupHardwareCardUiProps =
         SetupHardwareCardUiProps(
-          deviceInfo = null,
           onReplaceDevice = {}
         ),
       cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
@@ -125,6 +135,9 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       startSweepCardUiProps = StartSweepCardUiProps(
         onStartSweepClicked = {},
         keybox = KeyboxMock
+      ),
+      bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
+        onOpenPriceChart = {}
       )
     )
 

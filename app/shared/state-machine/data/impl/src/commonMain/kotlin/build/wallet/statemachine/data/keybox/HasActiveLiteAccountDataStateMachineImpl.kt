@@ -47,18 +47,13 @@ class HasActiveLiteAccountDataStateMachineImpl(
       is UsingLiteAccount ->
         AccountData.HasActiveLiteAccountData(
           account = props.account,
-          onboardConfig = props.onboardConfig,
-          accountUpgradeTemplateFullAccountConfigData = props.accountUpgradeTemplateFullAccountConfigData,
           onUpgradeAccount = { state = UpgradingLiteAccount }
         )
 
       is UpgradingLiteAccount ->
         AccountData.NoActiveAccountData.CreatingFullAccountData(
-          templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
           createFullAccountData = createFullAccountDataStateMachine.model(
             props = CreateFullAccountDataProps(
-              templateFullAccountConfig = props.accountUpgradeTemplateFullAccountConfigData.config,
-              onboardConfig = props.onboardConfig,
               onboardingKeybox = onboardingKeybox,
               context = CreateFullAccountContext.LiteToFullAccountUpgrade(props.account),
               rollback = { state = UsingLiteAccount }

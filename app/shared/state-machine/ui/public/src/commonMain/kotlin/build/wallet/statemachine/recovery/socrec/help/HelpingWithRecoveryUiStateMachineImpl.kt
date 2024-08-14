@@ -3,7 +3,7 @@ package build.wallet.statemachine.recovery.socrec.help
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
 import build.wallet.bitkey.account.Account
-import build.wallet.bitkey.socrec.DelegatedDecryptionKey
+import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecKeysRepository
 import build.wallet.recovery.socrec.SocialChallengeError
@@ -74,7 +74,7 @@ class HelpingWithRecoveryUiStateMachineImpl(
       is UiState.VerifyingRecoveryCode ->
         VerifyingRecoveryCodeModel(
           account = props.account,
-          relationshipId = props.protectedCustomer.recoveryRelationshipId,
+          relationshipId = props.protectedCustomer.relationshipId,
           goToSuccess = { uiState = UiState.SuccessfullyVerified },
           goToFailure = { uiState = UiState.FailedToVerify(it) },
           recoveryCode = state.recoveryCode

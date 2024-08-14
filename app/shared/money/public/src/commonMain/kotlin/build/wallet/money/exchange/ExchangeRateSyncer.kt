@@ -3,7 +3,7 @@ package build.wallet.money.exchange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 
 interface ExchangeRateSyncer {
   /**
@@ -23,6 +23,6 @@ interface ExchangeRateSyncer {
    */
   fun launchSync(
     scope: CoroutineScope,
-    syncFrequency: Duration = 15.seconds,
+    syncFrequency: Duration = 1.minutes,
   )
 }

@@ -27,7 +27,6 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                resetDeviceEnabled: false,
                 onManageFingerprints: {},
                 coachmark: nil
             )
@@ -56,7 +55,6 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                resetDeviceEnabled: false,
                 onManageFingerprints: {},
                 coachmark: nil
             )
@@ -85,7 +83,6 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                resetDeviceEnabled: false,
                 onManageFingerprints: {},
                 coachmark: nil
             )
@@ -114,7 +111,6 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                resetDeviceEnabled: false,
                 onManageFingerprints: {},
                 coachmark: nil
             )
@@ -143,7 +139,6 @@ final class DeviceSettingsSnapshotTests: XCTestCase {
                 onManageReplacement: {},
                 onResetDevice: {},
                 onBack: {},
-                resetDeviceEnabled: false,
                 onManageFingerprints: {},
                 coachmark: nil
             )

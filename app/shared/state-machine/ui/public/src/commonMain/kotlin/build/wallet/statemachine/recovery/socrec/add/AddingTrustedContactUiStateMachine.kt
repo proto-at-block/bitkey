@@ -1,8 +1,8 @@
 package build.wallet.statemachine.recovery.socrec.add
 
 import build.wallet.bitkey.account.FullAccount
-import build.wallet.bitkey.socrec.OutgoingInvitation
-import build.wallet.bitkey.socrec.TrustedContactAlias
+import build.wallet.bitkey.relationships.OutgoingInvitation
+import build.wallet.bitkey.relationships.TrustedContactAlias
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine

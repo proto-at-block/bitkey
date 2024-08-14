@@ -2,11 +2,11 @@
     "module-identifier": "app.cash.sqldelight:runtime",
     "components": [
         {
-            "version": "2.0.1",
+            "version": "2.0.2",
             "variants": [
                 {
                     "artifacts": {
-                        "runtime-metadata-2.0.1.jar": "9574e4dfd354cca28d97e04b6780721ba40f5711964ecc2b560c3cdf52122a72"
+                        "runtime-metadata-2.0.2.jar": "52c5c14237ddb27585bdccccfd5257152058a76b9a2db4870777a06d9c128961"
                     }
                 }
             ],

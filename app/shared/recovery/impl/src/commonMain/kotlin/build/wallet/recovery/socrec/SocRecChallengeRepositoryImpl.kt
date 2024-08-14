@@ -2,9 +2,9 @@ package build.wallet.recovery.socrec
 
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.f8e.FullAccountId
-import build.wallet.bitkey.socrec.ChallengeAuthentication
-import build.wallet.bitkey.socrec.ChallengeWrapper
-import build.wallet.bitkey.socrec.EndorsedTrustedContact
+import build.wallet.bitkey.relationships.ChallengeAuthentication
+import build.wallet.bitkey.relationships.ChallengeWrapper
+import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.socrec.StartSocialChallengeRequestTrustedContact
 import build.wallet.bitkey.socrec.TrustedContactRecoveryPakeKey
 import build.wallet.crypto.PublicKey
@@ -53,15 +53,15 @@ class SocRecChallengeRepositoryImpl(
             .bind()
         // insert them into the db
         socRecStartedChallengeAuthenticationDao.insert(
-          recoveryRelationshipId = trustedContact.recoveryRelationshipId,
+          recoveryRelationshipId = trustedContact.relationshipId,
           protectedCustomerRecoveryPakeKey = protectedCustomerRecoveryPakeKey,
           pakeCode = pakeCode
         ).mapError { Error(it) }
           .bind()
         // get the sealed dek for this trusted contact
-        sealedDekMap[trustedContact.recoveryRelationshipId]?.let {
+        sealedDekMap[trustedContact.relationshipId]?.let {
           StartSocialChallengeRequestTrustedContact(
-            trustedContact.recoveryRelationshipId,
+            trustedContact.relationshipId,
             protectedCustomerRecoveryPakeKey.publicKey,
             it.value
           )

@@ -10,11 +10,5 @@ import build.wallet.crypto.PublicKey
 data class AppAuthPublicKeys(
   val appGlobalAuthPublicKey: PublicKey<AppGlobalAuthKey>,
   val appRecoveryAuthPublicKey: PublicKey<AppRecoveryAuthKey>,
-  // TODO: make this non-nullable.
-  val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature?,
-) {
-  fun requireAppGlobalAuthKeyHwSignature(): AppGlobalAuthKeyHwSignature =
-    requireNotNull(appGlobalAuthKeyHwSignature) {
-      "Expected appGlobalAuthKeyHwSignature to be non-null."
-    }
-}
+  val appGlobalAuthKeyHwSignature: AppGlobalAuthKeyHwSignature,
+)
