@@ -15,6 +15,7 @@ kotlin {
         api(projects.shared.dbResultPublic)
         api(projects.shared.f8ePublic)
         api(projects.shared.ktorClientPublic)
+        api(projects.shared.workerPublic)
       }
     }
   }

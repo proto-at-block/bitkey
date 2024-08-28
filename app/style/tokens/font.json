@@ -56,6 +56,12 @@
             "lineHeight": { "value": 30 },
             "kerning": { "value": -0.33 }
         },
+        "body1Bold": {
+            "name": { "value": "{font.names.Inter600.value}" },
+            "size": { "value": 20 },
+            "lineHeight": { "value": 30 },
+            "kerning": { "value": -0.33 }
+        },
         "body2Regular": {
             "name": { "value": "{font.names.Inter400.value}" },
             "size": { "value": 17 },

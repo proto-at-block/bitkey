@@ -4,5 +4,5 @@
 #
 # See https://git.sqcorp.co/projects/SQ/repos/square-stash-plugins/browse/owner-owl for
 # available options.
-r: [bitkey-server-eng]
+modules: [bitkey-software-require-review]
 include_ancestors: false

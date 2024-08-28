@@ -10,16 +10,11 @@ import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.clipboard.plainTextItemAndroid
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SuccessBodyModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.recovery.RecoverySegment
 import build.wallet.statemachine.recovery.socrec.add.ShareInviteBodyModel
 import com.github.michaelbull.result.onFailure
@@ -31,6 +26,7 @@ class ReinviteTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val sharingManager: SharingManager,
   private val clipboard: Clipboard,
+  private val socRecService: SocRecService,
 ) : ReinviteTrustedContactUiStateMachine {
   @Composable
   override fun model(props: ReinviteTrustedContactUiProps): ScreenModel {
@@ -79,8 +75,10 @@ class ReinviteTrustedContactUiStateMachineImpl(
 
       is State.SavingWithBitkeyState -> {
         LaunchedEffect("reinvite-tc-to-bitkey") {
-          props.onReinviteTc(
-            current.proofOfPossession
+          socRecService.refreshInvitation(
+            account = props.account,
+            relationshipId = props.relationshipId,
+            hardwareProofOfPossession = current.proofOfPossession
           )
             .onSuccess {
               state =

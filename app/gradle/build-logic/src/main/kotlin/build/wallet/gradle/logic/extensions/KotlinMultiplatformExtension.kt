@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.main
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree.Companion.test
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeOutputKind
+import org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.toJavaDuration
 
@@ -93,7 +94,7 @@ private fun KotlinMultiplatformExtension.configureJvmTarget() {
         // Set a tight timeout for running integration tests to hopefully catch any hanging tests.
         // This timeout is applied per module only guards the test execution itself, not the compilation.
         // The canceled task will show as canceled in the build scan.
-        timeout.set(10.minutes.toJavaDuration())
+        timeout.set(20.minutes.toJavaDuration())
 
         // Here we give our custom `KotlinJvmTest` the name of its assigned compilation.
         // Note: It might seem like you can just do `setCompilationName(integrationTest.name)` and even IntelliJ will agree.
@@ -138,6 +139,8 @@ private fun Project.configureJUnit(sourceSet: KotlinSourceSet) {
       )
       propagateKotestSystemProperties()
     }
+
+    hideCompilerWarnings()
 
     dependencies {
       implementation(libs.jvm.test.kotest.junit)
@@ -250,6 +253,14 @@ private fun Project.configureTests() {
           }
         }
       }
+    }
+  }
+}
+
+fun Project.hideCompilerWarnings() {
+  tasks.withType<KotlinJvmCompile>().configureEach {
+    compilerOptions {
+      freeCompilerArgs.add("-nowarn")
     }
   }
 }

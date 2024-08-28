@@ -1,0 +1,504 @@
+use std::panic;
+use std::sync::Arc;
+
+use account::entities::{Account, Network};
+use http::StatusCode;
+use privileged_action::routes::{
+    CancelPendingDelayAndNotifyInstanceByTokenRequest,
+    CancelPendingDelayAndNotifyInstanceByTokenResponse,
+    ConfigurePrivilegedActionDelayDurationsRequest,
+    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingDelayAndNotifyInstancesResponse,
+    GetPrivilegedActionDefinitionsResponse,
+};
+use time::OffsetDateTime;
+use types::account::identifiers::AccountId;
+use types::privileged_action::definition::AuthorizationStrategyDefinition;
+use types::privileged_action::router::generic::{
+    AuthorizationStrategyInput, AuthorizationStrategyOutput, ContinuePrivilegedActionRequest,
+    DelayAndNotifyInput, PrivilegedActionInstanceInput, PrivilegedActionRequest,
+    PrivilegedActionResponse,
+};
+use types::privileged_action::shared::{PrivilegedActionDelayDuration, PrivilegedActionInstanceId};
+use types::{account::AccountType, privileged_action::shared::PrivilegedActionType};
+
+use crate::tests;
+use crate::tests::gen_services_with_overrides;
+use crate::tests::lib::OffsetClock;
+use crate::tests::requests::axum::TestClient;
+use crate::GenServiceOverrides;
+
+use super::TestContext;
+use super::{
+    lib::{create_account, create_lite_account, create_software_account},
+    requests::CognitoAuthentication,
+};
+
+async fn get_privileged_action_definitions(
+    context: &mut TestContext,
+    client: &TestClient,
+    account_id: &AccountId,
+    auth: &CognitoAuthentication,
+    expected_status: StatusCode,
+) -> Option<GetPrivilegedActionDefinitionsResponse> {
+    let get_resp = client
+        .get_privileged_action_definitions(
+            &account_id.to_string(),
+            auth,
+            context.account_authentication_keys.get(account_id).unwrap(),
+        )
+        .await;
+    assert_eq!(get_resp.status_code, expected_status);
+    get_resp.body
+}
+
+async fn initiate_configure_privileged_action_delays(
+    context: &mut TestContext,
+    client: &TestClient,
+    account_id: &AccountId,
+    privileged_action_type: PrivilegedActionType,
+    auth: &CognitoAuthentication,
+    expected_status: StatusCode,
+) -> Option<PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>> {
+    let put_resp = client
+        .configure_privileged_action_delay_durations(
+            &account_id.to_string(),
+            &PrivilegedActionRequest::Initiate(ConfigurePrivilegedActionDelayDurationsRequest {
+                delays: vec![PrivilegedActionDelayDuration {
+                    privileged_action_type,
+                    delay_duration_secs: 666,
+                }],
+            }),
+            auth,
+            context.account_authentication_keys.get(account_id).unwrap(),
+        )
+        .await;
+    assert_eq!(put_resp.status_code, expected_status);
+    put_resp.body
+}
+
+async fn continue_configure_privileged_action_delays(
+    context: &mut TestContext,
+    client: &TestClient,
+    account_id: &AccountId,
+    privileged_action_instance_id: PrivilegedActionInstanceId,
+    completion_token: String,
+    auth: &CognitoAuthentication,
+    expected_status: StatusCode,
+) -> Option<PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>> {
+    let put_resp = client
+        .configure_privileged_action_delay_durations(
+            &account_id.to_string(),
+            &PrivilegedActionRequest::Continue(ContinuePrivilegedActionRequest {
+                privileged_action_instance: PrivilegedActionInstanceInput {
+                    id: privileged_action_instance_id,
+                    authorization_strategy: AuthorizationStrategyInput::DelayAndNotify(
+                        DelayAndNotifyInput { completion_token },
+                    ),
+                },
+            }),
+            auth,
+            context.account_authentication_keys.get(account_id).unwrap(),
+        )
+        .await;
+    assert_eq!(put_resp.status_code, expected_status);
+    put_resp.body
+}
+
+async fn get_pending_privileged_action_instances(
+    context: &mut TestContext,
+    client: &TestClient,
+    account_id: &AccountId,
+    auth: &CognitoAuthentication,
+    expected_status: StatusCode,
+    expected_count: usize,
+) -> Option<GetPendingDelayAndNotifyInstancesResponse> {
+    let get_resp = client
+        .get_pending_delay_and_notify_instances(
+            &account_id.to_string(),
+            auth,
+            context.account_authentication_keys.get(account_id).unwrap(),
+        )
+        .await;
+    assert_eq!(get_resp.status_code, expected_status);
+    let body = get_resp.body;
+    assert_eq!(body.as_ref().unwrap().instances.len(), expected_count);
+    body
+}
+
+async fn cancel_pending_privileged_action_instance(
+    client: &TestClient,
+    cancellation_token: String,
+    expected_status: StatusCode,
+) -> Option<CancelPendingDelayAndNotifyInstanceByTokenResponse> {
+    let post_resp = client
+        .cancel_pending_delay_and_notify_instance_by_token(
+            &CancelPendingDelayAndNotifyInstanceByTokenRequest { cancellation_token },
+        )
+        .await;
+    assert_eq!(post_resp.status_code, expected_status);
+    post_resp.body
+}
+
+struct GetConfigureDelaysTestVector {
+    account_type: AccountType,
+    privileged_action_type: PrivilegedActionType,
+    expected_initiate_status: StatusCode,
+    expected_privileged_action: bool,
+}
+
+// Tests the get delays and configure delays call, as well as general privileged action mechanism
+//   since configure delays is itself a privileged action
+async fn get_configure_delays_test(vector: GetConfigureDelaysTestVector) {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+
+    let account = match vector.account_type {
+        AccountType::Full => Account::Full(
+            create_account(
+                &mut context,
+                &bootstrap.services,
+                Network::BitcoinSignet,
+                None,
+            )
+            .await,
+        ),
+        AccountType::Lite => {
+            Account::Lite(create_lite_account(&mut context, &bootstrap.services, None, true).await)
+        }
+        AccountType::Software => Account::Software(
+            create_software_account(&mut context, &bootstrap.services, None, true).await,
+        ),
+    };
+
+    let auth = match vector.account_type {
+        AccountType::Full => CognitoAuthentication::Wallet {
+            is_app_signed: false,
+            is_hardware_signed: false,
+        },
+        AccountType::Lite => CognitoAuthentication::Recovery,
+        AccountType::Software => CognitoAuthentication::Wallet {
+            is_app_signed: false,
+            is_hardware_signed: false,
+        },
+    };
+
+    // Get definitions
+    let get_resp = get_privileged_action_definitions(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    // Configure delay
+    let put_resp = initiate_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        vector.privileged_action_type.clone(),
+        &auth,
+        vector.expected_initiate_status,
+    )
+    .await;
+
+    if !vector.expected_initiate_status.is_success() {
+        return;
+    }
+
+    if vector.expected_privileged_action {
+        let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
+            panic!("Expected Pending response");
+        };
+
+        let AuthorizationStrategyOutput::DelayAndNotify(delay_and_notify_output) = pending_resp
+            .privileged_action_instance
+            .authorization_strategy
+        else {
+            panic!("Expected DelayAndNotify authorization strategy");
+        };
+
+        // Cannot initiate again because concurrency not allowed
+        initiate_configure_privileged_action_delays(
+            &mut context,
+            &client,
+            account.get_id(),
+            vector.privileged_action_type.clone(),
+            &auth,
+            StatusCode::CONFLICT,
+        )
+        .await;
+
+        // Cannot continue before delay is over
+        continue_configure_privileged_action_delays(
+            &mut context,
+            &client,
+            account.get_id(),
+            pending_resp.privileged_action_instance.id.clone(),
+            delay_and_notify_output.completion_token.clone(),
+            &auth,
+            StatusCode::CONFLICT,
+        )
+        .await;
+
+        // Advance time to after delay
+        clock.add_offset(delay_and_notify_output.delay_end_time - OffsetDateTime::now_utc());
+
+        // Cannot continue with wrong completion_token
+        continue_configure_privileged_action_delays(
+            &mut context,
+            &client,
+            account.get_id(),
+            pending_resp.privileged_action_instance.id.clone(),
+            "COMPLETION_TOKEN".to_string(),
+            &auth,
+            StatusCode::BAD_REQUEST,
+        )
+        .await;
+
+        // Successfully continue
+        continue_configure_privileged_action_delays(
+            &mut context,
+            &client,
+            account.get_id(),
+            pending_resp.privileged_action_instance.id.clone(),
+            delay_and_notify_output.completion_token,
+            &auth,
+            StatusCode::OK,
+        )
+        .await;
+    }
+
+    let AuthorizationStrategyDefinition::DelayAndNotify(before_delay_and_notify_definition) =
+        get_resp
+            .unwrap()
+            .definitions
+            .into_iter()
+            .find(|d| d.privileged_action_type == vector.privileged_action_type)
+            .unwrap()
+            .authorization_strategy
+    else {
+        panic!("Expected DelayAndNotify authorization strategy");
+    };
+
+    // Get definitions after configuring
+    let get_resp = get_privileged_action_definitions(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    let AuthorizationStrategyDefinition::DelayAndNotify(after_delay_and_notify_definition) =
+        get_resp
+            .unwrap()
+            .definitions
+            .into_iter()
+            .find(|d| d.privileged_action_type == vector.privileged_action_type)
+            .unwrap()
+            .authorization_strategy
+    else {
+        panic!("Expected DelayAndNotify authorization strategy");
+    };
+
+    assert_ne!(
+        before_delay_and_notify_definition.delay_duration_secs,
+        after_delay_and_notify_definition.delay_duration_secs
+    );
+    assert_eq!(after_delay_and_notify_definition.delay_duration_secs, 666);
+}
+
+tests! {
+    runner = get_configure_delays_test,
+    test_successfully_configure_delay: GetConfigureDelaysTestVector {
+        account_type: AccountType::Software,
+        privileged_action_type: PrivilegedActionType::ActivateTouchpoint,
+        expected_initiate_status: StatusCode::OK,
+        expected_privileged_action: true,
+    },
+    test_configure_unconfigurable_delay: GetConfigureDelaysTestVector {
+        account_type: AccountType::Software,
+        privileged_action_type: PrivilegedActionType::ConfigurePrivilegedActionDelays,
+        expected_initiate_status: StatusCode::BAD_REQUEST,
+        expected_privileged_action: false,
+    },
+    test_full_account_configure_delay: GetConfigureDelaysTestVector {
+        account_type: AccountType::Full,
+        privileged_action_type: PrivilegedActionType::ActivateTouchpoint,
+        expected_initiate_status: StatusCode::FORBIDDEN,
+        expected_privileged_action: false,
+    },
+    test_lite_account_configure_delay: GetConfigureDelaysTestVector {
+        account_type: AccountType::Lite,
+        privileged_action_type: PrivilegedActionType::ActivateTouchpoint,
+        expected_initiate_status: StatusCode::UNAUTHORIZED, // Right now, the configure endpoint doesn't accept recovery auth
+        expected_privileged_action: false,
+    },
+}
+
+#[tokio::test]
+async fn get_instances_cancel_instance_test() {
+    let clock = Arc::new(OffsetClock::new());
+    let (mut context, bootstrap) =
+        gen_services_with_overrides(GenServiceOverrides::new().clock(clock.clone())).await;
+    let client = TestClient::new(bootstrap.router).await;
+    let account = Account::Software(
+        create_software_account(&mut context, &bootstrap.services, None, true).await,
+    );
+
+    let auth = CognitoAuthentication::Wallet {
+        is_app_signed: false,
+        is_hardware_signed: false,
+    };
+
+    // Get pending instances (should be 0)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        0,
+    )
+    .await;
+
+    // Create a privileged action instance
+    let put_resp = initiate_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        PrivilegedActionType::ActivateTouchpoint,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    // Get pending instances (should be 1)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        1,
+    )
+    .await;
+
+    // Cannot cancel with incorrect cancellation token
+    cancel_pending_privileged_action_instance(
+        &client,
+        "CANCELLATION_TOKEN".to_string(),
+        StatusCode::NOT_FOUND,
+    )
+    .await;
+
+    let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
+        panic!("Expected Pending response");
+    };
+
+    let AuthorizationStrategyOutput::DelayAndNotify(delay_and_notify_output) = pending_resp
+        .privileged_action_instance
+        .authorization_strategy
+    else {
+        panic!("Expected DelayAndNotify authorization strategy");
+    };
+
+    // Can cancel with correct cancellation token
+    cancel_pending_privileged_action_instance(
+        &client,
+        delay_and_notify_output.cancellation_token.clone(),
+        StatusCode::OK,
+    )
+    .await;
+
+    // Can't re-cancel with correct cancellation token
+    cancel_pending_privileged_action_instance(
+        &client,
+        delay_and_notify_output.cancellation_token.clone(),
+        StatusCode::CONFLICT,
+    )
+    .await;
+
+    // Get pending instances (should be 0)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        0,
+    )
+    .await;
+
+    // Create a privileged action instance
+    let put_resp = initiate_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        PrivilegedActionType::ActivateTouchpoint,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    // Get pending instances (should be 1)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        1,
+    )
+    .await;
+
+    let PrivilegedActionResponse::Pending(pending_resp) = put_resp.unwrap() else {
+        panic!("Expected Pending response");
+    };
+
+    let AuthorizationStrategyOutput::DelayAndNotify(delay_and_notify_output) = pending_resp
+        .privileged_action_instance
+        .authorization_strategy
+    else {
+        panic!("Expected DelayAndNotify authorization strategy");
+    };
+
+    // Advance time to after delay
+    clock.add_offset(delay_and_notify_output.delay_end_time - OffsetDateTime::now_utc());
+
+    // Successfully continue
+    continue_configure_privileged_action_delays(
+        &mut context,
+        &client,
+        account.get_id(),
+        pending_resp.privileged_action_instance.id,
+        delay_and_notify_output.completion_token,
+        &auth,
+        StatusCode::OK,
+    )
+    .await;
+
+    // Get pending instances (should be 0)
+    get_pending_privileged_action_instances(
+        &mut context,
+        &client,
+        account.get_id(),
+        &auth,
+        StatusCode::OK,
+        0,
+    )
+    .await;
+
+    // Can't cancel completed instance with correct cancellation token
+    cancel_pending_privileged_action_instance(
+        &client,
+        delay_and_notify_output.cancellation_token.clone(),
+        StatusCode::CONFLICT,
+    )
+    .await;
+}

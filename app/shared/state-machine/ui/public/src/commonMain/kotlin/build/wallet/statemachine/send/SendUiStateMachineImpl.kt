@@ -1,11 +1,6 @@
 package build.wallet.statemachine.send
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.availability.NetworkReachability
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.bitcoin.address.BitcoinAddress
@@ -23,20 +18,14 @@ import build.wallet.money.Money
 import build.wallet.money.currency.Currency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.ExchangeRate
-import build.wallet.money.exchange.ExchangeRateSyncer
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.platform.permissions.Permission.Camera
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.platform.permissions.PermissionUiProps
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachine
 import build.wallet.statemachine.send.SendEntryPoint.SendButton
 import build.wallet.statemachine.send.SendEntryPoint.SpeedUp
-import build.wallet.statemachine.send.SendUiState.ConfirmingTransferUiState
-import build.wallet.statemachine.send.SendUiState.EnteringAmountUiState
-import build.wallet.statemachine.send.SendUiState.RequestingCameraUiState
-import build.wallet.statemachine.send.SendUiState.ScanningQrCodeUiState
-import build.wallet.statemachine.send.SendUiState.SelectingRecipientUiState
-import build.wallet.statemachine.send.SendUiState.SelectingTransactionPriorityUiState
-import build.wallet.statemachine.send.SendUiState.TransferInitiatedUiState
+import build.wallet.statemachine.send.SendUiState.*
 import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
 import build.wallet.statemachine.send.fee.FeeSelectionUiProps
 import build.wallet.statemachine.send.fee.FeeSelectionUiStateMachine
@@ -56,7 +45,7 @@ class SendUiStateMachineImpl(
   private val bitcoinQrCodeUiScanStateMachine: BitcoinQrCodeUiScanStateMachine,
   private val permissionUiStateMachine: PermissionUiStateMachine,
   private val feeSelectionUiStateMachine: FeeSelectionUiStateMachine,
-  private val exchangeRateSyncer: ExchangeRateSyncer,
+  private val exchangeRateService: ExchangeRateService,
   private val clock: Clock,
   private val networkReachabilityProvider: NetworkReachabilityProvider,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
@@ -102,7 +91,7 @@ class SendUiStateMachineImpl(
     // the same rates over the duration of the flow. This is null when the exchange rates are not
     // available or are out of date due to the customer being offline or unable to communicate with f8e
     val exchangeRates: ImmutableList<ExchangeRate>? by remember {
-      val rates = exchangeRateSyncer.exchangeRates.value.toImmutableList()
+      val rates = exchangeRateService.exchangeRates.value.toImmutableList()
       val instant = rates.timeRetrievedForCurrency(fiatCurrency)
       mutableStateOf(
         when {
@@ -183,7 +172,6 @@ class SendUiStateMachineImpl(
           props =
             BitcoinQrCodeScanUiProps(
               networkType = props.accountData.account.config.bitcoinNetworkType,
-              spendingWallet = props.accountData.spendingWallet,
               validInvoiceInClipboard = props.validInvoiceInClipboard,
               onEnterAddressClick = {
                 uiState = SelectingRecipientUiState(recipientAddress = null)

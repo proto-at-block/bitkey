@@ -293,7 +293,6 @@ private extension FormBodyModel {
             feeBumpEnabled: isFeeBumpEnabled,
             txStatusModel: txStatusModel,
             isLoading: false,
-            onLoaded: { _ in },
             onViewTransaction: {},
             onClose: {},
             onSpeedUpTransaction: {},

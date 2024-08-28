@@ -10,7 +10,7 @@ import build.wallet.f8e.partnerships.*
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
-import build.wallet.money.exchange.ExchangeRateSyncerMock
+import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.partnerships.PartnershipTransactionStatusRepositoryMock
 import build.wallet.statemachine.core.SheetModel
@@ -64,7 +64,7 @@ class AddBitcoinUiStateMachineImplTests : FunSpec({
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         eventTracker = eventTracker,
         currencyConverter = CurrencyConverterFake(),
-        exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create),
+        exchangeRateService = ExchangeRateServiceFake(),
         bitcoinAddressService = bitcoinAddressService
       )
     )

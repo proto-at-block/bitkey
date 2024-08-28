@@ -1,0 +1,4 @@
+mod recovery_integration_tests;
+mod recovery_relationship_integration_tests;
+mod routes_tests;
+mod social_challenge_integration_tests;

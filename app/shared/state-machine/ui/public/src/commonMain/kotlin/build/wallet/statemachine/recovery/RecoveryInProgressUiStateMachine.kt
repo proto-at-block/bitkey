@@ -1,22 +1,11 @@
 package build.wallet.statemachine.recovery
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId
-import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_LOST_APP_TAPPED_STOP
-import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_LOST_HARDWARE_TAPPED_STOP
-import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_CANCEL
-import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_APP_DISMISS_STOP_RECOVERY
-import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_CANCEL
-import build.wallet.analytics.v1.Action.ACTION_APP_DELAY_NOTIFY_PENDING_LOST_HARDWARE_DISMISS_STOP_RECOVERY
+import build.wallet.analytics.v1.Action.*
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
@@ -24,19 +13,10 @@ import build.wallet.recovery.getEventId
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.VerifyingNotificationCommsForCancellationData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.WaitingForRecoveryDelayPeriodData
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.*
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiProps
 import build.wallet.statemachine.recovery.inprogress.completing.CompletingRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.inprogress.waiting.AppDelayNotifyInProgressBodyModel
@@ -60,6 +40,7 @@ data class RecoveryInProgressUiProps(
   val recoveryInProgressData: RecoveryInProgressData,
   val fullAccountConfig: FullAccountConfig,
   val onExit: (() -> Unit)? = null,
+  val onComplete: (() -> Unit)? = null,
 )
 
 class RecoveryInProgressUiStateMachineImpl(
@@ -169,7 +150,8 @@ class RecoveryInProgressUiStateMachineImpl(
             presentationStyle = props.presentationStyle,
             completingRecoveryData = recoveryInProgressData,
             onExit = props.onExit,
-            isHardwareFake = props.fullAccountConfig.isHardwareFake
+            isHardwareFake = props.fullAccountConfig.isHardwareFake,
+            onComplete = props.onComplete
           )
         )
 

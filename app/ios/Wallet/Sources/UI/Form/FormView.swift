@@ -8,8 +8,6 @@ public struct FormView: View {
 
     private var viewModel: FormBodyModel
 
-    @SwiftUI.State
-    private var safariUrl: URL?
     @SwiftUI.State private var isShowingToast = false
 
     // MARK: - Life Cycle
@@ -78,15 +76,9 @@ public struct FormView: View {
                 }
             }
             .navigationBarHidden(true)
-            .fullScreenCover(item: $safariUrl) { url in
-                SafariView(url: url)
-                    .ignoresSafeArea()
-            }
         }
         .onAppear {
-            self.viewModel.onLoaded(
-                NativeBrowserNavigator(openSafariView: { self.safariUrl = URL(string: $0) })
-            )
+            viewModel.onLoaded()
         }
     }
 

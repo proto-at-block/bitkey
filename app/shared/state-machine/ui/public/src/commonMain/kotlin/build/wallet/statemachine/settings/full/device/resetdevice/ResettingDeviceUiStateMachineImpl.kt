@@ -39,9 +39,7 @@ class ResettingDeviceUiStateMachineImpl(
               uiState = ResettingDeviceConfirmationUiState(isDevicePaired)
             },
             fullAccountConfig = props.fullAccountConfig,
-            fullAccount = props.fullAccount,
-            spendingWallet = props.spendingWallet,
-            balance = props.balance
+            fullAccount = props.fullAccount
           )
         )
       }

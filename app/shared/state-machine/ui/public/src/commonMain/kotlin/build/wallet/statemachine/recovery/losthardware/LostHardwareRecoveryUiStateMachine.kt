@@ -17,4 +17,5 @@ data class LostHardwareRecoveryProps(
   val instructionsStyle: InstructionsStyle,
   val onFoundHardware: () -> Unit,
   val onExit: () -> Unit,
+  val onComplete: () -> Unit,
 )

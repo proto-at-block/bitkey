@@ -13,7 +13,6 @@ import build.wallet.emergencyaccesskit.EmergencyAccessKitPayload
 import build.wallet.emergencyaccesskit.EmergencyAccessKitPayloadDecoder
 import build.wallet.emergencyaccesskit.EmergencyAccessPayloadRestorer
 import build.wallet.keybox.KeyboxDao
-import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.platform.clipboard.Clipboard
 import build.wallet.platform.permissions.Permission
@@ -127,13 +126,11 @@ class EmergencyAccessKitRecoveryUiStateMachineImpl(
       }
 
       is State.RestoreWallet -> {
-        val onRestore = remember(currentState, debugOptions) {
-          {
-            if (debugOptions != null) {
-              // DebugOptions should be preloaded at this point.
-              state = currentState.onStartRestore(debugOptions)
-            } else {
-              log { "Debug options are not available" }
+        val onRestore: (() -> Unit)? = remember(currentState, debugOptions) {
+          when (debugOptions) {
+            null -> null
+            else -> {
+              { state = currentState.onStartRestore(debugOptions) }
             }
           }
         }

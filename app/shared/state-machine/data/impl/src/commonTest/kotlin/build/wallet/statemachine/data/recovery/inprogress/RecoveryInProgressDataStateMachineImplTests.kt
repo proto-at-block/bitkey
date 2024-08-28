@@ -32,9 +32,9 @@ import build.wallet.recovery.RecoveryCancelerMock
 import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.recovery.StillRecoveringInitiatedRecoveryMock
+import build.wallet.recovery.socrec.EndorseTrustedContactsServiceMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
-import build.wallet.recovery.socrec.TrustedContactKeyAuthenticatorMock
+import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
@@ -84,9 +84,9 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
         initialModel = RecoveryNotificationVerificationData.LoadingNotificationTouchpointData
       ) {}
   val deviceTokenManager = DeviceTokenManagerMock(turbines::create)
-  val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
+  val socRecService = SocRecServiceMock(turbines::create)
   val postSocRecTaskRepository = PostSocRecTaskRepositoryMock()
-  val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorMock(turbines::create)
+  val trustedContactKeyAuthenticator = EndorseTrustedContactsServiceMock(turbines::create)
 
   val stateMachine =
     RecoveryInProgressDataStateMachineImpl(
@@ -103,15 +103,15 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
       recoveryDao = recoveryDao,
       delayer = ControlledDelayer(),
       deviceTokenManager = deviceTokenManager,
-      socRecRelationshipsRepository = socRecRelationshipsRepository,
-      trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
+      socRecService = socRecService,
+      endorseTrustedContactsService = trustedContactKeyAuthenticator
     )
 
   beforeTest {
     clock.reset()
     csekDao.reset()
     deviceTokenManager.reset()
-    socRecRelationshipsRepository.relationshipsFlow.emit(SocRecRelationshipsFake)
+    socRecService.relationshipsFlow.emit(SocRecRelationshipsFake)
   }
 
   fun recovery(delayStartTime: Instant = clock.now) =
@@ -480,7 +480,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
+      socRecService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -590,7 +590,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
+      socRecService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -699,7 +699,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
+      socRecService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -821,7 +821,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
+      socRecService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {
@@ -916,7 +916,7 @@ class RecoveryInProgressDataStateMachineImplTests : FunSpec({
 
       // Generating TC certs with new auth keys
       awaitItem().shouldBe(RegeneratingTcCertificatesData)
-      socRecRelationshipsRepository.syncCalls.awaitItem()
+      socRecService.syncCalls.awaitItem()
 
       // Backing up new keybox
       awaitItem().let {

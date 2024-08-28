@@ -6,4 +6,6 @@ pub mod hkdf;
 pub mod hmac;
 pub mod keys;
 pub mod signature_verifier;
+
+#[cfg(feature = "spake2")]
 pub mod spake2;

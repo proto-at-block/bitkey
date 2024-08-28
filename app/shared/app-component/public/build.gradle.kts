@@ -16,6 +16,7 @@ kotlin {
         api(projects.shared.coroutinesPublic)
         api(projects.shared.bdkBindingsPublic)
         api(projects.shared.bitcoinPublic)
+        api(projects.shared.bootstrapPublic)
         api(projects.shared.cloudBackupPublic)
         api(projects.shared.databasePublic)
         api(projects.shared.datadogPublic)

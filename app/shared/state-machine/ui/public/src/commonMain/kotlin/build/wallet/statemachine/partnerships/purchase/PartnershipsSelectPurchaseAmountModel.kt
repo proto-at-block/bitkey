@@ -92,7 +92,6 @@ fun selectPurchaseAmountModel(
           ),
         secondaryButton = null,
         keepScreenOn = false,
-        onLoaded = {},
         eventTrackerContext = null,
         renderContext = RenderContext.Sheet
       ),

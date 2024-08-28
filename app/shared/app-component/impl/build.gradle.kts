@@ -17,6 +17,7 @@ kotlin {
         api(projects.shared.authImpl)
         api(projects.shared.bdkBindingsImpl)
         api(projects.shared.bitcoinImpl)
+        api(projects.shared.bootstrapImpl)
         api(projects.shared.bugsnagImpl)
         api(projects.shared.coachmarkImpl)
         api(projects.shared.cloudBackupImpl)

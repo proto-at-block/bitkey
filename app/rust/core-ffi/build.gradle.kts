@@ -17,7 +17,7 @@ rust {
   cargoPath = hermitDir.resolve("cargo")
   rustupPath = hermitDir.resolve("rustup")
   cargoWorkspace = projectDir.parentFile
-  val coreWorkspace = cargoWorkspace.dir("../../core").get()
+  val coreWorkspace = cargoWorkspace.dir("../core-ffi").get()
   rustProjectFiles.from(
     provider {
       // This is only an approximation. The Rust compiler also has a cache so the performance impact of the compile task being incorrectly invalidated is not that high.

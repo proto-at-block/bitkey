@@ -35,7 +35,7 @@ class BitcoinPriceCardPreferenceImplTest : FunSpec({
   test("get card preference before a value is set") {
     cardPreference.get().get()
       .shouldNotBeNull()
-      .shouldBeFalse()
+      .shouldBeTrue()
   }
 
   test("get card preference always false when feature flag is disabled") {

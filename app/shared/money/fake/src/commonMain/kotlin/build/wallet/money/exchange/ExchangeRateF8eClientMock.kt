@@ -49,4 +49,10 @@ class ExchangeRateF8eClientMock : ExchangeRateF8eClient {
   ): Result<ExchangeRateChartData, NetworkingError> {
     return historicalBtcToUsdExchangeRateChartData.value
   }
+
+  fun reset() {
+    exchangeRates.value = Ok(listOf(ExchangeRateFake))
+    historicalBtcToUsdExchangeRate.value = Ok(ExchangeRateFake)
+    historicalBtcToUsdExchangeRateChartData.value = Ok(ExchangeRateChartDataFake)
+  }
 }

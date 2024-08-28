@@ -8,12 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,9 +36,7 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
 import build.wallet.ui.components.button.Button
-import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Multiline
-import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Resize
-import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.Truncate
+import build.wallet.ui.components.forms.TextFieldOverflowCharacteristic.*
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
 import build.wallet.ui.components.label.labelStyle
@@ -53,12 +46,8 @@ import build.wallet.ui.model.button.ButtonModel.Size.Compact
 import build.wallet.ui.model.button.ButtonModel.Treatment.Secondary
 import build.wallet.ui.model.input.TextFieldModel
 import build.wallet.ui.model.input.TextFieldModel.Capitalization
-import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Decimal
-import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Default
-import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Email
+import build.wallet.ui.model.input.TextFieldModel.KeyboardType.*
 import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Number
-import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Phone
-import build.wallet.ui.model.input.TextFieldModel.KeyboardType.Uri
 import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
@@ -273,8 +262,9 @@ internal fun TextFieldWithCharacteristic(
       },
       singleLine = textFieldOverflowCharacteristic !is Multiline,
       colors =
-        TextFieldDefaults.textFieldColors(
-          containerColor = WalletTheme.colors.foreground10,
+        TextFieldDefaults.colors(
+          focusedContainerColor = WalletTheme.colors.foreground10,
+          unfocusedContainerColor = WalletTheme.colors.foreground10,
           cursorColor = WalletTheme.colors.bitkeyPrimary,
           focusedIndicatorColor = Color.Transparent,
           unfocusedIndicatorColor = Color.Transparent

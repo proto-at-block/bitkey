@@ -1,7 +1,7 @@
 output "api_gw_base_url" {
   description = "Base URL for API Gateway."
 
-  value = var.is_localstack ? "http://localhost:4566/restapis/${aws_apigatewayv2_api.api_gw.id}/${aws_apigatewayv2_api.api_gw.name}/_user_request_/" : aws_apigatewayv2_stage.api_gw.invoke_url
+  value = var.is_localstack ? "http://localhost:4566/restapis/${aws_api_gateway_rest_api.api_gw.id}/${aws_api_gateway_stage.api_gw_stage.stage_name}/_user_request_/" : aws_api_gateway_stage.api_gw_stage.invoke_url
 }
 
 output "bitkey_fw_signer_user_pool_id" {

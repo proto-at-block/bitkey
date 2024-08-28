@@ -27,7 +27,10 @@ class ViewingRecoveryContactUiStateMachineImpl(
         ScreenModel(
           body = props.screenBody,
           bottomSheetModel = when {
-            props.recoveryContact is UnendorsedTrustedContact && props.recoveryContact.authenticationState in setOf(FAILED, PAKE_DATA_UNAVAILABLE) ->
+            props.recoveryContact is UnendorsedTrustedContact && props.recoveryContact.authenticationState in setOf(
+              FAILED,
+              PAKE_DATA_UNAVAILABLE
+            ) ->
               ViewingFailedContactSheetModel(
                 contact = props.recoveryContact,
                 onRemove = { state = Removing },
@@ -52,9 +55,6 @@ class ViewingRecoveryContactUiStateMachineImpl(
           RemoveTrustedContactUiProps(
             trustedContact = props.recoveryContact,
             account = props.account,
-            onRemoveTrustedContact = {
-              props.onRemoveContact(props.recoveryContact, it)
-            },
             onClosed = {
               props.onExit()
             }

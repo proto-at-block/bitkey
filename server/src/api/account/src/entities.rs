@@ -270,6 +270,8 @@ pub struct CommonAccountFields {
     pub notifications_preferences_state: NotificationsPreferencesState,
     #[serde(default)]
     pub configured_privileged_action_delay_durations: Vec<PrivilegedActionDelayDuration>,
+    #[serde(default)]
+    pub comms_verification_claims: Vec<CommsVerificationClaim>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -286,8 +288,6 @@ pub struct FullAccount {
     pub application_auth_pubkey: Option<PublicKey>,
     // Hardware Authentication Key
     pub hardware_auth_pubkey: PublicKey,
-    #[serde(default)]
-    pub comms_verification_claims: Vec<CommsVerificationClaim>,
     #[serde(default)]
     pub auth_keys: HashMap<AuthKeysId, FullAccountAuthKeys>,
     #[serde(flatten)]
@@ -316,7 +316,6 @@ impl FullAccount {
             spending_limit: None,
             application_auth_pubkey,
             hardware_auth_pubkey,
-            comms_verification_claims: vec![],
             common_fields: CommonAccountFields {
                 active_auth_keys_id,
                 touchpoints: vec![],
@@ -327,6 +326,7 @@ impl FullAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                comms_verification_claims: Default::default(),
             },
         }
     }
@@ -384,6 +384,7 @@ impl LiteAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                comms_verification_claims: Default::default(),
             },
         }
     }
@@ -406,7 +407,6 @@ impl LiteAccount {
             spending_limit: None,
             application_auth_pubkey: Some(auth_keys.app_pubkey),
             hardware_auth_pubkey: auth_keys.hardware_pubkey,
-            comms_verification_claims: vec![],
             auth_keys: HashMap::from([(auth_keys_id.clone(), auth_keys)]),
             common_fields: CommonAccountFields {
                 active_auth_keys_id: auth_keys_id,
@@ -433,8 +433,6 @@ pub struct SoftwareAccount {
     pub spending_keysets: HashMap<KeysetId, SpendingKeyset>,
     pub application_auth_pubkey: PublicKey,
     #[serde(default)]
-    pub comms_verification_claims: Vec<CommsVerificationClaim>,
-    #[serde(default)]
     pub auth_keys: HashMap<AuthKeysId, SoftwareAccountAuthKeys>,
     #[serde(flatten)]
     pub common_fields: CommonAccountFields,
@@ -457,7 +455,6 @@ impl SoftwareAccount {
             auth_keys: HashMap::from([(active_auth_keys_id.clone(), auth)]),
             spending_keysets: HashMap::new(),
             application_auth_pubkey,
-            comms_verification_claims: vec![],
             common_fields: CommonAccountFields {
                 active_auth_keys_id,
                 touchpoints: vec![],
@@ -468,6 +465,7 @@ impl SoftwareAccount {
                 recovery_auth_pubkey,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                comms_verification_claims: Default::default(),
             },
         }
     }
@@ -781,7 +779,6 @@ mod tests {
             spending_limit: None,
             application_auth_pubkey: None,
             hardware_auth_pubkey: PublicKey::from_slice(&pubkey).unwrap(),
-            comms_verification_claims: vec![],
             common_fields: CommonAccountFields {
                 active_auth_keys_id: AuthKeysId::gen().unwrap(),
                 touchpoints: vec![],
@@ -792,6 +789,7 @@ mod tests {
                 recovery_auth_pubkey: None,
                 notifications_preferences_state: Default::default(),
                 configured_privileged_action_delay_durations: Default::default(),
+                comms_verification_claims: Default::default(),
             },
         };
         let set_and_enabled_spending_limit_account = FullAccount {

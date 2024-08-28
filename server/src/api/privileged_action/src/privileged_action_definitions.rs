@@ -14,9 +14,9 @@ use types::{
 
 const SEVENTY_TWO_HOURS_SECS: usize = 259_200;
 
-pub static SET_PRIVILEGED_ACTION_DELAYS: Lazy<PrivilegedActionDefinition> =
+pub static CONFIGURE_PRIVILEGED_ACTION_DELAYS: Lazy<PrivilegedActionDefinition> =
     Lazy::new(|| PrivilegedActionDefinition {
-        privileged_action_type: PrivilegedActionType::SetPrivilegedActionDelays,
+        privileged_action_type: PrivilegedActionType::ConfigurePrivilegedActionDelays,
         authorization_strategies: HashMap::from([(
             AccountType::Software,
             AuthorizationStrategyDefinition::DelayAndNotify(DelayAndNotifyDefinition {
@@ -51,4 +51,4 @@ pub static ACTIVATE_TOUCHPOINT: Lazy<PrivilegedActionDefinition> =
     });
 
 pub static ALL_PRIVILEGED_ACTIONS: Lazy<Vec<&'static PrivilegedActionDefinition>> =
-    Lazy::new(|| vec![&SET_PRIVILEGED_ACTION_DELAYS, &ACTIVATE_TOUCHPOINT]);
+    Lazy::new(|| vec![&CONFIGURE_PRIVILEGED_ACTION_DELAYS, &ACTIVATE_TOUCHPOINT]);

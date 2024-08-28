@@ -13,6 +13,7 @@ package build.wallet.statemachine.core
  */
 enum class Icon {
   Bitcoin,
+  BitcoinOrange,
   BitkeyDevice3D,
   BitkeyDeviceRaised,
   BitkeyDeviceRaisedSmall,

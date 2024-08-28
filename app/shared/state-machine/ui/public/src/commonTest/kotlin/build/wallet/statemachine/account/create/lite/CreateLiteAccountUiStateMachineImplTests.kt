@@ -17,7 +17,6 @@ import build.wallet.f8e.F8eEnvironment.Development
 import build.wallet.f8e.error.F8eError
 import build.wallet.ktor.result.HttpError
 import build.wallet.platform.device.DeviceInfoProviderMock
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
@@ -42,7 +41,6 @@ import io.kotest.matchers.types.shouldBeTypeOf
 class CreateLiteAccountUiStateMachineImplTests : FunSpec({
 
   val liteAccountCreator = LiteAccountCreatorMock(turbines::create)
-  val socRecRepositoryMock = SocRecRelationshipsRepositoryMock(turbines::create)
   val eventTracker = EventTrackerMock(turbines::create)
   val debugOptionsService = DebugOptionsServiceFake()
   val stateMachine = CreateLiteAccountUiStateMachineImpl(
@@ -51,7 +49,6 @@ class CreateLiteAccountUiStateMachineImplTests : FunSpec({
       ScreenStateMachineMock<TrustedContactEnrollmentUiProps>(
         "tc-enrollment"
       ) {},
-    socRecRelationshipsRepository = socRecRepositoryMock,
     liteAccountCloudSignInAndBackupUiStateMachine = object :
       LiteAccountCloudSignInAndBackupUiStateMachine,
       ScreenStateMachineMock<LiteAccountCloudSignInAndBackupProps>(

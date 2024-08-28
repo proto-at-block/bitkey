@@ -4,7 +4,6 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.health.CloudBackupStatus
 import build.wallet.cloud.backup.health.EakBackupStatus
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 
 interface CloudBackupHealthRepository {
@@ -22,10 +21,7 @@ interface CloudBackupHealthRepository {
    * Launches a non-blocking coroutine that periodically syncs [mobileKeyBackupStatus] and
    * [eakBackupStatus].
    */
-  suspend fun syncLoop(
-    scope: CoroutineScope,
-    account: FullAccount,
-  )
+  suspend fun syncLoop(account: FullAccount)
 
   /**
    * Queues a sync of [mobileKeyBackupStatus] and [eakBackupStatus], and returns immediately.

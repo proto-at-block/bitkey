@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalObjCRefinement::class)
+
 package build.wallet.statemachine.data.recovery.sweep
 
 import androidx.compose.runtime.*
@@ -9,7 +11,7 @@ import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.NetworkingError
 import build.wallet.mapUnit
 import build.wallet.money.exchange.ExchangeRate
-import build.wallet.money.exchange.ExchangeRateSyncer
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepService
@@ -18,6 +20,7 @@ import build.wallet.statemachine.data.recovery.sweep.SweepDataStateMachineImpl.S
 import com.github.michaelbull.result.*
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.collections.immutable.toImmutableList
+import kotlin.experimental.ExperimentalObjCRefinement
 import kotlin.native.HiddenFromObjC
 
 @HiddenFromObjC
@@ -26,7 +29,7 @@ class SweepDataStateMachineImpl(
   private val sweepService: SweepService,
   private val mobilePaySigningF8eClient: MobilePaySigningF8eClient,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
-  private val exchangeRateSyncer: ExchangeRateSyncer,
+  private val exchangeRateService: ExchangeRateService,
   private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
 ) : SweepDataStateMachine {
   private sealed interface State {
@@ -139,7 +142,7 @@ class SweepDataStateMachineImpl(
       /** Asynchronously signing transactions using app + server, and then broadcasting */
       is SignAndBroadcastState -> {
         LaunchedEffect("sign-and-broadcast") {
-          val exchangeRates = exchangeRateSyncer.exchangeRates.value.toImmutableList()
+          val exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList()
           signAndBroadcastPsbts(props, state, exchangeRates)
             .onSuccess { sweepState = SweepSuccessState }
             .onFailure { sweepState = SweepFailedState(it) }

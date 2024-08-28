@@ -8,8 +8,8 @@ import build.wallet.onboarding.OnboardingKeyboxStepStateDaoMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.account.create.full.OnboardKeyboxUiProps
 import build.wallet.statemachine.account.create.full.OnboardKeyboxUiStateMachineImpl
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiPropsV2
-import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachineV2
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiProps
+import build.wallet.statemachine.account.create.full.onboard.notifications.NotificationPreferencesSetupUiStateMachine
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -17,11 +17,7 @@ import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.BackingUpKeyboxToCloudDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.CompletingNotificationsDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.FailedCloudBackupDataFull
-import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.SettingNotificationsPreferencesDataFull
+import build.wallet.statemachine.data.account.CreateFullAccountData.OnboardKeyboxDataFull.*
 import build.wallet.statemachine.ui.clickPrimaryButton
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -41,9 +37,9 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
         object : FullAccountCloudSignInAndBackupUiStateMachine, ScreenStateMachineMock<FullAccountCloudSignInAndBackupProps>(
           id = "cloud"
         ) {},
-      notificationPreferencesSetupUiStateMachineV2 =
-        object : NotificationPreferencesSetupUiStateMachineV2,
-          ScreenStateMachineMock<NotificationPreferencesSetupUiPropsV2>(
+      notificationPreferencesSetupUiStateMachine =
+        object : NotificationPreferencesSetupUiStateMachine,
+          ScreenStateMachineMock<NotificationPreferencesSetupUiProps>(
             id = "notification-preferences-v2"
           ) {}
     )
@@ -121,7 +117,7 @@ class OnboardKeyboxUiStateMachineImplTests : FunSpec({
 
   test("SettingNotificationsPreferencesData screen - complete") {
     stateMachine.test(OnboardKeyboxUiProps(settingNotificationsPreferencesData)) {
-      awaitScreenWithBodyModelMock<NotificationPreferencesSetupUiPropsV2> {
+      awaitScreenWithBodyModelMock<NotificationPreferencesSetupUiProps> {
         onComplete()
       }
       settingNotificationsPreferencesDataCompleteCalls.awaitItem()

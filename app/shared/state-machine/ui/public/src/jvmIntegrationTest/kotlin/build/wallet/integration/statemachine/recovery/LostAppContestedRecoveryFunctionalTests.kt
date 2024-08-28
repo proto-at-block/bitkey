@@ -4,21 +4,10 @@ import app.cash.turbine.turbineScope
 import build.wallet.analytics.events.screen.id.ChooseRecoveryNotificationVerificationMethodScreenId.CHOOSE_RECOVERY_NOTIFICATION_VERIFICATION_METHOD
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_BACKUP_NOT_FOUND
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_READY
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.LOST_APP_DELAY_NOTIFY_VERIFICATION_ENTRY
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_CANCEL_OTHER_RECOVERY_PROMPT
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_READY
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_SWEEP_ZERO_BALANCE
-import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.LOST_HW_DELAY_NOTIFY_VERIFICATION_ENTRY
+import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId.*
+import build.wallet.analytics.events.screen.id.HardwareRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_ACTIVATION_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_PAIR_INSTRUCTIONS
-import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.HW_SAVE_FINGERPRINT_INSTRUCTIONS
+import build.wallet.analytics.events.screen.id.PairHardwareEventTrackerScreenId.*
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS_DEVICE_INFO
 import build.wallet.cloud.store.CloudStoreAccountFake.Companion.CloudStoreAccount1Fake
 import build.wallet.integration.statemachine.create.restoreButton
@@ -28,9 +17,7 @@ import build.wallet.statemachine.cloud.CloudSignInModelFake
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachineTester
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.core.form.FormMainContentModel.Button
-import build.wallet.statemachine.core.form.FormMainContentModel.ListGroup
-import build.wallet.statemachine.core.form.FormMainContentModel.VerificationCodeInput
+import build.wallet.statemachine.core.form.FormMainContentModel.*
 import build.wallet.statemachine.core.testIn
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.settings.SettingsBodyModel
@@ -164,13 +151,21 @@ private suspend fun StateMachineTester<Unit, ScreenModel>.initiateLostHardwareRe
     .find { it.title == "Bitkey Device" }
     .shouldNotBeNull()
     .onClick()
-  (
-    awaitUntilScreenWithBody<FormBodyModel>()
-      .mainContentList.find {
+
+  awaitUntilScreenWithBody<FormBodyModel>(
+    expectedBodyContentMatch = {
+      it.mainContentList.any { content ->
+        content is Button && content.item.text == "Replace device"
+      }
+    }
+  ) {
+    (
+      mainContentList.find {
         it is Button && it.item.text == "Replace device"
       } as Button
-  )
-    .item.onClick()
+    ).item.onClick()
+  }
+
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INSTRUCTIONS)
     .clickPrimaryButton()
   awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_NEW_DEVICE_READY)

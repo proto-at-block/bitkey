@@ -1,7 +1,7 @@
 use time::OffsetDateTime;
 
 use crate::{
-    entities::{CommsVerificationStatus, FullAccount},
+    entities::{CommonAccountFields, CommsVerificationStatus},
     error::AccountError,
 };
 
@@ -12,12 +12,14 @@ impl Service {
         &self,
         input: PutCommsVerificationClaimInput,
     ) -> Result<(), AccountError> {
-        let full_account = self
-            .fetch_full_account(FetchAccountInput {
+        let account = self
+            .fetch_account(FetchAccountInput {
                 account_id: &input.account_id,
             })
             .await?;
-        let mut comms_verification_claims = full_account.comms_verification_claims;
+
+        let common_fields = account.get_common_fields().clone();
+        let mut comms_verification_claims = common_fields.comms_verification_claims;
 
         // Purge claims for the same scope (and expired ones)
         comms_verification_claims.retain(|c| {
@@ -39,11 +41,11 @@ impl Service {
 
         // Add new claim
         comms_verification_claims.push(input.claim);
-        let updated_account = FullAccount {
+        let updated_account = account.update(CommonAccountFields {
             comms_verification_claims,
-            ..full_account
-        };
-        self.account_repo.persist(&updated_account.into()).await?;
+            ..common_fields
+        })?;
+        self.account_repo.persist(&updated_account).await?;
 
         Ok(())
     }

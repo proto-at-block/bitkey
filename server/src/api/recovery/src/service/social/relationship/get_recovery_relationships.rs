@@ -1,9 +1,9 @@
+use super::{error::ServiceError, Service};
 use repository::recovery::social::fetch::RecoveryRelationshipsForAccount;
 use tracing::instrument;
 use types::account::identifiers::AccountId;
 use types::recovery::social::relationship::RecoveryRelationship;
-
-use super::{error::ServiceError, Service};
+use types::recovery::trusted_contacts::TrustedContactRole;
 
 /// The input for the `get_recovery_relationships` function
 ///
@@ -12,6 +12,7 @@ use super::{error::ServiceError, Service};
 /// * `account_id` - The account to fetch the recovery relationships for
 pub struct GetRecoveryRelationshipsInput<'a> {
     pub account_id: &'a AccountId,
+    pub trusted_contact_role: TrustedContactRole,
 }
 
 /// The output for the `get_recovery_relationships` function
@@ -62,6 +63,30 @@ impl Service {
             .fetch_recovery_relationships_for_account(input.account_id)
             .await?;
 
-        Ok(relationships.into())
+        let tc_role = input.trusted_contact_role;
+        let filtered_relationships = RecoveryRelationshipsForAccount {
+            invitations: filter_by_role(relationships.invitations, &tc_role),
+            endorsed_trusted_contacts: filter_by_role(
+                relationships.endorsed_trusted_contacts,
+                &tc_role,
+            ),
+            unendorsed_trusted_contacts: filter_by_role(
+                relationships.unendorsed_trusted_contacts,
+                &tc_role,
+            ),
+            customers: filter_by_role(relationships.customers, &tc_role),
+        };
+
+        Ok(filtered_relationships.into())
     }
+}
+
+fn filter_by_role(
+    relationships: Vec<RecoveryRelationship>,
+    role: &TrustedContactRole,
+) -> Vec<RecoveryRelationship> {
+    relationships
+        .into_iter()
+        .filter(|r| r.has_role(role))
+        .collect()
 }

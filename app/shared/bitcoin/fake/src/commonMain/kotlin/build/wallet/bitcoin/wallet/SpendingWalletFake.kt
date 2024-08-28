@@ -20,11 +20,7 @@ import build.wallet.time.someInstant
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Duration
@@ -124,8 +120,8 @@ class SpendingWalletFake(
   override fun launchPeriodicSync(
     scope: CoroutineScope,
     interval: Duration,
-  ) {
-    scope.launch(Dispatchers.IO) {
+  ): Job {
+    return scope.launch(Dispatchers.IO) {
       while (isActive) {
         sync()
         delay(interval)
@@ -159,7 +155,7 @@ class SpendingWalletFake(
   }
 
   override suspend fun isMine(scriptPubKey: BdkScript): Result<Boolean, Error> {
-    return Ok(scriptPubKey == BdkScriptMock().rawOutputScript())
+    return Ok(scriptPubKey == BdkScriptMock().rawOutputScript)
   }
 
   override fun transactions(): Flow<List<BitcoinTransaction>> {

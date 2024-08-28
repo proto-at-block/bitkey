@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::RwLock;
 
 use bdk_utils::flags::{
     DEFAULT_MAINNET_ELECTRUM_RPC_URI, DEFAULT_SIGNET_ELECTRUM_RPC_URI,
@@ -14,17 +15,18 @@ use time::format_description::well_known::Rfc3339;
 use time::{Duration, OffsetDateTime};
 use types::notification::{NotificationCategory, NotificationChannel};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
+use types::time::Clock;
 use ulid::Ulid;
 
 use account::entities::{
-    Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, Network, SpendingKeysetRequest,
-    Touchpoint, TouchpointPlatform,
+    Factor, FullAccount, FullAccountAuthKeysPayload, Keyset, Network, SoftwareAccount,
+    SoftwareAccountAuthKeys, SpendingKeysetRequest, Touchpoint, TouchpointPlatform,
 };
 use account::entities::{FullAccountAuthKeys, LiteAccount, LiteAccountAuthKeys, SpendingKeyset};
 use account::service::{
     ActivateTouchpointForAccountInput, AddPushTouchpointToAccountInput,
-    CreateAccountAndKeysetsInput, CreateLiteAccountInput, FetchAccountInput,
-    FetchOrCreateEmailTouchpointInput, FetchOrCreatePhoneTouchpointInput,
+    CreateAccountAndKeysetsInput, CreateLiteAccountInput, CreateSoftwareAccountInput,
+    FetchAccountInput, FetchOrCreateEmailTouchpointInput, FetchOrCreatePhoneTouchpointInput,
 };
 use bdk_utils::bdk::bitcoin::bip32::{
     DerivationPath, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
@@ -258,6 +260,13 @@ pub(crate) fn create_lite_auth_keyset_model(context: &mut TestContext) -> LiteAc
     LiteAccountAuthKeys::new(keys.recovery.public_key)
 }
 
+pub(crate) fn create_software_auth_keyset_model(
+    context: &mut TestContext,
+) -> SoftwareAccountAuthKeys {
+    let keys = create_new_authkeys(context);
+    SoftwareAccountAuthKeys::new(keys.app.public_key, keys.recovery.public_key)
+}
+
 pub(crate) async fn create_inactive_spending_keyset_for_account(
     context: &TestContext,
     client: &TestClient,
@@ -381,6 +390,43 @@ pub(crate) async fn create_lite_account(
         )
         .await
         .unwrap();
+    context.associate_with_account(&account.id, auth.recovery_pubkey);
+    account
+}
+
+pub(crate) async fn create_software_account(
+    context: &mut TestContext,
+    services: &Services,
+    override_auth_keys: Option<SoftwareAccountAuthKeys>,
+    is_test_account: bool,
+) -> SoftwareAccount {
+    let auth = if let Some(auth) = override_auth_keys {
+        auth
+    } else {
+        create_software_auth_keyset_model(context)
+    };
+
+    let account = services
+        .account_service
+        .create_software_account(CreateSoftwareAccountInput {
+            account_id: &AccountId::gen().unwrap(),
+            auth_key_id: AuthKeysId::new(Ulid::default()).unwrap(),
+            auth: auth.clone(),
+            is_test_account,
+        })
+        .await
+        .unwrap();
+    services
+        .userpool_service
+        .create_or_update_account_users_if_necessary(
+            &account.id,
+            Some(auth.app_pubkey),
+            None,
+            Some(auth.recovery_pubkey),
+        )
+        .await
+        .unwrap();
+    context.associate_with_account(&account.id, auth.app_pubkey);
     context.associate_with_account(&account.id, auth.recovery_pubkey);
     account
 }
@@ -699,4 +745,26 @@ pub(crate) async fn update_recovery_relationship_invitation_expiration(
         .persist_recovery_relationship(&RecoveryRelationship::Invitation(invitation))
         .await
         .unwrap();
+}
+
+pub(crate) struct OffsetClock {
+    offset: RwLock<Duration>,
+}
+
+impl OffsetClock {
+    pub fn new() -> Self {
+        Self {
+            offset: RwLock::new(Duration::ZERO),
+        }
+    }
+
+    pub fn add_offset(&self, offset: Duration) {
+        *self.offset.write().unwrap() += offset;
+    }
+}
+
+impl Clock for OffsetClock {
+    fn now_utc(&self) -> OffsetDateTime {
+        OffsetDateTime::now_utc() + self.offset.read().unwrap().to_owned()
+    }
 }

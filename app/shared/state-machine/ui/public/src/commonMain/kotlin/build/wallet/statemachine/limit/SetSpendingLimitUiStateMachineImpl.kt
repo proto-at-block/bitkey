@@ -1,36 +1,20 @@
 package build.wallet.statemachine.limit
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
 import build.wallet.f8e.auth.HwFactorProofOfPossession
+import build.wallet.limit.MobilePayService
 import build.wallet.limit.SpendingLimit
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.Retreat
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.RetreatStyle.Close
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.SuccessBodyModel
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayDisabledData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
-import build.wallet.statemachine.limit.SpendingLimitUiState.PickingAndConfirmingSpendingLimitUiState
-import build.wallet.statemachine.limit.SpendingLimitUiState.ReceivedSavingErrorUiState
-import build.wallet.statemachine.limit.SpendingLimitUiState.SavingLimitUiState
-import build.wallet.statemachine.limit.SpendingLimitUiState.SpendingLimitIsSetUiState
+import build.wallet.statemachine.limit.SpendingLimitUiState.*
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiProps
 import build.wallet.statemachine.limit.picker.SpendingLimitPickerUiStateMachine
 import build.wallet.time.TimeZoneProvider
-import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
@@ -40,6 +24,7 @@ class SetSpendingLimitUiStateMachineImpl(
   private val timeZoneProvider: TimeZoneProvider,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val mobilePayService: MobilePayService,
 ) : SetSpendingLimitUiStateMachine {
   @Composable
   override fun model(props: SpendingLimitProps): ScreenModel {
@@ -115,27 +100,12 @@ class SetSpendingLimitUiStateMachineImpl(
     onResult: (Result<Unit, Error>) -> Unit,
   ) {
     LaunchedEffect("saving-spending-limit") {
-      when (val mobilePayState = props.accountData.mobilePayData) {
-        is MobilePayEnabledData -> {
-          mobilePayState.changeSpendingLimit(
-            state.spendingLimit,
-            state.selectedFiatLimit,
-            state.hwFactorProofOfPossession,
-            onResult
-          )
-        }
-
-        is MobilePayDisabledData -> {
-          mobilePayState.enableMobilePay(
-            state.spendingLimit,
-            state.selectedFiatLimit,
-            state.hwFactorProofOfPossession,
-            onResult
-          )
-        }
-
-        else -> onResult(Err(Error("limit not loaded")))
-      }
+      mobilePayService.setLimit(
+        account = props.accountData.account,
+        spendingLimit = state.spendingLimit,
+        hwFactorProofOfPossession = state.hwFactorProofOfPossession
+      )
+        .apply(onResult)
     }
   }
 

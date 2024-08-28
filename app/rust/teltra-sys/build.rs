@@ -36,7 +36,11 @@ fn main() {
     let make_output = make_cmd.output().expect("Failed to run make");
 
     if !make_output.status.success() {
-        eprintln!("Make failed with: {:?}", make_cmd.output());
+        eprintln!(
+            "Make failed with:\nstdout: {}\nstderr: {}",
+            String::from_utf8_lossy(&make_output.stdout),
+            String::from_utf8_lossy(&make_output.stderr)
+        );
         std::process::exit(1);
     }
 
@@ -58,7 +62,7 @@ fn main() {
                 .expect("Invalid UTF-8 in path")
                 .to_owned(),
         )
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings");
 

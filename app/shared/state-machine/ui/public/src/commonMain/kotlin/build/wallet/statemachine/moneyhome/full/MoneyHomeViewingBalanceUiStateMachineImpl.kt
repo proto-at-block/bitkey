@@ -3,12 +3,17 @@ package build.wallet.statemachine.moneyhome.full
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
+import build.wallet.bitcoin.transactions.BitcoinTransaction
+import build.wallet.bitcoin.transactions.TransactionsData.LoadingTransactionsData
+import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.fwup.FirmwareData
 import build.wallet.fwup.FirmwareDataService
@@ -26,7 +31,7 @@ import build.wallet.platform.haptics.HapticsEffect
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.links.OpenDeeplinkResult.AppRestrictionResult.*
-import build.wallet.recovery.sweep.SweepPromptRequirementCheck
+import build.wallet.recovery.sweep.SweepService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.list.ListModel
@@ -66,6 +71,7 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.coachmark.CoachmarkModel
 import com.github.michaelbull.result.onSuccess
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -73,7 +79,7 @@ import kotlinx.coroutines.launch
 
 class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val addBitcoinUiStateMachine: AddBitcoinUiStateMachine,
-  private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
+  private val appFunctionalityService: AppFunctionalityService,
   private val deepLinkHandler: DeepLinkHandler,
   private val eventTracker: EventTracker,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
@@ -85,31 +91,34 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val moneyHomeHiddenStatusProvider: MoneyHomeHiddenStatusProvider,
   private val coachmarkService: CoachmarkService,
-  private val sweepPromptRequirementCheck: SweepPromptRequirementCheck,
+  private val sweepService: SweepService,
   private val haptics: Haptics,
   private val firmwareDataService: FirmwareDataService,
+  private val transactionsService: TransactionsService,
 ) : MoneyHomeViewingBalanceUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeViewingBalanceUiProps): ScreenModel {
     val scope = rememberStableCoroutineScope()
     if (props.state.isRefreshing) {
       LaunchedEffect("refresh-transactions") {
-        props.accountData.transactionsData.syncTransactions()
-        props.accountData.transactionsData.syncFiatBalance()
-        sweepPromptRequirementCheck.checkForSweeps(props.accountData.account.keybox)
+        transactionsService.syncTransactions()
+        sweepService.checkForSweeps()
         props.setState(props.state.copy(isRefreshing = false))
       }
     }
+    val transactionsData = remember { transactionsService.transactionsData() }
+      .collectAsState()
+      .value
+    val transactions = when (transactionsData) {
+      LoadingTransactionsData -> immutableListOf()
+      is TransactionsLoadedData -> transactionsData.transactions
+    }
+
     val numberOfVisibleTransactions = 5
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
-    val appFunctionalityStatus =
-      remember {
-        appFunctionalityStatusProvider.appFunctionalityStatus(
-          props.accountData.account.config.f8eEnvironment
-        )
-      }.collectAsState(AppFunctionalityStatus.FullFunctionality).value
+    val appFunctionalityStatus = remember { appFunctionalityService.status }.collectAsState().value
 
     val hideBalance by remember {
       moneyHomeHiddenStatusProvider.hiddenStatus.mapLatest {
@@ -152,23 +161,26 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               // if fiat balance is null because currency conversion hasn't happened yet, we will show
               // the sats value as the primary until the fiat balance isn't null
               MoneyAmountModel(
-                primaryAmount = when (val balance = props.accountData.transactionsData.fiatBalance) {
-                  null ->
-                    moneyDisplayFormatter
-                      .format(props.accountData.transactionsData.balance.total)
-                  else -> moneyDisplayFormatter.format(balance)
-                },
-                secondaryAmount = if (props.accountData.transactionsData.fiatBalance != null) {
-                  moneyDisplayFormatter
-                    .format(props.accountData.transactionsData.balance.total)
-                } else {
-                  ""
+                primaryAmount =
+                  when (transactionsData) {
+                    LoadingTransactionsData -> ""
+                    is TransactionsLoadedData -> when (val balance = transactionsData.fiatBalance) {
+                      null -> moneyDisplayFormatter.format(transactionsData.balance.total)
+                      else -> moneyDisplayFormatter.format(balance)
+                    }
+                  },
+                secondaryAmount = when (transactionsData) {
+                  LoadingTransactionsData -> ""
+                  is TransactionsLoadedData -> when (transactionsData.fiatBalance) {
+                    null -> ""
+                    else ->
+                      moneyDisplayFormatter.format(transactionsData.balance.total)
+                  }
                 }
               ),
             cardsModel =
               MoneyHomeCardsModel(
                 props = props,
-                appFunctionalityStatus = appFunctionalityStatus,
                 onShowAlert = { alertModel = it },
                 onDismissAlert = { alertModel = null }
               ),
@@ -181,11 +193,12 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               ),
             transactionsModel = MoneyHomeTransactionsModel(
               props,
+              transactions = transactions,
               fiatCurrency,
               numberOfVisibleTransactions
             ),
             seeAllButtonModel =
-              if (props.accountData.transactionsData.transactions.size <= numberOfVisibleTransactions) {
+              if (transactions.size <= numberOfVisibleTransactions) {
                 null
               } else {
                 ButtonModel(
@@ -219,7 +232,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             } else {
               null
             },
-            refresh = props.accountData.transactionsData.syncTransactions,
+            refresh = { transactionsService.syncTransactions() },
             onRefresh = {
               props.setState(props.state.copy(isRefreshing = true))
             },
@@ -250,11 +263,9 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             hostScreen = viewingBalanceModel,
             fullAccount = props.accountData.account,
             invitation = contact,
-            onRemoveInvitation = props.socRecActions::removeTrustedContact,
             onExit = {
               props.setState(props.state.copy(selectedContact = null))
-            },
-            onRefreshInvitation = props.socRecActions::refreshInvitation
+            }
           )
         )
       else -> viewingRecoveryContactUiStateMachine.model(
@@ -262,7 +273,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           screenBody = viewingBalanceModel.body,
           recoveryContact = contact,
           account = props.accountData.account,
-          onRemoveContact = props.socRecActions::removeTrustedContact,
           afterContactRemoved = {
             props.setState(props.state.copy(selectedContact = null))
           },
@@ -277,7 +287,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   @Composable
   private fun MoneyHomeCardsModel(
     props: MoneyHomeViewingBalanceUiProps,
-    appFunctionalityStatus: AppFunctionalityStatus,
     onShowAlert: (ButtonAlertModel) -> Unit,
     onDismissAlert: () -> Unit,
   ): MoneyHomeCardsModel {
@@ -285,7 +294,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
       props =
         MoneyHomeCardsProps(
           cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
-            appFunctionalityStatus = appFunctionalityStatus,
             onActionClick = { status ->
               props.setState(FixingCloudBackupState(status))
             }
@@ -299,10 +307,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
           gettingStartedCardUiProps =
             GettingStartedCardUiProps(
               accountData = props.accountData,
-              appFunctionalityStatus = appFunctionalityStatus,
-              trustedContacts =
-                props.socRecRelationships.endorsedTrustedContacts +
-                  props.socRecRelationships.invitations,
               onAddBitcoin = {
                 props.setState(ViewingBalanceUiState(bottomSheetDisplayState = Partners()))
               },
@@ -339,7 +343,6 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
             ),
           recoveryContactCardsUiProps =
             RecoveryContactCardsUiProps(
-              relationships = props.socRecRelationships,
               onClick = { props.setState(props.state.copy(selectedContact = it)) }
             ),
           setupHardwareCardUiProps =
@@ -351,10 +354,11 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
               }
             ),
           startSweepCardUiProps = StartSweepCardUiProps(
-            keybox = props.accountData.account.keybox,
             onStartSweepClicked = props.onStartSweepFlow
           ),
           bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
+            fullAccountId = props.accountData.account.accountId,
+            f8eEnvironment = props.accountData.account.config.f8eEnvironment,
             onOpenPriceChart = { props.setState(ShowingPriceChartUiState()) }
           )
         )
@@ -421,6 +425,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
   @Composable
   private fun MoneyHomeTransactionsModel(
     props: MoneyHomeViewingBalanceUiProps,
+    transactions: ImmutableList<BitcoinTransaction>,
     fiatCurrency: FiatCurrency,
     numberOfVisibleTransactions: Int,
   ): ListModel? {
@@ -429,7 +434,7 @@ class MoneyHomeViewingBalanceUiStateMachineImpl(
         transactionVisibility = TransactionListUiProps.TransactionVisibility.Some(
           numberOfVisibleTransactions
         ),
-        transactions = props.accountData.transactionsData.transactions,
+        transactions = transactions,
         fiatCurrency = fiatCurrency,
         onTransactionClicked = { transaction ->
           props.setState(

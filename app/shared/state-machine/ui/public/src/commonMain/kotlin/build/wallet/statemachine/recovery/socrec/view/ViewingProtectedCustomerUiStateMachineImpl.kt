@@ -1,12 +1,9 @@
 package build.wallet.statemachine.recovery.socrec.view
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_PROTECTED_CUSTOMER_SHEET_REMOVAL_FAILURE
+import build.wallet.auth.AuthTokenScope
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBottomSheetModel
 import build.wallet.statemachine.core.ScreenModel
@@ -15,7 +12,9 @@ import build.wallet.ui.model.alert.ButtonAlertModel
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
-class ViewingProtectedCustomerUiStateMachineImpl : ViewingProtectedCustomerUiStateMachine {
+class ViewingProtectedCustomerUiStateMachineImpl(
+  private val socRecService: SocRecService,
+) : ViewingProtectedCustomerUiStateMachine {
   @Composable
   override fun model(props: ViewingProtectedCustomerProps): ScreenModel {
     var uiState: State by remember { mutableStateOf(ViewingProtectedCustomer()) }
@@ -26,7 +25,12 @@ class ViewingProtectedCustomerUiStateMachineImpl : ViewingProtectedCustomerUiSta
         is ViewingProtectedCustomer -> {
           if (state.isRemoving) {
             LaunchedEffect("remove-tc") {
-              props.onRemoveProtectedCustomer()
+              socRecService.removeRelationship(
+                account = props.account,
+                hardwareProofOfPossession = null,
+                authTokenScope = AuthTokenScope.Recovery,
+                relationshipId = props.protectedCustomer.relationshipId
+              )
                 .onSuccess {
                   uiState = state.copy(isRemoving = false)
                   props.onExit()

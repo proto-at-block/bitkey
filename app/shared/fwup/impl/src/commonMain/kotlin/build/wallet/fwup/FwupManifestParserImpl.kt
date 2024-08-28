@@ -30,12 +30,11 @@ class FwupManifestParserImpl : FwupManifestParser {
     currentVersion: String,
     activeSlot: FwupSlot,
     fwupMode: FwupMode,
-  ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> {
-    return when (fwupMode) {
+  ): Result<ParseFwupManifestSuccess, ParseFwupManifestError> =
+    when (fwupMode) {
       Normal -> parseNormalFwupManifest(manifestJson, currentVersion, activeSlot)
       Delta -> parseDeltaFwupManifest(manifestJson, currentVersion, activeSlot)
     }
-  }
 
   @Suppress("UnusedParameter", "RedundantSuppression")
   private fun parseNormalFwupManifest(
@@ -132,10 +131,26 @@ class FwupManifestParserImpl : FwupManifestParser {
       )
     )
   }
+}
 
-  private fun semverToInt(semver: String): Int {
-    return semver.replace(".", "").toInt()
-  }
+// String.format only works on Java/Android targets, so this function is a bit complex.
+fun semverToInt(semver: String): Int {
+  val parts = semver.split('.')
+
+  // Assuming the input is always valid and well-formed
+  val major = parts[0].toInt()
+  val minor = parts[1].toInt()
+  val patch = parts[2].toInt()
+
+  // Format the components with leading zeros
+  // 2 digits for major, 2 for minor, and 3 for patch.
+  val majorFormatted = major.toString().padStart(2, '0')
+  val minorFormatted = minor.toString().padStart(2, '0')
+  val patchFormatted = patch.toString().padStart(3, '0')
+
+  // Concatenate the components and convert to Int
+  val formattedVersion = majorFormatted + minorFormatted + patchFormatted
+  return formattedVersion.toInt()
 }
 
 @Serializable

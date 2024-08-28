@@ -16,7 +16,6 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveLiteAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
 import build.wallet.statemachine.dev.analytics.AnalyticsOptionsUiProps
@@ -378,7 +377,6 @@ class DebugMenuListStateMachineImpl(
     if (debugOptions == null) return null
     return when (val accountData = this) {
       is ActiveFullAccountLoadedData -> accountData.account.keybox.config.isHardwareFake
-      is LoadingActiveFullAccountData -> accountData.account.keybox.config.isHardwareFake
       is CreatingFullAccountData -> debugOptions.isHardwareFake
       is GettingStartedData -> debugOptions.isHardwareFake
       is RecoveringAccountData -> debugOptions.isHardwareFake

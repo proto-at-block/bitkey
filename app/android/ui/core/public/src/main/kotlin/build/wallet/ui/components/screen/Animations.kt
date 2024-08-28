@@ -6,26 +6,8 @@ package build.wallet.ui.components.screen
  * https://m2.material.io/develop/android/theming/motion
  */
 
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.with
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 
@@ -68,9 +50,9 @@ fun sharedAxisAnimation(
   density: Density,
 ): ContentTransform {
   return when (axis) {
-    Axis.X -> SharedXAxisEnterTransition(density, direction) with SharedXAxisExitTransition(density, direction)
-    Axis.Y -> SharedYAxisEnterTransition(density, direction) with SharedYAxisExitTransition(density, direction)
-    Axis.Z -> SharedZAxisEnterTransition(direction) with SharedZAxisExitTransition(direction)
+    Axis.X -> SharedXAxisEnterTransition(density, direction) togetherWith SharedXAxisExitTransition(density, direction)
+    Axis.Y -> SharedYAxisEnterTransition(density, direction) togetherWith SharedYAxisExitTransition(density, direction)
+    Axis.Z -> SharedZAxisEnterTransition(direction) togetherWith SharedZAxisExitTransition(direction)
   }
 }
 
@@ -89,22 +71,20 @@ fun slideOverlayAnimation(direction: AxisAnimationDirection): ContentTransform {
             durationMillis = 300,
             easing = LinearEasing
           )
-      ) +
-        slideInVertically(
-          animationSpec =
-            tween(
-              durationMillis = 300,
-              easing = FastOutSlowInEasing
-            ),
-          initialOffsetY = { fullHeight -> fullHeight }
-        ) with
-        fadeOut(
-          animationSpec =
-            tween(
-              durationMillis = 300,
-              easing = LinearEasing
-            )
-        )
+      ) + slideInVertically(
+        animationSpec =
+          tween(
+            durationMillis = 300,
+            easing = FastOutSlowInEasing
+          ),
+        initialOffsetY = { fullHeight -> fullHeight }
+      ) togetherWith fadeOut(
+        animationSpec =
+          tween(
+            durationMillis = 300,
+            easing = LinearEasing
+          )
+      )
     AxisAnimationDirection.Backward ->
       fadeIn(
         animationSpec =
@@ -112,7 +92,7 @@ fun slideOverlayAnimation(direction: AxisAnimationDirection): ContentTransform {
             durationMillis = 300,
             easing = LinearEasing
           )
-      ) with fadeOut(
+      ) togetherWith fadeOut(
         animationSpec =
           tween(
             durationMillis = 300,
@@ -253,7 +233,7 @@ private val SharedZAxisExitTransition: (AxisAnimationDirection) -> ExitTransitio
   scaleOut(targetScale = targetScale, animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
 }
 
-val NoAnimation: ContentTransform = EnterTransition.None with ExitTransition.None
+val NoAnimation: ContentTransform = EnterTransition.None togetherWith ExitTransition.None
 
 val FadeAnimation: ContentTransform =
   fadeIn(

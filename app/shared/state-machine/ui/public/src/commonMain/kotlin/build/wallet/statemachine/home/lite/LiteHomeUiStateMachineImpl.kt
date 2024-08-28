@@ -3,8 +3,6 @@ package build.wallet.statemachine.home.lite
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
-import build.wallet.f8e.socrec.SocRecRelationships
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.core.ScreenModel
@@ -20,7 +18,6 @@ import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiProps
 import build.wallet.statemachine.settings.lite.LiteSettingsHomeUiStateMachine
 import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
-import kotlinx.coroutines.flow.filterNotNull
 
 class LiteHomeUiStateMachineImpl(
   private val homeStatusBannerUiStateMachine: HomeStatusBannerUiStateMachine,
@@ -28,7 +25,6 @@ class LiteHomeUiStateMachineImpl(
   private val liteSettingsHomeUiStateMachine: LiteSettingsHomeUiStateMachine,
   private val liteTrustedContactManagementUiStateMachine:
     LiteTrustedContactManagementUiStateMachine,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val eventTracker: EventTracker,
 ) : LiteHomeUiStateMachine {
   @Composable
@@ -36,14 +32,6 @@ class LiteHomeUiStateMachineImpl(
     var uiState: LiteHomeUiState by remember {
       mutableStateOf(LiteHomeUiState(rootScreen = MoneyHome, presentedScreen = null))
     }
-
-    // Set up a launched effect to sync relationships for social recovery
-    // (i.e. sync protected customers).
-    val socRecRelationships = syncRelationships(props)
-    val socRecLiteAccountActions =
-      socRecRelationshipsRepository.toActions(
-        props.accountData.account
-      )
 
     LaunchedEffect("deep-link-routing") {
       Router.onRouteChange { route ->
@@ -80,65 +68,43 @@ class LiteHomeUiStateMachineImpl(
     return when (val presentedScreen = uiState.presentedScreen) {
       null -> {
         when (uiState.rootScreen) {
-          MoneyHome ->
-            liteMoneyHomeUiStateMachine.model(
-              props =
-                LiteMoneyHomeUiProps(
-                  accountData = props.accountData,
-                  protectedCustomers = socRecRelationships.protectedCustomers,
-                  homeStatusBannerModel = homeStatusBannerModel,
-                  onRemoveRelationship = socRecLiteAccountActions::removeProtectedCustomer,
-                  onSettings = { uiState = uiState.copy(rootScreen = Settings) },
-                  onAcceptInvite = {
-                    uiState =
-                      uiState.copy(
-                        presentedScreen =
-                          AddTrustedContact(
-                            acceptInvite = AcceptInvite(inviteCode = null)
-                          )
+          MoneyHome -> liteMoneyHomeUiStateMachine.model(
+            props = LiteMoneyHomeUiProps(
+              accountData = props.accountData,
+              homeStatusBannerModel = homeStatusBannerModel,
+              onSettings = { uiState = uiState.copy(rootScreen = Settings) },
+              onAcceptInvite = {
+                uiState =
+                  uiState.copy(
+                    presentedScreen =
+                      AddTrustedContact(
+                        acceptInvite = AcceptInvite(inviteCode = null)
                       )
-                  }
-                )
+                  )
+              }
             )
+          )
 
-          Settings ->
-            liteSettingsHomeUiStateMachine.model(
-              props = LiteSettingsHomeUiProps(
-                accountData = props.accountData,
-                protectedCustomers = socRecRelationships.protectedCustomers,
-                homeStatusBannerModel = homeStatusBannerModel,
-                socRecTrustedContactActions = socRecLiteAccountActions,
-                onBack = { uiState = uiState.copy(rootScreen = MoneyHome) }
-              )
+          Settings -> liteSettingsHomeUiStateMachine.model(
+            props = LiteSettingsHomeUiProps(
+              accountData = props.accountData,
+              homeStatusBannerModel = homeStatusBannerModel,
+              onBack = { uiState = uiState.copy(rootScreen = MoneyHome) }
             )
+          )
         }
       }
 
-      is AddTrustedContact ->
-        liteTrustedContactManagementUiStateMachine.model(
-          props =
-            LiteTrustedContactManagementProps(
-              accountData = props.accountData,
-              protectedCustomers = socRecRelationships.protectedCustomers,
-              acceptInvite = presentedScreen.acceptInvite,
-              actions = socRecLiteAccountActions,
-              onExit = {
-                uiState = uiState.copy(presentedScreen = null)
-              }
-            )
+      is AddTrustedContact -> liteTrustedContactManagementUiStateMachine.model(
+        props = LiteTrustedContactManagementProps(
+          accountData = props.accountData,
+          acceptInvite = presentedScreen.acceptInvite,
+          onExit = {
+            uiState = uiState.copy(presentedScreen = null)
+          }
         )
+      )
     }
-  }
-
-  @Composable
-  private fun syncRelationships(props: LiteHomeUiProps): SocRecRelationships {
-    LaunchedEffect(props.accountData.account) {
-      socRecRelationshipsRepository.syncLoop(scope = this, props.accountData.account)
-    }
-    return remember {
-      socRecRelationshipsRepository.relationships
-        .filterNotNull()
-    }.collectAsState(SocRecRelationships.EMPTY).value
   }
 }
 

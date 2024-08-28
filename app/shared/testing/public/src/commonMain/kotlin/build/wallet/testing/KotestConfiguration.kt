@@ -3,10 +3,12 @@ package build.wallet.testing
 import build.wallet.logging.LogLevel
 import build.wallet.logging.Logger
 import build.wallet.logging.platformLogWriter
+import build.wallet.testing.extensions.RetryFlakyTestsExtension
 import io.kotest.core.config.AbstractProjectConfig
 import io.kotest.core.extensions.Extension
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * This configuration is picked up by Kotest at runtime: https://kotest.io/docs/framework/project-config.html.
@@ -41,6 +43,7 @@ internal object KotestConfiguration : AbstractProjectConfig() {
 
   override fun extensions(): List<Extension> =
     listOf(
-      SensitiveDataLogListener()
+      SensitiveDataLogListener(),
+      RetryFlakyTestsExtension(attempts = 3, timeout = 1.minutes, delay = 10.seconds)
     )
 }

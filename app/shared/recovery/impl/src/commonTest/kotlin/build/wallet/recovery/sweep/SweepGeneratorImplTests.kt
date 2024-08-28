@@ -239,6 +239,9 @@ class SweepGeneratorImplTests : FunSpec({
           )
         )
       )
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
   }
 
   test("lost app recovery - multiple keysets - success") {
@@ -285,6 +288,11 @@ class SweepGeneratorImplTests : FunSpec({
           )
         )
       )
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset2.localId).syncCalls.awaitItem()
   }
 
   test("destination spending address generation failed") {
@@ -313,6 +321,11 @@ class SweepGeneratorImplTests : FunSpec({
     // two addresses to watch
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset2.localId).syncCalls.awaitItem()
   }
 
   test("no signable keysets - lost both") {
@@ -337,6 +350,11 @@ class SweepGeneratorImplTests : FunSpec({
     // two addresses to watch
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostAppKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
   }
 
   test("insufficient balance for one keyset should skip the keyset") {
@@ -351,6 +369,11 @@ class SweepGeneratorImplTests : FunSpec({
     // two addresses to watch
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset2.localId).syncCalls.awaitItem()
   }
 
   test("psbt create failure for one keyset should fail all") {
@@ -363,5 +386,8 @@ class SweepGeneratorImplTests : FunSpec({
     sweepGenerator.generateSweep(activeKeybox).shouldBeErrOfType<BdkFailedToCreatePsbt>()
     // single address to watch, subsequent fail and don't trigger
     registerWatchAddressF8eClient.processBatchCalls.awaitItem()
+
+    wallets.getValue(activeKeyset.localId).syncCalls.awaitItem()
+    wallets.getValue(lostHwKeyset1.localId).syncCalls.awaitItem()
   }
 })

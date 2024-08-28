@@ -10,6 +10,13 @@ use experimentation::routes::{
 use http::HeaderMap;
 use http::{header::CONTENT_TYPE, HeaderValue, Method, Request};
 use http_body_util::BodyExt as ExternalBodyExt;
+use privileged_action::routes::{
+    CancelPendingDelayAndNotifyInstanceByTokenRequest,
+    CancelPendingDelayAndNotifyInstanceByTokenResponse,
+    ConfigurePrivilegedActionDelayDurationsRequest,
+    ConfigurePrivilegedActionDelayDurationsResponse, GetPendingDelayAndNotifyInstancesResponse,
+    GetPrivilegedActionDefinitionsResponse,
+};
 use recovery::state_machine::pending_recovery::PendingRecoveryResponse;
 use recovery::state_machine::rotated_keyset::RotatedKeysetResponse;
 use serde::{de::DeserializeOwned, Serialize};
@@ -18,6 +25,9 @@ use std::str::FromStr;
 use tokio::sync::Mutex;
 use tower::Service;
 use types::notification::NotificationsPreferences;
+use types::privileged_action::router::generic::{
+    PrivilegedActionRequest, PrivilegedActionResponse,
+};
 
 use authn_authz::routes::{
     AuthenticateWithHardwareRequest, AuthenticateWithHardwareResponse,
@@ -48,7 +58,7 @@ use types::account::identifiers::{AccountId, KeysetId};
 
 use recovery::routes::{
     CompleteDelayNotifyRequest, CreateAccountDelayNotifyRequest, CreateRecoveryRelationshipRequest,
-    CreateRecoveryRelationshipResponse, EndorseRecoveryRelationshipsRequest,
+    CreateRelationshipResponse, EndorseRecoveryRelationshipsRequest,
     EndorseRecoveryRelationshipsResponse, FetchSocialChallengeResponse,
     GetRecoveryRelationshipInvitationForCodeResponse, GetRecoveryRelationshipsResponse,
     RespondToSocialChallengeRequest, RespondToSocialChallengeResponse,
@@ -113,6 +123,19 @@ where
         self.method(Method::PUT)
             .header("Content-Type", "application/json")
             .body(Body::from(serde_json::to_vec(&body).unwrap()))
+            .unwrap()
+    }
+}
+
+trait HttpBodyExt {
+    fn json_request(self, body: Body, method: Method) -> Request<Body>;
+}
+
+impl HttpBodyExt for http::request::Builder {
+    fn json_request(self, body: Body, method: Method) -> Request<Body> {
+        self.method(method)
+            .header("Content-Type", "application/json")
+            .body(body)
             .unwrap()
     }
 }
@@ -833,13 +856,14 @@ impl TestClient {
         self.router.lock().await.call(req).await.unwrap()
     }
 
+    #[deprecated]
     pub(crate) async fn create_recovery_relationship(
         &self,
         account_id: &str,
         request: &CreateRecoveryRelationshipRequest,
         auth: &CognitoAuthentication,
         keys: &TestAuthenticationKeys,
-    ) -> Response<CreateRecoveryRelationshipResponse> {
+    ) -> Response<CreateRelationshipResponse> {
         Request::builder()
             .uri(format!("/api/accounts/{account_id}/recovery/relationships"))
             .with_authentication(
@@ -852,6 +876,34 @@ impl TestClient {
                 ),
             )
             .post(&request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn make_request_with_auth<T>(
+        &self,
+        uri: &str,
+        account_id: &str,
+        method: &Method,
+        request_body: Body,
+        auth: &CognitoAuthentication,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<T>
+    where
+        T: DeserializeOwned + Serialize + Sync + Send,
+    {
+        Request::builder()
+            .uri(uri)
+            .with_authentication(
+                auth,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .json_request(request_body, method.to_owned())
             .call(&self.router)
             .await
     }
@@ -1177,6 +1229,90 @@ impl TestClient {
             .uri(format!("/api/accounts/{account_id}/spending-descriptor"))
             .authenticated(&AccountId::from_str(account_id).unwrap(), None, None)
             .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn configure_privileged_action_delay_durations(
+        &self,
+        account_id: &str,
+        request: &PrivilegedActionRequest<ConfigurePrivilegedActionDelayDurationsRequest>,
+        auth: &CognitoAuthentication,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<PrivilegedActionResponse<ConfigurePrivilegedActionDelayDurationsResponse>> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/delays"
+            ))
+            .with_authentication(
+                auth,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .put(request)
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_privileged_action_definitions(
+        &self,
+        account_id: &str,
+        auth: &CognitoAuthentication,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<GetPrivilegedActionDefinitionsResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/definitions"
+            ))
+            .with_authentication(
+                auth,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn get_pending_delay_and_notify_instances(
+        &self,
+        account_id: &str,
+        auth: &CognitoAuthentication,
+        keys: &TestAuthenticationKeys,
+    ) -> Response<GetPendingDelayAndNotifyInstancesResponse> {
+        Request::builder()
+            .uri(format!(
+                "/api/accounts/{account_id}/privileged-actions/instances"
+            ))
+            .with_authentication(
+                auth,
+                &AccountId::from_str(account_id).unwrap(),
+                (
+                    keys.app.secret_key,
+                    keys.hw.secret_key,
+                    keys.recovery.secret_key,
+                ),
+            )
+            .get()
+            .call(&self.router)
+            .await
+    }
+
+    pub(crate) async fn cancel_pending_delay_and_notify_instance_by_token(
+        &self,
+        request: &CancelPendingDelayAndNotifyInstanceByTokenRequest,
+    ) -> Response<CancelPendingDelayAndNotifyInstanceByTokenResponse> {
+        Request::builder()
+            .uri("/api/privileged-actions/cancel".to_string())
+            .post(request)
             .call(&self.router)
             .await
     }

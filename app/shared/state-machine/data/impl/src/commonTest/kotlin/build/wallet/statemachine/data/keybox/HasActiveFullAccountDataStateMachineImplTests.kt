@@ -4,27 +4,14 @@ import build.wallet.auth.AccountAuthTokensMock
 import build.wallet.auth.AuthTokenDaoMock
 import build.wallet.auth.FullAccountAuthKeyRotationServiceMock
 import build.wallet.auth.PendingAuthKeyRotationAttempt
-import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.keybox.wallet.AppSpendingWalletProviderMock
-import build.wallet.money.exchange.ExchangeRateSyncerMock
-import build.wallet.recovery.socrec.TrustedContactKeyAuthenticatorMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.*
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.LoadingFullAccountTransactionsData
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataProps
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataStateMachine
-import build.wallet.statemachine.data.keybox.transactions.KeyboxTransactionsDataMock
-import build.wallet.statemachine.data.mobilepay.MobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayDataStateMachine
-import build.wallet.statemachine.data.mobilepay.MobilePayProps
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData.InitiatingLostHardwareRecoveryData.AwaitingNewHardwareData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
@@ -37,18 +24,7 @@ import io.kotest.matchers.types.shouldBeTypeOf
 
 class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
 
-  val mobilePayDataStateMachine =
-    object : MobilePayDataStateMachine, StateMachineMock<MobilePayProps, MobilePayData>(
-      LoadingMobilePayData
-    ) {}
-
   val accountAuthTokenDao = AuthTokenDaoMock(turbines::create)
-
-  val fullAccountTransactionsDataStateMachine =
-    object : FullAccountTransactionsDataStateMachine,
-      StateMachineMock<FullAccountTransactionsDataProps, FullAccountTransactionsData>(
-        LoadingFullAccountTransactionsData
-      ) {}
 
   val awaitingNewHardwareData =
     AwaitingNewHardwareData(
@@ -62,30 +38,17 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
         awaitingNewHardwareData
       ) {}
 
-  val spendingWallet = SpendingWalletMock(turbines::create, KeyboxMock.activeSpendingKeyset.localId)
-
-  val exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
-
   val trustedContactCloudBackupRefresher = TrustedContactCloudBackupRefresherFake(turbines::create)
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
 
-  val trustedContactKeyAuthenticator = TrustedContactKeyAuthenticatorMock(turbines::create)
-
   val stateMachine = HasActiveFullAccountDataStateMachineImpl(
-    mobilePayDataStateMachine = mobilePayDataStateMachine,
-    fullAccountTransactionsDataStateMachine = fullAccountTransactionsDataStateMachine,
     lostHardwareRecoveryDataStateMachine = lostHardwareRecoveryDataStateMachine,
-    appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
-    exchangeRateSyncer = exchangeRateSyncer,
     trustedContactCloudBackupRefresher = trustedContactCloudBackupRefresher,
-    fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService,
-    trustedContactKeyAuthenticator = trustedContactKeyAuthenticator
+    fullAccountAuthKeyRotationService = fullAccountAuthKeyRotationService
   )
 
   beforeTest {
-    mobilePayDataStateMachine.reset()
-    spendingWallet.reset()
     fullAccountAuthKeyRotationService.reset()
   }
 
@@ -101,19 +64,19 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
         .shouldBeEqual(FullAccountMock)
-      trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorseCalls.awaitItem()
-        .shouldBeEqual(FullAccountMock)
-      awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
+      awaitItem()
+        .shouldBeTypeOf<ActiveFullAccountLoadedData>()
+        .let {
+          it.account.shouldBe(FullAccountMock)
+          it.lostHardwareRecoveryData.shouldBe(awaitingNewHardwareData)
+        }
 
       accountAuthTokenDao.getTokensResult = Ok(AccountAuthTokensMock)
-      fullAccountTransactionsDataStateMachine.emitModel(KeyboxTransactionsDataMock)
 
       awaitItem().shouldBeTypeOf<RotatingAuthKeys>().let {
         it.account.shouldBe(FullAccountMock)
         it.pendingAttempt.shouldBe(PendingAuthKeyRotationAttempt.ProposedAttempt)
       }
-
-      exchangeRateSyncer.startSyncerCalls.awaitItem()
     }
   }
 
@@ -121,24 +84,15 @@ class HasActiveFullAccountDataStateMachineImplTests : FunSpec({
     stateMachine.test(props()) {
       trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessaryCalls.awaitItem()
         .shouldBeEqual(FullAccountMock)
-      trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorseCalls.awaitItem()
-        .shouldBeEqual(FullAccountMock)
-      awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
 
       accountAuthTokenDao.getTokensResult = Ok(AccountAuthTokensMock)
-      fullAccountTransactionsDataStateMachine.emitModel(KeyboxTransactionsDataMock)
 
       awaitItem()
         .shouldBeTypeOf<ActiveFullAccountLoadedData>()
         .let {
           it.account.shouldBe(FullAccountMock)
-          it.spendingWallet.shouldBe(spendingWallet)
-          it.transactionsData.shouldBe(KeyboxTransactionsDataMock)
-          it.mobilePayData.shouldBe(LoadingMobilePayData)
           it.lostHardwareRecoveryData.shouldBe(awaitingNewHardwareData)
         }
-
-      exchangeRateSyncer.startSyncerCalls.awaitItem()
     }
   }
 })

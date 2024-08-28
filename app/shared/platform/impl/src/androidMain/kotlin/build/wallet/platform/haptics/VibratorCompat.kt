@@ -13,8 +13,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 internal fun Context.vibrator(): Vibrator? = getSystemService(Vibrator::class.java)
 
-private val SELECTION_TIMINGS = longArrayOf(1, 10)
-private val SELECTION_AMPLITUDE = intArrayOf(60, 0)
+private val SELECTION_TIMINGS = longArrayOf(1, 2)
+private val SELECTION_AMPLITUDE = intArrayOf(100, 0)
 
 /**
  * If vibrator is the phone supports vibration, vibrate with the given vibration [Effect].

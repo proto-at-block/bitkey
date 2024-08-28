@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -20,14 +20,12 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import build.wallet.pricechart.DataPoint
+import build.wallet.ui.compose.thenIf
 import build.wallet.ui.theme.WalletTheme
 import kotlinx.collections.immutable.ImmutableList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-private val priceLineStroke = Stroke(
-  width = 8f,
-  cap = StrokeCap.Round,
-  join = StrokeJoin.Round
-)
 private val yAxisPathEffect = PathEffect.dashPathEffect(floatArrayOf(4f, 4f), 2f)
 
 private class WrappedPath(
@@ -40,20 +38,23 @@ private class WrappedPath(
  * @param dataPoints The list of data points to display.
  * @param onPointSelected Callback for when the user selects a point in the chart.
  * @param onPointDeselected Callback for when the user stops interacting with the chart.
- * @param primaryColor The primary color used to paint the chart lines.
+ * @param colorPrimary The primary color used to paint the chart lines.
  * @param formatYLabel Callback to format the given Y axis value for the label.
  * @param initialSelectedPoint An initially selected point in the graph, only useful for previews.
+ * @param sparkLineMode When true, disables data labels and chart visual effects.
  */
 @Composable
 @Suppress("detekt:CyclomaticComplexMethod")
-internal fun PriceChart(
+fun PriceChart(
   dataPoints: ImmutableList<DataPoint>,
   onPointSelected: (DataPoint) -> Unit = {},
   onPointDeselected: () -> Unit = {},
-  primaryColor: Color = WalletTheme.colors.bitcoinPrimary,
+  colorPrimary: Color = WalletTheme.colors.bitcoinPrimary,
+  colorSparkLine: Color = WalletTheme.colors.primaryForeground30,
   formatYLabel: (Double) -> String = { it.toString() },
-  yAxisIntervals: Int = 7,
+  yAxisIntervals: Int = 10,
   initialSelectedPoint: DataPoint? = null,
+  sparkLineMode: Boolean = false,
   modifier: Modifier = Modifier,
 ) {
   val updatedFormatYLabel by rememberUpdatedState(formatYLabel)
@@ -72,13 +73,15 @@ internal fun PriceChart(
   }
   // The pre-measured y-axis labels for each interval
   val textMeasurer = rememberTextMeasurer()
-  val labelTextResults = remember(yAxisIntervals, chartDataState) {
-    List(yAxisIntervals) { i ->
-      if (i % 2 == 0) {
-        val labelValue = chartDataState.yFloor + (chartDataState.intervalValue * i)
+  val labelTextResults = remember(yAxisIntervals, chartDataState, sparkLineMode) {
+    val labelCount = if (sparkLineMode) 0 else yAxisIntervals
+    val textStyle = TextStyle.Default.copy(fontSize = 12.sp)
+    List(labelCount) { i ->
+      if (i % 2 == 1) {
+        val labelValue = chartDataState.valueAtInterval(i)
         textMeasurer.measure(
           updatedFormatYLabel(labelValue),
-          style = TextStyle.Default.copy(fontSize = 11.sp)
+          style = textStyle
         )
       } else {
         null
@@ -111,8 +114,17 @@ internal fun PriceChart(
       animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
     )
     val chartElementColor = WalletTheme.colors.chartElement
+    val backgroundPathColorTarget by remember {
+      derivedStateOf {
+        when {
+          sparkLineMode -> colorSparkLine
+          selectedPoint == null -> colorPrimary
+          else -> chartElementColor
+        }
+      }
+    }
     val backgroundPathColor by animateColorAsState(
-      targetValue = if (selectedPoint == null) primaryColor else chartElementColor,
+      targetValue = backgroundPathColorTarget,
       animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)
     )
     // background line path for inactive line and color animation after deselection
@@ -126,11 +138,13 @@ internal fun PriceChart(
     }
     LaunchedEffect(chartDataState, adjustedCanvasWidth) {
       val path = backgroundPath.path
-      chartDataState.createLinePath(
-        path = path,
-        canvasWidth = adjustedCanvasWidth,
-        canvasHeight = constraints.maxHeight.toFloat()
-      )
+      withContext(Dispatchers.Default) {
+        chartDataState.createLinePath(
+          path = path,
+          canvasWidth = adjustedCanvasWidth,
+          canvasHeight = constraints.maxHeight.toFloat()
+        )
+      }
       backgroundPath = WrappedPath(path)
     }
     // foreground line path used to preserve the primary color during selection
@@ -143,10 +157,10 @@ internal fun PriceChart(
       )
       mutableStateOf(WrappedPath(path))
     }
-    LaunchedEffect(inputHoverOffset, previousSelectedPoint) {
+    LaunchedEffect(dataPoints, selectedPoint, previousSelectedPoint) {
       val targetPoint = selectedPoint ?: previousSelectedPoint
       val path = foregroundPath.path
-      if (targetPoint != null) {
+      withContext(Dispatchers.Default) {
         chartDataState.createLinePath(
           path = path,
           stopAtDataPoint = targetPoint,
@@ -174,15 +188,42 @@ internal fun PriceChart(
       }
     }
 
-    val shadowSize = remember(density) { with(density) { 42.dp.toPx() } }
-    val thumbShadowBrush = remember(primaryColor, lineSplitOffset, shadowSize) {
+    val lineEndOffset by remember {
+      derivedStateOf {
+        if (sparkLineMode && updatedDataPoints.isNotEmpty()) {
+          pathMeasurer.run {
+            setPath(backgroundPath.path, false)
+            getPosition(length)
+          }
+        } else {
+          null
+        }
+      }
+    }
+
+    val thumbScale by animateFloatAsState(
+      targetValue = if (selectedPoint == null) 0.5f else 1f
+    )
+    val thumbShadowBrush by remember {
+      derivedStateOf {
+        Brush.radialGradient(
+          colors = listOf(
+            colorPrimary.copy(alpha = 0.2f),
+            Color.Transparent
+          ),
+          center = lineSplitOffset,
+          radius = with(density) { thumbScale * (24.dp.toPx()) }
+        )
+      }
+    }
+    val sparkThumbShadowBrush = remember(colorPrimary, lineEndOffset, density) {
       Brush.radialGradient(
         colors = listOf(
-          primaryColor.copy(alpha = 0.2f),
+          colorPrimary.copy(alpha = 0.2f),
           Color.Transparent
         ),
-        center = lineSplitOffset,
-        radius = shadowSize
+        center = lineEndOffset ?: Offset.Zero,
+        radius = with(density) { 20.dp.toPx() }
       )
     }
     val verticalIndicatorBrush = remember(canvasWidth) {
@@ -197,6 +238,16 @@ internal fun PriceChart(
       )
     }
 
+    val priceLineStroke = remember(sparkLineMode) {
+      Stroke(
+        width = with(density) {
+          (if (sparkLineMode) 3.0 else 4.0).dp.toPx()
+        },
+        cap = StrokeCap.Round,
+        join = StrokeJoin.Round
+      )
+    }
+
     Spacer(
       modifier = Modifier
         .then(
@@ -207,19 +258,21 @@ internal fun PriceChart(
             )
           }
         )
-        .pointerInput(Unit) {
-          awaitPointerEventScope {
-            while (true) {
-              val event = awaitPointerEvent()
-              val change = event.changes.firstOrNull() ?: continue
-              inputHoverOffset = if (change.pressed) change.position else Offset.Unspecified
+        .thenIf(!sparkLineMode) {
+          Modifier.pointerInput(Unit) {
+            awaitPointerEventScope {
+              while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull() ?: continue
+                inputHoverOffset = if (change.pressed) change.position else Offset.Unspecified
 
-              change.consume()
+                change.consume()
+              }
             }
           }
         }
-        .drawWithCache {
-          onDrawBehind {
+        .drawBehind {
+          if (!sparkLineMode) {
             for (i in 0..yAxisIntervals) {
               val labelY = (size.height - ((size.height / yAxisIntervals) * i))
 
@@ -230,7 +283,7 @@ internal fun PriceChart(
                   color = Color.Black.copy(alpha = 0.3f),
                   topLeft = Offset(
                     x = canvasWidth - textLayoutResult.size.width,
-                    y = labelY - textLayoutResult.size.height
+                    y = labelY - textLayoutResult.size.height - 6
                   )
                 )
               }
@@ -244,56 +297,79 @@ internal fun PriceChart(
                 strokeWidth = 1.dp.toPx()
               )
             }
+          }
 
-            // vertical indicator (drawn in reverse for entrance animation)
-            if (lineSplitOffset != Offset.Unspecified) {
-              val animatedIndicatorHeight = size.height - (size.height * animatedSelectedStateAlpha)
-              drawLine(
-                brush = verticalIndicatorBrush,
-                strokeWidth = 2.dp.toPx(),
-                start = Offset(lineSplitOffset.x, size.height),
-                end = Offset(lineSplitOffset.x, animatedIndicatorHeight)
-              )
-            }
-
-            // background line path
-            drawPath(
-              path = backgroundPath.path,
-              color = backgroundPathColor,
-              style = priceLineStroke
+          // vertical indicator (drawn in reverse for entrance animation)
+          if (lineSplitOffset != Offset.Unspecified) {
+            val animatedIndicatorHeight = size.height - (size.height * animatedSelectedStateAlpha)
+            drawLine(
+              brush = verticalIndicatorBrush,
+              strokeWidth = 2.dp.toPx(),
+              start = Offset(lineSplitOffset.x, size.height),
+              end = Offset(lineSplitOffset.x, animatedIndicatorHeight)
             )
+          }
+
+          // background line path
+          drawPath(
+            path = backgroundPath.path,
+            color = backgroundPathColor,
+            style = priceLineStroke
+          )
+
+          if (!sparkLineMode) {
             // foreground line path
             drawPath(
               path = foregroundPath.path,
-              color = primaryColor,
+              color = colorPrimary,
               style = priceLineStroke
             )
+          }
 
-            if (lineSplitOffset != Offset.Unspecified) {
-              // thumb shadow
-              drawCircle(
-                center = lineSplitOffset,
-                radius = shadowSize,
-                alpha = animatedSelectedStateAlpha,
-                brush = thumbShadowBrush
-              )
+          val sparkThumbOffset = lineEndOffset
+          if (sparkLineMode && sparkThumbOffset != null) {
+            drawCircle(
+              center = sparkThumbOffset,
+              brush = sparkThumbShadowBrush
+            )
+            // thumb indicator background
+            drawCircle(
+              color = colorPrimary,
+              center = sparkThumbOffset,
+              radius = 4.dp.toPx()
+            )
 
-              // thumb indicator background
-              drawCircle(
-                color = Color.White,
-                center = lineSplitOffset,
-                alpha = animatedSelectedStateAlpha,
-                radius = 8.dp.toPx()
-              )
+            // thumb indicator foreground
+            drawCircle(
+              color = Color.White,
+              center = sparkThumbOffset,
+              radius = 2.dp.toPx()
+            )
+          }
 
-              // thumb indicator foreground
-              drawCircle(
-                color = primaryColor,
-                center = lineSplitOffset,
-                alpha = animatedSelectedStateAlpha,
-                radius = 6.dp.toPx()
-              )
-            }
+          if (lineSplitOffset != Offset.Unspecified) {
+            // thumb shadow
+            drawCircle(
+              center = lineSplitOffset,
+              alpha = animatedSelectedStateAlpha,
+              brush = thumbShadowBrush
+            )
+
+            // thumb indicator background
+            drawCircle(
+              color = Color.White,
+              center = lineSplitOffset,
+              alpha = animatedSelectedStateAlpha,
+              radius = thumbScale * (8.dp.toPx())
+            )
+
+            // thumb indicator foreground
+            drawCircle(
+              color = colorPrimary,
+              center = lineSplitOffset,
+              alpha = animatedSelectedStateAlpha,
+              radius = thumbScale * (6.dp.toPx())
+            )
           }
         }
     )

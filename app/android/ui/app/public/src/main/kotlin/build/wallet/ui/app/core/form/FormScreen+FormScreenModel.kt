@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -24,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.money_home_hero
 import build.wallet.android.ui.core.R
-import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel
@@ -78,13 +76,8 @@ fun FormScreen(model: FormBodyModel) {
     KeepScreenOn()
   }
 
-  val uriHandler = LocalUriHandler.current
-  LaunchedEffect("load-browser-navigator") {
-    model.onLoaded(
-      BrowserNavigator {
-        uriHandler.openUri(it)
-      }
-    )
+  LaunchedEffect("form-screen-loaded") {
+    model.onLoaded()
   }
 
   Box(

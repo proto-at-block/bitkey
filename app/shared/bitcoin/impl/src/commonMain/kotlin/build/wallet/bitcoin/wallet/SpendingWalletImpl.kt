@@ -1,26 +1,9 @@
 package build.wallet.bitcoin.wallet
 
 import build.wallet.analytics.events.AppSessionManager
-import build.wallet.bdk.bindings.BdkAddressBuilder
-import build.wallet.bdk.bindings.BdkAddressIndex
+import build.wallet.bdk.bindings.*
 import build.wallet.bdk.bindings.BdkAddressIndex.LAST_UNUSED
 import build.wallet.bdk.bindings.BdkAddressIndex.NEW
-import build.wallet.bdk.bindings.BdkBalance
-import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
-import build.wallet.bdk.bindings.BdkError
-import build.wallet.bdk.bindings.BdkIO
-import build.wallet.bdk.bindings.BdkPartiallySignedTransaction
-import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
-import build.wallet.bdk.bindings.BdkScript
-import build.wallet.bdk.bindings.BdkTxBuilderFactory
-import build.wallet.bdk.bindings.BdkTxBuilderResult
-import build.wallet.bdk.bindings.BdkUtxo
-import build.wallet.bdk.bindings.BdkWallet
-import build.wallet.bdk.bindings.getAddress
-import build.wallet.bdk.bindings.getBalance
-import build.wallet.bdk.bindings.isMine
-import build.wallet.bdk.bindings.listTransactions
-import build.wallet.bdk.bindings.sign
 import build.wallet.bitcoin.BitcoinNetworkType
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.balance.BitcoinBalance
@@ -50,16 +33,16 @@ import com.github.michaelbull.result.map
 import com.github.michaelbull.result.onSuccess
 import com.github.michaelbull.result.recoverIf
 import com.ionspin.kotlin.bignum.integer.toBigInteger
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.datetime.Instant
+import kotlin.collections.List
+import kotlin.collections.filter
+import kotlin.collections.fold
+import kotlin.collections.map
+import kotlin.collections.sortedByDescending
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 
@@ -113,9 +96,9 @@ class SpendingWalletImpl(
   override fun launchPeriodicSync(
     scope: CoroutineScope,
     interval: Duration,
-  ) {
+  ): Job {
     // Set up periodic syncs based on the given frequency
-    scope.launch(syncContext) {
+    return scope.launch(syncContext) {
       while (isActive) {
         if (appSessionManager.isAppForegrounded()) {
           sync()

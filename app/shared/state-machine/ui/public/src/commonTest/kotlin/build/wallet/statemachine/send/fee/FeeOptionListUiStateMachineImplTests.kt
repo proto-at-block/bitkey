@@ -5,6 +5,7 @@ import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -19,10 +20,12 @@ import kotlinx.collections.immutable.persistentMapOf
 class FeeOptionListUiStateMachineImplTests : FunSpec({
   val feeOptionUiStateMachine = FeeOptionUiStateMachineMock()
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val transactionsService = TransactionsServiceFake()
 
   val stateMachine = FeeOptionListUiStateMachineImpl(
     feeOptionUiStateMachine = feeOptionUiStateMachine,
-    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    transactionsService = transactionsService
   )
 
   val props = FeeOptionListProps(
@@ -37,6 +40,10 @@ class FeeOptionListUiStateMachineImplTests : FunSpec({
     exchangeRates = immutableListOf(),
     onOptionSelected = {}
   )
+
+  beforeTest {
+    transactionsService.reset()
+  }
 
   test("list is created with all fees") {
     stateMachine.test(props = props) {

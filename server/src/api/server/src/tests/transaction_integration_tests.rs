@@ -27,7 +27,7 @@ use mockall::mock;
 use onboarding::routes::RotateSpendingKeysetRequest;
 use serde_json::json;
 use types::account::identifiers::{AccountId, KeysetId};
-use types::currencies::CurrencyCode::{BTC, USD};
+use types::currencies::CurrencyCode::USD;
 use ulid::Ulid;
 
 use crate::tests;
@@ -721,7 +721,7 @@ async fn test_fail_to_send_if_kill_switch_is_on() {
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         ..Default::default()
     };
@@ -766,7 +766,7 @@ async fn test_fail_if_signed_with_different_wallet() {
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         ..Default::default()
     };

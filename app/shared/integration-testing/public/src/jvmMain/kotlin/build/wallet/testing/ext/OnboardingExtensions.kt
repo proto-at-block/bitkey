@@ -177,23 +177,21 @@ suspend fun AppTester.onboardLiteAccountFromInvitation(
 
     // Accept TC invitation from Protected Customer
     val protectedCustomerAlias = ProtectedCustomerAlias(protectedCustomerName)
-    val invitation =
-      socRecRelationshipsRepository
-        .retrieveInvitation(account, inviteCode)
-        .unwrap()
+    val invitation = appComponent.socRecService
+      .retrieveInvitation(account, inviteCode)
+      .unwrap()
     val delegatedDecryptionKey =
       socRecKeysRepository.getOrCreateKey<DelegatedDecryptionKey>()
         .getOrThrow()
-    val protectedCustomer =
-      socRecRelationshipsRepository
-        .acceptInvitation(
-          account,
-          invitation,
-          protectedCustomerAlias,
-          delegatedDecryptionKey,
-          inviteCode
-        )
-        .unwrap()
+    val protectedCustomer = appComponent.socRecService
+      .acceptInvitation(
+        account,
+        invitation,
+        protectedCustomerAlias,
+        delegatedDecryptionKey,
+        inviteCode
+      )
+      .unwrap()
     protectedCustomer.alias.shouldBe(protectedCustomerAlias)
 
     if (cloudStoreAccountForBackup != null) {

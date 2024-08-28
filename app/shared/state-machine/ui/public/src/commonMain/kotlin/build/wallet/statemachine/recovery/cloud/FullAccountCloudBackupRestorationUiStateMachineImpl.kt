@@ -42,7 +42,7 @@ import build.wallet.platform.random.UuidGenerator
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.socrec.PostSocRecTaskRepository
 import build.wallet.recovery.socrec.SocRecChallengeRepository
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
 import build.wallet.recovery.socrec.toActions
 import build.wallet.statemachine.core.ButtonDataModel
@@ -97,7 +97,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
   private val recoveryChallengeStateMachine: RecoveryChallengeUiStateMachine,
   private val recoverySyncer: RecoverySyncer,
   private val socRecChallengeRepository: SocRecChallengeRepository,
-  private val socialRelationshipsRepository: SocRecRelationshipsRepository,
+  private val socRecService: SocRecService,
   private val postSocRecTaskRepository: PostSocRecTaskRepository,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val uuidGenerator: UuidGenerator,
@@ -439,7 +439,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
 
       // Attempt to sync social relationships before completing the recovery to ensure that
       // the background refresh doesn't delete existing TCs. But don't bind any failures.
-      socialRelationshipsRepository.syncAndVerifyRelationships(
+      socRecService.syncAndVerifyRelationships(
         accountId = accountId,
         f8eEnvironment = props.debugOptions.f8eEnvironment,
         appAuthKey = accountRestoration.activeAppKeyBundle.authKey,
@@ -511,7 +511,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImpl(
         appAuthPublicKey = state.backupFeatures.appRecoveryAuthKeypair.publicKey,
         tokenScope = AuthTokenScope.Recovery
       ).flatMap { authData ->
-        socialRelationshipsRepository
+        socRecService
           .getRelationshipsWithoutSyncing(
             accountId = FullAccountId(authData.accountId),
             f8eEnvironment = state.f8eEnvironment

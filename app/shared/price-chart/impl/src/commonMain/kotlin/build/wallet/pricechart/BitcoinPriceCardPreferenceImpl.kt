@@ -18,6 +18,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
 
+private const val PREF_DEFAULT = true
+
 class BitcoinPriceCardPreferenceImpl(
   private val databaseProvider: BitkeyDatabaseProvider,
   private val eventTracker: EventTracker,
@@ -34,7 +36,7 @@ class BitcoinPriceCardPreferenceImpl(
         db.bitcoinPriceCardPreferenceQueries
           .getBitcoinPriceCardPreference()
           .asFlowOfOneOrNull()
-          .map { it.get()?.enabled ?: false }
+          .map { it.get()?.enabled ?: PREF_DEFAULT }
       ) { featureFlagEnabled, preferenceEnabled ->
         featureFlagEnabled.value && preferenceEnabled
       }
@@ -45,7 +47,7 @@ class BitcoinPriceCardPreferenceImpl(
       .getBitcoinPriceCardPreference()
       .awaitAsOneOrNullResult()
       .logFailure { "Unable to get bitcoin price card entity" }
-      .map { (it?.enabled ?: false) && bitcoinPriceChartFeatureFlag.isEnabled() }
+      .map { (it?.enabled ?: PREF_DEFAULT) && bitcoinPriceChartFeatureFlag.isEnabled() }
   }
 
   override suspend fun set(enabled: Boolean): Result<Unit, DbError> {

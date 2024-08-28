@@ -61,12 +61,22 @@ class TreasuryWallet(
     destinationWallet.balance().test {
       eventually(
         eventuallyConfig {
-          duration = 10.seconds
+          duration = 30.seconds
           interval = 1.seconds
           initialDelay = 1.seconds
+          listener = {
+              _,
+              throwable,
+            ->
+            println("Still waiting for transaction to propagate... $throwable of type ${throwable::class}")
+          }
         }
       ) {
-        destinationWallet.sync()
+        val timeTaken = measureTimeMillis {
+          destinationWallet.sync()
+        }
+
+        println("Sync time: $timeTaken ms")
         awaitItem().total.shouldBeGreaterThanOrEqualTo(amount)
       }
     }

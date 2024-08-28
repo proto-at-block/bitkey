@@ -47,10 +47,6 @@ class AddingTrustedContactFunctionalTests : FunSpec({
     )
   }
 
-  beforeAny {
-    appTester.app.socialRecoveryF8eClientFake.reset()
-  }
-
   test("Enter TC Name") {
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.addingTcsUiStateMachine.test(

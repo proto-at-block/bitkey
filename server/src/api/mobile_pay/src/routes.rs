@@ -32,8 +32,8 @@ use http_server::swagger::{SwaggerEndpoint, Url};
 use instrumentation::metrics::KeyValue;
 use screener::service::Service as ScreenerService;
 use types::account::identifiers::{AccountId, KeysetId};
-use types::currencies::CurrencyCode;
 use types::currencies::CurrencyCode::BTC;
+use types::currencies::{Currency, CurrencyCode};
 use types::exchange_rate::bitstamp::BitstampRateProvider;
 use types::exchange_rate::cash::CashAppRateProvider;
 use types::exchange_rate::local_rate_provider::LocalRateProvider;
@@ -535,6 +535,12 @@ async fn setup_mobile_pay(
         );
         return Err(ApiError::GenericForbidden(
             "valid signature over access token required by both app and hw auth keys".to_string(),
+        ));
+    }
+
+    if !Currency::supported_currency_codes().contains(&request.limit.amount.currency_code) {
+        return Err(ApiError::GenericForbidden(
+            "valid supported currency required to setup mobile pay".to_string(),
         ));
     }
 

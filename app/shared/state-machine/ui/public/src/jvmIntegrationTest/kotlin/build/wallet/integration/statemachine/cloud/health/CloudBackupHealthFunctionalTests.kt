@@ -1,10 +1,12 @@
 package build.wallet.integration.statemachine.cloud.health
 
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CREATING_CLOUD_BACKUP
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.PREPARING_CLOUD_BACKUP
+import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.UPLOADING_CLOUD_BACKUP
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MONEY_HOME
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_DETECTED
 import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_INITIATE
-import build.wallet.analytics.events.screen.id.NfcEventTrackerScreenId.NFC_SUCCESS
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId.SETTINGS
 import build.wallet.cloud.store.CloudFileStoreFake
 import build.wallet.cloud.store.CloudFileStoreResult
@@ -62,12 +64,7 @@ class CloudBackupHealthFunctionalTests : FunSpec({
         props = Unit,
         useVirtualTime = false
       ) {
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>(
-          id = MONEY_HOME,
-          expectedBodyContentMatch = {
-            it.cardsModel.cards.isNotEmpty()
-          }
-        ) {
+        awaitUntilScreenWithBody<MoneyHomeBodyModel>(MONEY_HOME) {
           shouldClickSettings()
         }
         awaitUntilScreenWithBody<SettingsBodyModel>(SETTINGS) {
@@ -138,9 +135,15 @@ class CloudBackupHealthFunctionalTests : FunSpec({
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CLOUD_SIGN_IN_LOADING)
       awaitUntilScreenWithBody<NfcBodyModel>(NFC_INITIATE)
       awaitUntilScreenWithBody<NfcBodyModel>(NFC_DETECTED)
-      awaitUntilScreenWithBody<NfcBodyModel>(NFC_SUCCESS)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(CREATING_CLOUD_BACKUP)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(PREPARING_CLOUD_BACKUP)
+      awaitUntilScreenWithBody<LoadingSuccessBodyModel>(UPLOADING_CLOUD_BACKUP)
 
-      awaitUntilScreenWithBody<CloudBackupHealthDashboardBodyModel>()
+      awaitUntilScreenWithBody<CloudBackupHealthDashboardBodyModel>(
+        expectedBodyContentMatch = {
+          it.mobileKeyBackupStatusCard.backupStatus.secondaryText == "Successfully backed up"
+        }
+      )
       cancelAndIgnoreRemainingEvents()
     }
   }

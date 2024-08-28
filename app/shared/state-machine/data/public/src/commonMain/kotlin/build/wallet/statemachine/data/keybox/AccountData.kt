@@ -1,18 +1,15 @@
 package build.wallet.statemachine.data.keybox
 
 import build.wallet.auth.PendingAuthKeyRotationAttempt
-import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.Account
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.FullAccountConfig
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.f8e.FullAccountId
+import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.cloud.backup.CloudBackup
 import build.wallet.debug.DebugOptions
 import build.wallet.statemachine.data.account.CreateFullAccountData
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
-import build.wallet.statemachine.data.mobilepay.MobilePayData
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryData
@@ -168,25 +165,12 @@ sealed interface AccountData {
     ) : HasActiveFullAccountData
 
     /**
-     * Active Full Account found, loading its data.
-     */
-    data class LoadingActiveFullAccountData(
-      override val account: FullAccount,
-    ) : HasActiveFullAccountData
-
-    /**
      * An active Full Account is present.
      *
-     * @property transactionsData provides data for balance and transactions for the active spending
-     * keyset for current keybox.
-     * @property mobilePayData provides data for Mobile Pay for the active account.
      * @property lostHardwareRecoveryData provides Hardware Recovery data for the active account.
      */
     data class ActiveFullAccountLoadedData(
       override val account: FullAccount,
-      val spendingWallet: SpendingWallet,
-      val transactionsData: FullAccountTransactionsLoadedData,
-      val mobilePayData: MobilePayData,
       val lostHardwareRecoveryData: LostHardwareRecoveryData,
     ) : HasActiveFullAccountData
   }
@@ -208,7 +192,7 @@ sealed interface AccountData {
    * The keybox was recovering but it was canceled elsewhere, notify customer
    */
   data class NoLongerRecoveringFullAccountData(
-    val data: NoLongerRecoveringData,
+    val canceledRecoveryLostFactor: PhysicalFactor,
   ) : AccountData
 
   /**

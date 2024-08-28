@@ -1,13 +1,10 @@
 package build.wallet.statemachine.fwup
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.fwup.FwupNfcUiState.InNfcSessionUiState
 import build.wallet.statemachine.fwup.FwupNfcUiState.ShowingUpdateInstructionsUiState
@@ -19,6 +16,7 @@ import kotlinx.coroutines.delay
 class FwupNfcUiStateMachineImpl(
   private val deviceInfoProvider: DeviceInfoProvider,
   private val fwupNfcSessionUiStateMachine: FwupNfcSessionUiStateMachine,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
 ) : FwupNfcUiStateMachine {
   @Composable
   override fun model(props: FwupNfcUiProps): ScreenModel {
@@ -33,6 +31,9 @@ class FwupNfcUiStateMachineImpl(
           state = state,
           onLaunchFwup = {
             uiState = InNfcSessionUiState(state.transactionType)
+          },
+          onReleaseNotes = {
+            uiState = FwupNfcUiState.ReleaseNotesUiState()
           }
         )
       }
@@ -58,6 +59,19 @@ class FwupNfcUiStateMachineImpl(
             )
         )
       }
+
+      is FwupNfcUiState.ReleaseNotesUiState -> {
+        InAppBrowserModel(
+          open = {
+            inAppBrowserNavigator.open(
+              url = "https://bitkey.world/en-US/releases",
+              onClose = {
+                uiState = ShowingUpdateInstructionsUiState()
+              }
+            )
+          }
+        ).asModalScreen()
+      }
     }
   }
 
@@ -66,6 +80,7 @@ class FwupNfcUiStateMachineImpl(
     props: FwupNfcUiProps,
     state: ShowingUpdateInstructionsUiState,
     onLaunchFwup: () -> Unit,
+    onReleaseNotes: () -> Unit,
   ): ScreenModel {
     var isRelaunchingFwup: Boolean by remember { mutableStateOf(false) }
     var updateErrorBottomSheetState: UpdateErrorBottomSheetState
@@ -82,6 +97,7 @@ class FwupNfcUiStateMachineImpl(
     return FwupUpdateDeviceModel(
       onClose = props.onDone,
       onLaunchFwup = onLaunchFwup,
+      onReleaseNotes = onReleaseNotes,
       bottomSheetModel =
         when (val sheetState = updateErrorBottomSheetState) {
           is Hidden -> null
@@ -129,4 +145,6 @@ private sealed interface FwupNfcUiState {
   }
 
   data class InNfcSessionUiState(override val transactionType: FwupTransactionType) : FwupNfcUiState
+
+  data class ReleaseNotesUiState(override val transactionType: FwupTransactionType = FwupTransactionType.StartFromBeginning) : FwupNfcUiState
 }

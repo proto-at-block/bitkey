@@ -1,6 +1,8 @@
 package build.wallet.statemachine.moneyhome.card
 
 import build.wallet.Progress
+import build.wallet.pricechart.DataPoint
+import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.model.Model
@@ -30,7 +32,7 @@ data class MoneyHomeCardsModel(
  */
 data class CardModel(
   val heroImage: Icon? = null,
-  val title: LabelModel.StringWithStyledSubstringModel,
+  val title: LabelModel.StringWithStyledSubstringModel?,
   val subtitle: String? = null,
   val leadingImage: CardImage? = null,
   val trailingButton: ButtonModel? = null,
@@ -76,6 +78,15 @@ data class CardModel(
      * @property items - the list of items to render
      */
     data class DrillList(val items: ImmutableList<ListItemModel>) : CardContent
+
+    data class BitcoinPrice(
+      val isLoading: Boolean,
+      val price: String,
+      val priceChange: String,
+      val priceDirection: PriceDirection,
+      val lastUpdated: String,
+      val data: ImmutableList<DataPoint>,
+    ) : CardContent
   }
 
   /** Describes a set of animation actions that should happen concurrently */

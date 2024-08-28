@@ -56,17 +56,16 @@ class SweepDataStateMachineFunctionalTests : FunSpec() {
       keyboxDao = app.app.appComponent.keyboxDao
       appSpendingWalletProvider = app.app.appComponent.appSpendingWalletProvider
 
-      stateMachine =
-        app.app.run {
-          SweepDataStateMachineImpl(
-            bitcoinBlockchain,
-            sweepService,
-            mobilePaySigningF8eClient,
-            appSpendingWalletProvider,
-            exchangeRateSyncer,
-            outgoingTransactionDetailRepository
-          )
-        }
+      stateMachine = app.app.run {
+        SweepDataStateMachineImpl(
+          bitcoinBlockchain = bitcoinBlockchain,
+          sweepService = sweepService,
+          mobilePaySigningF8eClient = mobilePaySigningF8eClient,
+          appSpendingWalletProvider = appSpendingWalletProvider,
+          exchangeRateService = appComponent.exchangeRateService,
+          outgoingTransactionDetailRepository = outgoingTransactionDetailRepository
+        )
+      }
     }
 
     test("sweep funds for account with no inactive keysets and recovered app key") {

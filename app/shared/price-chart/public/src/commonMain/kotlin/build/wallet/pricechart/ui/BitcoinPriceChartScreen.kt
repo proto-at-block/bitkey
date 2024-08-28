@@ -5,10 +5,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Icon
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -19,12 +17,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.semantics.invisibleToUser
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import bitkey.shared.ui_core_public.generated.resources.Res
-import bitkey.shared.ui_core_public.generated.resources.bitcoin_color
+import bitkey.shared.ui_core_public.generated.resources.bitcoin_orange
 import bitkey.shared.ui_core_public.generated.resources.small_icon_arrow_up
 import build.wallet.pricechart.BitcoinPriceDetailsBodyModel
 import build.wallet.pricechart.ChartHistory
@@ -32,10 +30,7 @@ import build.wallet.pricechart.ChartType
 import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.ui.components.icon.Icon
-import build.wallet.ui.components.label.Label
-import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.label.shimmer
-import build.wallet.ui.components.label.textStyle
+import build.wallet.ui.components.label.*
 import build.wallet.ui.components.layout.MeasureWithoutPlacement
 import build.wallet.ui.components.toolbar.Toolbar
 import build.wallet.ui.compose.thenIf
@@ -64,7 +59,7 @@ internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
       onChartTypeSelected = model.onChartTypeSelected
     )
 
-    Spacer(modifier = Modifier.height(18.dp))
+    Spacer(modifier = Modifier.height(4.dp))
 
     AnimatedContent(
       targetState = model.type,
@@ -79,7 +74,7 @@ internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
         ChartType.BTC_PRICE -> {
           Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)
+            verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.CenterVertically)
           ) {
             SelectedPointDetails(
               isLoading = model.isLoading,
@@ -105,13 +100,13 @@ internal fun BitcoinPriceChartScreen(model: BitcoinPriceDetailsBodyModel) {
                 SelectedPointTimeDisplay(
                   selectedPointTimeText = model.selectedPointChartText
                 )
-                Spacer(modifier = Modifier.size(4.dp))
+                Spacer(modifier = Modifier.size(6.dp))
                 PriceChart(
                   dataPoints = model.data,
                   initialSelectedPoint = model.selectedPoint,
                   onPointSelected = model.onPointSelected,
                   onPointDeselected = { model.onPointSelected(null) },
-                  primaryColor = WalletTheme.colors.bitcoinPrimary,
+                  colorPrimary = WalletTheme.colors.bitcoinPrimary,
                   formatYLabel = model.formatFiatValue,
                   modifier = Modifier
                     .fillMaxSize()
@@ -152,7 +147,7 @@ private fun SelectedPointTimeDisplay(selectedPointTimeText: String?) {
   Label(
     model = LabelModel.StringModel(notBlankSelectedPointTimeText),
     treatment = LabelTreatment.Secondary,
-    type = LabelType.Body3Regular,
+    type = LabelType.Body3Medium,
     modifier = Modifier.alpha(selectedTimestampAlpha)
   )
 }
@@ -187,28 +182,12 @@ private fun SelectedPointDetails(
         targetValue = if (isLoading) 0f else 1f
       )
       val selectedAlpha by animateFloatAsState(
-        targetValue = if (isLoading || isUserSelected) 0f else 1f
-      )
-      val loadingBackgroundColor by animateColorAsState(
-        targetValue = WalletTheme.colors.loadingBackground.copy(
-          if (isLoading) 1f else 0f
-        )
+        targetValue = if (isUserSelected) 0f else 1f
       )
 
       Box(
         modifier = Modifier
-          .drawWithContent {
-            drawContent()
-            drawIntoCanvas {
-              drawRoundRect(
-                color = loadingBackgroundColor,
-                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx()),
-                size = size
-              )
-            }
-          }
-          .alpha(alpha)
-          .thenIf(isLoading) { Modifier.shimmer() }
+          .loadingScrim(isLoading)
       ) {
         MeasureWithoutPlacement {
           // size the loader based on the expected value size, not displayed to user
@@ -227,18 +206,7 @@ private fun SelectedPointDetails(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-          .drawWithContent {
-            drawContent()
-            drawIntoCanvas {
-              drawRoundRect(
-                color = loadingBackgroundColor,
-                cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx()),
-                size = size
-              )
-            }
-          }
-          .alpha(alpha)
-          .thenIf(isLoading) { Modifier.shimmer() }
+          .loadingScrim(isLoading)
       ) {
         val animatedPriceDirection by animateFloatAsState(
           targetValue = selectedPriceDirection.orientation,
@@ -250,7 +218,6 @@ private fun SelectedPointDetails(
           colorFilter = ColorFilter.tint(WalletTheme.colors.foreground60),
           modifier = Modifier
             .size(16.dp)
-            .alpha(alpha)
             // do not apply rotation animation when first appearing
             .thenIf(alpha < 1f) {
               Modifier.rotate(selectedPriceDirection.orientation)
@@ -273,8 +240,7 @@ private fun SelectedPointDetails(
             Label(
               model = LabelModel.StringModel(selectedPointDiffText),
               type = LabelType.Body3Regular,
-              treatment = LabelTreatment.Secondary,
-              modifier = Modifier.alpha(alpha)
+              treatment = LabelTreatment.Secondary
             )
             Label(
               model = LabelModel.StringModel(selectedPointPeriodText),
@@ -287,7 +253,7 @@ private fun SelectedPointDetails(
       }
     }
     Icon(
-      imageVector = vectorResource(Res.drawable.bitcoin_color),
+      imageVector = vectorResource(Res.drawable.bitcoin_orange),
       contentDescription = null,
       modifier = Modifier.size(48.dp),
       tint = Color.Unspecified
@@ -426,42 +392,54 @@ private fun ChartHistorySelector(
   Row(
     modifier = Modifier
       .fillMaxWidth(),
-    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+    horizontalArrangement = Arrangement.spacedBy(18.dp, Alignment.CenterHorizontally),
     verticalAlignment = Alignment.CenterVertically
   ) {
     ChartHistory.entries.forEach { entry ->
       val isSelected by remember {
         derivedStateOf { entry == updatedSelectedHistory }
       }
+      val circleColor by animateColorAsState(
+        targetValue = if (isSelected) {
+          WalletTheme.colors.calloutDefaultBackground
+        } else {
+          WalletTheme.colors.calloutDefaultBackground.copy(alpha = 0f)
+        }
+      )
+      val circleRadius by animateDpAsState(
+        targetValue = if (isSelected) 22.dp else 18.dp
+      )
       Box(
         modifier = Modifier
-          .clip(CircleShape)
-          .background(
-            if (isSelected) {
-              WalletTheme.colors.calloutDefaultBackground
-            } else {
-              Color.Transparent
-            }
-          )
           .clickable(
             // clip ripple toc fill background shape
             interactionSource = remember { MutableInteractionSource() },
-            indication = rememberRipple(bounded = true)
+            indication = null
           ) { updatedOnChartHistorySelected(entry) }
           .padding(8.dp),
         contentAlignment = Alignment.Center
       ) {
         Label(
+          modifier = Modifier
+            .drawBehind {
+              drawCircle(
+                color = circleColor,
+                radius = circleRadius.toPx()
+              )
+            },
           text = stringResource(entry.label),
-          type = if (isSelected) LabelType.Body3Bold else LabelType.Body3Regular,
-          treatment = if (isSelected) LabelTreatment.Primary else LabelTreatment.Secondary
+          style = WalletTheme.textStyle(
+            type = if (isSelected) LabelType.Body2Bold else LabelType.Body3Regular,
+            treatment = if (isSelected) LabelTreatment.Primary else LabelTreatment.Secondary,
+            textColor = WalletTheme.colors.foreground
+          ).copy(lineHeight = TextUnit.Unspecified)
         )
         if (!isSelected) {
           Label(
             text = stringResource(entry.label),
             modifier = Modifier.semantics { invisibleToUser() },
             style = WalletTheme.textStyle(
-              type = LabelType.Body3Bold,
+              type = LabelType.Body2Bold,
               treatment = LabelTreatment.Unspecified,
               textColor = Color.Transparent
             )

@@ -21,7 +21,7 @@ import build.wallet.cloud.store.CloudStoreAccountRepositoryMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.f8e.socrec.SocRecRelationshipsFake
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
+import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.testing.shouldBeOk
 import build.wallet.time.ClockFake
 import com.github.michaelbull.result.Err
@@ -36,7 +36,7 @@ class CloudBackupRefresherImplTests : FunSpec({
 
   val cloudInstanceId = "fake"
   val fullAccount = FullAccountMock
-  val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
+  val socRecService = SocRecServiceMock(turbines::create)
   val cloudBackupDao = CloudBackupDaoFake()
   val cloudStoreAccountRepository = CloudStoreAccountRepositoryMock()
   val cloudBackupRepository = CloudBackupRepositoryFake()
@@ -55,7 +55,7 @@ class CloudBackupRefresherImplTests : FunSpec({
 
   val trustedContactCloudBackupRefresher =
     TrustedContactCloudBackupRefresherImpl(
-      socRecRelationshipsRepository = socRecRelationshipsRepository,
+      socRecService = socRecService,
       cloudBackupDao = cloudBackupDao,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       cloudBackupRepository = cloudBackupRepository,
@@ -73,7 +73,7 @@ class CloudBackupRefresherImplTests : FunSpec({
   }
 
   afterTest {
-    socRecRelationshipsRepository.relationshipsFlow.emit(SocRecRelationshipsFake)
+    socRecService.relationshipsFlow.emit(SocRecRelationshipsFake)
     cloudStoreAccountRepository.reset()
     fullAccountCloudBackupCreator.reset()
   }
@@ -115,7 +115,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       cloudBackupRepository.readBackup(
         cloudAccount
       ).shouldBeOk(CloudBackupV2WithFullAccountMock)
-      socRecRelationshipsRepository.relationshipsFlow
+      socRecService.relationshipsFlow
         .emit(SocRecRelationshipsFake.copy(endorsedTrustedContacts = listOf(EndorsedTrustedContactFake1)))
 
       eventTracker.eventCalls.awaitItem().shouldBe(
@@ -148,7 +148,7 @@ class CloudBackupRefresherImplTests : FunSpec({
       cloudBackupRepository.readBackup(
         cloudAccount
       ).shouldBeOk(CloudBackupV2WithFullAccountMock)
-      socRecRelationshipsRepository.relationshipsFlow.emit(SocRecRelationshipsFake)
+      socRecService.relationshipsFlow.emit(SocRecRelationshipsFake)
       runCurrent()
     }
   }
@@ -178,7 +178,7 @@ class CloudBackupRefresherImplTests : FunSpec({
     runTest {
       // Setting this to empty to match what would be found in an old backup.
       // An upload should be triggered even if no trusted contacts are known.
-      socRecRelationshipsRepository.relationshipsFlow.emit(SocRecRelationships.EMPTY)
+      socRecService.relationshipsFlow.emit(SocRecRelationships.EMPTY)
       cloudBackupDao.set(fullAccount.accountId.serverId, CloudBackupV2WithFullAccountMock)
       backgroundScope.launch {
         trustedContactCloudBackupRefresher.refreshCloudBackupsWhenNecessary(backgroundScope, fullAccount)

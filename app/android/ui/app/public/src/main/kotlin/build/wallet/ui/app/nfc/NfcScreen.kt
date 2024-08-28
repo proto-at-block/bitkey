@@ -2,27 +2,14 @@ package build.wallet.ui.app.nfc
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.with
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,9 +31,7 @@ import bitkey.shared.ui_core_public.generated.resources.Res
 import bitkey.shared.ui_core_public.generated.resources.android_nfc_tap
 import build.wallet.android.ui.core.R
 import build.wallet.statemachine.nfc.NfcBodyModel
-import build.wallet.statemachine.nfc.NfcBodyModel.Status.Connected
-import build.wallet.statemachine.nfc.NfcBodyModel.Status.Searching
-import build.wallet.statemachine.nfc.NfcBodyModel.Status.Success
+import build.wallet.statemachine.nfc.NfcBodyModel.Status.*
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
@@ -111,7 +96,7 @@ private fun NfcScreenInternal(
         modifier = Modifier.fillMaxWidth(),
         targetState = model.text,
         transitionSpec = {
-          fadeIn(animationSpec = tween(durationMillis = 500)) with
+          fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
             fadeOut(animationSpec = tween(durationMillis = 500))
         },
         contentAlignment = Center,

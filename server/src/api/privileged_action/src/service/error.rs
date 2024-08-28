@@ -5,6 +5,8 @@ use types::{account::AccountType, privileged_action::shared::PrivilegedActionTyp
 #[derive(Debug, Error)]
 pub enum ServiceError {
     #[error(transparent)]
+    Api(#[from] errors::ApiError),
+    #[error(transparent)]
     Account(#[from] account::error::AccountError),
     #[error(transparent)]
     Database(#[from] database::ddb::DatabaseError),
@@ -22,6 +24,8 @@ pub enum ServiceError {
 
     #[error("Cannot configure delay for privileged action type {0} and account type {1}")]
     CannotConfigureDelay(PrivilegedActionType, AccountType),
+    #[error("Undefined privileged action for type {0}")]
+    UndefinedPrivilegedAction(PrivilegedActionType),
 
     #[error(
         "No authorization strategy defined for privileged action type {0} and account type {1}"
@@ -50,6 +54,7 @@ impl From<ServiceError> for ApiError {
     fn from(value: ServiceError) -> Self {
         let msg = value.to_string();
         match value {
+            ServiceError::Api(e) => e,
             ServiceError::Account(e) => e.into(),
             ServiceError::Database(e) => e.into(),
             ServiceError::RecordAccountIdForbidden
@@ -74,7 +79,10 @@ impl From<ServiceError> for ApiError {
             }
             ServiceError::RecordAuthorizationStrategyTypeUnexpected
             | ServiceError::TryFromInt(_)
-            | ServiceError::ExternalIdentifier(_) => ApiError::GenericInternalApplicationError(msg),
+            | ServiceError::ExternalIdentifier(_)
+            | ServiceError::UndefinedPrivilegedAction(_) => {
+                ApiError::GenericInternalApplicationError(msg)
+            }
         }
     }
 }

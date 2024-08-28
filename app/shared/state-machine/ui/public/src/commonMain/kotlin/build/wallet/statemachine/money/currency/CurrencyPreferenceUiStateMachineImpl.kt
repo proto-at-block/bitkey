@@ -3,13 +3,16 @@ package build.wallet.statemachine.money.currency
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
+import build.wallet.bitcoin.transactions.TransactionsData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
 import build.wallet.feature.flags.BitcoinPriceChartFeatureFlag
 import build.wallet.feature.isEnabled
 import build.wallet.inappsecurity.HideBalancePreference
+import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
+import build.wallet.money.currency.FiatCurrenciesService
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.money.currency.FiatCurrencyRepository
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.BitcoinDisplayUnit
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
@@ -30,11 +33,12 @@ class CurrencyPreferenceUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val eventTracker: EventTracker,
   private val currencyConverter: CurrencyConverter,
-  private val fiatCurrencyRepository: FiatCurrencyRepository,
+  private val fiatCurrenciesService: FiatCurrenciesService,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val hideBalancePreference: HideBalancePreference,
   private val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag,
   private val bitcoinPriceCardPreference: BitcoinPriceCardPreference,
+  private val transactionsService: TransactionsService,
 ) : CurrencyPreferenceUiStateMachine {
   @Composable
   override fun model(props: CurrencyPreferenceProps): ScreenModel {
@@ -70,16 +74,16 @@ class CurrencyPreferenceUiStateMachineImpl(
         FiatCurrencyListFormModel(
           onClose = { state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled) },
           selectedCurrency = selectedFiatCurrency,
-          currencyList = fiatCurrencyRepository.allFiatCurrencies.value,
+          currencyList = fiatCurrenciesService.allFiatCurrencies.value,
           onCurrencySelection = { selectedCurrency ->
             scope.launch {
               fiatCurrencyPreferenceRepository.setFiatCurrencyPreference(selectedCurrency)
                 .onSuccess {
                   eventTracker.track(Action.ACTION_APP_FIAT_CURRENCY_PREFERENCE_CHANGE)
                 }
+              // Once a selection is made, we auto-close the list screen.
+              state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled)
             }
-            // Once a selection is made, we auto-close the list screen.
-            state = ShowingCurrencyPreferenceUiState(isHideBalanceEnabled)
           }
         ).asModalScreen()
       }
@@ -93,15 +97,23 @@ class CurrencyPreferenceUiStateMachineImpl(
     isHideBalanceEnabled: Boolean,
     onFiatCurrencyPreferenceClick: () -> Unit,
   ): ScreenModel {
+    val transactionsData = remember { transactionsService.transactionsData() }
+      .collectAsState().value
+
+    val btcDisplayAmount = when (transactionsData) {
+      TransactionsData.LoadingTransactionsData -> BitcoinMoney.zero()
+      is TransactionsData.TransactionsLoadedData -> transactionsData.balance.total
+    }
+
     val isBitcoinPriceCardEnabled by bitcoinPriceCardPreference.isEnabled.collectAsState()
     val selectedBitcoinUnit by bitcoinDisplayPreferenceRepository.bitcoinDisplayUnit.collectAsState()
 
     // Primary amount: fiat
     val convertedFiatAmount: FiatMoney =
-      remember(props.btcDisplayAmount) {
+      remember(btcDisplayAmount) {
         currencyConverter
           .convert(
-            fromAmount = props.btcDisplayAmount,
+            fromAmount = btcDisplayAmount,
             toCurrency = selectedFiatCurrency,
             atTime = null
           )
@@ -111,9 +123,9 @@ class CurrencyPreferenceUiStateMachineImpl(
 
     // Secondary amount: bitcoin
     val moneyHomeHeroSecondaryAmountString =
-      remember(props.btcDisplayAmount, selectedBitcoinUnit) {
+      remember(btcDisplayAmount, selectedBitcoinUnit) {
         moneyDisplayFormatter
-          .format(props.btcDisplayAmount)
+          .format(btcDisplayAmount)
       }
 
     var isShowingBitcoinUnitPicker by remember { mutableStateOf(false) }

@@ -1,11 +1,8 @@
 package build.wallet.statemachine.recovery.socrec
 
-import build.wallet.bitkey.relationships.ProtectedCustomer
-import build.wallet.recovery.socrec.SocRecTrustedContactActions
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.keybox.AccountData
-import kotlinx.collections.immutable.ImmutableList
 
 /**
  * State machine for managing Trusted Contacts (syncing/viewing, adding, removing) for
@@ -18,8 +15,6 @@ interface LiteTrustedContactManagementUiStateMachine :
 
 data class LiteTrustedContactManagementProps(
   val accountData: AccountData.HasActiveLiteAccountData,
-  val protectedCustomers: ImmutableList<ProtectedCustomer>,
-  val actions: SocRecTrustedContactActions,
   val acceptInvite: AcceptInvite?,
   val onExit: () -> Unit,
 ) {

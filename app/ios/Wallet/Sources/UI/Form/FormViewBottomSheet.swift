@@ -15,9 +15,6 @@ struct FormViewBottomSheet: View {
 
     private let viewModel: FormBodyModel
 
-    @SwiftUI.State
-    private var safariUrl: URL?
-
     // MARK: - Life Cycle
 
     init(viewModel: FormBodyModel, totalHeightSubject: PassthroughSubject<CGFloat, Never>) {
@@ -61,15 +58,10 @@ struct FormViewBottomSheet: View {
         .onChange(of: totalHeight) { newHeight in
             totalHeightSubject.send(newHeight)
         }
-        .fullScreenCover(item: $safariUrl) { url in
-            SafariView(url: url)
-                .ignoresSafeArea()
-        }
         .onAppear {
-            self.viewModel.onLoaded(
-                NativeBrowserNavigator(openSafariView: { self.safariUrl = URL(string: $0) })
-            )
+            viewModel.onLoaded()
         }
+
         Spacer()
     }
 

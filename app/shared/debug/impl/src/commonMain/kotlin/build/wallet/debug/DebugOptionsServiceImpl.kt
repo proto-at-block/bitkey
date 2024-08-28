@@ -14,6 +14,7 @@ import build.wallet.sqldelight.awaitTransaction
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.transformLatest
 import kotlin.time.Duration
 
@@ -39,6 +40,7 @@ class DebugOptionsServiceImpl(
           }
         }
       }
+      .distinctUntilChanged()
   }
 
   override suspend fun setBitcoinNetworkType(value: BitcoinNetworkType): Result<Unit, Error> {

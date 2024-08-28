@@ -6,7 +6,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 
 class AppSpendingWalletProviderMock(
-  val spendingWallet: SpendingWallet,
+  var spendingWallet: SpendingWallet,
 ) : AppSpendingWalletProvider {
   override suspend fun getSpendingWallet(
     keyset: SpendingKeyset,

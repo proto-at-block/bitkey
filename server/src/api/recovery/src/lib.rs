@@ -6,7 +6,6 @@ use error::RecoveryError;
 
 pub mod entities;
 pub mod error;
-pub(crate) mod flags;
 pub(crate) mod helpers;
 pub mod metrics;
 pub mod repository;

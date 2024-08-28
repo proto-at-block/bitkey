@@ -7,9 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId
+import build.wallet.auth.AuthTokenScope
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import build.wallet.ktor.result.HttpError
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.auth.ProofOfPossessionNfcProps
 import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
@@ -26,6 +28,7 @@ import kotlinx.datetime.Clock
 class RemoveTrustedContactUiStateMachineImpl(
   private val proofOfPossessionNfcStateMachine: ProofOfPossessionNfcStateMachine,
   private val clock: Clock,
+  private val socRecService: SocRecService,
 ) : RemoveTrustedContactUiStateMachine {
   @Composable
   override fun model(props: RemoveTrustedContactUiProps): ScreenModel {
@@ -75,8 +78,11 @@ class RemoveTrustedContactUiStateMachineImpl(
 
       is State.RemovingWithBitkeyState -> {
         LaunchedEffect("remove-tc-with-bitkey") {
-          props.onRemoveTrustedContact(
-            current.proofOfPossession
+          socRecService.removeRelationship(
+            account = props.account,
+            hardwareProofOfPossession = current.proofOfPossession,
+            authTokenScope = AuthTokenScope.Global,
+            relationshipId = props.trustedContact.relationshipId
           ).onSuccess {
             props.onClosed()
           }.onFailure {

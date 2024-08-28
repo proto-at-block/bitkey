@@ -4,7 +4,6 @@ import app.cash.turbine.test
 import build.wallet.account.AccountRepositoryFake
 import build.wallet.account.AccountStatus
 import build.wallet.bitkey.keybox.FullAccountMock
-import build.wallet.coroutines.turbine.turbines
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -21,18 +20,19 @@ import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
 
 class CurrencyConverterImplTests : FunSpec({
-  val exchangeRateDao = ExchangeRateDaoMock(turbines::create)
+  val exchangeRateDao = ExchangeRateDaoFake()
   val accountRepository = AccountRepositoryFake()
   val exchangeRateF8eClient = ExchangeRateF8eClientMock()
-  val converter =
-    CurrencyConverterImpl(
-      accountRepository = accountRepository,
-      exchangeRateDao = exchangeRateDao,
-      exchangeRateF8eClient = exchangeRateF8eClient
-    )
+  val converter = CurrencyConverterImpl(
+    accountRepository = accountRepository,
+    exchangeRateDao = exchangeRateDao,
+    exchangeRateF8eClient = exchangeRateF8eClient
+  )
 
   beforeTest {
+    accountRepository.reset()
     exchangeRateDao.reset()
+    exchangeRateF8eClient.reset()
   }
 
   test("Convert zero amount from USD to BTC") {
@@ -99,7 +99,7 @@ class CurrencyConverterImplTests : FunSpec({
   }
 
   test("Convert historical amount from BTC to USD, time is null") {
-    exchangeRateDao.historicalExchangeRates = emptyMap()
+    exchangeRateDao.historicalExchangeRates.value = emptyMap()
     exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.5))
 
     // Should have the same behavior as getting the current rate if time is null
@@ -110,7 +110,7 @@ class CurrencyConverterImplTests : FunSpec({
 
   test("Convert historical amount from BTC to USD, with only USD to BTC rate in DB") {
     val time = Instant.fromEpochMilliseconds(1673338945736L)
-    exchangeRateDao.historicalExchangeRates = mapOf(time to listOf(USDtoBTC(0.5)))
+    exchangeRateDao.historicalExchangeRates.value = mapOf(time to listOf(USDtoBTC(0.5)))
 
     converter.convert(BitcoinMoney.btc(1.toBigDecimal()), USD, time).test {
       awaitItem().shouldBe(FiatMoney.usd(2.toBigDecimal()))
@@ -122,7 +122,7 @@ class CurrencyConverterImplTests : FunSpec({
     val time = Instant.fromEpochMilliseconds(1673338945736L)
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
     exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.1))
-    exchangeRateDao.historicalExchangeRates = mapOf(differentTime to listOf(USDtoBTC(0.2)))
+    exchangeRateDao.historicalExchangeRates.value = mapOf(differentTime to listOf(USDtoBTC(0.2)))
     accountRepository.accountState.value = Ok(AccountStatus.ActiveAccount(FullAccountMock))
 
     exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value = Ok(USDtoBTC(0.5))
@@ -134,8 +134,14 @@ class CurrencyConverterImplTests : FunSpec({
       awaitItem().shouldBe(FiatMoney.usd(10.toBigDecimal()))
       // Value from F8e should then be used and stored
       awaitItem().shouldBe(FiatMoney.usd(2.toBigDecimal()))
-      exchangeRateDao.storeHistoricalExchangeRateCalls.awaitItem()
-        .shouldBe(Pair(USDtoBTC(0.5), time))
+      exchangeRateDao.historicalExchangeRates.test {
+        awaitItem().shouldBe(
+          mapOf(
+            differentTime to listOf(USDtoBTC(0.2)),
+            time to listOf(USDtoBTC(0.5))
+          )
+        )
+      }
       awaitComplete()
     }
   }
@@ -144,7 +150,7 @@ class CurrencyConverterImplTests : FunSpec({
     val time = Instant.fromEpochMilliseconds(1673338945736L)
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
     exchangeRateDao.allExchangeRates.value = listOf(USDtoBTC(0.1))
-    exchangeRateDao.historicalExchangeRates = mapOf(differentTime to listOf(USDtoBTC(0.5)))
+    exchangeRateDao.storeHistoricalExchangeRate(USDtoBTC(0.5), differentTime)
     exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value =
       Err(NetworkError(Throwable()))
 
@@ -163,7 +169,7 @@ class CurrencyConverterImplTests : FunSpec({
   ) {
     val time = Instant.fromEpochMilliseconds(1673338945736L)
     val differentTime = Instant.fromEpochMilliseconds(1773338945736L)
-    exchangeRateDao.historicalExchangeRates = mapOf(differentTime to listOf(USDtoBTC(0.5)))
+    exchangeRateDao.historicalExchangeRates.value = mapOf(differentTime to listOf(USDtoBTC(0.5)))
     exchangeRateF8eClient.historicalBtcToUsdExchangeRate.value =
       Err(NetworkError(Throwable()))
 

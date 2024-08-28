@@ -67,7 +67,7 @@ class FullAccountCreatorImpl(
       // Store the [Recovery] scope auth tokens
       authenticateWithF8eAndStoreAuthTokens(
         accountId = customerAccountId,
-        appAuthPublicKey = requireNotNull(keyCrossDraft.appKeyBundle.recoveryAuthKey),
+        appAuthPublicKey = keyCrossDraft.appKeyBundle.recoveryAuthKey,
         f8eEnvironment = fullAccountConfig.f8eEnvironment,
         tokenScope = AuthTokenScope.Recovery
       ).bind()

@@ -2,29 +2,12 @@ package build.wallet.ui.app.nfc
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
-import androidx.compose.animation.with
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -50,10 +33,7 @@ import bitkey.shared.ui_core_public.generated.resources.android_nfc_tap
 import build.wallet.android.ui.core.R
 import build.wallet.statemachine.core.TimerDirection.Clockwise
 import build.wallet.statemachine.fwup.FwupNfcBodyModel
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.InProgress
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.LostConnection
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.Searching
-import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.Success
+import build.wallet.statemachine.fwup.FwupNfcBodyModel.Status.*
 import build.wallet.ui.components.button.Button
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment.Primary
@@ -266,7 +246,7 @@ private fun ColumnScope.StatusLabel(status: FwupNfcBodyModel.Status) {
       modifier = Modifier.fillMaxWidth(),
       targetState = status.text,
       transitionSpec = {
-        fadeIn(animationSpec = tween(durationMillis = 500)) with
+        fadeIn(animationSpec = tween(durationMillis = 500)) togetherWith
           fadeOut(animationSpec = tween(durationMillis = 500))
       },
       contentAlignment = Alignment.Center,

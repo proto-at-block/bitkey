@@ -29,7 +29,7 @@ import build.wallet.platform.config.AppVariant
 import build.wallet.platform.config.AppVariant.Customer
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.socrec.SocRecKeysDao
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.recovery.socrec.SocRecStartedChallengeDao
 import com.github.michaelbull.result.coroutines.coroutineBinding
 
@@ -56,7 +56,7 @@ class AppDataDeleterImpl(
   private val bitcoinDisplayPreferenceRepository: BitcoinDisplayPreferenceRepository,
   private val cloudBackupDao: CloudBackupDao,
   private val socRecKeysDao: SocRecKeysDao,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
+  private val socRecService: SocRecService,
   private val socRecStartedChallengeDao: SocRecStartedChallengeDao,
   private val csekDao: CsekDao,
   private val authKeyRotationAttemptDao: AuthKeyRotationAttemptDao,
@@ -89,7 +89,7 @@ class AppDataDeleterImpl(
       bitcoinDisplayPreferenceRepository.clear()
       cloudBackupDao.clear()
       socRecKeysDao.clear()
-      socRecRelationshipsRepository.clear()
+      socRecService.clear()
       csekDao.clear()
       socRecStartedChallengeDao.clear()
       authKeyRotationAttemptDao.clear()

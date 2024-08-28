@@ -15,7 +15,6 @@ import androidx.lifecycle.lifecycleScope
 import build.wallet.analytics.v1.Action.ACTION_APP_PUSH_NOTIFICATION_OPEN
 import build.wallet.bitcoin.lightning.LightningInvoiceParserImpl
 import build.wallet.cloud.store.*
-import build.wallet.crypto.Spake2Impl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponent
 import build.wallet.di.ActivityComponentImpl
@@ -234,19 +233,13 @@ class MainActivity : FragmentActivity() {
       cloudDevOptionsStateMachine = cloudDevOptionsStateMachine,
       cloudStoreAccountRepository = cloudStoreAccountRepository,
       datadogRumMonitor = DatadogRumMonitorImpl(),
-      symmetricKeyEncryptor = SymmetricKeyEncryptorImpl(),
-      symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
       lightningInvoiceParser = LightningInvoiceParserImpl(),
       sharingManager = SharingManagerImpl(activity = this),
       systemSettingsLauncher = SystemSettingsLauncherImpl(activity = this),
       inAppBrowserNavigator = inAppBrowserNavigator,
       nfcCommandsProvider = nfcCommandsProvider,
       nfcSessionProvider = nfcSessionProvider,
-      xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
-      xNonceGenerator = XNonceGeneratorImpl(),
       pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(applicationContext = this),
-      spake2 = Spake2Impl(),
-      cryptoBox = CryptoBoxImpl(),
       biometricPrompter = BiometricPrompterImpl(this),
       fakeHardwareKeyStore = fakeHardwareKeyStore
     )

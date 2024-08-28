@@ -1,24 +1,13 @@
 package build.wallet.statemachine.send
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bdk.bindings.BdkError.InsufficientFunds
 import build.wallet.bitcoin.blockchain.BitcoinBlockchain
 import build.wallet.bitcoin.fees.FeePolicy
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
-import build.wallet.bitcoin.transactions.OutgoingTransactionDetail
-import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepository
-import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.TransactionPriorityPreference
-import build.wallet.bitcoin.transactions.toDuration
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.factor.SigningFactor.F8e
@@ -31,30 +20,17 @@ import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
-import build.wallet.statemachine.core.SheetModel
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.RenderContext
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
-import build.wallet.statemachine.send.TransferConfirmationUiState.BroadcastingTransactionUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.CreatingAppSignedPsbtUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.ReceivedBdkErrorUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.ReceivedInsufficientFundsErrorUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.ReceivedServerSigningErrorUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.SigningWithHardwareUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.SigningWithServerUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState
-import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.FeeSelectionSheet
-import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.Hidden
-import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.InfoSheet
+import build.wallet.statemachine.send.TransferConfirmationUiState.*
+import build.wallet.statemachine.send.TransferConfirmationUiState.ErrorUiState.*
+import build.wallet.statemachine.send.TransferConfirmationUiState.ViewingTransferConfirmationUiState.SheetState.*
 import build.wallet.statemachine.send.fee.FeeOptionListProps
 import build.wallet.statemachine.send.fee.FeeOptionListUiStateMachine
 import build.wallet.ui.model.StandardClick
@@ -81,6 +57,7 @@ class TransferConfirmationUiStateMachineImpl(
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val transactionsService: TransactionsService,
 ) : TransferConfirmationUiStateMachine {
   @Composable
   override fun model(props: TransferConfirmationUiProps): ScreenModel {
@@ -307,7 +284,7 @@ class TransferConfirmationUiStateMachineImpl(
     LaunchedEffect("broadcasting-txn") {
       bitcoinBlockchain.broadcast(psbt = state.twoOfThreeSignedPsbt)
         .onSuccess {
-          props.accountData.transactionsData.syncTransactions()
+          transactionsService.syncTransactions()
           transactionPriorityPreference.set(selectedPriority)
           props.onTransferInitiated(state.twoOfThreeSignedPsbt, selectedPriority)
           // When we successfully broadcast the transaction, store the transaction details and
@@ -329,7 +306,7 @@ class TransferConfirmationUiStateMachineImpl(
               // On failure, the Server already published the transaction, so no user error is
               // presented. This can happen due to user-configured server settings or network
               // that are unrelated to the broadcast done by the Server.
-              props.accountData.transactionsData.syncTransactions()
+              transactionsService.syncTransactions()
               when (val variant = props.transferVariant) {
                 is TransferConfirmationUiProps.Variant.Regular -> {
                   transactionPriorityPreference.set(variant.selectedPriority)

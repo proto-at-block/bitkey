@@ -9,12 +9,15 @@ import build.wallet.testing.shouldBeErrOfType
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.ints.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 
-class FwupManifestParserTests : FunSpec({
-  val fwup = FwupManifestParserImpl()
-  val goodJson =
-    """{"manifest_version": "0.0.1",
+class FwupManifestParserTests :
+  FunSpec({
+    val fwup = FwupManifestParserImpl()
+    val goodJson =
+      """{"manifest_version": "0.0.1",
         |"fwup_bundle": {"product": "w1a",
         |"version": "1.2.5", "assets":
         |{"bootloader": {"image":
@@ -28,10 +31,10 @@ class FwupManifestParserTests : FunSpec({
         |"signature": {"name": "w1a-proto-0-app-b-dev.detached_signature"}}},
         |"parameters": {"wca_chunk_size": 452, "signature_offset": 647104,
         |"app_properties_offset": 1024}}}
-    """.trimMargin()
+      """.trimMargin()
 
-  val wrongManifestVersionJson =
-    """{"manifest_version": "0.0.2",
+    val wrongManifestVersionJson =
+      """{"manifest_version": "0.0.2",
         |"fwup_bundle": {"product": "w1a",
         |"version": "1.2.5", "assets":
         |{"bootloader": {"image":
@@ -45,10 +48,10 @@ class FwupManifestParserTests : FunSpec({
         |"signature": {"name": "w1a-proto-0-app-b-dev.detached_signature"}}},
         |"parameters": {"wca_chunk_size": 452, "signature_offset": 647104,
         |"app_properties_offset": 1024}}}
-    """.trimMargin()
+      """.trimMargin()
 
-  val missingSignatureFilesJson =
-    """{"manifest_version": "0.0.2",
+    val missingSignatureFilesJson =
+      """{"manifest_version": "0.0.2",
         |"fwup_bundle": {"product": "w1a",
         |"version": "1.2.5", "assets":
         |{"bootloader": {"image":
@@ -58,10 +61,10 @@ class FwupManifestParserTests : FunSpec({
         |"application_b": {"image": {"name": "w1a-proto-0-app-b-dev.signed.bin"},
         |"parameters": {"wca_chunk_size": 452, "signature_offset": 647104,
         |"app_properties_offset": 1024}}}
-    """.trimMargin()
+      """.trimMargin()
 
-  val goodDeltaJson =
-    """{"manifest_version": "0.0.1", 
+    val goodDeltaJson =
+      """{"manifest_version": "0.0.1", 
       |"fwup_bundle": {"product": "w1a", 
       |"from_version": "1.0.16", 
       |"to_version": "1.0.30", "assets": 
@@ -74,74 +77,95 @@ class FwupManifestParserTests : FunSpec({
       |"signature": {"name": "w1a-dvt-app-a-dev.detached_signature"}}}, 
       |"parameters": {"wca_chunk_size": 452, "signature_offset": 647104, 
       |"app_properties_offset": 1024}}}
-    """.trimMargin()
+      """.trimMargin()
 
-  test("Update from A slot to B slot") {
-    val result = fwup.parseFwupManifest(goodJson, "0.0.0", A, FwupMode.Normal)
-    result.shouldBe(
-      Ok(
-        ParseFwupManifestSuccess(
-          firmwareVersion = "1.2.5",
-          binaryFilename = "w1a-proto-0-app-b-dev.signed.bin",
-          signatureFilename = "w1a-proto-0-app-b-dev.detached_signature",
-          chunkSize = 452U,
-          signatureOffset = 647104U,
-          appPropertiesOffset = 1024U
+    test("Update from A slot to B slot") {
+      val result = fwup.parseFwupManifest(goodJson, "0.0.0", A, FwupMode.Normal)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess(
+            firmwareVersion = "1.2.5",
+            binaryFilename = "w1a-proto-0-app-b-dev.signed.bin",
+            signatureFilename = "w1a-proto-0-app-b-dev.detached_signature",
+            chunkSize = 452U,
+            signatureOffset = 647104U,
+            appPropertiesOffset = 1024U
+          )
         )
       )
-    )
-  }
+    }
 
-  // [W-1438] Re-enable.
-  // test("No new update available") {
-  //   val result = fwup.parseFwupManifest(goodJson, "1.2.5", A)
-  //   result.shouldBe(Err(NO_UPDATE_NEEDED))
-  // }
+    // [W-1438] Re-enable.
+    // test("No new update available") {
+    //   val result = fwup.parseFwupManifest(goodJson, "1.2.5", A)
+    //   result.shouldBe(Err(NO_UPDATE_NEEDED))
+    // }
 
-  test("Unknown manifest version") {
-    val result = fwup.parseFwupManifest(wrongManifestVersionJson, "1.2.5", A, FwupMode.Normal)
-    result.shouldBe(Err(UnknownManifestVersion))
-  }
+    test("Unknown manifest version") {
+      val result = fwup.parseFwupManifest(wrongManifestVersionJson, "1.2.5", A, FwupMode.Normal)
+      result.shouldBe(Err(UnknownManifestVersion))
+    }
 
-  test("Missing signature files") {
-    val result = fwup.parseFwupManifest(missingSignatureFilesJson, "1.2.5", A, FwupMode.Normal)
-    result.shouldBeErrOfType<ParsingError>()
-  }
+    test("Missing signature files") {
+      val result = fwup.parseFwupManifest(missingSignatureFilesJson, "1.2.5", A, FwupMode.Normal)
+      result.shouldBeErrOfType<ParsingError>()
+    }
 
-  test("Delta A to B") {
-    val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", A, FwupMode.Delta)
-    result.shouldBe(
-      Ok(
-        ParseFwupManifestSuccess(
-          firmwareVersion = "1.0.30",
-          binaryFilename = "w1a-dvt-a-to-b.signed.patch",
-          signatureFilename = "w1a-dvt-app-b-dev.detached_signature",
-          chunkSize = 452U,
-          signatureOffset = 647104U,
-          appPropertiesOffset = 1024U
+    test("Delta A to B") {
+      val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", A, FwupMode.Delta)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess(
+            firmwareVersion = "1.0.30",
+            binaryFilename = "w1a-dvt-a-to-b.signed.patch",
+            signatureFilename = "w1a-dvt-app-b-dev.detached_signature",
+            chunkSize = 452U,
+            signatureOffset = 647104U,
+            appPropertiesOffset = 1024U
+          )
         )
       )
-    )
-  }
+    }
 
-  test("Delta B to A") {
-    val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", B, FwupMode.Delta)
-    result.shouldBe(
-      Ok(
-        ParseFwupManifestSuccess(
-          firmwareVersion = "1.0.30",
-          binaryFilename = "w1a-dvt-b-to-a.signed.patch",
-          signatureFilename = "w1a-dvt-app-a-dev.detached_signature",
-          chunkSize = 452U,
-          signatureOffset = 647104U,
-          appPropertiesOffset = 1024U
+    test("Delta B to A") {
+      val result = fwup.parseFwupManifest(goodDeltaJson, "1.0.1", B, FwupMode.Delta)
+      result.shouldBe(
+        Ok(
+          ParseFwupManifestSuccess(
+            firmwareVersion = "1.0.30",
+            binaryFilename = "w1a-dvt-b-to-a.signed.patch",
+            signatureFilename = "w1a-dvt-app-a-dev.detached_signature",
+            chunkSize = 452U,
+            signatureOffset = 647104U,
+            appPropertiesOffset = 1024U
+          )
         )
       )
-    )
-  }
+    }
 
-  test("Parsing normal manifest when trying to delta fwup") {
-    val result = fwup.parseFwupManifest(goodJson, "1.0.1", A, FwupMode.Delta)
-    result.shouldBeErrOfType<ParsingError>()
-  }
-})
+    test("Parsing normal manifest when trying to delta fwup") {
+      val result = fwup.parseFwupManifest(goodJson, "1.0.1", A, FwupMode.Delta)
+      result.shouldBeErrOfType<ParsingError>()
+    }
+
+    test("Semver to int conversion") {
+      semverToInt("1.2.5") shouldBe 102005
+      semverToInt("1.0.65") shouldBe 100065
+      semverToInt("1.0.0") shouldBe 100000
+      semverToInt("9.09.999") shouldBe 909999
+
+      semverToInt("1.1.2") shouldBeLessThan semverToInt("1.1.3")
+      semverToInt("1.0.999") shouldBeLessThan semverToInt("1.1.0")
+      semverToInt("1.9.9") shouldBeLessThan semverToInt("1.10.0")
+
+      semverToInt("0.0.1") shouldBe "0000001".toInt()
+      semverToInt("0.0.0") shouldBe "0000000".toInt()
+      semverToInt("0.99.0") shouldBe "0099000".toInt()
+      semverToInt("99.0.0") shouldBe "9900000".toInt()
+      semverToInt("0.1.0") shouldBe "0001000".toInt()
+
+      semverToInt("1.10.1") shouldBeLessThan semverToInt("1.11.0")
+      semverToInt("1.2.10") shouldBeLessThan semverToInt("1.2.11")
+      semverToInt("10.0.0") shouldBeGreaterThan semverToInt("9.99.999")
+    }
+  })

@@ -8,7 +8,7 @@ use account::spend_limit::{Money, SpendingLimit};
 use external_identifier::ExternalIdentifier;
 use mobile_pay::routes::{MobilePaySetupRequest, MobilePaySetupResponse};
 use types::account::identifiers::AccountId;
-use types::currencies::CurrencyCode::BTC;
+use types::currencies::CurrencyCode::{USD, XXX};
 
 use crate::tests;
 use crate::tests::gen_services;
@@ -32,7 +32,7 @@ async fn mobile_pay_setup_and_deactivation_succeeds_with_valid_request() {
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         ..Default::default()
     };
@@ -113,7 +113,7 @@ async fn setup_mobile_pay_with_timezone_test(vector: SetupMobilePayWithTimezoneT
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         time_zone_offset: vector.time_zone_offset,
         ..Default::default()
@@ -154,7 +154,7 @@ async fn mobile_pay_setup_fails_without_jwt() {
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         ..Default::default()
     });
@@ -162,6 +162,29 @@ async fn mobile_pay_setup_fails_without_jwt() {
         .setup_mobile_pay_unauthenticated(&account.id, &request)
         .await;
     assert_eq!(response.status_code, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn mobile_pay_setup_fails_with_unsupported_currency_code() {
+    let (mut context, bootstrap) = gen_services().await;
+    let client = TestClient::new(bootstrap.router).await;
+    let (account, ..) =
+        create_default_account_with_predefined_wallet(&mut context, &client, &bootstrap.services)
+            .await;
+    let keys = context
+        .get_authentication_keys_for_account_id(&account.id)
+        .unwrap();
+
+    let request = build_mobile_pay_request(SpendingLimit {
+        active: true,
+        amount: Money {
+            amount: 109_798,
+            currency_code: XXX,
+        },
+        ..Default::default()
+    });
+    let response = client.put_mobile_pay(&account.id, &request, &keys).await;
+    assert_eq!(response.status_code, StatusCode::FORBIDDEN);
 }
 
 #[tokio::test]
@@ -179,7 +202,7 @@ async fn mobile_pay_setup_fails_with_non_existent_account() {
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         ..Default::default()
     });
@@ -210,7 +233,7 @@ async fn mobile_pay_disable() {
         active: true,
         amount: Money {
             amount: 109_798,
-            currency_code: BTC,
+            currency_code: USD,
         },
         ..Default::default()
     };
@@ -265,7 +288,7 @@ mod get_mobile_pay_tests {
     use bdk_utils::{AttributableWallet, SpkWithDerivationPaths};
     use mobile_pay::daily_spend_record::entities::DailySpendingRecord;
     use mobile_pay::routes::MobilePaySetupResponse;
-    use types::currencies::CurrencyCode::{BTC, EUR, USD};
+    use types::currencies::CurrencyCode::{EUR, USD};
     use types::exchange_rate::local_rate_provider::LOCAL_ONE_BTC_IN_FIAT;
 
     use crate::tests;
@@ -311,14 +334,6 @@ mod get_mobile_pay_tests {
     const SPENDING_LIMIT_SATS: u64 = 1_000_000;
     const SPENDING_LIMIT_USD: f64 =
         (SPENDING_LIMIT_SATS as f64) * 100.0 * (LOCAL_ONE_BTC_IN_FIAT / ONE_BTC_IN_SATOSHIS as f64);
-    const BTC_SPENDING_LIMIT: SpendingLimit = SpendingLimit {
-        active: true,
-        amount: Money {
-            amount: SPENDING_LIMIT_SATS,
-            currency_code: BTC,
-        },
-        time_zone_offset: UtcOffset::UTC,
-    };
     const USD_SPENDING_LIMIT: SpendingLimit = SpendingLimit {
         active: true,
         amount: Money {
@@ -330,9 +345,6 @@ mod get_mobile_pay_tests {
 
     tests! {
         runner = get_mobile_pay_balance,
-        test_get_mobile_pay_balance_with_sats_spending_limit: GetMobilePayTestVector {
-            spending_limit: BTC_SPENDING_LIMIT,
-        },
         test_get_mobile_pay_balance_with_fiat_spending_limit: GetMobilePayTestVector {
             spending_limit: USD_SPENDING_LIMIT,
         },
@@ -447,7 +459,7 @@ mod get_mobile_pay_tests {
             output: vec![
                 // payee output
                 TxOut {
-                    value: 1_100,
+                    value: 50000,
                     script_pubkey: payee_script_pubkey,
                 },
                 // change output
@@ -472,7 +484,7 @@ mod get_mobile_pay_tests {
             active: true,
             amount: Money {
                 amount: 1_000,
-                currency_code: BTC,
+                currency_code: USD,
             },
             time_zone_offset: UtcOffset::UTC,
         };
@@ -487,7 +499,7 @@ mod get_mobile_pay_tests {
         let mobile_pay_config = resp_body.mobile_pay().unwrap();
         assert!(mobile_pay_config.limit.active);
         assert_eq!(mobile_pay_config.available.amount, 0);
-        assert_eq!(mobile_pay_config.spent.amount, 1_100);
+        assert_eq!(mobile_pay_config.spent.amount, 50000);
         assert_eq!(mobile_pay_config.limit, limit);
     }
 

@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class FeatureFlagServiceFake : FeatureFlagService {
   private val dao = FeatureFlagDaoFake()
-  override val featureFlagsInitialized = MutableStateFlow<Boolean>(false)
+  override val flagsInitialized = MutableStateFlow<Boolean>(false)
 
   override fun getFeatureFlags(): List<FeatureFlag<out FeatureFlagValue>> {
     return listOf(
@@ -25,7 +25,7 @@ class FeatureFlagServiceFake : FeatureFlagService {
   }
 
   suspend fun reset() {
-    featureFlagsInitialized.value = false
+    flagsInitialized.value = false
     resetFlags()
     dao.reset()
   }

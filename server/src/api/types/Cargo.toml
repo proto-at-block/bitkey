@@ -37,6 +37,7 @@ all = [
   "privileged_action",
   "recovery",
   "serde",
+  "time",
 ]
 authn_authz = []
 consent = []
@@ -46,3 +47,4 @@ notification = []
 privileged_action = []
 recovery = []
 serde = []
+time = []

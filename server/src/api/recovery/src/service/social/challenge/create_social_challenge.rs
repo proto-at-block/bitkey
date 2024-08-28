@@ -4,13 +4,13 @@ use account::{
     entities::FullAccount, service::FetchAndUpdateSpendingLimitInput, spend_limit::SpendingLimit,
 };
 
+use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
 use tracing::instrument;
 use types::recovery::social::{
     challenge::{SocialChallenge, SocialChallengeId, TrustedContactChallengeRequest},
     relationship::RecoveryRelationshipId,
 };
-
-use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
+use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
 
 use super::{error::ServiceError, Service};
 
@@ -30,6 +30,7 @@ impl Service {
             .recovery_relationship_service
             .get_recovery_relationships(GetRecoveryRelationshipsInput {
                 account_id: &input.customer_account.id,
+                trusted_contact_role: SocialRecoveryContact,
             })
             .await?;
 

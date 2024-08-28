@@ -1,11 +1,8 @@
 package build.wallet.statemachine.recovery.socrec
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.platform.device.DeviceInfoProvider
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
@@ -25,19 +22,17 @@ class TrustedContactManagementUiStateMachineImpl(
   private val addingTrustedContactUiStateMachine: AddingTrustedContactUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
+  private val socRecService: SocRecService,
 ) : TrustedContactManagementUiStateMachine {
   @Composable
   override fun model(props: TrustedContactManagementProps): ScreenModel {
     var state: State by remember { mutableStateOf(ListingContactsState) }
-    val actions = props.socRecActions
 
     return when (state) {
       ListingContactsState ->
         listingTrustedContactsUiStateMachine.model(
           ListingTrustedContactsUiProps(
             account = props.account,
-            relationships = props.socRecRelationships,
-            socRecProtectedCustomerActions = actions,
             onAddTCButtonPressed = {
               state = AddingTrustedContactState
             },
@@ -50,7 +45,13 @@ class TrustedContactManagementUiStateMachineImpl(
         addingTrustedContactUiStateMachine.model(
           AddingTrustedContactUiProps(
             account = props.account,
-            onAddTc = actions::createInvitation,
+            onAddTc = { tcAlias, hardwareProofOfPossession ->
+              socRecService.createInvitation(
+                account = props.account,
+                trustedContactAlias = tcAlias,
+                hardwareProofOfPossession = hardwareProofOfPossession
+              )
+            },
             onInvitationShared = {
               state = ListingContactsState
             },
@@ -77,8 +78,6 @@ class TrustedContactManagementUiStateMachineImpl(
                 onRetreat = { state = ListingContactsState }
               ),
             account = props.account,
-            acceptInvitation = actions::acceptInvitation,
-            retrieveInvitation = actions::retrieveInvitation,
             inviteCode = props.inviteCode,
             screenPresentationStyle = ScreenPresentationStyle.Modal,
             onDone = { state = ListingContactsState }

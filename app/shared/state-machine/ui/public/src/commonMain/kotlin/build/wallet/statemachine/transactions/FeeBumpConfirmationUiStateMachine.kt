@@ -16,7 +16,6 @@ interface FeeBumpConfirmationUiStateMachine : StateMachine<FeeBumpConfirmationPr
  * @property account The account that the transaction is associated with.
  * @property speedUpTransactionDetails The details of the transaction that is being sped up. See [SpeedUpTransactionDetails].
  * @property onExit Callback to exit the fee bump confirmation screen.
- * @property syncTransactions Callback to sync transactions once broadcasted again
  */
 data class FeeBumpConfirmationProps(
   val account: FullAccount,
@@ -24,5 +23,4 @@ data class FeeBumpConfirmationProps(
   val psbt: Psbt,
   val newFeeRate: FeeRate,
   val onExit: () -> Unit,
-  val syncTransactions: suspend () -> Unit,
 )

@@ -1,10 +1,10 @@
-FROM rust:alpine@sha256:4a7925c3974fab3fb68b3f4d93d1a4a36cb201f9f87b01014def219b125f1960 as build
-RUN apk update && apk add --no-cache openssl-dev musl-dev make automake
+FROM public.ecr.aws/docker/library/rust:alpine@sha256:4a7925c3974fab3fb68b3f4d93d1a4a36cb201f9f87b01014def219b125f1960 as build
+RUN apk update && apk add --no-cache openssl-dev musl-dev make automake protoc
 RUN rustup update
 WORKDIR /usr/src/lambdas
 COPY . .
 RUN cd src/api/partnerships/partnerships_lib/src/partners/cash_app/lambdas && cargo install --bin key_rotator --path .
 
-FROM alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as deployable
+FROM public.ecr.aws/docker/library/alpine@sha256:c5b1261d6d3e43071626931fc004f70149baeba2c8ec672bd4f27761f8e1ad6b as deployable
 COPY --from=build /usr/local/cargo/bin/key_rotator /var/task/bootstrap
 CMD [ "/var/task/bootstrap" ]

@@ -164,13 +164,13 @@ class SettingsHomeUiStateMachineImpl(
             )
         )
 
-      is ShowingCurrencyPreferenceUiState ->
+      is ShowingCurrencyPreferenceUiState -> {
         currencyPreferenceUiStateMachine.model(
           props = CurrencyPreferenceProps(
-            onBack = { state = ShowingAllSettingsUiState },
-            btcDisplayAmount = props.accountData.transactionsData.balance.total
+            onBack = { state = ShowingAllSettingsUiState }
           )
         )
+      }
 
       is ShowingBitkeyDeviceSettingsUiState ->
         deviceSettingsUiStateMachine.model(
@@ -203,8 +203,6 @@ class SettingsHomeUiStateMachineImpl(
         trustedContactManagementUiStateMachine.model(
           TrustedContactManagementProps(
             account = props.accountData.account,
-            socRecRelationships = props.socRecRelationships,
-            socRecActions = props.socRecActions,
             inviteCode = null,
             onExit = { state = ShowingAllSettingsUiState }
           )

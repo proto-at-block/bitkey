@@ -56,11 +56,17 @@ mobile_pay = { workspace = true }
 notification = { workspace = true }
 onboarding = { workspace = true }
 partnerships = { workspace = true, optional = true }
+privileged_action = { workspace = true }
 queue = { workspace = true }
 recovery = { workspace = true }
 repository = { workspace = true, features = ["recovery"] }
 screener = { workspace = true }
-types = { workspace = true, features = ["account", "currencies", "recovery"] }
+types = { workspace = true, features = [
+  "account",
+  "currencies",
+  "recovery",
+  "time",
+] }
 userpool = { workspace = true }
 workers = { workspace = true }
 
@@ -73,6 +79,7 @@ httpmock = "0.7"
 launchdarkly-server-sdk = { workspace = true }
 mockall = "0.12.1"
 once_cell = { workspace = true }
+regex = { version = "1.10.6", features = [] }
 rstest = "0.18.1"
 tower = { workspace = true }
 

@@ -10,11 +10,7 @@ import org.gradle.api.Project
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.testing.Test
-import org.gradle.kotlin.dsl.dependencies
-import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.project
-import org.gradle.kotlin.dsl.property
-import org.gradle.kotlin.dsl.withType
+import org.gradle.kotlin.dsl.*
 import javax.inject.Inject
 
 /**

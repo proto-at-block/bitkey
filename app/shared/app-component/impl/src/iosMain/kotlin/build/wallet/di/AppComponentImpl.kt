@@ -1,19 +1,12 @@
 package build.wallet.di
 
-import build.wallet.bdk.bindings.BdkAddressBuilder
-import build.wallet.bdk.bindings.BdkBlockchainFactory
-import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
-import build.wallet.bdk.bindings.BdkDescriptorSecretKeyGenerator
-import build.wallet.bdk.bindings.BdkMnemonicGenerator
-import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
-import build.wallet.bdk.bindings.BdkTxBuilderFactory
-import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.bdk.bindings.*
+import build.wallet.crypto.Spake2
 import build.wallet.crypto.WsmVerifier
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
-import build.wallet.encrypt.MessageSigner
-import build.wallet.encrypt.Secp256k1KeyGenerator
-import build.wallet.encrypt.SignatureVerifier
+import build.wallet.encrypt.*
+import build.wallet.firmware.FirmwareCommsLogBuffer
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.firmware.Teltra
 import build.wallet.logging.LogWriterContextStore
@@ -58,6 +51,13 @@ fun makeAppComponent(
   hardwareAttestation: HardwareAttestation,
   deviceOs: DeviceOs,
   wsmVerifier: WsmVerifier,
+  cryptoBox: CryptoBox,
+  spake2: Spake2,
+  symmetricKeyEncryptor: SymmetricKeyEncryptor,
+  symmetricKeyGenerator: SymmetricKeyGenerator,
+  xChaCha20Poly1305: XChaCha20Poly1305,
+  xNonceGenerator: XNonceGenerator,
+  firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
 ): AppComponent {
   val appId = AppId(NSBundle.mainBundle.bundleIdentifier!!)
   val appVersion =
@@ -107,6 +107,13 @@ fun makeAppComponent(
     secp256k1KeyGenerator = secp256k1KeyGenerator,
     teltra = teltra,
     hardwareAttestation = hardwareAttestation,
-    wsmVerifier = wsmVerifier
+    wsmVerifier = wsmVerifier,
+    cryptoBox = cryptoBox,
+    spake2 = spake2,
+    symmetricKeyEncryptor = symmetricKeyEncryptor,
+    symmetricKeyGenerator = symmetricKeyGenerator,
+    xChaCha20Poly1305 = xChaCha20Poly1305,
+    xNonceGenerator = xNonceGenerator,
+    firmwareCommsLogBuffer = firmwareCommsLogBuffer
   )
 }

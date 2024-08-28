@@ -1,3 +1,4 @@
+use database::aws_sdk_dynamodb::types::AttributeValue;
 use database::{
     aws_sdk_dynamodb::{
         error::ProvideErrorMetadata,
@@ -6,6 +7,7 @@ use database::{
     ddb::{try_from_items, try_to_attribute_val, DDBService, DatabaseError},
 };
 use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 use tracing::{event, instrument, Level};
 use types::{
     account::identifiers::AccountId,
@@ -114,6 +116,44 @@ impl Repository {
                 break;
             }
         }
+
+        Ok(())
+    }
+
+    #[instrument(skip(self))]
+    pub async fn delete_row_by_partition_key(
+        &self,
+        partition_key: &AttributeValue,
+        guard_before_date: &OffsetDateTime,
+    ) -> Result<(), DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let guard_before_date = guard_before_date
+            .format(&Rfc3339)
+            .map_err(|_| DatabaseError::DatetimeFormatError(database_object))?;
+
+        self.connection
+            .client
+            .delete_item()
+            .table_name(table_name)
+            .key(PARTITION_KEY, partition_key.clone())
+            .condition_expression("created_at < :date")
+            .expression_attribute_values(
+                ":date",
+                try_to_attribute_val(guard_before_date, database_object)?,
+            )
+            .send()
+            .await
+            .map_err(|err| {
+                let service_err = err.into_service_error();
+                event!(
+                    Level::ERROR,
+                    "Could not delete row by partition key: {service_err:?} with message: {:?}",
+                    service_err.message()
+                );
+                DatabaseError::PersistenceError(database_object)
+            })?;
 
         Ok(())
     }

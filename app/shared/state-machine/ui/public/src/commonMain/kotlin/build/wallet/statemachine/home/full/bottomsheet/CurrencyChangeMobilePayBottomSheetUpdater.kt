@@ -1,7 +1,7 @@
 package build.wallet.statemachine.home.full.bottomsheet
 
+import build.wallet.limit.MobilePayData
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.statemachine.data.mobilepay.MobilePayData
 
 /**
  * Handles listening to changes in currency selection and setting a [HomeUiBottomSheet] to be
@@ -14,6 +14,6 @@ import build.wallet.statemachine.data.mobilepay.MobilePayData
 interface CurrencyChangeMobilePayBottomSheetUpdater {
   suspend fun setOrClearHomeUiBottomSheet(
     fiatCurrency: FiatCurrency,
-    mobilePayData: MobilePayData,
+    mobilePayData: MobilePayData?,
   )
 }

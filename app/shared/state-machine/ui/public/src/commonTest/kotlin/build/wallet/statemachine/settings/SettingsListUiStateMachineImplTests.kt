@@ -1,8 +1,8 @@
 package build.wallet.statemachine.settings
 
 import app.cash.turbine.Turbine
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InternetUnreachable
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
@@ -28,12 +28,12 @@ import kotlin.reflect.KClass
 
 class SettingsListUiStateMachineImplTests : FunSpec({
 
-  val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
+  val appFunctionalityService = AppFunctionalityServiceFake()
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
 
   val stateMachine =
     SettingsListUiStateMachineImpl(
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      appFunctionalityService = appFunctionalityService,
       cloudBackupHealthRepository = cloudBackupHealthRepository,
       coachmarkService = CoachmarkServiceMock(turbineFactory = turbines::create)
     )
@@ -77,7 +77,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
     )
 
   afterEach {
-    appFunctionalityStatusProvider.reset()
+    appFunctionalityService.reset()
     cloudBackupHealthRepository.reset()
   }
 
@@ -186,7 +186,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   test("Disabled rows in LimitedFunctionality.F8eUnreachable") {
     stateMachine.test(props) {
       awaitItem()
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause = F8eUnreachable(Instant.DISTANT_PAST)
         )
@@ -209,7 +209,7 @@ class SettingsListUiStateMachineImplTests : FunSpec({
   test("Disabled rows in LimitedFunctionality.InternetUnreachable") {
     stateMachine.test(props) {
       awaitItem()
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause =
             InternetUnreachable(

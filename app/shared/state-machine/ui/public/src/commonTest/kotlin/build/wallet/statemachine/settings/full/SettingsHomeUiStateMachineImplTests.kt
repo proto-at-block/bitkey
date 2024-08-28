@@ -1,14 +1,11 @@
 package build.wallet.statemachine.settings.full
 
-import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.fwup.FirmwareData.FirmwareUpdateState.PendingUpdate
 import build.wallet.fwup.FirmwareDataPendingUpdateMock
 import build.wallet.fwup.FirmwareDataServiceFake
 import build.wallet.fwup.FwupDataMock
 import build.wallet.platform.config.AppVariant
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.biometric.BiometricSettingUiProps
@@ -61,12 +58,7 @@ class SettingsHomeUiStateMachineImplTests : FunSpec({
       accountData = ActiveKeyboxLoadedDataMock,
       homeBottomSheetModel = null,
       homeStatusBannerModel = null,
-      onBack = { propsOnBackCalls.add(Unit) },
-      socRecRelationships = SocRecRelationships.EMPTY,
-      socRecActions =
-        SocRecRelationshipsRepositoryMock(
-          turbines::create
-        ).toActions(FullAccountMock)
+      onBack = { propsOnBackCalls.add(Unit) }
     )
 
   fun stateMachine(appVariant: AppVariant = AppVariant.Customer) =

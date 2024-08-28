@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.runtime.Composable
@@ -22,7 +22,7 @@ import build.wallet.ui.tokens.LabelType
 
 @Composable
 internal fun <Option : Any> ListItemPickerMenu(model: ListItemPickerMenu<Option>) {
-  AlertDialog(
+  BasicAlertDialog(
     onDismissRequest = model.onDismiss,
     modifier = Modifier.background(WalletTheme.colors.background)
   ) {

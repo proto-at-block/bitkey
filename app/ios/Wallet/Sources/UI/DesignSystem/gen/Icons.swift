@@ -7,6 +7,7 @@ import UIKit
 
 public extension UIImage {
   static let bitcoin = UIImage(named: "Bitcoin", in: .main, compatibleWith: nil)!
+  static let bitcoinOrange = UIImage(named: "BitcoinOrange", in: .main, compatibleWith: nil)!
   static let bitkeyDevice3D = UIImage(named: "BitkeyDevice3D", in: .main, compatibleWith: nil)!
   static let bitkeyDeviceRaised = UIImage(named: "BitkeyDeviceRaised", in: .main, compatibleWith: nil)!
   static let bitkeyDeviceRaisedSmall = UIImage(named: "BitkeyDeviceRaisedSmall", in: .main, compatibleWith: nil)!
@@ -105,6 +106,7 @@ public extension UIImage {
   static let smallIconX = UIImage(named: "SmallIconX", in: .main, compatibleWith: nil)!
   static let smallIconXFilled = UIImage(named: "SmallIconXFilled", in: .main, compatibleWith: nil)!
   static let smallIconXStroked = UIImage(named: "SmallIconXStroked", in: .main, compatibleWith: nil)!
+  static let sparklinePlaceholder = UIImage(named: "SparklinePlaceholder", in: .main, compatibleWith: nil)!
   static let subtractLeft = UIImage(named: "SubtractLeft", in: .main, compatibleWith: nil)!
   static let subtractRight = UIImage(named: "SubtractRight", in: .main, compatibleWith: nil)!
   static let calloutArrow = UIImage(named: "CalloutArrow", in: .main, compatibleWith: nil)!
@@ -119,6 +121,7 @@ public extension Icon {
   var uiImage: UIImage {
         switch self {
         case .bitcoin: return .bitcoin
+        case .bitcoinorange: return .bitcoinOrange
         case .bitkeydevice3d: return .bitkeyDevice3D
         case .bitkeydeviceraised: return .bitkeyDeviceRaised
         case .bitkeydeviceraisedsmall: return .bitkeyDeviceRaisedSmall

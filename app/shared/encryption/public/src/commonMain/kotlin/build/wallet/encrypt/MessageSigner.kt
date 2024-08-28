@@ -3,6 +3,8 @@ package build.wallet.encrypt
 import build.wallet.catchingResult
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapError
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okio.ByteString
 
 interface MessageSigner {
@@ -22,14 +24,16 @@ interface MessageSigner {
 /**
  * Non throwing version of [MessageSigner.sign].
  */
-fun MessageSigner.signResult(
+suspend fun MessageSigner.signResult(
   message: ByteString,
   key: Secp256k1PrivateKey,
-): Result<String, SignMessageError> =
-  catchingResult {
-    sign(message, key)
+): Result<String, SignMessageError> {
+  return withContext(Dispatchers.Default) {
+    catchingResult {
+      sign(message, key)
+    }.mapError { exception -> SignMessageError.UnhandledException(exception) }
   }
-    .mapError { exception -> SignMessageError.UnhandledException(exception) }
+}
 
 sealed class SignMessageError : Error() {
   data object InvalidSecret : SignMessageError()

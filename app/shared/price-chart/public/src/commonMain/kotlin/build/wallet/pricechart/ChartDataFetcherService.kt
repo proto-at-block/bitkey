@@ -13,5 +13,6 @@ interface ChartDataFetcherService {
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     chartHistory: ChartHistory,
+    maxPricePoints: Int? = null,
   ): Result<List<DataPoint>, NetworkingError>
 }

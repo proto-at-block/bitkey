@@ -16,7 +16,7 @@ public class BdkAddressBuilderImpl: BdkAddressBuilder {
         return BdkResult {
             try BdkAddressImpl(
                 address: Address.fromScript(
-                    script: realBdkScript.ffiScript,
+                    script: realBdkScript.toFfiScript(),
                     network: network.ffiNetwork
                 )
             )

@@ -16,6 +16,7 @@ use jwt_authorizer::IntoLayer;
 use notification::clients::iterable::IterableClient;
 use queue::sqs::SqsQueue;
 use thiserror::Error;
+use types::time::{Clock, DefaultClock};
 use userpool::userpool::UserPoolService;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -52,12 +53,14 @@ use notification::address_repo::errors::Error;
 use notification::address_repo::AddressWatchlistTrait;
 use notification::repository::Repository as NotificationRepository;
 use notification::service::Service as NotificationService;
+use privileged_action::service::Service as PrivilegedActionService;
 use recovery::repository::Repository as RecoveryRepository;
 use recovery::service::social::{
     challenge::Service as SocialChallengeService,
     relationship::Service as RecoveryRelationshipService,
 };
 use repository::consent::Repository as ConsentRepository;
+use repository::privileged_action::Repository as PrivilegedActionRepository;
 use repository::recovery::social::Repository as SocialRecoveryRepository;
 pub use routes::axum::axum;
 use screener::service::Service as ScreenerService;
@@ -94,6 +97,7 @@ pub struct Services {
     pub iterable_client: IterableClient,
     pub consent_repository: ConsentRepository,
     pub social_challenge_service: SocialChallengeService,
+    pub privileged_action_service: PrivilegedActionService,
 }
 
 #[derive(Debug, Error)]
@@ -124,6 +128,7 @@ pub struct GenServiceOverrides {
     pub broadcaster: Option<Arc<dyn TransactionBroadcasterTrait>>,
     pub blocked_addresses: Option<HashSet<String>>,
     pub feature_flags: Option<HashMap<String, String>>,
+    pub clock: Option<Arc<dyn Clock>>,
 }
 
 impl GenServiceOverrides {
@@ -148,6 +153,11 @@ impl GenServiceOverrides {
 
     pub fn feature_flags(mut self, feature_flags: HashMap<String, String>) -> Self {
         self.feature_flags = Some(feature_flags);
+        self
+    }
+
+    pub fn clock(mut self, clock: Arc<dyn Clock>) -> Self {
+        self.clock = Some(clock);
         self
     }
 }
@@ -209,7 +219,7 @@ pub async fn create_bootstrap_with_overrides(
     >(profile)?);
     let notification_service = NotificationService::new(
         notification_repository,
-        account_repository,
+        account_repository.clone(),
         account_service.clone(),
         sqs.clone(),
         iterable_client.clone(),
@@ -272,6 +282,21 @@ pub async fn create_bootstrap_with_overrides(
     let screener_config = config::extract::<screener::Config>(profile)?;
     let screener_service =
         ScreenerService::new_and_load_data(overrides.blocked_addresses, screener_config).await;
+
+    let privileged_action_repository = PrivilegedActionRepository::new(ddb);
+    privileged_action_repository
+        .create_table_if_necessary()
+        .await?;
+    let privileged_action_service = PrivilegedActionService::new(
+        privileged_action_repository,
+        account_repository,
+        overrides.clock.unwrap_or(Arc::new(DefaultClock)),
+    );
+
+    let privileged_action = privileged_action::routes::RouteState(
+        userpool_service.clone(),
+        privileged_action_service.clone(),
+    );
 
     let notification = notification::routes::RouteState(
         notification_service.clone(),
@@ -337,6 +362,7 @@ pub async fn create_bootstrap_with_overrides(
     let analytics = config::extract::<analytics::routes::Config>(profile)?.to_state();
     #[allow(unused_mut)]
     let mut router = Router::new()
+        .merge(privileged_action.authed_router())
         .merge(notification.authed_router())
         .merge(Router::from(mobile_pay.clone()))
         .merge(recovery.authed_router())
@@ -350,6 +376,7 @@ pub async fn create_bootstrap_with_overrides(
     router = router.merge(recovery_router);
 
     let account_or_recovery_router = Router::new()
+        .merge(privileged_action.account_or_recovery_authed_router())
         .merge(recovery.account_or_recovery_authed_router())
         .merge(onboarding.account_or_recovery_authed_router())
         .merge(experimentation.account_or_recovery_authed_router())
@@ -373,6 +400,7 @@ pub async fn create_bootstrap_with_overrides(
         .merge(exchange_rate.basic_validation_router())
         .merge(customer_feedback.basic_validation_router())
         .layer(authorizer)
+        .merge(privileged_action.unauthed_router())
         .merge(authentication.unauthed_router())
         .merge(notification.unauthed_router())
         .merge(onboarding.unauthed_router())
@@ -383,6 +411,7 @@ pub async fn create_bootstrap_with_overrides(
         .merge(Router::from(health_checks))
         .merge(Router::from(analytics))
         .merge(SwaggerUi::new("/docs/swagger-ui").urls(vec![
+            SwaggerEndpoint::from(privileged_action),
             SwaggerEndpoint::from(onboarding),
             SwaggerEndpoint::from(mobile_pay),
             SwaggerEndpoint::from(notification),
@@ -416,6 +445,7 @@ pub async fn create_bootstrap_with_overrides(
             iterable_client,
             consent_repository,
             social_challenge_service,
+            privileged_action_service,
         },
         router,
     })

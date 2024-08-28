@@ -1,6 +1,9 @@
 package build.wallet.statemachine.settings.full.device.resetdevice
 
 import app.cash.turbine.plusAssign
+import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
+import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.encrypt.Secp256k1PublicKey
 import build.wallet.encrypt.SignatureVerifierMock
@@ -31,6 +34,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
 
   val mobilePayService = MobilePayServiceMock(turbines::create)
+  val transactionsService = TransactionsServiceFake()
 
   val stateMachine = ResettingDeviceIntroUiStateMachineImpl(
     nfcSessionUIStateMachine =
@@ -42,22 +46,30 @@ class ResettingDeviceIntroUiStateMachineImplTests : FunSpec({
     fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create),
     currencyConverter = CurrencyConverterFake(conversionRate = 3.0),
     mobilePayService = mobilePayService,
-    authF8eClient = AuthF8eClientMock()
+    authF8eClient = AuthF8eClientMock(),
+    transactionsService = transactionsService
   )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
 
   val activeKeyboxLoadedData = ActiveKeyboxLoadedDataMock
 
+  val spendingWallet = SpendingWalletMock(turbines::create)
+
   val props = ResettingDeviceIntroProps(
     onBack = { onBackCalls += Unit },
     onUnwindToMoneyHome = {},
     onDeviceConfirmed = {},
     fullAccountConfig = activeKeyboxLoadedData.account.config,
-    fullAccount = activeKeyboxLoadedData.account,
-    spendingWallet = activeKeyboxLoadedData.spendingWallet,
-    balance = activeKeyboxLoadedData.transactionsData.balance
+    fullAccount = activeKeyboxLoadedData.account
   )
+
+  beforeTest {
+    transactionsService.reset()
+
+    transactionsService.spendingWallet.value = spendingWallet
+    transactionsService.transactionsData.value = KeyboxTransactionsDataMock
+  }
 
   test("onBack calls") {
     stateMachine.test(props) {

@@ -12,6 +12,7 @@ final class FwupSnapshotTests: XCTestCase {
             viewModel: FwupUpdateDeviceModelKt.FwupUpdateDeviceModel(
                 onLaunchFwup: {},
                 onClose: {},
+                onReleaseNotes: {},
                 bottomSheetModel: nil
             ).body as! FwupInstructionsBodyModel
         )

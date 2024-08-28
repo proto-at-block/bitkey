@@ -21,7 +21,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.platform.web.BrowserNavigator
+import build.wallet.platform.web.InAppBrowserNavigator
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -57,6 +57,8 @@ class TransactionDetailsUiStateMachineImpl(
   private val feeBumpConfirmationUiStateMachine: FeeBumpConfirmationUiStateMachine,
   private val feeRateEstimator: BitcoinFeeRateEstimator,
   private val appSpendingWalletProvider: AppSpendingWalletProvider,
+  private val inAppBrowserNavigator: InAppBrowserNavigator,
+  private val transactionsService: TransactionsService,
 ) : TransactionDetailsUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -77,12 +79,21 @@ class TransactionDetailsUiStateMachineImpl(
         atTime = props.transaction.broadcastTime ?: props.transaction.confirmationTime()
       )
     val fiatString = moneyDisplayFormatter.format(fiatAmount)
+
+    val transactionsData = remember { transactionsService.transactionsData() }
+      .collectAsState().value
+
+    val unspentOutputs = when (transactionsData) {
+      TransactionsData.LoadingTransactionsData -> immutableListOf()
+      is TransactionsData.TransactionsLoadedData -> transactionsData.unspentOutputs
+    }
+
     val feeBumpEnabled by remember {
       mutableStateOf(
         feeBumpEnabled.flagValue().value.value &&
           bitcoinTransactionBumpabilityChecker.isBumpable(
             transaction = props.transaction,
-            walletUnspentOutputs = props.accountData.transactionsData.unspentOutputs
+            walletUnspentOutputs = unspentOutputs
           )
       )
     }
@@ -96,7 +107,6 @@ class TransactionDetailsUiStateMachineImpl(
             account = props.accountData.account,
             speedUpTransactionDetails = state.speedUpTransactionDetails,
             onExit = { props.onClose() },
-            syncTransactions = { props.accountData.transactionsData.syncTransactions() },
             psbt = state.psbt,
             newFeeRate = state.newFeeRate
           )
@@ -110,9 +120,6 @@ class TransactionDetailsUiStateMachineImpl(
           feeBumpEnabled = feeBumpEnabled,
           isLoading = state.isLoading,
           isShowingEducationSheet = state.isShowingEducationSheet,
-          onLoaded = { browserNavigator ->
-            uiState = state.copy(browserNavigator = browserNavigator)
-          },
           onViewSpeedUpEducation = {
             uiState = state.copy(isShowingEducationSheet = true)
           },
@@ -120,12 +127,13 @@ class TransactionDetailsUiStateMachineImpl(
             uiState = state.copy(isShowingEducationSheet = false)
           },
           onViewTransaction = {
-            state.browserNavigator?.open(
+            inAppBrowserNavigator.open(
               bitcoinExplorer.getTransactionUrl(
                 txId = props.transaction.id,
                 network = props.accountData.account.config.bitcoinNetworkType,
                 explorerType = Mempool
-              )
+              ),
+              onClose = {}
             )
           },
           onSpeedUpTransaction = {
@@ -142,6 +150,9 @@ class TransactionDetailsUiStateMachineImpl(
           },
           onFailedToPrepareData = {
             uiState = FeeLoadingErrorUiState(FeeLoadingError.TransactionMissingRecipientAddress)
+          },
+          onFeeRateTooLow = {
+            uiState = FeeRateTooLowUiState
           },
           onSuccessBumpingFee = { psbt, newFeeRate ->
             when (val details = props.transaction.toSpeedUpTransactionDetails()) {
@@ -180,6 +191,15 @@ class TransactionDetailsUiStateMachineImpl(
           ),
           eventTrackerScreenId = null
         ).asModalScreen()
+      FeeRateTooLowUiState -> ErrorFormBodyModel(
+        title = "We couldn’t speed up this transaction",
+        subline = "The current fee rate is too low. Please try again later.",
+        primaryButton = ButtonDataModel(
+          text = "Go Back",
+          onClick = { uiState = ShowingTransactionDetailUiState() }
+        ),
+        eventTrackerScreenId = null
+      ).asModalScreen()
     }
   }
 
@@ -191,13 +211,13 @@ class TransactionDetailsUiStateMachineImpl(
     feeBumpEnabled: Boolean,
     isLoading: Boolean,
     isShowingEducationSheet: Boolean,
-    onLoaded: (BrowserNavigator) -> Unit,
     onViewSpeedUpEducation: () -> Unit,
     onCloseSpeedUpEducation: () -> Unit,
     onViewTransaction: () -> Unit,
     onSpeedUpTransaction: () -> Unit,
     onInsufficientFunds: () -> Unit,
     onFailedToPrepareData: () -> Unit,
+    onFeeRateTooLow: () -> Unit,
     onSuccessBumpingFee: (psbt: Psbt, newFeeRate: FeeRate) -> Unit,
   ): ScreenModel {
     if (isLoading) {
@@ -211,12 +231,12 @@ class TransactionDetailsUiStateMachineImpl(
             onFailedToPrepareData()
             return@LaunchedEffect
           }.also { feeRate ->
-            // For test accounts on Signet, we manually choose a fee rate that is twice the previous
+            // For test accounts on Signet, we manually choose a fee rate that is 5 times the previous
             // one. This is particularly useful for QA when testing.
             val newFeeRate = if (props.accountData.account.config.isTestAccount &&
               props.accountData.account.config.bitcoinNetworkType == BitcoinNetworkType.SIGNET
             ) {
-              FeeRate(satsPerVByte = feeRate.satsPerVByte * 2)
+              FeeRate(satsPerVByte = feeRate.satsPerVByte * 5)
             } else {
               feeRate
             }
@@ -235,6 +255,7 @@ class TransactionDetailsUiStateMachineImpl(
               .getOrElse {
                 when (it) {
                   is BdkError.InsufficientFunds -> onInsufficientFunds()
+                  is BdkError.FeeRateTooLow -> onFeeRateTooLow()
                   else -> onFailedToPrepareData()
                 }
                 return@LaunchedEffect
@@ -263,7 +284,6 @@ class TransactionDetailsUiStateMachineImpl(
         )
       },
       isLoading = false,
-      onLoaded = onLoaded,
       onViewTransaction = onViewTransaction,
       onClose = props.onClose,
       onSpeedUpTransaction = onSpeedUpTransaction,
@@ -464,7 +484,6 @@ class TransactionDetailsUiStateMachineImpl(
      * Customer is viewing transaction details.
      */
     data class ShowingTransactionDetailUiState(
-      val browserNavigator: BrowserNavigator? = null,
       val isLoading: Boolean = false,
       val isShowingEducationSheet: Boolean = false,
     ) : UiState
@@ -482,6 +501,11 @@ class TransactionDetailsUiStateMachineImpl(
      * User currently does not have enough funds to fee bump the transaction.
      */
     data object InsufficientFundsUiState : UiState
+
+    /**
+     * Fee rates are currently too low to fee bump the transaction.
+     */
+    data object FeeRateTooLowUiState : UiState
 
     /**
      * We failed to construct a fee estimation required to fee bump a transaction.

@@ -12,6 +12,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransaction
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus
 import build.wallet.bitcoin.transactions.BitcoinTransaction.ConfirmationStatus.Pending
 import build.wallet.bitcoin.transactions.BitcoinTransactionBumpabilityCheckerFake
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
@@ -23,7 +24,7 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.CurrencyConverterFake
 import build.wallet.money.formatter.MoneyDisplayFormatterFake
-import build.wallet.platform.BrowserNavigatorMock
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.*
@@ -85,6 +86,9 @@ class TransactionDetailsUiStateMachineImplTests :
     val feeBumpConfirmationUiStateMachine = object : FeeBumpConfirmationUiStateMachine,
       ScreenStateMachineMock<FeeBumpConfirmationProps>("fee-bump-confirmation") {}
     val spendingWallet = SpendingWalletMock(turbines::create)
+    val transactionsService = TransactionsServiceFake()
+
+    val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
 
     val stateMachine =
       TransactionDetailsUiStateMachineImpl(
@@ -105,39 +109,37 @@ class TransactionDetailsUiStateMachineImplTests :
         fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
         feeBumpConfirmationUiStateMachine = feeBumpConfirmationUiStateMachine,
         feeRateEstimator = BitcoinFeeRateEstimatorMock(),
-        appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
+        appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
+        inAppBrowserNavigator = inAppBrowserNavigator,
+        transactionsService = transactionsService
       )
-
-    val onCloseCalls = turbines.create<Unit>("close-calls")
-
-    val browserNavigator = BrowserNavigatorMock(turbines::create)
 
     val receivedProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
         transaction = TEST_RECEIVE_TXN,
-        onClose = { onCloseCalls.add(Unit) }
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val sentProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
         transaction = TEST_SEND_TXN,
-        onClose = { onCloseCalls.add(Unit) }
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingReceiveProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
         transaction = TEST_RECEIVE_TXN.copy(confirmationStatus = Pending),
-        onClose = { onCloseCalls.add(Unit) }
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingSentProps =
       TransactionDetailsUiProps(
         accountData = ActiveKeyboxLoadedDataMock,
         transaction = TEST_SEND_TXN.copy(confirmationStatus = Pending),
-        onClose = { onCloseCalls.add(Unit) }
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
 
     val pendingSentPropsNoEstimatedConfirmationTime =
@@ -148,8 +150,12 @@ class TransactionDetailsUiStateMachineImplTests :
             confirmationStatus = Pending,
             estimatedConfirmationTime = null
           ),
-        onClose = { onCloseCalls.add(Unit) }
+        onClose = { inAppBrowserNavigator.onCloseCalls.add(Unit) }
       )
+
+    beforeTest {
+      transactionsService.reset()
+    }
 
     test("pending receive transaction returns correct model") {
       stateMachine.test(pendingReceiveProps) {
@@ -342,7 +348,7 @@ class TransactionDetailsUiStateMachineImplTests :
         awaitScreenWithBody<FormBodyModel> {
           onBack?.invoke()
         }
-        onCloseCalls.awaitItem().shouldBe(Unit)
+        inAppBrowserNavigator.onCloseCalls.awaitItem().shouldBe(Unit)
 
         cancelAndIgnoreRemainingEvents()
       }
@@ -350,18 +356,13 @@ class TransactionDetailsUiStateMachineImplTests :
 
     test("browser navigation opens on primary button click") {
       stateMachine.test(pendingReceiveProps) {
-        awaitScreenWithBody<FormBodyModel> {
-          onLoaded(browserNavigator)
-        }
-
-        // after currency conversion
         awaitScreenWithBody<FormBodyModel>()
 
         awaitScreenWithBody<FormBodyModel> {
           clickPrimaryButton()
         }
 
-        browserNavigator.openUrlCalls
+        inAppBrowserNavigator.onOpenCalls
           .awaitItem()
           .shouldBe(
             "https://mempool.space/tx/4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"
@@ -543,6 +544,41 @@ class TransactionDetailsUiStateMachineImplTests :
             header.shouldNotBeNull()
               .headline
               .shouldBe("We couldn’t speed up this transaction")
+          }
+
+          // Ensure we log analytics event
+          eventTracker.eventCalls
+            .awaitItem()
+            .shouldBe(TrackedAction(Action.ACTION_APP_ATTEMPT_SPEED_UP_TRANSACTION))
+        }
+      }
+
+      test("tapping speed up when fee rates are too low should show error screen") {
+        spendingWallet.createSignedPsbtResult = Err(BdkError.FeeRateTooLow(null, null))
+        stateMachine.test(pendingSentProps) {
+          awaitScreenWithBody<FormBodyModel> {
+            testButtonsAndHeader(isSpeedUpOn = true, isPending = true, isReceive = false, isLate = true)
+          }
+
+          // after currency conversion
+          awaitScreenWithBody<FormBodyModel> {
+            clickPrimaryButton()
+          }
+
+          // loading the fee rates and fetching wallet
+          awaitScreenWithBody<FormBodyModel>()
+
+          // failed to launch fee bump flow from insufficient funds
+          awaitScreenWithBody<FormBodyModel> {
+            header.shouldNotBeNull()
+              .apply {
+                headline
+                  .shouldBe("We couldn’t speed up this transaction")
+                sublineModel
+                  .shouldNotBeNull()
+                  .string
+                  .shouldBe("The current fee rate is too low. Please try again later.")
+              }
           }
 
           // Ensure we log analytics event

@@ -4,6 +4,7 @@ use account::entities::Account;
 use axum::Extension;
 use instrumentation::metrics::KeyValue;
 
+use axum::extract::Query;
 use axum::routing::{delete, put};
 use axum::{
     extract::{Path, State},
@@ -48,7 +49,6 @@ use types::account::identifiers::{AccountId, TouchpointId};
 use wsm_rust_client::WsmClient;
 
 use crate::ensure_pubkeys_unique;
-use crate::flags::FLAG_SOCIAL_RECOVERY_ENABLE;
 use crate::service::social::challenge::create_social_challenge::CreateSocialChallengeInput;
 use crate::service::social::challenge::fetch_social_challenge::{
     FetchSocialChallengeAsCustomerInput, FetchSocialChallengeAsTrustedContactInput,
@@ -58,6 +58,7 @@ use crate::service::social::relationship::accept_recovery_relationship_invitatio
 use crate::service::social::relationship::create_recovery_relationship_invitation::CreateRecoveryRelationshipInvitationInput;
 use crate::service::social::relationship::delete_recovery_relationship::DeleteRecoveryRelationshipInput;
 use crate::service::social::relationship::endorse_recovery_relationships::EndorseRecoveryRelationshipsInput;
+use crate::service::social::relationship::error::ServiceError;
 use crate::service::social::relationship::get_recovery_relationship_invitation_for_code::GetRecoveryRelationshipInvitationForCodeInput;
 use crate::service::social::relationship::get_recovery_relationships::GetRecoveryRelationshipsInput;
 use crate::service::social::relationship::reissue_recovery_relationship_invitation::ReissueRecoveryRelationshipInvitationInput;
@@ -77,7 +78,8 @@ use crate::{
     },
 };
 use types::recovery::social::relationship::RecoveryRelationshipEndorsement;
-use types::recovery::trusted_contacts::TrustedContactRole;
+use types::recovery::trusted_contacts::TrustedContactRole::SocialRecoveryContact;
+use types::recovery::trusted_contacts::{TrustedContactInfo, TrustedContactRole};
 
 #[derive(Clone, axum_macros::FromRef)]
 pub struct RouteState(
@@ -138,6 +140,10 @@ impl RouteState {
                 post(create_recovery_relationship),
             )
             .route(
+                "/api/accounts/:account_id/relationships",
+                post(create_relationship),
+            )
+            .route(
                 "/api/accounts/:account_id/recovery/relationships",
                 put(endorse_recovery_relationships),
             )
@@ -178,6 +184,10 @@ impl RouteState {
                 get(get_recovery_relationships),
             )
             .route(
+                "/api/accounts/:account_id/relationships",
+                get(get_relationships),
+            )
+            .route(
                 "/api/accounts/:account_id/recovery/relationships/:recovery_relationship_id",
                 put(update_recovery_relationship),
             )
@@ -206,6 +216,7 @@ impl From<RouteState> for SwaggerEndpoint {
         complete_delay_notify_transaction,
         create_delay_notify,
         create_recovery_relationship,
+        create_relationship,
         delete_recovery_relationship,
         endorse_recovery_relationships,
         fetch_social_challenge,
@@ -228,7 +239,8 @@ impl From<RouteState> for SwaggerEndpoint {
             CompleteDelayNotifyResponse,
             CreateAccountDelayNotifyRequest,
             CreateRecoveryRelationshipRequest,
-            CreateRecoveryRelationshipResponse,
+            CreateRelationshipRequest,
+            CreateRelationshipResponse,
             CustomerRecoveryRelationshipView,
             CustomerSocialChallenge,
             CustomerSocialChallengeResponse,
@@ -1059,6 +1071,7 @@ impl TryFrom<RecoveryRelationship> for CustomerRecoveryRelationshipView {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
+#[deprecated = "use CreateRelationshipRequest instead"]
 pub struct CreateRecoveryRelationshipRequest {
     pub trusted_contact_alias: String,
     #[serde(deserialize_with = "deserialize_pake_pubkey")]
@@ -1067,7 +1080,16 @@ pub struct CreateRecoveryRelationshipRequest {
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct CreateRecoveryRelationshipResponse {
+pub struct CreateRelationshipRequest {
+    pub trusted_contact_alias: String,
+    pub trusted_contact_roles: Vec<TrustedContactRole>,
+    #[serde(deserialize_with = "deserialize_pake_pubkey")]
+    pub protected_customer_enrollment_pake_pubkey: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CreateRelationshipResponse {
     pub invitation: OutboundInvitation,
 }
 
@@ -1078,7 +1100,47 @@ pub struct CreateRecoveryRelationshipResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, recovery_relationship_service, feature_flags_service)
+    skip(account_service, recovery_relationship_service, _feature_flags_service)
+)]
+#[utoipa::path(
+    post,
+    path = "/api/accounts/{account_id}/relationships",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+    ),
+    request_body = CreateRecoveryRelationshipRequest,
+    responses(
+    (status = 200, description = "Account creates a recovery relationship", body=CreateRecoveryRelationshipResponse),
+    ),
+)]
+pub async fn create_relationship(
+    Path(account_id): Path<AccountId>,
+    State(account_service): State<AccountService>,
+    State(recovery_relationship_service): State<RecoveryRelationshipService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
+    key_proof: KeyClaims,
+    Json(request): Json<CreateRelationshipRequest>,
+) -> Result<Json<CreateRelationshipResponse>, ApiError> {
+    let trusted_contact =
+        TrustedContactInfo::new(request.trusted_contact_alias, request.trusted_contact_roles)
+            .map_err(ServiceError::from)?;
+
+    let response = create_relationship_common(
+        &account_id,
+        &account_service,
+        &recovery_relationship_service,
+        &key_proof,
+        trusted_contact,
+        &request.protected_customer_enrollment_pake_pubkey,
+    )
+    .await?;
+
+    Ok(Json(response))
+}
+
+#[instrument(
+    err,
+    skip(account_service, recovery_relationship_service, _feature_flags_service)
 )]
 #[utoipa::path(
     post,
@@ -1086,19 +1148,45 @@ pub struct CreateRecoveryRelationshipResponse {
     params(
         ("account_id" = AccountId, Path, description = "AccountId"),
     ),
-    request_body = CreateRecoveryRelationshipRequest,
+    request_body = CreateRecoveryRelationshipRequestForSocrec,
     responses(
         (status = 200, description = "Account creates a recovery relationship", body=CreateRecoveryRelationshipResponse),
     ),
 )]
+#[deprecated = "use create_relationship instead"]
 pub async fn create_recovery_relationship(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
     Json(request): Json<CreateRecoveryRelationshipRequest>,
-) -> Result<Json<CreateRecoveryRelationshipResponse>, ApiError> {
+) -> Result<Json<CreateRelationshipResponse>, ApiError> {
+    let trusted_contact =
+        TrustedContactInfo::new(request.trusted_contact_alias, vec![SocialRecoveryContact])
+            .map_err(ServiceError::from)?;
+
+    let response = create_relationship_common(
+        &account_id,
+        &account_service,
+        &recovery_relationship_service,
+        &key_proof,
+        trusted_contact,
+        &request.protected_customer_enrollment_pake_pubkey,
+    )
+    .await?;
+
+    Ok(Json(response))
+}
+
+async fn create_relationship_common(
+    account_id: &AccountId,
+    account_service: &AccountService,
+    recovery_relationship_service: &RecoveryRelationshipService,
+    key_proof: &KeyClaims,
+    trusted_contact: TrustedContactInfo,
+    protected_customer_enrollment_pake_pubkey: &str,
+) -> Result<CreateRelationshipResponse, ApiError> {
     if !(key_proof.hw_signed && key_proof.app_signed) {
         event!(
             Level::WARN,
@@ -1110,31 +1198,19 @@ pub async fn create_recovery_relationship(
     }
 
     let full_account = account_service
-        .fetch_full_account(FetchAccountInput {
-            account_id: &account_id,
-        })
+        .fetch_full_account(FetchAccountInput { account_id })
         .await?;
-
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
 
     let result = recovery_relationship_service
         .create_recovery_relationship_invitation(CreateRecoveryRelationshipInvitationInput {
             customer_account: &full_account,
-            trusted_contact_alias: &request.trusted_contact_alias,
-            protected_customer_enrollment_pake_pubkey: &request
-                .protected_customer_enrollment_pake_pubkey,
+            trusted_contact: &trusted_contact,
+            protected_customer_enrollment_pake_pubkey,
         })
         .await?;
-    Ok(Json(CreateRecoveryRelationshipResponse {
+    Ok(CreateRelationshipResponse {
         invitation: result.try_into()?,
-    }))
+    })
 }
 
 ///
@@ -1148,7 +1224,7 @@ pub async fn create_recovery_relationship(
 /// For Trusted Contacts, they will need to provide:
 /// - Recovery access token
 ///
-#[instrument(err, skip(recovery_relationship_service, feature_flags_service))]
+#[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
 #[utoipa::path(
     delete,
     path = "/api/accounts/{account_id}/recovery/relationships/{recovery_relationship_id}",
@@ -1163,19 +1239,10 @@ pub async fn create_recovery_relationship(
 pub async fn delete_recovery_relationship(
     Path((account_id, recovery_relationship_id)): Path<(AccountId, RecoveryRelationshipId)>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
     Extension(cognito_user): Extension<CognitoUser>,
 ) -> Result<(), ApiError> {
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
-
     recovery_relationship_service
         .delete_recovery_relationship(DeleteRecoveryRelationshipInput {
             acting_account_id: &account_id,
@@ -1201,6 +1268,8 @@ pub struct GetRecoveryRelationshipsResponse {
 /// This route is used by both Customers and Trusted Contacts to retrieve
 /// recovery relationships.
 ///
+/// Only returns relationships having a trusted_contact_role of SocialRecoveryContact
+///
 /// For Customers, we will show:
 /// - All the Trusted Contacts that are protecting their account
 /// - All the pending outbound invitations
@@ -1209,7 +1278,7 @@ pub struct GetRecoveryRelationshipsResponse {
 /// For Trusted Contacts, we will show:
 /// - All the accounts that they are protecting
 ///
-#[instrument(err, skip(recovery_relationship_service, feature_flags_service))]
+#[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
 #[utoipa::path(
     get,
     path = "/api/accounts/{account_id}/recovery/relationships",
@@ -1220,23 +1289,16 @@ pub struct GetRecoveryRelationshipsResponse {
         (status = 200, description = "Recovery relationships", body=GetRecoveryRelationshipsResponse),
     ),
 )]
+#[deprecated = "use get_relationships instead"]
 pub async fn get_recovery_relationships(
     Path(account_id): Path<AccountId>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<GetRecoveryRelationshipsResponse>, ApiError> {
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
-
     let result = recovery_relationship_service
         .get_recovery_relationships(GetRecoveryRelationshipsInput {
             account_id: &account_id,
+            trusted_contact_role: SocialRecoveryContact,
         })
         .await?;
 
@@ -1263,6 +1325,54 @@ pub async fn get_recovery_relationships(
             .map(|i| i.try_into())
             .collect::<Result<Vec<_>, _>>()?,
     }))
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct GetRelationshipsRequest {
+    trusted_contact_role: TrustedContactRole,
+}
+
+///
+/// This route is used by both Customers and Trusted Contacts to retrieve relationships.
+///
+#[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
+#[utoipa::path(
+    get,
+    path = "/api/accounts/{account_id}/relationships",
+    params(
+        ("account_id" = AccountId, Path, description = "AccountId"),
+        ("trusted_contact_role" = TrustedContactRole, Query, description = "filter by trusted_contact_role"),
+    ),
+    responses(
+        (status = 200, description = "Relationships", body=GetRecoveryRelationshipsResponse),
+    ),
+)]
+pub async fn get_relationships(
+    Path(account_id): Path<AccountId>,
+    State(recovery_relationship_service): State<RecoveryRelationshipService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
+    request: Query<GetRelationshipsRequest>,
+) -> Result<Json<GetRecoveryRelationshipsResponse>, ApiError> {
+    let result = recovery_relationship_service
+        .get_recovery_relationships(GetRecoveryRelationshipsInput {
+            account_id: &account_id,
+            trusted_contact_role: request.trusted_contact_role,
+        })
+        .await?;
+
+    Ok(Json(GetRecoveryRelationshipsResponse {
+        invitations: try_into_vec(result.invitations)?,
+        unendorsed_trusted_contacts: try_into_vec(result.unendorsed_trusted_contacts)?,
+        endorsed_trusted_contacts: try_into_vec(result.endorsed_trusted_contacts)?,
+        customers: try_into_vec(result.customers)?,
+    }))
+}
+
+fn try_into_vec<T, U>(items: Vec<T>) -> Result<Vec<U>, <T as TryInto<U>>::Error>
+where
+    T: TryInto<U>,
+{
+    items.into_iter().map(TryInto::try_into).collect()
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -1296,7 +1406,7 @@ pub enum UpdateRecoveryRelationshipResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, recovery_relationship_service, feature_flags_service)
+    skip(account_service, recovery_relationship_service, _feature_flags_service)
 )]
 #[utoipa::path(
     put,
@@ -1314,7 +1424,7 @@ pub async fn update_recovery_relationship(
     Path((account_id, recovery_relationship_id)): Path<(AccountId, RecoveryRelationshipId)>,
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
     Extension(cognito_user): Extension<CognitoUser>,
     Json(request): Json<UpdateRecoveryRelationshipRequest>,
@@ -1324,15 +1434,6 @@ pub async fn update_recovery_relationship(
             account_id: &account_id,
         })
         .await?;
-
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
 
     match request {
         UpdateRecoveryRelationshipRequest::Accept {
@@ -1431,7 +1532,7 @@ pub struct EndorseRecoveryRelationshipsResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, recovery_relationship_service, feature_flags_service)
+    skip(account_service, recovery_relationship_service, _feature_flags_service)
 )]
 #[utoipa::path(
     put,
@@ -1448,7 +1549,7 @@ pub async fn endorse_recovery_relationships(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     key_proof: KeyClaims,
     Json(request): Json<EndorseRecoveryRelationshipsRequest>,
 ) -> Result<Json<EndorseRecoveryRelationshipsResponse>, ApiError> {
@@ -1457,15 +1558,6 @@ pub async fn endorse_recovery_relationships(
             account_id: &account_id,
         })
         .await?;
-
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
 
     let Account::Full(_) = account else {
         return Err(ApiError::GenericForbidden(
@@ -1482,6 +1574,7 @@ pub async fn endorse_recovery_relationships(
     let result = recovery_relationship_service
         .get_recovery_relationships(GetRecoveryRelationshipsInput {
             account_id: &account_id,
+            trusted_contact_role: SocialRecoveryContact,
         })
         .await?;
 
@@ -1509,7 +1602,7 @@ pub struct GetRecoveryRelationshipInvitationForCodeResponse {
 /// This route is used by either FullAccounts or LiteAccounts to retrieve
 /// the details of a pending inbound invitation.
 ///
-#[instrument(err, skip(recovery_relationship_service, feature_flags_service))]
+#[instrument(err, skip(recovery_relationship_service, _feature_flags_service))]
 #[utoipa::path(
     get,
     path = "/api/accounts/{account_id}/recovery/relationship-invitations/{code}",
@@ -1524,17 +1617,8 @@ pub struct GetRecoveryRelationshipInvitationForCodeResponse {
 pub async fn get_recovery_relationship_invitation_for_code(
     Path((account_id, code)): Path<(AccountId, String)>,
     State(recovery_relationship_service): State<RecoveryRelationshipService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<GetRecoveryRelationshipInvitationForCodeResponse>, ApiError> {
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
-
     let result = recovery_relationship_service
         .get_recovery_relationship_invitation_for_code(
             GetRecoveryRelationshipInvitationForCodeInput { code: &code },
@@ -1645,7 +1729,7 @@ pub struct StartSocialChallengeResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, social_challenge_service, feature_flags_service)
+    skip(account_service, social_challenge_service, _feature_flags_service)
 )]
 #[utoipa::path(
     post,
@@ -1662,7 +1746,7 @@ pub async fn start_social_challenge(
     Path(account_id): Path<AccountId>,
     State(account_service): State<AccountService>,
     State(social_challenge_service): State<SocialChallengeService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     Json(request): Json<StartSocialChallengeRequest>,
 ) -> Result<Json<StartSocialChallengeResponse>, ApiError> {
     let customer_account = account_service
@@ -1670,15 +1754,6 @@ pub async fn start_social_challenge(
             account_id: &account_id,
         })
         .await?;
-
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
 
     let requests = request
         .trusted_contacts
@@ -1719,7 +1794,7 @@ pub struct VerifySocialChallengeResponse {
 /// given the code and the recovery relationship. The code was given to them
 /// by the Customer who's account they're protecting.
 ///
-#[instrument(err, skip(social_challenge_service, feature_flags_service))]
+#[instrument(err, skip(social_challenge_service, _feature_flags_service))]
 #[utoipa::path(
     post,
     path = "/api/accounts/{account_id}/recovery/verify-social-challenge",
@@ -1734,18 +1809,9 @@ pub struct VerifySocialChallengeResponse {
 pub async fn verify_social_challenge(
     Path(account_id): Path<AccountId>,
     State(social_challenge_service): State<SocialChallengeService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     Json(request): Json<VerifySocialChallengeRequest>,
 ) -> Result<Json<VerifySocialChallengeResponse>, ApiError> {
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
-
     let challenge = social_challenge_service
         .fetch_social_challenge_as_trusted_contact(FetchSocialChallengeAsTrustedContactInput {
             trusted_contact_account_id: &account_id,
@@ -1775,7 +1841,7 @@ pub struct RespondToSocialChallengeResponse {}
 /// and to provide the shared secret that the Customer will use to recover
 /// their account.
 ///
-#[instrument(err, skip(social_challenge_service, feature_flags_service))]
+#[instrument(err, skip(social_challenge_service, _feature_flags_service))]
 #[utoipa::path(
     put,
     path = "/api/accounts/{account_id}/recovery/social-challenges/{social_challenge_id}",
@@ -1791,18 +1857,9 @@ pub struct RespondToSocialChallengeResponse {}
 pub async fn respond_to_social_challenge(
     Path((account_id, social_challenge_id)): Path<(AccountId, SocialChallengeId)>,
     State(social_challenge_service): State<SocialChallengeService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
     Json(request): Json<RespondToSocialChallengeRequest>,
 ) -> Result<Json<RespondToSocialChallengeResponse>, ApiError> {
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
-
     social_challenge_service
         .respond_to_social_challenge(RespondToSocialChallengeInput {
             trusted_contact_account_id: &account_id,
@@ -1830,7 +1887,7 @@ pub struct FetchSocialChallengeResponse {
 ///
 #[instrument(
     err,
-    skip(account_service, social_challenge_service, feature_flags_service)
+    skip(account_service, social_challenge_service, _feature_flags_service)
 )]
 #[utoipa::path(
     get,
@@ -1847,22 +1904,13 @@ pub async fn fetch_social_challenge(
     Path((account_id, social_challenge_id)): Path<(AccountId, SocialChallengeId)>,
     State(account_service): State<AccountService>,
     State(social_challenge_service): State<SocialChallengeService>,
-    State(feature_flags_service): State<FeatureFlagsService>,
+    State(_feature_flags_service): State<FeatureFlagsService>,
 ) -> Result<Json<FetchSocialChallengeResponse>, ApiError> {
     let customer_account = account_service
         .fetch_full_account(FetchAccountInput {
             account_id: &account_id,
         })
         .await?;
-
-    if !FLAG_SOCIAL_RECOVERY_ENABLE
-        .resolver(&feature_flags_service)
-        .resolve()
-    {
-        return Err(ApiError::GenericForbidden(
-            "Feature not enabled".to_string(),
-        ));
-    }
 
     let result = social_challenge_service
         .fetch_social_challenge_as_customer(FetchSocialChallengeAsCustomerInput {

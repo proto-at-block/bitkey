@@ -16,6 +16,7 @@ buildLogic {
 dependencies {
   api(projects.shared.amountPublic)
   api(projects.shared.uiCorePublic)
+  api(projects.shared.priceChartPublic)
   api(libs.android.compose.ui.core)
 
   implementation(libs.android.accompanist.system.ui.controller)

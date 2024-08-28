@@ -19,7 +19,7 @@ mod trusted_contact_limits {
 /// * `protected_customer_enrollment_pake_pubkey` - The public key that will be used to establish the secure channel between the customer and the trusted contact
 pub struct CreateRecoveryRelationshipInvitationInput<'a> {
     pub customer_account: &'a FullAccount,
-    pub trusted_contact_alias: &'a str,
+    pub trusted_contact: &'a TrustedContactInfo,
     pub protected_customer_enrollment_pake_pubkey: &'a str,
 }
 
@@ -46,20 +46,14 @@ impl Service {
         let account_properties = &input.customer_account.common_fields.properties;
         let (code, code_bit_length) = gen_code();
         let expires_at = gen_expiration(account_properties);
-        let trusted_contact_role = TrustedContactRole::SocialRecoveryContact;
 
-        self.validate_under_max_tc_limit(&input.customer_account.id, &trusted_contact_role)
+        self.validate_under_max_tc_limit(&input.customer_account.id, &input.trusted_contact.roles)
             .await?;
-
-        let trusted_contact = TrustedContactInfo::new(
-            input.trusted_contact_alias.to_string(),
-            vec![trusted_contact_role],
-        )?;
 
         let mut relationship = RecoveryRelationship::new_invitation(
             &id,
             &input.customer_account.id,
-            &trusted_contact,
+            input.trusted_contact,
             input.protected_customer_enrollment_pake_pubkey,
             &code,
             code_bit_length,
@@ -77,31 +71,34 @@ impl Service {
     async fn validate_under_max_tc_limit(
         &self,
         id: &AccountId,
-        trusted_contact_role: &TrustedContactRole,
+        trusted_contact_roles: &Vec<TrustedContactRole>,
     ) -> Result<(), ServiceError> {
-        let max_limit = match trusted_contact_role {
-            TrustedContactRole::Beneficiary => trusted_contact_limits::MAX_BENEFICIARIES,
-            TrustedContactRole::SocialRecoveryContact => {
-                trusted_contact_limits::MAX_SOCIAL_RECOVERY_CONTACTS
-            }
-        };
         let relationships = self
             .repository
             .fetch_recovery_relationships_for_account(id)
             .await?;
-        let tc_count = relationships
-            .endorsed_trusted_contacts
-            .iter()
-            .chain(&relationships.unendorsed_trusted_contacts)
-            .chain(&relationships.invitations)
-            .filter(|tc| tc.has_role(trusted_contact_role))
-            .count();
 
-        if tc_count >= max_limit {
-            return Err(ServiceError::MaxTrustedContactsReached(
-                trusted_contact_role.to_owned(),
-            ));
+        for role in trusted_contact_roles {
+            let max_limit = match role {
+                TrustedContactRole::Beneficiary => trusted_contact_limits::MAX_BENEFICIARIES,
+                TrustedContactRole::SocialRecoveryContact => {
+                    trusted_contact_limits::MAX_SOCIAL_RECOVERY_CONTACTS
+                }
+            };
+
+            let tc_count = relationships
+                .endorsed_trusted_contacts
+                .iter()
+                .chain(&relationships.unendorsed_trusted_contacts)
+                .chain(&relationships.invitations)
+                .filter(|tc| tc.has_role(role))
+                .count();
+
+            if tc_count >= max_limit {
+                return Err(ServiceError::MaxTrustedContactsReached(role.to_owned()));
+            }
         }
+
         Ok(())
     }
 }

@@ -1,12 +1,9 @@
 package build.wallet.statemachine.moneyhome.lite
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.platform.web.InAppBrowserNavigator
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.moneyhome.MoneyHomeButtonsModel
@@ -14,34 +11,38 @@ import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
+import kotlinx.collections.immutable.toImmutableList
 
 class LiteMoneyHomeUiStateMachineImpl(
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
+  private val socRecService: SocRecService,
 ) : LiteMoneyHomeUiStateMachine {
   @Composable
   override fun model(props: LiteMoneyHomeUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.ViewingMoneyHome) }
 
+    val protectedCustomers =
+      socRecService.relationships.collectAsState().value?.protectedCustomers.orEmpty()
+
     val viewingMoneyHomeScreenModel =
       ScreenModel(
-        body =
-          LiteMoneyHomeBodyModel(
-            onSettings = props.onSettings,
-            buttonModel = MoneyHomeButtonsModel.SingleButtonModel(
-              onSetUpBitkeyDevice = { props.accountData.onUpgradeAccount() }
-            ),
-            protectedCustomers = props.protectedCustomers,
-            badgedSettingsIcon = false,
-            onProtectedCustomerClick = {
-              state = State.ViewingProtectedCustomerDetail(it)
-            },
-            onBuyOwnBitkeyClick = {
-              state = State.ViewingBuyOwnBitkeyUrl
-            },
-            onAcceptInviteClick = props.onAcceptInvite
+        body = LiteMoneyHomeBodyModel(
+          onSettings = props.onSettings,
+          buttonModel = MoneyHomeButtonsModel.SingleButtonModel(
+            onSetUpBitkeyDevice = { props.accountData.onUpgradeAccount() }
           ),
+          protectedCustomers = protectedCustomers.toImmutableList(),
+          badgedSettingsIcon = false,
+          onProtectedCustomerClick = {
+            state = State.ViewingProtectedCustomerDetail(it)
+          },
+          onBuyOwnBitkeyClick = {
+            state = State.ViewingBuyOwnBitkeyUrl
+          },
+          onAcceptInviteClick = props.onAcceptInvite
+        ),
         statusBannerModel = props.homeStatusBannerModel
       )
 
@@ -53,11 +54,9 @@ class LiteMoneyHomeUiStateMachineImpl(
         viewingProtectedCustomerUiStateMachine.model(
           props =
             ViewingProtectedCustomerProps(
+              account = props.accountData.account,
               screenModel = viewingMoneyHomeScreenModel,
               protectedCustomer = currentState.protectedCustomer,
-              onRemoveProtectedCustomer = {
-                props.onRemoveRelationship(currentState.protectedCustomer)
-              },
               onHelpWithRecovery = {
                 state =
                   State.HelpingWithRecovery(

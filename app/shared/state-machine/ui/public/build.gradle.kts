@@ -29,6 +29,7 @@ kotlin {
         api(projects.shared.amountPublic)
         api(projects.shared.authPublic)
         api(projects.shared.bitcoinPublic)
+        api(projects.shared.bootstrapPublic)
         api(projects.shared.accountPublic)
         api(projects.shared.analyticsPublic)
         api(projects.shared.cloudBackupPublic)
@@ -85,6 +86,7 @@ kotlin {
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.bitcoinPrimitivesFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.bootstrapFake)
         implementation(projects.shared.cloudBackupFake)
         implementation(projects.shared.cloudStoreFake)
         implementation(projects.shared.coroutinesTesting)
@@ -127,6 +129,7 @@ kotlin {
     val jvmIntegrationTest by getting {
       dependencies {
         implementation(projects.shared.bitkeyPrimitivesFake)
+        implementation(projects.shared.bootstrapFake)
         implementation(projects.shared.cloudBackupFake)
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.shared.moneyTesting)

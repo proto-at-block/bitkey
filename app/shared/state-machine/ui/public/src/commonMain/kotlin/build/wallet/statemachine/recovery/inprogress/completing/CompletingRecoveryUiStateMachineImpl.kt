@@ -1,10 +1,6 @@
 package build.wallet.statemachine.recovery.inprogress.completing
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.APP_DELAY_NOTIFY_SIGN_ROTATE_KEYS
 import build.wallet.analytics.events.screen.id.CreateAccountEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.DelayNotifyRecoveryEventTrackerScreenId
@@ -21,25 +17,10 @@ import build.wallet.statemachine.auth.ProofOfPossessionNfcStateMachine
 import build.wallet.statemachine.auth.Request
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.FullAccountCloudSignInAndBackupUiStateMachine
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorData
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.ErrorFormBodyModelWithOptionalErrorData
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.AwaitingHardwareProofOfPossessionData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.CreatingSpendingKeysWithF8EData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.FailedToCreateSpendingKeysData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.ExitedPerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedPerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.FailedRegeneratingTcCertificatesData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingCloudBackupData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.PerformingSweepData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RegeneratingTcCertificatesData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.AwaitingChallengeAndCsekSignedWithHardwareData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.FailedToRotateAuthData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.ReadyToCompleteRecoveryData
-import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.RotatingAuthKeysWithF8eData
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.CreatingSpendingKeysData.*
+import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CompletingRecoveryData.RotatingAuthData.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.recovery.RecoverySegment
@@ -248,6 +229,7 @@ class CompletingRecoveryUiStateMachineImpl(
                   .setLocalRecoveryProgress(
                     SweptFunds(props.completingRecoveryData.keybox)
                   )
+                props.onComplete?.invoke()
               }
             },
             keybox = props.completingRecoveryData.keybox,

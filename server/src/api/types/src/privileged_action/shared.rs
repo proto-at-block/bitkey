@@ -29,7 +29,7 @@ impl From<urn::Urn> for PrivilegedActionInstanceId {
 
 impl ExternalIdentifier<Ulid> for PrivilegedActionInstanceId {
     fn namespace() -> &'static str {
-        "privileged-action-instance"
+        "privileged-action-inst"
     }
 }
 
@@ -48,7 +48,7 @@ impl Display for PrivilegedActionInstanceId {
 #[derive(Serialize, Deserialize, Debug, Clone, ToSchema, PartialEq, Eq, Hash, Display)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PrivilegedActionType {
-    SetPrivilegedActionDelays,
+    ConfigurePrivilegedActionDelays,
     ActivateTouchpoint,
 }
 

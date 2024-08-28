@@ -50,4 +50,16 @@ class CurrencyConverterFake(
       )
     )
   }
+
+  override fun latestRateTimestamp(
+    fromCurrency: Currency,
+    toCurrency: Currency,
+  ): Flow<Instant?> {
+    return flowOf(historicalConversionRate.maxOfOrNull { it.key })
+  }
+
+  fun reset() {
+    conversionRate = 3.0
+    historicalConversionRate = emptyMap()
+  }
 }

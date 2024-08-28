@@ -1,11 +1,8 @@
 package build.wallet.statemachine.settings.lite
 
-import build.wallet.bitkey.keybox.LiteAccountMock
-import build.wallet.bitkey.socrec.ProtectedCustomerFake
-import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.platform.config.AppVariant
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
+import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -58,16 +55,13 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
         ScreenStateMachineMock<DebugMenuProps>("debug-menu") {}
     )
 
-  val socrecRepositoryMock = SocRecRelationshipsRepositoryMock(turbines::create)
+  val socrecRepositoryMock = SocRecServiceMock(turbines::create)
   val propsOnBackCalls = turbines.create<Unit>("props onBack calls")
-  val props =
-    LiteSettingsHomeUiProps(
-      accountData = HasActiveLiteAccountDataFake,
-      protectedCustomers = immutableListOf(),
-      homeStatusBannerModel = null,
-      socRecTrustedContactActions = socrecRepositoryMock.toActions(LiteAccountMock),
-      onBack = { propsOnBackCalls.add(Unit) }
-    )
+  val props = LiteSettingsHomeUiProps(
+    accountData = HasActiveLiteAccountDataFake,
+    homeStatusBannerModel = null,
+    onBack = { propsOnBackCalls.add(Unit) }
+  )
 
   test("onBack calls props onBack") {
     stateMachine().test(props) {
@@ -75,19 +69,6 @@ class LiteSettingsHomeUiStateMachineImplTests : FunSpec({
         onBack()
       }
       propsOnBackCalls.awaitItem()
-    }
-  }
-
-  test("trusted contacts calls props onRemoveProtectedCustomer") {
-    val protectedCustomer = ProtectedCustomerFake
-    stateMachine().test(props) {
-      awaitScreenWithBodyModelMock<SettingsListUiProps> {
-        supportedRows.first { it is SettingsListUiProps.SettingsListRow.TrustedContacts }.onClick()
-      }
-      awaitScreenWithBodyModelMock<LiteTrustedContactManagementProps> {
-        actions.removeProtectedCustomer(protectedCustomer)
-      }
-      socrecRepositoryMock.removeRelationshipCalls.awaitItem()
     }
   }
 

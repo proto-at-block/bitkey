@@ -23,8 +23,6 @@ import build.wallet.recovery.Recovery.*
 import build.wallet.recovery.Recovery.StillRecovering.ServerDependentRecovery
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.statemachine.data.keybox.AccountData.*
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachine
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringDataStateMachineDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
 import com.github.michaelbull.result.Ok
@@ -32,15 +30,16 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.mapBoth
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlin.native.HiddenFromObjC
 import kotlin.time.Duration
 
+@HiddenFromObjC
 class AccountDataStateMachineImpl(
   private val hasActiveFullAccountDataStateMachine: HasActiveFullAccountDataStateMachine,
   private val hasActiveLiteAccountDataStateMachine: HasActiveLiteAccountDataStateMachine,
   private val noActiveAccountDataStateMachine: NoActiveAccountDataStateMachine,
   private val accountRepository: AccountRepository,
   private val recoverySyncer: RecoverySyncer,
-  private val noLongerRecoveringDataStateMachine: NoLongerRecoveringDataStateMachine,
   private val someoneElseIsRecoveringDataStateMachine: SomeoneElseIsRecoveringDataStateMachine,
   private val recoverySyncFrequency: Duration,
   private val debugOptionsService: DebugOptionsService,
@@ -142,16 +141,7 @@ class AccountDataStateMachineImpl(
     return when (activeRecovery) {
       is Loading -> CheckingActiveAccountData
 
-      is NoLongerRecovering -> {
-        NoLongerRecoveringFullAccountData(
-          data =
-            noLongerRecoveringDataStateMachine.model(
-              NoLongerRecoveringDataStateMachineDataProps(
-                activeRecovery.cancelingRecoveryLostFactor
-              )
-            )
-        )
-      }
+      is NoLongerRecovering -> NoLongerRecoveringFullAccountData(activeRecovery.cancelingRecoveryLostFactor)
 
       is SomeoneElseIsRecovering -> {
         // We only show this when we have an active keybox.

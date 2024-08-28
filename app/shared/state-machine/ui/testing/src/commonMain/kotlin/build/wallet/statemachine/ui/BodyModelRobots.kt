@@ -5,6 +5,7 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
 import build.wallet.statemachine.ui.matchers.shouldBeEnabled
 import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
+import build.wallet.statemachine.ui.robots.click
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.list.ListItemAccessory
 import build.wallet.ui.model.list.ListItemModel
@@ -13,19 +14,11 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeTypeOf
 
 fun FormBodyModel.clickPrimaryButton() {
-  primaryButton
-    .shouldNotBeNull()
-    .shouldBeEnabled()
-    .shouldNotBeLoading()
-    .onClick()
+  primaryButton.click()
 }
 
 fun FormBodyModel.clickSecondaryButton() {
-  secondaryButton
-    .shouldNotBeNull()
-    .shouldBeEnabled()
-    .shouldNotBeLoading()
-    .onClick()
+  secondaryButton.click()
 }
 
 fun FormBodyModel.shouldHaveTrailingAccessoryButton(): ButtonModel {

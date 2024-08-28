@@ -14,8 +14,9 @@ import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.*
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
-import build.wallet.statemachine.data.recovery.conflict.*
+import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
+import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataProps
+import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringDataStateMachine
 import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -34,7 +35,7 @@ class AccountDataStateMachineImplTests : FunSpec({
   val hasActiveFullAccountDataStateMachine =
     object : HasActiveFullAccountDataStateMachine,
       StateMachineMock<HasActiveFullAccountDataProps, HasActiveFullAccountData>(
-        LoadingActiveFullAccountData(FullAccountMock)
+        ActiveKeyboxLoadedDataMock
       ) {}
   val hasActiveLiteAccountDataStateMachine =
     object : HasActiveLiteAccountDataStateMachine,
@@ -45,12 +46,6 @@ class AccountDataStateMachineImplTests : FunSpec({
     object : NoActiveAccountDataStateMachine,
       StateMachineMock<NoActiveAccountDataProps, NoActiveAccountData>(
         NoActiveAccountData.CheckingRecoveryOrOnboarding
-      ) {}
-
-  val noLongerRecoveringDataStateMachine =
-    object : NoLongerRecoveringDataStateMachine,
-      StateMachineMock<NoLongerRecoveringDataStateMachineDataProps, NoLongerRecoveringData>(
-        NoLongerRecoveringData.ShowingNoLongerRecoveringData(App, {})
       ) {}
 
   val someoneElseIsRecoveringDataStateMachine =
@@ -67,7 +62,6 @@ class AccountDataStateMachineImplTests : FunSpec({
       noActiveAccountDataStateMachine = noActiveKeyboxDataStateMachine,
       accountRepository = accountRepository,
       recoverySyncer = recoverySyncerMock,
-      noLongerRecoveringDataStateMachine = noLongerRecoveringDataStateMachine,
       someoneElseIsRecoveringDataStateMachine = someoneElseIsRecoveringDataStateMachine,
       recoverySyncFrequency = 1.minutes,
       debugOptionsService = debugOptionsService
@@ -97,7 +91,7 @@ class AccountDataStateMachineImplTests : FunSpec({
     stateMachine.test(Unit) {
       awaitItem().shouldBe(CheckingActiveAccountData)
 
-      awaitItem().shouldBe(LoadingActiveFullAccountData(FullAccountMock))
+      awaitItem().shouldBe(ActiveKeyboxLoadedDataMock)
     }
   }
 

@@ -106,14 +106,7 @@ class SocRecRelationshipsDaoImplTests : FunSpec({
 
   test("get empty social relationships") {
     dao.socRecRelationships().first().shouldBeEqual(
-      Ok(
-        SocRecRelationships(
-          invitations = emptyList(),
-          endorsedTrustedContacts = emptyList(),
-          protectedCustomers = immutableListOf(),
-          unendorsedTrustedContacts = emptyList()
-        )
-      )
+      Ok(SocRecRelationships.EMPTY)
     )
   }
 

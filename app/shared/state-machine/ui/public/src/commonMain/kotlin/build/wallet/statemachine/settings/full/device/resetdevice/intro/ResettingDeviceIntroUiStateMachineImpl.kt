@@ -3,7 +3,8 @@ package build.wallet.statemachine.settings.full.device.resetdevice.intro
 import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext
 import build.wallet.bitcoin.balance.BitcoinBalance
-import build.wallet.bitkey.account.FullAccount
+import build.wallet.bitcoin.transactions.TransactionsData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.hardware.HwAuthPublicKey
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.coroutines.rememberStableCoroutineScope
@@ -13,8 +14,8 @@ import build.wallet.encrypt.verifyEcdsaResult
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.ktor.result.HttpError
+import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.limit.MobilePayService
-import build.wallet.limit.MobilePayStatus
 import build.wallet.limit.SpendingLimit
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
@@ -58,6 +59,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
   private val mobilePayService: MobilePayService,
   private val authF8eClient: AuthF8eClient,
+  private val transactionsService: TransactionsService,
 ) : ResettingDeviceIntroUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -66,6 +68,13 @@ class ResettingDeviceIntroUiStateMachineImpl(
       mutableStateOf(
         IntroState()
       )
+    }
+
+    val transactionsData =
+      remember { transactionsService.transactionsData() }.collectAsState().value
+    val transactionsLoadedData = when (transactionsData) {
+      TransactionsData.LoadingTransactionsData -> null
+      is TransactionsData.TransactionsLoadedData -> transactionsData
     }
 
     val scope = rememberStableCoroutineScope()
@@ -103,19 +112,23 @@ class ResettingDeviceIntroUiStateMachineImpl(
       }
 
       is ScanningState -> {
+        val spendingWallet = remember { transactionsService.spendingWallet() }
+          .collectAsState()
+          .value
+
         InitialDeviceTapModel(
           pubKey = props.fullAccount?.keybox?.activeHwKeyBundle?.authKey?.pubKey,
-          balance = props.balance,
+          balance = transactionsLoadedData?.balance,
           isHardwareFake = props.fullAccountConfig.isHardwareFake,
           onTapPairedDevice = { balance ->
             if (balance.untrustedPending.isPositive) {
               // Incoming pending transaction, treat as spendable and send to
               // transfer funds before reset sheet
               uiState = TransferringFundsState
-            } else if (balance.spendable.isPositive && props.spendingWallet != null) {
+            } else if (balance.spendable.isPositive && spendingWallet != null) {
               // Spendable balance, check if it's actually spendable
               scope.launch {
-                props.spendingWallet.isBalanceSpendable()
+                spendingWallet.isBalanceSpendable()
                   .onSuccess { isSpendable ->
                     if (isSpendable) {
                       uiState = TransferringFundsState
@@ -184,7 +197,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
       }
 
       is TransferringFundsState -> {
-        if (props.balance == null || props.fullAccount == null) {
+        if (transactionsLoadedData?.balance == null || props.fullAccount == null) {
           log(LogLevel.Error) {
             "ResettingDeviceIntroUiStateMachineImpl.TransferringFundsState reached without a balance or fullAccount! This should never happen"
           }
@@ -199,8 +212,7 @@ class ResettingDeviceIntroUiStateMachineImpl(
               uiState = IntroState(shouldUnwindToMoneyHome = true)
             },
             onCancel = { uiState = IntroState() },
-            balance = props.balance!!,
-            account = props.fullAccount!!
+            balance = transactionsLoadedData!!.balance
           )
         )
       }
@@ -351,7 +363,6 @@ class ResettingDeviceIntroUiStateMachineImpl(
   @Composable
   private fun TransferFundsBeforeResetSheet(
     balance: BitcoinBalance,
-    account: FullAccount,
     onTransferFunds: () -> Unit,
     onCancel: () -> Unit,
   ): SheetModel {
@@ -376,9 +387,9 @@ class ResettingDeviceIntroUiStateMachineImpl(
       fiatBalance = convertedFiatBalance
 
       // Get active spending limit
-      when (val mobilePayStatus = mobilePayService.status(account).firstOrNull()) {
-        is MobilePayStatus.MobilePayEnabled -> {
-          spendingLimit = mobilePayStatus.activeSpendingLimit
+      when (val mobilePayData = mobilePayService.mobilePayData.firstOrNull()) {
+        is MobilePayEnabledData -> {
+          spendingLimit = mobilePayData.activeSpendingLimit
         }
         else -> Unit
       }

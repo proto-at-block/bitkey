@@ -16,6 +16,7 @@ import build.wallet.pricechart.*
 import build.wallet.pricechart.DataPoint
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.time.DateTimeFormatter
+import build.wallet.time.TimeZoneProvider
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
@@ -30,19 +31,21 @@ import org.jetbrains.compose.resources.getString
 import kotlin.time.Duration.Companion.milliseconds
 
 class BitcoinPriceChartUiStateMachineImpl(
+  private val clock: Clock,
   private val haptics: Haptics,
   private val eventTracker: EventTracker,
+  private val timeZoneProvider: TimeZoneProvider,
   private val dateTimeFormatter: DateTimeFormatter,
-  private val moneyDisplayFormatter: MoneyDisplayFormatter,
-  private val chartDataFetcher: ChartDataFetcherService,
-  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val currencyConverter: CurrencyConverter,
+  private val moneyDisplayFormatter: MoneyDisplayFormatter,
+  private val chartDataFetcherService: ChartDataFetcherService,
+  private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
 ) : BitcoinPriceChartUiStateMachine {
   @Composable
   override fun model(props: BitcoinPriceChartUiProps): ScreenModel {
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     var data by remember { mutableStateOf<ImmutableList<DataPoint>>(emptyImmutableList()) }
-    var isLoading by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
     var failedToLoad by remember { mutableStateOf(false) }
     var selectedType by remember { mutableStateOf(props.initialType) }
     var selectedHistory by remember { mutableStateOf(ChartHistory.DAY) }
@@ -57,7 +60,7 @@ class BitcoinPriceChartUiStateMachineImpl(
     val selectedPointTimeText by remember {
       derivedStateOf {
         selectedPoint?.first?.let { timestamp ->
-          formatSelectedTimestamp(timestamp, selectedHistory)
+          formatSelectedTimestamp(clock, timeZoneProvider, timestamp, selectedHistory)
         }
       }
     }
@@ -82,15 +85,19 @@ class BitcoinPriceChartUiStateMachineImpl(
       }
     }
     LaunchedEffect(selectedHistory) {
-      // reset to loading state
-      isLoading = true
+      // clear data and reset state for new data range
       failedToLoad = false
+      data = emptyImmutableList()
       placeholderPointText = selectedPointText
       placeholderPointDiffText = selectedPointDiffText
-      data = emptyImmutableList()
-      // debounce data loading
-      delay(250.milliseconds)
-      chartDataFetcher.getChartData(
+    }
+    LaunchedEffect(selectedHistory, fiatCurrency, latestExchangeRate) {
+      if (placeholderPointText != null) {
+        // debounce data loading when changing selected history
+        delay(250.milliseconds)
+      }
+
+      chartDataFetcherService.getChartData(
         fullAccountId = props.fullAccountId,
         f8eEnvironment = props.f8eEnvironment,
         chartHistory = selectedHistory
@@ -148,7 +155,10 @@ class BitcoinPriceChartUiStateMachineImpl(
           )
         },
         onChartTypeSelected = { selectedType = it },
-        onChartHistorySelected = { selectedHistory = it },
+        onChartHistorySelected = {
+          isLoading = true
+          selectedHistory = it
+        },
         onPointSelected = { selectedPoint = it },
         onBack = props.onBack
       )
@@ -160,29 +170,24 @@ class BitcoinPriceChartUiStateMachineImpl(
     end: Double?,
     priceDirection: MutableState<PriceDirection>,
   ): String? {
-    return if (end == null || start == null) {
-      null
-    } else {
-      val diffPercent = (end - start) / start * 100
-      val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
-      priceDirection.value = when {
-        diffDecimal == BigDecimal.ZERO -> PriceDirection.STABLE
-        diffDecimal.isPositive -> PriceDirection.UP
-        else -> PriceDirection.DOWN
-      }
-      "${diffDecimal.abs().toPlainString()}%"
-    }
+    if (end == null || start == null) return null
+    val diffPercent = (end - start) / start * 100
+    val diffDecimal = BigDecimal.fromDouble(diffPercent, DecimalMode.US_CURRENCY)
+    priceDirection.value = PriceDirection.from(diffDecimal)
+    return "${diffDecimal.abs().toPlainString()}%"
   }
 
   /**
    * Format the [timestamp] to local format with a format based on the [selectedHistory].
    */
   private fun formatSelectedTimestamp(
+    clock: Clock,
+    timeZoneProvider: TimeZoneProvider,
     timestamp: Long,
     selectedHistory: ChartHistory,
   ): String {
-    val timeZone = TimeZone.currentSystemDefault()
-    val currentDateTime = Clock.System.now().toLocalDateTime(timeZone)
+    val timeZone = timeZoneProvider.current()
+    val currentDateTime = clock.now().toLocalDateTime(timeZone)
     val datetime = Instant.fromEpochSeconds(timestamp).toLocalDateTime(timeZone)
     return when (selectedHistory) {
       ChartHistory.DAY -> {

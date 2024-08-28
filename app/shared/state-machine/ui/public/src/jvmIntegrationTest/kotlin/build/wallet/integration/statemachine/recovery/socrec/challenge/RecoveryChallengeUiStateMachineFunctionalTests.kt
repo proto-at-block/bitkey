@@ -15,13 +15,8 @@ import build.wallet.cloud.backup.v2.FullAccountKeys
 import build.wallet.cloud.backup.v2.FullAccountKeysMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.crypto.Spake2Impl
-import build.wallet.encrypt.CryptoBoxImpl
-import build.wallet.encrypt.MessageSignerImpl
-import build.wallet.encrypt.SignatureVerifierImpl
-import build.wallet.encrypt.SymmetricKeyGeneratorImpl
-import build.wallet.encrypt.XChaCha20Poly1305Impl
-import build.wallet.encrypt.XCiphertext
-import build.wallet.encrypt.XNonceGeneratorImpl
+import build.wallet.encrypt.*
+import build.wallet.f8e.socrec.SocRecF8eClientFake
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.recovery.socrec.SocRecCryptoImpl
@@ -52,7 +47,7 @@ import kotlinx.serialization.json.Json
 import okio.ByteString.Companion.encodeUtf8
 
 class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
-  val appTester = launchNewApp()
+  val appTester = launchNewApp(isUsingSocRecFakes = true)
   val onExitCalls = turbines.create<Unit>("exit-recovery-flow")
   val onRecoveryCalls = turbines.create<FullAccountKeys>("recovery-key-recovered")
   val relationshipIdToPkekMap: MutableMap<String, XCiphertext> = mutableMapOf()
@@ -83,10 +78,16 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       Json.encodeToString(pkMat).encodeUtf8()
     ).getOrThrow()
 
+  lateinit var socRecF8eClientFake: SocRecF8eClientFake
+
   beforeAny {
-    appTester.app.socialRecoveryF8eClientFake.reset()
-    appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.add(endorsedTrustedContact)
-    appTester.app.socRecPendingChallengeDao.clear()
+    socRecF8eClientFake =
+      (appTester.app.appComponent.socRecF8eClientProvider.get() as SocRecF8eClientFake)
+        .apply {
+          reset()
+          endorsedTrustedContacts.add(endorsedTrustedContact)
+        }
+    appTester.app.appComponent.socRecStartedChallengeDao.clear()
     relationshipIdToPkekMap[endorsedTrustedContact.relationshipId] =
       socRecCrypto.encryptPrivateKeyEncryptionKey(
         endorsedTrustedContact.identityKey,
@@ -97,22 +98,20 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   test("Start Challenge") {
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.recoveryChallengeUiStateMachine.test(
-      props =
-        RecoveryChallengeUiProps(
+      props = RecoveryChallengeUiProps(
+        accountId = account.accountId,
+        f8eEnvironment = account.config.f8eEnvironment,
+        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
-          actions =
-            appTester.app.socRecChallengeRepository.toActions(
-              accountId = account.accountId,
-              f8eEnvironment = account.config.f8eEnvironment,
-              isUsingSocRecFakes = true
-            ),
-          relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
-          sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          endorsedTrustedContacts = appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.toImmutableList(),
-          onExit = { onExitCalls.add(Unit) },
-          onKeyRecovered = { onRecoveryCalls.add(it) }
+          isUsingSocRecFakes = true
         ),
+        relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+        sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        onExit = { onExitCalls.add(Unit) },
+        onKeyRecovered = { onRecoveryCalls.add(it) }
+      ),
       useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
@@ -157,25 +156,23 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
 
   test("Start Challenge Failed") {
     val account = appTester.onboardFullAccountWithFakeHardware()
-    appTester.app.socialRecoveryF8eClientFake.fakeNetworkingError =
+    socRecF8eClientFake.fakeNetworkingError =
       HttpError.ServerError(HttpResponseMock(HttpStatusCode.InternalServerError))
     appTester.app.recoveryChallengeUiStateMachine.test(
-      props =
-        RecoveryChallengeUiProps(
+      props = RecoveryChallengeUiProps(
+        accountId = account.accountId,
+        f8eEnvironment = account.config.f8eEnvironment,
+        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
-          actions =
-            appTester.app.socRecChallengeRepository.toActions(
-              accountId = account.accountId,
-              f8eEnvironment = account.config.f8eEnvironment,
-              isUsingSocRecFakes = true
-            ),
-          relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
-          sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          endorsedTrustedContacts = appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.toImmutableList(),
-          onExit = { onExitCalls.add(Unit) },
-          onKeyRecovered = { onRecoveryCalls.add(it) }
+          isUsingSocRecFakes = true
         ),
+        relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+        sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        onExit = { onExitCalls.add(Unit) },
+        onKeyRecovered = { onRecoveryCalls.add(it) }
+      ),
       useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
@@ -191,22 +188,20 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
   test("TC Verification Code") {
     val account = appTester.onboardFullAccountWithFakeHardware()
     appTester.app.recoveryChallengeUiStateMachine.test(
-      props =
-        RecoveryChallengeUiProps(
+      props = RecoveryChallengeUiProps(
+        accountId = account.accountId,
+        f8eEnvironment = account.config.f8eEnvironment,
+        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
-          actions =
-            appTester.app.socRecChallengeRepository.toActions(
-              accountId = account.accountId,
-              f8eEnvironment = account.config.f8eEnvironment,
-              isUsingSocRecFakes = true
-            ),
-          relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
-          sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          endorsedTrustedContacts = appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.toImmutableList(),
-          onExit = { onExitCalls.add(Unit) },
-          onKeyRecovered = { onRecoveryCalls.add(it) }
+          isUsingSocRecFakes = true
         ),
+        relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+        sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        onExit = { onExitCalls.add(Unit) },
+        onKeyRecovered = { onRecoveryCalls.add(it) }
+      ),
       useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<LoadingSuccessBodyModel> {
@@ -236,14 +231,14 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
         id.shouldBe(
           SocialRecoveryEventTrackerScreenId.RECOVERY_CHALLENGE_TC_VERIFICATION_CODE
         )
-        val challenge =
-          appTester.app.socialRecoveryF8eClientFake.challenges
-            .shouldHaveSize(1)
-            .first()
-        val challengeAuth = appTester.app.socRecStartedChallengeAuthenticationDao.getAll()
-          .getOrThrow()
-          .single()
-        val code = appTester.app.pakeCodeBuilder.buildRecoveryCode(
+        val challenge = socRecF8eClientFake.challenges
+          .shouldHaveSize(1)
+          .first()
+        val challengeAuth =
+          appTester.app.appComponent.socRecStartedChallengeAuthenticationDao.getAll()
+            .getOrThrow()
+            .single()
+        val code = appTester.app.appComponent.socialRecoveryCodeBuilder.buildRecoveryCode(
           challenge.response.counter,
           challengeAuth.pakeCode
         ).getOrThrow()
@@ -267,22 +262,20 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     val account = appTester.onboardFullAccountWithFakeHardware()
     var challengeId: String? = null
     appTester.app.recoveryChallengeUiStateMachine.test(
-      props =
-        RecoveryChallengeUiProps(
+      props = RecoveryChallengeUiProps(
+        accountId = account.accountId,
+        f8eEnvironment = account.config.f8eEnvironment,
+        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
-          actions =
-            appTester.app.socRecChallengeRepository.toActions(
-              accountId = account.accountId,
-              f8eEnvironment = account.config.f8eEnvironment,
-              isUsingSocRecFakes = true
-            ),
-          relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
-          sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          endorsedTrustedContacts = appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.toImmutableList(),
-          onExit = { onExitCalls.add(Unit) },
-          onKeyRecovered = { onRecoveryCalls.add(it) }
+          isUsingSocRecFakes = true
         ),
+        relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+        sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        onExit = { onExitCalls.add(Unit) },
+        onKeyRecovered = { onRecoveryCalls.add(it) }
+      ),
       useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
@@ -293,26 +286,23 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       awaitUntilScreenWithBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
-      challengeId =
-        appTester.app.socialRecoveryF8eClientFake.challenges.single().response.challengeId
+      challengeId = socRecF8eClientFake.challenges.single().response.challengeId
     }
     appTester.app.recoveryChallengeUiStateMachine.test(
-      props =
-        RecoveryChallengeUiProps(
+      props = RecoveryChallengeUiProps(
+        accountId = account.accountId,
+        f8eEnvironment = account.config.f8eEnvironment,
+        actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
           accountId = account.accountId,
           f8eEnvironment = account.config.f8eEnvironment,
-          actions =
-            appTester.app.socRecChallengeRepository.toActions(
-              accountId = account.accountId,
-              f8eEnvironment = account.config.f8eEnvironment,
-              isUsingSocRecFakes = true
-            ),
-          relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
-          sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-          endorsedTrustedContacts = appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.toImmutableList(),
-          onExit = { onExitCalls.add(Unit) },
-          onKeyRecovered = { onRecoveryCalls.add(it) }
+          isUsingSocRecFakes = true
         ),
+        relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
+        sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
+        endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+        onExit = { onExitCalls.add(Unit) },
+        onKeyRecovered = { onRecoveryCalls.add(it) }
+      ),
       useVirtualTime = false
     ) {
       awaitUntilScreenWithBody<LoadingSuccessBodyModel>(
@@ -323,9 +313,7 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
       awaitUntilScreenWithBody<FormBodyModel>(
         NotificationsEventTrackerScreenId.ENABLE_PUSH_NOTIFICATIONS
       )
-      appTester.app.socialRecoveryF8eClientFake.challenges.single().response.challengeId.shouldBe(
-        challengeId
-      )
+      socRecF8eClientFake.challenges.single().response.challengeId.shouldBe(challengeId)
     }
   }
 
@@ -333,16 +321,17 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     val account = appTester.onboardFullAccountWithFakeHardware()
 
     suspend fun simulateRespondToChallenge() {
-      val recoveryAuth = appTester.app.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
-        recoveryRelationshipId = endorsedTrustedContact.relationshipId
-      ).getOrThrow().shouldNotBeNull()
+      val recoveryAuth =
+        appTester.app.appComponent.socRecStartedChallengeAuthenticationDao.getByRelationshipId(
+          recoveryRelationshipId = endorsedTrustedContact.relationshipId
+        ).getOrThrow().shouldNotBeNull()
       val decryptOutput = socRecCrypto.decryptPrivateKeyEncryptionKey(
         password = recoveryAuth.pakeCode,
         protectedCustomerRecoveryPakeKey = recoveryAuth.protectedCustomerRecoveryPakeKey.publicKey,
         delegatedDecryptionKey = delegatedDecryptionKey,
         sealedPrivateKeyEncryptionKey = relationshipIdToPkekMap[endorsedTrustedContact.relationshipId].shouldNotBeNull()
       ).getOrThrow()
-      appTester.app.socialRecoveryF8eClientFake.challengeResponses.add(
+      socRecF8eClientFake.challengeResponses.add(
         SocialChallengeResponse(
           recoveryRelationshipId = endorsedTrustedContact.relationshipId,
           trustedContactRecoveryPakePubkey = decryptOutput.trustedContactRecoveryPakeKey,
@@ -355,15 +344,14 @@ class RecoveryChallengeUiStateMachineFunctionalTests : FunSpec({
     val props = RecoveryChallengeUiProps(
       accountId = account.accountId,
       f8eEnvironment = account.config.f8eEnvironment,
-      actions =
-        appTester.app.socRecChallengeRepository.toActions(
-          accountId = account.accountId,
-          f8eEnvironment = account.config.f8eEnvironment,
-          isUsingSocRecFakes = true
-        ),
+      actions = appTester.app.appComponent.socRecChallengeRepository.toActions(
+        accountId = account.accountId,
+        f8eEnvironment = account.config.f8eEnvironment,
+        isUsingSocRecFakes = true
+      ),
       relationshipIdToSocRecPkekMap = relationshipIdToPkekMap,
       sealedPrivateKeyMaterial = sealedPrivateKeyMaterial,
-      endorsedTrustedContacts = appTester.app.socialRecoveryF8eClientFake.endorsedTrustedContacts.toImmutableList(),
+      endorsedTrustedContacts = socRecF8eClientFake.endorsedTrustedContacts.toImmutableList(),
       onExit = { onExitCalls.add(Unit) },
       onKeyRecovered = { onRecoveryCalls.add(it) }
     )

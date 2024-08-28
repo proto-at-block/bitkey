@@ -19,6 +19,8 @@ import build.wallet.statemachine.notifications.NotificationsPreferencesCachedPro
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.booleans.shouldBeFalse
+import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
@@ -34,12 +36,14 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
     eventTracker = EventTrackerMock(turbines::create)
   )
 
+  val onCompleteCalls = turbines.create<Unit>("onComplete")
+
   val props = NotificationPreferencesProps(
     fullAccountId = FullAccountIdMock,
     f8eEnvironment = F8eEnvironment.Production,
     source = NotificationPreferencesProps.Source.Onboarding,
     onBack = {},
-    onComplete = {}
+    onComplete = { onCompleteCalls.add(Unit) }
   )
 
   test("show tos if terms not accepted") {
@@ -72,6 +76,37 @@ class NotificationPreferencesUiStateMachineImplTests : FunSpec({
           .shouldBeInstanceOf<ListItemAccessory.IconAccessory>()
           .model.iconImage.shouldBe(IconImage.LocalImage(Icon.SmallIconCheckFilled))
       }
+    }
+  }
+
+  test("calls onComplete when done") {
+    stateMachine.test(props) {
+      awaitScreenWithBody<FormBodyModel> {
+        // Simulate tapping the ToS button
+        val tosListGroup = mainContentList[4].shouldBeInstanceOf<FormMainContentModel.ListGroup>()
+        tosListGroup.listGroupModel.items.first().trailingAccessory.shouldNotBeNull()
+          .shouldBeInstanceOf<ListItemAccessory.IconAccessory>().onClick.shouldNotBeNull().invoke()
+
+        ctaWarning.shouldBeNull()
+      }
+
+      // Re-render the screen with the TOS selected
+      awaitScreenWithBody<FormBodyModel> {
+        // Tap Continue
+        primaryButton.shouldNotBeNull().onClick.shouldNotBeNull().invoke()
+      }
+
+      // Transition to a loading state, where the primary button shows a loading spinner
+      awaitScreenWithBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeTrue()
+      }
+
+      // Once more go back to the editing state
+      awaitScreenWithBody<FormBodyModel> {
+        primaryButton.shouldNotBeNull().isLoading.shouldBeFalse()
+      }
+      // Finally, onComplete is called.
+      onCompleteCalls.awaitItem()
     }
   }
 })

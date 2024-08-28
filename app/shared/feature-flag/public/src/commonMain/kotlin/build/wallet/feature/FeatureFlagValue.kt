@@ -16,6 +16,8 @@ suspend fun FeatureFlag<FeatureFlagValue.BooleanFlag>.setFlagValue(value: Boolea
   setFlagValue(FeatureFlagValue.BooleanFlag(value))
 }
 
+fun FeatureFlagValue.BooleanFlag.isEnabled(): Boolean = value
+
 fun FeatureFlag<FeatureFlagValue.BooleanFlag>.isEnabled(): Boolean {
-  return flagValue().value.value
+  return flagValue().value.isEnabled()
 }

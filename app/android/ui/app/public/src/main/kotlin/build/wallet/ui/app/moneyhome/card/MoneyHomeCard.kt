@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package build.wallet.ui.app.moneyhome.card
 
 import androidx.compose.animation.core.Animatable
@@ -18,6 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import build.wallet.Progress
 import build.wallet.bitkey.relationships.*
+import build.wallet.compose.collections.buildImmutableList
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.home.GettingStartedTask
 import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
@@ -26,9 +29,12 @@ import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
 import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
+import build.wallet.pricechart.DataPoint
+import build.wallet.pricechart.PriceDirection
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Scale
+import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.BitcoinPrice
 import build.wallet.statemachine.moneyhome.card.CardModel.CardContent.DrillList
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Gradient
 import build.wallet.statemachine.moneyhome.card.CardModel.CardStyle.Outline
@@ -44,10 +50,15 @@ import build.wallet.ui.components.card.Card
 import build.wallet.ui.components.card.CardContent
 import build.wallet.ui.components.card.GradientCard
 import build.wallet.ui.theme.WalletTheme
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Instant.Companion.DISTANT_FUTURE
 import kotlinx.datetime.Instant.Companion.DISTANT_PAST
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.time.Duration
 import kotlin.time.DurationUnit.MILLISECONDS
 import kotlin.time.DurationUnit.SECONDS
@@ -148,6 +159,28 @@ fun MoneyHomeCard(
         )
       }
   }
+}
+
+@Preview
+@Composable
+internal fun PreviewMoneyHomePriceCard(isLoading: Boolean = false) {
+  MoneyHomeCard(
+    model =
+      CardModel(
+        title = null,
+        content = BitcoinPrice(
+          isLoading = isLoading,
+          priceChange = "10.00% today",
+          priceDirection = PriceDirection.UP,
+          lastUpdated = "Updated 12:00am",
+          price = "$90,000.00",
+          data = generateChartData(150)
+            .takeUnless { isLoading }
+            ?: immutableListOf()
+        ),
+        style = Outline
+      )
+  )
 }
 
 @Preview
@@ -305,6 +338,7 @@ private fun CardModel.estimatedHeight() =
         is DrillList ->
           // each row height + spacing in between rows
           (it.items.count() * 56f) + ((it.items.count() - 1) * 12f)
+        is BitcoinPrice -> 100f
       }
     },
     if (content == null) {
@@ -313,3 +347,12 @@ private fun CardModel.estimatedHeight() =
       null
     } // bottom padding if no content
   ).sum()
+
+private fun generateChartData(pointCount: Int): ImmutableList<DataPoint> {
+  return buildImmutableList {
+    for (i in 0 until pointCount) {
+      val y = abs(sin(i * PI / 30) * 20 + cos(i * PI / 15) * 10)
+      add(DataPoint(i.toLong(), y))
+    }
+  }
+}

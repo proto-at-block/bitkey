@@ -1,11 +1,11 @@
 package build.wallet.component.keybox.wallet
 
+import app.cash.turbine.test
 import app.cash.turbine.turbineScope
 import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.fees.FeePolicy
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.coroutines.actualDelay
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.matchers.shouldBeLessThan
 import build.wallet.testing.AppTester.Companion.launchNewApp
@@ -16,6 +16,8 @@ import build.wallet.testing.shouldBeOk
 import com.github.michaelbull.result.getOrThrow
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import com.ionspin.kotlin.bignum.integer.toBigInteger
+import io.kotest.assertions.nondeterministic.eventually
+import io.kotest.assertions.nondeterministic.eventuallyConfig
 import io.kotest.assertions.withClue
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -23,6 +25,7 @@ import io.kotest.matchers.collections.shouldBeSingleton
 import io.kotest.matchers.collections.shouldBeUnique
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import kotlin.system.measureTimeMillis
 import kotlin.time.Duration.Companion.seconds
 
 class AppSpendingWalletFunctionalTests : FunSpec({
@@ -112,13 +115,26 @@ class AppSpendingWalletFunctionalTests : FunSpec({
 
         bitcoinBlockchain.broadcast(appAndHwSignedPsbt).getOrThrow()
 
-        actualDelay(10.seconds) {
-          "Let the transaction from app to treasury propagate to blockchain"
+        eventually(
+          eventuallyConfig {
+            duration = 30.seconds
+            interval = 1.seconds
+            initialDelay = 1.seconds
+            listener = {
+                k,
+                throwable,
+              ->
+              println("Still waiting for transaction to propagate... $throwable of type ${throwable::class}")
+            }
+          }
+        ) {
+          val timeTaken = measureTimeMillis {
+            wallet.sync().shouldBeOk()
+          }
+          println("Sync time: $timeTaken ms")
+          balance.awaitItem().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
         }
 
-        wallet.sync().shouldBeOk()
-
-        balance.awaitItem().spendable.shouldBeLessThan(BitcoinMoney.sats(5_000))
         treasury.spendingWallet.sync().shouldBeOk()
       }
 

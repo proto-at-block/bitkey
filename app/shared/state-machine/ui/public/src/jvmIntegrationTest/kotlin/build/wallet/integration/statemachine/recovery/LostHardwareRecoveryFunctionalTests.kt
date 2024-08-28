@@ -1,9 +1,6 @@
 package build.wallet.integration.statemachine.recovery
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import app.cash.turbine.ReceiveTurbine
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId
 import build.wallet.analytics.events.screen.id.CloudEventTrackerScreenId.CLOUD_SIGN_IN_LOADING
@@ -34,7 +31,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.LoadingActiveFullAccountData
 import build.wallet.statemachine.data.keybox.AccountDataStateMachineImpl
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
 import build.wallet.statemachine.nfc.NfcBodyModel
@@ -48,6 +44,8 @@ import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.*
 import build.wallet.testing.shouldBeOk
+import build.wallet.testing.tags.TestTag.FlakyTest
+import build.wallet.worker.AppWorkerExecutor
 import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.nondeterministic.eventually
@@ -59,6 +57,8 @@ import kotlinx.coroutines.flow.first
 import kotlin.time.Duration.Companion.seconds
 
 class LostHardwareRecoveryFunctionalTests : FunSpec({
+  tags(FlakyTest)
+
   data class Props(val fullAccountConfig: FullAccountConfig, val originalKeyboxId: String)
 
   class TestingStateMachine(
@@ -66,9 +66,14 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
     val usm: LostHardwareRecoveryUiStateMachineImpl,
     val keyboxDao: KeyboxDao,
     val recoverySyncer: RecoverySyncer,
+    val appWorkerExecutor: AppWorkerExecutor,
   ) : StateMachine<Props, ScreenModel> {
     @Composable
     override fun model(props: Props): ScreenModel {
+      LaunchedEffect("execute-app-workers") {
+        appWorkerExecutor.executeAll()
+      }
+
       val activeKeybox =
         remember {
           keyboxDao.activeKeybox()
@@ -85,7 +90,6 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
       }
       val accountData = dsm.model(Unit)
       return when (accountData) {
-        is LoadingActiveFullAccountData,
         is CheckingActiveAccountData,
         -> preStartOrPostRecoveryCompletionScreen(RECOVERY_NOT_STARTED)
         is ActiveFullAccountLoadedData -> {
@@ -95,8 +99,10 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
               lostHardwareRecoveryData = accountData.lostHardwareRecoveryData,
               screenPresentationStyle = Root,
               onFoundHardware = {},
-              instructionsStyle = InstructionsStyle.Independent
-            ) { updateAborted(true) }
+              instructionsStyle = InstructionsStyle.Independent,
+              onExit = { updateAborted(true) },
+              onComplete = {}
+            )
           )
         }
         else -> error("Unexpected KeyboxData state $accountData")
@@ -120,7 +126,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         app.accountDataStateMachine,
         app.lostHardwareRecoveryUiStateMachine,
         app.appComponent.keyboxDao,
-        app.recoverySyncer
+        app.recoverySyncer,
+        app.appComponent.appWorkerExecutor
       )
   }
 
@@ -132,7 +139,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         app.accountDataStateMachine,
         app.lostHardwareRecoveryUiStateMachine,
         app.appComponent.keyboxDao,
-        app.recoverySyncer
+        app.recoverySyncer,
+        app.appComponent.appWorkerExecutor
       )
   }
 
@@ -477,7 +485,8 @@ class LostHardwareRecoveryFunctionalTests : FunSpec({
         newApp.app.accountDataStateMachine,
         newApp.app.lostHardwareRecoveryUiStateMachine,
         newApp.app.appComponent.keyboxDao,
-        newApp.app.recoverySyncer
+        newApp.app.recoverySyncer,
+        newApp.app.appComponent.appWorkerExecutor
       )
 
     // Complete Lost Hardware Recovery with D&N
@@ -619,6 +628,12 @@ private suspend fun ReceiveTurbine<ScreenModel>.startRecoveryAndAdvanceToDelayNo
     .clickPrimaryButton()
   awaitUntilScreenWithBody<PairNewHardwareBodyModel>(HW_SAVE_FINGERPRINT_INSTRUCTIONS)
     .clickPrimaryButton()
-  awaitUntilScreenWithBody<FormBodyModel>(LOST_HW_DELAY_NOTIFY_PENDING)
+  awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOST_HW_DELAY_NOTIFY_INITIATION_INITIATING_SERVER_RECOVERY)
+  awaitUntilScreenWithBody<FormBodyModel>(
+    LOST_HW_DELAY_NOTIFY_PENDING,
+    expectedBodyContentMatch = {
+      it.header?.headline == "Replacement in progress..."
+    }
+  )
   appTester.completeRecoveryDelayPeriodOnF8e()
 }

@@ -1,11 +1,6 @@
 package build.wallet.statemachine.recovery.socrec.view
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.logging.logFailure
 import build.wallet.platform.sharing.SharingManager
 import build.wallet.platform.sharing.shareInvitation
@@ -74,9 +69,6 @@ class ViewingInvitationUiStateMachineImpl(
             account = props.fullAccount,
             trustedContactAlias = props.invitation.trustedContactAlias.alias,
             relationshipId = props.invitation.relationshipId,
-            onReinviteTc = {
-              props.onRefreshInvitation(props.invitation, it)
-            },
             onExit = {
               props.onExit()
             }
@@ -89,9 +81,6 @@ class ViewingInvitationUiStateMachineImpl(
           RemoveTrustedContactUiProps(
             trustedContact = props.invitation,
             account = props.fullAccount,
-            onRemoveTrustedContact = {
-              props.onRemoveInvitation(props.invitation, it)
-            },
             onClosed = {
               props.onExit()
             }

@@ -58,59 +58,31 @@ pub fn generate_share_package(
 /// This should **NOT** be shared with other participants.
 ///
 /// participant – The participant generating the share.
-pub fn share_agg_params(share_package: SharePackage) -> Result<ShareAggParams, KeygenError> {
+pub fn share_agg_params(share_package: &SharePackage) -> Result<ShareAggParams, KeygenError> {
     let share_agg_params = ShareAggParams {
         intermediate_share: match share_package.index {
             APP_PARTICIPANT_INDEX => Share(APP_DKG_INTERMEDIATE_SHARE),
             SERVER_PARTICIPANT_INDEX => Share(SERVER_DKG_INTERMEDIATE_SHARE),
             _ => return Err(KeygenError::InvalidParticipantIndex),
         },
-        coefficient_commitments: share_package.coefficient_commitments,
+        coefficient_commitments: share_package.coefficient_commitments.clone(),
     };
 
     Ok(share_agg_params)
 }
 
-/// Verifies the share package received from a peer.
-///
-/// participant – The participant verifying the share package.
-/// share_package – The share package to verify.
-pub fn verify_share_package(
-    _participant: Participant,
-    share_package: &SharePackage,
-) -> Result<bool, KeygenError> {
-    if !verify_proof_of_knowledge(share_package) {
-        return Err(KeygenError::InvalidProofOfKnowledge);
-    }
-
-    if !verify_share(share_package) {
-        return Err(KeygenError::InvalidIntermediateShare);
-    }
-
-    Ok(true)
-}
-
-fn verify_proof_of_knowledge(_share_package: &SharePackage) -> bool {
-    true
-}
-
-fn verify_share(_share_package: &SharePackage) -> bool {
-    true
-}
-
-/// Finalizes the share by aggregating the shares and generating the key commitments.
+/// Aggregate the shares and generates key commitments.
 ///
 /// package – The participant's share package.
 /// peer_package – The peer's share package.
 /// share_agg_params – The participant's share aggregation parameters.
-pub fn finalize_share(
-    package: SharePackage,
-    peer_package: SharePackage,
-    _share_agg_params: ShareAggParams,
+pub fn aggregate_shares(
+    _share_agg_params: &ShareAggParams,
+    peer_package: &SharePackage,
 ) -> Result<ShareDetails, KeygenError> {
-    let secret_share = match (package.index, peer_package.index) {
-        (APP_PARTICIPANT_INDEX, SERVER_PARTICIPANT_INDEX) => APP_SHAMIR_SHARE,
-        (SERVER_PARTICIPANT_INDEX, APP_PARTICIPANT_INDEX) => SERVER_SHAMIR_SHARE,
+    let secret_share = match peer_package.index {
+        SERVER_PARTICIPANT_INDEX => APP_SHAMIR_SHARE,
+        APP_PARTICIPANT_INDEX => SERVER_SHAMIR_SHARE,
         _ => return Err(KeygenError::InvalidParticipantIndex),
     };
 
@@ -126,6 +98,17 @@ pub fn finalize_share(
     })
 }
 
+pub fn equality_check(
+    peer_key_commitments: &KeyCommitments,
+    share_details: ShareDetails,
+) -> Result<ShareDetails, KeygenError> {
+    if peer_key_commitments != &share_details.key_commitments {
+        return Err(KeygenError::InvalidKeyCommitments);
+    }
+
+    Ok(share_details)
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SharePackage {
     index: ParticipantIndex,
@@ -134,14 +117,68 @@ pub struct SharePackage {
     intermediate_share: Share,
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum KeygenError {
     #[error("Generator is missing a share package. Did you forget to generate a share package?")]
     MissingSharePackage,
+    #[error("Generator is missing share aggregation parameters. Did you forget to generate a share package?")]
+    MissingShareAggParams,
     #[error("Invalid participant index")]
     InvalidParticipantIndex,
     #[error("Invalid proof of knowledge")]
     InvalidProofOfKnowledge,
     #[error("Invalid intermediate share")]
     InvalidIntermediateShare,
+    #[error("Invalid key commitments")]
+    InvalidKeyCommitments,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::frost::dkg::{equality_check, generate_share_package, KeygenError};
+    use crate::frost::Participant::{App, Server};
+
+    use super::{aggregate_shares, share_agg_params};
+
+    #[test]
+    fn test_generate_share_package() {
+        // Valid permutations
+        assert!(generate_share_package(App, Server).is_ok());
+        assert!(generate_share_package(Server, App).is_ok());
+
+        // Invalid Permutations
+        assert_eq!(
+            generate_share_package(App, App),
+            Err(KeygenError::InvalidParticipantIndex)
+        );
+        assert_eq!(
+            generate_share_package(Server, Server),
+            Err(KeygenError::InvalidParticipantIndex)
+        )
+    }
+
+    #[test]
+    fn test_equality_check() {
+        // Run DKG twice, and check their outputs are equal
+
+        let app_share_package = generate_share_package(App, Server).unwrap();
+        let app_share_agg_params = share_agg_params(&app_share_package).unwrap();
+
+        let server_share_package = generate_share_package(Server, App).unwrap();
+        let server_share_agg_params = share_agg_params(&server_share_package).unwrap();
+
+        let app_share_details =
+            aggregate_shares(&app_share_agg_params, &server_share_package).unwrap();
+        let server_share_details =
+            aggregate_shares(&server_share_agg_params, &app_share_package).unwrap();
+
+        // Server checks
+        assert!(equality_check(
+            &app_share_details.key_commitments,
+            server_share_details.clone()
+        )
+        .is_ok());
+        // App checks
+        assert!(equality_check(&server_share_details.key_commitments, app_share_details).is_ok())
+    }
 }

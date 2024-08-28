@@ -8,6 +8,7 @@ import bitkey.shared.ui_core_public.generated.resources.*
 import bitkey.shared.ui_core_public.generated.resources.Res
 import build.wallet.statemachine.core.Icon
 import build.wallet.statemachine.core.Icon.Bitcoin
+import build.wallet.statemachine.core.Icon.BitcoinOrange
 import build.wallet.statemachine.core.Icon.BitkeyDevice3D
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaised
 import build.wallet.statemachine.core.Icon.BitkeyDeviceRaisedSmall
@@ -121,6 +122,7 @@ private val Icon.drawableRes: DrawableResource
   get() =
     when (this) {
       Bitcoin -> Res.drawable.bitcoin
+      BitcoinOrange -> Res.drawable.bitcoin_orange
       BitkeyDevice3D -> Res.drawable.bitkey_device_3d
       BitkeyDeviceRaised -> Res.drawable.bitkey_device_raised
       BitkeyDeviceRaisedSmall -> Res.drawable.bitkey_device_raised_small

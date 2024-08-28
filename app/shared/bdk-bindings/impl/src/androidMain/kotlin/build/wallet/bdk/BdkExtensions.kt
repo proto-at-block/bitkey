@@ -1,22 +1,6 @@
 package build.wallet.bdk
 
-import build.wallet.bdk.bindings.BdkAddressIndex
-import build.wallet.bdk.bindings.BdkAddressInfo
-import build.wallet.bdk.bindings.BdkBalance
-import build.wallet.bdk.bindings.BdkBlockTime
-import build.wallet.bdk.bindings.BdkBlockchainConfig
-import build.wallet.bdk.bindings.BdkDatabaseConfig
-import build.wallet.bdk.bindings.BdkElectrumConfig
-import build.wallet.bdk.bindings.BdkKeychainKind
-import build.wallet.bdk.bindings.BdkMnemonicWordCount
-import build.wallet.bdk.bindings.BdkNetwork
-import build.wallet.bdk.bindings.BdkOutPoint
-import build.wallet.bdk.bindings.BdkProgress
-import build.wallet.bdk.bindings.BdkScript
-import build.wallet.bdk.bindings.BdkTransactionDetails
-import build.wallet.bdk.bindings.BdkTxIn
-import build.wallet.bdk.bindings.BdkTxOut
-import build.wallet.bdk.bindings.BdkUtxo
+import build.wallet.bdk.bindings.*
 import kotlinx.datetime.Instant
 import org.bitcoindevkit.AddressIndex.LastUnused
 import org.bitcoindevkit.AddressIndex.New
@@ -193,14 +177,14 @@ internal val TxOut.bdkTxOut: BdkTxOut
   get() =
     BdkTxOut(
       value = value,
-      scriptPubkey = BdkScriptImpl(scriptPubkey)
+      scriptPubkey = BdkScriptImpl(rawOutputScript = scriptPubkey.toBytes())
     )
 
 /**
  * Convert KMP type to FFI type.
  */
 internal val BdkScript.ffiScript: FfiScript
-  get() = FfiScript(rawOutputScript = rawOutputScript())
+  get() = FfiScript(rawOutputScript = rawOutputScript)
 
 /**
  * Convert FFI [LocalUtxo] to KMP [BdkUtxo] type

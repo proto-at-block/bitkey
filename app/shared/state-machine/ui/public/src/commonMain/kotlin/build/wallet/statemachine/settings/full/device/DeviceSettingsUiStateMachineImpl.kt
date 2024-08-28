@@ -4,8 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.context.NfcEventTrackerScreenIdContext.METADATA
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.analytics.events.screen.id.SettingsEventTrackerScreenId
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates
 import build.wallet.coachmark.CoachmarkIdentifier
 import build.wallet.coachmark.CoachmarkService
@@ -58,7 +58,7 @@ class DeviceSettingsUiStateMachineImpl(
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
   private val durationFormatter: DurationFormatter,
-  private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
+  private val appFunctionalityService: AppFunctionalityService,
   private val managingFingerprintsUiStateMachine: ManagingFingerprintsUiStateMachine,
   private val resettingDeviceUiStateMachine: ResettingDeviceUiStateMachine,
   private val coachmarkService: CoachmarkService,
@@ -72,11 +72,7 @@ class DeviceSettingsUiStateMachineImpl(
 
     var alertModel: ButtonAlertModel? by remember { mutableStateOf(null) }
 
-    val appFunctionalityStatus by remember {
-      appFunctionalityStatusProvider.appFunctionalityStatus(
-        props.accountData.account.config.f8eEnvironment
-      )
-    }.collectAsState(AppFunctionalityStatus.FullFunctionality)
+    val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
 
     val securityAndRecoveryStatus by remember {
       derivedStateOf {
@@ -187,7 +183,8 @@ class DeviceSettingsUiStateMachineImpl(
             screenPresentationStyle = Modal,
             instructionsStyle = InstructionsStyle.Independent,
             onFoundHardware = {}, // noop
-            onExit = { uiState = ViewingDeviceDataUiState() }
+            onExit = { uiState = ViewingDeviceDataUiState() },
+            onComplete = props.onUnwindToMoneyHome
           )
         )
 
@@ -199,7 +196,8 @@ class DeviceSettingsUiStateMachineImpl(
             screenPresentationStyle = Modal,
             instructionsStyle = InstructionsStyle.Independent,
             onFoundHardware = {}, // noop
-            onExit = { uiState = ViewingDeviceDataUiState() }
+            onExit = { uiState = ViewingDeviceDataUiState() },
+            onComplete = props.onUnwindToMoneyHome
           )
         )
 
@@ -241,16 +239,16 @@ class DeviceSettingsUiStateMachineImpl(
         )
       )
 
-      is ResettingDeviceUiState -> resettingDeviceUiStateMachine.model(
-        props = ResettingDeviceProps(
-          onBack = { uiState = ViewingDeviceDataUiState() },
-          onSuccess = props.onUnwindToMoneyHome,
-          spendingWallet = props.accountData.spendingWallet,
-          fullAccountConfig = props.accountData.account.config,
-          fullAccount = props.accountData.account,
-          balance = props.accountData.transactionsData.balance
+      is ResettingDeviceUiState -> {
+        resettingDeviceUiStateMachine.model(
+          props = ResettingDeviceProps(
+            onBack = { uiState = ViewingDeviceDataUiState() },
+            onSuccess = props.onUnwindToMoneyHome,
+            fullAccountConfig = props.accountData.account.config,
+            fullAccount = props.accountData.account
+          )
         )
-      )
+      }
     }
   }
 }

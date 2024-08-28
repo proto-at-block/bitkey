@@ -5,6 +5,8 @@ import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId.MON
 import build.wallet.bitcoin.invoice.ParsedPaymentData
 import build.wallet.bitcoin.invoice.PaymentDataParser
 import build.wallet.bitcoin.transactions.BitcoinTransaction
+import build.wallet.bitcoin.transactions.TransactionsData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.relationships.TrustedContact
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
 import build.wallet.compose.collections.immutableListOf
@@ -61,6 +63,7 @@ import build.wallet.statemachine.transactions.TransactionListUiProps
 import build.wallet.statemachine.transactions.TransactionListUiProps.TransactionVisibility.All
 import build.wallet.statemachine.transactions.TransactionListUiStateMachine
 import com.github.michaelbull.result.get
+import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import build.wallet.statemachine.settings.full.device.fingerprints.EntryPoint as FingerprintManagementEntryPoint
@@ -86,6 +89,7 @@ class MoneyHomeUiStateMachineImpl(
   private val sweepUiStateMachine: SweepUiStateMachine,
   private val bitcoinPriceChartUiStateMachine: BitcoinPriceChartUiStateMachine,
   private val socRecService: SocRecService,
+  private val transactionsService: TransactionsService,
 ) : MoneyHomeUiStateMachine {
   @Composable
   override fun model(props: MoneyHomeUiProps): ScreenModel {
@@ -139,8 +143,6 @@ class MoneyHomeUiStateMachineImpl(
         moneyHomeViewingBalanceUiStateMachine.model(
           props = MoneyHomeViewingBalanceUiProps(
             accountData = props.accountData,
-            socRecRelationships = props.socRecRelationships,
-            socRecActions = props.socRecActions,
             homeBottomSheetModel = props.homeBottomSheetModel,
             homeStatusBannerModel = props.homeStatusBannerModel,
             onSettings = props.onSettings,
@@ -214,9 +216,18 @@ class MoneyHomeUiStateMachineImpl(
           }
         )
 
-      ViewingAllTransactionActivityUiState ->
+      ViewingAllTransactionActivityUiState -> {
+        val transactions =
+          when (
+            val transactionsData = remember { transactionsService.transactionsData() }
+              .collectAsState().value
+          ) {
+            TransactionsData.LoadingTransactionsData -> immutableListOf()
+            is TransactionsData.TransactionsLoadedData -> transactionsData.transactions
+          }
+
         AllTransactionsModel(
-          props = props,
+          transactions = transactions,
           fiatCurrency = fiatCurrency,
           onTransactionSelected = { transaction ->
             uiState =
@@ -229,6 +240,7 @@ class MoneyHomeUiStateMachineImpl(
             uiState = ViewingBalanceUiState()
           }
         )
+      }
 
       is ViewingTransactionUiState ->
         TransactionDetailsModel(
@@ -384,7 +396,8 @@ class MoneyHomeUiStateMachineImpl(
           onExit()
         },
         screenPresentationStyle = Modal,
-        instructionsStyle = instructionsStyle
+        instructionsStyle = instructionsStyle,
+        onComplete = onExit
       )
   )
 
@@ -404,7 +417,7 @@ class MoneyHomeUiStateMachineImpl(
 
   @Composable
   private fun AllTransactionsModel(
-    props: MoneyHomeUiProps,
+    transactions: ImmutableList<BitcoinTransaction>,
     fiatCurrency: FiatCurrency,
     onTransactionSelected: (BitcoinTransaction) -> Unit,
     onExit: () -> Unit,
@@ -414,7 +427,7 @@ class MoneyHomeUiStateMachineImpl(
       transactionListUiStateMachine.model(
         props = TransactionListUiProps(
           transactionVisibility = All,
-          transactions = props.accountData.transactionsData.transactions,
+          transactions = transactions,
           fiatCurrency = fiatCurrency,
           onTransactionClicked = onTransactionSelected
         )

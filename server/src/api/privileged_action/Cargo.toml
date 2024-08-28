@@ -5,6 +5,8 @@ publish = { workspace = true }
 version = "0.1.0"
 
 [dependencies]
+axum = { workspace = true }
+axum-macros = { workspace = true }
 base64 = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -13,6 +15,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tracing = { workspace = true }
+utoipa = { workspace = true }
 
 # path dependencies
 account = { workspace = true }
@@ -20,5 +23,8 @@ authn_authz = { workspace = true }
 database = { workspace = true }
 errors = { workspace = true }
 external_identifier = { workspace = true }
+http_server = { workspace = true }
+instrumentation = { workspace = true }
 repository = { workspace = true, features = ["privileged_action"] }
 types = { workspace = true, features = ["account", "privileged_action"] }
+userpool = { workspace = true }

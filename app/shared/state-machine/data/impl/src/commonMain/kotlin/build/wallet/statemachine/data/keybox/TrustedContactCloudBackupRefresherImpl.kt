@@ -17,7 +17,7 @@ import build.wallet.cloud.store.cloudServiceProvider
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.NeedsUpdate
 import build.wallet.statemachine.data.keybox.TrustedContactCloudBackupRefresherImpl.StoredBackupState.UpToDate
 import com.github.michaelbull.result.Err
@@ -39,7 +39,7 @@ import kotlinx.datetime.Instant
 
 // TODO(BKR-1135): merge into FullAccountCloudBackupRepairer
 class TrustedContactCloudBackupRefresherImpl(
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
+  private val socRecService: SocRecService,
   private val cloudBackupDao: CloudBackupDao,
   private val cloudStoreAccountRepository: CloudStoreAccountRepository,
   private val cloudBackupRepository: CloudBackupRepository,
@@ -57,7 +57,7 @@ class TrustedContactCloudBackupRefresherImpl(
   ) {
     scope.launch {
       combine(
-        socRecRelationshipsRepository.relationships
+        socRecService.relationships
           .filterNotNull()
           // Only endorsed and verified trusted contacts are interesting for cloud backups.
           .map {

@@ -1,22 +1,13 @@
 package build.wallet.ui.components.alertdialog
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +25,7 @@ import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
 import androidx.compose.material3.AlertDialog as MaterialAlertDialog
+import androidx.compose.material3.BasicAlertDialog as MaterialBasicAlertDialog
 
 @Composable
 fun AlertDialog(
@@ -93,7 +85,7 @@ fun InputAlertDialog(
     mutableStateOf(model.value)
   }
 
-  MaterialAlertDialog(
+  MaterialBasicAlertDialog(
     modifier = modifier
       .clip(AlertDialogDefaults.shape)
       .background(WalletTheme.colors.containerBackground)

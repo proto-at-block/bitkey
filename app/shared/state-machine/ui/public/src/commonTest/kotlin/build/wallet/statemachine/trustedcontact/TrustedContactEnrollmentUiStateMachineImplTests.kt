@@ -1,17 +1,8 @@
 package build.wallet.statemachine.trustedcontact
 
 import build.wallet.analytics.events.EventTrackerMock
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ENTER_INVITE_CODE
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_LOAD_KEY
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_SUCCESS
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_TC_ADD_CUSTOMER_NAME
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
 import build.wallet.bitkey.keybox.LiteAccountMock
-import build.wallet.bitkey.relationships.IncomingInvitation
-import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.f8e.error.F8eError
@@ -21,27 +12,14 @@ import build.wallet.f8e.error.code.RetrieveTrustedContactInvitationErrorCode.NOT
 import build.wallet.ktor.result.HttpError
 import build.wallet.ktor.test.HttpResponseMock
 import build.wallet.platform.device.DeviceInfoProviderMock
-import build.wallet.recovery.socrec.AcceptInvitationCodeError
-import build.wallet.recovery.socrec.IncomingInvitationFake
-import build.wallet.recovery.socrec.RetrieveInvitationCodeError
-import build.wallet.recovery.socrec.SocRecCryptoFake
-import build.wallet.recovery.socrec.SocRecKeysDaoFake
-import build.wallet.recovery.socrec.SocRecKeysRepository
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.Retreat
-import build.wallet.statemachine.core.RetreatStyle
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.StateMachineTester
-import build.wallet.statemachine.core.awaitScreenWithBody
+import build.wallet.recovery.socrec.*
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel
-import build.wallet.statemachine.core.test
 import build.wallet.statemachine.ui.clickPrimaryButton
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.Result
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
@@ -54,21 +32,15 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
   val socRecCrypto = SocRecCryptoFake()
   val socRecKeysRepository = SocRecKeysRepository(socRecCrypto, SocRecKeysDaoFake())
   val eventTracker = EventTrackerMock(turbines::create)
+  val socRecService = SocRecServiceMock(turbines::create)
 
   val stateMachine =
     TrustedContactEnrollmentUiStateMachineImpl(
       deviceInfoProvider = DeviceInfoProviderMock(),
       socRecKeysRepository = socRecKeysRepository,
-      eventTracker = eventTracker
+      eventTracker = eventTracker,
+      socRecService = socRecService
     )
-
-  var retrieveInvitationResult:
-    Result<IncomingInvitation, RetrieveInvitationCodeError> =
-    Ok(IncomingInvitationFake)
-
-  var acceptInvitationResult:
-    Result<ProtectedCustomer, AcceptInvitationCodeError> =
-    Ok(ProtectedCustomerFake)
 
   val propsOnRetreatCalls = turbines.create<Unit>("props onRetreat calls")
   val propsOnDoneCalls = turbines.create<Unit>("props onDone calls")
@@ -81,15 +53,15 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
         ),
       account = LiteAccountMock,
       inviteCode = null,
-      acceptInvitation = { _, _, _, _ -> acceptInvitationResult },
-      retrieveInvitation = { retrieveInvitationResult },
       onDone = { propsOnDoneCalls.add(Unit) },
       screenPresentationStyle = ScreenPresentationStyle.Root
     )
 
   beforeEach {
-    retrieveInvitationResult = Ok(IncomingInvitationFake)
-    acceptInvitationResult = Ok(ProtectedCustomerFake)
+    socRecService.clear()
+
+    socRecService.retrieveInvitationResult = Ok(IncomingInvitationFake)
+    socRecService.acceptInvitationResult = Ok(ProtectedCustomerFake)
   }
 
   test("happy path") {
@@ -158,7 +130,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("invalid code") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.InvalidInvitationCode(Error()))
+      socRecService.retrieveInvitationResult =
+        Err(RetrieveInvitationCodeError.InvalidInvitationCode(Error()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
@@ -170,7 +143,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("version mismatch") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch(Error()))
+      socRecService.retrieveInvitationResult =
+        Err(RetrieveInvitationCodeError.InvitationCodeVersionMismatch(Error()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
@@ -183,7 +157,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("specific client error") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.F8ePropagatedError(SpecificClientErrorMock(NOT_FOUND)))
+      socRecService.retrieveInvitationResult =
+        Err(RetrieveInvitationCodeError.F8ePropagatedError(SpecificClientErrorMock(NOT_FOUND)))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
@@ -195,7 +170,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("connectivity") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.F8ePropagatedError(ConnectivityError()))
+      socRecService.retrieveInvitationResult =
+        Err(RetrieveInvitationCodeError.F8ePropagatedError(ConnectivityError()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
@@ -214,7 +190,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("unknown") {
-      retrieveInvitationResult = Err(RetrieveInvitationCodeError.F8ePropagatedError(ServerError()))
+      socRecService.retrieveInvitationResult =
+        Err(RetrieveInvitationCodeError.F8ePropagatedError(ServerError()))
       stateMachine.test(props) {
         progressToRetrievingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E_FAILURE) {
@@ -254,7 +231,7 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("invalid code") {
-      acceptInvitationResult = Err(AcceptInvitationCodeError.InvalidInvitationCode)
+      socRecService.acceptInvitationResult = Err(AcceptInvitationCodeError.InvalidInvitationCode)
       stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
@@ -266,7 +243,11 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("specific client error") {
-      acceptInvitationResult = Err(AcceptInvitationCodeError.F8ePropagatedError(SpecificClientErrorMock(RELATIONSHIP_ALREADY_ESTABLISHED)))
+      socRecService.acceptInvitationResult = Err(
+        AcceptInvitationCodeError.F8ePropagatedError(
+          SpecificClientErrorMock(RELATIONSHIP_ALREADY_ESTABLISHED)
+        )
+      )
       stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
@@ -278,7 +259,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("connectivity") {
-      acceptInvitationResult = Err(AcceptInvitationCodeError.F8ePropagatedError(ConnectivityError()))
+      socRecService.acceptInvitationResult =
+        Err(AcceptInvitationCodeError.F8ePropagatedError(ConnectivityError()))
       stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {
@@ -297,7 +279,8 @@ class TrustedContactEnrollmentUiStateMachineImplTests : FunSpec({
     }
 
     test("unknown") {
-      acceptInvitationResult = Err(AcceptInvitationCodeError.F8ePropagatedError(ServerError()))
+      socRecService.acceptInvitationResult =
+        Err(AcceptInvitationCodeError.F8ePropagatedError(ServerError()))
       stateMachine.test(props) {
         progressToAcceptingInvite()
         awaitScreenWithBody<FormBodyModel>(TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E_FAILURE) {

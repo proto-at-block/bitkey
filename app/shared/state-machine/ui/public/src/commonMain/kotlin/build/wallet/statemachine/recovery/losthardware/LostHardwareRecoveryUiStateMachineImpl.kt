@@ -1,11 +1,6 @@
 package build.wallet.statemachine.recovery.losthardware
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle.Modal
@@ -72,7 +67,8 @@ class LostHardwareRecoveryUiStateMachineImpl(
             presentationStyle = Modal,
             recoveryInProgressData = lostHardwareRecoveryData.recoveryInProgressData,
             fullAccountConfig = props.account.keybox.config,
-            onExit = props.onExit
+            onExit = props.onExit,
+            onComplete = props.onComplete
           )
         )
       }

@@ -2,6 +2,7 @@ package build.wallet.statemachine.fwup
 
 import build.wallet.analytics.events.screen.id.FwupEventTrackerScreenId
 import build.wallet.platform.device.DeviceInfo
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
 import build.wallet.statemachine.core.form.FormHeaderModel
@@ -11,6 +12,7 @@ import build.wallet.statemachine.nfc.FwupInstructionsBodyModel
 fun FwupUpdateDeviceModel(
   onLaunchFwup: () -> Unit,
   onClose: () -> Unit,
+  onReleaseNotes: () -> Unit,
   bottomSheetModel: FwupUpdateDeviceBottomSheet?,
 ) = ScreenModel(
   body =
@@ -19,7 +21,18 @@ fun FwupUpdateDeviceModel(
       headerModel =
         FormHeaderModel(
           headline = "Update your device",
-          subline = "Press the button below and hold your unlocked device to the back of your phone until the update has completed.",
+          sublineModel = LabelModel.LinkSubstringModel.from(
+            substringToOnClick = mapOf(
+              Pair(
+                first = "release notes",
+                second = {
+                  onReleaseNotes.invoke()
+                }
+              )
+            ),
+            string = "Press the button below and hold your unlocked device to the back of your phone until the update has completed. To learn more about this firmware update, see the release notes.",
+            underline = true
+          ),
           alignment = CENTER
         ),
       buttonText = "Update Bitkey",

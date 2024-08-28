@@ -35,42 +35,50 @@ public struct CardView: View {
 
     // MARK: - View
 
-    public var body: some View {
-        CardContentView(
-            viewModel: viewModel,
-            overridenTitleToSubtitleSpacing: titleSubtitleToIconSpacing
-        )
-        .background(style: viewModel.style)
-        .frame(maxWidth: .infinity)
-        .scaleEffect(scaleEffect)
-        .frame(height: height)
-        .onTapGesture {
-            viewModel.onClick?()
+    @ViewBuilder
+    private var mainContent: some View {
+        if viewModel.content is CardModelCardContentBitcoinPrice {
+            CardContentViewBitcoinPriceCard(viewModel: viewModel)
+        } else {
+            CardContentView(
+                viewModel: viewModel,
+                overridenTitleToSubtitleSpacing: titleSubtitleToIconSpacing
+            )
+            .frame(height: height)
         }
-        .onChange(of: viewModel.animation) { animation in
-            guard let animationList = animation else {
-                return
-            }
+    }
 
-            var waitDuration: TimeInterval = 0
-            for animationSet in animationList {
-                DispatchQueue.main.asyncAfter(deadline: .now() + waitDuration) {
-                    withAnimation(.easeInOut(duration: animationSet.durationInSeconds)) {
-                        for animation in animationSet.animations {
-                            switch animation {
-                            case let heightAnimation as CardModelAnimationSetAnimationHeight:
-                                height = CGFloat(heightAnimation.value)
-                            case let scaleAnimation as CardModelAnimationSetAnimationScale:
-                                scaleEffect = CGFloat(scaleAnimation.value)
-                            default:
-                                break
+    public var body: some View {
+        mainContent.background(style: viewModel.style)
+            .frame(maxWidth: .infinity)
+            .scaleEffect(scaleEffect)
+            .onTapGesture {
+                viewModel.onClick?()
+            }
+            .onChange(of: viewModel.animation) { animation in
+                guard let animationList = animation else {
+                    return
+                }
+
+                var waitDuration: TimeInterval = 0
+                for animationSet in animationList {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + waitDuration) {
+                        withAnimation(.easeInOut(duration: animationSet.durationInSeconds)) {
+                            for animation in animationSet.animations {
+                                switch animation {
+                                case let heightAnimation as CardModelAnimationSetAnimationHeight:
+                                    height = CGFloat(heightAnimation.value)
+                                case let scaleAnimation as CardModelAnimationSetAnimationScale:
+                                    scaleEffect = CGFloat(scaleAnimation.value)
+                                default:
+                                    break
+                                }
                             }
                         }
                     }
+                    waitDuration += animationSet.durationInSeconds
                 }
-                waitDuration += animationSet.durationInSeconds
             }
-        }
     }
 
 }

@@ -1,19 +1,17 @@
 package build.wallet.statemachine.home.full
 
-import build.wallet.availability.AppFunctionalityStatus.FullFunctionality
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
-import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.InactiveApp
 import build.wallet.cloud.backup.health.CloudBackupHealthRepositoryMock
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.f8e.socrec.SocRecRelationshipsFake
+import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.platform.links.AppRestrictions
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.links.OpenDeeplinkResult
 import build.wallet.platform.web.InAppBrowserNavigatorMock
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.SheetModel
@@ -41,7 +39,6 @@ import build.wallet.time.ClockFake
 import build.wallet.time.TimeZoneProviderMock
 import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.equals.shouldBeEqual
 import io.kotest.matchers.nulls.shouldNotBeNull
 
 class HomeUiStateMachineImplTests : FunSpec({
@@ -52,9 +49,8 @@ class HomeUiStateMachineImplTests : FunSpec({
     ) {}
   val currencyChangeMobilePayBottomSheetUpdater =
     CurrencyChangeMobilePayBottomSheetUpdaterMock(turbines::create)
-  val socRecRelationshipsRepositoryMock = SocRecRelationshipsRepositoryMock(turbines::create)
   val cloudBackupHealthRepository = CloudBackupHealthRepositoryMock(turbines::create)
-  val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
+  val appFunctionalityService = AppFunctionalityServiceFake()
   val expectedTransactionNoticeUiStateMachine = object : ExpectedTransactionNoticeUiStateMachine,
     ScreenStateMachineMock<ExpectedTransactionNoticeProps>(
       "expected-transaction-notice"
@@ -73,6 +69,7 @@ class HomeUiStateMachineImplTests : FunSpec({
   }
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val mobilePayService = MobilePayServiceMock(turbines::create)
 
   val stateMachine =
     HomeUiStateMachineImpl(
@@ -105,15 +102,15 @@ class HomeUiStateMachineImplTests : FunSpec({
           ScreenStateMachineMock<TrustedContactEnrollmentUiProps>(
             "trusted-contact-enrollment"
           ) {},
-      socRecRelationshipsRepository = socRecRelationshipsRepositoryMock,
       cloudBackupHealthRepository = cloudBackupHealthRepository,
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      appFunctionalityService = appFunctionalityService,
       expectedTransactionNoticeUiStateMachine = expectedTransactionNoticeUiStateMachine,
       deepLinkHandler = deepLinkHandler,
       inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create),
       clock = ClockFake(),
       timeZoneProvider = TimeZoneProviderMock(),
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      mobilePayService = mobilePayService
     )
 
   val props =
@@ -122,13 +119,10 @@ class HomeUiStateMachineImplTests : FunSpec({
     )
 
   beforeEach {
-    appFunctionalityStatusProvider.reset()
+    appFunctionalityService.reset()
     cloudBackupHealthRepository.reset()
     fiatCurrencyPreferenceRepository.reset()
-  }
-
-  afterTest {
-    socRecRelationshipsRepositoryMock.launchSyncCalls.awaitItem()
+    mobilePayService.reset()
   }
 
   suspend fun awaitSyncLoopCall() {
@@ -137,34 +131,18 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   test("initial screen is money home") {
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
     }
   }
 
   test("switch to settings tab") {
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
         onSettings()
       }
@@ -173,43 +151,12 @@ class HomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("sync social recovery relationships") {
-    stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
-      awaitSyncLoopCall()
-      currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
-
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
-        onSettings()
-      }
-
-      awaitScreenWithBodyModelMock<SettingsHomeUiProps> {
-        socRecRelationships.shouldBeEqual(SocRecRelationshipsFake)
-      }
-    }
-  }
-
   test("homeUiBottomSheetStateMachine passes sheet to MoneyHome") {
     homeUiBottomSheetStateMachine.emitModel(SheetModelMock {})
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
         homeBottomSheetModel.shouldNotBeNull()
       }
@@ -219,17 +166,9 @@ class HomeUiStateMachineImplTests : FunSpec({
   test("homeUiBottomSheetStateMachine passes sheet to Settings") {
     homeUiBottomSheetStateMachine.emitModel(SheetModelMock {})
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps> {
         onSettings()
       }
@@ -241,17 +180,9 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   test("homeUiBottomSheetStateMachine onShowSetSpendingLimitFlow presents screen") {
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
 
       homeUiBottomSheetStateMachine.props.onShowSetSpendingLimitFlow()
@@ -262,36 +193,22 @@ class HomeUiStateMachineImplTests : FunSpec({
 
   test("change to currency re-calls currencyChangeMobilePayBottomSheetUpdater") {
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(FullFunctionality)
       awaitSyncLoopCall()
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-app functionality status check
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
 
       fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
-
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
     }
   }
 
   test("cloud backup health does not sync when app is inactive") {
+    appFunctionalityService.status.emit(LimitedFunctionality(InactiveApp))
+
     stateMachine.test(props) {
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow
-        .emit(LimitedFunctionality(InactiveApp))
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheetCalls.awaitItem()
 
-      // Pre-currency conversion
-      awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
-
-      // Post-currency conversion
       awaitScreenWithBodyModelMock<MoneyHomeUiProps>()
     }
   }

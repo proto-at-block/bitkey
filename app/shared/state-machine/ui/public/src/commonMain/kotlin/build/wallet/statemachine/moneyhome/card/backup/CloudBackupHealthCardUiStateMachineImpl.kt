@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Unavailable
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
@@ -13,10 +14,12 @@ import build.wallet.statemachine.moneyhome.card.CardModel
 
 class CloudBackupHealthCardUiStateMachineImpl(
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
+  private val appFunctionalityService: AppFunctionalityService,
 ) : CloudBackupHealthCardUiStateMachine {
   @Composable
   override fun model(props: CloudBackupHealthCardUiProps): CardModel? {
-    if (props.appFunctionalityStatus.featureStates.cloudBackupHealth == Unavailable) return null
+    val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
+    if (appFunctionalityStatus.featureStates.cloudBackupHealth == Unavailable) return null
 
     val mobileKeyBackupStatus by
       remember { cloudBackupHealthRepository.mobileKeyBackupStatus() }.collectAsState()

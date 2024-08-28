@@ -80,7 +80,7 @@ class BdkWalletImpl: BdkWallet {
     func isMineBlocking(script: BdkScript) -> BdkResult<KotlinBoolean> {
         let realBdkScript = script as! BdkScriptImpl
         return BdkResult {
-            try .init(bool: wallet.isMine(script: realBdkScript.ffiScript))
+            try .init(bool: wallet.isMine(script: realBdkScript.toFfiScript()))
         }
     }
 

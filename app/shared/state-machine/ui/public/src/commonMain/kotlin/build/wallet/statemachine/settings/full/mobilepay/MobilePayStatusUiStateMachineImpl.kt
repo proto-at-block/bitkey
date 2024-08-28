@@ -1,40 +1,36 @@
 package build.wallet.statemachine.settings.full.mobilepay
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.MobilePayEventTrackerScreenId
+import build.wallet.compose.coroutines.rememberStableCoroutineScope
+import build.wallet.limit.MobilePayData.MobilePayDisabledData
+import build.wallet.limit.MobilePayData.MobilePayEnabledData
+import build.wallet.limit.MobilePayService
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayDisabledData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
 import build.wallet.ui.model.switch.SwitchCardModel.ActionRow
+import kotlinx.coroutines.launch
 
 class MobilePayStatusUiStateMachineImpl(
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val spendingLimitCardUiStateMachine: SpendingLimitCardUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val mobilePayService: MobilePayService,
 ) : MobilePayStatusUiStateMachine {
   @Composable
   override fun model(props: MobilePayUiProps): BodyModel {
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-    return when (val mobilePayData = props.accountData.mobilePayData) {
-      is LoadingMobilePayData -> LoadingMobilePayModel()
-      is MobilePayEnabledData -> {
-        LaunchedEffect("refresh-balance") {
-          mobilePayData.refreshBalance()
-        }
 
-        MobilePayEnabledModel(props, mobilePayData)
-      }
+    val mobilePayData = remember { mobilePayService.mobilePayData }
+      .collectAsState()
+      .value
+
+    return when (mobilePayData) {
+      null -> LoadingMobilePayModel()
+      is MobilePayEnabledData -> MobilePayEnabledModel(props, mobilePayData)
       is MobilePayDisabledData -> MobilePayDisabledModel(props, fiatCurrency, mobilePayData)
     }
   }
@@ -52,6 +48,7 @@ class MobilePayStatusUiStateMachineImpl(
     mobilePayData: MobilePayEnabledData,
   ): MobilePayStatusModel {
     var confirmingCancellation by remember { mutableStateOf(false) }
+    val scope = rememberStableCoroutineScope()
 
     return MobilePayStatusModel(
       onBack = props.onBack,
@@ -74,8 +71,10 @@ class MobilePayStatusUiStateMachineImpl(
           confirmingCancellation -> {
             disableMobilePayAlertModel(
               onConfirm = {
-                mobilePayData.disableMobilePay()
-                confirmingCancellation = false
+                scope.launch {
+                  mobilePayService.disable(props.accountData.account)
+                  confirmingCancellation = false
+                }
               },
               onCancel = {
                 confirmingCancellation = false

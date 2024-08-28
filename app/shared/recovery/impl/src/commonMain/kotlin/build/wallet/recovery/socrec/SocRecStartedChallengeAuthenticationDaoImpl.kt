@@ -29,7 +29,7 @@ class SocRecStartedChallengeAuthenticationDaoImpl(
     coroutineBinding {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
         protectedCustomerRecoveryPakeKey.publicKey,
-        requireNotNull(protectedCustomerRecoveryPakeKey.privateKey)
+        protectedCustomerRecoveryPakeKey.privateKey
       ).bind()
       database.awaitTransactionWithResult {
         database.socRecStartedChallengeAuthenticationQueries.insert(

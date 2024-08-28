@@ -4,6 +4,8 @@ pub mod attestation;
 pub mod command_interface;
 pub mod commands;
 pub mod errors;
+pub mod log_buffer;
+
 #[cfg(feature = "pcsc")]
 pub mod pcsc;
 pub mod signing;
@@ -24,6 +26,11 @@ pub mod fwpb {
 
 const BIP32_HARDENED_BIT: u32 = 1 << 31;
 
+// NOTE:
+// We use #[allow(deprecated)] in a few places to accommodate deprecated proto fields.
+// Rust’s strict type system requires us to reference these fields even if they are deprecated.
+// This allows us to avoid warnings while maintaining compatibility until the fields are fully removed.
+
 fn child_to_str(child: &u32) -> String {
     if (child & BIP32_HARDENED_BIT) == 0 {
         child.to_string()
@@ -33,6 +40,7 @@ fn child_to_str(child: &u32) -> String {
 }
 
 impl Display for fwpb::KeyDescriptor {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.origin_fingerprint.is_empty() {
             f.write_char('[')?;
@@ -93,6 +101,7 @@ impl std::fmt::Display for fwpb::DerivationPath {
     }
 }
 
+#[allow(deprecated)]
 impl From<&[bitcoin::bip32::ChildNumber]> for fwpb::DerivationPath {
     fn from(value: &[bitcoin::bip32::ChildNumber]) -> Self {
         Self {
@@ -102,6 +111,7 @@ impl From<&[bitcoin::bip32::ChildNumber]> for fwpb::DerivationPath {
     }
 }
 
+#[allow(deprecated)]
 impl From<&bitcoin::bip32::DerivationPath> for fwpb::DerivationPath {
     fn from(value: &bitcoin::bip32::DerivationPath) -> Self {
         Self {

@@ -28,7 +28,6 @@ class TransactionDetailScreenSnapshots :
                 isLate = false
               ),
               isLoading = false,
-              onLoaded = {},
               onViewTransaction = {},
               onClose = {},
               onSpeedUpTransaction = {},
@@ -81,7 +80,6 @@ class TransactionDetailScreenSnapshots :
                 isLate = true
               ),
               isLoading = false,
-              onLoaded = {},
               onViewTransaction = {},
               onClose = {},
               onSpeedUpTransaction = {},
@@ -155,7 +153,6 @@ class TransactionDetailScreenSnapshots :
                 isIncoming = false
               ),
               isLoading = false,
-              onLoaded = {},
               onViewTransaction = {},
               onClose = {},
               onSpeedUpTransaction = {},
@@ -209,7 +206,6 @@ class TransactionDetailScreenSnapshots :
                 isIncoming = true
               ),
               isLoading = false,
-              onLoaded = {},
               onViewTransaction = {},
               onClose = {},
               onSpeedUpTransaction = {},

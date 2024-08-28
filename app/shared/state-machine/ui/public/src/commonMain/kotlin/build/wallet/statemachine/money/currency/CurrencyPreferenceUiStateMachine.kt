@@ -1,6 +1,5 @@
 package build.wallet.statemachine.money.currency
 
-import build.wallet.money.BitcoinMoney
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.StateMachine
 
@@ -11,5 +10,4 @@ interface CurrencyPreferenceUiStateMachine : StateMachine<CurrencyPreferenceProp
  */
 data class CurrencyPreferenceProps(
   val onBack: () -> Unit,
-  val btcDisplayAmount: BitcoinMoney,
 )

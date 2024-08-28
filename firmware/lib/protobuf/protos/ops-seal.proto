@@ -21,7 +21,7 @@ message sealed_data {
 // a given data key
 message seal_csek_cmd {
   // The raw data key being used to encrypt data on the mobile client.
-  bytes unsealed_csek = 1 [(nanopb).max_size = 32, deprecated = true];
+  bytes unsealed_csek = 1 [(nanopb).max_size = 32];
 
   // The raw CSEK, but wrapped in a secure channel message.
   secure_channel_message csek = 2;

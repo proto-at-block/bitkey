@@ -27,19 +27,13 @@ import build.wallet.cloud.store.CloudStoreAccountRepository
 import build.wallet.cloud.store.CloudStoreAccountRepositoryImpl
 import build.wallet.cloud.store.CloudStoreServiceProviderFake
 import build.wallet.cloud.store.WritableCloudStoreAccountRepository
-import build.wallet.crypto.Spake2Impl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.di.ActivityComponentImpl
 import build.wallet.di.AppComponentImpl
 import build.wallet.di.makeAppComponent
-import build.wallet.encrypt.CryptoBoxImpl
 import build.wallet.encrypt.MessageSignerImpl
 import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
 import build.wallet.encrypt.SignatureVerifierImpl
-import build.wallet.encrypt.SymmetricKeyEncryptorImpl
-import build.wallet.encrypt.SymmetricKeyGeneratorImpl
-import build.wallet.encrypt.XChaCha20Poly1305Impl
-import build.wallet.encrypt.XNonceGeneratorImpl
 import build.wallet.f8e.F8eEnvironment
 import build.wallet.f8e.F8eEnvironment.Local
 import build.wallet.firmware.TeltraMock
@@ -70,9 +64,9 @@ import build.wallet.statemachine.dev.cloud.CloudDevOptionsStateMachine
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.time.ControlledDelayer
 import kotlinx.coroutines.runBlocking
-import kotlinx.datetime.Clock
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.UUID
 import kotlin.time.Duration.Companion.ZERO
 
 const val BITCOIN_NETWORK_ENV_VAR_NAME = "BITCOIN_NETWORK"
@@ -234,8 +228,8 @@ private fun initPlatform(existingAppDir: String?): PlatformContext {
       existingAppDir
     } else {
       val rootDir = (System.getProperty("user.dir") + "/_build/bitkey/appdata")
-      val now = Clock.System.now().toString()
-      rootDir.join(now)
+      val uuid = UUID.randomUUID().toString()
+      rootDir.join(uuid)
     }
   log { "App data directory is $appDir" }
   val platformContext = PlatformContext(appDirOverride = appDir)
@@ -301,19 +295,13 @@ private fun createActivityComponent(
     cloudDevOptionsStateMachine = cloudDevOptionsStateMachineNoop,
     cloudStoreAccountRepository = cloudStoreAccountRepository,
     datadogRumMonitor = DatadogRumMonitorImpl(),
-    symmetricKeyEncryptor = SymmetricKeyEncryptorImpl(),
-    symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
     lightningInvoiceParser = LightningInvoiceParserImpl(),
     nfcCommandsProvider = NfcCommandsProvider(fake = fakeNfcCommands, real = fakeNfcCommands),
     nfcSessionProvider = NfcSessionFake,
     sharingManager = sharingManager,
     systemSettingsLauncher = systemSettingsLauncher,
     inAppBrowserNavigator = inAppBrowserNavigator,
-    xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
-    xNonceGenerator = XNonceGeneratorImpl(),
     pdfAnnotatorFactory = PdfAnnotatorFactoryImpl(),
-    spake2 = Spake2Impl(),
-    cryptoBox = CryptoBoxImpl(),
     biometricPrompter = BiometricPrompterImpl(),
     fakeHardwareKeyStore = fakeHardwareKeyStore
   )

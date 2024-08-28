@@ -8,12 +8,12 @@ import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
 import build.wallet.bdk.bindings.BdkTxBuilderFactory
 import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.crypto.Spake2Impl
 import build.wallet.crypto.WsmVerifierImpl
 import build.wallet.datadog.DatadogRumMonitorImpl
 import build.wallet.datadog.DatadogTracerImpl
-import build.wallet.encrypt.MessageSigner
-import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
-import build.wallet.encrypt.SignatureVerifier
+import build.wallet.encrypt.*
+import build.wallet.firmware.FirmwareCommsLogBuffer
 import build.wallet.firmware.HardwareAttestation
 import build.wallet.firmware.Teltra
 import build.wallet.logging.LogWriterContextStore
@@ -48,6 +48,7 @@ fun makeAppComponent(
   signatureVerifier: SignatureVerifier,
   platformContext: PlatformContext,
   teltra: Teltra,
+  firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
   hardwareAttestation: HardwareAttestation,
   deviceOs: DeviceOs,
 ): AppComponentImpl {
@@ -92,8 +93,15 @@ fun makeAppComponent(
     phoneNumberLibBindings = PhoneNumberLibBindingsImpl(),
     secp256k1KeyGenerator = publicKeyGenerator,
     teltra = teltra,
+    firmwareCommsLogBuffer = firmwareCommsLogBuffer,
     hardwareAttestation = hardwareAttestation,
     deviceOs = deviceOs,
-    wsmVerifier = wsmVerifier
+    wsmVerifier = wsmVerifier,
+    symmetricKeyEncryptor = SymmetricKeyEncryptorImpl(),
+    symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
+    xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
+    xNonceGenerator = XNonceGeneratorImpl(),
+    spake2 = Spake2Impl(),
+    cryptoBox = CryptoBoxImpl()
   )
 }

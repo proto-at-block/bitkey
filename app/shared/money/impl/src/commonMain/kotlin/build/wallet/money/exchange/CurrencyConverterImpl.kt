@@ -9,13 +9,7 @@ import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.datetime.Instant
 
 class CurrencyConverterImpl(
@@ -144,6 +138,19 @@ class CurrencyConverterImpl(
     }
 
     return null
+  }
+
+  override fun latestRateTimestamp(
+    fromCurrency: Currency,
+    toCurrency: Currency,
+  ): Flow<Instant?> {
+    return exchangeRateDao.allExchangeRates()
+      .map { rates ->
+        rates.filter {
+          it.fromCurrency == fromCurrency.textCode &&
+            it.toCurrency == toCurrency.textCode
+        }.maxOfOrNull { it.timeRetrieved }
+      }
   }
 
   private fun convert(

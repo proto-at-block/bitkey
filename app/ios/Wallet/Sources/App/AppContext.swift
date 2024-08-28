@@ -88,7 +88,14 @@ class AppContext {
             teltra: TeltraImpl(),
             hardwareAttestation: HardwareAttestationImpl(),
             deviceOs: DeviceOs.ios,
-            wsmVerifier: WsmVerifierImpl()
+            wsmVerifier: WsmVerifierImpl(),
+            cryptoBox: CryptoBoxImpl(),
+            spake2: Spake2Impl(),
+            symmetricKeyEncryptor: SymmetricKeyEncryptorImpl(),
+            symmetricKeyGenerator: SymmetricKeyGeneratorImpl(),
+            xChaCha20Poly1305: XChaCha20Poly1305Impl(),
+            xNonceGenerator: XNonceGeneratorImpl(),
+            firmwareCommsLogBuffer: FirmwareCommsLogBufferImpl()
         )
 
         self.notificationManager = NotificationManagerImpl(
@@ -140,18 +147,12 @@ class AppContext {
             ),
             cloudStoreAccountRepository: cloudStoreAccountRepository,
             datadogRumMonitor: DatadogRumMonitorImpl(),
-            symmetricKeyEncryptor: SymmetricKeyEncryptorImpl(),
-            symmetricKeyGenerator: SymmetricKeyGeneratorImpl(),
             lightningInvoiceParser: LightningInvoiceParserImpl(),
             sharingManager: sharingManager,
             systemSettingsLauncher: SystemSettingsLauncherImpl(),
             inAppBrowserNavigator: InAppBrowserNavigatorImpl(appViewController: appViewController),
             nfcCommandsProvider: nfcCommandsProvider,
             nfcSessionProvider: NfcSessionProviderImpl(),
-            xChaCha20Poly1305: XChaCha20Poly1305Impl(),
-            xNonceGenerator: XNonceGeneratorImpl(),
-            spake2: Spake2Impl(),
-            cryptoBox: CryptoBoxImpl(),
             pdfAnnotatorFactory: PdfAnnotatorFactoryImpl(),
             biometricPrompter: biometricsPrompter,
             fakeHardwareKeyStore: fakeHardwareKeyStore

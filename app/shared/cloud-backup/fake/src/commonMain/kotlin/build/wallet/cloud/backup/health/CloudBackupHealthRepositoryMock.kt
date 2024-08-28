@@ -4,7 +4,6 @@ import app.cash.turbine.Turbine
 import app.cash.turbine.plusAssign
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -25,10 +24,7 @@ class CloudBackupHealthRepositoryMock(
 
   val syncLoopCalls = turbine("syncLoop calls")
 
-  override suspend fun syncLoop(
-    scope: CoroutineScope,
-    account: FullAccount,
-  ) {
+  override suspend fun syncLoop(account: FullAccount) {
     syncLoopCalls += Unit
   }
 

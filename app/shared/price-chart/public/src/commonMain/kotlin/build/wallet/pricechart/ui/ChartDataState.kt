@@ -14,31 +14,40 @@ internal data class ChartDataState(
   val data: ImmutableList<DataPoint>,
   val intervals: Int,
 ) {
-  val yMin: Double = data.minOfOrNull { it.second } ?: 0.0
-  val yMax: Double = data.maxOfOrNull { it.second } ?: 1.0
-  val intervalValue: Double
-  val yFloor: Double
-  val yCeil: Double
+  private val yMin: Double = data.minOfOrNull { it.second } ?: 0.0
+  private val yMax: Double = data.maxOfOrNull { it.second } ?: 1.0
+  private val intervalValue: Double
+  private val yFloor: Double
+  private val yCeil: Double
+  private val range: Double
 
   init {
-    val range = yMax - yMin
-    val rawInterval = (range / intervals.toFloat())
+    val rawRange = yMax - yMin
+    val rawInterval = (rawRange / intervals.toFloat())
     val step = 10.0.pow(floor(log10(rawInterval)))
-    val error = step * intervals / range
-    intervalValue = when {
-      error <= 0.15 -> step * 10.0
-      error <= 0.35 -> step * 5.0
-      error <= 0.75 -> step * 2.0
-      else -> step
-    }.let { newInterval ->
-      if (newInterval < rawInterval) {
-        newInterval * 2
-      } else {
-        newInterval
-      }
+    val error = step * intervals / rawRange
+    val niceInterval = when {
+      error < 1.5 -> 1.0
+      error < 3.0 -> 2.0
+      error < 7.0 -> 5.0
+      else -> 10.0
+    } * step
+    yFloor = floor(yMin / niceInterval) * niceInterval
+
+    val initialYCeil = ceil(yMax / niceInterval) * niceInterval
+    val remainder = initialYCeil % step
+    yCeil = if (remainder == 0.0) {
+      initialYCeil
+    } else {
+      initialYCeil + (step - remainder)
     }
-    yFloor = (floor(yMin / intervalValue) * intervalValue).coerceAtLeast(0.0)
-    yCeil = yFloor + (intervalValue * intervals)
+    val baseInterval = (yCeil - yFloor) / intervals
+    intervalValue = ceil(baseInterval / step) * step
+    range = yCeil - yFloor
+  }
+
+  fun valueAtInterval(interval: Int): Double {
+    return yFloor + (intervalValue * interval)
   }
 
   /**
@@ -75,7 +84,7 @@ internal data class ChartDataState(
   ): Path {
     path.rewind()
     val stopAtIndex = stopAtDataPoint?.let { data.indexOf(it) }
-    val normalizedData = data.map { (it.second - yFloor) / (yCeil - yFloor) }
+    val normalizedData = data.map { (it.second - yFloor) / range }
     val xInterval = canvasWidth / normalizedData.lastIndex
 
     fun calculateY(i: Int) = (canvasHeight - normalizedData[i] * canvasHeight).toFloat()

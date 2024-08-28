@@ -1,8 +1,8 @@
 package build.wallet.statemachine.home.full
 
 import app.cash.turbine.Turbine
+import build.wallet.limit.MobilePayData
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.statemachine.data.mobilepay.MobilePayData
 import build.wallet.statemachine.home.full.bottomsheet.CurrencyChangeMobilePayBottomSheetUpdater
 
 class CurrencyChangeMobilePayBottomSheetUpdaterMock(
@@ -12,7 +12,7 @@ class CurrencyChangeMobilePayBottomSheetUpdaterMock(
 
   override suspend fun setOrClearHomeUiBottomSheet(
     fiatCurrency: FiatCurrency,
-    mobilePayData: MobilePayData,
+    mobilePayData: MobilePayData?,
   ) {
     setOrClearHomeUiBottomSheetCalls.add(fiatCurrency)
   }

@@ -10,9 +10,11 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
+        api(projects.shared.bitcoinPublic)
         api(projects.shared.f8eClientPublic)
-        api(projects.shared.queueProcessorPublic)
         api(projects.shared.fwupPublic)
+        api(projects.shared.queueProcessorPublic)
+        api(projects.shared.recoveryPublic)
 
         implementation(projects.shared.loggingPublic)
       }

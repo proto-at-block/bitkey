@@ -19,13 +19,12 @@ mod mempool_polling_integration_tests;
 mod mobile_pay_tests;
 mod notification_integration_tests;
 mod onboarding_integration_tests;
-mod recovery_integration_tests;
-mod recovery_relationship_integration_tests;
+mod privileged_actions_integration_tests;
+mod recovery;
 mod register_watch_address_integration_tests;
 mod requests;
 mod scheduled_notifications_integration_tests;
 mod send_customer_notifications_integration_tests;
-mod social_challenge_integration_tests;
 mod transaction_integration_tests;
 
 #[macro_export]

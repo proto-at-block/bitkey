@@ -4,6 +4,8 @@ import androidx.compose.runtime.*
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.GeneralEventTrackerScreenId
+import build.wallet.bootstrap.AppState
+import build.wallet.bootstrap.LoadAppService
 import build.wallet.logging.LogLevel.Info
 import build.wallet.logging.log
 import build.wallet.platform.config.AppVariant
@@ -15,13 +17,11 @@ import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiProps
 import build.wallet.statemachine.account.create.lite.CreateLiteAccountUiStateMachine
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
-import build.wallet.statemachine.data.app.AppData.AppLoadedData
-import build.wallet.statemachine.data.app.AppData.LoadingAppData
-import build.wallet.statemachine.data.app.AppDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountData
 import build.wallet.statemachine.data.keybox.AccountData.*
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.*
+import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.dev.DebugMenuProps
 import build.wallet.statemachine.dev.DebugMenuStateMachine
 import build.wallet.statemachine.home.full.HomeUiProps
@@ -57,7 +57,8 @@ class AppUiStateMachineImpl(
   private val liteHomeUiStateMachine: LiteHomeUiStateMachine,
   private val chooseAccountAccessUiStateMachine: ChooseAccountAccessUiStateMachine,
   private val createAccountUiStateMachine: CreateAccountUiStateMachine,
-  private val appDataStateMachine: AppDataStateMachine,
+  private val accountDataStateMachine: AccountDataStateMachine,
+  private val loadAppService: LoadAppService,
   private val noLongerRecoveringUiStateMachine: NoLongerRecoveringUiStateMachine,
   private val someoneElseIsRecoveringUiStateMachine: SomeoneElseIsRecoveringUiStateMachine,
   private val gettingStartedRoutingStateMachine: GettingStartedRoutingStateMachine,
@@ -84,13 +85,20 @@ class AppUiStateMachineImpl(
       appWorkerExecutor.executeAll()
     }
 
-    val appData = appDataStateMachine.model(Unit)
+    val appState = produceState<AppState?>(initialValue = null) {
+      value = loadAppService.loadAppState()
+    }.value
+    var accountData by remember { mutableStateOf<AccountData?>(null) }
 
-    var screenModel =
-      when (appData) {
-        is LoadingAppData -> AppLoadingScreenModel()
-        is AppLoadedData -> AppLoadedDataScreenModel(appData)
+    var screenModel = when (appState) {
+      null -> AppLoadingScreenModel()
+      else -> {
+        accountDataStateMachine.model(Unit).let {
+          accountData = it
+          AppLoadedDataScreenModel(it)
+        }
       }
+    }
 
     LogScreenModelEffect(screenModel)
     TrackScreenEvents(screenModel)
@@ -120,13 +128,15 @@ class AppUiStateMachineImpl(
 
     // Set up an app-wide handler to show the debug menu.
     var isShowingDebugMenu by remember { mutableStateOf(false) }
-    if (isShowingDebugMenu && appData is AppLoadedData) {
-      return debugMenuStateMachine.model(
-        props = DebugMenuProps(
-          accountData = appData.accountData,
-          onClose = { isShowingDebugMenu = false }
+    if (isShowingDebugMenu) {
+      accountData?.let {
+        return debugMenuStateMachine.model(
+          props = DebugMenuProps(
+            accountData = it,
+            onClose = { isShowingDebugMenu = false }
+          )
         )
-      )
+      }
     }
 
     previousScreenModel = screenModel
@@ -139,14 +149,14 @@ class AppUiStateMachineImpl(
   }
 
   @Composable
-  private fun AppLoadedDataScreenModel(appData: AppLoadedData): ScreenModel {
+  private fun AppLoadedDataScreenModel(accountData: AccountData): ScreenModel {
     // Keep track of when to show the "Welcome to Bitkey" screen.
     // We want to show it when we transition from NoActiveAccount -> HasActiveFullAccount
     var shouldShowWelcomeScreenWhenTransitionToActive by remember {
       mutableStateOf(false)
     }
 
-    return when (val accountData = appData.accountData) {
+    return when (accountData) {
       is CheckingActiveAccountData ->
         AppLoadingScreenModel()
 
@@ -161,21 +171,21 @@ class AppUiStateMachineImpl(
           initialShouldShowWelcomeScreenWhenTransitionToActive = shouldShowWelcomeScreenWhenTransitionToActive
         )
 
-      is AccountData.HasActiveLiteAccountData ->
+      is HasActiveLiteAccountData ->
         liteHomeUiStateMachine.model(
           props = LiteHomeUiProps(
             accountData = accountData
           )
         )
 
-      is AccountData.NoLongerRecoveringFullAccountData ->
+      is NoLongerRecoveringFullAccountData ->
         noLongerRecoveringUiStateMachine.model(
           props = NoLongerRecoveringUiProps(
-            data = accountData.data
+            canceledRecoveryLostFactor = accountData.canceledRecoveryLostFactor
           )
         )
 
-      is AccountData.SomeoneElseIsRecoveringFullAccountData ->
+      is SomeoneElseIsRecoveringFullAccountData ->
         someoneElseIsRecoveringUiStateMachine.model(
           props = SomeoneElseIsRecoveringUiProps(
             data = accountData.data,
@@ -257,9 +267,7 @@ class AppUiStateMachineImpl(
             fullAccountConfig = accountData.debugOptions.toFullAccountConfig(),
             onBack = accountData.onExit,
             onSuccess = accountData.onSuccess,
-            fullAccount = null,
-            spendingWallet = null,
-            balance = null
+            fullAccount = null
           )
         )
     }
@@ -294,9 +302,6 @@ class AppUiStateMachineImpl(
             accountData = accountData
           )
         }
-
-      is HasActiveFullAccountData.LoadingActiveFullAccountData ->
-        AppLoadingScreenModel()
 
       is HasActiveFullAccountData.RotatingAuthKeys ->
         authKeyRotationUiStateMachine.model(

@@ -13,7 +13,7 @@ interface FeatureFlagService {
   /**
    * A flow that emits `true` when the feature flags have been initialized into cache from database.
    */
-  val featureFlagsInitialized: StateFlow<Boolean>
+  val flagsInitialized: StateFlow<Boolean>
 
   /**
    * Returns a list of all available feature flags.

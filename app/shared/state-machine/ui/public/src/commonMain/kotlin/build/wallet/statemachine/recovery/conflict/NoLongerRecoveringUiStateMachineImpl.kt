@@ -1,67 +1,106 @@
 package build.wallet.statemachine.recovery.conflict
 
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.factor.PhysicalFactor.Hardware
+import build.wallet.recovery.RecoveryDao
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.recovery.RecoverySegment
+import build.wallet.statemachine.recovery.conflict.NoLongerRecoveringUiStateMachineImpl.State.*
 import build.wallet.statemachine.recovery.conflict.model.ClearingLocalRecoveryFailedSheetModel
 import build.wallet.statemachine.recovery.conflict.model.ShowingNoLongerRecoveringBodyModel
+import com.github.michaelbull.result.onFailure
+import com.github.michaelbull.result.onSuccess
 
-class NoLongerRecoveringUiStateMachineImpl : NoLongerRecoveringUiStateMachine {
+class NoLongerRecoveringUiStateMachineImpl(
+  private val recoveryDao: RecoveryDao,
+) : NoLongerRecoveringUiStateMachine {
   @Composable
   override fun model(props: NoLongerRecoveringUiProps): ScreenModel {
-    return when (props.data) {
-      is NoLongerRecoveringData.ShowingNoLongerRecoveringData ->
+    var state: State by remember { mutableStateOf(ShowingNoLongerRecovering) }
+    return when (val currentState = state) {
+      is ShowingNoLongerRecovering ->
         ScreenModel(
-          body =
-            ShowingNoLongerRecoveringBodyModel(
-              canceledRecoveringFactor = props.data.canceledRecoveryLostFactor,
-              isLoading = props.data is NoLongerRecoveringData.ClearingLocalRecoveryData,
-              errorData = null,
-              onAcknowledge = props.data.onAcknowledge
-            ),
+          body = ShowingNoLongerRecoveringBodyModel(
+            canceledRecoveringFactor = props.canceledRecoveryLostFactor,
+            isLoading = false,
+            errorData = null,
+            onAcknowledge = {
+              state = ClearingLocalRecovery
+            }
+          ),
           presentationStyle = ScreenPresentationStyle.Modal
         )
 
-      is NoLongerRecoveringData.ClearingLocalRecoveryData ->
+      is ClearingLocalRecovery -> {
+        LaunchedEffect("clear-local-recovery") {
+          recoveryDao.clear()
+            .onSuccess {
+              // Nothing to do here. The state change will be handled by AccountDataStateMachine.
+            }
+            .onFailure {
+              state = ClearingLocalRecoveryFailed(it)
+            }
+        }
+
         ScreenModel(
-          body =
-            ShowingNoLongerRecoveringBodyModel(
-              canceledRecoveringFactor = props.data.cancelingRecoveryLostFactor,
-              isLoading = true,
-              errorData = null,
-              onAcknowledge = {}
-            ),
+          body = ShowingNoLongerRecoveringBodyModel(
+            canceledRecoveringFactor = props.canceledRecoveryLostFactor,
+            isLoading = true,
+            errorData = null,
+            onAcknowledge = {}
+          ),
           presentationStyle = ScreenPresentationStyle.Modal
         )
+      }
 
-      is NoLongerRecoveringData.ClearingLocalRecoveryFailedData ->
+      is ClearingLocalRecoveryFailed ->
         ScreenModel(
-          body =
-            ShowingNoLongerRecoveringBodyModel(
-              canceledRecoveringFactor = props.data.cancelingRecoveryLostFactor,
-              errorData = ErrorData(
-                segment = when (props.data.cancelingRecoveryLostFactor) {
-                  App -> RecoverySegment.DelayAndNotify.LostApp.Cancellation
-                  Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Cancellation
-                },
-                actionDescription = "Cancelling local recovery",
-                cause = props.data.error
-              ),
-              isLoading = false,
-              onAcknowledge = {}
+          body = ShowingNoLongerRecoveringBodyModel(
+            canceledRecoveringFactor = props.canceledRecoveryLostFactor,
+            errorData = ErrorData(
+              segment = when (props.canceledRecoveryLostFactor) {
+                App -> RecoverySegment.DelayAndNotify.LostApp.Cancellation
+                Hardware -> RecoverySegment.DelayAndNotify.LostHardware.Cancellation
+              },
+              actionDescription = "Cancelling local recovery",
+              cause = currentState.error
             ),
+            isLoading = false,
+            onAcknowledge = {}
+          ),
           presentationStyle = ScreenPresentationStyle.Modal,
-          bottomSheetModel =
-            ClearingLocalRecoveryFailedSheetModel(
-              onClose = props.data.rollback,
-              onRetry = props.data.retry
-            )
+          bottomSheetModel = ClearingLocalRecoveryFailedSheetModel(
+            onClose = {
+              state = ShowingNoLongerRecovering
+            },
+            onRetry = {
+              state = ClearingLocalRecovery
+            }
+          )
         )
     }
+  }
+
+  private sealed interface State {
+    /**
+     * Indicates that we are showing the informative screen to the user explaining that
+     * a recovery they initiated is no longer in progress because it was canceled elsewhere.
+     */
+    data object ShowingNoLongerRecovering : State
+
+    /**
+     * Indicates that we are in the process of clearing the locally persisted recovery.
+     */
+    data object ClearingLocalRecovery : State
+
+    /**
+     * Indicates that there was an issue when clearing the locally persisted recovery.
+     */
+    data class ClearingLocalRecoveryFailed(
+      val error: Error,
+    ) : State
   }
 }

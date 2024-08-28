@@ -33,7 +33,7 @@ import build.wallet.recovery.Recovery.NoActiveRecovery
 import build.wallet.recovery.RecoverySyncerMock
 import build.wallet.recovery.socrec.PostSocRecTaskRepositoryMock
 import build.wallet.recovery.socrec.SocRecChallengeRepositoryMock
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
+import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.recovery.socrec.SocRecStartedChallengeDaoFake
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.LoadingSuccessBodyModel
@@ -82,7 +82,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       recovery = NoActiveRecovery,
       turbines::create
     )
-  val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
+  val socRecService = SocRecServiceMock(turbines::create)
   val socRecChallengeRepository = SocRecChallengeRepositoryMock()
 
   val keyboxDao = KeyboxDaoMock(turbines::create)
@@ -97,12 +97,11 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
   val fullAccountAuthKeyRotationService = FullAccountAuthKeyRotationServiceMock(turbines::create)
 
+  val spendingWallet = SpendingWalletMock(turbines::create)
+
   val stateMachineActiveDeviceFlagOn =
     FullAccountCloudBackupRestorationUiStateMachineImpl(
-      appSpendingWalletProvider =
-        AppSpendingWalletProviderMock(
-          SpendingWalletMock(turbines::create)
-        ),
+      appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet),
       backupRestorer = backupRestorer,
       eventTracker = eventTracker,
       deviceTokenManager = deviceTokenManager,
@@ -117,7 +116,7 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
       uuidGenerator = UuidGeneratorFake(),
       cloudBackupDao = cloudBackupDao,
       recoveryChallengeStateMachine = recoveryChallengeUiStateMachineMock,
-      socialRelationshipsRepository = socRecRelationshipsRepository,
+      socRecService = socRecService,
       socRecChallengeRepository = socRecChallengeRepository,
       postSocRecTaskRepository = postSocRecTaskRepository,
       socRecStartedChallengeDao = socRecPendingChallengeDao,
@@ -197,7 +196,8 @@ class FullAccountCloudBackupRestorationUiStateMachineImplTests : FunSpec({
 
       deviceTokenManager.addDeviceTokenIfPresentForAccountCalls.awaitItem()
       recoverySyncer.clearCalls.awaitItem()
-      socRecRelationshipsRepository.syncCalls.awaitItem()
+      socRecService.syncCalls.awaitItem()
+      spendingWallet.syncCalls.awaitItem()
 
       fullAccountAuthKeyRotationService.recommendKeyRotationCalls.awaitItem()
       keyboxDao.activeKeybox.value

@@ -2,9 +2,8 @@ package build.wallet.statemachine.settings.full
 
 import app.cash.turbine.plusAssign
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.limit.MobilePayBalanceMock
-import build.wallet.limit.SpendingLimit
-import build.wallet.limit.SpendingLimitMock
+import build.wallet.limit.*
+import build.wallet.limit.MobilePayData.MobilePayDisabledData
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
@@ -14,16 +13,7 @@ import build.wallet.statemachine.core.LoadingSuccessBodyModel
 import build.wallet.statemachine.core.awaitBody
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.mobilepay.MobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayDisabledData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
-import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusModel
-import build.wallet.statemachine.settings.full.mobilepay.MobilePayStatusUiStateMachineImpl
-import build.wallet.statemachine.settings.full.mobilepay.MobilePayUiProps
-import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardModel
-import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiProps
-import build.wallet.statemachine.settings.full.mobilepay.SpendingLimitCardUiStateMachine
+import build.wallet.statemachine.settings.full.mobilepay.*
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -34,34 +24,31 @@ import io.kotest.matchers.shouldBe
 class MobilePayStatusUiStateMachineImplTests : FunSpec({
 
   val onSetLimitClickCalls = turbines.create<SpendingLimit?>("set limit click calls")
-  val disableMobilePayCalls = turbines.create<Unit>("disable mobile pay calls")
 
-  fun MobilePayEnabledData(activeSpendingLimit: SpendingLimit) =
-    MobilePayEnabledData(
+  fun mobilePayEnabledData(activeSpendingLimit: SpendingLimit) =
+    MobilePayData.MobilePayEnabledData(
       activeSpendingLimit = activeSpendingLimit,
       balance = MobilePayBalanceMock,
-      remainingFiatSpendingAmount = FiatMoney.usd(100),
-      disableMobilePay = { disableMobilePayCalls += Unit },
-      changeSpendingLimit = { _, _, _, _ -> },
-      refreshBalance = {}
+      remainingFiatSpendingAmount = FiatMoney.usd(100)
     )
 
-  fun MobilePayDisabledData(mostRecentSpendingLimit: SpendingLimit?) =
+  fun mobilePayDisabledData(mostRecentSpendingLimit: SpendingLimit?) =
     MobilePayDisabledData(
-      mostRecentSpendingLimit = mostRecentSpendingLimit,
-      enableMobilePay = { _, _, _, _ -> }
+      mostRecentSpendingLimit = mostRecentSpendingLimit
     )
 
-  fun props(mobilePayData: MobilePayData) =
+  val props =
     MobilePayUiProps(
       onBack = {},
-      accountData = ActiveKeyboxLoadedDataMock.copy(mobilePayData = mobilePayData),
+      accountData = ActiveKeyboxLoadedDataMock,
       onSetLimitClick = { currentLimit ->
         onSetLimitClickCalls += currentLimit
       }
     )
 
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+
+  val mobilePayService = MobilePayServiceMock(turbines::create)
 
   val stateMachine =
     MobilePayStatusUiStateMachineImpl(
@@ -78,22 +65,22 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
                 progressPercentage = 0.1f
               )
           ) {},
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      mobilePayService = mobilePayService
     )
 
   beforeTest {
     fiatCurrencyPreferenceRepository.reset()
+    mobilePayService.reset()
   }
 
   test("load mobile pay data") {
-    stateMachine.test(props(mobilePayData = LoadingMobilePayData)) {
+    stateMachine.test(props) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       }
 
-      updateProps(
-        props(MobilePayEnabledData(activeSpendingLimit = SpendingLimitMock))
-      )
+      mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
 
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -102,9 +89,8 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("initial state - without existing spending limit") {
-    stateMachine.test(
-      props(mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = null))
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = null)
+    stateMachine.test(props) {
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
       }
@@ -112,9 +98,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("enable without existing spending limit -> set spending limit") {
-    stateMachine.test(
-      props(mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = null))
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = null)
+
+    stateMachine.test(props) {
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
         switchCardModel.switchModel.onCheckedChange(true)
@@ -125,22 +111,15 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("initial state - with existing spending limit") {
-    stateMachine.test(
-      props(
-        mobilePayData = MobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
-      )
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
+    stateMachine.test(props) {
       // Should start with enabled model because that is what's passed in
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
         disableAlertModel.shouldBeNull()
       }
 
-      updateProps(
-        props(
-          mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = null)
-        )
-      )
+      mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = null)
 
       // And then it should update from latest props
       awaitBody<MobilePayStatusModel> {
@@ -150,11 +129,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("enabling -> disabling mobile pay with existing limit") {
-    stateMachine.test(
-      props(
-        mobilePayData = MobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
-      )
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
+
+    stateMachine.test(props) {
       // Showing limits - Enabled state with existing limit and Daily spend
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -170,7 +147,7 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
         disableAlertModel.shouldNotBeNull().onPrimaryButtonClick()
-        disableMobilePayCalls.awaitItem()
+        mobilePayService.disableCalls.awaitItem()
       }
 
       // The alert should be dismissed
@@ -182,11 +159,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("enabling -> dismiss disabling mobile pay with existing limit") {
-    stateMachine.test(
-      props(
-        mobilePayData = MobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
-      )
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayEnabledData(activeSpendingLimit = SpendingLimitMock)
+
+    stateMachine.test(props) {
       // Showing limits - Enabled state with existing limit and Daily spend
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeTrue()
@@ -214,11 +189,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
   }
 
   test("disabled -> enable mobile pay with matching currency") {
-    stateMachine.test(
-      props(
-        mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
-      )
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
+
+    stateMachine.test(props) {
       // Showing limits - Disabled state
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()
@@ -232,11 +205,9 @@ class MobilePayStatusUiStateMachineImplTests : FunSpec({
 
   test("disabled -> enable mobile pay with different currency") {
     fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
-    stateMachine.test(
-      props(
-        mobilePayData = MobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
-      )
-    ) {
+    mobilePayService.mobilePayData.value = mobilePayDisabledData(mostRecentSpendingLimit = SpendingLimitMock)
+
+    stateMachine.test(props) {
       // Showing limits - Disabled state
       awaitBody<MobilePayStatusModel> {
         switchCardModel.switchModel.checked.shouldBeFalse()

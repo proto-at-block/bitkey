@@ -8,6 +8,7 @@ use crypto::hkdf::{Hkdf, HkdfError};
 use crypto::keys::{PublicKey, SecretKey, SecretKeyError};
 use crypto::signature_verifier::{SignatureVerifier, SignatureVerifierError};
 use crypto::spake2::{Spake2Context, Spake2Error, Spake2Keys, Spake2Role};
+use frost::{KeyCommitments, KeygenError, ShareDetails, ShareGenerator, SharePackage};
 use lightning_support::invoice::{Invoice, InvoiceError, Sha256};
 use wsm_integrity::{WsmContext, WsmIntegrityVerifier, WsmIntegrityVerifierError};
 

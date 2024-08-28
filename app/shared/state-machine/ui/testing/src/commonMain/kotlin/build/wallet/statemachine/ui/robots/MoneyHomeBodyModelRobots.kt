@@ -9,7 +9,7 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.types.shouldBeTypeOf
 
 fun BaseMoneyHomeBodyModel.protectedCustomersCard(): CardModel? {
-  return cardsModel.cards.find { it.title.string == WALLETS_YOURE_PROTECTING_MESSAGE }
+  return cardsModel.cards.find { it.title?.string == WALLETS_YOURE_PROTECTING_MESSAGE }
 }
 
 fun BaseMoneyHomeBodyModel.selectProtectedCustomer(protectedCustomer: String) {

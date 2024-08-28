@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalContracts::class)
+
 package build.wallet.statemachine.partnerships.purchase
 
 import androidx.compose.runtime.*
@@ -14,7 +16,7 @@ import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRate
-import build.wallet.money.exchange.ExchangeRateSyncer
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.money.formatter.MoneyDisplayFormatter
 import build.wallet.partnerships.*
 import build.wallet.platform.links.AppRestrictions
@@ -35,6 +37,7 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.flow.first
+import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
 // TODO: W-5675 - defaulting to card for now, but will eventually support other payment methods
@@ -49,7 +52,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
   private val partnershipsRepository: PartnershipTransactionsStatusRepository,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val eventTracker: EventTracker,
-  private val exchangeRateSyncer: ExchangeRateSyncer,
+  private val exchangeRateService: ExchangeRateService,
   private val currencyConverter: CurrencyConverter,
   private val bitcoinAddressService: BitcoinAddressService,
 ) : PartnershipsPurchaseUiStateMachine {
@@ -61,7 +64,7 @@ class PartnershipsPurchaseUiStateMachineImpl(
     }
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
     val exchangeRates: ImmutableList<ExchangeRate> by remember {
-      mutableStateOf(exchangeRateSyncer.exchangeRates.value.toImmutableList())
+      mutableStateOf(exchangeRateService.exchangeRates.value.toImmutableList())
     }
     return when (val currentState = state) {
       is PurchaseAmountsState.Loaded -> {
@@ -116,7 +119,13 @@ class PartnershipsPurchaseUiStateMachineImpl(
             }
             .onSuccess {
               state =
-                if (isValidPurchaseAmount(currentState.preSelectedAmount, fiatCurrency, it.min, it.max)) {
+                if (isValidPurchaseAmount(
+                    currentState.preSelectedAmount,
+                    fiatCurrency,
+                    it.min,
+                    it.max
+                  )
+                ) {
                   QuotesState.Loading(currentState.preSelectedAmount)
                 } else {
                   val displayOptions = it.displayOptions.take(MAX_DISPLAY_OPTIONS).toImmutableList()

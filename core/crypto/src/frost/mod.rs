@@ -43,10 +43,10 @@ pub struct ShareAggParams {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-struct ParticipantIndex(pub u8);
+pub struct ParticipantIndex(pub u8);
 
-const APP_PARTICIPANT_INDEX: ParticipantIndex = ParticipantIndex(1);
-const SERVER_PARTICIPANT_INDEX: ParticipantIndex = ParticipantIndex(2);
+pub const APP_PARTICIPANT_INDEX: ParticipantIndex = ParticipantIndex(1);
+pub const SERVER_PARTICIPANT_INDEX: ParticipantIndex = ParticipantIndex(2);
 
 impl From<Participant> for ParticipantIndex {
     fn from(participant: Participant) -> Self {

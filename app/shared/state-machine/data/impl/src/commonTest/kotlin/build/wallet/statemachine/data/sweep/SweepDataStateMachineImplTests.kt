@@ -21,7 +21,7 @@ import build.wallet.f8e.mobilepay.isServerSignedWithKeyset
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.ktor.result.HttpError.NetworkError
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.money.exchange.ExchangeRateSyncerMock
+import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.recovery.sweep.Sweep
 import build.wallet.recovery.sweep.SweepPsbt
 import build.wallet.recovery.sweep.SweepServiceMock
@@ -58,7 +58,7 @@ class SweepDataStateMachineImplTests : FunSpec({
         return Ok(wallet)
       }
     }
-  val exchangeRateSyncer = ExchangeRateSyncerMock(turbines::create)
+  val exchangeRateService = ExchangeRateServiceFake()
   val transactionRepository = OutgoingTransactionDetailRepositoryMock(turbines::create)
   val stateMachine =
     SweepDataStateMachineImpl(
@@ -66,7 +66,7 @@ class SweepDataStateMachineImplTests : FunSpec({
       sweepService,
       serverSigner,
       appSpendingWalletProvider,
-      exchangeRateSyncer,
+      exchangeRateService,
       transactionRepository
     )
 

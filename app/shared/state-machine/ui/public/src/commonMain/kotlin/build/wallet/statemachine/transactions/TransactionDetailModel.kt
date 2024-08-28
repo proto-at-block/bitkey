@@ -1,7 +1,6 @@
 package build.wallet.statemachine.transactions
 
 import build.wallet.analytics.events.screen.id.MoneyHomeEventTrackerScreenId
-import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -24,13 +23,11 @@ fun TransactionDetailModel(
   feeBumpEnabled: Boolean,
   txStatusModel: TxStatusModel,
   isLoading: Boolean,
-  onLoaded: (BrowserNavigator) -> Unit,
   onViewTransaction: () -> Unit,
   onClose: () -> Unit,
   onSpeedUpTransaction: () -> Unit,
   content: ImmutableList<DataList>,
 ) = FormBodyModel(
-  onLoaded = onLoaded,
   primaryButton =
     if (feeBumpEnabled) {
       ButtonModel(

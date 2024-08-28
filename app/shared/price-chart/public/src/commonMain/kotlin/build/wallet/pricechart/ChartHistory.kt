@@ -38,7 +38,7 @@ enum class ChartHistory(
   ALL(
     Res.string.chart_history_label_all,
     3650.days,
-    150,
+    200,
     Res.string.chart_history_label_all_diff
   ),
 }

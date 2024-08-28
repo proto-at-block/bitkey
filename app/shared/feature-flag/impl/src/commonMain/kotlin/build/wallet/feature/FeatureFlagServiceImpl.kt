@@ -11,7 +11,7 @@ class FeatureFlagServiceImpl(
   private val featureFlagSyncer: FeatureFlagSyncer,
 ) : FeatureFlagService, FeatureFlagSyncWorker {
   private val featureFlagsInitializedState = MutableStateFlow(false)
-  override val featureFlagsInitialized: StateFlow<Boolean> = featureFlagsInitializedState
+  override val flagsInitialized: StateFlow<Boolean> = featureFlagsInitializedState
 
   override fun getFeatureFlags() = featureFlags
 

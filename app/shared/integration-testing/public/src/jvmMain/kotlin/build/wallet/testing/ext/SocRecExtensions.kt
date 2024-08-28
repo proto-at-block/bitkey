@@ -49,14 +49,14 @@ suspend fun AppTester.awaitTcIsVerifiedAndBackedUp(relationshipId: String) =
 suspend fun AppTester.createTcInvite(tcName: String): TrustedContactFullInvite {
   val account = getActiveFullAccount()
   val hwPop = getHardwareFactorProofOfPossession(account.keybox)
-  val invitation = app.socRecRelationshipsRepository
+  val invitation = app.appComponent.socRecService
     .createInvitation(
       account = account,
       trustedContactAlias = TrustedContactAlias(tcName),
       hardwareProofOfPossession = hwPop
     )
     .getOrThrow()
-  val pakeData = app.socRecEnrollmentAuthenticationDao
+  val pakeData = app.appComponent.socRecEnrollmentAuthenticationDao
     .getByRelationshipId(invitation.invitation.relationshipId)
     .getOrThrow()
     .shouldNotBeNull()
@@ -80,7 +80,7 @@ suspend fun AppTester.awaitRelationships(
   predicate: (SocRecRelationships) -> Boolean,
 ): SocRecRelationships =
   withClue("await for SocRec relationships matching a predicate") {
-    app.socRecRelationshipsRepository.relationships
+    app.appComponent.socRecService.relationships
       .filterNotNull()
       .transform { relationships ->
         if (predicate(relationships)) {

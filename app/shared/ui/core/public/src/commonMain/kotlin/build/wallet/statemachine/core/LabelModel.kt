@@ -14,6 +14,7 @@ sealed interface LabelModel {
 
   data class LinkSubstringModel internal constructor(
     override val string: String,
+    val underline: Boolean,
     val linkedSubstrings: List<LinkSubstring>,
   ) : LabelModel {
     data class LinkSubstring(
@@ -54,6 +55,7 @@ sealed interface LabelModel {
       fun from(
         string: String,
         substringToOnClick: Map<String, () -> Unit>,
+        underline: Boolean,
       ): LinkSubstringModel {
         return LinkSubstringModel(
           string = string,
@@ -64,7 +66,8 @@ sealed interface LabelModel {
                 range = indexOfSubstring..<indexOfSubstring + entry.key.length,
                 onClick = entry.value
               )
-            }
+            },
+          underline = underline
         )
       }
     }

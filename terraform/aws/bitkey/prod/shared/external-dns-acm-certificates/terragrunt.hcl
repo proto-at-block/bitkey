@@ -51,6 +51,9 @@ inputs = {
     },
     "blog_bitkey_world" = {
       domain_name = "blog.bitkey.world"
+    },
+    "checkout_bitkey_world" = {
+      domain_name = "checkout.bitkey.world"
     }
   }
 }

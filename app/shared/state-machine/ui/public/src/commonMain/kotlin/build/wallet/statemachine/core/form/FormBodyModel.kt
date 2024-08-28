@@ -5,7 +5,6 @@ import build.wallet.analytics.events.screen.EventTrackerScreenInfo
 import build.wallet.analytics.events.screen.id.EventTrackerScreenId
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.platform.random.uuid
-import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.BodyModel
 import build.wallet.statemachine.core.ErrorData
 import build.wallet.statemachine.core.form.RenderContext.Screen
@@ -50,7 +49,7 @@ data class FormBodyModel(
   val ctaWarning: CallToActionModel? = null,
   val keepScreenOn: Boolean = false,
   val renderContext: RenderContext = Screen,
-  val onLoaded: ((BrowserNavigator) -> Unit) = {},
+  val onLoaded: (() -> Unit) = {},
   val eventTrackerContext: EventTrackerContext? = null,
   val eventTrackerShouldTrack: Boolean = true,
   val errorData: ErrorData? = null,

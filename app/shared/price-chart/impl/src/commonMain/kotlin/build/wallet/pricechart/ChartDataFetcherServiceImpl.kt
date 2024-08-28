@@ -19,6 +19,7 @@ class ChartDataFetcherServiceImpl(
     fullAccountId: FullAccountId,
     f8eEnvironment: F8eEnvironment,
     chartHistory: ChartHistory,
+    maxPricePoints: Int?,
   ): Result<List<DataPoint>, NetworkingError> =
     withContext(Dispatchers.IO) {
       exchangeRateF8eClient.getHistoricalBtcExchangeRateChartData(
@@ -26,7 +27,7 @@ class ChartDataFetcherServiceImpl(
         fullAccountId,
         fiatCurrencyPreferenceRepository.fiatCurrencyPreference.value.textCode.code,
         chartHistory.days,
-        chartHistory.maxPricePoints
+        maxPricePoints ?: chartHistory.maxPricePoints
       ).map { chartData ->
         chartData.exchangeRates.map { priceAt ->
           DataPoint(priceAt.timestamp.epochSeconds, priceAt.price)

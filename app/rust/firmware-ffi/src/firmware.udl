@@ -1,4 +1,8 @@
-namespace firmware {};
+namespace firmware {
+  void enable_proto_exchange_logging();
+  void disable_proto_exchange_logging();
+  sequence<string> get_proto_exchange_logs();
+};
 
 interface Version {
   constructor();

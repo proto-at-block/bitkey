@@ -16,6 +16,7 @@ base64 = { workspace = true }
 bdk = { version = "0.29.0", features = ["minimal", "std"] }
 ciborium = "0.2.2"
 config = { workspace = true, features = ["toml"] }
+crypto = { workspace = true }
 hex = { workspace = true }
 mime = "0.3.17"
 rand = { workspace = true }

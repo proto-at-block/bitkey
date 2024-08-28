@@ -3,18 +3,20 @@ package build.wallet.statemachine.send
 import build.wallet.availability.NetworkReachabilityProviderMock
 import build.wallet.bitcoin.address.bitcoinAddressP2TR
 import build.wallet.bitcoin.address.someBitcoinAddress
-import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
 import build.wallet.bitcoin.transactions.PsbtMock
 import build.wallet.bitcoin.transactions.SpeedUpTransactionDetails
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -24,12 +26,11 @@ import build.wallet.money.currency.USD
 import build.wallet.money.currency.code.IsoCurrencyTextCode
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.money.exchange.ExchangeRate
-import build.wallet.money.exchange.ExchangeRateSyncerMock
+import build.wallet.money.exchange.ExchangeRateServiceFake
 import build.wallet.statemachine.BodyStateMachineMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.platform.permissions.PermissionUiStateMachineMock
 import build.wallet.statemachine.send.SendEntryPoint.SendButton
@@ -49,7 +50,7 @@ class SendUiStateMachineImplTests : FunSpec({
 
   val permissionUiStateMachine = PermissionUiStateMachineMock()
   val clock = ClockFake()
-  val rateSyncer = ExchangeRateSyncerMock(turbines::create)
+  val rateSyncer = ExchangeRateServiceFake()
   val networkReachabilityProvider = NetworkReachabilityProviderMock(turbines::create)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
   val stateMachine =
@@ -82,25 +83,18 @@ class SendUiStateMachineImplTests : FunSpec({
         object : FeeSelectionUiStateMachine, BodyStateMachineMock<FeeSelectionUiProps>(
           "fee-options"
         ) {},
-      exchangeRateSyncer = rateSyncer,
+      exchangeRateService = rateSyncer,
       clock = clock,
       networkReachabilityProvider = networkReachabilityProvider,
       fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
     )
 
-  fun ActiveKeyboxLoadedFake(balance: BitcoinBalance): ActiveFullAccountLoadedData {
-    return ActiveKeyboxLoadedDataMock.copy(
-      transactionsData = ActiveKeyboxLoadedDataMock.transactionsData.copy(balance = balance)
-    )
-  }
+  val transactionsService = TransactionsServiceFake()
 
   val props =
     SendUiProps(
       entryPoint = SendButton,
-      accountData =
-        ActiveKeyboxLoadedFake(
-          balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
-        ),
+      accountData = ActiveKeyboxLoadedDataMock,
       validInvoiceInClipboard = null,
       onExit = {},
       onDone = {}
@@ -110,6 +104,12 @@ class SendUiStateMachineImplTests : FunSpec({
     permissionUiStateMachine.isImplemented = true
     fiatCurrencyPreferenceRepository.reset()
     clock.reset()
+    rateSyncer.reset()
+    transactionsService.reset()
+
+    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+      balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
+    )
   }
 
   val feeMap =
@@ -338,7 +338,7 @@ class SendUiStateMachineImplTests : FunSpec({
     }
 
     test("when exchange rates are 5 minutes out of date, exchange rates are null") {
-      rateSyncer.internalExchangeRates.value =
+      rateSyncer.exchangeRates.value =
         listOf(
           ExchangeRate(
             IsoCurrencyTextCode("BTC"),
@@ -408,10 +408,7 @@ class SendUiStateMachineImplTests : FunSpec({
             newFeeRate = FeeRate(satsPerVByte = 2f),
             fees = persistentMapOf()
           ),
-        accountData =
-          ActiveKeyboxLoadedFake(
-            balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
-          ),
+        accountData = ActiveKeyboxLoadedDataMock,
         validInvoiceInClipboard = null,
         onExit = {},
         onDone = {}

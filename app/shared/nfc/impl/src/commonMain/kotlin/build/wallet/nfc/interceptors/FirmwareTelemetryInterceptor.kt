@@ -1,9 +1,8 @@
 package build.wallet.nfc.interceptors
 
-import build.wallet.firmware.FirmwareDeviceInfo
-import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.firmware.FirmwareTelemetryUploader
-import build.wallet.firmware.TelemetryIdentifiers
+import build.wallet.feature.flags.FirmwareCommsLoggingFeatureFlag
+import build.wallet.feature.isEnabled
+import build.wallet.firmware.*
 import build.wallet.logging.LogLevel.Warn
 import build.wallet.logging.log
 import build.wallet.nfc.NfcSession
@@ -18,8 +17,12 @@ import okio.ByteString
 fun collectFirmwareTelemetry(
   firmwareDeviceInfoDao: FirmwareDeviceInfoDao,
   firmwareTelemetryUploader: FirmwareTelemetryUploader,
+  firmwareCommsLogBuffer: FirmwareCommsLogBuffer,
+  firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag,
 ) = NfcTransactionInterceptor { next ->
   val interceptor = FirmwareTelemetryInterceptor(firmwareDeviceInfoDao, firmwareTelemetryUploader)
+
+  firmwareCommsLogBuffer.configure(firmwareCommsLoggingFeatureFlag.isEnabled())
 
   (
     { session, commands ->
@@ -35,6 +38,8 @@ fun collectFirmwareTelemetry(
         interceptor.persistDeviceInfo(deviceInfo)
         interceptor.uploadTelemetry(deviceInfo, commands, session)
       }
+
+      firmwareCommsLogBuffer.upload()
     }
   )
 }
@@ -44,7 +49,8 @@ private class FirmwareTelemetryInterceptor(
   private val firmwareTelemetryUploader: FirmwareTelemetryUploader,
 ) {
   suspend fun persistDeviceInfo(deviceInfo: FirmwareDeviceInfo) {
-    firmwareDeviceInfoDao.setDeviceInfo(deviceInfo)
+    firmwareDeviceInfoDao
+      .setDeviceInfo(deviceInfo)
       .onFailure { log(Warn, throwable = it) { "Unable to persist FirmwareDeviceInfo" } }
   }
 
@@ -73,13 +79,15 @@ private class FirmwareTelemetryInterceptor(
   private suspend fun getEvents(
     commands: NfcCommands,
     session: NfcSession,
-  ) = mutableListOf<UByte>().apply {
-    while (true) {
-      val events = commands.getEvents(session)
-      addAll(events.fragment)
-      if (events.remainingSize == 0) break
-    }
-  }.toByteString().let { if (it.size == 0) null else it }
+  ) = mutableListOf<UByte>()
+    .apply {
+      while (true) {
+        val events = commands.getEvents(session)
+        addAll(events.fragment)
+        if (events.remainingSize == 0) break
+      }
+    }.toByteString()
+    .let { if (it.size == 0) null else it }
 
   private suspend fun getCoredump(
     commands: NfcCommands,
@@ -87,14 +95,15 @@ private class FirmwareTelemetryInterceptor(
   ): ByteString? {
     if (commands.getCoredumpCount(session) == 0) return null
 
-    return mutableListOf<UByte>().apply {
-      var offset = 0
-      while (true) {
-        val fragment = commands.getCoredumpFragment(session, offset)
-        addAll(fragment.data)
-        offset = fragment.offset
-        if (fragment.complete) break
-      }
-    }.toByteString()
+    return mutableListOf<UByte>()
+      .apply {
+        var offset = 0
+        while (true) {
+          val fragment = commands.getCoredumpFragment(session, offset)
+          addAll(fragment.data)
+          offset = fragment.offset
+          if (fragment.complete) break
+        }
+      }.toByteString()
   }
 }

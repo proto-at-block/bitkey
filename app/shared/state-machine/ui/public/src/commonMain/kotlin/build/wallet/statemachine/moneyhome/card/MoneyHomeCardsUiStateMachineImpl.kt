@@ -9,7 +9,6 @@ import build.wallet.statemachine.moneyhome.card.gettingstarted.GettingStartedCar
 import build.wallet.statemachine.moneyhome.card.replacehardware.SetupHardwareCardUiStateMachine
 import build.wallet.statemachine.moneyhome.card.sweep.StartSweepCardUiStateMachine
 import build.wallet.statemachine.recovery.hardware.HardwareRecoveryStatusCardUiStateMachine
-import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiProps
 import build.wallet.statemachine.recovery.socrec.RecoveryContactCardsUiStateMachine
 import kotlinx.collections.immutable.toImmutableList
 
@@ -43,12 +42,7 @@ class MoneyHomeCardsUiStateMachineImpl(
 
         // Add invitation cards
         recoveryContactCardsUiStateMachine
-          .model(
-            RecoveryContactCardsUiProps(
-              relationships = props.recoveryContactCardsUiProps.relationships,
-              onClick = props.recoveryContactCardsUiProps.onClick
-            )
-          )
+          .model(props.recoveryContactCardsUiProps)
           .forEach(::add)
 
         // Add getting started card.

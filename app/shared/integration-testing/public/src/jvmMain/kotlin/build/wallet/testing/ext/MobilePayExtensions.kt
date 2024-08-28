@@ -31,7 +31,7 @@ suspend fun AppTester.setupMobilePay(
         command.signAccessToken(session, accessToken)
       }.getOrThrow()
     val spendingLimit = SpendingLimit(true, limit, TimeZone.UTC)
-    mobilePayService.setLimit(
+    appComponent.mobilePayService.setLimit(
       account = account,
       spendingLimit = spendingLimit,
       hwFactorProofOfPossession = HwFactorProofOfPossession(signResponse)

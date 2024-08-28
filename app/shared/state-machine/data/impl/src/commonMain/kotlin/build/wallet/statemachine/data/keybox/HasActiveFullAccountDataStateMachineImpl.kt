@@ -1,34 +1,22 @@
 package build.wallet.statemachine.data.keybox
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import build.wallet.auth.FullAccountAuthKeyRotationService
 import build.wallet.auth.PendingAuthKeyRotationAttempt
-import build.wallet.bitcoin.wallet.SpendingWallet
-import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.logging.log
-import build.wallet.money.exchange.ExchangeRateSyncer
-import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
 import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.*
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.FullAccountTransactionsLoadedData
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsData.LoadingFullAccountTransactionsData
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataProps
-import build.wallet.statemachine.data.keybox.transactions.FullAccountTransactionsDataStateMachine
-import build.wallet.statemachine.data.mobilepay.MobilePayDataStateMachine
-import build.wallet.statemachine.data.mobilepay.MobilePayProps
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
+import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.RotatingAuthKeys
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryDataStateMachine
 import build.wallet.statemachine.data.recovery.losthardware.LostHardwareRecoveryProps
-import com.github.michaelbull.result.get
 
 class HasActiveFullAccountDataStateMachineImpl(
-  private val mobilePayDataStateMachine: MobilePayDataStateMachine,
-  private val fullAccountTransactionsDataStateMachine: FullAccountTransactionsDataStateMachine,
   private val lostHardwareRecoveryDataStateMachine: LostHardwareRecoveryDataStateMachine,
-  private val appSpendingWalletProvider: AppSpendingWalletProvider,
-  private val exchangeRateSyncer: ExchangeRateSyncer,
   private val trustedContactCloudBackupRefresher: TrustedContactCloudBackupRefresher,
   private val fullAccountAuthKeyRotationService: FullAccountAuthKeyRotationService,
-  private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
 ) : HasActiveFullAccountDataStateMachine {
   @Composable
   override fun model(props: HasActiveFullAccountDataProps): HasActiveFullAccountData {
@@ -36,11 +24,6 @@ class HasActiveFullAccountDataStateMachineImpl(
       log {
         "Loading active keybox for account ${props.account.accountId}, config ${props.account.config}"
       }
-    }
-
-    LaunchedEffect("sync rates") {
-      // TODO: W-9117 - migrate to app worker pattern
-      exchangeRateSyncer.launchSync(scope = this)
     }
 
     /*
@@ -66,15 +49,6 @@ class HasActiveFullAccountDataStateMachineImpl(
       }
     }
 
-    LaunchedEffect("authenticate and endorse trusted contacts") {
-      trustedContactKeyAuthenticator.backgroundAuthenticateAndEndorse(scope = this, props.account)
-    }
-
-    var spendingWallet by remember { mutableStateOf<SpendingWallet?>(null) }
-    LaunchedEffect(props.account.keybox.activeSpendingKeyset) {
-      spendingWallet = appSpendingWalletProvider.getSpendingWallet(props.account).get()
-    }
-
     // Using collectAsState stops and starts each recomposition because the returned flow can differ,
     // so we use produceState directly instead.
     val pendingAuthKeyRotationAttempt by produceState<PendingAuthKeyRotationAttempt?>(
@@ -94,48 +68,18 @@ class HasActiveFullAccountDataStateMachineImpl(
       )
     }
 
-    return when (val sw = spendingWallet) {
-      null -> {
-        LoadingActiveFullAccountData(props.account)
-      }
-
-      else -> {
-        val transactionsData =
-          fullAccountTransactionsDataStateMachine.model(
-            FullAccountTransactionsDataProps(props.account, sw)
+    val lostHardwareRecoveryData =
+      lostHardwareRecoveryDataStateMachine.model(
+        props =
+          LostHardwareRecoveryProps(
+            account = props.account,
+            props.hardwareRecovery
           )
+      )
 
-        // Make sure the balance and transactions and auth tokens are loaded
-        return when (transactionsData) {
-          is LoadingFullAccountTransactionsData -> LoadingActiveFullAccountData(props.account)
-          is FullAccountTransactionsLoadedData -> {
-            val lostHardwareRecoveryData =
-              lostHardwareRecoveryDataStateMachine.model(
-                props =
-                  LostHardwareRecoveryProps(
-                    account = props.account,
-                    props.hardwareRecovery
-                  )
-              )
-
-            val mobilePayData =
-              mobilePayDataStateMachine.model(
-                MobilePayProps(
-                  account = props.account,
-                  transactionsData = transactionsData
-                )
-              )
-
-            ActiveFullAccountLoadedData(
-              account = props.account,
-              spendingWallet = sw,
-              transactionsData = transactionsData,
-              mobilePayData = mobilePayData,
-              lostHardwareRecoveryData = lostHardwareRecoveryData
-            )
-          }
-        }
-      }
-    }
+    return ActiveFullAccountLoadedData(
+      account = props.account,
+      lostHardwareRecoveryData = lostHardwareRecoveryData
+    )
   }
 }

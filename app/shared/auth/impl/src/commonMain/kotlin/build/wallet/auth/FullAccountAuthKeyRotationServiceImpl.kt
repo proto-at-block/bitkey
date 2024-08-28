@@ -15,8 +15,8 @@ import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.logging.logFailure
 import build.wallet.mapUnit
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
-import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
+import build.wallet.recovery.socrec.EndorseTrustedContactsService
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import com.github.michaelbull.result.Err
 import com.github.michaelbull.result.Ok
@@ -42,8 +42,8 @@ class FullAccountAuthKeyRotationServiceImpl(
   private val keyboxDao: KeyboxDao,
   private val accountAuthenticator: AccountAuthenticator,
   private val bestEffortFullAccountCloudBackupUploader: BestEffortFullAccountCloudBackupUploader,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
-  private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
+  private val socRecService: SocRecService,
+  private val endorseTrustedContactsService: EndorseTrustedContactsService,
 ) : FullAccountAuthKeyRotationService {
   private val pendingRotationAttemptChangedSemaphore = MutableSharedFlow<Unit>(
     // Although 0 is default, let's be explicit here. We don't want to replay any events to new subscribers.
@@ -335,10 +335,10 @@ class FullAccountAuthKeyRotationServiceImpl(
     newAppKeys: AppAuthPublicKeys,
   ): Result<Unit, Error> =
     coroutineBinding {
-      val relationships = socRecRelationshipsRepository.relationships
+      val relationships = socRecService.relationships
         .filterNotNull()
         .first()
-      trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+      endorseTrustedContactsService.authenticateRegenerateAndEndorse(
         accountId = newAccount.accountId,
         f8eEnvironment = newAccount.config.f8eEnvironment,
         contacts = relationships.endorsedTrustedContacts,
@@ -348,7 +348,7 @@ class FullAccountAuthKeyRotationServiceImpl(
         newAppGlobalAuthKeyHwSignature = newAppKeys.appGlobalAuthKeyHwSignature
       ).bind()
 
-      socRecRelationshipsRepository.syncAndVerifyRelationships(newAccount).bind()
+      socRecService.syncAndVerifyRelationships(newAccount).bind()
     }
 
   private suspend fun trySynchronizingCloudBackup(account: FullAccount): Result<Unit, Error> {

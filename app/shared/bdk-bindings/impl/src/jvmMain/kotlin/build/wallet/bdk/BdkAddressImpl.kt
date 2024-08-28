@@ -12,7 +12,7 @@ internal class BdkAddressImpl(
   }
 
   override fun scriptPubkey(): BdkScript {
-    return BdkScriptImpl(ffiScript = ffiAddress.scriptPubkey())
+    return BdkScriptImpl(rawOutputScript = ffiAddress.scriptPubkey().toBytes())
   }
 
   override fun network(): BdkNetwork {

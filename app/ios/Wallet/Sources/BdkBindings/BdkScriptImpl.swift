@@ -1,16 +1,27 @@
 import BitcoinDevKit
 import Shared
 
-class BdkScriptImpl: BdkScript {
+class BdkScriptImpl: NSObject, BdkScript {
 
-    let ffiScript: Script
+    let rawOutputScript: [KotlinUByte]
 
     init(ffiScript: Script) {
-        self.ffiScript = ffiScript
+        self.rawOutputScript = ffiScript.toBytes().map { KotlinUByte(value: $0) }
     }
 
-    func rawOutputScript() -> [KotlinUByte] {
-        return ffiScript.toBytes().map { KotlinUByte(value: $0) }
+    func toFfiScript() -> Script {
+        return Script(rawOutputScript: rawOutputScript.map(\.uint8Value))
+    }
+
+    override func isEqual(_ object: Any?) -> Bool {
+        guard let other = object as? BdkScriptImpl else {
+            return false
+        }
+        return self.rawOutputScript == other.rawOutputScript
+    }
+
+    override var hash: Int {
+        return rawOutputScript.hashValue
     }
 
 }

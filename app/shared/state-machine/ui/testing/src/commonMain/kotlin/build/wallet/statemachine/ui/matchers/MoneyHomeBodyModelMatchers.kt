@@ -4,6 +4,7 @@ import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.lite.LiteMoneyHomeBodyModel
 import build.wallet.statemachine.ui.robots.protectedCustomersCard
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
@@ -17,7 +18,7 @@ fun LiteMoneyHomeBodyModel.hasProtectedCustomers(): Boolean {
 
 fun CardModel.shouldHaveTitle(title: String) =
   apply {
-    this.title.string.shouldBe(title)
+    this.title.shouldNotBeNull().string.shouldBe(title)
   }
 
 fun CardModel.shouldHaveSubtitle(subtitle: String) =

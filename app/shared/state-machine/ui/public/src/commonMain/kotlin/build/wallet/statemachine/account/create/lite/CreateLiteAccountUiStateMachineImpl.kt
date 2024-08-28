@@ -13,7 +13,6 @@ import build.wallet.auth.LiteAccountCreator
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.debug.DebugOptionsService
 import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.statemachine.account.BeTrustedContactIntroductionModel
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupProps
 import build.wallet.statemachine.cloud.LiteAccountCloudSignInAndBackupUiStateMachine
@@ -33,7 +32,6 @@ import kotlinx.coroutines.flow.first
 class CreateLiteAccountUiStateMachineImpl(
   private val liteAccountCreator: LiteAccountCreator,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val liteAccountCloudSignInAndBackupUiStateMachine:
     LiteAccountCloudSignInAndBackupUiStateMachine,
   private val deviceInfoProvider: DeviceInfoProvider,
@@ -188,15 +186,11 @@ class CreateLiteAccountUiStateMachineImpl(
         ).asScreen(Root)
 
       is State.EnrollingAsTrustedContact -> {
-        val socRecLiteAccountActions =
-          socRecRelationshipsRepository.toActions(state.liteAccount)
         trustedContactEnrollmentUiStateMachine.model(
           props =
             TrustedContactEnrollmentUiProps(
               retreat = props.onBack.toBackRetreat(),
               account = state.liteAccount,
-              acceptInvitation = socRecLiteAccountActions::acceptInvitation,
-              retrieveInvitation = socRecLiteAccountActions::retrieveInvitation,
               inviteCode = state.inviteCode,
               onDone = {
                 props.onAccountCreated(state.liteAccount)

@@ -3,27 +3,21 @@ package build.wallet.limit
 import build.wallet.bitkey.account.FullAccount
 import build.wallet.f8e.auth.HwFactorProofOfPossession
 import com.github.michaelbull.result.Result
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Service to manage Mobile Pay limit.
  */
 interface MobilePayService {
   /**
-   * On-demand request to refresh mobile pay limits when mobile pay is enabled.
-   * If status has changed, this will result [status] emitting a new value.
+   * Emits the latest [MobilePayData] for the currently active account.
    */
-  suspend fun refreshStatus()
-
-  /**
-   * Emits the current status of Mobile Pay for the given account.
-   */
-  fun status(account: FullAccount): Flow<MobilePayStatus>
+  val mobilePayData: StateFlow<MobilePayData?>
 
   /**
    * Sets a new Mobile Pay spending limit.
    *
-   * The most recently active spending limit is updated locally and is accessible through [status].
+   * The most recently active spending limit is updated locally and is accessible through [mobilePayData].
    */
   suspend fun setLimit(
     account: FullAccount,
@@ -35,7 +29,7 @@ interface MobilePayService {
    * Disables Mobile Pay on f8e and marks local spending limit as inactive.
    *
    * The most recently active spending limit, if any, is preserved locally and is accessible through
-   * [status].
+   * [mobilePayData].
    */
   suspend fun disable(account: FullAccount): Result<Unit, Error>
 

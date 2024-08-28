@@ -16,6 +16,7 @@ class FwupUpdateDeviceSnapshots : FunSpec({
           FwupUpdateDeviceModel(
             onClose = {},
             onLaunchFwup = {},
+            onReleaseNotes = {},
             bottomSheetModel = null
           ).body as FwupInstructionsBodyModel
       )

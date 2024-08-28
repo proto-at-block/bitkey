@@ -7,8 +7,8 @@ import build.wallet.auth.AccountAuthenticator
 import build.wallet.auth.AppAuthKeyMessageSigner
 import build.wallet.auth.AuthTokenDao
 import build.wallet.auth.AuthTokensRepository
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.F8eAuthSignatureStatusProvider
-import build.wallet.availability.NetworkReachabilityEventDao
 import build.wallet.availability.NetworkReachabilityProvider
 import build.wallet.bdk.bindings.BdkAddressBuilder
 import build.wallet.bdk.bindings.BdkDescriptorSecretKeyGenerator
@@ -24,16 +24,16 @@ import build.wallet.bitcoin.sync.ElectrumReachability
 import build.wallet.bitcoin.sync.ElectrumServerConfigRepository
 import build.wallet.bitcoin.sync.ElectrumServerSettingProvider
 import build.wallet.bitcoin.transactions.OutgoingTransactionDetailDao
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitcoin.wallet.SpendingWalletProvider
 import build.wallet.bugsnag.BugsnagContext
 import build.wallet.configuration.MobilePayFiatConfigService
+import build.wallet.crypto.Spake2
 import build.wallet.database.BitkeyDatabaseProvider
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.DatadogTracer
 import build.wallet.debug.DebugOptionsService
-import build.wallet.encrypt.MessageSigner
-import build.wallet.encrypt.Secp256k1KeyGenerator
-import build.wallet.encrypt.SignatureVerifier
+import build.wallet.encrypt.*
 import build.wallet.f8e.auth.AuthF8eClient
 import build.wallet.f8e.client.F8eHttpClient
 import build.wallet.f8e.debug.NetworkingDebugConfigRepository
@@ -42,10 +42,7 @@ import build.wallet.f8e.notifications.NotificationTouchpointF8eClient
 import build.wallet.feature.FeatureFlag
 import build.wallet.feature.FeatureFlagService
 import build.wallet.feature.flags.*
-import build.wallet.firmware.FirmwareDeviceInfoDao
-import build.wallet.firmware.FirmwareMetadataDao
-import build.wallet.firmware.FirmwareTelemetryUploader
-import build.wallet.firmware.HardwareAttestation
+import build.wallet.firmware.*
 import build.wallet.fwup.FirmwareDataService
 import build.wallet.fwup.FwupDataDao
 import build.wallet.fwup.FwupDataFetcher
@@ -57,13 +54,17 @@ import build.wallet.keybox.keys.OnboardingAppKeyKeystore
 import build.wallet.keybox.wallet.AppSpendingWalletProvider
 import build.wallet.keybox.wallet.KeysetWalletProvider
 import build.wallet.ktor.result.client.KtorLogLevelPolicy
+import build.wallet.limit.MobilePayService
 import build.wallet.logging.LogWriterContextStore
 import build.wallet.logging.dev.LogStore
 import build.wallet.memfault.MemfaultClient
+import build.wallet.money.currency.FiatCurrenciesService
 import build.wallet.money.currency.FiatCurrencyDao
 import build.wallet.money.display.BitcoinDisplayPreferenceRepository
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
+import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.exchange.ExchangeRateF8eClient
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.nfc.haptics.NfcHaptics
 import build.wallet.notifications.DeviceTokenManager
 import build.wallet.notifications.NotificationTouchpointDao
@@ -91,6 +92,7 @@ import build.wallet.pricechart.BitcoinPriceCardPreference
 import build.wallet.queueprocessor.PeriodicProcessor
 import build.wallet.queueprocessor.Processor
 import build.wallet.recovery.RecoveryDao
+import build.wallet.recovery.socrec.*
 import build.wallet.store.EncryptedKeyValueStoreFactory
 import build.wallet.store.KeyValueStoreFactory
 import build.wallet.time.Delayer
@@ -105,6 +107,7 @@ interface AppComponent {
   val allFeatureFlags: List<FeatureFlag<*>>
   val allRemoteFeatureFlags: List<FeatureFlag<*>>
   val appAuthKeyMessageSigner: AppAuthKeyMessageSigner
+  val appFunctionalityService: AppFunctionalityService
   val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>
   val appWorkerExecutor: AppWorkerExecutor
   val authF8eClient: AuthF8eClient
@@ -131,6 +134,8 @@ interface AppComponent {
   val bugsnagContext: BugsnagContext
   val clock: Clock
   val countryCodeGuesser: CountryCodeGuesser
+  val cryptoBox: CryptoBox
+  val currencyConverter: CurrencyConverter
   val datadogRumMonitor: DatadogRumMonitor
   val datadogTracer: DatadogTracer
   val delayer: Delayer
@@ -139,13 +144,17 @@ interface AppComponent {
   val electrumReachability: ElectrumReachability
   val electrumServerConfigRepository: ElectrumServerConfigRepository
   val electrumServerSettingProvider: ElectrumServerSettingProvider
+  val endorseTrustedContactsService: EndorseTrustedContactsService
   val eventStore: EventStore
   val eventTracker: EventTracker
+  val exchangeRateService: ExchangeRateService
   val extendedKeyGenerator: ExtendedKeyGenerator
+  val inviteCodeLoader: InviteCodeLoader
   val f8eHttpClient: F8eHttpClient
   val featureFlagService: FeatureFlagService
   val feeBumpIsAvailableFeatureFlag: FeeBumpIsAvailableFeatureFlag
   val fiatCurrencyDao: FiatCurrencyDao
+  val fiatCurrenciesService: FiatCurrenciesService
   val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository
   val fileManager: FileManager
   val fileDirectoryProvider: FileDirectoryProvider
@@ -153,6 +162,7 @@ interface AppComponent {
   val firmwareDeviceInfoDao: FirmwareDeviceInfoDao
   val firmwareMetadataDao: FirmwareMetadataDao
   val firmwareTelemetryUploader: FirmwareTelemetryUploader
+  val firmwareCommsLogBuffer: FirmwareCommsLogBuffer
   val fwupDataFetcher: FwupDataFetcher
   val fwupDataDao: FwupDataDao
   val fwupProgressCalculator: FwupProgressCalculator
@@ -170,8 +180,10 @@ interface AppComponent {
   val mobileTestFeatureFlag: MobileTestFeatureFlag
   val mobilePayFiatConfigService: MobilePayFiatConfigService
   val signatureVerifier: SignatureVerifier
+  val spake2: Spake2
+  val symmetricKeyEncryptor: SymmetricKeyEncryptor
+  val symmetricKeyGenerator: SymmetricKeyGenerator
   val networkingDebugConfigRepository: NetworkingDebugConfigRepository
-  val networkReachabilityEventDao: NetworkReachabilityEventDao
   val networkReachabilityProvider: NetworkReachabilityProvider
   val notificationTouchpointDao: NotificationTouchpointDao
   val notificationTouchpointF8eClient: NotificationTouchpointF8eClient
@@ -204,10 +216,27 @@ interface AppComponent {
   val f8eAuthSignatureStatusProvider: F8eAuthSignatureStatusProvider
   val analyticsTrackingPreference: AnalyticsTrackingPreference
   val exchangeRateF8eClient: ExchangeRateF8eClient
+  val postSocRecTaskRepository: PostSocRecTaskRepository
+  val socialRecoveryCodeBuilder: SocialRecoveryCodeBuilder
   val softwareWalletIsEnabledFeatureFlag: SoftwareWalletIsEnabledFeatureFlag
+  val socRecChallengeRepository: SocRecChallengeRepository
+  val socRecCrypto: SocRecCrypto
+  val socRecEnrollmentAuthenticationDao: SocRecEnrollmentAuthenticationDao
+  val socRecF8eClientProvider: SocRecF8eClientProvider
+  val socRecRelationshipsDao: SocRecRelationshipsDao
+  val socRecService: SocRecService
+  val socRecStartedChallengeAuthenticationDao: SocRecStartedChallengeAuthenticationDao
+  val socRecStartedChallengeDao: SocRecStartedChallengeDao
+  val socialChallengeVerifier: SocialChallengeVerifier
+  val firmwareCommsLoggingFeatureFlag: FirmwareCommsLoggingFeatureFlag
   val promptSweepFeatureFlag: PromptSweepFeatureFlag
   val coachmarksGlobalFeatureFlag: CoachmarksGlobalFeatureFlag
+  val inheritanceFeatureFlag: InheritanceFeatureFlag
   val bitcoinPriceChartFeatureFlag: BitcoinPriceChartFeatureFlag
   val biometricPreference: BiometricPreference
   val bitcoinPriceCardPreference: BitcoinPriceCardPreference
+  val transactionsService: TransactionsService
+  val xChaCha20Poly1305: XChaCha20Poly1305
+  val xNonceGenerator: XNonceGenerator
+  val mobilePayService: MobilePayService
 }

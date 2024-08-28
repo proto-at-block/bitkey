@@ -13,7 +13,7 @@ import build.wallet.cloud.backup.csek.SealedCsek
 import build.wallet.cloud.backup.v2.FullAccountFieldsCreator
 import build.wallet.logging.logFailure
 import build.wallet.recovery.socrec.SocRecKeysRepository
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
+import build.wallet.recovery.socrec.SocRecService
 import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.mapError
@@ -22,14 +22,14 @@ class FullAccountCloudBackupCreatorImpl(
   private val appPrivateKeyDao: AppPrivateKeyDao,
   private val fullAccountFieldsCreator: FullAccountFieldsCreator,
   private val socRecKeysRepository: SocRecKeysRepository,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
+  private val socRecService: SocRecService,
 ) : FullAccountCloudBackupCreator {
   override suspend fun create(
     keybox: Keybox,
     sealedCsek: SealedCsek,
   ): Result<CloudBackup, FullAccountCloudBackupCreatorError> =
     coroutineBinding {
-      val endorsedTrustedContacts = socRecRelationshipsRepository
+      val endorsedTrustedContacts = socRecService
         .syncAndVerifyRelationships(
           accountId = keybox.fullAccountId,
           f8eEnvironment = keybox.config.f8eEnvironment,

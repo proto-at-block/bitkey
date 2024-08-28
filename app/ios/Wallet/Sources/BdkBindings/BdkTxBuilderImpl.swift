@@ -18,7 +18,7 @@ class BdkTxBuilderImpl: BdkTxBuilder {
         let realBdkScript = script as! BdkScriptImpl
         return BdkTxBuilderImpl(
             txBuilder: txBuilder.addRecipient(
-                script: realBdkScript.ffiScript,
+                script: realBdkScript.toFfiScript(),
                 amount: amount.ulongValue(exactRequired: true)
             )
         )
@@ -27,7 +27,7 @@ class BdkTxBuilderImpl: BdkTxBuilder {
     func drainTo(address: BdkAddress) -> BdkTxBuilder {
         let realBdkScript = address.scriptPubkey() as! BdkScriptImpl
         return BdkTxBuilderImpl(
-            txBuilder: txBuilder.drainTo(script: realBdkScript.ffiScript)
+            txBuilder: txBuilder.drainTo(script: realBdkScript.toFfiScript())
         )
     }
 

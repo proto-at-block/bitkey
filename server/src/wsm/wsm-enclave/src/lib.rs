@@ -57,6 +57,7 @@ use crate::kms_tool::{KmsTool, KmsToolError};
 use crate::settings::Settings;
 
 mod aad;
+mod frost;
 mod kms_tool;
 mod psbt_verification;
 mod settings;

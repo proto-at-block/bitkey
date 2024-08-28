@@ -2,11 +2,10 @@ package build.wallet.statemachine.home.full.bottomsheet
 
 import build.wallet.home.HomeUiBottomSheetDao
 import build.wallet.home.HomeUiBottomSheetId.CURRENCY_CHANGE_RE_ENABLE_MOBILE_PAY
+import build.wallet.limit.MobilePayData
+import build.wallet.limit.MobilePayData.MobilePayDisabledData
+import build.wallet.limit.MobilePayData.MobilePayEnabledData
 import build.wallet.money.currency.FiatCurrency
-import build.wallet.statemachine.data.mobilepay.MobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayDisabledData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
 import kotlinx.coroutines.flow.firstOrNull
 
 class CurrencyChangeMobilePayBottomSheetUpdaterImpl(
@@ -14,12 +13,12 @@ class CurrencyChangeMobilePayBottomSheetUpdaterImpl(
 ) : CurrencyChangeMobilePayBottomSheetUpdater {
   override suspend fun setOrClearHomeUiBottomSheet(
     fiatCurrency: FiatCurrency,
-    mobilePayData: MobilePayData,
+    mobilePayData: MobilePayData?,
   ) {
     val currentBottomSheetId = homeUiBottomSheetDao.currentHomeUiBottomSheet().firstOrNull()
 
     when (mobilePayData) {
-      is LoadingMobilePayData, is MobilePayDisabledData ->
+      null, is MobilePayDisabledData ->
         // Mobile Pay is not enabled. Nothing to do.
         Unit
 

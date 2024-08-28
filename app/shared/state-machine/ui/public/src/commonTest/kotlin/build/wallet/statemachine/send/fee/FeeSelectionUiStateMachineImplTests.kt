@@ -2,7 +2,6 @@ package build.wallet.statemachine.send.fee
 
 import app.cash.turbine.plusAssign
 import build.wallet.bitcoin.address.bitcoinAddressP2WPKH
-import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.CannotCreatePsbtError
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator.FeeEstimationError.InsufficientFundsError
@@ -16,7 +15,9 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
+import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
 import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.money.BitcoinMoney
@@ -26,7 +27,6 @@ import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList.FeeOption
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN
 import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
@@ -46,37 +46,37 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
   val transactionPriorityPreference = TransactionPriorityPreferenceFake()
   val feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake()
   val bitcoinTransactionBaseCalculator = BitcoinTransactionBaseCalculatorMock(BitcoinMoney.zero())
+  val transactionsService = TransactionsServiceFake()
 
   val stateMachine =
     FeeSelectionUiStateMachineImpl(
       bitcoinTransactionFeeEstimator = bitcoinTransactionFeeEstimator,
       transactionPriorityPreference = transactionPriorityPreference,
       feeOptionListUiStateMachine = feeOptionListUiStateMachine,
-      transactionBaseCalculator = bitcoinTransactionBaseCalculator
+      transactionBaseCalculator = bitcoinTransactionBaseCalculator,
+      transactionsService = transactionsService
     )
 
   val onBackCalls = turbines.create<Unit>("on back calls")
   val onContinueCalls = turbines.create<EstimatedTransactionPriority>("on continue calls")
 
-  @Suppress("TestFunctionName")
-  fun ActiveKeyboxLoadedMock(balance: BitcoinBalance): ActiveFullAccountLoadedData {
-    return ActiveKeyboxLoadedDataMock.copy(
-      transactionsData = ActiveKeyboxLoadedDataMock.transactionsData.copy(balance = balance)
-    )
-  }
-
   val props =
     FeeSelectionUiProps(
-      accountData =
-        ActiveKeyboxLoadedMock(
-          balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(10.0))
-        ),
+      accountData = ActiveKeyboxLoadedDataMock,
       recipientAddress = bitcoinAddressP2WPKH,
       sendAmount = ExactAmount(BitcoinMoney.zero()),
       exchangeRates = immutableListOf(),
       onBack = { onBackCalls += Unit },
       onContinue = { priority, _ -> onContinueCalls += priority }
     )
+
+  beforeTest {
+    transactionsService.reset()
+
+    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+      balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(10.0))
+    )
+  }
 
   afterTest {
     bitcoinTransactionFeeEstimator.feesResult =
@@ -206,15 +206,11 @@ class FeeSelectionUiStateMachineImplTests : FunSpec({
 
   test("when balance is below transaction + fees,  show insufficient funds screen") {
     bitcoinTransactionBaseCalculator.minimumSatsRequired = BitcoinMoney.btc(1.01)
-    stateMachine.test(
-      props.copy(
-        accountData =
-          ActiveKeyboxLoadedMock(
-            balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
-          ),
-        sendAmount = ExactAmount(BitcoinMoney.btc(1.1))
-      )
-    ) {
+    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+      balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(1.0))
+    )
+
+    stateMachine.test(props.copy(sendAmount = ExactAmount(BitcoinMoney.btc(1.1)))) {
       awaitBody<LoadingSuccessBodyModel> {
         state.shouldBe(LoadingSuccessBodyModel.State.Loading)
       } // loading state

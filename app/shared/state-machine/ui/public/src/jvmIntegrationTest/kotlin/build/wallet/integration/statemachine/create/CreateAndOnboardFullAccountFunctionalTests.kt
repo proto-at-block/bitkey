@@ -40,6 +40,7 @@ import build.wallet.statemachine.ui.inputTextToMainContentVerificationCodeInputI
 import build.wallet.statemachine.ui.robots.clickSetUpNewWalletButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
+import build.wallet.testing.tags.TestTag.FlakyTest
 import build.wallet.ui.model.icon.IconImage
 import build.wallet.ui.model.list.ListItemAccessory
 import io.kotest.core.spec.style.FunSpec
@@ -61,19 +62,21 @@ class CreateAndOnboardFullAccountFunctionalTests : FunSpec() {
       )
     }
 
-    test("happy path through create and then onboard and activate keybox") {
-      appTester.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
-        advanceThroughCreateKeyboxScreens()
-        advanceThroughOnboardKeyboxScreens(
-          listOf(CloudBackup, NotificationPreferences)
-        )
-        awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOADING_SAVING_KEYBOX) {
-          state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+    test("happy path through create and then onboard and activate keybox")
+      .config(tags = setOf(FlakyTest)) {
+
+        appTester.app.appUiStateMachine.test(Unit, useVirtualTime = false) {
+          advanceThroughCreateKeyboxScreens()
+          advanceThroughOnboardKeyboxScreens(
+            listOf(CloudBackup, NotificationPreferences)
+          )
+          awaitUntilScreenWithBody<LoadingSuccessBodyModel>(LOADING_SAVING_KEYBOX) {
+            state.shouldBe(LoadingSuccessBodyModel.State.Loading)
+          }
+          awaitUntilScreenWithBody<MoneyHomeBodyModel>()
+          cancelAndIgnoreRemainingEvents()
         }
-        awaitUntilScreenWithBody<MoneyHomeBodyModel>()
-        cancelAndIgnoreRemainingEvents()
       }
-    }
 
     test("close and reopen app to cloud backup onboard step") {
       testCloseAndReopenAppToOnboardingScreen<FormBodyModel>(

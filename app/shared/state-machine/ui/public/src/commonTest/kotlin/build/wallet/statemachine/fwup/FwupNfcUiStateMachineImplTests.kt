@@ -6,6 +6,7 @@ import build.wallet.fwup.FwupDataMock
 import build.wallet.nfc.NfcException
 import build.wallet.platform.device.DeviceInfoProviderMock
 import build.wallet.platform.device.DevicePlatform
+import build.wallet.platform.web.InAppBrowserNavigatorMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
@@ -19,6 +20,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class FwupNfcUiStateMachineImplTests : FunSpec({
 
   val deviceInfoProvider = DeviceInfoProviderMock()
+  val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
+
   val fwupNfcSessionUiStateMachine =
     object : FwupNfcSessionUiStateMachine,
       ScreenStateMachineMock<FwupNfcSessionUiProps>(
@@ -28,9 +31,11 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
   val stateMachine =
     FwupNfcUiStateMachineImpl(
       deviceInfoProvider = deviceInfoProvider,
-      fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine
+      fwupNfcSessionUiStateMachine = fwupNfcSessionUiStateMachine,
+      inAppBrowserNavigator = inAppBrowserNavigator
     )
 
+  val onReleaseNotesClosed = turbines.create<Unit>("onReleaseNotesClosed calls")
   val onDoneCalls = turbines.create<Unit>("onDone calls")
   val props =
     FwupNfcUiProps(
@@ -80,6 +85,21 @@ class FwupNfcUiStateMachineImplTests : FunSpec({
       // Back to update instructions
       awaitItem()
         .bottomSheetModel.shouldBeNull()
+    }
+  }
+
+  test("release notes") {
+    stateMachine.test(props) {
+      awaitScreenWithBody<FwupInstructionsBodyModel> {
+        (headerModel.sublineModel as LabelModel.LinkSubstringModel).linkedSubstrings[0].onClick()
+      }
+
+      awaitScreenWithBody<InAppBrowserModel> {
+        open()
+      }
+
+      inAppBrowserNavigator.onOpenCalls.awaitItem()
+        .shouldBe("https://bitkey.world/en-US/releases")
     }
   }
 

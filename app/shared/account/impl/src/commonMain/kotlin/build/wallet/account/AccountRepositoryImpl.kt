@@ -11,6 +11,7 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.coroutines.coroutineBinding
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 class AccountRepositoryImpl(
   private val accountDao: AccountDao,
@@ -44,6 +45,7 @@ class AccountRepositoryImpl(
         }
       }
     }
+      .distinctUntilChanged()
   }
 
   override suspend fun clear(): Result<Unit, Error> {

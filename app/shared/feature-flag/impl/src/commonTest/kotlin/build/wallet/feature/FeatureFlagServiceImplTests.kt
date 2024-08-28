@@ -41,11 +41,11 @@ class FeatureFlagServiceImplTests : FunSpec({
   }
 
   test("feature flags are not initialized by default") {
-    service.featureFlagsInitialized.value.shouldBeFalse()
+    service.flagsInitialized.value.shouldBeFalse()
   }
 
   test("feature flags are marked as initialized after sync is kicked off") {
-    service.featureFlagsInitialized.test {
+    service.flagsInitialized.test {
       awaitItem().shouldBeFalse()
 
       backgroundScope.launch {
@@ -68,7 +68,7 @@ class FeatureFlagServiceImplTests : FunSpec({
       service.executeWork()
     }
 
-    service.featureFlagsInitialized.test {
+    service.flagsInitialized.test {
       // Wait for flags to be initialized
       awaitUntil { it }
     }

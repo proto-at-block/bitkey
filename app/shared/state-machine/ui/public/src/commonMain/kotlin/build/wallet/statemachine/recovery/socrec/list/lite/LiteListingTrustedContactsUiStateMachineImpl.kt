@@ -1,29 +1,29 @@
 package build.wallet.statemachine.recovery.socrec.list.lite
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.ProtectedCustomer
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerProps
 import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
+import kotlinx.collections.immutable.toImmutableList
 
 class LiteListingTrustedContactsUiStateMachineImpl(
+  private val socRecService: SocRecService,
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
 ) : LiteListingTrustedContactsUiStateMachine {
   @Composable
   override fun model(props: LiteListingTrustedContactsUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.ViewingListState) }
 
-    val screenModel =
-      LiteTrustedContactsListBodyModel(
-        onBackPressed = props.onExit,
-        protectedCustomers = props.protectedCustomers,
-        onProtectedCustomerPressed = { state = State.ViewingProtectedCustomerDetailState(it) },
-        onAcceptInvitePressed = props.onAcceptInvitePressed
-      ).asRootScreen()
+    val protectedCustomers = socRecService.relationships.value?.protectedCustomers ?: emptyList()
+
+    val screenModel = LiteTrustedContactsListBodyModel(
+      onBackPressed = props.onExit,
+      protectedCustomers = protectedCustomers.toImmutableList(),
+      onProtectedCustomerPressed = { state = State.ViewingProtectedCustomerDetailState(it) },
+      onAcceptInvitePressed = props.onAcceptInvitePressed
+    ).asRootScreen()
 
     return when (val currentState = state) {
       is State.ViewingListState ->
@@ -33,13 +33,11 @@ class LiteListingTrustedContactsUiStateMachineImpl(
         viewingProtectedCustomerUiStateMachine.model(
           props =
             ViewingProtectedCustomerProps(
+              account = props.account,
               screenModel = screenModel,
               protectedCustomer = currentState.protectedCustomer,
               onHelpWithRecovery = {
                 props.onHelpWithRecovery(currentState.protectedCustomer)
-              },
-              onRemoveProtectedCustomer = {
-                props.onRemoveProtectedCustomer(currentState.protectedCustomer)
               },
               onExit = { state = State.ViewingListState }
             )

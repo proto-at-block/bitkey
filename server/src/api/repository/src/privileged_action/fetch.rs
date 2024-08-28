@@ -20,7 +20,7 @@ use super::{
 const AUTHORIZATION_STRATEGY_TYPE_EXPRESSION: &str =
     "authorization_strategy_type = :authorization_strategy_type";
 const PRIVILEGED_ACTION_TYPE_EXPRESSION: &str = "privileged_action_type = :privileged_action_type";
-const STATUS_EXPRESSION: &str = "status = :status";
+const STATUS_EXPRESSION: &str = "#status = :status";
 
 impl Repository {
     #[instrument(skip(self))]
@@ -126,7 +126,7 @@ impl Repository {
         let authorization_strategy_type_attr: AttributeValue =
             try_to_attribute_val("DELAY_AND_NOTIFY", self.get_database_object())?;
         let privileged_action_type_attr: Option<AttributeValue> = privileged_action_type
-            .map(|p| try_to_attribute_val(p.to_string(), self.get_database_object()))
+            .map(|p| try_to_attribute_val(p, self.get_database_object()))
             .transpose()?;
         let status_attr: Option<AttributeValue> = status
             .map(|status| try_to_attribute_val(status, self.get_database_object()))
@@ -136,6 +136,7 @@ impl Repository {
         let mut result = Vec::new();
 
         loop {
+            let mut filter_expression = AUTHORIZATION_STRATEGY_TYPE_EXPRESSION.to_owned();
             let mut query = self
                 .connection
                 .client
@@ -150,26 +151,30 @@ impl Repository {
                     format!(":{}", ACCOUNT_IDX_PARTITION_KEY),
                     account_id_attr.clone(),
                 )
-                .filter_expression(AUTHORIZATION_STRATEGY_TYPE_EXPRESSION)
                 .expression_attribute_values(
                     ":authorization_strategy_type",
                     authorization_strategy_type_attr.clone(),
                 );
 
             if let Some(privileged_action_type_attr) = &privileged_action_type_attr {
-                query = query
-                    .filter_expression(PRIVILEGED_ACTION_TYPE_EXPRESSION)
-                    .expression_attribute_values(
-                        ":privileged_action_type",
-                        privileged_action_type_attr.to_owned(),
-                    );
+                filter_expression = format!(
+                    "{} AND {}",
+                    filter_expression, PRIVILEGED_ACTION_TYPE_EXPRESSION
+                );
+                query = query.expression_attribute_values(
+                    ":privileged_action_type",
+                    privileged_action_type_attr.to_owned(),
+                );
             }
 
             if let Some(status_attr) = &status_attr {
+                filter_expression = format!("{} AND {}", filter_expression, STATUS_EXPRESSION);
                 query = query
-                    .filter_expression(STATUS_EXPRESSION)
+                    .expression_attribute_names("#status", "status")
                     .expression_attribute_values(":status", status_attr.to_owned());
             }
+
+            query = query.filter_expression(filter_expression.clone());
 
             let item_output = query
                 .set_exclusive_start_key(exclusive_start_key.clone())

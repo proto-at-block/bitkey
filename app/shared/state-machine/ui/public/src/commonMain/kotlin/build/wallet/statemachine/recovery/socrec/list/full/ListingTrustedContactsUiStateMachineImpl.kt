@@ -1,23 +1,15 @@
 package build.wallet.statemachine.recovery.socrec.list.full
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitkey.relationships.EndorsedTrustedContact
 import build.wallet.bitkey.relationships.Invitation
 import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.relationships.UnendorsedTrustedContact
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiProps
 import build.wallet.statemachine.recovery.socrec.help.HelpingWithRecoveryUiStateMachine
-import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationProps
-import build.wallet.statemachine.recovery.socrec.view.ViewingInvitationUiStateMachine
-import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerProps
-import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUiStateMachine
-import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactProps
-import build.wallet.statemachine.recovery.socrec.view.ViewingRecoveryContactUiStateMachine
+import build.wallet.statemachine.recovery.socrec.view.*
 import kotlinx.datetime.Clock
 
 class ListingTrustedContactsUiStateMachineImpl(
@@ -26,10 +18,14 @@ class ListingTrustedContactsUiStateMachineImpl(
   private val viewingProtectedCustomerUiStateMachine: ViewingProtectedCustomerUiStateMachine,
   private val helpingWithRecoveryUiStateMachine: HelpingWithRecoveryUiStateMachine,
   private val clock: Clock,
+  private val socRecService: SocRecService,
 ) : ListingTrustedContactsUiStateMachine {
   @Composable
   override fun model(props: ListingTrustedContactsUiProps): ScreenModel {
     var state: State by remember { mutableStateOf(State.ViewingListState) }
+
+    val socRecRelationships by remember { socRecService.relationships }
+      .collectAsState()
 
     val screenBody =
       TrustedContactsListBodyModel(
@@ -45,9 +41,9 @@ class ListingTrustedContactsUiStateMachineImpl(
             }
         },
         onProtectedCustomerPressed = { state = State.ViewingProtectedCustomerDetail(it) },
-        contacts = props.relationships.endorsedTrustedContacts,
-        invitations = props.relationships.invitations,
-        protectedCustomers = props.relationships.protectedCustomers,
+        contacts = socRecRelationships?.endorsedTrustedContacts ?: emptyList(),
+        invitations = socRecRelationships?.invitations ?: emptyList(),
+        protectedCustomers = socRecRelationships?.protectedCustomers ?: emptyList(),
         now = clock.now().toEpochMilliseconds()
       )
 
@@ -58,8 +54,6 @@ class ListingTrustedContactsUiStateMachineImpl(
             hostScreen = ScreenModel(screenBody),
             invitation = current.invitation,
             fullAccount = props.account,
-            onRefreshInvitation = props.socRecProtectedCustomerActions::refreshInvitation,
-            onRemoveInvitation = props.socRecProtectedCustomerActions::removeTrustedContact,
             onExit = {
               state = State.ViewingListState
             }
@@ -72,7 +66,6 @@ class ListingTrustedContactsUiStateMachineImpl(
             screenBody = screenBody,
             recoveryContact = current.endorsedTrustedContact,
             account = props.account,
-            onRemoveContact = props.socRecProtectedCustomerActions::removeTrustedContact,
             afterContactRemoved = {
               state = State.ViewingListState
             },
@@ -85,6 +78,7 @@ class ListingTrustedContactsUiStateMachineImpl(
       is State.ViewingProtectedCustomerDetail ->
         viewingProtectedCustomerUiStateMachine.model(
           ViewingProtectedCustomerProps(
+            account = props.account,
             onExit = { state = State.ViewingListState },
             screenModel = screenBody.asRootScreen(),
             protectedCustomer = current.protectedCustomer,
@@ -93,9 +87,6 @@ class ListingTrustedContactsUiStateMachineImpl(
                 State.HelpingWithRecovery(
                   protectedCustomer = current.protectedCustomer
                 )
-            },
-            onRemoveProtectedCustomer = {
-              props.socRecProtectedCustomerActions.removeProtectedCustomer(current.protectedCustomer)
             }
           )
         )

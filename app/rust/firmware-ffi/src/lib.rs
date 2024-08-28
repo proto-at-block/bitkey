@@ -24,6 +24,9 @@ use wca::errors::CommandError;
 use wca::fwpb::cert_get_cmd::CertType;
 use wca::fwpb::get_unlock_method_rsp::UnlockMethod;
 use wca::fwpb::FingerprintHandle;
+use wca::log_buffer::{
+    disable_proto_exchange_logging, enable_proto_exchange_logging, get_proto_exchange_logs,
+};
 use wca::{EllipticCurve, KeyEncoding, PublicKeyHandle, PublicKeyMetadata, SignatureContext};
 
 type BooleanState = State<bool>;

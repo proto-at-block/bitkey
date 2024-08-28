@@ -1,12 +1,10 @@
 package build.wallet.statemachine.send.fee
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
+import build.wallet.bitcoin.transactions.TransactionsData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
 import kotlinx.collections.immutable.toImmutableList
@@ -14,6 +12,7 @@ import kotlinx.collections.immutable.toImmutableList
 class FeeOptionListUiStateMachineImpl(
   private val feeOptionUiStateMachine: FeeOptionUiStateMachine,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val transactionsService: TransactionsService,
 ) : FeeOptionListUiStateMachine {
   @Composable
   override fun model(props: FeeOptionListProps): FeeOptionList {
@@ -21,11 +20,19 @@ class FeeOptionListUiStateMachineImpl(
 
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
 
+    val transactionsData = remember { transactionsService.transactionsData() }
+      .collectAsState().value
+
+    val bitcoinBalance = when (transactionsData) {
+      TransactionsData.LoadingTransactionsData -> ZeroBalance
+      is TransactionsData.TransactionsLoadedData -> transactionsData.balance
+    }
+
     return FeeOptionList(
       options = props.fees.keys.map { priority ->
         feeOptionUiStateMachine.model(
           props = FeeOptionProps(
-            bitcoinBalance = props.accountData.transactionsData.balance,
+            bitcoinBalance = bitcoinBalance,
             feeAmount = props.fees[priority]!!.amount,
             transactionAmount = props.transactionBaseAmount,
             selected = selectedPriority == priority,

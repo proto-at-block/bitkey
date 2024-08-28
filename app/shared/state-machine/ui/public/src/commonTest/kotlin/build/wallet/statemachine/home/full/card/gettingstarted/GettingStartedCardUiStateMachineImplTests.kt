@@ -5,34 +5,25 @@ import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.events.TrackedAction
 import build.wallet.analytics.v1.Action.ACTION_APP_GETTINGSTARTED_COMPLETED
 import build.wallet.analytics.v1.Action.ACTION_APP_WALLET_FUNDED
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.availability.InternetUnreachable
-import build.wallet.bitcoin.transactions.BitcoinTransaction
-import build.wallet.bitcoin.transactions.BitcoinTransactionFake
-import build.wallet.bitkey.socrec.EndorsedTrustedContactFake1
+import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.f8e.socrec.SocRecRelationshipsFake
 import build.wallet.home.GettingStartedTask
-import build.wallet.home.GettingStartedTask.TaskId.AddAdditionalFingerprint
-import build.wallet.home.GettingStartedTask.TaskId.AddBitcoin
-import build.wallet.home.GettingStartedTask.TaskId.EnableSpendingLimit
-import build.wallet.home.GettingStartedTask.TaskId.InviteTrustedContact
+import build.wallet.home.GettingStartedTask.TaskId.*
 import build.wallet.home.GettingStartedTask.TaskState.Complete
 import build.wallet.home.GettingStartedTask.TaskState.Incomplete
 import build.wallet.home.GettingStartedTaskDaoMock
-import build.wallet.limit.MobilePayBalanceMock
-import build.wallet.limit.SpendingLimitMock
-import build.wallet.money.FiatMoney
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.Icon.SmallIconFingerprint
-import build.wallet.statemachine.core.Icon.SmallIconPhone
-import build.wallet.statemachine.core.Icon.SmallIconPlusStroked
-import build.wallet.statemachine.core.Icon.SmallIconShieldPerson
+import build.wallet.limit.MobilePayEnabledDataMock
+import build.wallet.limit.MobilePayServiceMock
+import build.wallet.recovery.socrec.SocRecServiceMock
+import build.wallet.statemachine.core.Icon.*
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.mobilepay.MobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.LoadingMobilePayData
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
 import build.wallet.statemachine.moneyhome.card.CardModel
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet
 import build.wallet.statemachine.moneyhome.card.CardModel.AnimationSet.Animation.Height
@@ -50,7 +41,6 @@ import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.types.shouldBeTypeOf
-import kotlinx.collections.immutable.toImmutableList
 import kotlinx.datetime.Instant
 
 class GettingStartedCardUiStateMachineImplTests : FunSpec({
@@ -61,29 +51,19 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   val onInviteTrustedContactCalls = turbines.create<Unit>("invite trusted contact calls")
   val onAddAdditionalFingerprintCalls = turbines.create<Unit>("add additional fingerprint calls")
 
+  val appFunctionalityService = AppFunctionalityServiceFake()
   val gettingStartedTaskDao =
     GettingStartedTaskDaoMock(
       turbine = turbines::create
     )
 
-  fun ActiveKeyboxLoadedMock(
-    transactions: List<BitcoinTransaction>,
-    mobilePayData: MobilePayData = LoadingMobilePayData,
-  ): ActiveFullAccountLoadedData {
-    return ActiveKeyboxLoadedDataMock.copy(
-      transactionsData =
-        ActiveKeyboxLoadedDataMock.transactionsData.copy(
-          transactions = transactions.toImmutableList()
-        ),
-      mobilePayData = mobilePayData
-    )
-  }
+  val transactionsService = TransactionsServiceFake()
+  val mobilePayService = MobilePayServiceMock(turbines::create)
+  val socRecService = SocRecServiceMock(turbines::create)
 
   val props =
     GettingStartedCardUiProps(
-      accountData = ActiveKeyboxLoadedMock(transactions = emptyList()),
-      appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
-      trustedContacts = emptyList(),
+      accountData = ActiveKeyboxLoadedDataMock,
       onAddBitcoin = { onAddBitcoinCalls += Unit },
       onEnableSpendingLimit = { onEnableSpendingLimitCalls += Unit },
       onInviteTrustedContact = { onInviteTrustedContactCalls += Unit },
@@ -94,12 +74,22 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
 
   val stateMachine =
     GettingStartedCardUiStateMachineImpl(
+      appFunctionalityService = appFunctionalityService,
       gettingStartedTaskDao = gettingStartedTaskDao,
-      eventTracker = eventTracker
+      eventTracker = eventTracker,
+      transactionsService = transactionsService,
+      mobilePayService = mobilePayService,
+      socRecService = socRecService
     )
 
   beforeTest {
     gettingStartedTaskDao.reset()
+    transactionsService.reset()
+    mobilePayService.reset()
+    appFunctionalityService.reset()
+    socRecService.clear()
+
+    socRecService.relationships.value = SocRecRelationships.EMPTY
   }
 
   test("card model should be null") {
@@ -285,23 +275,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           )
       )
 
-      updateProps(
-        props.copy(
-          accountData =
-            ActiveKeyboxLoadedMock(
-              transactions = emptyList(),
-              mobilePayData =
-                MobilePayEnabledData(
-                  activeSpendingLimit = SpendingLimitMock,
-                  balance = MobilePayBalanceMock,
-                  remainingFiatSpendingAmount = FiatMoney.usd(100),
-                  changeSpendingLimit = { _, _, _, _ -> },
-                  disableMobilePay = { },
-                  refreshBalance = { }
-                )
-            )
-        )
-      )
+      mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
 
       awaitItem()
       awaitItem().shouldNotBeNull().expect(
@@ -332,11 +306,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           )
       )
 
-      updateProps(
-        props.copy(
-          accountData = ActiveKeyboxLoadedMock(transactions = listOf(BitcoinTransactionFake))
-        )
-      )
+      transactionsService.transactionsData.value = KeyboxTransactionsDataMock
 
       awaitItem()
       awaitItem().shouldNotBeNull().expect(
@@ -368,11 +338,7 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
           )
       )
 
-      updateProps(
-        props.copy(
-          trustedContacts = listOf(EndorsedTrustedContactFake1)
-        )
-      )
+      socRecService.relationshipsFlow.value = SocRecRelationshipsFake
 
       awaitItem()
       awaitItem().shouldNotBeNull().expect(
@@ -386,18 +352,13 @@ class GettingStartedCardUiStateMachineImplTests : FunSpec({
   }
 
   test("Tasks disabled in limited functionality") {
-    stateMachine.test(
-      props.copy(
-        appFunctionalityStatus =
-          AppFunctionalityStatus.LimitedFunctionality(
-            cause =
-              InternetUnreachable(
-                Instant.DISTANT_PAST,
-                Instant.DISTANT_PAST
-              )
-          )
+    appFunctionalityService.status.value = AppFunctionalityStatus.LimitedFunctionality(
+      cause = InternetUnreachable(
+        lastReachableTime = Instant.DISTANT_PAST,
+        lastElectrumSyncReachableTime = Instant.DISTANT_PAST
       )
-    ) {
+    )
+    stateMachine.test(props) {
       awaitItem().shouldBeNull()
       gettingStartedTaskDao.addTasks(
         listOf(
@@ -447,7 +408,7 @@ private fun CardModel.expectTaskModelWithEnabled(
       .model.iconImage.shouldBeTypeOf<IconImage.LocalImage>()
       .icon.shouldBe(
         when (task.state) {
-          Complete -> Icon.SmallIconCheckFilled
+          Complete -> SmallIconCheckFilled
           Incomplete ->
             when (task.id) {
               EnableSpendingLimit -> SmallIconPhone

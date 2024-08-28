@@ -50,12 +50,14 @@ kotlin {
 
     val jvmIntegrationTest by getting {
       dependencies {
+        implementation(projects.shared.accountFake)
         implementation(projects.shared.bitcoinFake)
         implementation(projects.shared.bitkeyPrimitivesFake)
         implementation(projects.shared.f8eClientFake)
         implementation(projects.shared.coroutinesTesting)
         implementation(projects.shared.integrationTestingPublic)
         implementation(projects.shared.platformFake)
+        implementation(projects.shared.recoveryFake)
         implementation(projects.shared.sqldelightTesting)
       }
     }

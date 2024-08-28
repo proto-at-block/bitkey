@@ -17,12 +17,12 @@ rust {
   cargoPath = hermitDir.resolve("cargo")
   rustupPath = hermitDir.resolve("rustup")
   cargoWorkspace = projectDir.parentFile
-  val coreWorkspace = cargoWorkspace.dir("../../core").get()
+  val firmwareWorkspace = cargoWorkspace.dir("../firmware-ffi").get()
   rustProjectFiles.from(
     provider {
       // This is only an approximation. The Rust compiler also has a cache so the performance impact of the compile task being incorrectly invalidated is not that high.
       cargoWorkspace.asFileTree.matching { exclude("**/_build") } +
-        coreWorkspace.asFileTree.matching { exclude("build", "target") }
+        firmwareWorkspace.asFileTree.matching { exclude("build", "target") }
     }
   )
 

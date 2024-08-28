@@ -19,10 +19,12 @@ import build.wallet.statemachine.ui.formScreen
 import build.wallet.testing.AppTester.Companion.launchNewApp
 import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
+import io.kotest.core.coroutines.backgroundScope
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
+import kotlinx.coroutines.launch
 
 class RotateAuthKeyFunctionalTests : FunSpec({
   test("Proposed rotation flag is persisted") {
@@ -78,7 +80,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    app.app.socRecRelationshipsRepository.syncAndVerifyRelationships(account)
+    app.app.appComponent.socRecService.syncAndVerifyRelationships(account)
 
     app.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
@@ -102,13 +104,18 @@ class RotateAuthKeyFunctionalTests : FunSpec({
     }
   }
 
-  test("User can successfully rotate keys from settings") {
+  test("User can successfully rotate keys from settings").config(
+    coroutineTestScope = true
+  ) {
     val app = launchNewApp()
+    backgroundScope.launch {
+      app.app.appComponent.appWorkerExecutor.executeAll()
+    }
     val account = app.onboardFullAccountWithFakeHardware()
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    app.app.socRecRelationshipsRepository.syncAndVerifyRelationships(account)
+    app.app.appComponent.socRecService.syncAndVerifyRelationships(account)
 
     val onBackCalls = turbines.create<Unit>("onBackCalls")
 
@@ -120,7 +127,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         }
       )
     )
-    app.app.rotateAuthUIStateMachine.test(props, useVirtualTime = false) {
+    app.app.rotateAuthUIStateMachine.test(props) {
       screenDecideIfShouldRotate {
         eventTrackerContext shouldBe AuthKeyRotationEventTrackerScreenIdContext.SETTINGS
         this.primaryButton.shouldNotBeNull().onClick.invoke()
@@ -145,7 +152,7 @@ class RotateAuthKeyFunctionalTests : FunSpec({
 
     // Auth key rotation depends on cloud backup upload, which requires SocRec relationships to be
     // synced up, even if we don't have any.
-    firstAppRun.app.socRecRelationshipsRepository.syncAndVerifyRelationships(account)
+    firstAppRun.app.appComponent.socRecService.syncAndVerifyRelationships(account)
 
     firstAppRun.app.fullAccountAuthKeyRotationService.recommendKeyRotation()
 
@@ -212,7 +219,6 @@ class RotateAuthKeyFunctionalTests : FunSpec({
         this.secondaryButton.shouldNotBeNull().onClick.invoke()
       }
 
-      awaitUntilScreenWithBody<LoadingSuccessBodyModel>()
       awaitUntilScreenWithBody<MoneyHomeBodyModel>()
       cancelAndIgnoreRemainingEvents()
     }

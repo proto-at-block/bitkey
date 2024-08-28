@@ -17,6 +17,7 @@ import com.github.michaelbull.result.Ok
 import com.github.michaelbull.result.Result
 import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -27,6 +28,8 @@ class SpendingWalletMock(
   override val identifier: String = "mock-wallet",
 ) : SpendingWallet {
   val initializeCalls = turbine("$identifier: initializeBalanceAndTransactions calls")
+  val launchPeriodicSyncCalls = turbine("$identifier: launchPeriodicSync calls")
+  val syncCalls = turbine("$identifier: sync calls")
 
   override suspend fun initializeBalanceAndTransactions() {
     initializeCalls.add(Unit)
@@ -36,15 +39,16 @@ class SpendingWalletMock(
   }
 
   override suspend fun sync(): Result<Unit, Error> {
-    // TODO(W-3862): record sync call in turbine
+    syncCalls.add(Unit)
     return Ok(Unit)
   }
 
   override fun launchPeriodicSync(
     scope: CoroutineScope,
     interval: Duration,
-  ) {
-    // TODO(W-3862): record sync call in turbine
+  ): Job {
+    launchPeriodicSyncCalls.add(Unit)
+    return Job()
   }
 
   var newAddressResult: Result<BitcoinAddress, Error> = Ok(someBitcoinAddress)

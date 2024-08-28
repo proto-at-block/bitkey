@@ -83,10 +83,7 @@ private struct LabelView: View {
 
         case let model as LabelModelStringWithStyledSubstringModel:
             ModeledText(
-                model: .standard(
-                    .stringWithSubstring(model, font: .body2Regular),
-                    font: .body2Regular
-                )
+                model: .standard(.string(from: model, font: .body2Regular), font: .body2Regular)
             )
 
         case let model as LabelModelLinkSubstringModel:

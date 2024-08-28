@@ -5,7 +5,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import build.wallet.money.BitcoinMoney
 import build.wallet.platform.config.AppVariant
 import build.wallet.statemachine.core.ScreenModel
 import build.wallet.statemachine.dev.DebugMenuProps
@@ -48,21 +47,17 @@ class LiteSettingsHomeUiStateMachineImpl(
         currencyPreferenceUiStateMachine.model(
           props =
             CurrencyPreferenceProps(
-              onBack = { uiState = State.ShowingAllSettingsList },
-              btcDisplayAmount = BitcoinMoney.zero()
+              onBack = { uiState = State.ShowingAllSettingsList }
             )
         )
 
       is State.ShowingTrustedContactsManagement ->
         liteTrustedContactManagementUiStateMachine.model(
-          props =
-            LiteTrustedContactManagementProps(
-              accountData = props.accountData,
-              protectedCustomers = props.protectedCustomers,
-              actions = props.socRecTrustedContactActions,
-              acceptInvite = null,
-              onExit = { uiState = State.ShowingAllSettingsList }
-            )
+          props = LiteTrustedContactManagementProps(
+            accountData = props.accountData,
+            acceptInvite = null,
+            onExit = { uiState = State.ShowingAllSettingsList }
+          )
         )
 
       is State.ShowingContactUs ->

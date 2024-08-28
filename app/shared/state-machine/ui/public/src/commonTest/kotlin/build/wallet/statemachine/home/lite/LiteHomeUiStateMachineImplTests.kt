@@ -1,12 +1,8 @@
 package build.wallet.statemachine.home.lite
 
 import build.wallet.analytics.events.EventTrackerMock
-import build.wallet.bitkey.relationships.ProtectedCustomer
-import build.wallet.bitkey.relationships.ProtectedCustomerAlias
-import build.wallet.bitkey.relationships.TrustedContactRole
-import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.coroutines.turbine.turbines
-import build.wallet.recovery.socrec.SocRecRelationshipsRepositoryMock
+import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
@@ -22,11 +18,10 @@ import build.wallet.statemachine.status.HomeStatusBannerUiProps
 import build.wallet.statemachine.status.HomeStatusBannerUiStateMachine
 import build.wallet.ui.model.status.StatusBannerModel
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.shouldBe
 
 class LiteHomeUiStateMachineImplTests : FunSpec({
 
-  val socRecRelationshipsRepository = SocRecRelationshipsRepositoryMock(turbines::create)
+  val socRecService = SocRecServiceMock(turbines::create)
   val stateMachine =
     LiteHomeUiStateMachineImpl(
       homeStatusBannerUiStateMachine =
@@ -47,7 +42,6 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
           ScreenStateMachineMock<LiteTrustedContactManagementProps>(
             "lite-trusted-contact-management"
           ) {},
-      socRecRelationshipsRepository = socRecRelationshipsRepository,
       eventTracker = EventTrackerMock(turbines::create)
     )
 
@@ -56,38 +50,12 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
       accountData = HasActiveLiteAccountDataFake
     )
 
-  test("launches soc rec relationships sync") {
-    stateMachine.test(props) {
-      socRecRelationshipsRepository.launchSyncCalls.awaitItem()
-      cancelAndIgnoreRemainingEvents()
-    }
-  }
-
-  test("money home onRemoveRelationship calls soc rec repository") {
-    val customer = ProtectedCustomer(
-      relationshipId = "relationship-id",
-      alias = ProtectedCustomerAlias("allison"),
-      roles = setOf(TrustedContactRole.SocialRecoveryContact)
-    )
-    stateMachine.test(props) {
-      socRecRelationshipsRepository.launchSyncCalls.awaitItem()
-
-      awaitItem() // Initial loading
-
-      awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
-        onRemoveRelationship(customer)
-      }
-      socRecRelationshipsRepository.removeRelationshipCalls.awaitItem()
-        .shouldBe(customer.relationshipId)
-    }
+  beforeTest {
+    socRecService.clear()
   }
 
   test("money home onSettings shows settings, settings onBack shows money home") {
     stateMachine.test(props) {
-      socRecRelationshipsRepository.launchSyncCalls.awaitItem()
-
-      awaitItem() // Initial loading
-
       awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
         onSettings()
       }
@@ -95,24 +63,6 @@ class LiteHomeUiStateMachineImplTests : FunSpec({
         onBack()
       }
       awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps>()
-    }
-  }
-
-  test("settings onRemoveProtectedCustomer calls soc rec repository") {
-    val relationshipId = "relationship-id"
-    stateMachine.test(props) {
-      socRecRelationshipsRepository.launchSyncCalls.awaitItem()
-
-      awaitItem() // Initial loading
-
-      awaitScreenWithBodyModelMock<LiteMoneyHomeUiProps> {
-        onSettings()
-      }
-      awaitScreenWithBodyModelMock<LiteSettingsHomeUiProps> {
-        socRecTrustedContactActions.removeProtectedCustomer(ProtectedCustomerFake.copy(relationshipId))
-      }
-      socRecRelationshipsRepository.removeRelationshipCalls.awaitItem()
-        .shouldBe(relationshipId)
     }
   }
 })

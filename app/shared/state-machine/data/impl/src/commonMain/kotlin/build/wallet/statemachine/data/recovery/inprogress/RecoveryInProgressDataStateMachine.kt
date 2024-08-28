@@ -52,8 +52,8 @@ import build.wallet.recovery.RecoveryCanceler
 import build.wallet.recovery.RecoveryDao
 import build.wallet.recovery.RecoverySyncer
 import build.wallet.recovery.SignedChallengeToCompleteRecovery
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
-import build.wallet.recovery.socrec.TrustedContactKeyAuthenticator
+import build.wallet.recovery.socrec.EndorseTrustedContactsService
+import build.wallet.recovery.socrec.SocRecService
 import build.wallet.statemachine.core.StateMachine
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.AwaitingProofOfPossessionForCancellationData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData.CancellingData
@@ -154,8 +154,8 @@ class RecoveryInProgressDataStateMachineImpl(
   private val recoveryDao: RecoveryDao,
   private val delayer: Delayer,
   private val deviceTokenManager: DeviceTokenManager,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
-  private val trustedContactKeyAuthenticator: TrustedContactKeyAuthenticator,
+  private val socRecService: SocRecService,
+  private val endorseTrustedContactsService: EndorseTrustedContactsService,
 ) : RecoveryInProgressDataStateMachine {
   @Composable
   override fun model(props: RecoveryInProgressProps): RecoveryInProgressData {
@@ -506,7 +506,7 @@ class RecoveryInProgressDataStateMachineImpl(
       accountAuthenticator
         .appAuth(
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
-          appAuthPublicKey = requireNotNull(props.recovery.appRecoveryAuthKey),
+          appAuthPublicKey = props.recovery.appRecoveryAuthKey,
           authTokenScope = AuthTokenScope.Recovery
         )
         .logAuthFailure { "Error authenticating with new app recovery auth key after recovery completed." }
@@ -545,7 +545,7 @@ class RecoveryInProgressDataStateMachineImpl(
   private suspend fun regenerateTcCertificates(props: RecoveryInProgressProps) =
     coroutineBinding {
       // 1. Get latest trusted contacts from f8e
-      val trustedContacts = socRecRelationshipsRepository
+      val trustedContacts = socRecService
         .getRelationshipsWithoutSyncing(
           accountId = props.recovery.fullAccountId,
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment
@@ -553,7 +553,7 @@ class RecoveryInProgressDataStateMachineImpl(
         .bind()
         .endorsedTrustedContacts
       // 2. Verify all trusted contacts with new auth keys
-      trustedContactKeyAuthenticator.authenticateRegenerateAndEndorse(
+      endorseTrustedContactsService.authenticateRegenerateAndEndorse(
         f8eEnvironment = props.fullAccountConfig.f8eEnvironment,
         accountId = props.recovery.fullAccountId,
         contacts = trustedContacts,
@@ -564,7 +564,7 @@ class RecoveryInProgressDataStateMachineImpl(
       ).bind()
 
       // 3. Re-sync relationships and store locally
-      socRecRelationshipsRepository
+      socRecService
         .syncAndVerifyRelationships(
           accountId = props.recovery.fullAccountId,
           f8eEnvironment = props.fullAccountConfig.f8eEnvironment,

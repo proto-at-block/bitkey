@@ -1,5 +1,5 @@
 [workspace]
-members = ["crypto", "wsm-integrity"]
+members = ["crypto", "picocert", "wsm-integrity"]
 resolver = "2"
 
 [workspace.package]

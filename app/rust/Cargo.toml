@@ -3,6 +3,7 @@ members = [
   "apdu",
   "core-ffi",
   "firmware-ffi",
+  "frost",
   "lightning-support",
   "teltra",
   "teltra-sys",

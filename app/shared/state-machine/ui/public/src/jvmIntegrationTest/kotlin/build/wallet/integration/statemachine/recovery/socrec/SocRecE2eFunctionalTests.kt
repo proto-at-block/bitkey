@@ -6,17 +6,12 @@ import build.wallet.bitkey.account.FullAccount
 import build.wallet.bitkey.account.LiteAccount
 import build.wallet.bitkey.account.OnboardingSoftwareAccount
 import build.wallet.bitkey.hardware.AppGlobalAuthKeyHwSignature
-import build.wallet.bitkey.relationships.RelationshipId
-import build.wallet.bitkey.relationships.TcIdentityKeyAppSignature
-import build.wallet.bitkey.relationships.TrustedContactAuthenticationState
-import build.wallet.bitkey.relationships.TrustedContactEndorsement
-import build.wallet.bitkey.relationships.TrustedContactKeyCertificate
+import build.wallet.bitkey.relationships.*
 import build.wallet.cloud.backup.socRecDataAvailable
 import build.wallet.cloud.store.CloudStoreAccountFake
 import build.wallet.f8e.socrec.endorseTrustedContacts
 import build.wallet.f8e.socrec.getRelationships
 import build.wallet.integration.statemachine.recovery.cloud.screenDecideIfShouldRotate
-import build.wallet.recovery.socrec.syncAndVerifyRelationships
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
 import build.wallet.statemachine.moneyhome.MoneyHomeBodyModel
@@ -27,18 +22,7 @@ import build.wallet.statemachine.ui.clickSecondaryButton
 import build.wallet.statemachine.ui.shouldHaveTrailingAccessoryButton
 import build.wallet.testing.AppTester
 import build.wallet.testing.AppTester.Companion.launchNewApp
-import build.wallet.testing.ext.awaitRelationships
-import build.wallet.testing.ext.awaitTcIsVerifiedAndBackedUp
-import build.wallet.testing.ext.createTcInvite
-import build.wallet.testing.ext.deleteBackupsFromFakeCloud
-import build.wallet.testing.ext.getActiveAccount
-import build.wallet.testing.ext.getActiveAppGlobalAuthKey
-import build.wallet.testing.ext.getActiveFullAccount
-import build.wallet.testing.ext.getActiveHwAuthKey
-import build.wallet.testing.ext.getSharedInviteCode
-import build.wallet.testing.ext.onboardFullAccountWithFakeHardware
-import build.wallet.testing.ext.onboardLiteAccountFromInvitation
-import build.wallet.testing.ext.readCloudBackup
+import build.wallet.testing.ext.*
 import com.github.michaelbull.result.getOrThrow
 import io.kotest.assertions.fail
 import io.kotest.assertions.withClue
@@ -172,14 +156,14 @@ class SocRecE2eFunctionalTests : FunSpec({
 
     // Attacker impersonating as PC: Endorse TC with a tampered key certificate
     val customerAccount = customerApp.getActiveFullAccount()
-    val socRecF8eClient = customerApp.app.socialRecoveryF8eClientProvider.get()
+    val socRecF8eClient = customerApp.app.appComponent.socRecF8eClientProvider.get()
     val relationships = socRecF8eClient.getRelationships(
       customerAccount.accountId,
       customerAccount.config.f8eEnvironment
     ).getOrThrow()
     val unendorsedTc = relationships.unendorsedTrustedContacts
       .single()
-    val socRecCrypto = customerApp.app.socRecCrypto
+    val socRecCrypto = customerApp.app.appComponent.socRecCrypto
     val badKeyCert = TrustedContactKeyCertificate(
       // This is a tampered key we are trying to get into the Protected Customer backup
       delegatedDecryptionKey = socRecCrypto.generateDelegatedDecryptionKey().getOrThrow().publicKey,
@@ -579,13 +563,8 @@ class SocRecE2eFunctionalTests : FunSpec({
 suspend fun buildTrustedContactManagementUiStateMachineProps(
   appTester: AppTester,
 ): TrustedContactManagementProps {
-  val repository = appTester.app.socRecRelationshipsRepository
-  val account = appTester.getActiveFullAccount()
-  val relationships = repository.syncAndVerifyRelationships(account).getOrThrow()
   return TrustedContactManagementProps(
     account = appTester.getActiveFullAccount(),
-    socRecRelationships = relationships,
-    socRecActions = repository.toActions(account),
     onExit = { fail("unexpected exit") }
   )
 }
@@ -652,10 +631,10 @@ suspend fun verifyKeyCertificatesAreRefreshed(appTester: AppTester) {
   val hwPubKey = account.keybox.activeHwKeyBundle.authKey.pubKey
   hwPubKey.shouldBeEqual(appTester.fakeHardwareKeyStore.getAuthKeypair().publicKey.pubKey)
 
-  val serverTcs = appTester.app.socialRecoveryF8eClientProvider.get()
+  val serverTcs = appTester.app.appComponent.socRecF8eClientProvider.get()
     .getRelationships(account).getOrThrow()
     .endorsedTrustedContacts
-  val dbTcs = appTester.app.socRecRelationshipsDao
+  val dbTcs = appTester.app.appComponent.socRecRelationshipsDao
     .socRecRelationships().first().getOrThrow()
     .endorsedTrustedContacts
 

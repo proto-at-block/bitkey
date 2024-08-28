@@ -6,12 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import build.wallet.analytics.events.EventTracker
 import build.wallet.analytics.v1.Action
-import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProvider
-import build.wallet.availability.EmergencyAccessMode
-import build.wallet.availability.F8eUnreachable
-import build.wallet.availability.InactiveApp
-import build.wallet.availability.InternetUnreachable
+import build.wallet.availability.*
 import build.wallet.time.DateTimeFormatter
 import build.wallet.time.TimeZoneProvider
 import build.wallet.time.isThisYear
@@ -21,7 +16,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
 class HomeStatusBannerUiStateMachineImpl(
-  private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
+  private val appFunctionalityService: AppFunctionalityService,
   private val dateTimeFormatter: DateTimeFormatter,
   private val timeZoneProvider: TimeZoneProvider,
   private val clock: Clock,
@@ -29,10 +24,7 @@ class HomeStatusBannerUiStateMachineImpl(
 ) : HomeStatusBannerUiStateMachine {
   @Composable
   override fun model(props: HomeStatusBannerUiProps): StatusBannerModel? {
-    val appFunctionalityStatus =
-      remember {
-        appFunctionalityStatusProvider.appFunctionalityStatus(props.f8eEnvironment)
-      }.collectAsState(AppFunctionalityStatus.FullFunctionality).value
+    val appFunctionalityStatus = remember { appFunctionalityService.status }.collectAsState().value
 
     return when (appFunctionalityStatus) {
       is AppFunctionalityStatus.FullFunctionality ->

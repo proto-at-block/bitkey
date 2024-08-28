@@ -8,12 +8,12 @@ import build.wallet.bdk.bindings.BdkBumpFeeTxBuilderFactory
 import build.wallet.bdk.bindings.BdkPartiallySignedTransactionBuilder
 import build.wallet.bdk.bindings.BdkTxBuilderFactory
 import build.wallet.bdk.bindings.BdkWalletFactory
+import build.wallet.crypto.Spake2Impl
 import build.wallet.crypto.WsmVerifierImpl
 import build.wallet.datadog.DatadogRumMonitor
 import build.wallet.datadog.FakeDatadogTracerImpl
-import build.wallet.encrypt.MessageSigner
-import build.wallet.encrypt.Secp256k1KeyGeneratorImpl
-import build.wallet.encrypt.SignatureVerifier
+import build.wallet.encrypt.*
+import build.wallet.firmware.FirmwareCommsLogBufferMock
 import build.wallet.firmware.HardwareAttestationMock
 import build.wallet.firmware.Teltra
 import build.wallet.logging.dev.LogStoreNoop
@@ -55,6 +55,7 @@ fun makeAppComponent(
   val fileManager = FileManagerImpl(fileDirectoryProvider)
   val publicKeyGenerator = Secp256k1KeyGeneratorImpl()
   val hardwareAttestation = HardwareAttestationMock()
+  val firmwareCommsLogBuffer = FirmwareCommsLogBufferMock()
   val wsmVerifier = WsmVerifierImpl()
 
   return AppComponentImpl(
@@ -85,8 +86,15 @@ fun makeAppComponent(
     secp256k1KeyGenerator = publicKeyGenerator,
     recoverySyncFrequency = 5.seconds,
     hardwareAttestation = hardwareAttestation,
+    firmwareCommsLogBuffer = firmwareCommsLogBuffer,
     teltra = teltra,
     wsmVerifier = wsmVerifier,
-    exchangeRateF8eClient = exchangeRateF8eClient
+    exchangeRateF8eClient = exchangeRateF8eClient,
+    symmetricKeyEncryptor = SymmetricKeyEncryptorImpl(),
+    symmetricKeyGenerator = SymmetricKeyGeneratorImpl(),
+    xChaCha20Poly1305 = XChaCha20Poly1305Impl(),
+    xNonceGenerator = XNonceGeneratorImpl(),
+    spake2 = Spake2Impl(),
+    cryptoBox = CryptoBoxImpl()
   )
 }

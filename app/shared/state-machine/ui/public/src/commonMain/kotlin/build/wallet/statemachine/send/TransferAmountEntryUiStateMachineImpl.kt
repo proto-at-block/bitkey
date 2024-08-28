@@ -1,18 +1,18 @@
 package build.wallet.statemachine.send
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.availability.NetworkReachability
+import build.wallet.bitcoin.balance.BitcoinBalance.Companion.ZeroBalance
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
+import build.wallet.bitcoin.transactions.TransactionsData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
+import build.wallet.compose.collections.immutableListOf
 import build.wallet.limit.DailySpendingLimitStatus.RequiresHardware
+import build.wallet.limit.MobilePayData.MobilePayEnabledData
+import build.wallet.limit.MobilePayService
 import build.wallet.limit.MobilePaySpendingPolicy
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -21,13 +21,8 @@ import build.wallet.money.currency.Currency
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.money.exchange.CurrencyConverter
 import build.wallet.money.formatter.MoneyDisplayFormatter
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.RenderContext
-import build.wallet.statemachine.data.mobilepay.MobilePayData.MobilePayEnabledData
 import build.wallet.statemachine.data.money.convertedOrZeroWithRates
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiProps
 import build.wallet.statemachine.money.calculator.MoneyCalculatorUiStateMachine
@@ -36,9 +31,7 @@ import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.Tran
 import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.ValidAmountEnteredUiState
 import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.ValidAmountEnteredUiState.AmountBelowBalanceUiState
 import build.wallet.statemachine.send.TransferAmountEntryUiStateMachineImpl.TransferAmountUiState.ValidAmountEnteredUiState.AmountEqualOrAboveBalanceUiState
-import build.wallet.statemachine.send.TransferScreenBannerModel.AmountEqualOrAboveBalanceBannerModel
-import build.wallet.statemachine.send.TransferScreenBannerModel.F8eUnavailableBannerModel
-import build.wallet.statemachine.send.TransferScreenBannerModel.HardwareRequiredBannerModel
+import build.wallet.statemachine.send.TransferScreenBannerModel.*
 
 class TransferAmountEntryUiStateMachineImpl(
   private val currencyConverter: CurrencyConverter,
@@ -46,6 +39,8 @@ class TransferAmountEntryUiStateMachineImpl(
   private val mobilePaySpendingPolicy: MobilePaySpendingPolicy,
   private val moneyDisplayFormatter: MoneyDisplayFormatter,
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
+  private val transactionsService: TransactionsService,
+  private val mobilePayService: MobilePayService,
 ) : TransferAmountEntryUiStateMachine {
   @Composable
   @Suppress("CyclomaticComplexMethod")
@@ -68,6 +63,19 @@ class TransferAmountEntryUiStateMachineImpl(
 
     var initialPrimaryAmount by remember {
       mutableStateOf(props.initialAmount)
+    }
+
+    val transactionsData = remember { transactionsService.transactionsData() }
+      .collectAsState().value
+
+    val transactions = when (transactionsData) {
+      TransactionsData.LoadingTransactionsData -> immutableListOf()
+      is TransactionsData.TransactionsLoadedData -> transactionsData.transactions
+    }
+
+    val bitcoinBalance = when (transactionsData) {
+      TransactionsData.LoadingTransactionsData -> ZeroBalance
+      is TransactionsData.TransactionsLoadedData -> transactionsData.balance
     }
 
     val calculatorModel =
@@ -114,18 +122,16 @@ class TransferAmountEntryUiStateMachineImpl(
         }
       }
 
-    val bitcoinBalance = props.accountData.transactionsData.balance
-    val fiatBalance: FiatMoney? =
-      when (props.exchangeRates) {
-        null -> null
-        else ->
-          convertedOrZeroWithRates(
-            currencyConverter,
-            bitcoinBalance.total,
-            fiatCurrency,
-            props.exchangeRates
-          ).rounded() as? FiatMoney
-      }
+    val fiatBalance: FiatMoney? = when (props.exchangeRates) {
+      null -> null
+      else ->
+        convertedOrZeroWithRates(
+          currencyConverter,
+          bitcoinBalance.total,
+          fiatCurrency,
+          props.exchangeRates
+        ).rounded() as? FiatMoney
+    }
 
     val fiatBalanceFormatted = fiatBalance?.let { moneyDisplayFormatter.format(it) }.orEmpty()
     val bitcoinBalanceFormatted =
@@ -140,8 +146,6 @@ class TransferAmountEntryUiStateMachineImpl(
 
     // TODO(W-703): derive from BDK
     val dustLimit = BitcoinMoney.sats(546)
-
-    val latestTransactions = props.accountData.transactionsData.transactions
 
     // Base the determination of the entered amount being above the balance
     // based on the currency it's entered in.
@@ -190,11 +194,15 @@ class TransferAmountEntryUiStateMachineImpl(
       }
     }
 
+    val mobilePayData = remember { mobilePayService.mobilePayData }
+      .collectAsState()
+      .value
+
     val spendingLimitStatus by remember(
       transferAmountState,
       enteredBitcoinMoney,
-      latestTransactions,
-      props.accountData.mobilePayData
+      transactions,
+      mobilePayData
     ) {
       derivedStateOf {
         val transactionAmount = when (transferAmountState) {
@@ -205,7 +213,7 @@ class TransferAmountEntryUiStateMachineImpl(
         mobilePaySpendingPolicy.getDailySpendingLimitStatus(
           transactionAmount = transactionAmount,
           mobilePayBalance =
-            when (val mobilePayData = props.accountData.mobilePayData) {
+            when (mobilePayData) {
               is MobilePayEnabledData -> mobilePayData.balance
               else -> null
             }

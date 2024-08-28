@@ -1,8 +1,8 @@
 package build.wallet.statemachine.settings.full.device
 
 import app.cash.turbine.plusAssign
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
 import build.wallet.coachmark.CoachmarkServiceMock
 import build.wallet.coroutines.turbine.turbines
@@ -53,7 +53,7 @@ import kotlinx.datetime.Instant
 class DeviceSettingsUiStateMachineImplTests : FunSpec({
 
   val firmwareDeviceInfoDao = FirmwareDeviceInfoDaoMock(turbines::create)
-  val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
+  val appFunctionalityService = AppFunctionalityServiceFake()
   val firmwareDataService = FirmwareDataServiceFake()
   val stateMachine =
     DeviceSettingsUiStateMachineImpl(
@@ -74,7 +74,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
       timeZoneProvider = TimeZoneProviderMock(),
       durationFormatter = DurationFormatterFake(),
       firmwareDeviceInfoDao = firmwareDeviceInfoDao,
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      appFunctionalityService = appFunctionalityService,
       managingFingerprintsUiStateMachine = object : ManagingFingerprintsUiStateMachine,
         ScreenStateMachineMock<ManagingFingerprintsProps>(
           id = "managing fingerprints"
@@ -98,6 +98,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
   val nfcCommandsMock = NfcCommandsMock(turbines::create)
 
   beforeTest {
+    appFunctionalityService.reset()
     firmwareDeviceInfoDao.reset()
     firmwareDataService.reset()
   }
@@ -239,7 +240,7 @@ class DeviceSettingsUiStateMachineImplTests : FunSpec({
         }
       }
 
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause = F8eUnreachable(Instant.DISTANT_PAST)
         )

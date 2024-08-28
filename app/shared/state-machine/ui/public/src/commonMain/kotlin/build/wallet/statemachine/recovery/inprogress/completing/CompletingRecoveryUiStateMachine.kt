@@ -15,4 +15,5 @@ data class CompletingRecoveryUiProps(
   val completingRecoveryData: CompletingRecoveryData,
   val onExit: (() -> Unit)?,
   val isHardwareFake: Boolean,
+  val onComplete: (() -> Unit)?,
 )

@@ -7,6 +7,7 @@ import build.wallet.pricechart.ui.*
 import build.wallet.statemachine.core.ComposeBodyModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
 import build.wallet.ui.model.toolbar.ToolbarModel
+import com.ionspin.kotlin.bignum.decimal.BigDecimal
 import kotlinx.collections.immutable.ImmutableList
 
 @Immutable
@@ -42,4 +43,15 @@ enum class PriceDirection(val orientation: Float) {
   DOWN(180f),
   UP(0f),
   STABLE(90f),
+  ;
+
+  companion object {
+    fun from(price: BigDecimal): PriceDirection {
+      return when {
+        price == BigDecimal.ZERO -> STABLE
+        price.isPositive -> UP
+        else -> DOWN
+      }
+    }
+  }
 }

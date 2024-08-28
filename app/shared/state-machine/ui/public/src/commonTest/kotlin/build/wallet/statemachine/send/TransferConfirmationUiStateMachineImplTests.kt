@@ -1,20 +1,14 @@
 package build.wallet.statemachine.send
 
-import app.cash.turbine.plusAssign
 import build.wallet.bdk.bindings.BdkError
 import build.wallet.bitcoin.address.someBitcoinAddress
 import build.wallet.bitcoin.blockchain.BitcoinBlockchainMock
 import build.wallet.bitcoin.fees.Fee
 import build.wallet.bitcoin.fees.FeeRate
 import build.wallet.bitcoin.fees.oneSatPerVbyteFeeRate
+import build.wallet.bitcoin.transactions.*
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.ExactAmount
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.SIXTY_MINUTES
-import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
-import build.wallet.bitcoin.transactions.OutgoingTransactionDetailRepositoryMock
-import build.wallet.bitcoin.transactions.Psbt
-import build.wallet.bitcoin.transactions.PsbtMock
-import build.wallet.bitcoin.transactions.TransactionPriorityPreferenceFake
+import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.*
 import build.wallet.bitcoin.wallet.SpendingWalletMock
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
@@ -27,16 +21,11 @@ import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.StateMachineMock
-import build.wallet.statemachine.core.Icon
-import build.wallet.statemachine.core.LoadingSuccessBodyModel
-import build.wallet.statemachine.core.awaitScreenWithBody
-import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormMainContentModel.DataList
 import build.wallet.statemachine.core.form.FormMainContentModel.FeeOptionList
-import build.wallet.statemachine.core.test
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
-import build.wallet.statemachine.data.keybox.transactions.KeyboxTransactionsDataMock
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
 import build.wallet.statemachine.send.TransferConfirmationUiProps.Variant
@@ -73,14 +62,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       id = "app-and-server-signed-psbt"
     )
 
-  val transactionsSyncCalls = turbines.create<Unit>("sync calls")
-  val keyboxData =
-    ActiveKeyboxLoadedDataMock.copy(
-      transactionsData =
-        KeyboxTransactionsDataMock.copy(
-          syncTransactions = { transactionsSyncCalls += Unit }
-        )
-    )
+  val keyboxData = ActiveKeyboxLoadedDataMock
   val transactionDetailsCardUiStateMachine =
     object : TransactionDetailsCardUiStateMachine,
       StateMachineMock<TransactionDetailsCardUiProps, TransactionDetailsModel>(
@@ -128,6 +110,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
   val appSpendingWalletProvider = AppSpendingWalletProviderMock(spendingWallet)
   val transactionRepository = OutgoingTransactionDetailRepositoryMock(turbines::create)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val transactionsService = TransactionsServiceFake()
   val stateMachine =
     TransferConfirmationUiStateMachineImpl(
       mobilePaySigningF8eClient = serverSigner,
@@ -138,7 +121,8 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       feeOptionListUiStateMachine = FeeOptionListUiStateMachineFake(),
       appSpendingWalletProvider = appSpendingWalletProvider,
       outgoingTransactionDetailRepository = transactionRepository,
-      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+      fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+      transactionsService = transactionsService
     )
 
   beforeTest {
@@ -146,6 +130,9 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
     serverSigner.reset()
     spendingWallet.reset()
     transactionPriorityPreference.reset()
+    transactionsService.reset()
+
+    transactionsService.spendingWallet.value = spendingWallet
   }
 
   test("create unsigned psbt error - insufficent funds") {
@@ -263,7 +250,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       transactionRepository.setTransactionCalls.awaitItem()
     }
 
-    transactionsSyncCalls.awaitItem()
+    spendingWallet.syncCalls.awaitItem()
     transactionPriorityPreference.preference.shouldBe(transactionPriority)
     onTransferInitiatedCalls.awaitItem()
   }
@@ -347,7 +334,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       transactionRepository.setTransactionCalls.awaitItem()
     }
 
-    transactionsSyncCalls.awaitItem()
+    spendingWallet.syncCalls.awaitItem()
     transactionPriorityPreference.preference.shouldBe(preferenceToSet)
     onTransferInitiatedCalls.awaitItem()
   }
@@ -411,7 +398,7 @@ class TransferConfirmationUiStateMachineImplTests : FunSpec({
       bitcoinBlockchain.broadcastCalls.awaitItem().shouldBe(appAndServerSignedPsbt)
     }
 
-    transactionsSyncCalls.awaitItem()
+    spendingWallet.syncCalls.awaitItem()
     transactionPriorityPreference.preference.shouldBe(preferenceToSet)
     onTransferInitiatedCalls.awaitItem()
   }

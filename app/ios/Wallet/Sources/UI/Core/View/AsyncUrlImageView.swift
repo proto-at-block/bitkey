@@ -12,12 +12,29 @@ struct AsyncUrlImageView<T: View>: View {
     @ViewBuilder
     let fallbackContent: () -> T
 
+    @SwiftUI.State private var svgState: SvgImageState = .loading
+
     var body: some View {
         if url.pathExtension.lowercased() == "svg" {
-            SVGView(contentsOf: url)
-                .frame(width: CGFloat(size.value.f), height: CGFloat(size.value.f))
-                .opacity(opacity)
-                .aspectRatio(contentMode: .fit)
+            switch svgState {
+            case let .loaded(svg):
+                SVGView(svg: svg)
+                    .frame(width: CGFloat(size.value.f), height: CGFloat(size.value.f))
+                    .opacity(opacity)
+                    .aspectRatio(contentMode: .fit)
+            case .loading:
+                RotatingLoadingIcon(size: size, tint: .black)
+                    .task {
+                        let (data, _, error) = await getUrlData(from: url)
+                        if let data, let svg = SVGParser.parse(data: data) {
+                            svgState = .loaded(svg: svg)
+                        } else if let error {
+                            svgState = .error
+                        }
+                    }
+            case .error:
+                fallbackContent()
+            }
         } else {
             AsyncImage(url: url) { phase in
                 switch phase {
@@ -30,6 +47,20 @@ struct AsyncUrlImageView<T: View>: View {
                 }
             }
         }
+    }
+
+    private func getUrlData(from url: URL) async -> (Data?, URLResponse?, Error?) {
+        await withCheckedContinuation { continuation in
+            URLSession.shared.dataTask(with: url, completionHandler: { data, response, error in
+                continuation.resume(returning: (data, response, error))
+            }).resume()
+        }
+    }
+
+    private enum SvgImageState {
+        case loaded(svg: SVGNode)
+        case loading
+        case error
     }
 }
 

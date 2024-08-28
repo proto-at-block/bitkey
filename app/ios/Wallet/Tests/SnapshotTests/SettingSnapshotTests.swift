@@ -16,7 +16,8 @@ final class SettingsSnapshotTests: XCTestCase {
         let view = SettingsView(viewModel: .snapshotTest())
         assertBitkeySnapshots(
             view: view,
-            screenModel: .snapshotTest(statusBannerModel: .snapshotTest())
+            screenModel: .snapshotTest(statusBannerModel: .snapshotTest()),
+            usesVisualEffect: true
         )
     }
 

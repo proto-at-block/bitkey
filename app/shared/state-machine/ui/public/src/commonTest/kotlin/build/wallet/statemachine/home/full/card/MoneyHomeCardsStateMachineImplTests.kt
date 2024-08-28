@@ -1,11 +1,9 @@
 package build.wallet.statemachine.home.full.card
 
-import build.wallet.availability.AppFunctionalityStatus
 import build.wallet.bitkey.auth.AppGlobalAuthPublicKeyMock
-import build.wallet.bitkey.keybox.KeyboxMock
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.compose.collections.immutableListOf
-import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.f8e.F8eEnvironment
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.test
@@ -101,8 +99,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
       gettingStartedCardUiProps =
         GettingStartedCardUiProps(
           accountData = ActiveKeyboxLoadedDataMock,
-          appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
-          trustedContacts = emptyList(),
           onAddBitcoin = {},
           onEnableSpendingLimit = {},
           onInviteTrustedContact = {},
@@ -121,7 +117,6 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
         ),
       recoveryContactCardsUiProps =
         RecoveryContactCardsUiProps(
-          relationships = SocRecRelationships.EMPTY,
           onClick = {}
         ),
       setupHardwareCardUiProps =
@@ -129,14 +124,14 @@ class MoneyHomeCardsStateMachineImplTests : FunSpec({
           onReplaceDevice = {}
         ),
       cloudBackupHealthCardUiProps = CloudBackupHealthCardUiProps(
-        appFunctionalityStatus = AppFunctionalityStatus.FullFunctionality,
         onActionClick = {}
       ),
       startSweepCardUiProps = StartSweepCardUiProps(
-        onStartSweepClicked = {},
-        keybox = KeyboxMock
+        onStartSweepClicked = {}
       ),
       bitcoinPriceCardUiProps = BitcoinPriceCardUiProps(
+        fullAccountId = ActiveKeyboxLoadedDataMock.account.accountId,
+        f8eEnvironment = F8eEnvironment.Development,
         onOpenPriceChart = {}
       )
     )

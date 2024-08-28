@@ -2,9 +2,9 @@ use bitcoin::secp256k1::ThirtyTwoByteHash;
 use bitcoin::{bip32::DerivationPath, secp256k1::ecdsa::Signature};
 use miniscript::DescriptorPublicKey;
 use next_gen::generator;
-use prost::Message;
 
 use crate::signing::Sighash;
+use crate::wca;
 use crate::{
     errors::CommandError,
     fwpb::{self, derive_and_sign_rsp::DeriveAndSignRspStatus, DeriveKeyDescriptorAndSignCmd},
@@ -31,8 +31,9 @@ pub(crate) fn derive_and_sign(
     }
     .try_into()?;
     let data = yield_!(apdu.into());
+
     let response = apdu::Response::from(data);
-    let message = fwpb::WalletRsp::decode(std::io::Cursor::new(response.data))?
+    let message = wca::decode_and_check(response)?
         .msg
         .ok_or(CommandError::MissingMessage)?;
 

@@ -10,6 +10,7 @@ import com.github.michaelbull.result.coroutines.coroutineBinding
 import com.github.michaelbull.result.flatMap
 import com.github.michaelbull.result.onSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 class BitcoinAddressServiceImpl(
   private val registerWatchAddressProcessor: Processor<RegisterWatchAddressContext>,
@@ -20,11 +21,8 @@ class BitcoinAddressServiceImpl(
   override suspend fun executeWork() {
     // Asynchronously register newly generated addresses to avoid performance degradation.
     addressCache
+      .filterNotNull()
       .collect { accountWithAddress ->
-        if (accountWithAddress == null) {
-          return@collect
-        }
-
         val account = accountWithAddress.account
         registerWatchAddressProcessor.process(
           RegisterWatchAddressContext(

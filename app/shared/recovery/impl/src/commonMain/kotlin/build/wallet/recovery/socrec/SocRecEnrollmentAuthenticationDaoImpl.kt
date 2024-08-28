@@ -26,7 +26,7 @@ class SocRecEnrollmentAuthenticationDaoImpl(
     coroutineBinding {
       appPrivateKeyDao.storeAsymmetricPrivateKey(
         protectedCustomerEnrollmentPakeKey.publicKey,
-        requireNotNull(protectedCustomerEnrollmentPakeKey.privateKey)
+        protectedCustomerEnrollmentPakeKey.privateKey
       ).bind()
       database.awaitTransactionWithResult {
         database.socRecEnrollmentAuthenticationQueries.insert(

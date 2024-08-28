@@ -1,11 +1,6 @@
 package build.wallet.statemachine.send.fee
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.analytics.events.screen.id.SendEventTrackerScreenId
 import build.wallet.bitcoin.fees.BitcoinTransactionBaseCalculator
 import build.wallet.bitcoin.fees.BitcoinTransactionFeeEstimator
@@ -17,22 +12,12 @@ import build.wallet.bitcoin.transactions.EstimatedTransactionPriority
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.FASTEST
 import build.wallet.bitcoin.transactions.EstimatedTransactionPriority.THIRTY_MINUTES
 import build.wallet.bitcoin.transactions.TransactionPriorityPreference
+import build.wallet.bitcoin.transactions.TransactionsData.TransactionsLoadedData
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.money.BitcoinMoney
-import build.wallet.statemachine.core.BodyModel
-import build.wallet.statemachine.core.ButtonDataModel
-import build.wallet.statemachine.core.ErrorFormBodyModel
-import build.wallet.statemachine.core.LoadingBodyModel
-import build.wallet.statemachine.core.NetworkErrorFormBodyModel
-import build.wallet.statemachine.send.fee.FeeOptionsUiState.GenericFeeEstimationFailedErrorUiState
-import build.wallet.statemachine.send.fee.FeeOptionsUiState.InsufficientFundsErrorUiState
-import build.wallet.statemachine.send.fee.FeeOptionsUiState.LoadingFeeEstimationFailedErrorUiState
-import build.wallet.statemachine.send.fee.FeeOptionsUiState.LoadingTransactionInfoUiState
-import build.wallet.statemachine.send.fee.FeeOptionsUiState.SelectingFeeUiState
-import build.wallet.statemachine.send.fee.FeeOptionsUiState.SpendBelowDustLimitErrorUiState
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_BELOW_DUST_LIMIT_ERROR_SCREEN
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_INSUFFICIENT_FUNDS_ERROR_SCREEN
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_LOAD_FEES_ERROR_SCREEN
-import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.FEE_ESTIMATION_PSBT_CONSTRUCTION_ERROR_SCREEN
+import build.wallet.statemachine.core.*
+import build.wallet.statemachine.send.fee.FeeOptionsUiState.*
+import build.wallet.statemachine.send.fee.FeeSelectionEventTrackerScreenId.*
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import build.wallet.ui.model.button.ButtonModel.Size.Footer
@@ -41,12 +26,15 @@ import com.github.michaelbull.result.onSuccess
 import kotlinx.collections.immutable.ImmutableMap
 import kotlinx.collections.immutable.immutableMapOf
 import kotlinx.collections.immutable.toImmutableMap
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 
 class FeeSelectionUiStateMachineImpl(
   private val bitcoinTransactionFeeEstimator: BitcoinTransactionFeeEstimator,
   private val transactionPriorityPreference: TransactionPriorityPreference,
   private val feeOptionListUiStateMachine: FeeOptionListUiStateMachine,
   private val transactionBaseCalculator: BitcoinTransactionBaseCalculator,
+  private val transactionsService: TransactionsService,
 ) : FeeSelectionUiStateMachine {
   @Composable
   override fun model(props: FeeSelectionUiProps): BodyModel {
@@ -194,6 +182,11 @@ class FeeSelectionUiStateMachineImpl(
     ) -> Unit,
   ) {
     LaunchedEffect("fetching-fee-options") {
+      val bitcoinBalance = transactionsService.transactionsData()
+        .filterIsInstance<TransactionsLoadedData>()
+        .first()
+        .balance
+
       bitcoinTransactionFeeEstimator.getFeesForTransaction(
         priorities = EstimatedTransactionPriority.entries,
         account = props.accountData.account,
@@ -206,7 +199,7 @@ class FeeSelectionUiStateMachineImpl(
 
           val minimumTransactionAmount =
             transactionBaseCalculator.minimumSatsRequiredForTransaction(
-              walletBalance = props.accountData.transactionsData.balance,
+              walletBalance = bitcoinBalance,
               sendAmount = props.sendAmount,
               fees = fees
             )
@@ -215,7 +208,7 @@ class FeeSelectionUiStateMachineImpl(
             is ExactAmount -> {
               // If the base transaction amount required is greater than the balance, show insufficient
               // funds screen.
-              if (minimumTransactionAmount > props.accountData.transactionsData.balance.total) {
+              if (minimumTransactionAmount > bitcoinBalance.total) {
                 onFeesLoadFailed(FeeEstimationError.InsufficientFundsError)
                 return@LaunchedEffect
               }

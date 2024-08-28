@@ -9,7 +9,7 @@ import build.wallet.bitcoin.transactions.*
 import build.wallet.logging.logFailure
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
-import build.wallet.money.exchange.ExchangeRateSyncer
+import build.wallet.money.exchange.ExchangeRateService
 import build.wallet.statemachine.core.*
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachine
 import build.wallet.statemachine.nfc.NfcSessionUIStateMachineProps
@@ -23,11 +23,12 @@ import kotlinx.collections.immutable.toImmutableList
 class FeeBumpConfirmationUiStateMachineImpl(
   private val fiatCurrencyPreferenceRepository: FiatCurrencyPreferenceRepository,
   private val transactionDetailsCardUiStateMachine: TransactionDetailsCardUiStateMachine,
-  private val exchangeRateSyncer: ExchangeRateSyncer,
+  private val exchangeRateService: ExchangeRateService,
   private val nfcSessionUIStateMachine: NfcSessionUIStateMachine,
   private val bitcoinBlockchain: BitcoinBlockchain,
   private val outgoingTransactionDetailRepository: OutgoingTransactionDetailRepository,
   private val transferInitiatedUiStateMachine: TransferInitiatedUiStateMachine,
+  private val transactionsService: TransactionsService,
 ) : FeeBumpConfirmationUiStateMachine {
   @Composable
   override fun model(props: FeeBumpConfirmationProps): ScreenModel {
@@ -57,7 +58,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
           props = TransactionDetailsCardUiProps(
             transactionDetail = transactionDetail,
             fiatCurrency = fiatCurrency,
-            exchangeRates = exchangeRateSyncer.exchangeRates.value.toImmutableList()
+            exchangeRates = exchangeRateService.exchangeRates.value.toImmutableList()
           )
         )
 
@@ -110,7 +111,7 @@ class FeeBumpConfirmationUiStateMachineImpl(
           bitcoinBlockchain
             .broadcast(psbt = currentState.appAndHwSignedPsbt)
             .onSuccess {
-              props.syncTransactions()
+              transactionsService.syncTransactions()
               // When we successfully broadcast the transaction, store the transaction details and
               // exchange rate.
               outgoingTransactionDetailRepository.persistDetails(

@@ -69,14 +69,49 @@ public struct FormHeaderView: View {
                 VStack {
                     Spacer()
                         .frame(height: 8)
-                    ModeledText(
-                        model: .standard(
-                            .stringWithSubstring(subline, font: viewModel.sublineTreatment.font),
-                            font: viewModel.sublineTreatment.font,
-                            textAlignment: viewModel.alignment.textAlignment,
-                            textColor: sublineTextColor
+                    switch subline {
+                    case let model as LabelModelStringWithStyledSubstringModel:
+                        ModeledText(
+                            model: .standard(
+                                .string(from: model, font: viewModel.sublineTreatment.font),
+                                font: viewModel.sublineTreatment.font,
+                                textAlignment: viewModel.alignment.textAlignment,
+                                textColor: sublineTextColor
+                            )
+                        ).fixedSize(horizontal: false, vertical: true)
+                    case let model as LabelModelLinkSubstringModel:
+                        ModeledText(
+                            model: .standard(
+                                .string(from: model, font: FontTheme.body2Bold),
+                                font: FontTheme.body2Regular,
+                                textAlignment: .center
+                            )
                         )
-                    ).fixedSize(horizontal: false, vertical: true)
+                        .environment(\.openURL, OpenURLAction { url in
+                            // We pass the callback index as the URL string value, see
+                            // AttributedStringExtensions.swift
+                            if let callbackIndex = Int(url.absoluteString),
+                               model.linkedSubstrings.count - 1 >= callbackIndex
+                            {
+                                model.linkedSubstrings[callbackIndex].onClick()
+                                return .handled
+                            } else {
+                                return .discarded
+                            }
+                        })
+                        .fixedSize(horizontal: false, vertical: true)
+                    case let model as LabelModelStringModel:
+                        ModeledText(
+                            model: .standard(
+                                model.string,
+                                font: viewModel.sublineTreatment.font,
+                                textAlignment: viewModel.alignment.textAlignment,
+                                textColor: sublineTextColor
+                            )
+                        ).fixedSize(horizontal: false, vertical: true)
+                    default:
+                        fatalError("")
+                    }
                 }
             }
         }

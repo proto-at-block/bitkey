@@ -176,3 +176,26 @@ interface CryptoBoxKeyPair {
 
   bytes secret_key();
 };
+
+[Error]
+enum KeygenError {
+  "MissingSharePackage",
+  "MissingShareAggParams",
+  "InvalidParticipantIndex",
+  "InvalidProofOfKnowledge",
+  "InvalidIntermediateShare",
+  "InvalidKeyCommitments",
+};
+
+interface SharePackage {};
+interface ShareDetails {};
+interface KeyCommitments {};
+
+interface ShareGenerator {
+  constructor();
+
+  [Throws=KeygenError]
+  SharePackage generate();
+  [Throws=KeygenError]
+  ShareDetails aggregate(SharePackage peer_share_package, KeyCommitments peer_key_commitments);
+};

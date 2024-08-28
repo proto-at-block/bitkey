@@ -18,7 +18,7 @@ interface CurrencyConverter {
    *
    * Will return [fromAmount] if the currency is equal to [toCurrency].
    *
-   * To keep exchange rates up to date, use [ExchangeRateSyncer] and collect emissions from
+   * To keep exchange rates up to date, use [ExchangeRateService] and collect emissions from
    * [ExchangeRateDao]. (The syncer will automatically update the dao).
    */
   fun convert(
@@ -38,4 +38,9 @@ interface CurrencyConverter {
     toCurrency: Currency,
     atTime: Instant?,
   ): Flow<Money?>
+
+  fun latestRateTimestamp(
+    fromCurrency: Currency,
+    toCurrency: Currency,
+  ): Flow<Instant?>
 }

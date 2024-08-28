@@ -58,7 +58,8 @@ class LostHardwareRecoveryUiStateMachineImplTests : FunSpec({
       onFoundHardware = {},
       onExit = {
         onExitCalls += Unit
-      }
+      },
+      onComplete = {}
     )
 
   val undergoingProps =

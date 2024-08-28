@@ -1,11 +1,14 @@
 <resources>
+    <string name="bitcoin_price_card_title">Bitcoin price</string>
+    <string name="bitcoin_price_card_change">%1$s% today</string>
+    <string name="bitcoin_price_card_updated">Updated %1$s</string>
     <string name="chart_type_label_btc_price">Bitcoin</string>
     <string name="chart_type_label_balance">Your balance</string>
     <string name="chart_history_label_day">1D</string>
     <string name="chart_history_label_week">1W</string>
     <string name="chart_history_label_month">1M</string>
     <string name="chart_history_label_year">1Y</string>
-    <string name="chart_history_label_all">ALL</string>
+    <string name="chart_history_label_all">All</string>
     <string name="chart_history_label_day_diff">Past day</string>
     <string name="chart_history_label_week_diff">Past week</string>
     <string name="chart_history_label_month_diff">Past month</string>

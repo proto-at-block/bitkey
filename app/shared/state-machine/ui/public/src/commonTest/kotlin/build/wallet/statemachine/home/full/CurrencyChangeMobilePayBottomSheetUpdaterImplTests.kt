@@ -4,12 +4,12 @@ import build.wallet.coroutines.turbine.turbines
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.home.HomeUiBottomSheetId
 import build.wallet.limit.MobilePayBalanceMock
+import build.wallet.limit.MobilePayData
 import build.wallet.limit.SpendingLimitMock
 import build.wallet.money.FiatMoney
 import build.wallet.money.currency.EUR
 import build.wallet.money.currency.FiatCurrency
 import build.wallet.money.currency.USD
-import build.wallet.statemachine.data.mobilepay.MobilePayData
 import build.wallet.statemachine.home.full.bottomsheet.CurrencyChangeMobilePayBottomSheetUpdaterImpl
 import com.ionspin.kotlin.bignum.decimal.toBigDecimal
 import io.kotest.core.spec.style.FunSpec
@@ -54,8 +54,5 @@ private fun mobilePayEnabledData(currency: FiatCurrency) =
   MobilePayData.MobilePayEnabledData(
     activeSpendingLimit = SpendingLimitMock.copy(amount = FiatMoney(currency, 1.0.toBigDecimal())),
     balance = MobilePayBalanceMock,
-    remainingFiatSpendingAmount = FiatMoney.Companion.usd(100.0),
-    disableMobilePay = {},
-    changeSpendingLimit = { _, _, _, _ -> },
-    refreshBalance = {}
+    remainingFiatSpendingAmount = FiatMoney.Companion.usd(100.0)
   )

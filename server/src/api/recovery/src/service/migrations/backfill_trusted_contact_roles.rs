@@ -25,11 +25,11 @@ impl Migration for BackfillTrustedContactRoles {
     }
 
     async fn run(&self) -> Result<(), MigrationError> {
-        let all_recovery_relationships =
-            self.repository
-                .fetch_all_recovery_relationships()
-                .await
-                .map_err(|err| MigrationError::CantEnumerateTable(err.to_string()))?;
+        let all_recovery_relationships = self
+            .repository
+            .fetch_recovery_relationships_without_roles()
+            .await
+            .map_err(|err| MigrationError::CantEnumerateTable(err.to_string()))?;
 
         let mut updated_count = 0;
 

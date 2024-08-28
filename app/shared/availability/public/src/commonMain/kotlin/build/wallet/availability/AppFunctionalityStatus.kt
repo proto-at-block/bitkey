@@ -6,6 +6,8 @@ import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Availab
  * The status of the functionality of the app, used to determine when to show an informative
  * banner and show certain features of the app in a disabled state in order to proactively
  * show the customer what is available to use (instead of them trying and it failing).
+ *
+ * The status can be accessed using [AppFunctionalityService.status]
  */
 sealed interface AppFunctionalityStatus {
   /**

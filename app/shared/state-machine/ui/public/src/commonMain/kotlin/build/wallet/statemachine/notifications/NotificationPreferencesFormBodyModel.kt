@@ -4,14 +4,9 @@ import build.wallet.analytics.events.screen.id.NotificationsEventTrackerScreenId
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.compose.collections.immutableListOfNotNull
 import build.wallet.ktor.result.NetworkingError
-import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.*
 import build.wallet.statemachine.core.Icon.SmallIconEmail
 import build.wallet.statemachine.core.Icon.SmallIconPushNotification
-import build.wallet.statemachine.core.LabelModel
-import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.core.ScreenPresentationStyle
-import build.wallet.statemachine.core.SheetModel
-import build.wallet.statemachine.core.SheetSize
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormMainContentModel.Explainer
@@ -28,12 +23,8 @@ import build.wallet.ui.model.icon.IconSize.Small
 import build.wallet.ui.model.icon.IconTint.On30
 import build.wallet.ui.model.icon.IconTint.Primary
 import build.wallet.ui.model.label.CallToActionModel
-import build.wallet.ui.model.list.ListGroupModel
-import build.wallet.ui.model.list.ListGroupStyle
-import build.wallet.ui.model.list.ListItemAccessory
+import build.wallet.ui.model.list.*
 import build.wallet.ui.model.list.ListItemAccessory.IconAccessory
-import build.wallet.ui.model.list.ListItemModel
-import build.wallet.ui.model.list.ListItemTreatment
 import build.wallet.ui.model.switch.SwitchModel
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel.IconAccessory.Companion.BackAccessory
 import build.wallet.ui.model.toolbar.ToolbarModel
@@ -162,7 +153,8 @@ fun NotificationPreferencesFormBodyModel(
                               }
                             )
                           ),
-                          string = "I agree to Bitkey’s Terms of Service and Privacy Notice"
+                          string = "I agree to Bitkey’s Terms of Service and Privacy Notice",
+                          underline = false
                         ),
                         treatment = ListItemTreatment.PRIMARY,
                         trailingAccessory = IconAccessory(

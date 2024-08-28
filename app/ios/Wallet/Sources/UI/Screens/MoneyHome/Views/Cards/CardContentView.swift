@@ -52,12 +52,15 @@ struct CardContentView: View {
                     }
 
                     VStack(spacing: Metrics.titleToSubtitleSpacing) {
-                        ModeledText(
-                            model: .standard(
-                                .stringWithSubstring(viewModel.title, font: .body2Regular),
-                                font: .title2
+                        if let title = viewModel.title {
+                            ModeledText(
+                                model: .standard(
+                                    .string(from: title, font: .body2Regular),
+                                    font: .title2
+                                )
                             )
-                        )
+                        }
+
                         viewModel.subtitle.map { ModeledText(model: .standard(
                             $0,
                             font: .body3Regular,
@@ -85,6 +88,33 @@ struct CardContentView: View {
             }
             .padding(style: viewModel.style, hasContent: viewModel.content != nil)
         }
+    }
+
+}
+
+struct CardContentViewBitcoinPriceCard: View {
+
+    // MARK: - Private Types
+
+    // MARK: - Public Properties
+
+    var viewModel: CardModel
+
+    // MARK: - View
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Content
+            if let contentViewModel = viewModel.content {
+                switch contentViewModel {
+                case let priceCardModel as CardModelCardContentBitcoinPrice:
+                    CardContentBitcoinPrice(viewModel: priceCardModel)
+                default:
+                    fatalError("Unexpected card content model \(viewModel)")
+                }
+            }
+        }
+        .padding(style: viewModel.style, hasContent: true)
     }
 
 }

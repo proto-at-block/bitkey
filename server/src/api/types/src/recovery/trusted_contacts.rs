@@ -6,15 +6,10 @@ use thiserror::Error;
 pub struct TrustedContactInfo {
     #[serde(rename = "trusted_contact_alias")]
     pub alias: String,
-    #[serde(rename = "trusted_contact_roles", default = "default_roles")]
+    #[serde(rename = "trusted_contact_roles")]
     pub roles: Vec<TrustedContactRole>,
     #[serde(skip)]
     _phantom: PhantomData<()>,
-}
-
-// TODO: remove defaults after backfilling all existing data
-fn default_roles() -> Vec<TrustedContactRole> {
-    vec![TrustedContactRole::SocialRecoveryContact]
 }
 
 impl TrustedContactInfo {
@@ -33,7 +28,7 @@ impl TrustedContactInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TrustedContactRole {
     Beneficiary,

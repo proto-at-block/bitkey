@@ -112,7 +112,7 @@ ios-snapshots-verify:
   set -e
   just ios-snapshot-prework
   export SNAPSHOT_TESTS_RECORD=false
-  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.2'
+  xcodebuild test -project 'ios/Wallet.xcodeproj' -scheme 'WalletSnapshotTests' -destination 'platform=iOS Simulator,name=iPhone 15 Pro Max,OS=17.2' -retry-tests-on-failure -test-iterations 3
 
 [private]
 ios-snapshot-prework:

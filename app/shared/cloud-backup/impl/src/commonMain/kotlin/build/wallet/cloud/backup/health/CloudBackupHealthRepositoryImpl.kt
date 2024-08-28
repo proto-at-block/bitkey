@@ -16,12 +16,8 @@ import com.github.michaelbull.result.Result
 import com.github.michaelbull.result.fold
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.toErrorIfNull
-import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
@@ -60,31 +56,18 @@ class CloudBackupHealthRepositoryImpl(
    */
   private val syncLock = Mutex()
 
-  override suspend fun syncLoop(
-    scope: CoroutineScope,
-    account: FullAccount,
-  ) {
-    withContext(Dispatchers.IO) {
-      scope.launch {
-        // Perform sync whenever a sync is requested
-        syncRequests
-          // Only perform sync for the requested account as a safety measure.
-          .filter { it == account }
-          .collect {
-            performSync(account)
-          }
-      }
-
-      scope.launch {
-        appSessionManager.appSessionState
-          .collect {
-            if (appSessionManager.isAppForegrounded()) {
-              // send sync signal to request a sync
-              syncRequests.emit(account)
-            }
-          }
-      }
-    }
+  override suspend fun syncLoop(account: FullAccount) {
+    // Perform sync whenever a sync is requested or when the app
+    // enters the foreground.
+    combine(
+      syncRequests,
+      appSessionManager.appSessionState
+        .filter { appSessionManager.isAppForegrounded() }
+        .onStart { emit(appSessionManager.appSessionState.value) }
+    ) { requestedAccount, _ -> requestedAccount }
+      .onStart { emit(account) } // always perform an initial sync regardless of app state
+      .filter { it == account }
+      .collect(::performSync)
   }
 
   override fun requestSync(account: FullAccount) {

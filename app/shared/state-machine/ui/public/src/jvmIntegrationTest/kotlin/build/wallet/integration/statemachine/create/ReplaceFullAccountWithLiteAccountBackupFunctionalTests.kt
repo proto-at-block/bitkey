@@ -197,9 +197,9 @@ private suspend fun verifyAccountDataIsPreserved(
   // Expect the active full account ID and the lite account ID to match
   val onboardedAccount = onboardApp.getActiveFullAccount()
   onboardedAccount.accountId.serverId.shouldBe(liteAccount.accountId.serverId)
-  val socRecRelationships =
-    onboardApp.app.socRecRelationshipsRepository.syncAndVerifyRelationships(onboardedAccount)
-      .getOrThrow()
+  val socRecRelationships = onboardApp.app.appComponent.socRecService
+    .syncAndVerifyRelationships(onboardedAccount)
+    .getOrThrow()
   // Expect the protected customer to have been preserved
   socRecRelationships.protectedCustomers.shouldHaveSize(1)
   socRecRelationships.protectedCustomers.first().alias

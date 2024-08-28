@@ -1,14 +1,15 @@
 package build.wallet.statemachine.home.full
 
+import build.wallet.bitkey.keybox.FullAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.home.HomeUiBottomSheetDaoMock
 import build.wallet.home.HomeUiBottomSheetId
+import build.wallet.limit.MobilePayEnabledDataMock
+import build.wallet.limit.MobilePayServiceMock
 import build.wallet.money.currency.EUR
 import build.wallet.money.display.FiatCurrencyPreferenceRepositoryMock
-import build.wallet.platform.web.BrowserNavigator
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.mobilepay.MobilePayEnabledDataMock
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetProps
 import build.wallet.statemachine.home.full.bottomsheet.HomeUiBottomSheetStateMachineImpl
 import build.wallet.statemachine.ui.clickPrimaryButton
@@ -23,21 +24,24 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
 
   val homeUiBottomSheetDao = HomeUiBottomSheetDaoMock(turbines::create)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val mobilePayService = MobilePayServiceMock(turbines::create)
+
   val stateMachine = HomeUiBottomSheetStateMachineImpl(
     homeUiBottomSheetDao = homeUiBottomSheetDao,
-    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    mobilePayService = mobilePayService
   )
 
-  val disableMobilePayCalls = turbines.create<Unit>("disableMobilePay calls")
   val onShowSetSpendingLimitFlowCalls = turbines.create<Unit>("onShowSetSpendingLimitFlow calls")
   val props = HomeUiBottomSheetProps(
-    mobilePayData = MobilePayEnabledDataMock.copy(
-      disableMobilePay = { disableMobilePayCalls.add(Unit) }
-    ),
+    account = FullAccountMock,
     onShowSetSpendingLimitFlow = { onShowSetSpendingLimitFlowCalls.add(Unit) }
   )
 
   beforeTest {
+    mobilePayService.reset()
+
+    mobilePayService.mobilePayData.value = MobilePayEnabledDataMock
     fiatCurrencyPreferenceRepository.internalFiatCurrencyPreference.value = EUR
   }
 
@@ -63,10 +67,8 @@ class HomeUiBottomSheetStateMachineImplTests : FunSpec({
     stateMachine.test(props) {
       // Initial state
       awaitItem().shouldBeNull()
-      awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>().onLoaded(
-        BrowserNavigator {}
-      )
-      disableMobilePayCalls.awaitItem()
+      awaitItem().shouldNotBeNull().body.shouldBeTypeOf<FormBodyModel>().onLoaded()
+      mobilePayService.disableCalls.awaitItem()
     }
   }
 

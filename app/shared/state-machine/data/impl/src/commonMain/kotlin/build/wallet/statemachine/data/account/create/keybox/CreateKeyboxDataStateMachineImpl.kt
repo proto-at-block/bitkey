@@ -59,9 +59,7 @@ class CreateKeyboxDataStateMachineImpl(
                 onboardingAppKeyKeystore.persistAppKeys(
                   spendingKey = appKeyBundle.spendingKey,
                   globalAuthKey = appKeyBundle.authKey,
-                  recoveryAuthKey = requireNotNull(appKeyBundle.recoveryAuthKey) {
-                    "AppKeyBundle is missing PublicKey<AppRecoveryAuthKey>."
-                  },
+                  recoveryAuthKey = appKeyBundle.recoveryAuthKey,
                   bitcoinNetworkType = accountConfig.bitcoinNetworkType
                 )
                 state = HasAppKeysState(

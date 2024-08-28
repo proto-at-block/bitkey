@@ -146,7 +146,7 @@ struct ListItemContentView: View {
                         case let model as LabelModelStringWithStyledSubstringModel:
                             ModeledText(
                                 model: .standard(
-                                    .stringWithSubstring(model, font: .body2Regular),
+                                    .string(from: model, font: .body2Regular),
                                     font: .body2Regular
                                 )
                             )

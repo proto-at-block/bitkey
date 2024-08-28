@@ -1,6 +1,6 @@
 use prost::Message;
 
-use crate::errors::EncodeError;
+use crate::{errors::EncodeError, log_buffer::LogBuffer};
 use std::time::SystemTime;
 
 const WCA_CLA: u8 = 0x87;
@@ -97,10 +97,12 @@ fn get_timestamp() -> u32 {
 }
 
 fn build_cmd(msg: crate::fwpb::wallet_cmd::Msg) -> crate::fwpb::WalletCmd {
-    crate::fwpb::WalletCmd {
+    let cmd = crate::fwpb::WalletCmd {
         msg: Some(msg),
         timestamp: get_timestamp(),
-    }
+    };
+    LogBuffer::put(format!("{:?}", cmd));
+    cmd
 }
 
 adpu_from_proto!(DeriveKeyDescriptorAndSignCmd);
@@ -167,6 +169,8 @@ pub fn decode_and_check(
     response: apdu::Response,
 ) -> Result<crate::fwpb::WalletRsp, crate::errors::CommandError> {
     let message = crate::fwpb::WalletRsp::decode(std::io::Cursor::new(response.data))?;
+
+    LogBuffer::put(format!("{:?}", message));
 
     match crate::fwpb::Status::from_i32(message.status) {
         Some(crate::fwpb::Status::Unspecified) => Ok(message), // TODO(W-1211): This should be an error once all devices have firmware that supports this status code.

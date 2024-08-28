@@ -11,6 +11,7 @@ import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount
 import build.wallet.bitcoin.transactions.Psbt
 import com.github.michaelbull.result.Result
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Duration
 
@@ -46,7 +47,7 @@ interface WatchingWallet {
   fun launchPeriodicSync(
     scope: CoroutineScope,
     interval: Duration,
-  )
+  ): Job
 
   /**
    * Generates a new address for the wallet.

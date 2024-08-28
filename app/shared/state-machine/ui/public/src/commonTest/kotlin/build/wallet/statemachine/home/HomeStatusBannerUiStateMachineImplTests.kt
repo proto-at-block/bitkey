@@ -2,8 +2,8 @@ package build.wallet.statemachine.home
 
 import build.wallet.analytics.events.EventTrackerMock
 import build.wallet.analytics.v1.Action
+import build.wallet.availability.AppFunctionalityServiceFake
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProviderMock
 import build.wallet.availability.F8eUnreachable
 import build.wallet.availability.InactiveApp
 import build.wallet.availability.InternetUnreachable
@@ -22,11 +22,11 @@ import io.kotest.matchers.shouldBe
 import kotlinx.datetime.Instant
 
 class HomeStatusBannerUiStateMachineImplTests : FunSpec({
-  val appFunctionalityStatusProvider = AppFunctionalityStatusProviderMock()
+  val appFunctionalityService = AppFunctionalityServiceFake()
   val eventTracker = EventTrackerMock(turbines::create)
   val stateMachine =
     HomeStatusBannerUiStateMachineImpl(
-      appFunctionalityStatusProvider = appFunctionalityStatusProvider,
+      appFunctionalityService = appFunctionalityService,
       dateTimeFormatter = DateTimeFormatterMock(),
       timeZoneProvider = TimeZoneProviderMock(),
       clock = ClockFake(),
@@ -41,7 +41,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
     )
 
   beforeEach {
-    appFunctionalityStatusProvider.reset()
+    appFunctionalityService.reset()
   }
 
   test("Null when FullFunctionality") {
@@ -53,7 +53,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   test("Model when LimitedFunctionality - F8eUnreachable") {
     stateMachine.test(props) {
       awaitItem().shouldBeNull()
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause = F8eUnreachable(Instant.DISTANT_PAST)
         )
@@ -71,7 +71,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   test("Model when LimitedFunctionality - Inactive App") {
     stateMachine.test(props) {
       awaitItem().shouldBeNull()
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(cause = InactiveApp)
       )
 
@@ -90,7 +90,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   test("Model when LimitedFunctionality - InternetUnreachable") {
     stateMachine.test(props) {
       awaitItem().shouldBeNull()
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause =
             InternetUnreachable(
@@ -112,7 +112,7 @@ class HomeStatusBannerUiStateMachineImplTests : FunSpec({
   test("Model when LimitedFunctionality - Emergency Access Kit") {
     stateMachine.test(props) {
       awaitItem().shouldBeNull()
-      appFunctionalityStatusProvider.appFunctionalityStatusFlow.emit(
+      appFunctionalityService.status.emit(
         AppFunctionalityStatus.LimitedFunctionality(
           cause = build.wallet.availability.EmergencyAccessMode
         )

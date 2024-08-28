@@ -7,9 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import build.wallet.analytics.events.EventTracker
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_ACCEPT_INVITE_WITH_F8E
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_LOAD_KEY
-import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.TC_ENROLLMENT_RETRIEVE_INVITE_FROM_F8E
+import build.wallet.analytics.events.screen.id.SocialRecoveryEventTrackerScreenId.*
 import build.wallet.analytics.v1.Action
 import build.wallet.bitkey.relationships.DelegatedDecryptionKey
 import build.wallet.bitkey.relationships.IncomingInvitation
@@ -19,20 +17,12 @@ import build.wallet.crypto.PublicKey
 import build.wallet.logging.LogLevel
 import build.wallet.logging.log
 import build.wallet.platform.device.DeviceInfoProvider
-import build.wallet.recovery.socrec.AcceptInvitationCodeError
-import build.wallet.recovery.socrec.RetrieveInvitationCodeError
-import build.wallet.recovery.socrec.SocRecKeyError
-import build.wallet.recovery.socrec.SocRecKeysRepository
+import build.wallet.recovery.socrec.*
 import build.wallet.statemachine.core.LoadingBodyModel
 import build.wallet.statemachine.core.Retreat
 import build.wallet.statemachine.core.RetreatStyle
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.trustedcontact.model.AcceptingInviteWithF8eFailureBodyModel
-import build.wallet.statemachine.trustedcontact.model.AcceptingInviteWithF8eSuccessBodyModel
-import build.wallet.statemachine.trustedcontact.model.EnteringInviteCodeBodyModel
-import build.wallet.statemachine.trustedcontact.model.EnteringProtectedCustomerNameBodyModel
-import build.wallet.statemachine.trustedcontact.model.LoadKeyFailureBodyModel
-import build.wallet.statemachine.trustedcontact.model.RetrievingInviteWithF8eFailureBodyModel
+import build.wallet.statemachine.trustedcontact.model.*
 import build.wallet.ui.model.StandardClick
 import build.wallet.ui.model.button.ButtonModel
 import com.github.michaelbull.result.onFailure
@@ -42,6 +32,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
   private val socRecKeysRepository: SocRecKeysRepository,
   private val deviceInfoProvider: DeviceInfoProvider,
   private val eventTracker: EventTracker,
+  private val socRecService: SocRecService,
 ) : TrustedContactEnrollmentUiStateMachine {
   @Composable
   override fun model(props: TrustedContactEnrollmentUiProps): ScreenModel {
@@ -75,7 +66,7 @@ class TrustedContactEnrollmentUiStateMachineImpl(
 
       is State.RetrievingInviteWithF8e -> {
         LaunchedEffect("retrieve-invitation") {
-          props.retrieveInvitation(inviteCode)
+          socRecService.retrieveInvitation(props.account, inviteCode)
             .onFailure {
               log(LogLevel.Debug) { "Failed to retrieve invite using code [$inviteCode]" }
               uiState =
@@ -141,12 +132,13 @@ class TrustedContactEnrollmentUiStateMachineImpl(
         )
 
       is State.AcceptingInviteWithF8e -> {
-        LaunchedEffect("retrieve-invitation") {
-          props.acceptInvitation(
-            state.invitation,
-            state.protectedCustomerAlias,
-            state.delegatedDecryptionKey,
-            inviteCode
+        LaunchedEffect("accept-invitation") {
+          socRecService.acceptInvitation(
+            account = props.account,
+            invitation = state.invitation,
+            protectedCustomerAlias = state.protectedCustomerAlias,
+            delegatedDecryptionKey = state.delegatedDecryptionKey,
+            inviteCode = inviteCode
           ).onFailure {
             uiState =
               State.AcceptingInviteWithF8eFailure(

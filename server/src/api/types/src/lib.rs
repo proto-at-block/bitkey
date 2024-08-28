@@ -16,3 +16,5 @@ pub mod privileged_action;
 pub mod recovery;
 #[cfg(feature = "serde")]
 pub mod serde;
+#[cfg(feature = "time")]
+pub mod time;

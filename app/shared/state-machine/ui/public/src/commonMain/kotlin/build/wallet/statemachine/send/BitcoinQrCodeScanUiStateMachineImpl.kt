@@ -1,32 +1,24 @@
 package build.wallet.statemachine.send
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import build.wallet.bitcoin.address.BitcoinAddress
 import build.wallet.bitcoin.invoice.BitcoinInvoice
 import build.wallet.bitcoin.invoice.ParsedPaymentData
-import build.wallet.bitcoin.invoice.ParsedPaymentData.BIP21
-import build.wallet.bitcoin.invoice.ParsedPaymentData.Lightning
-import build.wallet.bitcoin.invoice.ParsedPaymentData.Onchain
+import build.wallet.bitcoin.invoice.ParsedPaymentData.*
 import build.wallet.bitcoin.invoice.PaymentDataParser
+import build.wallet.bitcoin.transactions.TransactionsService
 import build.wallet.bitcoin.wallet.SpendingWallet
 import build.wallet.statemachine.core.ButtonDataModel
 import build.wallet.statemachine.core.ErrorFormBodyModel
 import build.wallet.statemachine.core.ScreenModel
-import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.ScanningQrCodeUiState
-import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.SelfSendErrorUiState
-import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.UnrecognizedErrorUiState
+import build.wallet.statemachine.send.BitcoinQrCodeScanUiState.*
 import com.github.michaelbull.result.get
 import com.github.michaelbull.result.onFailure
 import com.github.michaelbull.result.onSuccess
 
 class BitcoinQrCodeScanUiStateMachineImpl(
   private val paymentDataParser: PaymentDataParser,
+  private val transactionsService: TransactionsService,
 ) : BitcoinQrCodeUiScanStateMachine {
   @Composable
   override fun model(props: BitcoinQrCodeScanUiProps): ScreenModel {
@@ -40,12 +32,16 @@ class BitcoinQrCodeScanUiStateMachineImpl(
       }
     }
 
+    val spendingWallet = remember { transactionsService.spendingWallet() }
+      .collectAsState()
+      .value
+
     var paymentDataToHandle: ParsedPaymentData? by remember { mutableStateOf(null) }
-    paymentDataToHandle?.let { paymentData ->
-      LaunchedEffect("handling-payment-data", paymentData) {
+    if (paymentDataToHandle != null && spendingWallet != null) {
+      LaunchedEffect("handling-payment-data", paymentDataToHandle) {
         handlePaymentDataCaptured(
-          spendingWallet = props.spendingWallet,
-          paymentData = paymentData,
+          spendingWallet = spendingWallet,
+          paymentData = requireNotNull(paymentDataToHandle),
           onInvalidAddressError = { state = UnrecognizedErrorUiState },
           onSelfSendError = { state = SelfSendErrorUiState },
           onInvoiceScanned = { invoice -> props.onInvoiceScanned(invoice) },

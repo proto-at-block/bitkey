@@ -19,7 +19,7 @@ data class FormHeaderModel(
   //  use sublineModel to show the wallet address the customer sends to. We redact this outright as
   //  a temporary measure, but should endeavor to build a better solution to redact without
   //  affecting a generic model like FormHeaderModel
-  @Redacted val sublineModel: LabelModel.StringWithStyledSubstringModel? = null,
+  @Redacted val sublineModel: LabelModel? = null,
   val sublineTreatment: SublineTreatment = REGULAR,
   val alignment: Alignment = LEADING,
 ) {
@@ -62,17 +62,19 @@ data class FormHeaderModel(
   )
 
   constructor(
-    icon: Icon,
+    icon: Icon?,
     headline: String,
-    sublineModel: LabelModel.StringWithStyledSubstringModel? = null,
+    sublineModel: LabelModel? = null,
     sublineTreatment: SublineTreatment = REGULAR,
     alignment: Alignment = LEADING,
   ) : this(
-    iconModel = IconModel(
-      icon = icon,
-      iconSize = IconSize.Avatar,
-      iconTint = IconTint.Primary
-    ),
+    iconModel = icon?.let {
+      IconModel(
+        icon = icon,
+        iconSize = IconSize.Avatar,
+        iconTint = IconTint.Primary
+      )
+    },
     headline,
     sublineModel,
     sublineTreatment,

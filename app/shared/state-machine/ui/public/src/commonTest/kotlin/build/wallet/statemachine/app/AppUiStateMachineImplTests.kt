@@ -9,6 +9,8 @@ import build.wallet.bitkey.f8e.FullAccountIdMock
 import build.wallet.bitkey.factor.PhysicalFactor
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.bitkey.keybox.FullAccountConfigMock
+import build.wallet.bootstrap.AppState
+import build.wallet.bootstrap.LoadAppServiceFake
 import build.wallet.cloud.backup.CloudBackupV2WithLiteAccountMock
 import build.wallet.coroutines.turbine.turbines
 import build.wallet.debug.DebugOptions
@@ -26,15 +28,13 @@ import build.wallet.statemachine.core.SplashBodyModel
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.awaitScreenWithBodyModelMock
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.app.AppData
-import build.wallet.statemachine.data.app.AppData.AppLoadedData
-import build.wallet.statemachine.data.app.AppData.LoadingAppData
-import build.wallet.statemachine.data.app.AppDataStateMachine
 import build.wallet.statemachine.data.keybox.AccountData
+import build.wallet.statemachine.data.keybox.AccountData.CheckingActiveAccountData
 import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.GettingStartedData
+import build.wallet.statemachine.data.keybox.AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit
+import build.wallet.statemachine.data.keybox.AccountDataStateMachine
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.data.keybox.OnboardingKeyboxDataMock
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
 import build.wallet.statemachine.data.recovery.conflict.SomeoneElseIsRecoveringData
 import build.wallet.statemachine.data.recovery.inprogress.RecoveryInProgressData
 import build.wallet.statemachine.data.recovery.lostapp.LostAppRecoveryData
@@ -86,10 +86,11 @@ class AppUiStateMachineImplTests : FunSpec({
   val someoneElseIsRecoveringUiStateMachine =
     object : SomeoneElseIsRecoveringUiStateMachine,
       ScreenStateMachineMock<SomeoneElseIsRecoveringUiProps>(id = "someone-else-recovering") {}
-  val appDataStateMachine =
-    object : AppDataStateMachine, StateMachineMock<Unit, AppData>(
-      initialModel = LoadingAppData
+  val accountDataStateMachine =
+    object : AccountDataStateMachine, StateMachineMock<Unit, AccountData>(
+      initialModel = CheckingActiveAccountData
     ) {}
+  val loadAppService = LoadAppServiceFake()
   val gettingStartedRoutingStateMachine =
     object : GettingStartedRoutingStateMachine,
       ScreenStateMachineMock<GettingStartedRoutingProps>(id = "getting-started") {}
@@ -118,7 +119,9 @@ class AppUiStateMachineImplTests : FunSpec({
 
   // Fakes are stateful, need to reinitialize before each test to reset the state.
   beforeTest {
-    appDataStateMachine.reset()
+    loadAppService.reset()
+    loadAppService.appState.value = AppState.Undetermined
+    accountDataStateMachine.reset()
     stateMachine =
       AppUiStateMachineImpl(
         appVariant = AppVariant.Development,
@@ -136,7 +139,8 @@ class AppUiStateMachineImplTests : FunSpec({
         chooseAccountAccessUiStateMachine = object : ChooseAccountAccessUiStateMachine,
           ScreenStateMachineMock<ChooseAccountAccessUiProps>(id = "account-access") {},
         createAccountUiStateMachine = createAccountUiStateMachine,
-        appDataStateMachine = appDataStateMachine,
+        accountDataStateMachine = accountDataStateMachine,
+        loadAppService = loadAppService,
         noLongerRecoveringUiStateMachine = noLongerRecoveringUiStateMachine,
         someoneElseIsRecoveringUiStateMachine = someoneElseIsRecoveringUiStateMachine,
         gettingStartedRoutingStateMachine = gettingStartedRoutingStateMachine,
@@ -160,8 +164,8 @@ class AppUiStateMachineImplTests : FunSpec({
     )
   }
 
-  test("LoadingAppData") {
-    appDataStateMachine.emitModel(LoadingAppData)
+  test("Loading while checking for account data") {
+    accountDataStateMachine.emitModel(CheckingActiveAccountData)
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
       eventTracker.awaitSplashScreenEvent()
@@ -169,145 +173,142 @@ class AppUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test("AppLoadedData - ActiveKeyboxLoadedData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData = ActiveKeyboxLoadedDataMock
-      )
-    )
+  test("ActiveKeyboxLoadedData") {
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<HomeUiProps> {
         accountData.shouldBe(ActiveKeyboxLoadedDataMock)
       }
     }
   }
 
-  test("AppLoadedData - CreatingAccountData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData = AccountData.NoActiveAccountData.CreatingFullAccountData(
-          createFullAccountData = OnboardingKeyboxDataMock()
-        )
+  test("Loading until LoadAppService returns the state") {
+    loadAppService.appState.value = null
+
+    accountDataStateMachine.emitModel(ActiveKeyboxLoadedDataMock)
+    stateMachine.test(Unit) {
+      awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+      expectNoEvents()
+
+      loadAppService.appState.value = AppState.Undetermined
+
+      awaitScreenWithBodyModelMock<HomeUiProps> {
+        accountData.shouldBe(ActiveKeyboxLoadedDataMock)
+      }
+    }
+  }
+
+  test("CreatingAccountData") {
+    accountDataStateMachine.emitModel(
+      AccountData.NoActiveAccountData.CreatingFullAccountData(
+        createFullAccountData = OnboardingKeyboxDataMock()
       )
     )
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<CreateAccountUiProps>()
     }
   }
 
-  test("AppLoadedData - ReadyToChooseAccountAccessKeyboxData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData = GettingStartedData(
-          startFullAccountCreation = {},
-          startLiteAccountCreation = {},
-          startRecovery = {},
-          startEmergencyAccessRecovery = {},
-          isNavigatingBack = false,
-          resetExistingDevice = {}
+  test("ReadyToChooseAccountAccessKeyboxData") {
+    accountDataStateMachine.emitModel(
+      GettingStartedData(
+        startFullAccountCreation = {},
+        startLiteAccountCreation = {},
+        startRecovery = {},
+        startEmergencyAccessRecovery = {},
+        isNavigatingBack = false,
+        resetExistingDevice = {}
+      )
+    )
+    stateMachine.test(Unit) {
+      awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
+      awaitScreenWithBodyModelMock<ChooseAccountAccessUiProps>()
+    }
+  }
+
+  test("RecoveringKeyboxData") {
+    accountDataStateMachine.emitModel(
+      AccountData.NoActiveAccountData.RecoveringAccountData(
+        debugOptions = DebugOptions(
+          bitcoinNetworkType = SIGNET,
+          isHardwareFake = true,
+          f8eEnvironment = Development,
+          isUsingSocRecFakes = true,
+          isTestAccount = true
+        ),
+        lostAppRecoveryData = LostAppRecoveryData.LostAppRecoveryInProgressData(
+          recoveryInProgressData =
+            RecoveryInProgressData.WaitingForRecoveryDelayPeriodData(
+              factorToRecover = PhysicalFactor.Hardware,
+              delayPeriodStartTime = Instant.DISTANT_PAST,
+              delayPeriodEndTime = Instant.DISTANT_PAST,
+              cancel = {},
+              retryCloudRecovery = null
+            )
         )
       )
     )
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
-      awaitScreenWithBodyModelMock<ChooseAccountAccessUiProps>()
-    }
-  }
-
-  test("AppLoadedData - RecoveringKeyboxData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData =
-          AccountData.NoActiveAccountData.RecoveringAccountData(
-            debugOptions = DebugOptions(
-              bitcoinNetworkType = SIGNET,
-              isHardwareFake = true,
-              f8eEnvironment = Development,
-              isUsingSocRecFakes = true,
-              isTestAccount = true
-            ),
-            lostAppRecoveryData =
-              LostAppRecoveryData.LostAppRecoveryInProgressData(
-                recoveryInProgressData =
-                  RecoveryInProgressData.WaitingForRecoveryDelayPeriodData(
-                    factorToRecover = PhysicalFactor.Hardware,
-                    delayPeriodStartTime = Instant.DISTANT_PAST,
-                    delayPeriodEndTime = Instant.DISTANT_PAST,
-                    cancel = {},
-                    retryCloudRecovery = null
-                  )
-              )
-          )
-      )
-    )
-    stateMachine.test(Unit) {
-      awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<LostAppRecoveryUiProps>()
     }
   }
 
-  test("AppLoadedData - RecoveringLiteAccountData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData =
-          AccountData.NoActiveAccountData.RecoveringLiteAccountData(
-            cloudBackup = CloudBackupV2WithLiteAccountMock,
-            onAccountCreated = {},
-            onExit = {}
-          )
+  test("RecoveringLiteAccountData") {
+    accountDataStateMachine.emitModel(
+      AccountData.NoActiveAccountData.RecoveringLiteAccountData(
+        cloudBackup = CloudBackupV2WithLiteAccountMock,
+        onAccountCreated = {},
+        onExit = {}
       )
     )
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<LiteAccountCloudBackupRestorationUiProps>()
     }
   }
 
-  test("AppLoadedData - RecoveringAccountWithEmergencyAccessKit") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData =
-          AccountData.NoActiveAccountData.RecoveringAccountWithEmergencyAccessKit(
-            onExit = {}
-          )
+  test("RecoveringAccountWithEmergencyAccessKit") {
+    accountDataStateMachine.emitModel(
+      RecoveringAccountWithEmergencyAccessKit(
+        onExit = {}
       )
     )
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<EmergencyAccessKitRecoveryUiStateMachineProps>()
     }
   }
 
-  test("AppLoadedData - NoLongerRecoveringKeyboxData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData =
-          AccountData.NoLongerRecoveringFullAccountData(
-            data = NoLongerRecoveringData.ShowingNoLongerRecoveringData(App, {})
-          )
-      )
-    )
+  test("NoLongerRecoveringKeyboxData") {
+    accountDataStateMachine.emitModel(AccountData.NoLongerRecoveringFullAccountData(App))
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<NoLongerRecoveringUiProps>()
     }
   }
 
-  test("AppLoadedData - SomeoneElseIsRecoveringKeyboxData") {
-    appDataStateMachine.emitModel(
-      AppLoadedData(
-        accountData =
-          AccountData.SomeoneElseIsRecoveringFullAccountData(
-            data = SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {}),
-            fullAccountConfig = FullAccountConfigMock,
-            fullAccountId = FullAccountIdMock
-          )
+  test("SomeoneElseIsRecoveringKeyboxData") {
+    accountDataStateMachine.emitModel(
+      AccountData.SomeoneElseIsRecoveringFullAccountData(
+        data = SomeoneElseIsRecoveringData.ShowingSomeoneElseIsRecoveringData(App, {}),
+        fullAccountConfig = FullAccountConfigMock,
+        fullAccountId = FullAccountIdMock
       )
     )
     stateMachine.test(Unit) {
       awaitScreenWithBody<SplashBodyModel>()
+      eventTracker.awaitSplashScreenEvent()
       awaitScreenWithBodyModelMock<SomeoneElseIsRecoveringUiProps>()
     }
   }

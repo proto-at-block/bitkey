@@ -1,8 +1,8 @@
 package build.wallet.statemachine.settings
 
 import androidx.compose.runtime.*
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus
-import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
 import build.wallet.cloud.backup.CloudBackupHealthRepository
 import build.wallet.cloud.backup.health.MobileKeyBackupStatus
@@ -24,16 +24,13 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlin.reflect.KClass
 
 class SettingsListUiStateMachineImpl(
-  private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
+  private val appFunctionalityService: AppFunctionalityService,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
   private val coachmarkService: CoachmarkService,
 ) : SettingsListUiStateMachine {
   @Composable
   override fun model(props: SettingsListUiProps): SettingsBodyModel {
-    val appFunctionalityStatus =
-      remember {
-        appFunctionalityStatusProvider.appFunctionalityStatus(props.f8eEnvironment)
-      }.collectAsState(AppFunctionalityStatus.FullFunctionality).value
+    val appFunctionalityStatus by remember { appFunctionalityService.status }.collectAsState()
 
     return SettingsBodyModel(
       onBack = props.onBack,

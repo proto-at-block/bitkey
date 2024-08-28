@@ -1,11 +1,7 @@
 package build.wallet.ui.components.header
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -15,29 +11,28 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import build.wallet.statemachine.core.Icon
+import build.wallet.statemachine.core.LabelModel
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.BoldStyle
 import build.wallet.statemachine.core.LabelModel.StringWithStyledSubstringModel.SubstringStyle.ColorStyle
 import build.wallet.statemachine.core.ScreenColorMode
 import build.wallet.statemachine.core.form.FormHeaderModel
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.CENTER
 import build.wallet.statemachine.core.form.FormHeaderModel.Alignment.LEADING
-import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.MONO
-import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.REGULAR
-import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.SMALL
+import build.wallet.statemachine.core.form.FormHeaderModel.SublineTreatment.*
 import build.wallet.ui.components.icon.IconImage
 import build.wallet.ui.components.label.Label
 import build.wallet.ui.components.label.LabelTreatment
-import build.wallet.ui.components.label.LabelTreatment.Primary
-import build.wallet.ui.components.label.LabelTreatment.Secondary
-import build.wallet.ui.components.label.LabelTreatment.Unspecified
+import build.wallet.ui.components.label.LabelTreatment.*
 import build.wallet.ui.components.label.toWalletTheme
 import build.wallet.ui.compose.thenIf
 import build.wallet.ui.model.icon.IconModel
 import build.wallet.ui.model.icon.IconSize
+import build.wallet.ui.theme.WalletTheme
 import build.wallet.ui.tokens.LabelType
 import build.wallet.ui.tooling.PreviewWalletTheme
 
@@ -57,19 +52,47 @@ fun Header(
       model.sublineModel?.let {
         buildAnnotatedString {
           append(it.string)
-          it.styledSubstrings.forEach { styledSubstring ->
-            addStyle(
-              style =
-                when (val substringStyle = styledSubstring.style) {
-                  is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
-                  is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
-                },
-              start = styledSubstring.range.first,
-              end = styledSubstring.range.last + 1
-            )
+          when (it) {
+            is LabelModel.StringWithStyledSubstringModel ->
+              it.styledSubstrings.forEach { styledSubstring ->
+                addStyle(
+                  style =
+                    when (val substringStyle = styledSubstring.style) {
+                      is ColorStyle -> SpanStyle(color = substringStyle.color.toWalletTheme())
+                      is BoldStyle -> SpanStyle(fontWeight = FontWeight.W600)
+                    },
+                  start = styledSubstring.range.first, end = styledSubstring.range.last + 1
+                )
+              }
+            is LabelModel.LinkSubstringModel ->
+              it.linkedSubstrings.forEach { linkedSubstring ->
+                addStyle(
+                  style = SpanStyle(
+                    color = WalletTheme.colors.bitkeyPrimary,
+                    textDecoration = TextDecoration.Underline,
+                    fontWeight = FontWeight.W600
+                  ),
+                  start = linkedSubstring.range.first,
+                  end = linkedSubstring.range.last + 1
+                )
+              }
+            is LabelModel.StringModel -> Unit
           }
         }
       },
+    sublineOnClick = { index ->
+      model.sublineModel?.let {
+        when (it) {
+          is LabelModel.LinkSubstringModel ->
+            it.linkedSubstrings.forEach { link ->
+              if (link.range.contains(index)) {
+                link.onClick()
+              }
+            }
+          else -> Unit
+        }
+      }
+    },
     horizontalAlignment =
       when (model.alignment) {
         LEADING -> Alignment.Start
@@ -116,6 +139,7 @@ fun Header(
   iconModel: IconModel? = null,
   headline: String?,
   subline: AnnotatedString? = null,
+  sublineOnClick: ((Int) -> Unit)? = null,
   textAlignment: TextAlign = TextAlign.Start,
   horizontalAlignment: Alignment.Horizontal = Alignment.Start,
   headlineLabelColor: Color = Color.Unspecified,
@@ -139,6 +163,7 @@ fun Header(
     },
     headline = headline,
     subline = subline,
+    sublineOnClick = sublineOnClick,
     textAlignment = textAlignment,
     horizontalAlignment = horizontalAlignment,
     headlineLabelColor = headlineLabelColor,
@@ -159,6 +184,7 @@ fun Header(
   iconContent: @Composable () -> Unit,
   headline: String?,
   subline: AnnotatedString? = null,
+  sublineOnClick: ((Int) -> Unit)? = null,
   textAlignment: TextAlign = TextAlign.Start,
   horizontalAlignment: Alignment.Horizontal = Alignment.Start,
   headlineLabelColor: Color = Color.Unspecified,
@@ -195,7 +221,8 @@ fun Header(
           type = sublineLabelType,
           treatment = sublineLabelTreatment,
           alignment = textAlignment,
-          color = sublineLabelColor
+          color = sublineLabelColor,
+          onClick = sublineOnClick
         )
       }
     },

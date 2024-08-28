@@ -1,10 +1,11 @@
 package build.wallet.statemachine.moneyhome.lite
 
-import build.wallet.bitkey.relationships.ProtectedCustomer
 import build.wallet.bitkey.socrec.ProtectedCustomerFake
 import build.wallet.compose.collections.immutableListOf
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.f8e.socrec.SocRecRelationships
 import build.wallet.platform.web.InAppBrowserNavigatorMock
+import build.wallet.recovery.socrec.SocRecServiceMock
 import build.wallet.statemachine.ScreenStateMachineMock
 import build.wallet.statemachine.core.InAppBrowserModel
 import build.wallet.statemachine.core.awaitScreenWithBody
@@ -20,31 +21,28 @@ import build.wallet.statemachine.recovery.socrec.view.ViewingProtectedCustomerUi
 import build.wallet.statemachine.status.StatusBannerModelMock
 import build.wallet.ui.model.list.ListItemAccessory.ButtonAccessory
 import build.wallet.ui.model.toolbar.ToolbarAccessoryModel
-import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeTypeOf
 
 class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
+  val socRecService = SocRecServiceMock(turbines::create)
   val inAppBrowserNavigator = InAppBrowserNavigatorMock(turbines::create)
-  val stateMachine =
-    LiteMoneyHomeUiStateMachineImpl(
-      inAppBrowserNavigator = inAppBrowserNavigator,
-      viewingProtectedCustomerUiStateMachine =
-        object : ViewingProtectedCustomerUiStateMachine, ScreenStateMachineMock<ViewingProtectedCustomerProps>(
+  val stateMachine = LiteMoneyHomeUiStateMachineImpl(
+    socRecService = socRecService,
+    inAppBrowserNavigator = inAppBrowserNavigator,
+    viewingProtectedCustomerUiStateMachine =
+      object : ViewingProtectedCustomerUiStateMachine,
+        ScreenStateMachineMock<ViewingProtectedCustomerProps>(
           "protected-customer-detail"
         ) {},
-      helpingWithRecoveryUiStateMachine =
-        object : HelpingWithRecoveryUiStateMachine, ScreenStateMachineMock<HelpingWithRecoveryUiProps>(
-          "helping-with-recovery"
-        ) {}
-    )
+    helpingWithRecoveryUiStateMachine = object : HelpingWithRecoveryUiStateMachine,
+      ScreenStateMachineMock<HelpingWithRecoveryUiProps>(
+        "helping-with-recovery"
+      ) {}
+  )
 
-  val propsOnRemoveRelationshipCalls =
-    turbines.create<ProtectedCustomer>(
-      "props onRemoveRelationship call"
-    )
   val propsOnSettingsCalls = turbines.create<Unit>("props onSettings call")
   val onAcceptInvite = turbines.create<Unit>("props onAcceptInvite call")
   val propsOnUpgradeAccountCalls = turbines.create<Unit>("props onUpgradeAccount call")
@@ -54,18 +52,14 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
         HasActiveLiteAccountDataFake.copy(
           onUpgradeAccount = { propsOnUpgradeAccountCalls.add(Unit) }
         ),
-      protectedCustomers = immutableListOf(),
       homeStatusBannerModel = null,
-      onRemoveRelationship = {
-        propsOnRemoveRelationshipCalls.add(it)
-        Ok(Unit)
-      },
       onSettings = { propsOnSettingsCalls.add(Unit) },
       onAcceptInvite = { onAcceptInvite.add(Unit) }
     )
 
   beforeTest {
     inAppBrowserNavigator.reset()
+    socRecService.clear()
   }
 
   test("initially shows Money Home screen") {
@@ -86,11 +80,12 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test(
-    "protected customer tap shows bottom sheet and sheet button calls props remove relationship"
-  ) {
+  test("protected customer tap shows bottom sheet") {
     val protectedCustomer = ProtectedCustomerFake
-    stateMachine.test(props.copy(protectedCustomers = immutableListOf(protectedCustomer))) {
+    socRecService.relationships.value = SocRecRelationships.EMPTY.copy(
+      protectedCustomers = immutableListOf(protectedCustomer)
+    )
+    stateMachine.test(props) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)
       awaitScreenWithBody<LiteMoneyHomeBodyModel> {
@@ -101,9 +96,6 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
       }
 
       awaitScreenWithBodyModelMock<ViewingProtectedCustomerProps> {
-        onRemoveProtectedCustomer()
-        propsOnRemoveRelationshipCalls.awaitItem()
-          .shouldBe(protectedCustomer)
         onExit()
       }
 
@@ -111,10 +103,8 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
     }
   }
 
-  test(
-    "Accept Invite button calls invokes props"
-  ) {
-    stateMachine.test(props.copy(protectedCustomers = immutableListOf())) {
+  test("Accept Invite button calls invokes props") {
+    stateMachine.test(props) {
       // Showing Money Home, tap on first row (first protected customer)
       // of "Wallets you're Protecting" card (which is the first card)
       awaitScreenWithBody<LiteMoneyHomeBodyModel> {
@@ -127,7 +117,6 @@ class LiteMoneyHomeUiStateMachineImplTests : FunSpec({
       }
 
       onAcceptInvite.awaitItem()
-      cancelAndIgnoreRemainingEvents()
     }
   }
 

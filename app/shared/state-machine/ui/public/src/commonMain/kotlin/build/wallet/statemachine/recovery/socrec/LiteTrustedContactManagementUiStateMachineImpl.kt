@@ -38,9 +38,8 @@ class LiteTrustedContactManagementUiStateMachineImpl(
       State.ShowingProtectedCustomersList ->
         liteListingTrustedContactsUiStateMachine.model(
           LiteListingTrustedContactsUiProps(
+            account = props.accountData.account,
             onExit = props.onExit,
-            protectedCustomers = props.protectedCustomers,
-            onRemoveProtectedCustomer = props.actions::removeProtectedCustomer,
             onHelpWithRecovery = { protectedCustomer ->
               state =
                 State.HelpingWithRecovery(
@@ -62,8 +61,6 @@ class LiteTrustedContactManagementUiStateMachineImpl(
                 ),
               account = props.accountData.account,
               inviteCode = s.inviteCode,
-              acceptInvitation = props.actions::acceptInvitation,
-              retrieveInvitation = props.actions::retrieveInvitation,
               onDone = { state = State.ShowingProtectedCustomersList },
               screenPresentationStyle = ScreenPresentationStyle.Modal
             )

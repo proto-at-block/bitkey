@@ -2,12 +2,14 @@ package build.wallet.statemachine.send
 
 import app.cash.turbine.plusAssign
 import build.wallet.availability.NetworkReachability
-import build.wallet.bitcoin.balance.BitcoinBalance
 import build.wallet.bitcoin.balance.BitcoinBalanceFake
 import build.wallet.bitcoin.transactions.BitcoinTransactionSendAmount.SendAll
+import build.wallet.bitcoin.transactions.KeyboxTransactionsDataMock
+import build.wallet.bitcoin.transactions.TransactionsServiceFake
 import build.wallet.bitkey.factor.SigningFactor
 import build.wallet.compose.collections.emptyImmutableList
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.limit.MobilePayServiceMock
 import build.wallet.limit.MobilePaySpendingPolicyMock
 import build.wallet.money.BitcoinMoney
 import build.wallet.money.FiatMoney
@@ -19,7 +21,6 @@ import build.wallet.money.formatter.MoneyDisplayFormatterFake
 import build.wallet.statemachine.StateMachineMock
 import build.wallet.statemachine.core.awaitScreenWithBody
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.keybox.AccountData.HasActiveFullAccountData.ActiveFullAccountLoadedData
 import build.wallet.statemachine.data.keybox.ActiveKeyboxLoadedDataMock
 import build.wallet.statemachine.keypad.KeypadModel
 import build.wallet.statemachine.money.amount.MoneyAmountEntryModel
@@ -66,34 +67,38 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
 
   val spendingPolicy = MobilePaySpendingPolicyMock(turbines::create)
   val fiatCurrencyPreferenceRepository = FiatCurrencyPreferenceRepositoryMock(turbines::create)
+  val transactionsService = TransactionsServiceFake()
+  val mobilePayService = MobilePayServiceMock(turbines::create)
   val stateMachine = TransferAmountEntryUiStateMachineImpl(
     currencyConverter = CurrencyConverterFake(conversionRate = 3.3333),
     moneyCalculatorUiStateMachine = moneyCalculatorUiStateMachine,
     mobilePaySpendingPolicy = spendingPolicy,
     moneyDisplayFormatter = MoneyDisplayFormatterFake,
-    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository
+    fiatCurrencyPreferenceRepository = fiatCurrencyPreferenceRepository,
+    transactionsService = transactionsService,
+    mobilePayService = mobilePayService
   )
-
-  fun ActiveKeyboxLoadedFake(balance: BitcoinBalance): ActiveFullAccountLoadedData {
-    return ActiveKeyboxLoadedDataMock.copy(
-      transactionsData = ActiveKeyboxLoadedDataMock.transactionsData.copy(balance = balance)
-    )
-  }
 
   val onContinueClickCalls = turbines.create<ContinueTransferParams>("onContinueClick calls")
 
   val props =
     TransferAmountEntryUiProps(
       onBack = {},
-      accountData =
-        ActiveKeyboxLoadedFake(
-          balance = BitcoinBalanceFake(confirmed = bitcoinBalance)
-        ),
+      accountData = ActiveKeyboxLoadedDataMock,
       initialAmount = FiatMoney.usd(1.0),
       onContinueClick = { onContinueClickCalls += it },
       exchangeRates = emptyImmutableList(),
       f8eReachability = NetworkReachability.REACHABLE
     )
+
+  beforeTest {
+    transactionsService.reset()
+    mobilePayService.reset()
+
+    transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+      balance = BitcoinBalanceFake(confirmed = bitcoinBalance)
+    )
+  }
 
   afterTest {
     moneyCalculatorUiStateMachine.emitModel(defaultMoneyCalculatorModel)
@@ -108,13 +113,8 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
           .shouldBe(BTC)
       }
 
-      updateProps(
-        props.copy(
-          accountData =
-            ActiveKeyboxLoadedFake(
-              balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(10.0))
-            )
-        )
+      transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+        balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(10.0))
       )
 
       spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)
@@ -156,6 +156,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
       awaitScreenWithBody<TransferAmountBodyModel> {
         cardModel.shouldNotBeNull()
           .title
+          .shouldNotBeNull()
           .string
           .shouldBe("Send Max (balance minus fees)")
       }
@@ -190,6 +191,7 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
         // We should show smart bar
         cardModel.shouldNotBeNull()
           .title
+          .shouldNotBeNull()
           .string
           .shouldBe("Send Max (balance minus fees)")
       }
@@ -271,14 +273,11 @@ class TransferAmountEntryUiStateMachineImplTests : FunSpec({
     }
 
     test("Should not show smart bar when user has no balance") {
-      val zeroBalanceProps =
-        props.copy(
-          accountData =
-            ActiveKeyboxLoadedFake(
-              balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(0.0))
-            ),
-          initialAmount = FiatMoney.usd(0.0)
-        )
+      transactionsService.transactionsData.value = KeyboxTransactionsDataMock.copy(
+        balance = BitcoinBalanceFake(confirmed = BitcoinMoney.btc(0.0))
+      )
+
+      val zeroBalanceProps = props.copy(initialAmount = FiatMoney.usd(0.0))
 
       stateMachine.test(zeroBalanceProps) {
         spendingPolicy.getDailySpendingLimitStatusCalls.awaitItem().shouldBe(defaultSecondaryAmount)

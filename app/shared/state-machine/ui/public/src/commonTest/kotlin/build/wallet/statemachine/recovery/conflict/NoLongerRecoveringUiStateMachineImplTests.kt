@@ -2,93 +2,114 @@ package build.wallet.statemachine.recovery.conflict
 
 import build.wallet.bitkey.factor.PhysicalFactor.App
 import build.wallet.coroutines.turbine.turbines
+import build.wallet.db.DbQueryError
+import build.wallet.recovery.RecoveryDaoMock
 import build.wallet.statemachine.core.form.FormBodyModel
 import build.wallet.statemachine.core.test
-import build.wallet.statemachine.data.recovery.conflict.NoLongerRecoveringData
-import build.wallet.statemachine.ui.clickPrimaryButton
+import build.wallet.statemachine.ui.awaitUntilScreenModelWithBody
+import build.wallet.statemachine.ui.matchers.shouldBeLoading
+import build.wallet.statemachine.ui.matchers.shouldHaveText
+import build.wallet.statemachine.ui.matchers.shouldNotBeLoading
+import build.wallet.statemachine.ui.robots.click
+import com.github.michaelbull.result.Err
+import com.github.michaelbull.result.Ok
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.booleans.shouldBeFalse
-import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
-import io.kotest.matchers.types.shouldBeInstanceOf
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeTypeOf
 
 class NoLongerRecoveringUiStateMachineImplTests : FunSpec({
 
-  val stateMachine = NoLongerRecoveringUiStateMachineImpl()
+  val recoveryDao = RecoveryDaoMock(turbines::create)
+  val stateMachine = NoLongerRecoveringUiStateMachineImpl(recoveryDao)
 
-  val showingRecoveryAttemptCancellationDataOnAcknowledgeCalls =
-    turbines.create<Unit>(
-      "ShowingRecoveryAttemptCancellationData onAcknowledge calls"
-    )
-  val showingNoLongerRecoveringDataProps =
-    NoLongerRecoveringUiProps(
-      data =
-        NoLongerRecoveringData.ShowingNoLongerRecoveringData(
-          canceledRecoveryLostFactor = App,
-          onAcknowledge = { showingRecoveryAttemptCancellationDataOnAcknowledgeCalls.add(Unit) }
-        )
-    )
+  val props = NoLongerRecoveringUiProps(App)
 
-  val clearingLocalRecoveryDataProps =
-    NoLongerRecoveringUiProps(
-      data = NoLongerRecoveringData.ClearingLocalRecoveryData(App)
-    )
+  beforeTest {
+    recoveryDao.reset()
+  }
 
-  val clearingLocalRecoveryFailedDataRetryCalls =
-    turbines.create<Unit>(
-      "ClearingLocalRecoveryFailedData retry calls"
-    )
-  val clearingLocalRecoveryFailedDataRollbackCalls =
-    turbines.create<Unit>(
-      "ClearingLocalRecoveryFailedData rollback calls"
-    )
-  val clearingLocalRecoveryFailedDataProps =
-    NoLongerRecoveringUiProps(
-      data =
-        NoLongerRecoveringData.ClearingLocalRecoveryFailedData(
-          error = Error(),
-          cancelingRecoveryLostFactor = App,
-          rollback = { clearingLocalRecoveryFailedDataRollbackCalls.add(Unit) },
-          retry = { clearingLocalRecoveryFailedDataRetryCalls.add(Unit) }
-        )
-    )
+  test("cancel local recovery") {
+    stateMachine.test(props) {
+      awaitUntilScreenModelWithBody<FormBodyModel> {
+        bottomSheetModel.shouldBeNull()
 
-  test("ShowingRecoveryAttemptCancellationData") {
-    stateMachine.test(showingNoLongerRecoveringDataProps) {
-      val screen = awaitItem()
+        val formBody = body as FormBodyModel
+        formBody.run {
+          header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
+          primaryButton.shouldHaveText("Got it")
+          recoveryDao.clearCalls.expectNoEvents()
+          primaryButton.click()
+        }
+      }
 
-      screen.bottomSheetModel.shouldBeNull()
+      awaitUntilScreenModelWithBody<FormBodyModel> {
+        bottomSheetModel.shouldBeNull()
 
-      val body = screen.body.shouldBeInstanceOf<FormBodyModel>()
-      val primaryButton = body.primaryButton.shouldNotBeNull()
-      primaryButton.isLoading.shouldBeFalse()
-      primaryButton.onClick()
-      showingRecoveryAttemptCancellationDataOnAcknowledgeCalls.awaitItem()
+        val formBody = body as FormBodyModel
+        formBody.run {
+          header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
+          primaryButton.shouldBeLoading()
+        }
+      }
+
+      recoveryDao.clearCalls.awaitItem()
     }
   }
 
-  test("ClearingLocalRecoveryData") {
-    stateMachine.test(clearingLocalRecoveryDataProps) {
-      val screen = awaitItem()
+  test("fail to cancel local recovery and successfully retry") {
+    recoveryDao.clearCallResult = Err(DbQueryError(cause = null))
 
-      screen.bottomSheetModel.shouldBeNull()
+    stateMachine.test(props) {
+      awaitUntilScreenModelWithBody<FormBodyModel> {
+        bottomSheetModel.shouldBeNull()
+        val formBody = body as FormBodyModel
+        formBody.run {
+          header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
+          primaryButton.shouldHaveText("Got it")
+          recoveryDao.clearCalls.expectNoEvents()
+          primaryButton.click()
+        }
+      }
 
-      val body = screen.body.shouldBeInstanceOf<FormBodyModel>()
-      val primaryButton = body.primaryButton.shouldNotBeNull()
-      primaryButton.isLoading.shouldBeTrue()
-    }
-  }
+      awaitUntilScreenModelWithBody<FormBodyModel> {
+        bottomSheetModel.shouldBeNull()
+        val formBody = body as FormBodyModel
+        formBody.run {
+          header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
+          primaryButton.shouldBeLoading()
+        }
+      }
 
-  test("ClearingLocalRecoveryFailedData") {
-    stateMachine.test(clearingLocalRecoveryFailedDataProps) {
-      val screen = awaitItem()
-      val bottomSheet = screen.bottomSheetModel.shouldNotBeNull()
-      bottomSheet.onClosed()
-      clearingLocalRecoveryFailedDataRollbackCalls.awaitItem()
-      val bottomSheetBody = bottomSheet.body.shouldBeInstanceOf<FormBodyModel>()
-      bottomSheetBody.clickPrimaryButton()
-      clearingLocalRecoveryFailedDataRetryCalls.awaitItem()
+      recoveryDao.clearCalls.awaitItem()
+
+      awaitUntilScreenModelWithBody<FormBodyModel> {
+        val formBody = body as FormBodyModel
+        formBody.run {
+          header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
+          primaryButton.shouldNotBeLoading()
+        }
+
+        recoveryDao.clearCallResult = Ok(Unit)
+
+        val sheet = bottomSheetModel.shouldNotBeNull()
+        val body = sheet.body.shouldBeTypeOf<FormBodyModel>()
+        body.header.shouldNotBeNull().headline.shouldBe("We couldn’t clear the recovery")
+        body.primaryButton.shouldHaveText("Retry")
+        body.primaryButton.click()
+      }
+
+      awaitUntilScreenModelWithBody<FormBodyModel> {
+        bottomSheetModel.shouldBeNull()
+        val formBody = body as FormBodyModel
+        formBody.run {
+          header.shouldNotBeNull().headline.shouldBe("Your recovery attempt has been canceled.")
+          primaryButton.shouldBeLoading()
+        }
+      }
+
+      recoveryDao.clearCalls.awaitItem()
     }
   }
 })

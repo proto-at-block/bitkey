@@ -2,12 +2,16 @@ use database::{
     aws_sdk_dynamodb::{error::ProvideErrorMetadata, operation::get_item::GetItemOutput},
     ddb::{try_from_item, try_from_items, try_to_attribute_val, DDBService, DatabaseError},
 };
+use std::collections::HashMap;
 use types::{
     account::identifiers::AccountId,
     recovery::social::challenge::{SocialChallenge, SocialChallengeId},
 };
 
+use database::aws_sdk_dynamodb::types::AttributeValue;
 use serde::Serialize;
+use time::format_description::well_known::Rfc3339;
+use time::OffsetDateTime;
 use tracing::{event, instrument, Level};
 use types::recovery::social::relationship::{RecoveryRelationship, RecoveryRelationshipId};
 
@@ -339,7 +343,7 @@ impl Repository {
     }
 
     #[instrument(skip(self))]
-    pub async fn fetch_all_recovery_relationships(
+    pub async fn fetch_recovery_relationships_without_roles(
         &self,
     ) -> Result<Vec<RecoveryRelationship>, DatabaseError> {
         let table_name = self.get_table_name().await?;
@@ -354,6 +358,12 @@ impl Repository {
                 .client
                 .scan()
                 .table_name(table_name.clone())
+                .filter_expression("#type = :type AND attribute_not_exists(trusted_contact_roles)")
+                .expression_attribute_values(
+                    ":type",
+                    try_to_attribute_val("Relationship", database_object)?,
+                )
+                .expression_attribute_names("#type", "_SocialRecoveryRow_type")
                 .set_exclusive_start_key(exclusive_start_key.clone())
                 .send()
                 .await
@@ -388,6 +398,69 @@ impl Repository {
         }
 
         Ok(all_relationships)
+    }
+
+    #[instrument(skip(self))]
+    pub async fn fetch_invalid_relationships_before_date(
+        &self,
+        date: &OffsetDateTime,
+    ) -> Result<Vec<HashMap<String, AttributeValue>>, DatabaseError> {
+        let table_name = self.get_table_name().await?;
+        let database_object = self.get_database_object();
+
+        let mut exclusive_start_key = None;
+        let mut invalid_items = Vec::new();
+
+        let rfc3339_date = date
+            .format(&Rfc3339)
+            .map_err(|_| DatabaseError::DatetimeFormatError(database_object))?;
+
+        loop {
+            let item_output = self
+                .connection
+                .client
+                .scan()
+                .table_name(table_name.clone())
+                .filter_expression("created_at < :date AND #type = :type")
+                .expression_attribute_values(
+                    ":date",
+                    try_to_attribute_val(&rfc3339_date, database_object)?,
+                )
+                .expression_attribute_values(
+                    ":type",
+                    try_to_attribute_val("Relationship", database_object)?,
+                )
+                .expression_attribute_names("#type", "_SocialRecoveryRow_type")
+                .set_exclusive_start_key(exclusive_start_key.clone())
+                .send()
+                .await
+                .map_err(|err| {
+                    let service_err = err.into_service_error();
+                    event!(
+                        Level::ERROR,
+                        "Could not scan recovery relationships: {service_err:?} with message: {:?}",
+                        service_err.message()
+                    );
+                    DatabaseError::FetchError(database_object)
+                })?;
+
+            let items = item_output.items().to_owned();
+
+            for item in items {
+                if let Err(_) = try_from_item::<_, SocialRecoveryRow>(item.clone(), database_object)
+                {
+                    invalid_items.push(item);
+                }
+            }
+
+            if let Some(last_evaluated_key) = item_output.last_evaluated_key() {
+                exclusive_start_key = Some(last_evaluated_key.to_owned());
+            } else {
+                break;
+            }
+        }
+
+        Ok(invalid_items)
     }
 
     #[instrument(skip(self))]

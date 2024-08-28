@@ -1,13 +1,11 @@
 package build.wallet.statemachine.home.full
 
 import androidx.compose.runtime.*
+import build.wallet.availability.AppFunctionalityService
 import build.wallet.availability.AppFunctionalityStatus.LimitedFunctionality
-import build.wallet.availability.AppFunctionalityStatusProvider
 import build.wallet.availability.FunctionalityFeatureStates.FeatureState.Available
-import build.wallet.availability.InactiveApp
-import build.wallet.bitkey.account.FullAccount
 import build.wallet.cloud.backup.CloudBackupHealthRepository
-import build.wallet.f8e.socrec.SocRecRelationships
+import build.wallet.limit.MobilePayService
 import build.wallet.money.display.FiatCurrencyPreferenceRepository
 import build.wallet.partnerships.PartnerId
 import build.wallet.partnerships.PartnerRedirectionMethod
@@ -15,8 +13,6 @@ import build.wallet.partnerships.PartnershipEvent
 import build.wallet.partnerships.PartnershipTransactionId
 import build.wallet.platform.links.DeepLinkHandler
 import build.wallet.platform.web.InAppBrowserNavigator
-import build.wallet.recovery.socrec.SocRecProtectedCustomerActions
-import build.wallet.recovery.socrec.SocRecRelationshipsRepository
 import build.wallet.router.Route
 import build.wallet.router.Router
 import build.wallet.statemachine.core.*
@@ -43,7 +39,8 @@ import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiProps
 import build.wallet.statemachine.trustedcontact.TrustedContactEnrollmentUiStateMachine
 import build.wallet.time.TimeZoneProvider
 import build.wallet.ui.model.status.StatusBannerModel
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.datetime.toLocalDateTime
 
@@ -58,13 +55,13 @@ class HomeUiStateMachineImpl(
   private val setSpendingLimitUiStateMachine: SetSpendingLimitUiStateMachine,
   private val trustedContactEnrollmentUiStateMachine: TrustedContactEnrollmentUiStateMachine,
   private val expectedTransactionNoticeUiStateMachine: ExpectedTransactionNoticeUiStateMachine,
-  private val socRecRelationshipsRepository: SocRecRelationshipsRepository,
   private val cloudBackupHealthRepository: CloudBackupHealthRepository,
-  private val appFunctionalityStatusProvider: AppFunctionalityStatusProvider,
+  private val appFunctionalityService: AppFunctionalityService,
   private val inAppBrowserNavigator: InAppBrowserNavigator,
   private val deepLinkHandler: DeepLinkHandler,
   private val clock: Clock,
   private val timeZoneProvider: TimeZoneProvider,
+  private val mobilePayService: MobilePayService,
 ) : HomeUiStateMachine {
   @Composable
   override fun model(props: HomeUiProps): ScreenModel {
@@ -77,13 +74,7 @@ class HomeUiStateMachineImpl(
       )
     }
 
-    val appFunctionalityStatus =
-      remember {
-        appFunctionalityStatusProvider
-          .appFunctionalityStatus(
-            props.accountData.account.config.f8eEnvironment
-          )
-      }.collectAsState(LimitedFunctionality(InactiveApp)).value
+    val appFunctionalityStatus = remember { appFunctionalityService.status }.collectAsState().value
 
     LaunchedEffect("deep-link-routing") {
       Router.onRouteChange { route ->
@@ -119,7 +110,7 @@ class HomeUiStateMachineImpl(
       homeUiBottomSheetStateMachine.model(
         props =
           HomeUiBottomSheetProps(
-            mobilePayData = props.accountData.mobilePayData,
+            account = props.accountData.account,
             onShowSetSpendingLimitFlow = {
               uiState = uiState.copy(presentedScreen = SetSpendingLimit)
             }
@@ -141,7 +132,9 @@ class HomeUiStateMachineImpl(
     // Update bottom sheet for currency changes which affect Mobile Pay
     // Set up an effect to set or clear the bottom sheet alert when Mobile Pay is enabled
     val fiatCurrency by fiatCurrencyPreferenceRepository.fiatCurrencyPreference.collectAsState()
-    val mobilePayData = props.accountData.mobilePayData
+    val mobilePayData = remember { mobilePayService.mobilePayData }
+      .collectAsState()
+      .value
     LaunchedEffect("set-or-clear-bottom-sheet", fiatCurrency) {
       // TODO(W-8080): implement as a worker
       currencyChangeMobilePayBottomSheetUpdater.setOrClearHomeUiBottomSheet(
@@ -154,17 +147,12 @@ class HomeUiStateMachineImpl(
       SyncCloudBackupHealthEffect(props)
     }
 
-    val socRecRelationships = SyncRelationshipsEffect(props.accountData.account)
-    val socRecActions = socRecRelationshipsRepository.toActions(props.accountData.account)
-
     return when (val presentedScreen = uiState.presentedScreen) {
       null ->
         when (val rootScreen = uiState.rootScreen) {
           is MoneyHome ->
             MoneyHomeScreenModel(
               props = props,
-              socRecRelationships = socRecRelationships,
-              socRecActions = socRecActions,
               homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
               onSettingsButtonClicked = {
@@ -179,8 +167,6 @@ class HomeUiStateMachineImpl(
           Settings ->
             SettingsScreenModel(
               props = props,
-              socRecRelationships = socRecRelationships,
-              socRecActions = socRecActions,
               homeBottomSheetModel = homeBottomSheetModel,
               homeStatusBannerModel = homeStatusBannerModel,
               onBack = {
@@ -215,8 +201,6 @@ class HomeUiStateMachineImpl(
                 ),
               account = props.accountData.account,
               inviteCode = presentedScreen.inviteCode,
-              acceptInvitation = socRecActions::acceptInvitation,
-              retrieveInvitation = socRecActions::retrieveInvitation,
               onDone = {
                 uiState = uiState.copy(presentedScreen = null)
               },
@@ -273,8 +257,6 @@ class HomeUiStateMachineImpl(
   @Composable
   private fun MoneyHomeScreenModel(
     props: HomeUiProps,
-    socRecRelationships: SocRecRelationships,
-    socRecActions: SocRecProtectedCustomerActions,
     homeBottomSheetModel: SheetModel?,
     homeStatusBannerModel: StatusBannerModel?,
     onSettingsButtonClicked: () -> Unit,
@@ -284,8 +266,6 @@ class HomeUiStateMachineImpl(
     props =
       MoneyHomeUiProps(
         accountData = props.accountData,
-        socRecRelationships = socRecRelationships,
-        socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel,
         onSettings = onSettingsButtonClicked,
@@ -303,24 +283,12 @@ class HomeUiStateMachineImpl(
   )
 
   @Composable
-  private fun SyncRelationshipsEffect(account: FullAccount): SocRecRelationships {
-    LaunchedEffect(account) {
-      // TODO: W-9117 - migrate to app worker pattern
-      socRecRelationshipsRepository.syncLoop(scope = this, account)
-    }
-
-    return remember {
-      socRecRelationshipsRepository
-        .relationships
-        .filterNotNull()
-    }.collectAsState(SocRecRelationships.EMPTY).value
-  }
-
-  @Composable
   private fun SyncCloudBackupHealthEffect(props: HomeUiProps) {
     LaunchedEffect("sync-cloud-backup-health") {
       // TODO: W-9117 - migrate to app worker pattern
-      cloudBackupHealthRepository.syncLoop(scope = this, account = props.accountData.account)
+      withContext(Dispatchers.Default) {
+        cloudBackupHealthRepository.syncLoop(account = props.accountData.account)
+      }
     }
   }
 
@@ -330,15 +298,11 @@ class HomeUiStateMachineImpl(
     homeBottomSheetModel: SheetModel?,
     homeStatusBannerModel: StatusBannerModel?,
     onBack: () -> Unit,
-    socRecRelationships: SocRecRelationships,
-    socRecActions: SocRecProtectedCustomerActions,
   ) = settingsHomeUiStateMachine.model(
     props =
       SettingsHomeUiProps(
         onBack = onBack,
         accountData = props.accountData,
-        socRecRelationships = socRecRelationships,
-        socRecActions = socRecActions,
         homeBottomSheetModel = homeBottomSheetModel,
         homeStatusBannerModel = homeStatusBannerModel
       )
